@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,12 +30,12 @@
 #include <sys/types.h>
 
 #include "binary_log_types.h"
+#include "extra/regex/my_regex.h" // my_regex_t
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_regex.h"        // my_regex_t
 #include "my_sys.h"
 #include "my_table_map.h"
 #include "my_time.h"
@@ -789,14 +796,17 @@ public:
 class Item_func_equal final : public Item_bool_rowready_func2
 {
 public:
-  Item_func_equal(Item *a,Item *b) :Item_bool_rowready_func2(a,b) {};
+  Item_func_equal(Item *a,Item *b) :Item_bool_rowready_func2(a,b)
+  {
+    null_on_null= false;
+  }
   Item_func_equal(const POS &pos, Item *a,Item *b)
     : Item_bool_rowready_func2(pos, a,b)
-  {};
-
+  {
+    null_on_null= false;
+  }
   longlong val_int() override;
   bool resolve_type(THD *thd) override;
-  table_map not_null_tables() const override { return 0; }
   enum Functype functype() const override { return EQUAL_FUNC; }
   enum Functype rev_functype() const override { return EQUAL_FUNC; }
   cond_result eq_cmp_result() const override { return COND_TRUE; }
@@ -1050,12 +1060,20 @@ class Item_func_coalesce : public Item_func_numhybrid
 protected:
   Item_func_coalesce(const POS &pos, Item *a, Item *b)
     : Item_func_numhybrid(pos, a, b)
-  {}
+  {
+    null_on_null= false;
+  }
   Item_func_coalesce(const POS &pos, Item *a)
     : Item_func_numhybrid(pos, a)
-  {}
+  {
+    null_on_null= false;
+  }
 public:
-  Item_func_coalesce(const POS &pos, PT_item_list *list);
+  Item_func_coalesce(const POS &pos, PT_item_list *list)
+    : Item_func_numhybrid(pos, list)
+  {
+    null_on_null= false;
+  }
   double real_op() override;
   longlong int_op() override;
   String *str_op(String *) override;
@@ -1071,7 +1089,6 @@ public:
   void set_numeric_type() override {}
   enum Item_result result_type() const override { return hybrid_type; }
   const char *func_name() const override { return "coalesce"; }
-  table_map not_null_tables() const override { return 0; }
 };
 
 
@@ -1118,10 +1135,14 @@ class Item_func_if final : public Item_func
 public:
   Item_func_if(Item *a,Item *b,Item *c)
     :Item_func(a,b,c), cached_result_type(INT_RESULT)
-  {}
+  {
+    null_on_null= false;
+  }
   Item_func_if(const POS &pos, Item *a,Item *b,Item *c)
     :Item_func(pos, a,b,c), cached_result_type(INT_RESULT)
-  {}
+  {
+    null_on_null= false;
+  }
 
   double val_real() override;
   longlong val_int() override;
@@ -1146,7 +1167,9 @@ class Item_func_nullif final : public Item_bool_func2
 public:
   Item_func_nullif(const POS &pos, Item *a, Item *b)
     :Item_bool_func2(pos, a, b), cached_result_type(INT_RESULT)
-  {}
+  {
+    null_on_null= false;
+  }
   double val_real() override;
   longlong val_int() override;
   String *val_str(String *str) override;
@@ -1163,7 +1186,6 @@ public:
     Item_func::print(str, query_type);
   }
 
-  table_map not_null_tables() const override { return 0; }
   bool is_null() override;
 };
 
@@ -1630,6 +1652,7 @@ public:
     : super(pos), first_expr_num(-1), else_expr_num(-1),
     cached_result_type(INT_RESULT), left_result_type(INT_RESULT), case_item(0)
   {
+    null_on_null= false;
     ncases= list.elements;
     if (first_expr_arg)
     {
@@ -1654,7 +1677,6 @@ public:
   bool fix_fields(THD *thd, Item **ref) override;
   bool resolve_type(THD *) override;
   uint decimal_precision() const override;
-  table_map not_null_tables() const override { return 0; }
   enum Item_result result_type() const override { return cached_result_type; }
   const char *func_name() const override { return "case"; }
   void print(String *str, enum_query_type query_type) override;
@@ -1827,9 +1849,14 @@ class Item_func_isnull : public Item_bool_func
 protected:
   longlong cached_value;
 public:
-  Item_func_isnull(Item *a) :Item_bool_func(a) {}
-  Item_func_isnull(const POS &pos, Item *a) :Item_bool_func(pos, a) {}
-
+  Item_func_isnull(Item *a) :Item_bool_func(a)
+  {
+    null_on_null= false;
+  }
+  Item_func_isnull(const POS &pos, Item *a) :Item_bool_func(pos, a)
+  {
+    null_on_null= false;
+  }
   longlong val_int() override;
   enum Functype functype() const override { return ISNULL_FUNC; }
   bool resolve_type(THD *thd) override;
@@ -1841,7 +1868,6 @@ public:
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table) override;
-  table_map not_null_tables() const override { return 0; }
   optimize_type select_optimize() const override { return OPTIMIZE_NULL; }
   Item *neg_transformer(THD *thd) override;
   const CHARSET_INFO *compare_collation() const override
@@ -1962,35 +1988,6 @@ public:
 };
 
 
-class Item_func_regex final : public Item_bool_func
-{
-  my_regex_t preg;
-  bool regex_compiled;
-  bool regex_is_const;
-  String prev_regexp;
-  DTCollation cmp_collation;
-  const CHARSET_INFO *regex_lib_charset;
-  int regex_lib_flags;
-  String conv;
-  int regcomp(bool send_error);
-public:
-  Item_func_regex(const POS &pos, Item *a,Item *b) :Item_bool_func(pos, a,b),
-    regex_compiled(0),regex_is_const(0) {}
-  void cleanup() override;
-  longlong val_int() override;
-  bool fix_fields(THD *thd, Item **ref) override;
-  const char *func_name() const override { return "regexp"; }
-
-  void print(String *str, enum_query_type query_type) override
-  {
-    print_op(str, query_type);
-  }
-
-  const CHARSET_INFO *compare_collation() const override
-  { return cmp_collation.collation; }
-};
-
-
 class Item_cond :public Item_bool_func
 {
   typedef Item_bool_func super;
@@ -2032,7 +2029,7 @@ public:
   void add_at_head(List<Item> *nlist)
   {
     DBUG_ASSERT(nlist->elements);
-    list.prepand(nlist);
+    list.prepend(nlist);
   }
 
   bool itemize(Parse_context *pc, Item **res) override;

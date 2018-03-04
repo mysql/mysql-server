@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -33,7 +41,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "hash0hash.h"
 #include "ut0byte.h"
 #include "page0types.h"
-#ifndef UNIV_HOTBACKUP
 #include "ut0rbt.h"
 #include "os0proc.h"
 #include "log0log.h"
@@ -97,10 +104,10 @@ extern	volatile bool	buf_pool_withdrawing; /*!< true when withdrawing buffer
 extern	volatile ulint	buf_withdraw_clock; /*!< the clock is incremented
 					every time a pointer to a page may
 					become obsolete */
-#else /* !UNIV_HOTBACKUP */
+#ifdef UNIV_HOTBACKUP
 extern buf_block_t*	back_block1;	/*!< first block, for --apply-log */
 extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */
-#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_HOTBACKUP */
 
 /** @brief States of a control block
 @see buf_page_t
@@ -269,12 +276,14 @@ UNIV_INLINE
 ulint
 buf_pool_get_n_pages(void);
 /*=======================*/
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
 @return oldest modification in pool, zero if none */
 lsn_t
 buf_pool_get_oldest_modification(void);
+#ifndef UNIV_HOTBACKUP
 /*==================================*/
 
 /********************************************************************//**
@@ -450,11 +459,10 @@ buf_page_create(
 @param[in]	page_size	page size
 @param[in,out]	block		block to init */
 void
-buf_page_init_for_backup_restore(
+meb_page_init(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	buf_block_t*		block);
-
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
@@ -620,6 +628,7 @@ UNIV_INLINE
 ulint
 buf_block_unfix(
 	buf_page_t*	bpage);
+#endif /* !UNIV_HOTBACKUP */
 /** Decrements the bufferfix count.
 @param[in,out]	block	block to bufferunfix
 @return	the remaining buffer-fix count */
@@ -628,6 +637,7 @@ ulint
 buf_block_unfix(
 	buf_block_t*	block);
 
+#ifndef UNIV_HOTBACKUP
 /** Unfixes the page, unlatches the page,
 removes it from page_hash and removes it from LRU.
 @param[in,out]	bpage	pointer to the block */
@@ -1030,8 +1040,7 @@ buf_block_t*
 buf_page_get_block(
 	buf_page_t*	bpage)
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_DEBUG
+# ifdef UNIV_DEBUG
 /*********************************************************************//**
 Gets a pointer to the memory frame of a block.
 @return pointer to the frame */
@@ -1041,15 +1050,17 @@ buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	MY_ATTRIBUTE((warn_unused_result));
-#else /* UNIV_DEBUG */
+# else /* UNIV_DEBUG */
+#  define buf_block_get_frame(block) (block)->frame
+# endif /* UNIV_DEBUG */
+#else /* !UNIV_HOTBACKUP */
 # define buf_block_get_frame(block) (block)->frame
-#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
 #define buf_block_get_page_zip(block) \
 	((block)->page.zip.data ? &(block)->page.zip : NULL)
-#ifndef UNIV_HOTBACKUP
 
 /** Get a buffer block from an adaptive hash index pointer.
 This function does not return if the block is not identified.
@@ -1058,6 +1069,7 @@ This function does not return if the block is not identified.
 buf_block_t*
 buf_block_from_ahi(const byte* ptr);
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Find out if a pointer belongs to a buf_block_t. It can be a pointer to
 the buf_block_t itself or a member of it
@@ -1394,7 +1406,6 @@ public:
 	/** Block state. @see buf_page_in_file */
 	buf_page_state	state;
 
-#ifndef UNIV_HOTBACKUP
 	unsigned	flush_type:2;	/*!< if this block is currently being
 					flushed to disk, this tells the
 					flush_type.
@@ -1405,7 +1416,6 @@ public:
 #  error "MAX_BUFFER_POOLS > 64; redefine buf_pool_index:6"
 # endif
 	/* @} */
-#endif /* !UNIV_HOTBACKUP */
 	page_zip_des_t	zip;		/*!< compressed page; zip.data
 					(but not the data it points to) is
 					protected by buf_pool->zip_mutex;
@@ -1416,6 +1426,7 @@ public:
 	buf_page_t*	hash;		/*!< node used in chaining to
 					buf_pool->page_hash or
 					buf_pool->zip_hash */
+#endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 	ibool		in_page_hash;	/*!< TRUE if in buf_pool->page_hash */
 	ibool		in_zip_hash;	/*!< TRUE if in buf_pool->zip_hash */
@@ -1499,6 +1510,7 @@ public:
 					the LRU list; used in
 					debugging */
 #endif /* UNIV_DEBUG */
+#ifndef UNIV_HOTBACKUP
 	unsigned	old:1;		/*!< TRUE if the block is in the old
 					blocks in buf_pool->LRU_old */
 	unsigned	freed_page_clock:31;/*!< the value of
@@ -1542,6 +1554,7 @@ struct buf_block_t{
 #ifndef UNIV_HOTBACKUP
 	BPageLock	lock;		/*!< read-write lock of the buffer
 					frame */
+#endif /* UNIV_HOTBACKUP */
 	UT_LIST_NODE_T(buf_block_t) unzip_LRU;
 					/*!< node of the decompressed LRU list;
 					a block is in the unzip_LRU list
@@ -1671,6 +1684,7 @@ struct buf_block_t{
 					block belongs to temporary tablespace
 					and block is always accessed by a
 					single thread. */
+#ifndef UNIV_HOTBACKUP
 	bool		skip_flush_check;
 					/*!< Skip check in buf_dblwr_check_block
 					during bulk load, protected by lock.*/
@@ -1683,13 +1697,35 @@ struct buf_block_t{
 					debug utilities in sync0rw */
 	/* @} */
 # endif
+#endif /* !UNIV_HOTBACKUP */
 	BPageMutex	mutex;		/*!< mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
 					and accessed; we introduce this new
 					mutex in InnoDB-5.1 to relieve
 					contention on the buffer pool mutex */
-#endif /* !UNIV_HOTBACKUP */
+
+	/** Get the page number of the current buffer block.
+	@return page number of the current buffer block. */
+	page_no_t get_page_no() const {
+		return(page.id.page_no());
+	}
+
+	/** Get the next page number of the current buffer block.
+	@return next page number of the current buffer block. */
+	page_no_t get_next_page_no() const {
+		return(mach_read_from_4(frame + FIL_PAGE_NEXT));
+	}
+
+	/** Get the page type of the current buffer block.
+	@return page type of the current buffer block. */
+	ulint get_page_type() const {
+		return(mach_read_from_2(frame + FIL_PAGE_TYPE));
+	}
+
+	/** Get the page type of the current buffer block as string.
+	@return page type of the current buffer block as string. */
+	const char* get_page_type_str() const;
 };
 
 /** Check if a buf_block_t object is in a valid state
@@ -1699,7 +1735,6 @@ struct buf_block_t{
 (buf_block_get_state(block) >= BUF_BLOCK_NOT_USED		\
  && (buf_block_get_state(block) <= BUF_BLOCK_REMOVE_HASH))
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Compute the hash fold value for blocks in buf_pool->zip_hash. */
 /* @{ */
@@ -2140,6 +2175,7 @@ operator<<(
 Use these instead of accessing buffer pool mutexes directly. */
 /* @{ */
 
+#ifndef UNIV_HOTBACKUP
 /** Test if flush list mutex is owned. */
 #define buf_flush_list_mutex_own(b) mutex_own(&(b)->flush_list_mutex)
 
@@ -2177,8 +2213,9 @@ Use these instead of accessing buffer pool mutexes directly. */
 
 # define buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id)\
 	hash_lock_x_confirm(hash_lock, (buf_pool)->page_hash, (page_id).fold())
+#endif /* !UNIV_HOTBACKUP */
 
-#ifdef UNIV_DEBUG
+#if defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
 /** Test if page_hash lock is held in s-mode. */
 # define buf_page_hash_lock_held_s(buf_pool, bpage)	\
 	rw_lock_own(buf_page_hash_lock_get((buf_pool), (bpage)->id), RW_LOCK_S)
@@ -2200,16 +2237,15 @@ Use these instead of accessing buffer pool mutexes directly. */
 
 # define buf_block_hash_lock_held_s_or_x(buf_pool, block)	\
 	buf_page_hash_lock_held_s_or_x((buf_pool), &(block)->page)
-#else /* UNIV_DEBUG */
+#else /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 # define buf_page_hash_lock_held_s(b, p)	(TRUE)
 # define buf_page_hash_lock_held_x(b, p)	(TRUE)
 # define buf_page_hash_lock_held_s_or_x(b, p)	(TRUE)
 # define buf_block_hash_lock_held_s(b, p)	(TRUE)
 # define buf_block_hash_lock_held_x(b, p)	(TRUE)
 # define buf_block_hash_lock_held_s_or_x(b, p)	(TRUE)
-#endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
-#endif /* !UNIV_HOTBACKUP */
 /* @} */
 
 /**********************************************************************
@@ -2257,6 +2293,7 @@ FILE_PAGE => NOT_USED	NOTE: This transition is allowed if and only if
 */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+#ifndef UNIV_HOTBACKUP
 /** Functor to validate the LRU list. */
 struct	CheckInLRUList {
 	void	operator()(const buf_page_t* elem) const
@@ -2298,6 +2335,7 @@ struct	CheckUnzipLRUAndLRUList {
 		ut_list_validate(buf_pool->unzip_LRU, check);
 	}
 };
+#endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG || defined UNIV_BUF_DEBUG */
 
 #include "buf0buf.ic"

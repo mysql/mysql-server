@@ -1,4 +1,5 @@
 ## This is test file for connection authentication using mysqlx.
+--source include/xplugin_create_user.inc
 eval CREATE USER nonblank@localhost
             IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'valid_password';
 
@@ -94,4 +95,5 @@ exec $MYSQLXTEST $USER_CIPHER
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
 
+--source include/xplugin_drop_user.inc
 DROP USER nonblank@localhost;

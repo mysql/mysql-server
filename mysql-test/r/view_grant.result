@@ -2704,3 +2704,46 @@ user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_ha
 DROP USER user_name_robert_golebiowski@oh_my_gosh_this_is_a_long_hostname_look_at_it_it_has_60_char;
 DROP VIEW silly_view;
 DROP TABLE silly_one;
+#
+# Bug #27094955 -- INCORRECT CHECKING FOR FILE PRIVILEGE IN CASE QUERY IS RUN AGAINST A VIEW
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+CREATE USER `u1`@`localhost`;
+CREATE USER `u2`@`localhost`;
+# Create a view for that a user specified as definer doesn't have the FILE privilege
+CREATE DEFINER=`u2`@`localhost` VIEW v1 AS SELECT a FROM t1;
+# Grant the FILE privilege to a user who will run the SELECT INTO OUTFILE against the view v1
+GRANT FILE ON *.* TO `u1`@`localhost`;
+connect  con1,localhost,u1,,;
+connection con1;
+# Run SELECT from a view with the clause "INTO OUTFILE".
+# Without the patch this query would failed with error ER_ACCESS_DENIED_ERROR.
+SELECT a INTO OUTFILE '<OUTFILE>'
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM v1;
+disconnect con1;
+connection default;
+1
+# Now revoke the privilege FILE from the user u1@localhost
+# in order to check that without this privilege the statement
+# "SELECT INTO OUTFILE .. FROM view" will fail. That is, check that
+# the privilege FILE is still taken into account during processing
+# when the clause INTO OUTFILE is specified.
+REVOKE FILE ON *.* FROM `u1`@`localhost`;
+connect  con1,localhost,u1,,;
+connection con1;
+# Check that querying from v1 with the clause INTO OUTFILE is failed in case
+# a user who running a query doesn't have the FILE privilege
+SELECT a INTO OUTFILE '<OUTFILE>'
+FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+FROM v1;
+ERROR 42000: Access denied; you need (at least one of) the FILE privilege(s) for this operation
+disconnect con1;
+connection default;
+DROP USER `u1`@`localhost`;
+DROP USER `u2`@`localhost`;
+DROP VIEW v1;
+DROP TABLE t1;

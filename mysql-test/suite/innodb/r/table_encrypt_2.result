@@ -1,7 +1,7 @@
-call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
 SET @@global.keyring_file_data="MYSQL_TMP_DIR/keyring";
 CREATE TABLE t1(c1 int) ENGINE=InnoDB ENCRYPTION="Y";
@@ -140,4 +140,27 @@ c1	c2
 3	NULL
 4	NULL
 DROP DATABASE tde_db;
+#
+# Bug #26634507  CREATE_OPTIONS FLD IN INFORMATION_SCHEMA.TABLES NOT
+# FILLING PROPERLY.
+# The CREATE_OPTIONS field from I_S.TABLES should show the option
+# 'ENCRYPTION='.
+#
+CREATE TABLE not_encrypted1 (col1 INT) ENCRYPTION='n';
+CREATE TABLE not_encrypted2 (col1 INT) ENCRYPTION='N';
+CREATE TABLE encrypted1 (col1 INT) ENCRYPTION='y';
+CREATE TABLE encrypted2 (col1 INT) ENCRYPTION='Y';
+SELECT TABLE_SCHEMA, TABLE_NAME, CREATE_OPTIONS
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_NAME like '%encrypted%'
+  ORDER BY TABLE_NAME;
+TABLE_SCHEMA	TABLE_NAME	CREATE_OPTIONS
+test	encrypted1	ENCRYPTION="y"
+test	encrypted2	ENCRYPTION="Y"
+test	not_encrypted1	ENCRYPTION="n"
+test	not_encrypted2	ENCRYPTION="N"
+DROP TABLE encrypted1;
+DROP TABLE not_encrypted1;
+DROP TABLE encrypted2;
+DROP TABLE not_encrypted2;
 SET GLOBAL innodb_file_per_table=1;

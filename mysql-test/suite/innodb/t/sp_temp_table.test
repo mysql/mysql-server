@@ -1,8 +1,9 @@
 --source include/big_test.inc
 
-# Temporarily skipping the test when log-bin is enabled in row
-# mode(default) due to Bug#22503696
---source include/not_log_bin.inc
+# Temporarily skipping the test when log-bin is enabled and binlog_format != ROW
+# due to Bug#22503696.
+--source include/not_binlog_format_mixed.inc
+--source include/not_binlog_format_statement.inc
 
 --echo #
 --echo # Bug #19306524 FAILING ASSERTION WITH TEMP TABLE FOR A PROCEDURE

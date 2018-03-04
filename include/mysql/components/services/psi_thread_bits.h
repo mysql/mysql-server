@@ -1,27 +1,34 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef COMPONENTS_SERVICES_PSI_THREAD_BITS_H
 #define COMPONENTS_SERVICES_PSI_THREAD_BITS_H
 
-#include "my_inttypes.h"
-#include "my_macros.h"
-#include "my_thread.h" /* my_thread_handle */
-#include "my_io.h"     /* sockaddr_storage */
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h> /* size_t */
+#endif
 
-C_MODE_START
+#include <mysql/components/services/my_thread_bits.h> /* my_thread_handle */
+#include <mysql/components/services/my_io_bits.h> /* sockaddr_storage */
 
 /**
   @file
@@ -84,7 +91,7 @@ struct PSI_thread_info_v1
     @sa PSI_FLAG_SINGLETON
     @sa PSI_FLAG_USER
   */
-  uint m_flags;
+  unsigned int m_flags;
   /** Volatility index. */
   int m_volatility;
   /** Documentation. */
@@ -125,7 +132,7 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
 */
 typedef struct PSI_thread *(*new_thread_v1_t)(PSI_thread_key key,
                                               const void *identity,
-                                              ulonglong thread_id);
+                                              unsigned long long thread_id);
 
 /**
   Assign a THD to an instrumented thread.
@@ -139,7 +146,7 @@ typedef void (*set_thread_THD_v1_t)(struct PSI_thread *thread, THD *thd);
   @param thread the instrumented thread
   @param id the id to assign
 */
-typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread, ulonglong id);
+typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread, unsigned long long id);
 
 /**
   Assign the current operating system thread id to an instrumented thread.
@@ -212,7 +219,7 @@ typedef void (*set_thread_state_v1_t)(const char *state);
   @param info the process into string
   @param info_len the process into string length
 */
-typedef void (*set_thread_info_v1_t)(const char *info, uint info_len);
+typedef void (*set_thread_info_v1_t)(const char *info, unsigned int info_len);
 
 /**
   Assign a resource group name to the current thread.
@@ -238,7 +245,7 @@ typedef int (*set_thread_resource_group_v1_t)(const char *group_name,
   return 0 if successful, 1 otherwise
 */
 typedef int (*set_thread_resource_group_by_id_v1_t)(PSI_thread *thread,
-                                                    ulonglong thread_id,
+                                                    unsigned long long thread_id,
                                                     const char *group_name,
                                                     int group_name_len,
                                                     void *user_data);
@@ -271,7 +278,7 @@ typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
     @retval  0        stored the attribute
 */
 typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
-                                             uint length,
+                                             unsigned int length,
                                              const void *from_cs);
 
 /**
@@ -279,8 +286,8 @@ typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer,
   @param [out] thread_internal_id The thread internal id
   @param [out] event_id The per thread event id.
 */
-typedef void (*get_thread_event_id_v1_t)(ulonglong *thread_internal_id,
-                                         ulonglong *event_id);
+typedef void (*get_thread_event_id_v1_t)(unsigned long long *thread_internal_id,
+                                         unsigned long long *event_id);
 
 /* Duplicate definitions to avoid dependency on mysql_com.h */
 #define PSI_USERNAME_LENGTH (32 * 3)
@@ -294,13 +301,13 @@ typedef void (*get_thread_event_id_v1_t)(ulonglong *thread_internal_id,
 struct PSI_thread_attrs_v1
 {
   /* PFS internal thread id, unique. */
-  ulonglong m_thread_internal_id;
+  unsigned long long m_thread_internal_id;
 
   /* SHOW PROCESSLIST thread id, not unique. */
-  ulong m_processlist_id;
+  unsigned long m_processlist_id;
 
   /* Operating system thread id, if any. */
-  ulonglong m_thread_os_id;
+  unsigned long long m_thread_os_id;
 
   /* User-defined data. */
   void *m_user_data;
@@ -374,7 +381,7 @@ typedef int (*get_thread_system_attrs_v1_t)(PSI_thread_attrs *thread_attrs);
   @return 0 if successful, 1 otherwise
 */
 typedef int (*get_thread_system_attrs_by_id_v1_t)(
-  PSI_thread *thread, ulonglong thread_id, PSI_thread_attrs *thread_attrs);
+  PSI_thread *thread, unsigned long long thread_id, PSI_thread_attrs *thread_attrs);
 /**
   Register callback functions for the Notification service.
   For best performance, set with_ref_count = false.
@@ -423,7 +430,5 @@ typedef void (*notify_session_change_user_v1_t)(PSI_thread *thread);
 typedef struct PSI_thread_info_v1 PSI_thread_info;
 
 /** @} (end of group psi_abi_thread) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_THREAD_BITS_H */

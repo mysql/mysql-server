@@ -135,7 +135,7 @@ DROP TABLE t1;
 --echo # Case 3: Test primary index & spatial index
 CREATE TABLE t1(
         seat_id    INT,
-        pos        POINT NOT NULL,
+        pos        POINT NOT NULL SRID 0,
         state      INT,
         PRIMARY KEY(seat_id),
         SPATIAL KEY(pos)

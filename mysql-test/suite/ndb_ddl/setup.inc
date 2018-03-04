@@ -136,6 +136,47 @@ INSERT INTO t7 VALUES
   (4,REPEAT('4b', 374),4,REPEAT('4d', 65534)),
   (5,REPEAT('5b', 375),5,REPEAT('5d', 65535));
 
+# hidden pk table
+eval
+CREATE TABLE t8 (
+  a INT,
+  b VARCHAR(255),
+  c DATETIME NOT NULL,
+  d INT UNSIGNED,
+  e INT NOT NULL
+)
+$t8_table_options
+engine=ndbcluster;
+
+INSERT INTO t8 VALUES
+  (1, "1-t8", '2017-10-20 09:13:01', NULL, 1),
+  (2, "2-t8", '2017-10-20 09:13:02', NULL, 2),
+  (3, "3-t8", '2017-10-20 09:13:03', NULL, 3),
+  (4, "4-t8", '2017-10-20 09:13:04', NULL, 4),
+  (5, "5-t8", '2017-10-20 09:13:05', NULL, 5);
+
+# hidden pk and blobs
+
+# ignore the warning about binlogging not supported on this table
+--disable_warnings ONCE
+eval
+CREATE TABLE t9 (
+  a INT,
+  b VARCHAR(255),
+  c TEXT,
+  d MEDIUMBLOB,
+  e INT NOT NULL
+)
+$t9_table_options
+engine=ndbcluster;
+
+INSERT INTO t9 VALUES
+  (1, "1-t9", REPEAT('1f', 41), REPEAT('1g', 31), 1),
+  (2, "2-t9", REPEAT('1f', 42), REPEAT('1g', 32), 2),
+  (3, "3-t9", REPEAT('1f', 43), REPEAT('1g', 33), 3),
+  (4, "4-t9", REPEAT('1f', 44), REPEAT('1g', 34), 4),
+  (5, "5-t9", REPEAT('1f', 45), REPEAT('1g', 35), 5);
+
 # Create a view on top of  ndbinfo.ndb$dict_obj_info (as otherwise
 # the dollar sign is evaluated as a dollar-variable and there seem
 # to be no way to escape it)

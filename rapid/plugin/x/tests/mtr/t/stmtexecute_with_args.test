@@ -5,6 +5,7 @@
 
 ## SETUP DB
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 CREATE DATABASE xtest;
 USE xtest;
 CREATE TABLE `scalar_types`(`number_uint` INTEGER UNSIGNED DEFAULT 10, `number_sint` INTEGER DEFAULT -10, `value_bool` BOOLEAN DEFAULT 0, `value_string` VARCHAR(255) default NULL, `number_float` FLOAT DEFAULT 1.1, `number_double` DOUBLE DEFAULT 2.2, `value_blob` TINYBLOB DEFAULT NULL);
@@ -241,17 +242,18 @@ EOF
 
 
 ## Test starts here
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_insert.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/stmtexecute_insert.tmp
 
 SELECT * FROM `xtest`.`scalar_types`;
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_invalid.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_invalid.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/stmtexecute_invalid.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;
 DROP DATABASE xtest;

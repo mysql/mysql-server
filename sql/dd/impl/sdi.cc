@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/sdi.h"
 
@@ -19,6 +26,7 @@
 #include <rapidjson/document.h>     // rapidjson::GenericValue
 #include <rapidjson/error/en.h>     // rapidjson::GetParseError_En
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWrite
+#include <rapidjson/stringbuffer.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -35,7 +43,6 @@
 #include "mysql_version.h"        // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "prealloced_array.h"
-#include "rapidjson/stringbuffer.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::Dictionary_client
 #include "sql/dd/impl/dictionary_impl.h" // dd::Dictionary_impl::get_target_dd_version
@@ -164,7 +171,6 @@ const String_type &lookup_schema_name(Sdi_wcontext *wctx)
   return *wctx->m_schema_name;
 }
 
-static constexpr std::uint64_t sdi_version= 1;
 template <typename T>
 String_type generic_serialize(THD *thd, const char *dd_object_type,
                               size_t dd_object_type_size, const T &dd_obj,
@@ -397,13 +403,6 @@ bool lookup_tablespace_ref(Sdi_rcontext *sdictx, const String_type &name,
   @{
 */
 
-Sdi_type serialize(const Schema &schema)
-{
-  return generic_serialize(nullptr, STRING_WITH_LEN("Schema"), schema,
-                           nullptr);
-}
-
-
 Sdi_type serialize(THD *thd, const Table &table,
                    const String_type &schema_name)
 {
@@ -496,11 +495,6 @@ generic_deserialize(THD *thd, const Sdi_type &sdi,
   }
 
   return false;
-}
-
-bool deserialize(THD *thd, const Sdi_type &sdi, Schema *dst_schema)
-{
-  return generic_deserialize(thd, sdi, "Schema", dst_schema);
 }
 
 bool deserialize(THD *thd, const Sdi_type &sdi, Table *dst_table,
@@ -633,55 +627,6 @@ using AR= dd::cache::Dictionary_client::Auto_releaser;
 
 namespace sdi {
 
-bool store(THD *thd, const Schema *sp)
-{
-  const Schema &s= ptr_as_cref(sp);
-  Sdi_type sdi= serialize(s);
-  if (sdi.empty())
-  {
-    return checked_return(true);
-  }
-
-  DC &dc= *thd->dd_client();
-  AR ar(&dc);
-
-  // This may actually be an update, so the schema need not be empty
-  typedef std::vector<const Abstract_table*> sc_type;
-  sc_type tables;
-  if (dc.fetch_schema_components(&s, &tables))
-  {
-    return checked_return(true);
-  }
-
-  for (const dd::Abstract_table *at : tables)
-  {
-    const Table *tbl= dynamic_cast<const Table*>(at);
-    if (!tbl)
-    {
-      continue;
-    }
-    const handlerton &hton= ptr_as_cref(resolve_hton(thd, *tbl));
-
-
-    // TODO DT: This will be sub-optimal as we may end up storing
-    // the updated SDI multiple times in the same tablespace if
-    // multiple tables in this schema are stored in the same tablespace.
-    // Maybe we need to track which tablespace ids we have stored the
-    // modified schema SDI for?
-    if (hton.sdi_set)
-    {
-      if (sdi_tablespace::store_sch_sdi(thd, hton, sdi, s, *tbl))
-      {
-        return checked_return(true);
-      }
-    }
-  }
-
-  // Finally, update SDI file
-  return checked_return(sdi_file::store_sch_sdi(sdi, s));
-}
-
-
 bool store(THD *thd, const Table *tp)
 {
   const Table &t= ptr_as_cref(tp);
@@ -721,12 +666,7 @@ bool store(THD *thd, const Tablespace *ts)
   {
     return checked_return(true);
   }
-  return checked_return(sdi_tablespace::store_tsp_sdi(thd, *hton, sdi, *ts));
-}
-
-bool drop(THD *, const Schema *sp)
-{
-  return checked_return(sdi_file::drop_sch_sdi(ptr_as_cref(sp)));
+  return checked_return(sdi_tablespace::store_tsp_sdi(*hton, sdi, *ts));
 }
 
 bool drop(THD *thd, const Table *tp)
@@ -745,19 +685,6 @@ bool drop(THD *thd, const Table *tp)
      });
 }
 
-
-bool drop_after_update(THD *, const Schema *old_sp,
-                       const Schema *new_sp)
-{
-  const Schema &old_s= ptr_as_cref(old_sp);
-  const Schema &new_s= ptr_as_cref(new_sp);
-
-  // Currently this test is not really necessary since the schema sdi
-  // file name cannot change.
-  return equal_prefix_chars_name(old_s, new_s,
-                                 sdi_file::FILENAME_PREFIX_CHARS) ?
-    false : checked_return(sdi_file::drop_sch_sdi(old_s));
-}
 
 bool drop_after_update(THD *thd, const Table *old_tp, const Table *new_tp)
 {

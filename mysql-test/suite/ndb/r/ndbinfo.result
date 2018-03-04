@@ -1402,7 +1402,7 @@ tot_key_bytes_returned	4220
 tot_frag_scans	56
 tot_scan_rows_examined	306
 tot_scan_rows_returned	215
-tot_scan_bytes_returned	5564
+tot_scan_bytes_returned	5468
 tot_scan_prog_bytes	288
 tot_scan_bound_bytes	0
 tot_scan_inst_exec	305

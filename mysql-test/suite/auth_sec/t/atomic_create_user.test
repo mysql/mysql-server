@@ -181,5 +181,56 @@ DROP USER userV, userW, userX, userY, userZ;
 
 --echo # ----------------------------------------------------------------------
 
+--echo # Begin : Tests for CREATE USER with DEFAULT ROLE
+CREATE USER userX;
+CREATE ROLE 'roleX', 'roleY', 'roleZ';
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+
+--echo # Case 1 : Execute CREATE USER for existing user
+--error ER_CANNOT_USER
+CREATE USER userY, userZ, userX DEFAULT ROLE 'roleX';
+--echo # Must not show entries for userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+SELECT user FROM mysql.default_roles where user LIKE 'user%';
+
+--let $invert= 1
+--let $event= !Q(CREATE USER .*userY.*userZ.*.userX)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+--source include/save_binlog_position.inc
+
+--echo # Case 2 : Execute CREATE USER for non-existing users
+CREATE USER userY, userZ DEFAULT ROLE 'roleX', 'roleY';
+--echo # Must show entries for userX, userY and userZ
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+SELECT user FROM mysql.default_roles where user LIKE 'user%';
+
+--let $event= !Q(CREATE USER .userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+
+--echo # Case 3 : Try creating user with invalid hash
+--error ER_PASSWORD_FORMAT
+CREATE USER userA IDENTIFIED BY 'abcd',
+            userB IDENTIFIED WITH 'mysql_native_password' AS 'hahaha'
+            DEFAULT ROLE roleX;
+
+--echo # Must not show userA, userB
+SELECT user FROM mysql.user WHERE user LIKE 'user%';
+SELECT user FROM mysql.default_roles WHERE user LIKE 'user%';
+
+--echo # Check binlog for Cases 3
+--let $invert= 1
+--let $event= !Q(CREATE USER.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+
+DROP USER userX, userY, userZ;
+DROP ROLE roleX, roleY, roleZ;
+
+--source include/save_binlog_position.inc
+
+--echo # ----------------------------------------------------------------------
+
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

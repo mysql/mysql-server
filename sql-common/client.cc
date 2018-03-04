@@ -1,13 +1,25 @@
 /* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -33,17 +45,17 @@
 
 #include "my_config.h"
 
-#include <m_ctype.h>
-#include <m_string.h>
-#include <my_sys.h>
-#include <mysys_err.h>
 #include <stdarg.h>
 #include <sys/types.h>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_sys.h"
+#include "mysys_err.h"
 #ifndef _WIN32
 #include <netdb.h>
 #endif
 #include <stdio.h>
-#include <violite.h>
 #include <string>
 
 #include "errmsg.h"
@@ -68,9 +80,10 @@
 #include "mysqld_error.h"
 #include "template_utils.h"
 #include "typelib.h"
+#include "violite.h"
 
 #if !defined(_WIN32)
-#include <my_thread.h>				/* because of signal()	*/
+#include "my_thread.h"				/* because of signal()	*/
 #endif /* !defined(_WIN32) */
 
 #include <signal.h>
@@ -123,6 +136,7 @@ using std::swap;
 }
 
 #define native_password_plugin_name "mysql_native_password"
+#define caching_sha2_password_plugin_name "caching_sha2_password"
 
 PSI_memory_key key_memory_mysql_options;
 PSI_memory_key key_memory_MYSQL_DATA;
@@ -1373,7 +1387,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       Return to READY_FOR_COMMAND protocol stage in case server reports error 
       or sends OK packet.
     */
-    if (!result || mysql->net.read_pos[0] == 0x00)
+    if (result || mysql->net.read_pos[0] == 0x00)
       MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 #endif
   }
@@ -2027,8 +2041,8 @@ void mysql_read_default_options(struct st_mysql_options *options,
           EXTENSION_SET_STRING(options, default_auth, opt_arg);
           break;
 	case OPT_bind_address:
-          my_free(options->ci.bind_address);
-          options->ci.bind_address= my_strdup(key_memory_mysql_options,
+          my_free(options->bind_address);
+          options->bind_address= my_strdup(key_memory_mysql_options,
                                               opt_arg, MYF(MY_WME));
           break;
         case OPT_enable_cleartext_plugin:
@@ -2612,7 +2626,6 @@ mysql_init(MYSQL *mysql)
   mysql->options.shared_memory_base_name= (char*) def_shared_memory_base_name;
 #endif
 
-  mysql->options.methods_to_use= MYSQL_OPT_GUESS_CONNECTION;
   mysql->options.report_data_truncation= TRUE;  /* default */
 
   /* Initialize extensions. */
@@ -2870,7 +2883,11 @@ static int ssl_verify_server_cert(Vio *vio, const char* server_hostname, const c
     goto error;
   }
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   cn= (char *) ASN1_STRING_data(cn_asn1);
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  cn= (char *) ASN1_STRING_get0_data(cn_asn1);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   // There should not be any NULL embedded in the CN
   if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn))
@@ -3095,7 +3112,7 @@ const MY_CSET_OS_NAME charsets[]=
 };
 
 
-static const char *
+const char *
 my_os_charset_to_mysql_charset(const char *csname)
 {
   const MY_CSET_OS_NAME *csp;
@@ -3311,7 +3328,7 @@ static auth_plugin_t caching_sha2_password_client_plugin=
 {
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
   MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
-  "caching_sha2_password",
+  caching_sha2_password_plugin_name,
   "Oracle Inc",
   "SHA2 based authentication with salt",
   {1, 0, 0},
@@ -3554,6 +3571,44 @@ error:
   return res;
 }
 
+
+/**
+  @page page_protocol_connection_phase_packets_protocol_ssl_request Protocol::SSLRequest:
+
+  SSL Connection Request Packet. It is like
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response but is
+  truncated right before username field. If server supports ::CLIENT_SSL
+  capability, client can send this packet to request a secure SSL connection.
+  The ::CLIENT_SSL capability flag must be set inside the SSL Connection Request Packet.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PROTOCOL_41 {</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>client_flag</td>
+    <td>\ref group_cs_capabilities_flags</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>max_packet_size</td>
+    <td>maximum packet size</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>character_set</td>
+    <td>client charset \ref a_protocol_character_set, only the lower 8-bits</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[23]"</td>
+    <td>filler</td>
+    <td>filler to the size of the handhshake response packet. All 0s.</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>client_flag</td>
+    <td>\ref group_cs_capabilities_flags, only the lower 16 bits</td></tr>
+  <tr><td>@ref a_protocol_type_int3 "int&lt;3&gt;"</td>
+    <td>max_packet_size</td>
+    <td>maximum packet size, 0xFFFFFF max</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  @sa int2store(), int3store(), int4store(), mysql_fill_packet_header()
+*/
 /**
   Fill in the beginning of the client reply packet.
 
@@ -3565,6 +3620,8 @@ error:
   @param       buff_size The max size of the buffer. Used in debug only.
   @return                one past to where the buffer is filled
 
+  @sa page_protocol_connection_phase_packets_protocol_ssl_request
+  send_client_reply_packet()
 */
 static char *
 mysql_fill_packet_header(MYSQL *mysql, char *buff,
@@ -3784,34 +3841,186 @@ error:
 #define MAX_CONNECTION_ATTR_STORAGE_LENGTH 65536
 
 /**
+  @page page_protocol_connection_phase_packets_protocol_handshake_response Protocol::HandshakeResponse:
+
+  Depending on the servers support for the ::CLIENT_PROTOCOL_41 capability and
+  the clients understanding of that flag the client has to send either
+  a @ref sect_protocol_connection_phase_packets_protocol_handshake_response320 or
+  @ref sect_protocol_connection_phase_packets_protocol_handshake_response41.
+
+  @sa send_client_reply_packet
+
+  @section sect_protocol_connection_phase_packets_protocol_handshake_response320 Protocol::HandshakeResponse320
+
+  Old Handshake Response Packet used by old clients or if the server doesn't
+  support ::CLIENT_PROTOCOL_41 @ref group_cs_capabilities_flags flag.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>client_flag</td>
+    <td>\ref group_cs_capabilities_flags, only the lower 16 bits. ::CLIENT_PROTOCOL_41 should never be set</td></tr>
+  <tr><td>@ref a_protocol_type_int3 "int&lt;3&gt;"</td>
+    <td>max_packet_size</td>
+    <td>maximum packet size, 0xFFFFFF max</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>username</td>
+      <td>login user name</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_CONNECT_WITH_DB {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>auth-response</td>
+      <td>Opaque authentication response data generated by
+          Authentication Method indicated by the plugin name field.</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>database</td>
+      <td>initail database for the connection.
+      This string should be interpreted using the character set indicated by
+      character set field.</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>auth-response</td>
+      <td>Opaque authentication response data generated by
+          Authentication Method indicated by the plugin name field.</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  Example
+  ========
+
+  ~~~~~~~~~~~~~~~~~~~~~
+  11 00 00 01 85 24 00 00    00 6f 6c 64 00 47 44 53    .....$...old.GDS
+  43 51 59 52 5f                                        CQYR_
+  ~~~~~~~~~~~~~~~~~~~~~
+
+  @note If auth-response is followed by a database field it must be
+  NULL terminated.
+
+  @section sect_protocol_connection_phase_packets_protocol_handshake_response41 Protocol::HandshakeResponse41
+
+  Handshake Response Packet sent by 4.1+ clients supporting
+  ::CLIENT_PROTOCOL_41 @ref group_cs_capabilities_flags flag,
+  if the server announced it in its
+  @ref sect_protocol_connection_phase_packets_protocol_handshake.
+  Otherwise (talking to an old server) the
+  @ref sect_protocol_connection_phase_packets_protocol_handshake_response320
+  packet must be used.
+
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>client_flag</td>
+    <td>\ref group_cs_capabilities_flags, ::CLIENT_PROTOCOL_41 always set.</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>max_packet_size</td>
+    <td>maximum packet size</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>character_set</td>
+    <td>client charset \ref a_protocol_character_set, only the lower 8-bits</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[23]"</td>
+    <td>filler</td>
+    <td>filler to the size of the handhshake response packet. All 0s.</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>username</td>
+      <td>login user name</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;length&gt;"</td>
+      <td>auth_response</td>
+      <td>opaque authentication response data generated by
+      Authentication Method indicated by the plugin name field. </td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>auth_response_length</td>
+    <td>length of auth_response</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;length&gt;"</td>
+      <td>auth_response</td>
+      <td>opaque authentication response data generated by
+      Authentication Method indicated by the plugin name field. </td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_CONNECT_WITH_DB {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>database</td>
+      <td>initail database for the connection.
+      This string should be interpreted using the character set indicated by
+      character set field.</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>client_plugin_name</td>
+      <td>the Authentication Method used by the client to generate
+      auth-response value in this packet. This is an UTF-8 string. </td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_CONNECT_ATTRS {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_int_le "int&lt;lenenc&gt;"</td>
+      <td>length of all key-values</td>
+      <td>affected rows</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>key1</td>
+      <td>Name of the 1st client attribute</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "string&lt;lenenc&gt;"</td>
+      <td>value1</td>
+      <td>Value of the 1st client attribute</td></tr>
+  <tr><td colspan="3">.. (if more data in length of all key-values, more keys and values parts)</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  Example
+  ========
+
+  On MySQL 5.5.8 with ::CLIENT_PROTOCOL_41 ::CLIENT_PLUGIN_AUTH, CLIENT_SECURE_CONNECTION (removed in 8.0),
+  and ::CLIENT_CONNECT_WITH_DB set, it may look like:
+
+  ~~~~~~~~~~~~~~~~~~~~~
+  54 00 00 01 8d a6 0f 00    00 00 00 01 08 00 00 00    T...............
+  00 00 00 00 00 00 00 00    00 00 00 00 00 00 00 00    ................
+  00 00 00 00 70 61 6d 00    14 ab 09 ee f6 bc b1 32    ....pam........2
+  3e 61 14 38 65 c0 99 1d    95 7d 75 d4 47 74 65 73    >a.8e....}u.Gtes
+  74 00 6d 79 73 71 6c 5f    6e 61 74 69 76 65 5f 70    t.mysql_native_p
+  61 73 73 77 6f 72 64 00                               assword.
+  ~~~~~~~~~~~~~~~~~~~~~
+
+  Starting with MySQL 5.6.6 the client may send attributes
+  if ::CLIENT_CONNECT_ATTRS is set:
+
+  ~~~~~~~~~~~~~~~~~~~~~
+  b2 00 00 01 85 a2 1e 00    00 00 00 40 08 00 00 00    ...........@....
+  00 00 00 00 00 00 00 00    00 00 00 00 00 00 00 00    ................
+  00 00 00 00 72 6f 6f 74    00 14 22 50 79 a2 12 d4    ....root.."Py...
+  e8 82 e5 b3 f4 1a 97 75    6b c8 be db 9f 80 6d 79    .......uk.....my
+  73 71 6c 5f 6e 61 74 69    76 65 5f 70 61 73 73 77    sql_native_passw
+  6f 72 64 00 61 03 5f 6f    73 09 64 65 62 69 61 6e    ord.a._os.debian
+  36 2e 30 0c 5f 63 6c 69    65 6e 74 5f 6e 61 6d 65    6.0._client_name
+  08 6c 69 62 6d 79 73 71    6c 04 5f 70 69 64 05 32    .libmysql._pid.2
+  32 33 34 34 0f 5f 63 6c    69 65 6e 74 5f 76 65 72    2344._client_ver
+  73 69 6f 6e 08 35 2e 36    2e 36 2d 6d 39 09 5f 70    sion.5.6.6-m9._p
+  6c 61 74 66 6f 72 6d 06    78 38 36 5f 36 34 03 66    latform.x86_64.f
+  6f 6f 03 62 61 72                                     oo.bar
+  ~~~~~~~~~~~~~~~~~~~~~
+
+  @warning Currently, multibyte character sets such as UCS2, UTF16 and
+  UTF32 are not supported.
+
+  @note If client wants to have a secure SSL connection and sets
+  CLIENT_SSL flag it should first send the
+  @ref page_protocol_connection_phase_packets_protocol_ssl_request packet
+  and only then, after establishing the secure connection, it should send
+  the @ref page_protocol_connection_phase_packets_protocol_handshake_response
+  packet.
+*/
+
+
+/**
   sends a client authentication packet (second packet in the 3-way handshake)
 
-  Packet format (when the server is 4.0 or earlier):
-
-    Bytes       Content
-    -----       ----
-    2           client capabilities
-    3           max packet size
-    n           user name, \0-terminated
-    9           scramble_323, \0-terminated
-
-  Packet format (when the server is 4.1 or newer):
-
-    Bytes       Content
-    -----       ----
-    4           client capabilities
-    4           max packet size
-    1           charset number
-    23          reserved (always 0)
-    n           user name, \0-terminated
-    n           plugin auth data (e.g. scramble), length encoded
-    n           database name, \0-terminated
-                (if CLIENT_CONNECT_WITH_DB is set in the capabilities)
-    n           client auth plugin name - \0-terminated string,
-                (if CLIENT_PLUGIN_AUTH is set in the capabilities)
-
+  @param mpvio      The connection to use
+  @param data       The scramble to send
+  @param data_len   Length of data
   @retval 0 ok
   @retval 1 error
+
+  @sa mysql_fill_packet_header() page_protocol_connection_phase_packets_protocol_handshake_response
 */
 static int send_client_reply_packet(MCPVIO_EXT *mpvio,
                                     const uchar *data, int data_len)
@@ -4122,7 +4331,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   }
   else
   {
-    auth_plugin= &native_password_client_plugin;
+    auth_plugin= &caching_sha2_password_client_plugin;
     auth_plugin_name= auth_plugin->name;
   }
 
@@ -4576,21 +4785,21 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     }
 
     /* Get address info for client bind name if it is provided */
-    if (mysql->options.ci.bind_address)
+    if (mysql->options.bind_address)
     {
       int bind_gai_errno= 0;
 
       DBUG_PRINT("info",("Resolving addresses for client bind: '%s'",
-                         mysql->options.ci.bind_address));
+                         mysql->options.bind_address));
       /* Lookup address info for name */
-      bind_gai_errno= getaddrinfo(mysql->options.ci.bind_address, 0,
+      bind_gai_errno= getaddrinfo(mysql->options.bind_address, 0,
                                   &hints, &client_bind_ai_lst);
       if (bind_gai_errno)
       {
         DBUG_PRINT("info",("client bind getaddrinfo error %d", bind_gai_errno));
         set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
                                  ER_CLIENT(CR_UNKNOWN_HOST),
-                                 mysql->options.ci.bind_address,
+                                 mysql->options.bind_address,
                                  bind_gai_errno);
 
         freeaddrinfo(res_lst);
@@ -4891,7 +5100,7 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
     else
     {
       scramble_data_len= (int)(pkt_end - scramble_data);
-      scramble_plugin= native_password_plugin_name;
+      scramble_plugin= caching_sha2_password_plugin_name;
     }
   }
   else
@@ -5362,8 +5571,7 @@ void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.my_cnf_group);
   my_free(mysql->options.charset_dir);
   my_free(mysql->options.charset_name);
-  my_free(mysql->options.ci.client_ip);
-  /* ci.bind_adress is union with client_ip, already freed above */
+  my_free(mysql->options.bind_address);
   if (mysql->options.init_commands)
   {
     char **ptr= mysql->options.init_commands->begin();
@@ -5408,9 +5616,6 @@ void mysql_close_free(MYSQL *mysql)
   /* Free extension if any */
   if (mysql->extension)
     mysql_extension_free(static_cast<MYSQL_EXTENSION*>(mysql->extension));
-
-  my_free(mysql->info_buffer);
-  mysql->info_buffer= 0;
 
   my_free(mysql->field_alloc);
   mysql->field_alloc= nullptr;
@@ -5898,17 +6103,6 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
                 static_cast<const char*>(arg), MYF(MY_WME));
 #endif
     break;
-  case MYSQL_OPT_USE_REMOTE_CONNECTION:
-  case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
-  case MYSQL_OPT_GUESS_CONNECTION:
-    mysql->options.methods_to_use= option;
-    break;
-  case MYSQL_SET_CLIENT_IP:
-    my_free(mysql->options.ci.client_ip);
-    mysql->options.ci.client_ip= my_strdup(key_memory_mysql_options,
-                                           static_cast<const char*>(arg),
-                                           MYF(MY_WME));
-    break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     mysql->options.report_data_truncation= *(bool *) arg;
     break;
@@ -5916,10 +6110,10 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->reconnect= *(bool *) arg;
     break;
   case MYSQL_OPT_BIND:
-    my_free(mysql->options.ci.bind_address);
-    mysql->options.ci.bind_address= my_strdup(key_memory_mysql_options,
-                                              static_cast<const char*>(arg),
-                                              MYF(MY_WME));
+    my_free(mysql->options.bind_address);
+    mysql->options.bind_address= my_strdup(key_memory_mysql_options,
+                                           static_cast<const char*>(arg),
+                                           MYF(MY_WME));
     break;
   case MYSQL_PLUGIN_DIR:
     EXTENSION_SET_STRING(&mysql->options, plugin_dir,
@@ -6089,8 +6283,7 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     MYSQL_OPT_PROTOCOL, MYSQL_OPT_SSL_MODE, MYSQL_OPT_RETRY_COUNT
 
   bool
-    MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_USE_REMOTE_CONNECTION,
-    MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
+    MYSQL_OPT_COMPRESS, MYSQL_OPT_LOCAL_INFILE,
     MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
     MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
     MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
@@ -6162,24 +6355,6 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     *((const char **)arg)= "";
 #endif
     break;
-  case MYSQL_OPT_USE_REMOTE_CONNECTION:
-    *((bool *)arg)=
-      (mysql->options.methods_to_use == MYSQL_OPT_USE_REMOTE_CONNECTION) ?
-                                        TRUE : FALSE;
-    break;
-  case MYSQL_OPT_USE_EMBEDDED_CONNECTION:
-    *((bool *)arg) =
-      (mysql->options.methods_to_use == MYSQL_OPT_USE_EMBEDDED_CONNECTION) ?
-    TRUE : FALSE;
-    break;
-  case MYSQL_OPT_GUESS_CONNECTION:
-    *((bool *)arg) =
-      (mysql->options.methods_to_use == MYSQL_OPT_GUESS_CONNECTION) ?
-    TRUE : FALSE;
-    break;
-  case MYSQL_SET_CLIENT_IP:
-    *((char **)arg) = mysql->options.ci.client_ip;
-    break;
   case MYSQL_REPORT_DATA_TRUNCATION:
     *((bool *)arg)= mysql->options.report_data_truncation;
     break;
@@ -6187,7 +6362,7 @@ mysql_get_option(MYSQL *mysql, enum mysql_option option, const void *arg)
     *((bool *)arg)= mysql->reconnect;
     break;
   case MYSQL_OPT_BIND:
-    *((char **)arg)= mysql->options.ci.bind_address;
+    *((char **)arg)= mysql->options.bind_address;
     break;
   case MYSQL_OPT_SSL_MODE:
     *((uint *) arg)= mysql->options.extension ?
@@ -6583,29 +6758,16 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   DBUG_ENTER("native_password_auth_client");
 
+  /* read the scramble */
+  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
+    DBUG_RETURN(CR_ERROR);
 
-  if (((MCPVIO_EXT *)vio)->mysql_change_user)
-  {
-    /*
-      in mysql_change_user() the client sends the first packet.
-      we use the old scramble.
-    */
-    pkt= (uchar*)mysql->scramble;
-    pkt_len= SCRAMBLE_LENGTH + 1;
-  }
-  else
-  {
-    /* read the scramble */
-    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-      DBUG_RETURN(CR_ERROR);
+  if (pkt_len != SCRAMBLE_LENGTH + 1)
+    DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
 
-    if (pkt_len != SCRAMBLE_LENGTH + 1)
-      DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
-
-    /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
-    mysql->scramble[SCRAMBLE_LENGTH] = 0;
-  }
+  /* save it in MYSQL */
+  memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
+  mysql->scramble[SCRAMBLE_LENGTH] = 0;
 
   if (mysql->passwd[0])
   {

@@ -1,0 +1,2 @@
+# Run x plugin suite
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=debug-x --vardir=var-debug-x --suite=x

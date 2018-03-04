@@ -4,13 +4,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -37,6 +44,8 @@
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql_string.h"
+#include "psi_memory_key.h"     // key_memory_JSON
+#include <vector>
 
 class Item_func_like;
 class Json_scalar_holder;
@@ -226,14 +235,10 @@ bool json_value(Item **args, uint arg_idx, Json_wrapper *result);
   @param[out] str           the string buffer
   @param[in]  func_name     the name of the function we are executing
   @param[out] wrapper       the JSON value wrapper
-  @param[in]  handle_numbers_as_double
-                            whether numbers should be handled as double. If set
-                            to TRUE, all numbers are parsed as DOUBLE
   @returns false if we found a value or NULL, true if not.
 */
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
-                      const char *func_name, Json_wrapper *wrapper,
-                      bool handle_numbers_as_double= false);
+                      const char *func_name, Json_wrapper *wrapper);
 
 /**
   Convert Json values or MySQL values to JSON.
@@ -282,7 +287,7 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
 
   @returns True if the string could not be converted. False on success.
 */
-bool ensure_utf8mb4(String *val,
+bool ensure_utf8mb4(const String &val,
                     String *buf,
                     const char **resptr,
                     size_t *reslength,
@@ -717,6 +722,8 @@ class Item_func_json_merge :public Item_func_json_merge_preserve
 {
 public:
   Item_func_json_merge(THD *thd, const POS &pos, PT_item_list *a);
+
+  bool is_deprecated() const override { return true; }
 };
 
 
@@ -900,6 +907,13 @@ bool get_json_string(Item *arg_item,
                      String *utf8_res,
                      const char **safep,
                      size_t *safe_length);
+using Json_dom_ptr= std::unique_ptr<Json_dom>;
 
+bool parse_json(const String &res,
+                uint arg_idx,
+                const char *func_name,
+                Json_dom_ptr *dom,
+                bool require_str_or_json,
+                bool *parse_error);
 
 #endif /* ITEM_JSON_FUNC_INCLUDED */

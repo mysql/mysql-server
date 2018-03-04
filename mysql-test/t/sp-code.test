@@ -5,15 +5,15 @@
 -- source include/have_debug.inc
 
 --disable_warnings
-drop procedure if exists empty;
+drop procedure if exists `empty`;
 drop procedure if exists code_sample;
 --enable_warnings
 
-create procedure empty()
+create procedure `empty`()
 begin
 end;
-show procedure code empty;
-drop procedure empty;
+show procedure code `empty`;
+drop procedure `empty`;
 
 create function almost_empty()
     returns int

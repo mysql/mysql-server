@@ -1,25 +1,31 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <component_status_var_service.h>
 #include <component_sys_var_service.h>
 #include <system_variable_source_imp.h>
+#include <security_context_imp.h>
 #include <example_services.h>
 #include <gtest/gtest.h>
-#include <m_ctype.h>
-#include <my_sys.h>
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/service.h>
@@ -29,14 +35,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include <mysql/components/services/dynamic_loader.h>
 #include <mysql/components/services/persistent_dynamic_loader.h>
 #include <mysql/mysql_lex_string.h>
-#include <persistent_dynamic_loader.h>
-#include <scope_guard.h>
 #include <server_component.h>
 #include <stddef.h>
 
+#include "components/mysql_server/persistent_dynamic_loader.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_inttypes.h"
 #include "my_io.h"
+#include "my_sys.h"
+#include "scope_guard.h"
 #include "sql/auth/dynamic_privileges_impl.h"
 #include "sql/udf_registration_imp.h"
 
@@ -174,6 +182,54 @@ DEFINE_BOOL_METHOD(mysql_release_backup_lock,
   return true;
 }
 
+DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
+  (void *, Security_context_handle *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
+  (void *, Security_context_handle))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::create,
+  (Security_context_handle *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::destroy,
+  (Security_context_handle))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::copy,
+  (Security_context_handle, Security_context_handle *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
+  (Security_context_handle, const char *, const char *,
+   const char *, const char *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
+  (Security_context_handle, const char *, void *))
+{
+  return true;
+}
+
+DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
+  (Security_context_handle, const char *, void *))
+{
+  return true;
+}
 /* TODO following code resembles symbols used in sql library, these should be
   some day extracted to be reused both in sql library and server component unit
   tests. */
@@ -520,5 +576,19 @@ namespace dynamic_loader_unittest {
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+
+  MY_INIT(argv[0]);
+
+  char realpath_buf[FN_REFLEN];
+  char basedir_buf[FN_REFLEN];
+  my_realpath(realpath_buf, my_progname, 0);
+  size_t res_length;
+  dirname_part(basedir_buf, realpath_buf, &res_length);
+  if (res_length > 0)
+    basedir_buf[res_length - 1] = '\0';
+  my_setwd(basedir_buf, 0);
+
+  int retval= RUN_ALL_TESTS();
+  my_end(0);
+  return retval;
 }

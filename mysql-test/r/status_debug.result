@@ -17,8 +17,10 @@ SET DEBUG_SYNC='RESET';
 connection default;
 INSERT INTO t1(name, val) SELECT * FROM performance_schema.global_status WHERE variable_name='Handler_commit';
 # With fix, Handler_commit status should be 2 (select insert during switch user + dictionary).
-SELECT (SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2);
-(SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2)
+# With binlog enabled, there is one more Handler_commit call.
+SET @binlog_handler_commit= IF(@@global.log_bin, 1, 0);
+SELECT (SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2) = 1 + @binlog_handler_commit;
+(SELECT val FROM t1 WHERE id = 3) - (SELECT val FROM t1 WHERE id = 2) = 1 + @binlog_handler_commit
 1
 disconnect con1;
 DROP TABLE t1;

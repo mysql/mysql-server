@@ -1,16 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /** @file storage/temptable/src/table.cc
 TempTable Table implementation. */
@@ -28,13 +36,13 @@ TempTable Table implementation. */
 #include "sql/field.h"            /* Field */
 #include "sql/key.h"              /* KEY */
 #include "sql/table.h"            /* TABLE, TABLE_SHARE */
-#include "temptable/allocator.h"     /* temptable::Allocator */
-#include "temptable/cursor.h"        /* temptable::Cursor */
-#include "temptable/index.h"         /* temptable::Index */
-#include "temptable/indexed_cells.h" /* temptable::Indexed_cells */
-#include "temptable/result.h"        /* temptable::Result */
-#include "temptable/row.h"           /* temptable::Row */
-#include "temptable/table.h"         /* temptable::Table */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/cursor.h" /* temptable::Cursor */
+#include "storage/temptable/include/temptable/index.h" /* temptable::Index */
+#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
+#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
+#include "storage/temptable/include/temptable/row.h" /* temptable::Row */
+#include "storage/temptable/include/temptable/table.h" /* temptable::Table */
 
 namespace temptable {
 
@@ -43,7 +51,7 @@ Table::Table(TABLE* mysql_table, bool all_columns_are_fixed_size)
       m_all_columns_are_fixed_size(all_columns_are_fixed_size),
       m_indexes_are_enabled(true),
       m_mysql_row_length(mysql_table->s->rec_buff_length),
-      m_indexes(m_allocator),
+      m_index_entries(m_allocator),
       m_insert_undo(m_allocator),
       m_columns(m_allocator),
       m_mysql_table(mysql_table) {
@@ -115,7 +123,8 @@ Result Table::insert(const unsigned char* mysql_row) {
 
   ret = Result::OK;
 
-  for (auto& index : m_indexes) {
+  for (auto& entry : m_index_entries) {
+    Index* index = entry.m_index;
     Cursor insert_position;
 
     Indexed_cells indexed_cells =
@@ -132,7 +141,7 @@ Result Table::insert(const unsigned char* mysql_row) {
     /* Only bother with postponing undo operations if we have more than one
      * index. If we are here and have just one index, then we know that the
      * operation succeeded and this loop is not going to iterate anymore. */
-    if (m_indexes.size() > 1) {
+    if (m_index_entries.size() > 1) {
       m_insert_undo.emplace_back(insert_position);
     }
   }
@@ -140,7 +149,7 @@ Result Table::insert(const unsigned char* mysql_row) {
   if (ret != Result::OK) {
     /* Undo the above insertions. */
     for (size_t i = 0; i < m_insert_undo.size(); ++i) {
-      Index* index = m_indexes[i];
+      Index* index = m_index_entries[i].m_index;
       const Cursor& target = m_insert_undo[i];
       index->erase(target);
     }
@@ -192,7 +201,7 @@ Result Table::update(const unsigned char* mysql_row_old,
     }
   }
 
-  if (!m_indexes_are_enabled || m_indexes.empty()) {
+  if (!m_indexes_are_enabled || m_index_entries.empty()) {
     return Result::OK;
   }
 
@@ -202,14 +211,14 @@ Result Table::update(const unsigned char* mysql_row_old,
    * - insert new Indexed_cells, created from mysql_row_new. */
 
   if (!reversal) {
-    max_index = m_indexes.size() - 1;
+    max_index = m_index_entries.size() - 1;
   }
 
   ret = Result::OK;
 
   size_t i;
   for (i = 0; i <= max_index; ++i) {
-    Index& index = *m_indexes[i];
+    Index& index = *m_index_entries[i].m_index;
 
     const Indexed_cells indexed_cells_old(mysql_row_old, index);
     const Indexed_cells indexed_cells_new(mysql_row_new, index);
@@ -308,8 +317,9 @@ Result Table::remove(const unsigned char* mysql_row_must_be,
 #endif /* DBUG_OFF */
 
   if (m_indexes_are_enabled) {
-    for (size_t i = 0; i < m_indexes.size(); ++i) {
-      Index* index = m_indexes.at(i);
+    const auto index_count = m_index_entries.size();
+    for (size_t i = 0; i < index_count; ++i) {
+      Index* index = m_index_entries[i].m_index;
       const Indexed_cells cells(row, *index);
       Cursor first;
       Cursor after_last;
@@ -348,28 +358,24 @@ Result Table::remove(const unsigned char* mysql_row_must_be,
 }
 
 void Table::indexes_create() {
-  DBUG_ASSERT(m_indexes.empty());
+  DBUG_ASSERT(m_index_entries.empty());
 
   const size_t number_of_indexes = m_mysql_table->s->keys;
 
-  m_indexes.reserve(number_of_indexes);
+  m_index_entries.reserve(number_of_indexes);
 
   for (size_t i = 0; i < number_of_indexes; ++i) {
     const KEY& mysql_index = m_mysql_table->key_info[i];
 
     switch (mysql_index.algorithm) {
       case HA_KEY_ALG_BTREE:
-        m_indexes.push_back(new (m_allocator.allocate(sizeof(Tree)))
-                                Tree(*this, mysql_index, m_allocator));
+        append_new_index<Tree>(mysql_index);
         break;
       case HA_KEY_ALG_HASH:
         if (mysql_index.flags & HA_NOSAME) {
-          m_indexes.push_back(new (m_allocator.allocate(sizeof(Hash_unique)))
-                                  Hash_unique(*this, mysql_index, m_allocator));
+          append_new_index<Hash_unique>(mysql_index);
         } else {
-          m_indexes.push_back(
-              new (m_allocator.allocate(sizeof(Hash_duplicates)))
-                  Hash_duplicates(*this, mysql_index, m_allocator));
+          append_new_index<Hash_duplicates>(mysql_index);
         }
         break;
       case HA_KEY_ALG_SE_SPECIFIC:
@@ -381,37 +387,16 @@ void Table::indexes_create() {
 }
 
 void Table::indexes_destroy() {
-  for (Index* index : m_indexes) {
-    const KEY& mysql_index = index->mysql_index();
+  for (auto& entry : m_index_entries) {
+    Index* index = entry.m_index;
 
-    switch (mysql_index.algorithm) {
-      case HA_KEY_ALG_BTREE: {
-        Tree* t = static_cast<Tree*>(index);
-        t->~Tree();
-        m_allocator.deallocate(reinterpret_cast<uint8_t*>(t), sizeof(Tree));
-        break;
-      }
-      case HA_KEY_ALG_HASH:
-        if (mysql_index.flags & HA_NOSAME) {
-          Hash_unique* h = static_cast<Hash_unique*>(index);
-          h->~Hash_unique();
-          m_allocator.deallocate(reinterpret_cast<uint8_t*>(h),
-                                 sizeof(Hash_unique));
-        } else {
-          Hash_duplicates* h = static_cast<Hash_duplicates*>(index);
-          h->~Hash_duplicates();
-          m_allocator.deallocate(reinterpret_cast<uint8_t*>(h),
-                                 sizeof(Hash_duplicates));
-        }
-        break;
-      case HA_KEY_ALG_SE_SPECIFIC:
-      case HA_KEY_ALG_RTREE:
-      case HA_KEY_ALG_FULLTEXT:
-        DBUG_ABORT();
-    }
+    index->~Index();
+
+    m_allocator.deallocate(reinterpret_cast<uint8_t*>(index),
+                           entry.m_alloc_size);
   }
 
-  m_indexes.clear();
+  m_index_entries.clear();
 }
 
 thread_local Tables tables;

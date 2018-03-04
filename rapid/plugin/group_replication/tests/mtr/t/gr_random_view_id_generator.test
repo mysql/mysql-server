@@ -49,7 +49,7 @@ while ($iteration_count < $iterations_expected)
   my $iterations_expected= $ENV{'_ITERATIONS_EXPECTED'} or die "iterations_expected not set";
   open(FILE, "$file") or die("Unable to open $file: $!\n");
 
-  my $pattern= 'Starting group replication recovery with view_id';
+  my $pattern= 'Group membership changed to';
   my @view_id;
   my $count= 0;
   my $count_occurence= 0;

@@ -1074,16 +1074,24 @@ NULL
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 ST_CROSSES(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 NULL
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-ERROR SR001: There's no spatial reference system with SRID 100.
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-ERROR SR001: There's no spatial reference system with SRID 20000.
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-ERROR SR001: There's no spatial reference system with SRID 123456.
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-ERROR SR001: There's no spatial reference system with SRID 1048575.
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-ERROR SR001: There's no spatial reference system with SRID 4294967295.
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
+NULL
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000));
+ST_CROSSES(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000))
+NULL
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+NULL
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
+NULL
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000));
+ST_CROSSES(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000))
+NULL
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+NULL
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -1095,8 +1103,10 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_crosses given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR SR001: There's no spatial reference system with SRID 1048576.
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_crosses given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT ST_CROSSES(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_crosses given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT ST_CROSSES(NULL,ST_GEOMFROMTEXT(@star_top));
 ST_CROSSES(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1269,22 +1279,6 @@ ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 )
 NULL
-# Undefined SRS (should fail)
-SELECT ST_CROSSES(
-ST_GEOMFROMTEXT('POINT(0 0)', 10000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 10000000)
-);
-ERROR SR001: There's no spatial reference system with SRID 10000000.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (10000001, 1, 'TEST10000001', 'Foo', 10000001, 'FOOBAR', '');
-SELECT ST_CROSSES(
-ST_GEOMFROMTEXT('POINT(0 0)', 10000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 10000001)
-);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 10000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 10000001;
 #
 # WL#10827 Ellipsoidal R-tree support functions
 #
@@ -1299,8 +1293,8 @@ SELECT ST_Crosses(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
 ERROR 22S02: Longitude 181.000000 is out of range in function st_crosses. It must be within (-180.000000, 180.000000].
 CREATE TABLE t1 (
 id INT,
-c GEOMETRY NOT NULL,
-g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+c GEOMETRY NOT NULL SRID 0,
+g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
 SPATIAL INDEX c_idx (c),
 SPATIAL INDEX g_idx (g)
 );
@@ -1351,3 +1345,117 @@ id	ST_AsText(g)
 6	LINESTRING(0 2,20 2)
 7	LINESTRING(10 2,10 8)
 DROP TABLE t1;
+#
+# Bug #26188208 ST_CROSSES(GC, GC) RETURNS INCORRECT RESULT FOR CORNER
+# CASE
+#
+# Should not cross since there's no interior point in the first argument
+# that's in the second arguemnt's exterior.
+SELECT ST_Crosses(
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 1),POINT(0 10))'),
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 2),POINT(0 10))')
+) AS res;
+res
+0
+SELECT ST_Crosses(
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 1),POINT(0 10))', 4326),
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 2),POINT(0 10))', 4326)
+) AS res;
+res
+0
+# Should not cross since the shared interior is not of dimension 0.
+SELECT ST_Crosses(
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 1), POINT(0 11))'),
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 2))')
+) AS res;
+res
+0
+SELECT ST_Crosses(
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 1), POINT(0 11))',
+4326),
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 0 2))', 4326)
+) AS res;
+res
+0
+# Should not cross since the shared interior is not of dimension 0.
+SELECT ST_Crosses(
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 11),LINESTRING(0 1, 0 3))'),
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 11),LINESTRING(0 0, 0 2))')
+) AS res;
+res
+0
+SELECT ST_Crosses(
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 11),LINESTRING(0 1, 0 3))', 4326),
+ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 11),LINESTRING(0 0, 0 2))', 4326)
+) AS res;
+res
+0
+# Should cross since the point is inside the polygon while the linestring
+# is not.
+SELECT ST_Crosses(
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(5 0, 5 5, 10 5), POINT(7 3))'),
+ST_GeomFromText('POLYGON((6 0, 6 4, 9 4, 6 0))')
+) AS res;
+res
+1
+SELECT ST_Crosses(
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(5 0, 5 5, 10 5), POINT(7 3))',
+4326),
+ST_GeomFromText('POLYGON((6 0, 6 4, 9 4, 6 0))', 4326)
+) AS res;
+res
+1
+# Should not cross since (1 1) is in a boundary point of the
+# multilinestring.
+SELECT ST_Crosses(
+ST_GeomFromText('MULTIPOINT((1 1),(3 3))'),
+ST_GeomFromText('GEOMETRYCOLLECTION(MULTILINESTRING((0 0, 2 2),(1 1, 2 2)))')
+) AS res;
+res
+0
+SELECT ST_Crosses(
+ST_GeomFromText('MULTIPOINT((1 1),(3 3))', 4326),
+ST_GeomFromText('GEOMETRYCOLLECTION(MULTILINESTRING((0 0, 2 2),(1 1, 2 2)))',
+4326)
+) AS res;
+res
+0
+# Should not cross since (1 1) is in a boundary point of the
+# multilinestring.
+SELECT ST_Crosses(
+ST_GeomFromText('MULTIPOINT((1 1),(3 3))'),
+ST_GeomFromText('MULTILINESTRING((0 0, 2 2),(1 1, 2 2))')
+) AS res;
+res
+0
+SELECT ST_Crosses(
+ST_GeomFromText('MULTIPOINT((1 1),(3 3))', 4326),
+ST_GeomFromText('MULTILINESTRING((0 0, 2 2),(1 1, 2 2))', 4326)
+) AS res;
+res
+0
+# Should not cross since (1 1) is in a boundary point of one of the
+# linestrings.
+SELECT ST_Crosses(
+ST_GeomFromText('MULTIPOINT((1 1),(3 3))'),
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 2 2), '
+                  'LINESTRING(1 1, 2 2))')
+) AS res;
+res
+0
+SELECT ST_Crosses(
+ST_GeomFromText('MULTIPOINT((1 1),(3 3))', 4326),
+ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 0, 2 2), '
+                  'LINESTRING(1 1, 2 2))', 4326)
+) AS res;
+res
+0
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_CROSSES(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

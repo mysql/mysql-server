@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1579,8 +1586,8 @@ static struct my_option my_long_options[] =
   {"socket", 'S', "The socket file to use for connection.",
    &sock, &sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-#include <caching_sha2_passwordopt-longopts.h>
-#include <sslopt-longopts.h>
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"start-datetime", OPT_START_DATETIME,
    "Start reading the binlog at first event having a datetime equal or "
@@ -1814,7 +1821,7 @@ get_one_option(int optid, const struct my_option *opt,
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;
 #endif
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'd':
     one_database = 1;
@@ -1976,6 +1983,7 @@ static Exit_status safe_connect()
                  "program_name", "mysqlbinlog");
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                 "_client_role", "binary_log_listener");
+  set_server_public_key(mysql);
   set_get_server_public_key_option(mysql);
 
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
@@ -2331,11 +2339,18 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Log_event_type type= (Log_event_type) rpl.buffer[1 + EVENT_TYPE_OFFSET];
     Log_event *ev= NULL;
     Destroy_log_event_guard del(&ev);
-    event_buf= (char*) rpl.buffer + 1;
     event_len= rpl.size - 1;
+    if (!(event_buf = (char*) my_malloc(key_memory_log_event,
+                                        event_len+1, MYF(0))))
+    {
+      error("Out of memory.");
+      DBUG_RETURN(ERROR_STOP);
+    }
+    memcpy(event_buf, rpl.buffer + 1, event_len);
     if (rewrite_db_filter(&event_buf, &event_len, glob_description_event))
     {
       error("Got a fatal error while applying rewrite db filter.");
+      my_free(event_buf);
       DBUG_RETURN(ERROR_STOP);
     }
 
@@ -2349,13 +2364,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
                                           opt_verify_binlog_checksum)))
       {
         error("Could not construct log event object: %s", error_msg);
+        my_free(event_buf);
         DBUG_RETURN(ERROR_STOP);
       }
-      /*
-        If reading from a remote host, ensure the temp_buf for the
-        Log_event class is pointing to the incoming stream.
-      */
-      ev->register_temp_buf((char *) rpl.buffer + 1, false);
+      ev->register_temp_buf(event_buf);
     }
 
     {
@@ -2414,6 +2426,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
          */
           old_off= start_position_mot;
           rpl.size= 1; // fake Rotate, so don't increment old_off
+          event_len= 0;
         }
       }
       else if (type == binary_log::FORMAT_DESCRIPTION_EVENT)
@@ -2427,7 +2440,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
         */
         // fake event when not in raw mode, don't increment old_off
         if ((old_off != BIN_LOG_HEADER_SIZE) && (!raw_mode))
+        {
           rpl.size= 1;
+          event_len= 0;
+        }
         if (raw_mode)
         {
           if (result_file && (result_file != stdout))
@@ -2464,11 +2480,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
       {
         DBUG_EXECUTE_IF("simulate_result_file_write_error",
                         DBUG_SET("+d,simulate_fwrite_error"););
-        if (my_fwrite(result_file, rpl.buffer + 1, rpl.size - 1, MYF(MY_NABP)))
+        if (my_fwrite(result_file, (const uchar*)event_buf, event_len,
+                      MYF(MY_NABP)))
         {
           error("Could not write into log file '%s'", log_file_name);
           retval= ERROR_STOP;
         }
+        if (!ev)
+          my_free(event_buf);
 
         /* Flush result_file after every event */
         fflush(result_file);

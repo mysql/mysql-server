@@ -2,13 +2,20 @@
    Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,9 +25,9 @@
 #ifndef NDB_TABLE_MAP_H
 #define NDB_TABLE_MAP_H
 
-#include <my_bitmap.h>
-
+#include "my_bitmap.h"
 #include "my_dbug.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
 /** Ndb_table_map
 *
@@ -104,7 +111,19 @@ public:
     stored fields in the TABLE*(i.e those who are
     not virtual).
   */
-  static uint num_stored_fields(const TABLE* table);
+  static uint num_stored_fields(const struct TABLE* table);
+
+  /*
+    Check if the table has physical blob columns(i.e actually stored in
+    the engine)
+   */
+  static bool have_physical_blobs(const struct TABLE* table);
+
+#ifndef DBUG_OFF
+  static void print_record(const struct TABLE *table, const uchar *record);
+  static void print_table(const char *info, const struct TABLE *table);
+#endif
+
 private:
   const NdbDictionary::Table * m_ndb_table;
   MY_BITMAP m_moved_fields;

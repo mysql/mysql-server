@@ -9,4 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-binlog_gtid_mysqldump: Bug#24590891 2017-05-22 test fails for mysqlpump part

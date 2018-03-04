@@ -60,7 +60,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` text,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 # Now set innodb_file_per_table so that DATA DIRECTORY can be tested.
 SET GLOBAL innodb_file_per_table=ON;
@@ -156,6 +156,9 @@ test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 test/t1	TABLESPACE	InnoDB	NORMAL	test/t1	MYSQL_TMP_DIR/alt_dir/test/t1.ibd
+SELECT name, server_version, space_version FROM information_schema.innodb_tablespaces where name="mysql";
+name	server_version	space_version
+mysql	8.0.4	1
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 t1.ibd

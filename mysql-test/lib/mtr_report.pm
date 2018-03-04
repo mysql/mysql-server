@@ -2,17 +2,24 @@
 # Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is a library file used by the Perl version of mysql-test-run,
 # and is part of the translation of the Bourne shell script with the
@@ -23,11 +30,11 @@ use strict;
 
 use base qw(Exporter);
 our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
-		mtr_print_header mtr_report mtr_report_stats
-		mtr_warning mtr_error mtr_debug mtr_verbose
-		mtr_verbose_restart mtr_report_test_passed
-		mtr_report_test_skipped mtr_print
-		mtr_report_test isotime mtr_summary_file_init mtr_xml_init);
+                mtr_print_header mtr_report mtr_report_stats mtr_warning
+                mtr_error mtr_verbose mtr_verbose_restart
+                mtr_report_test_passed mtr_report_test_skipped mtr_print
+                mtr_report_test isotime mtr_summary_file_init mtr_xml_init
+                disk_usage);
 
 use mtr_match;
 use File::Spec;
@@ -47,9 +54,34 @@ our $name;
 our $verbose;
 our $verbose_restart= 0;
 our $timer= 1;
+our $disk_usage= 0;
 
 our $xml_report_file;
 our $summary_report_file;
+
+sub disk_usage() {
+  my $du = "";
+  if ($disk_usage) {
+    if(IS_WINDOWS)
+    {
+      $du = "";
+    }
+    else
+    {
+      $du = `du -sm $::opt_vardir 2>/dev/null`;
+      #
+      # Please note the leading space before duMB. The caller can do
+      # "other_information%s", where the %s is for the disk usage. If
+      # the disk usage is not requested, nothing is added to the string.
+      # otherwise the space separates the disk usage element from the
+      # other information.
+      #
+      $du =~ s/(\d*)\s.*/ duMB:$1/;
+      chomp $du;
+    }
+  }
+  return $du;
+}
 
 sub report_option {
   my ($opt, $value)= @_;
@@ -236,7 +268,12 @@ sub mtr_report_test ($) {
   {
     my $timer_str= $tinfo->{timer} || "";
     $tot_real_time += ($timer_str/1000);
-    mtr_report("[ ${retry}pass ] ", sprintf("%5s", $timer_str));
+    #
+    # Please note, that disk_usage() will print a space to separate its
+    # information from the preceding string, if the disk usage report is
+    # enabled. Otherwise an empty string is returned.
+    #
+    mtr_report("[ ${retry}pass ] ", sprintf("%5s%s", $timer_str, disk_usage()));
 
     # Show any problems check-testcase found
     if ( defined $tinfo->{'check'} )
@@ -877,20 +914,11 @@ sub mtr_error (@) {
 }
 
 
-sub mtr_debug (@) {
-  if ( $verbose > 2 )
+sub mtr_verbose (@)
+{
+  if ($verbose)
   {
-    print STDERR _name().
-      _timestamp(). "####: ". join(" ", @_). "\n";
-  }
-}
-
-
-sub mtr_verbose (@) {
-  if ( $verbose )
-  {
-    print STDERR _name(). _timestamp().
-      "> ".join(" ", @_)."\n";
+    print STDERR _name() . _timestamp() . "> " . join(" ", @_) . "\n";
   }
 }
 

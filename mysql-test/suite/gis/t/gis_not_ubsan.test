@@ -11,7 +11,6 @@
 # runtime error: signed integer overflow: 
 # 17235 * 144115188075875936 cannot be represented in type 'long long int'
 
---error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
 do st_symdifference(
   st_makeenvelope(point(1,2398046010000),point(30000,1)),
   st_convexhull(
@@ -19,7 +18,6 @@ do st_symdifference(
   )
 );
 
---error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
 do st_symdifference(
  st_envelope(
   multipoint(
@@ -33,7 +31,6 @@ do st_symdifference(
  )
 );
 
---error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
 do st_symdifference(
   st_makeenvelope(point(2,28951),point(17237,5514.6191)),
   st_makeenvelope(point(11192,-20054) , point(8128,144115188075855874))

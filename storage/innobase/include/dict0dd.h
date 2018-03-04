@@ -3,16 +3,24 @@
 Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -26,38 +34,59 @@ Data dictionary interface */
 #include "dict0dict.h"
 #include "dict0types.h"
 #include "dict0mem.h"
-#include <dd/properties.h>
-#include "sess0sess.h"
 
-#include "dd/dd.h"
-#include "dd/dictionary.h"
-#include "dd/cache/dictionary_client.h"
-#include "dd/properties.h"
-#include "dd/dd_table.h"
-#include "dd/dd_schema.h"
-#include "dd/types/table.h"
-#include "dd/types/index.h"
-#include "dd/types/column.h"
-#include "dd/types/index_element.h"
-#include "dd/types/partition.h"
-#include "dd/types/partition_index.h"
-#include "dd/types/object_type.h"
-#include "dd/types/tablespace.h"
-#include "dd/types/tablespace_file.h"
-#include "dd_table_share.h"
-#include "dd/types/foreign_key.h"
-#include "dd/types/foreign_key_element.h"
+#ifndef UNIV_HOTBACKUP
+# include <dd/properties.h>
+# include "sess0sess.h"
+# include "dd/dd.h"
+# include "dd/dictionary.h"
+# include "dd/cache/dictionary_client.h"
+# include "dd/properties.h"
+# include "dd/dd_table.h"
+# include "dd/dd_schema.h"
+# include "dd/types/table.h"
+# include "dd/types/index.h"
+# include "dd/types/column.h"
+# include "dd/types/index_element.h"
+# include "dd/types/partition.h"
+# include "dd/types/partition_index.h"
+# include "dd/types/tablespace.h"
+# include "dd/types/tablespace_file.h"
+# include "dd_table_share.h"
+# include "dd/types/foreign_key.h"
+# include "dd/types/foreign_key_element.h"
+#else
+# include "mysql_com.h"
+#endif /* !UNIV_HOTBACKUP */
+#include "mysql_version.h"
 
+#ifndef UNIV_HOTBACKUP
 class THD;
 class MDL_ticket;
 
 /** Handler name for InnoDB */
 static constexpr char handler_name[] = "InnoDB";
 
-static const char innobase_hton_name[]= "InnoDB";
+static const char innobase_hton_name[] = "InnoDB";
+#endif /* !UNIV_HOTBACKUP */
 
-#define	MAX_SPACE_NAME_LEN	((4 * NAME_LEN) + strlen(part_sep)	\
-				 + strlen(sub_sep) + strlen("#tmp"))
+/** Postfix for a table name which is being altered. Since during
+ALTER TABLE ... PARTITION, new partitions have to be created before
+dropping existing partitions, so a postfix is appended to the name
+to prevent name conflicts. This is also used for EXCHANGE PARTITION */
+static constexpr char TMP_POSTFIX[] = "#tmp";
+static constexpr size_t TMP_POSTFIX_LEN = sizeof(TMP_POSTFIX) - 1;
+
+/** Max space name length */
+static constexpr size_t MAX_SPACE_NAME_LEN =
+	(4 * NAME_LEN)
+	 + PART_SEPARATOR_LEN
+	 + SUB_PART_SEPARATOR_LEN
+	 + TMP_POSTFIX_LEN;
+
+#ifndef UNIV_HOTBACKUP
+/** Maximum hardcoded data dictionary tables. */
+#define DICT_MAX_DD_TABLES	1024
 
 /** InnoDB private keys for dd::Table */
 enum dd_table_keys {
@@ -72,6 +101,22 @@ enum dd_table_keys {
 	/** Sentinel */
 	DD_TABLE__LAST
 };
+#endif /* !UNIV_HOTBACKUP */
+
+/** Server version that the tablespace created */
+const uint32  DD_SPACE_CURRENT_SRV_VERSION = MYSQL_VERSION_ID;
+
+/** The tablespace version that the tablespace created */
+const uint32  DD_SPACE_CURRENT_SPACE_VERSION = 1;
+
+#ifndef UNIV_HOTBACKUP
+/** InnoDB private keys for dd::Partition */
+enum dd_partition_keys {
+	/** Row format for this partition */
+	DD_PARTITION_ROW_FORMAT,
+	/** Sentinel */
+	DD_PARTITION__LAST
+};
 
 /** InnoDB private keys for dd::Tablespace */
 enum dd_space_keys {
@@ -81,23 +126,12 @@ enum dd_space_keys {
 	DD_SPACE_ID,
 	/** Discard attribute */
 	DD_SPACE_DISCARD,
+	/** Server version */
+	DD_SPACE_SERVER_VERSION,
+	/** TABLESPACE_VERSION */
+	DD_SPACE_VERSION,
 	/** Sentinel */
 	DD_SPACE__LAST
-};
-
-/** enum that defines system table IDs. */
-enum dd_system_id_t {
-	DD_TABLESPACES = 4,
-	DD_DATAFILES = 5,
-	DD_TABLES = 10,
-	DD_COLUMNS = 13,
-	DD_INDEXES = 14,
-	DD_FOREIGN = 17,
-	DD_FOREIGN_COLS = 18,
-	DD_PARTITIONS = 19,
-
-	/* This must be last item. Defines the number of system tables. */
-	DD_LAST_ID
 };
 
 /** InnoDB implicit tablespace name or prefix, which should be same to
@@ -109,7 +143,9 @@ static constexpr char reserved_implicit_name[] = "innodb_file_per_table";
 const char* const dd_space_key_strings[DD_SPACE__LAST] = {
 	"flags",
 	"id",
-	"discard"
+	"discard",
+	"server_version",
+	"space_version"
 };
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
@@ -118,6 +154,11 @@ const char* const dd_table_key_strings[DD_TABLE__LAST] = {
 	"data_directory",
 	"version",
 	"discard"
+};
+
+/** InnoDB private key strings for dd::Partition. @see dd_partition_keys */
+const char* const dd_partition_key_strings[DD_PARTITION__LAST] = {
+	"format"
 };
 
 /** InnoDB private keys for dd::Index or dd::Partition_index */
@@ -155,6 +196,13 @@ static const dd::String_type	index_file_name_key("index_file_name");
 /** dd::Partition::options() key for DATA DIRECTORY */
 static const dd::String_type	data_file_name_key("data_file_name");
 
+/** Table names needed to process I_S queries. */
+static const dd::String_type	dd_tables_name("mysql/tables");
+static const dd::String_type	dd_partitions_name("mysql/table_partitions");
+static const dd::String_type	dd_tablespaces_name("mysql/tablespaces");
+static const dd::String_type	dd_indexes_name("mysql/indexes");
+static const dd::String_type	dd_columns_name("mysql/columns");
+
 #ifdef UNIV_DEBUG
 
 /** Hard-coded data dictionary information */
@@ -165,42 +213,43 @@ struct innodb_dd_table_t {
 	const uint	n_indexes;
 };
 
-/** The hard-coded data dictionary tables. The number of tables should be
-consistent with dict_sys_t::s_num_hard_coded_tables */
+/** The hard-coded data dictionary tables. */
 const innodb_dd_table_t innodb_dd_table[] = {
 	INNODB_DD_TABLE("dd_properties", 1),
-	INNODB_DD_TABLE("character_sets", 3),
-	INNODB_DD_TABLE("collations", 3),
-	INNODB_DD_TABLE("tablespaces", 2),
-	INNODB_DD_TABLE("tablespace_files", 2),
-	INNODB_DD_TABLE("catalogs", 2),
-	INNODB_DD_TABLE("column_statistics", 3),
-	INNODB_DD_TABLE("schemata", 3),
-	INNODB_DD_TABLE("st_spatial_reference_systems", 2),
-	INNODB_DD_TABLE("tables", 6),
-	INNODB_DD_TABLE("view_table_usage", 2),
-	INNODB_DD_TABLE("view_routine_usage", 2),
-	INNODB_DD_TABLE("columns", 5),
-	INNODB_DD_TABLE("indexes", 3),
-	INNODB_DD_TABLE("index_column_usage", 3),
-	INNODB_DD_TABLE("column_type_elements", 1),
-	INNODB_DD_TABLE("foreign_keys", 4),
-	INNODB_DD_TABLE("foreign_key_column_usage", 3),
-	INNODB_DD_TABLE("table_partitions", 6),
-	INNODB_DD_TABLE("table_partition_values", 1),
-	INNODB_DD_TABLE("index_partitions", 3),
-	INNODB_DD_TABLE("table_stats", 1),
-	INNODB_DD_TABLE("index_stats", 1),
-	INNODB_DD_TABLE("events", 5),
-	INNODB_DD_TABLE("routines", 6),
-	INNODB_DD_TABLE("parameters", 3),
-	INNODB_DD_TABLE("parameter_type_elements", 1),
-	INNODB_DD_TABLE("triggers", 6),
-        INNODB_DD_TABLE("resource_groups", 2),
+
+	INNODB_DD_TABLE("innodb_dynamic_metadata", 1),
 	INNODB_DD_TABLE("innodb_table_stats", 1),
 	INNODB_DD_TABLE("innodb_index_stats", 1),
 	INNODB_DD_TABLE("innodb_ddl_log", 2),
-	INNODB_DD_TABLE("innodb_dynamic_metadata", 1)
+
+	INNODB_DD_TABLE("catalogs", 2),
+	INNODB_DD_TABLE("character_sets", 3),
+	INNODB_DD_TABLE("collations", 3),
+	INNODB_DD_TABLE("column_statistics", 3),
+	INNODB_DD_TABLE("column_type_elements", 1),
+	INNODB_DD_TABLE("columns", 5),
+	INNODB_DD_TABLE("events", 5),
+	INNODB_DD_TABLE("foreign_key_column_usage", 3),
+	INNODB_DD_TABLE("foreign_keys", 4),
+	INNODB_DD_TABLE("index_column_usage", 3),
+	INNODB_DD_TABLE("index_partitions", 3),
+	INNODB_DD_TABLE("index_stats", 1),
+	INNODB_DD_TABLE("indexes", 3),
+	INNODB_DD_TABLE("parameter_type_elements", 1),
+	INNODB_DD_TABLE("parameters", 3),
+        INNODB_DD_TABLE("resource_groups", 2),
+	INNODB_DD_TABLE("routines", 6),
+	INNODB_DD_TABLE("schemata", 3),
+	INNODB_DD_TABLE("st_spatial_reference_systems", 3),
+	INNODB_DD_TABLE("table_partition_values", 1),
+	INNODB_DD_TABLE("table_partitions", 6),
+	INNODB_DD_TABLE("table_stats", 1),
+	INNODB_DD_TABLE("tables", 6),
+	INNODB_DD_TABLE("tablespace_files", 2),
+	INNODB_DD_TABLE("tablespaces", 2),
+	INNODB_DD_TABLE("triggers", 6),
+	INNODB_DD_TABLE("view_routine_usage", 2),
+	INNODB_DD_TABLE("view_table_usage", 2)
 };
 
 /** Number of hard-coded data dictionary tables */
@@ -243,7 +292,6 @@ inline
 const dd::Index*
 dd_first_index(const dd::Table* table)
 {
-	ut_ad(table->partitions().empty());
 	return(dd_first<dd::Table, dd::Index>(table));
 }
 
@@ -328,7 +376,7 @@ dd_copy_private(
 /** Write metadata of a table to dd::Table
 @tparam		Table		dd::Table or dd::Partition
 @param[in]	dd_space_id	Tablespace id, which server allocates
-@param[in,out]	dd_table	dd::Table
+@param[in,out]	dd_table	dd::Table or dd::Partition
 @param[in]	table		InnoDB table object */
 template<typename Table>
 void
@@ -338,11 +386,13 @@ dd_write_table(
 	const dict_table_t*	table);
 
 /** Set options of dd::Table according to InnoDB table object
-@param[in,out]	dd_table	dd::Table
+@tparam		Table		dd::Table or dd::Partition
+@param[in,out]	dd_table	dd::Table or dd::Partition
 @param[in]	table		InnoDB table object */
+template<typename Table>
 void
 dd_set_table_options(
-	dd::Table*		dd_table,
+	Table*			dd_table,
 	const dict_table_t*	table);
 
 /** Write metadata of a tablespace to dd::Tablespace
@@ -397,11 +447,11 @@ dd_mdl_release(
 	MDL_ticket**	mdl);
 
 /** Check if current undo needs a MDL or not
-@param[in]	thd	current thd
+@param[in]	trx	transaction
 @return	true if MDL is necessary, otherwise false */
 bool
 dd_mdl_for_undo(
-	const THD*	thd);
+	const trx_t*	trx);
 
 /** Load foreign key constraint info for the dd::Table object.
 @param[out]	m_table		InnoDB table handle
@@ -429,7 +479,7 @@ void dd_set_autoinc(dd::Properties& se_private_data, uint64 autoinc);
 @param[in,out]	mdl		mdl lock
 @param[in,out]	pcur		persistent cursor
 @param[in]	mtr		the mini-transaction
-@param[in]	system_id	which dd system table to open
+@param[in]	system_table_name	which dd system table to open
 @param[in,out]	table		dict_table_t obj of dd system table
 @retval the first rec of the dd system table */
 const rec_t*
@@ -438,7 +488,7 @@ dd_startscan_system(
 	MDL_ticket**	mdl,
 	btr_pcur_t*	pcur,
 	mtr_t*		mtr,
-	dd_system_id_t	system_id,
+	const char*	system_table_name,
 	dict_table_t**	table);
 
 /** Process one mysql.tables record and get the dict_table_t
@@ -564,6 +614,8 @@ dd_process_dd_indexes_rec_simple(
 @param[in,out]	space_id	space id
 @param[in,out]	name		space name
 @param[in,out]	flags		space flags
+@param[in]	server_version	space server version
+@param[in]	space_version	space server version
 @param[in]	dd_spaces	dict_table_t obj of mysql.tablespaces
 @retval true if index is filled */
 bool
@@ -573,6 +625,8 @@ dd_process_dd_tablespaces_rec(
 	space_id_t*	space_id,
 	char**		name,
 	uint*		flags,
+	uint32*		server_version,
+	uint32*		space_version,
 	dict_table_t*	dd_spaces);
 /** Make sure the data_dir_path is saved in dict_table_t if DATA DIRECTORY
 was used. Try to read it from the fil_system first, then from new dd.
@@ -680,6 +734,7 @@ dd_table_open_on_dd_obj(
 	const char*			tbl_name,
 	dict_table_t*&			table,
 	THD*				thd);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Open a persistent InnoDB table based on table id.
 @param[in]	table_id		table identifier
@@ -709,6 +764,7 @@ dd_table_close(
 	MDL_ticket**	mdl,
 	bool		dict_locked);
 
+#ifndef UNIV_HOTBACKUP
 /** Set the discard flag for a dd table.
 @param[in,out]	thd	current thread
 @param[in]	table	InnoDB table
@@ -775,13 +831,11 @@ dd_open_table(
 	THD*				thd);
 
 /** Open foreign tables reference a table.
-@param[in,out]	client		data dictionary client
 @param[in]	fk_list		foreign key name list
 @param[in]	dict_locked	dict_sys mutex is locked or not
 @param[in]	thd		thread THD */
 void
 dd_open_fk_tables(
-	dd::cache::Dictionary_client*	client,
 	dict_names_t&			fk_list,
 	bool				dict_locked,
 	THD*				thd);
@@ -791,12 +845,13 @@ operation.
 @param[in]	dd_space_id	dd tablespace id
 @param[in]	new_space_name	dd_tablespace name
 @param[in]	new_path	new data file path
-@retval false if fail. */
-bool
+@retval DB_SUCCESS on success. */
+dberr_t
 dd_rename_tablespace(
 	dd::Object_id	dd_space_id,
 	const char*	new_space_name,
 	const char*	new_path);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Parse the tablespace name from filename charset to table name charset
 @param[in]      space_name      tablespace name
@@ -807,6 +862,7 @@ dd_filename_to_spacename(
 	const char*		space_name,
 	std::string*		tablespace_name);
 
+#ifndef UNIV_HOTBACKUP
 /* Create metadata for specified tablespace, acquiring exlcusive MDL first
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD
@@ -870,14 +926,15 @@ innodb_session_t*&
 thd_to_innodb_session(
 	THD*	thd);
 
-/** Parse a table file name into table name and database name
+/** Parse a table file name into table name and database name.
+Note the table name may have trailing TMP_POSTFIX for temporary table name.
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_part_name	partition name to be filled if not nullptr
 @param[in,out]	dd_sub_name	sub-partition name to be filled it not nullptr
-@param[in,out]	is_temp_part	true if it is a temporary partition name which
-				ends with "#tmp".
+@param[in,out]	is_temp		true if it is a temporary table name which
+				ends with TMP_POSTFIX.
 @return	true if table name is parsed properly, false if the table name
 is invalid */
 UNIV_INLINE
@@ -888,7 +945,7 @@ dd_parse_tbl_name(
 	char*		dd_tbl_name,
 	char*		dd_part_name,
 	char*		dd_sub_name,
-	bool*		is_temp_part);
+	bool*		is_temp);
 
 /** Look up a column in a table using the system_charset_info collation.
 @param[in]	dd_table	data dictionary table
@@ -1063,6 +1120,17 @@ dd_tablespace_set_discard(
 bool
 dd_tablespace_get_discard(
 	const dd::Tablespace*	dd_space);
+#endif /* !UNIV_HOTBACKUP */
+
+/** Update all InnoDB tablespace cache objects. This step is done post
+dictionary trx rollback, binlog recovery and DDL_LOG apply. So DD is consistent.
+Update the cached tablespace objects, if they differ from dictionary
+@param[in,out]	thd	thread handle
+@retval	true	on error
+@retval	false	on success */
+MY_ATTRIBUTE((warn_unused_result))
+bool
+dd_tablespace_update_cache(THD* thd);
 
 #include "dict0dd.ic"
 #endif

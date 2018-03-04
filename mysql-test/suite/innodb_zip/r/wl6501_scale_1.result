@@ -85,8 +85,6 @@ count(*)
 truncate table t2;
 # WL#7811/WL#7743/WL#7141 TODO: Remove the warnings!
 truncate table t3;
-Warnings:
-Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
 select count(*) from t1;
 count(*)
 2000
@@ -197,10 +195,6 @@ count(*)
 truncate table t2;
 # WL#7811/WL#7743/WL#7141 TODO: Remove the warnings!
 truncate table t3;
-Warnings:
-Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED is ignored for TEMPORARY TABLE.
-Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 select count(*) from t1;
 count(*)
 2000
@@ -315,8 +309,6 @@ count(*)
 truncate table t2;
 # WL#7811/WL#7743/WL#7141 TODO: Remove the warnings!
 truncate table t3;
-Warnings:
-Warning	1478	InnoDB: KEY_BLOCK_SIZE is ignored for TEMPORARY TABLE.
 select count(*) from t1;
 count(*)
 2000

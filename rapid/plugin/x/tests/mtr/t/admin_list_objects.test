@@ -2,6 +2,7 @@
 ## Simple collection
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/admin_list_objects.tmp
@@ -163,9 +164,10 @@ Mysqlx.Sql.StmtExecute {
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_list_objects.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_list_objects.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/admin_list_objects.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 drop schema if exists xtest;
 uninstall plugin mysqlx;

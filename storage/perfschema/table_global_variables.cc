@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -25,14 +32,16 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/mysqld.h"
 #include "sql/sql_class.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "sql/sql_audit.h"  // audit_global_variable_get
+
 
 bool
 PFS_index_global_variables::match(const System_variable *pfs)
@@ -233,6 +242,16 @@ table_global_variables::make_row(const System_variable *system_var)
 
   m_row.m_variable_name.make_row(system_var->m_name, system_var->m_name_length);
   m_row.m_variable_value.make_row(system_var);
+
+  /*
+    We are about to return a row to the SQL layer.
+    Notify the audit plugins that a global variable is read.
+  */
+  mysql_audit_notify(current_thd,
+                     AUDIT_EVENT(MYSQL_AUDIT_GLOBAL_VARIABLE_GET),
+                     m_row.m_variable_name.m_str,
+                     m_row.m_variable_value.get_str(),
+                     m_row.m_variable_value.get_length());
 
   return 0;
 }

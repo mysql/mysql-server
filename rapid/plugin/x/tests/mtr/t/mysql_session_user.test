@@ -3,10 +3,9 @@
 # affected by the X plugin
 ################################################################################
 
---let $wait_for_tcpsocket_status = no_wait
---let $wait_for_unixsocket_status = no_wait
---let $dont_load_plugin=1
+--let $dont_load_mysqlx_plugin=1
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 --source include/force_restart.inc
 
 --echo #
@@ -34,10 +33,9 @@
 let $date_to_restore=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
 let $date_to_restore_priv=`SELECT timestamp from mysql.tables_priv where user='mysql.session'`;
 DROP USER "mysql.session"@"localhost";
-call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt: Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 --error 1
---exec $MYSQLXTEST -uroot --password='' --sql "SELECT CURRENT_USER()"
+--exec $MYSQLXTEST -ux_root --password='' --sql "SELECT CURRENT_USER()"
 
 --echo #
 --echo # Recreate the user with an upgrade and see that X plugin works
@@ -57,8 +55,9 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to u
 --let $assert_cond= [SELECT COUNT(*) FROM mysql.user WHERE user="mysql.session"] = 1;
 --source include/assert.inc
 
---exec $MYSQLXTEST -uroot --password='' --sql "SELECT CURRENT_USER()"
+--exec $MYSQLXTEST -ux_root --password='' --sql "SELECT CURRENT_USER()"
 
+--source include/xplugin_drop_user.inc
 --echo #
 --echo # Uninstall plugin and verify that user is still there
 --echo #

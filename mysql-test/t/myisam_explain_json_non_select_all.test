@@ -1,7 +1,13 @@
 # 
 # Run explain_non_select.inc on MyISAM with all of the so-called 6.0 features.
-# Skipping the test with log-bin enabled due to Bug#22508362
---source include/not_log_bin.inc
+
+# There are expected differences in Handler_update output when run with and
+# without log-bin. Thus, test is updated to run with binary logging ON.
+# Testcase is skipped for binlog_format=STATEMENT due to Unsafe statements:
+# LIMIT clause, REPLACE... SELECT.
+# Testcase is also skipped for binlog_format=MIXED, since it mismatches result
+# file for used_columns output (Bug#22472365).
+--source include/have_binlog_format_row.inc
 
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc

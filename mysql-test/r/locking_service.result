@@ -140,18 +140,14 @@ ERROR HY000: Service lock wait timeout exceeded.
 SELECT service_get_read_locks("namespace1", "lock1", 0);
 ERROR HY000: Service lock wait timeout exceeded.
 # 4.2: The content of performance_schema.events_waits_history_long
-#      should show that we have waited six times including correct
+#      should show that we have waited three times including correct
 #      service lock namespace and lock name.
-#      BTW: Even a timeout of 0 leads to wait.
 SELECT OBJECT_SCHEMA, OBJECT_NAME, OBJECT_TYPE, OPERATION
 FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OPERATION
 namespace1	lock1	LOCKING SERVICE	metadata lock
 namespace1	lock1	LOCKING SERVICE	metadata lock
-namespace1	lock1	LOCKING SERVICE	metadata lock
-namespace1	lock1	LOCKING SERVICE	metadata lock
-namespace1	lock2	LOCKING SERVICE	metadata lock
 namespace1	lock2	LOCKING SERVICE	metadata lock
 #      Per performance_schema there is no current wait for getting a
 #      service lock because our attempt already timed out.
@@ -175,7 +171,7 @@ WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OPERATION
 namespace1	lock1	LOCKING SERVICE	metadata lock
 #      Per performance_schema six waits in history
-SELECT COUNT(*) = 6 AS expect_1
+SELECT COUNT(*) = 3 AS expect_1
 FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
@@ -199,7 +195,7 @@ WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1
 1
 #      Per performance_schema now seven waits in history
-SELECT COUNT(*) = 7 AS expect_1
+SELECT COUNT(*) = 4 AS expect_1
 FROM performance_schema.events_waits_history_long
 WHERE OBJECT_TYPE = 'LOCKING SERVICE';
 expect_1

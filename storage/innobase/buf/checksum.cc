@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -36,6 +44,9 @@ Created Aug 11, 2011 Vasil Dimov
 #include "univ.i"
 #include "ut0crc32.h"
 #include "ut0rnd.h"
+#ifdef UNIV_HOTBACKUP
+# include "buf0checksum.h"
+#endif /* UNIV_HOTBACKUP */
 
 /** the macro MYSQL_SYSVAR_ENUM() requires "long unsigned int" and if we
 use srv_checksum_algorithm_t here then we get a compiler error:
@@ -338,6 +349,7 @@ BlockReporter::is_corrupted() const
 		/* make sure that the page is really empty */
 
 		bool empty = true;
+#ifndef UNIV_HOTBACKUP
 		for (ulint i = 0; i < m_page_size.logical(); i++) {
 			/* The FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID has been
 			repurposed for page compression. It can be
@@ -353,6 +365,7 @@ BlockReporter::is_corrupted() const
 
 		report_empty_page(empty);
 
+#endif /* !UNIV_HOTBACKUP */
 		return(!empty);
 	}
 
@@ -378,6 +391,7 @@ BlockReporter::is_corrupted() const
 
 		if (is_checksum_valid_none(
 			checksum_field1, checksum_field2, curr_algo)) {
+#ifndef UNIV_HOTBACKUP
 			if (curr_algo
 			    == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32) {
 				page_warn_strict_checksum(
@@ -387,6 +401,7 @@ BlockReporter::is_corrupted() const
 			}
 
 			print_crc32_checksum(checksum_field1, checksum_field2);
+#endif /* !UNIV_HOTBACKUP */
 			return(false);
 		}
 
@@ -407,6 +422,7 @@ BlockReporter::is_corrupted() const
 
 		if (is_checksum_valid_innodb(
 			checksum_field1, checksum_field2, curr_algo)) {
+#ifndef UNIV_HOTBACKUP
 			if (curr_algo
 			    == SRV_CHECKSUM_ALGORITHM_STRICT_CRC32) {
 				page_warn_strict_checksum(
@@ -414,6 +430,7 @@ BlockReporter::is_corrupted() const
 					SRV_CHECKSUM_ALGORITHM_INNODB,
 					page_id);
 			}
+#endif /* !UNIV_HOTBACKUP */
 			return(false);
 		}
 
@@ -440,6 +457,7 @@ BlockReporter::is_corrupted() const
 		if (is_checksum_valid_none(
 				checksum_field1, checksum_field2,
 				curr_algo)) {
+#ifndef UNIV_HOTBACKUP
 			if (curr_algo
 			    == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
 				page_warn_strict_checksum(
@@ -449,6 +467,7 @@ BlockReporter::is_corrupted() const
 			}
 
 			print_strict_innodb(checksum_field1, checksum_field2);
+#endif /* !UNIV_HOTBACKUP */
 			return(false);
 		}
 
@@ -456,6 +475,7 @@ BlockReporter::is_corrupted() const
 					    curr_algo, false)
 		    || is_checksum_valid_crc32(checksum_field1, checksum_field2,
 					       curr_algo, true)) {
+#ifndef UNIV_HOTBACKUP
 			if (curr_algo
 			    == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB) {
 				page_warn_strict_checksum(
@@ -463,6 +483,7 @@ BlockReporter::is_corrupted() const
 					SRV_CHECKSUM_ALGORITHM_CRC32,
 					page_id);
 			}
+#endif /* !UNIV_HOTBACKUP */
 
 			return(false);
 		}
@@ -482,20 +503,24 @@ BlockReporter::is_corrupted() const
 					    curr_algo, false)
 		    || is_checksum_valid_crc32(checksum_field1, checksum_field2,
 					       curr_algo, true)) {
+#ifndef UNIV_HOTBACKUP
 			page_warn_strict_checksum(
 				curr_algo,
 				SRV_CHECKSUM_ALGORITHM_CRC32,
 				page_id);
+#endif /* !UNIV_HOTBACKUP */
 			return(false);
 		}
 
 		if (is_checksum_valid_innodb(
 			checksum_field1, checksum_field2,
 			curr_algo)) {
+#ifndef UNIV_HOTBACKUP
 			page_warn_strict_checksum(
 				curr_algo,
 				SRV_CHECKSUM_ALGORITHM_INNODB,
 				page_id);
+#endif /* !UNIV_HOTBACKUP */
 			return(false);
 		}
 

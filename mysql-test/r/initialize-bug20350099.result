@@ -21,9 +21,10 @@ SET PASSWORD='';
 SELECT user, host, plugin, LENGTH(authentication_string)
 FROM mysql.user ORDER BY user;
 user	host	plugin	LENGTH(authentication_string)
+mysql.infoschema	localhost	mysql_native_password	41
 mysql.session	localhost	mysql_native_password	41
 mysql.sys	localhost	mysql_native_password	41
-root	localhost	mysql_native_password	0
+root	localhost	caching_sha2_password	0
 # shut server down
 # Server is down
 # close the test connection

@@ -1,21 +1,28 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "connection_manager.h"
+#include "plugin/x/tests/driver/connector/connection_manager.h"
 
 #include <iostream>
 #include <sstream>
@@ -63,20 +70,33 @@ Connection_manager::Connection_manager(const Connection_options &co,
     : m_connection_options(co),
       m_variables(variables),
       m_console(console) {
-  m_variables->set("%OPTION_CLIENT_USER%",
-                   m_connection_options.user);
-  m_variables->set("%OPTION_CLIENT_PASSWORD%",
-                   m_connection_options.password);
-  m_variables->set("%OPTION_CLIENT_HOST%",
-                   m_connection_options.host);
-  m_variables->set("%OPTION_CLIENT_SOCKET%",
-                   m_connection_options.socket);
-  m_variables->set("%OPTION_CLIENT_SCHEMA%",
-                   m_connection_options.schema);
-  m_variables->set("%OPTION_CLIENT_PORT%",
-                   std::to_string(m_connection_options.port));
-  m_variables->set("%OPTION_SSL_MODE%",
-                   m_connection_options.ssl_mode);
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_USER%",
+      new Variable_dynamic_string(m_connection_options.user));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_PASSWORD%",
+      new Variable_dynamic_string(m_connection_options.password));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_HOST%",
+      new Variable_dynamic_string(m_connection_options.host));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_SOCKET%",
+      new Variable_dynamic_string(m_connection_options.socket));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_SCHEMA%",
+      new Variable_dynamic_string(m_connection_options.schema));
+
+  m_variables->make_special_variable(
+      "%OPTION_CLIENT_PORT%",
+      new Variable_dynamic_int(m_connection_options.port));
+
+  m_variables->make_special_variable(
+      "%OPTION_SSL_MODE%",
+      new Variable_dynamic_string(m_connection_options.ssl_mode));
 
   m_active_holder.reset(new Session_holder(xcl::create_session(), m_console));
 
@@ -122,8 +142,9 @@ void Connection_manager::safe_close(const std::string &name) {
 }
 
 void Connection_manager::connect_default(const bool send_cap_password_expired,
+                                         const bool client_interactive,
                                          const bool no_auth,
-                                         const bool use_plain_auth) {
+                                         const std::vector<std::string> &auth_methods) {
   m_console.print_verbose("Connecting...\n");
 
   auto  session    = m_active_holder->get_session();
@@ -131,7 +152,7 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
       m_connection_options.ip_mode);
 
   m_active_holder->setup_ssl(m_connection_options);
-  m_active_holder->setup_msg_callbacks();
+  m_active_holder->setup_msg_callbacks(m_connection_options.trace_protocol);
 
   if (send_cap_password_expired) {
     session->set_capability(
@@ -139,9 +160,18 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
         true);
   }
 
+  if (client_interactive) {
+    session->set_capability(
+        xcl::XSession::Capability_client_interactive,
+        true);
+  }
+
   session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Authentication_method,
-      use_plain_auth ? "PLAIN" : "MYSQL41");
+      xcl::XSession::Mysqlx_option::Compatibility_mode,
+      m_connection_options.compatible);
+
+  session->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Authentication_method, auth_methods);
 
   session->set_mysql_option(
       xcl::XSession::Mysqlx_option::Hostname_resolve_to,
@@ -167,7 +197,7 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
     throw error;
   }
 
-  m_variables->set("%ACTIVE_CLIENT_ID%", std::to_string(session->client_id()));
+  setup_variables(session);
 
   m_console.print_verbose("Connected client #", session->client_id(), "\n");
 }
@@ -175,23 +205,14 @@ void Connection_manager::connect_default(const bool send_cap_password_expired,
 void Connection_manager::create(const std::string &name,
                                 const std::string &user,
                                 const std::string &password,
-                                const std::string &db, bool no_ssl) {
+                                const std::string &db,
+                                const std::vector<std::string> &auth_methods) {
   if (m_session_holders.count(name))
     throw std::runtime_error("a session named " + name + " already exists");
 
   m_console.print("connecting...\n");
 
   Connection_options co = m_connection_options;
-
-  if (no_ssl) {
-    co.ssl_ca = "";
-    co.ssl_ca_path = "";
-    co.ssl_cert = "";
-    co.ssl_cipher = "";
-    co.ssl_key = "";
-    co.allowed_tls = "";
-    co.ssl_mode = "";
-  }
 
   if (!user.empty()) {
     co.user = user;
@@ -210,8 +231,17 @@ void Connection_manager::create(const std::string &name,
       xcl::XSession::Mysqlx_option::Hostname_resolve_to,
       details::get_ip_mode_to_text(m_connection_options.ip_mode));
 
+  holder->get_session()->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Compatibility_mode,
+      m_connection_options.compatible);
+
+  if (!auth_methods.empty())
+    holder->get_session()->set_mysql_option(
+        xcl::XSession::Mysqlx_option::Authentication_method,
+        auth_methods);
+
   holder->setup_ssl(co);
-  holder->setup_msg_callbacks();
+  holder->setup_msg_callbacks(co.trace_protocol);
 
   xcl::XError error;
 
@@ -229,8 +259,8 @@ void Connection_manager::create(const std::string &name,
   m_session_holders[name] = holder;
   m_active_session_name = name;
 
-  m_variables->set("%ACTIVE_CLIENT_ID%",
-                  std::to_string(active_xsession()->client_id()));
+  setup_variables(active_xsession());
+
   m_console.print("active session is now '", name, "'\n");
 
   m_console.print_verbose("Connected client #",
@@ -337,8 +367,9 @@ void Connection_manager::set_active(const std::string &name,
   }
   m_active_holder = m_session_holders[name];
   m_active_session_name = name;
-  m_variables->set("%ACTIVE_CLIENT_ID%",
-                  std::to_string(active_xsession()->client_id()));
+
+  setup_variables(active_xsession());
+
   if (!be_quiet)
     m_console.print(
         "switched to session ",
@@ -372,3 +403,13 @@ uint64_t Connection_manager::active_session_messages_received(
 
   return result;
 }
+
+void Connection_manager::setup_variables(xcl::XSession *session) {
+  auto &connection = session->get_protocol().get_connection();
+  m_variables->set("%ACTIVE_CLIENT_ID%",
+                  std::to_string(session->client_id()));
+
+  m_variables->set("%ACTIVE_SOCKET_ID%",
+                  std::to_string(connection.get_socket_fd()));
+}
+

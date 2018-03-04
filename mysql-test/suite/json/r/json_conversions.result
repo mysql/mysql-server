@@ -100,7 +100,7 @@ opaque_mysql_type_enum	STRING	"b"
 opaque_mysql_type_date	DATE	"2015-01-15"
 opaque_mysql_type_time	TIME	"23:24:25.000000"
 opaque_mysql_type_datetime	DATETIME	"2015-01-15 23:24:25.000000"
-opaque_mysql_type_geom	OBJECT	{"type": "Point", "coordinates": [1, 1]}
+opaque_mysql_type_geom	OBJECT	{"type": "Point", "coordinates": [1.0, 1.0]}
 opaque_mysql_type_bit	BLOB	"base64:type15:yv4="
 opaque_mysql_type_year	OPAQUE	"base64:type13:MTk5Mg=="
 opaque_mysql_type_blob	BLOB	"base64:type252:yv66vg=="
@@ -667,7 +667,7 @@ insert into at(c,_dec) select concat('_dec: ',c),j from t where c='uint';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='double';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringany';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 6
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='stringdecimal';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='object';
@@ -676,9 +676,9 @@ insert into at(c,_dec) select concat('_dec: ',c),j from t where c='array';
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 10
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_decimal';
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_set';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 12
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_enum';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 13
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_date';
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 14
 insert into at(c,_dec) select concat('_dec: ',c),j from t where c='opaque_mysql_type_time';
@@ -1024,7 +1024,7 @@ ERROR HY000: Incorrect integer value: '"23:24:25.000000"' for column '_yea' at r
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_datetime';
 ERROR HY000: Incorrect integer value: '"2015-01-15 23:24:25.000000"' for column '_yea' at row 16
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_geom';
-ERROR HY000: Incorrect integer value: '{"type": "Point", "coordinates": [1, 1]}' for column '_yea' at row 17
+ERROR HY000: Incorrect integer value: '{"type": "Point", "coordinates": [1.0, 1.0]}' for column '_yea' at row 17
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_bit';
 ERROR HY000: Incorrect integer value: '"base64:type15:yv4="' for column '_yea' at row 18
 insert into at(c,_yea) select concat('_yea: ',c),j from t where c='opaque_mysql_type_year';
@@ -2430,7 +2430,7 @@ insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t wh
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='double';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringany';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 6
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='stringdecimal';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='object';
@@ -2439,9 +2439,9 @@ insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t wh
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 10
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_decimal';
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_set';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 12
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_enum';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 13
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_date';
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column json_extract at row 14
 insert into at(c,_dec) select concat('_dec: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_time';
@@ -2787,7 +2787,7 @@ ERROR HY000: Incorrect integer value: '"23:24:25.000000"' for column '_yea' at r
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_datetime';
 ERROR HY000: Incorrect integer value: '"2015-01-15 23:24:25.000000"' for column '_yea' at row 16
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_geom';
-ERROR HY000: Incorrect integer value: '{"type": "Point", "coordinates": [1, 1]}' for column '_yea' at row 17
+ERROR HY000: Incorrect integer value: '{"type": "Point", "coordinates": [1.0, 1.0]}' for column '_yea' at row 17
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_bit';
 ERROR HY000: Incorrect integer value: '"base64:type15:yv4="' for column '_yea' at row 18
 insert into at(c,_yea) select concat('_yea: ',c), json_extract(j, '$') from t where c='opaque_mysql_type_year';
@@ -4192,7 +4192,7 @@ insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='uint
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='int') from t where c='int';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='double') from t where c='double';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringany') from t where c='stringany';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringint') from t where c='stringint';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='stringdecimal') from t where c='stringdecimal';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='object') from t where c='object';
@@ -4201,9 +4201,9 @@ insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='arra
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_decimal') from t where c='opaque_mysql_type_decimal';
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_set') from t where c='opaque_mysql_type_set';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_enum') from t where c='opaque_mysql_type_enum';
-ERROR HY000: Incorrect DECIMAL value: '0' for column '' at row -1
+ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_date') from t where c='opaque_mysql_type_date';
 ERROR 22018: Invalid JSON value for CAST to DECIMAL from column j at row 29
 insert into at(c,_dec) select concat('_dec: ',c), (select j from t where c='opaque_mysql_type_time') from t where c='opaque_mysql_type_time';
@@ -4549,7 +4549,7 @@ ERROR HY000: Incorrect integer value: '"23:24:25.000000"' for column '_yea' at r
 insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaque_mysql_type_datetime') from t where c='opaque_mysql_type_datetime';
 ERROR HY000: Incorrect integer value: '"2015-01-15 23:24:25.000000"' for column '_yea' at row 29
 insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaque_mysql_type_geom') from t where c='opaque_mysql_type_geom';
-ERROR HY000: Incorrect integer value: '{"type": "Point", "coordinates": [1, 1]}' for column '_yea' at row 29
+ERROR HY000: Incorrect integer value: '{"type": "Point", "coordinates": [1.0, 1.0]}' for column '_yea' at row 29
 insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaque_mysql_type_bit') from t where c='opaque_mysql_type_bit';
 ERROR HY000: Incorrect integer value: '"base64:type15:yv4="' for column '_yea' at row 29
 insert into at(c,_yea) select concat('_yea: ',c), (select j from t where c='opaque_mysql_type_year') from t where c='opaque_mysql_type_year';
@@ -5651,7 +5651,7 @@ _jsn: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _jsn: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_jsn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_jsn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5679,7 +5679,7 @@ _chr: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _chr: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_chr: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_chr: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5707,7 +5707,7 @@ _vch: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _vch: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_vch: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_vch: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5735,7 +5735,7 @@ _bin: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _bin: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_bin: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_bin: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5763,7 +5763,7 @@ _vbn: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _vbn: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_vbn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_vbn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5791,7 +5791,7 @@ _tbl: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _tbl: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_tbl: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_tbl: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5819,7 +5819,7 @@ _ttx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _ttx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_ttx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_ttx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5847,7 +5847,7 @@ _blb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _blb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_blb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_blb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5875,7 +5875,7 @@ _txt: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _txt: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_txt: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_txt: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5903,7 +5903,7 @@ _mbb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _mbb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N
-_mbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N
+_mbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5931,7 +5931,7 @@ _mtx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _mtx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N
-_mtx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N
+_mtx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N
@@ -5959,7 +5959,7 @@ _lbb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _lbb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N
-_lbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N
+_lbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N
@@ -5987,7 +5987,7 @@ _ltx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _ltx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N
-_ltx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N
+_ltx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N
@@ -6241,7 +6241,7 @@ _jsn: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _jsn: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_jsn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_jsn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6269,7 +6269,7 @@ _chr: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _chr: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_chr: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_chr: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6297,7 +6297,7 @@ _vch: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _vch: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_vch: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_vch: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6325,7 +6325,7 @@ _bin: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _bin: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_bin: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_bin: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6353,7 +6353,7 @@ _vbn: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _vbn: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_vbn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_vbn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6381,7 +6381,7 @@ _tbl: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _tbl: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_tbl: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_tbl: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6409,7 +6409,7 @@ _ttx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _ttx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_ttx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_ttx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6437,7 +6437,7 @@ _blb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _blb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_blb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_blb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6465,7 +6465,7 @@ _txt: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _txt: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_txt: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_txt: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6493,7 +6493,7 @@ _mbb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _mbb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N
-_mbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N
+_mbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6521,7 +6521,7 @@ _mtx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _mtx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N
-_mtx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N
+_mtx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6549,7 +6549,7 @@ _lbb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _lbb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N
-_lbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N
+_lbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N
@@ -6577,7 +6577,7 @@ _ltx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _ltx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N
-_ltx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N
+_ltx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N
@@ -6832,7 +6832,7 @@ _jsn: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _jsn: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_jsn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_jsn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _jsn: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6860,7 +6860,7 @@ _chr: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _chr: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_chr: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_chr: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _chr: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6888,7 +6888,7 @@ _vch: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _vch: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_vch: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_vch: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vch: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6916,7 +6916,7 @@ _bin: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _bin: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_bin: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_bin: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _bin: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6944,7 +6944,7 @@ _vbn: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _vbn: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_vbn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_vbn: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _vbn: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -6972,7 +6972,7 @@ _tbl: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _tbl: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_tbl: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_tbl: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _tbl: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -7000,7 +7000,7 @@ _ttx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _ttx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_ttx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_ttx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _ttx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -7028,7 +7028,7 @@ _blb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _blb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_blb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_blb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _blb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -7056,7 +7056,7 @@ _txt: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _txt: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N	N
-_txt: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N
+_txt: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
 _txt: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -7084,7 +7084,7 @@ _mbb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _mbb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N	N
-_mbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N	N
+_mbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N	N
 _mbb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N	N
@@ -7112,7 +7112,7 @@ _mtx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _mtx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N	N
-_mtx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N	N
+_mtx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N	N
 _mtx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N	N
@@ -7140,7 +7140,7 @@ _lbb: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _lbb: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N	N
-_lbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N	N
+_lbb: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N	N
 _lbb: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N	N
@@ -7168,7 +7168,7 @@ _ltx: opaque_mysql_type_enum	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIM
 _ltx: opaque_mysql_type_date	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_DATE--"	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_time	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--.000000"	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_datetime	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"--EXPECTED_TIME--"	N	N	N	N	N	N	N	N	N	N
-_ltx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1, 1]}	N	N	N	N	N	N	N	N	N	N
+_ltx: opaque_mysql_type_geom	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	{"type": "Point", "coordinates": [1.0, 1.0]}	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_bit	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type15:yv4="	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_year	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type13:MTk5Mg=="	N	N	N	N	N	N	N	N	N	N
 _ltx: opaque_mysql_type_blob	N	N	N	N	N	N	N	N	N	N	N	N	N	N	--DATE--	--TIME--	--TIME--	--TIME--	N	N	N	N	N	N	N	N	N	N	N	N	N	"base64:type252:yv66vg=="	N	N	N	N	N	N	N	N	N	N
@@ -7855,7 +7855,7 @@ _jsn: opaque_mysql_type_enum	"b"
 _jsn: opaque_mysql_type_date	"2015-01-15"
 _jsn: opaque_mysql_type_time	"23:24:25.000000"
 _jsn: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_jsn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_jsn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _jsn: opaque_mysql_type_bit	"base64:type15:yv4="
 _jsn: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _jsn: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -7883,7 +7883,7 @@ _jsn: opaque_mysql_type_enum	"b"
 _jsn: opaque_mysql_type_date	"2015-01-15"
 _jsn: opaque_mysql_type_time	"23:24:25.000000"
 _jsn: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_jsn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_jsn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _jsn: opaque_mysql_type_bit	"base64:type15:yv4="
 _jsn: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _jsn: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -7911,7 +7911,7 @@ _jsn: opaque_mysql_type_enum	"b"
 _jsn: opaque_mysql_type_date	"2015-01-15"
 _jsn: opaque_mysql_type_time	"23:24:25.000000"
 _jsn: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_jsn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_jsn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _jsn: opaque_mysql_type_bit	"base64:type15:yv4="
 _jsn: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _jsn: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -7942,7 +7942,7 @@ _chr: opaque_mysql_type_enum	"b"
 _chr: opaque_mysql_type_date	"2015-01-15"
 _chr: opaque_mysql_type_time	"23:24:25.000000"
 _chr: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_chr: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_chr: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _chr: opaque_mysql_type_bit	"base64:type15:yv4="
 _chr: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _chr: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -7970,7 +7970,7 @@ _chr: opaque_mysql_type_enum	"b"
 _chr: opaque_mysql_type_date	"2015-01-15"
 _chr: opaque_mysql_type_time	"23:24:25.000000"
 _chr: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_chr: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_chr: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _chr: opaque_mysql_type_bit	"base64:type15:yv4="
 _chr: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _chr: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -7998,7 +7998,7 @@ _chr: opaque_mysql_type_enum	"b"
 _chr: opaque_mysql_type_date	"2015-01-15"
 _chr: opaque_mysql_type_time	"23:24:25.000000"
 _chr: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_chr: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_chr: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _chr: opaque_mysql_type_bit	"base64:type15:yv4="
 _chr: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _chr: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8029,7 +8029,7 @@ _vch: opaque_mysql_type_enum	"b"
 _vch: opaque_mysql_type_date	"2015-01-15"
 _vch: opaque_mysql_type_time	"23:24:25.000000"
 _vch: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_vch: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_vch: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _vch: opaque_mysql_type_bit	"base64:type15:yv4="
 _vch: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _vch: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8057,7 +8057,7 @@ _vch: opaque_mysql_type_enum	"b"
 _vch: opaque_mysql_type_date	"2015-01-15"
 _vch: opaque_mysql_type_time	"23:24:25.000000"
 _vch: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_vch: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_vch: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _vch: opaque_mysql_type_bit	"base64:type15:yv4="
 _vch: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _vch: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8085,7 +8085,7 @@ _vch: opaque_mysql_type_enum	"b"
 _vch: opaque_mysql_type_date	"2015-01-15"
 _vch: opaque_mysql_type_time	"23:24:25.000000"
 _vch: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_vch: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_vch: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _vch: opaque_mysql_type_bit	"base64:type15:yv4="
 _vch: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _vch: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8116,7 +8116,7 @@ _bin: opaque_mysql_type_enum	"b"
 _bin: opaque_mysql_type_date	"2015-01-15"
 _bin: opaque_mysql_type_time	"23:24:25.000000"
 _bin: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_bin: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_bin: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _bin: opaque_mysql_type_bit	"base64:type15:yv4="
 _bin: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _bin: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8144,7 +8144,7 @@ _bin: opaque_mysql_type_enum	"b"
 _bin: opaque_mysql_type_date	"2015-01-15"
 _bin: opaque_mysql_type_time	"23:24:25.000000"
 _bin: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_bin: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_bin: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _bin: opaque_mysql_type_bit	"base64:type15:yv4="
 _bin: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _bin: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8172,7 +8172,7 @@ _bin: opaque_mysql_type_enum	"b"
 _bin: opaque_mysql_type_date	"2015-01-15"
 _bin: opaque_mysql_type_time	"23:24:25.000000"
 _bin: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_bin: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_bin: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _bin: opaque_mysql_type_bit	"base64:type15:yv4="
 _bin: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _bin: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8203,7 +8203,7 @@ _vbn: opaque_mysql_type_enum	"b"
 _vbn: opaque_mysql_type_date	"2015-01-15"
 _vbn: opaque_mysql_type_time	"23:24:25.000000"
 _vbn: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_vbn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_vbn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _vbn: opaque_mysql_type_bit	"base64:type15:yv4="
 _vbn: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _vbn: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8231,7 +8231,7 @@ _vbn: opaque_mysql_type_enum	"b"
 _vbn: opaque_mysql_type_date	"2015-01-15"
 _vbn: opaque_mysql_type_time	"23:24:25.000000"
 _vbn: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_vbn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_vbn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _vbn: opaque_mysql_type_bit	"base64:type15:yv4="
 _vbn: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _vbn: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8259,7 +8259,7 @@ _vbn: opaque_mysql_type_enum	"b"
 _vbn: opaque_mysql_type_date	"2015-01-15"
 _vbn: opaque_mysql_type_time	"23:24:25.000000"
 _vbn: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_vbn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_vbn: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _vbn: opaque_mysql_type_bit	"base64:type15:yv4="
 _vbn: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _vbn: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8290,7 +8290,7 @@ _tbl: opaque_mysql_type_enum	"b"
 _tbl: opaque_mysql_type_date	"2015-01-15"
 _tbl: opaque_mysql_type_time	"23:24:25.000000"
 _tbl: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_tbl: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_tbl: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _tbl: opaque_mysql_type_bit	"base64:type15:yv4="
 _tbl: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _tbl: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8318,7 +8318,7 @@ _tbl: opaque_mysql_type_enum	"b"
 _tbl: opaque_mysql_type_date	"2015-01-15"
 _tbl: opaque_mysql_type_time	"23:24:25.000000"
 _tbl: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_tbl: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_tbl: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _tbl: opaque_mysql_type_bit	"base64:type15:yv4="
 _tbl: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _tbl: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8346,7 +8346,7 @@ _tbl: opaque_mysql_type_enum	"b"
 _tbl: opaque_mysql_type_date	"2015-01-15"
 _tbl: opaque_mysql_type_time	"23:24:25.000000"
 _tbl: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_tbl: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_tbl: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _tbl: opaque_mysql_type_bit	"base64:type15:yv4="
 _tbl: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _tbl: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8377,7 +8377,7 @@ _ttx: opaque_mysql_type_enum	"b"
 _ttx: opaque_mysql_type_date	"2015-01-15"
 _ttx: opaque_mysql_type_time	"23:24:25.000000"
 _ttx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_ttx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_ttx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _ttx: opaque_mysql_type_bit	"base64:type15:yv4="
 _ttx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _ttx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8405,7 +8405,7 @@ _ttx: opaque_mysql_type_enum	"b"
 _ttx: opaque_mysql_type_date	"2015-01-15"
 _ttx: opaque_mysql_type_time	"23:24:25.000000"
 _ttx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_ttx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_ttx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _ttx: opaque_mysql_type_bit	"base64:type15:yv4="
 _ttx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _ttx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8433,7 +8433,7 @@ _ttx: opaque_mysql_type_enum	"b"
 _ttx: opaque_mysql_type_date	"2015-01-15"
 _ttx: opaque_mysql_type_time	"23:24:25.000000"
 _ttx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_ttx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_ttx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _ttx: opaque_mysql_type_bit	"base64:type15:yv4="
 _ttx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _ttx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8464,7 +8464,7 @@ _blb: opaque_mysql_type_enum	"b"
 _blb: opaque_mysql_type_date	"2015-01-15"
 _blb: opaque_mysql_type_time	"23:24:25.000000"
 _blb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_blb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_blb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _blb: opaque_mysql_type_bit	"base64:type15:yv4="
 _blb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _blb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8492,7 +8492,7 @@ _blb: opaque_mysql_type_enum	"b"
 _blb: opaque_mysql_type_date	"2015-01-15"
 _blb: opaque_mysql_type_time	"23:24:25.000000"
 _blb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_blb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_blb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _blb: opaque_mysql_type_bit	"base64:type15:yv4="
 _blb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _blb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8520,7 +8520,7 @@ _blb: opaque_mysql_type_enum	"b"
 _blb: opaque_mysql_type_date	"2015-01-15"
 _blb: opaque_mysql_type_time	"23:24:25.000000"
 _blb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_blb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_blb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _blb: opaque_mysql_type_bit	"base64:type15:yv4="
 _blb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _blb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8551,7 +8551,7 @@ _txt: opaque_mysql_type_enum	"b"
 _txt: opaque_mysql_type_date	"2015-01-15"
 _txt: opaque_mysql_type_time	"23:24:25.000000"
 _txt: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_txt: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_txt: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _txt: opaque_mysql_type_bit	"base64:type15:yv4="
 _txt: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _txt: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8579,7 +8579,7 @@ _txt: opaque_mysql_type_enum	"b"
 _txt: opaque_mysql_type_date	"2015-01-15"
 _txt: opaque_mysql_type_time	"23:24:25.000000"
 _txt: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_txt: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_txt: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _txt: opaque_mysql_type_bit	"base64:type15:yv4="
 _txt: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _txt: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8607,7 +8607,7 @@ _txt: opaque_mysql_type_enum	"b"
 _txt: opaque_mysql_type_date	"2015-01-15"
 _txt: opaque_mysql_type_time	"23:24:25.000000"
 _txt: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_txt: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_txt: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _txt: opaque_mysql_type_bit	"base64:type15:yv4="
 _txt: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _txt: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8638,7 +8638,7 @@ _mbb: opaque_mysql_type_enum	"b"
 _mbb: opaque_mysql_type_date	"2015-01-15"
 _mbb: opaque_mysql_type_time	"23:24:25.000000"
 _mbb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_mbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_mbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _mbb: opaque_mysql_type_bit	"base64:type15:yv4="
 _mbb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _mbb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8666,7 +8666,7 @@ _mbb: opaque_mysql_type_enum	"b"
 _mbb: opaque_mysql_type_date	"2015-01-15"
 _mbb: opaque_mysql_type_time	"23:24:25.000000"
 _mbb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_mbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_mbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _mbb: opaque_mysql_type_bit	"base64:type15:yv4="
 _mbb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _mbb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8694,7 +8694,7 @@ _mbb: opaque_mysql_type_enum	"b"
 _mbb: opaque_mysql_type_date	"2015-01-15"
 _mbb: opaque_mysql_type_time	"23:24:25.000000"
 _mbb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_mbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_mbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _mbb: opaque_mysql_type_bit	"base64:type15:yv4="
 _mbb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _mbb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8725,7 +8725,7 @@ _mtx: opaque_mysql_type_enum	"b"
 _mtx: opaque_mysql_type_date	"2015-01-15"
 _mtx: opaque_mysql_type_time	"23:24:25.000000"
 _mtx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_mtx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_mtx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _mtx: opaque_mysql_type_bit	"base64:type15:yv4="
 _mtx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _mtx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8753,7 +8753,7 @@ _mtx: opaque_mysql_type_enum	"b"
 _mtx: opaque_mysql_type_date	"2015-01-15"
 _mtx: opaque_mysql_type_time	"23:24:25.000000"
 _mtx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_mtx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_mtx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _mtx: opaque_mysql_type_bit	"base64:type15:yv4="
 _mtx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _mtx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8781,7 +8781,7 @@ _mtx: opaque_mysql_type_enum	"b"
 _mtx: opaque_mysql_type_date	"2015-01-15"
 _mtx: opaque_mysql_type_time	"23:24:25.000000"
 _mtx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_mtx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_mtx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _mtx: opaque_mysql_type_bit	"base64:type15:yv4="
 _mtx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _mtx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8812,7 +8812,7 @@ _lbb: opaque_mysql_type_enum	"b"
 _lbb: opaque_mysql_type_date	"2015-01-15"
 _lbb: opaque_mysql_type_time	"23:24:25.000000"
 _lbb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_lbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_lbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _lbb: opaque_mysql_type_bit	"base64:type15:yv4="
 _lbb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _lbb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8840,7 +8840,7 @@ _lbb: opaque_mysql_type_enum	"b"
 _lbb: opaque_mysql_type_date	"2015-01-15"
 _lbb: opaque_mysql_type_time	"23:24:25.000000"
 _lbb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_lbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_lbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _lbb: opaque_mysql_type_bit	"base64:type15:yv4="
 _lbb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _lbb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8868,7 +8868,7 @@ _lbb: opaque_mysql_type_enum	"b"
 _lbb: opaque_mysql_type_date	"2015-01-15"
 _lbb: opaque_mysql_type_time	"23:24:25.000000"
 _lbb: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_lbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_lbb: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _lbb: opaque_mysql_type_bit	"base64:type15:yv4="
 _lbb: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _lbb: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8899,7 +8899,7 @@ _ltx: opaque_mysql_type_enum	"b"
 _ltx: opaque_mysql_type_date	"2015-01-15"
 _ltx: opaque_mysql_type_time	"23:24:25.000000"
 _ltx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_ltx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_ltx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _ltx: opaque_mysql_type_bit	"base64:type15:yv4="
 _ltx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _ltx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8927,7 +8927,7 @@ _ltx: opaque_mysql_type_enum	"b"
 _ltx: opaque_mysql_type_date	"2015-01-15"
 _ltx: opaque_mysql_type_time	"23:24:25.000000"
 _ltx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_ltx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_ltx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _ltx: opaque_mysql_type_bit	"base64:type15:yv4="
 _ltx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _ltx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -8955,7 +8955,7 @@ _ltx: opaque_mysql_type_enum	"b"
 _ltx: opaque_mysql_type_date	"2015-01-15"
 _ltx: opaque_mysql_type_time	"23:24:25.000000"
 _ltx: opaque_mysql_type_datetime	"2015-01-15 23:24:25.000000"
-_ltx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1, 1]}
+_ltx: opaque_mysql_type_geom	{"type": "Point", "coordinates": [1.0, 1.0]}
 _ltx: opaque_mysql_type_bit	"base64:type15:yv4="
 _ltx: opaque_mysql_type_year	"base64:type13:MTk5Mg=="
 _ltx: opaque_mysql_type_blob	"base64:type252:yv66vg=="
@@ -9183,7 +9183,7 @@ select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35
 concat('From JSON col ',c, ' as BINARY(35)')	replace(cast(j as BINARY(35)), '\0', '')
 From JSON col opaque_mysql_type_geom as BINARY(35)	{"type": "Point", "coordinates": [1
 Warnings:
-Warning	1292	Truncated incorrect BINARY(35) value: '{"type": "Point", "coordinates": [1, 1]}'
+Warning	1292	Truncated incorrect BINARY(35) value: '{"type": "Point", "coordinates": [1.0, 1.0]}'
 select concat('From JSON col ',c, ' as BINARY(35)'), replace(cast(j as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_bit';
 concat('From JSON col ',c, ' as BINARY(35)')	replace(cast(j as BINARY(35)), '\0', '')
 From JSON col opaque_mysql_type_bit as BINARY(35)	"base64:type15:yv4="
@@ -9272,7 +9272,7 @@ select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t w
 concat('From JSON col ',c, ' as CHAR(35))')	cast(j as CHAR(35))
 From JSON col opaque_mysql_type_geom as CHAR(35))	{"type": "Point", "coordinates": [1
 Warnings:
-Warning	1292	Truncated incorrect CHAR(35) value: '{"type": "Point", "coordinates": [1, 1]}'
+Warning	1292	Truncated incorrect CHAR(35) value: '{"type": "Point", "coordinates": [1.0, 1.0]}'
 select concat('From JSON col ',c, ' as CHAR(35))'), cast(j as CHAR(35)) from t where c='opaque_mysql_type_bit';
 concat('From JSON col ',c, ' as CHAR(35))')	cast(j as CHAR(35))
 From JSON col opaque_mysql_type_bit as CHAR(35))	"base64:type15:yv4="
@@ -9723,7 +9723,6 @@ select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) f
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON col stringany as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 6
 select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='stringint';
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
@@ -9748,13 +9747,11 @@ select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) f
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON col opaque_mysql_type_set as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 12
 select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_enum';
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON col opaque_mysql_type_enum as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 13
 select concat('From JSON col ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_date';
 concat('From JSON col ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
@@ -10133,7 +10130,7 @@ select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(
 concat('From JSON func ',c, ' as BINARY(35)')	replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '')
 From JSON func opaque_mysql_type_geom as BINARY(35)	{"type": "Point", "coordinates": [1
 Warnings:
-Warning	1292	Truncated incorrect BINARY(35) value: '{"type": "Point", "coordinates": [1, 1]}'
+Warning	1292	Truncated incorrect BINARY(35) value: '{"type": "Point", "coordinates": [1.0, 1.0]}'
 select concat('From JSON func ',c, ' as BINARY(35)'), replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_bit';
 concat('From JSON func ',c, ' as BINARY(35)')	replace(cast(json_extract(j, '$') as BINARY(35)), '\0', '')
 From JSON func opaque_mysql_type_bit as BINARY(35)	"base64:type15:yv4="
@@ -10222,7 +10219,7 @@ select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') a
 concat('From JSON func ',c, ' as CHAR(35))')	cast(json_extract(j, '$') as CHAR(35))
 From JSON func opaque_mysql_type_geom as CHAR(35))	{"type": "Point", "coordinates": [1
 Warnings:
-Warning	1292	Truncated incorrect CHAR(35) value: '{"type": "Point", "coordinates": [1, 1]}'
+Warning	1292	Truncated incorrect CHAR(35) value: '{"type": "Point", "coordinates": [1.0, 1.0]}'
 select concat('From JSON func ',c, ' as CHAR(35))'), cast(json_extract(j, '$') as CHAR(35)) from t where c='opaque_mysql_type_bit';
 concat('From JSON func ',c, ' as CHAR(35))')	cast(json_extract(j, '$') as CHAR(35))
 From JSON func opaque_mysql_type_bit as CHAR(35))	"base64:type15:yv4="
@@ -10673,7 +10670,6 @@ select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$'
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
 From JSON func stringany as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_extract at row 6
 select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='stringint';
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
@@ -10698,13 +10694,11 @@ select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$'
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
 From JSON func opaque_mysql_type_set as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_extract at row 12
 select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_enum';
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
 From JSON func opaque_mysql_type_enum as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column json_extract at row 13
 select concat('From JSON func ',c, ' as DECIMAL(5,2)'), cast(json_extract(j, '$') as DECIMAL(5,2)) from t where c='opaque_mysql_type_date';
 concat('From JSON func ',c, ' as DECIMAL(5,2)')	cast(json_extract(j, '$') as DECIMAL(5,2))
@@ -11083,7 +11077,7 @@ select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select 
 concat('From JSON subselect ',c, ' as BINARY(35)')	replace(cast((select j from t where c='opaque_mysql_type_geom') as BINARY(35)), '\0', '')
 From JSON subselect opaque_mysql_type_geom as BINARY(35)	{"type": "Point", "coordinates": [1
 Warnings:
-Warning	1292	Truncated incorrect BINARY(35) value: '{"type": "Point", "coordinates": [1, 1]}'
+Warning	1292	Truncated incorrect BINARY(35) value: '{"type": "Point", "coordinates": [1.0, 1.0]}'
 select concat('From JSON subselect ',c, ' as BINARY(35)'), replace(cast((select j from t where c='opaque_mysql_type_bit') as BINARY(35)), '\0', '') from t where c='opaque_mysql_type_bit';
 concat('From JSON subselect ',c, ' as BINARY(35)')	replace(cast((select j from t where c='opaque_mysql_type_bit') as BINARY(35)), '\0', '')
 From JSON subselect opaque_mysql_type_bit as BINARY(35)	"base64:type15:yv4="
@@ -11172,7 +11166,7 @@ select concat('From JSON subselect ',c, ' as CHAR(35))'), cast((select j from t 
 concat('From JSON subselect ',c, ' as CHAR(35))')	cast((select j from t where c='opaque_mysql_type_geom') as CHAR(35))
 From JSON subselect opaque_mysql_type_geom as CHAR(35))	{"type": "Point", "coordinates": [1
 Warnings:
-Warning	1292	Truncated incorrect CHAR(35) value: '{"type": "Point", "coordinates": [1, 1]}'
+Warning	1292	Truncated incorrect CHAR(35) value: '{"type": "Point", "coordinates": [1.0, 1.0]}'
 select concat('From JSON subselect ',c, ' as CHAR(35))'), cast((select j from t where c='opaque_mysql_type_bit') as CHAR(35)) from t where c='opaque_mysql_type_bit';
 concat('From JSON subselect ',c, ' as CHAR(35))')	cast((select j from t where c='opaque_mysql_type_bit') as CHAR(35))
 From JSON subselect opaque_mysql_type_bit as CHAR(35))	"base64:type15:yv4="
@@ -11623,7 +11617,6 @@ select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON subselect stringany as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 6
 select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast((select j from t where c='stringint') as DECIMAL(5,2)) from t where c='stringint';
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast((select j from t where c='stringint') as DECIMAL(5,2))
@@ -11648,13 +11641,11 @@ select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
 From JSON subselect opaque_mysql_type_set as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 12
 select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast((select j from t where c='opaque_mysql_type_enum') as DECIMAL(5,2)) from t where c='opaque_mysql_type_enum';
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast((select j from t where c='opaque_mysql_type_enum') as DECIMAL(5,2))
 From JSON subselect opaque_mysql_type_enum as DECIMAL(5,2)	0.00
 Warnings:
-Warning	1366	Incorrect DECIMAL value: '0' for column '' at row -1
 Warning	3156	Invalid JSON value for CAST to DECIMAL from column j at row 29
 select concat('From JSON subselect ',c, ' as DECIMAL(5,2)'), cast(j as DECIMAL(5,2)) from t where c='opaque_mysql_type_date';
 concat('From JSON subselect ',c, ' as DECIMAL(5,2)')	cast(j as DECIMAL(5,2))
@@ -11806,7 +11797,7 @@ select concat('From JSON subselect ',c, ' as UNSIGNED'), cast((select j from t w
 concat('From JSON subselect ',c, ' as UNSIGNED')	cast((select j from t where c='opaque_mysql_type_geom') as UNSIGNED)
 From JSON subselect opaque_mysql_type_geom as UNSIGNED	0
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '{"type": "Point", "coordinates": [1, 1]}'
+Warning	1292	Truncated incorrect INTEGER value: '{"type": "Point", "coordinates": [1.0, 1.0]}'
 select concat('From JSON subselect ',c, ' as UNSIGNED'), cast(j as UNSIGNED) from t where c='opaque_mysql_type_bit';
 concat('From JSON subselect ',c, ' as UNSIGNED')	cast(j as UNSIGNED)
 From JSON subselect opaque_mysql_type_bit as UNSIGNED	0
@@ -11937,7 +11928,7 @@ select concat('From JSON subselect ',c, ' as SIGNED'), cast((select j from t whe
 concat('From JSON subselect ',c, ' as SIGNED')	cast((select j from t where c='opaque_mysql_type_geom') as SIGNED)
 From JSON subselect opaque_mysql_type_geom as SIGNED	0
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '{"type": "Point", "coordinates": [1, 1]}'
+Warning	1292	Truncated incorrect INTEGER value: '{"type": "Point", "coordinates": [1.0, 1.0]}'
 select concat('From JSON subselect ',c, ' as SIGNED'), cast(j as SIGNED) from t where c='opaque_mysql_type_bit';
 concat('From JSON subselect ',c, ' as SIGNED')	cast(j as SIGNED)
 From JSON subselect opaque_mysql_type_bit as SIGNED	0
@@ -12200,7 +12191,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -12277,8 +12268,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -12443,7 +12434,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -12520,8 +12511,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -12692,7 +12683,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -12769,8 +12760,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -12937,7 +12928,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -13014,8 +13005,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -13182,7 +13173,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -13259,8 +13250,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -13427,7 +13418,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -13504,8 +13495,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -13755,7 +13746,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 1st Level	null	"b,c"	NULL	STRING	1	3	0	1
@@ -13843,10 +13834,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -14028,7 +14019,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 1st Level	null	"b,c"	NULL	STRING	1	3	0	1
@@ -14116,10 +14107,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -14307,7 +14298,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 1st Level	null	"b,c"	NULL	STRING	1	3	0	1
@@ -14395,10 +14386,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -14582,7 +14573,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 1st Level	null	"b,c"	NULL	STRING	1	3	0	1
@@ -14670,10 +14661,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -14857,7 +14848,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 1st Level	null	"b,c"	NULL	STRING	1	3	0	1
@@ -14945,10 +14936,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -15132,7 +15123,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 1st Level	null	"b,c"	NULL	STRING	1	3	0	1
@@ -15220,10 +15211,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -15452,8 +15443,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	1	0
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	1	0
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	0	1
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	1	0
@@ -15502,8 +15493,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	1	0
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	1	0
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	0	1
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	1	0
@@ -15558,8 +15549,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	1	0
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	1	0
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	0	1
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	1	0
@@ -15610,8 +15601,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	1	0
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	1	0
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	0	1
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	1	0
@@ -15662,8 +15653,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	1	0
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	1	0
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	0	1
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	1	0
@@ -15714,8 +15705,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	1	0
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	1	0
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	1	0
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	0	1
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	1	0
@@ -15839,8 +15830,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	0	1
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	0	1
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	1	0
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	0	1
@@ -15889,8 +15880,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	0	1
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	0	1
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	1	0
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	0	1
@@ -15945,8 +15936,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	0	1
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	0	1
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	1	0
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	0	1
@@ -15997,8 +15988,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	0	1
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	0	1
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	1	0
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	0	1
@@ -16049,8 +16040,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	0	1
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	0	1
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	1	0
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	0	1
@@ -16101,8 +16092,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	3.14	"23:24:25.000000"	DOUBLE	STRING	2	3	0	1
 1st Level	null	"2015-01-15 23:24:25.000000"	NULL	STRING	1	3	0	1
 1st Level	3.14	"2015-01-15 23:24:25.000000"	DOUBLE	STRING	2	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	1	0
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	1	0
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	1	0
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	1	0
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	0	1
 1st Level	[1, 2]	"base64:type15:yv4="	ARRAY	STRING	5	3	1	0
 1st Level	null	"base64:type13:MTk5Mg=="	NULL	STRING	1	3	0	1
@@ -16261,7 +16252,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 1st Level	null	"b,c"	NULL	STRING	1	3	1	0
@@ -16349,10 +16340,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -16534,7 +16525,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 1st Level	null	"b,c"	NULL	STRING	1	3	1	0
@@ -16622,10 +16613,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -16813,7 +16804,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 1st Level	null	"b,c"	NULL	STRING	1	3	1	0
@@ -16901,10 +16892,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -17088,7 +17079,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 1st Level	null	"b,c"	NULL	STRING	1	3	1	0
@@ -17176,10 +17167,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -17363,7 +17354,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 1st Level	null	"b,c"	NULL	STRING	1	3	1	0
@@ -17451,10 +17442,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -17638,7 +17629,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 1st Level	true	{"a": 3}	BOOLEAN	OBJECT	6	4	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	[1, 2]	{"a": 3}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 1st Level	true	[1, 2]	BOOLEAN	ARRAY	6	5	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 1st Level	null	"b,c"	NULL	STRING	1	3	1	0
@@ -17726,10 +17717,10 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-1st Level	true	{"type": "Point", "coordinates": [1, 1]}	BOOLEAN	OBJECT	6	4	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-1st Level	[1, 2]	{"type": "Point", "coordinates": [1, 1]}	ARRAY	OBJECT	5	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+1st Level	true	{"type": "Point", "coordinates": [1.0, 1.0]}	BOOLEAN	OBJECT	6	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+1st Level	[1, 2]	{"type": "Point", "coordinates": [1.0, 1.0]}	ARRAY	OBJECT	5	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 1st Level	null	"base64:type15:yv4="	NULL	STRING	1	3	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -18036,7 +18027,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	1	0
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	1	0
@@ -18113,8 +18104,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -18279,7 +18270,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	1	0
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	1	0
@@ -18356,8 +18347,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -18528,7 +18519,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	1	0
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	1	0
@@ -18605,8 +18596,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -18773,7 +18764,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	1	0
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	1	0
@@ -18850,8 +18841,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -19018,7 +19009,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	1	0
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	1	0
@@ -19095,8 +19086,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -19263,7 +19254,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	1	0
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	1	0
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	1	0
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	1	0
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	1	0
@@ -19340,8 +19331,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	1	0
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	1	0
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	1	0
@@ -19634,7 +19625,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -19711,8 +19702,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -19877,7 +19868,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -19954,8 +19945,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -20126,7 +20117,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -20203,8 +20194,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -20371,7 +20362,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -20448,8 +20439,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -20616,7 +20607,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -20693,8 +20684,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
@@ -20861,7 +20852,7 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type249:yv66vg=="	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"3.14"	STRING	STRING	3	3	0	1
 2nd Level	{"a": 3}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": 3}	OBJECT	OBJECT	4	4	0	1
 2nd Level	[1, 2]	[1, 2]	ARRAY	ARRAY	5	5	0	1
 2nd Level	"a"	"b,c"	STRING	STRING	3	3	0	1
 2nd Level	"1"	"b,c"	STRING	STRING	3	3	0	1
@@ -20938,8 +20929,8 @@ validation_stage	side1	side2	side1_json_type	side2_json_type	side1_json_weightag
 2nd Level	"base64:type250:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type249:yv66vg=="	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
 2nd Level	"base64:type15:Zm9v"	"2015-01-15 23:24:25.000000"	STRING	STRING	3	3	0	1
-2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
-2nd Level	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"a": 3}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
+2nd Level	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT	OBJECT	4	4	0	1
 2nd Level	"a"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"1"	"base64:type15:yv4="	STRING	STRING	3	3	0	1
 2nd Level	"3.14"	"base64:type15:yv4="	STRING	STRING	3	3	0	1

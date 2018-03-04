@@ -44,6 +44,7 @@ START GROUP_REPLICATION;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --disable_warnings
+--error 0, ER_PLUGIN_CANNOT_BE_UNINSTALLED
 --reap
 
 --replace_result $GROUP_REPLICATION GROUP_REPLICATION

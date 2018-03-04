@@ -121,7 +121,7 @@ SELECT @@global.log_slave_updates;
 @@global.log_slave_updates
 1
 # check contents of persistent config file
-{ "mysql_server": { "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" , "innodb_api_enable_mdl": "0" , "innodb_log_file_size": "4194304" , "innodb_read_io_threads": "16" , "log_slave_updates": "1" } } }
+{ "mysql_server": {"mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" , "innodb_api_enable_mdl": "0" , "innodb_log_file_size": "4194304" , "innodb_read_io_threads": "16" , "log_slave_updates": "1" } } }
 SET @@persist_only.max_connections=99;
 SET PERSIST_ONLY table_open_cache_instances= 8;
 { "mysql_server": {"max_connections": "99" , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" , "innodb_api_enable_mdl": "0" , "innodb_log_file_size": "4194304" , "innodb_read_io_threads": "16" , "log_slave_updates": "1" , "table_open_cache_instances": "8" } } }# try persist_only for dynamic variables
@@ -235,21 +235,21 @@ RESET PERSIST;
 # test reset on readonly persisted variables
 SET @@persist_only.innodb_log_file_size= 4194304;
 SET @@persist_only.slave_type_conversions = ALL_UNSIGNED;
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
-slave_type_conversions	ALL_UNSIGNED
 innodb_log_file_size	4194304
+slave_type_conversions	ALL_UNSIGNED
 SET PERSIST auto_increment_increment=10;
 SET PERSIST innodb_checksum_algorithm=strict_crc32;
 SET @@persist_only.innodb_log_file_size= DEFAULT;
 SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 auto_increment_increment	10
-innodb_checksum_algorithm	strict_crc32
-slave_type_conversions	ALL_UNSIGNED
 ft_query_expansion_limit	200
+innodb_checksum_algorithm	strict_crc32
 innodb_log_file_size	4194304
+slave_type_conversions	ALL_UNSIGNED
 # reset slave_type_conversions
 RESET PERSIST slave_type_conversions;
 # return 0 rows.
@@ -259,11 +259,12 @@ VARIABLE_NAME	VARIABLE_VALUE
 RESET PERSIST auto_increment_increment;
 RESET PERSIST innodb_log_file_size;
 SELECT * FROM performance_schema.persisted_variables
-WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size');
+WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size')
+ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 RESET PERSIST;
 # return 0 rows.
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 # Restart server
 # test non persistent read only variables
@@ -355,3 +356,30 @@ SET @@persist_only.innodb_buffer_pool_load_at_startup= "";
 ERROR HY000: Variable 'innodb_buffer_pool_load_at_startup' is a non persistent read only variable
 RESET PERSIST;
 DROP USER wl9787;
+#
+# Bug26395134: SET PERSIST_ONLY HAS WRONG EFFECT ON P_S.VARIABLES_INFO
+#
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+COMPILED	NULL	NULL
+SET PERSIST_ONLY max_connections = 151;
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+COMPILED	NULL	NULL
+# Restart server
+# restart
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+WHERE VARIABLE_NAME = 'max_connections';
+VARIABLE_SOURCE	SET_USER	SET_HOST
+PERSISTED	NULL	NULL
+RESET PERSIST;
+#
+# Bug27193853: ASSERT `(0)' AT SYS_VARS.H:2416 FOR SET PERSIST_ONLY
+#               GTID_OWNED/EXECUTED
+#
+SET PERSIST_ONLY gtid_owned='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+ERROR HY000: Variable 'gtid_owned' is a non persistent read only variable
+SET PERSIST_ONLY gtid_executed='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+ERROR HY000: Variable 'gtid_executed' is a non persistent read only variable

@@ -73,16 +73,12 @@ INITIAL_SIZE 12M
 ENGINE NDB;
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB;
+INITIAL_SIZE = 4M;
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB;
-DROP TABLESPACE ts1 
-ENGINE = NDB;
+DROP DATAFILE 'datafile02.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
 include/show_binlog_events.inc
@@ -103,16 +99,12 @@ INITIAL_SIZE 12M
 ENGINE NDB
 mysqld-bin.000001	#	Query	#	#	ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB
+INITIAL_SIZE = 4M
 mysqld-bin.000001	#	Query	#	#	ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB
+DROP DATAFILE 'datafile.dat'
 mysqld-bin.000001	#	Query	#	#	ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB
-mysqld-bin.000001	#	Query	#	#	DROP TABLESPACE ts1 
-ENGINE = NDB
+DROP DATAFILE 'datafile02.dat'
+mysqld-bin.000001	#	Query	#	#	DROP TABLESPACE ts1
 mysqld-bin.000001	#	Query	#	#	DROP LOGFILE GROUP lg1 
 ENGINE =NDB
 include/show_binlog_events.inc
@@ -133,16 +125,12 @@ INITIAL_SIZE 12M
 ENGINE NDB
 mysqld-bin.000001	#	Query	#	#	ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB
+INITIAL_SIZE = 4M
 mysqld-bin.000001	#	Query	#	#	ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB
+DROP DATAFILE 'datafile.dat'
 mysqld-bin.000001	#	Query	#	#	ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB
-mysqld-bin.000001	#	Query	#	#	DROP TABLESPACE ts1 
-ENGINE = NDB
+DROP DATAFILE 'datafile02.dat'
+mysqld-bin.000001	#	Query	#	#	DROP TABLESPACE ts1
 mysqld-bin.000001	#	Query	#	#	DROP LOGFILE GROUP lg1 
 ENGINE =NDB
 drop table t1;

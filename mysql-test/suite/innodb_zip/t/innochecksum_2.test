@@ -8,7 +8,7 @@
 --disable_query_log
 # This warning occurs due to small buffer pool size(i.e. 8MB). It doesn't occur
 # with --mysqld=--innodb_buffer_pool_size=10MB
-call mtr.add_suppression("\\[Warning\\] InnoDB: Difficult to find free blocks in the buffer pool.*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Difficult to find free blocks in the buffer pool.*");
 --enable_query_log
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;

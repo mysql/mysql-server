@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_INSTR_CLASS_H
 #define PFS_INSTR_CLASS_H
@@ -19,7 +26,6 @@
 #include "my_config.h"
 
 #include <sys/types.h>
-
 #include <atomic>
 
 #include "lf.h"
@@ -28,11 +34,11 @@
 #include "my_inttypes.h"
 #include "mysql_com.h" /* NAME_LEN */
 #include "mysqld_error.h"
-#include "pfs_column_types.h"
-#include "pfs_global.h"
-#include "pfs_lock.h"
-#include "pfs_stat.h"
 #include "prealloced_array.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_stat.h"
 
 struct TABLE_SHARE;
 
@@ -66,7 +72,6 @@ class PFS_opaque_container_page;
 */
 
 extern bool pfs_enabled;
-extern enum_timer_name *class_timers[];
 
 /** Key, naming a synch instrument (mutex, rwlock, cond). */
 typedef unsigned int PFS_sync_key;
@@ -159,8 +164,6 @@ struct PFS_instr_class
   char m_name[PFS_MAX_INFO_NAME_LENGTH];
   /** Length in bytes of @c m_name. */
   uint m_name_length;
-  /** Timer associated with this class. */
-  enum_timer_name *m_timer;
   /** Documentation. */
   char *m_documentation;
 
@@ -298,7 +301,7 @@ struct PFS_ALIGNED PFS_thread_class : public PFS_instr_class
   /** Singleton instance. */
   PFS_thread *m_singleton;
   /** Thread history instrumentation flag. */
-  bool m_history;
+  bool m_history{false};
 };
 
 /** Key identifying a table share. */

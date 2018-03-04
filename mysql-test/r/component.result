@@ -165,3 +165,14 @@ ERROR 42000: INSERT command denied to user 'mysqltest_u1'@'localhost' for table 
 UNINSTALL COMPONENT "file://component_example_component1";
 ERROR 42000: DELETE command denied to user 'mysqltest_u1'@'localhost' for table 'component'
 DROP USER mysqltest_u1@localhost;
+#
+# Bug #27041374: ASSERTION `NEXT_INSERT_ID == 0' FAILED.
+#
+SET @@session.insert_id=42949672950;
+# Must not assert
+INSTALL COMPONENT
+"file://component_example_component2","file://component_example_component3";
+ERROR HY000: Failed to manipulate component 'file://component_example_component3' persistence data. Error code 121 from storage engine.
+# reset back the insert_id
+SET @@session.insert_id=0;
+# End of 8.0 tests

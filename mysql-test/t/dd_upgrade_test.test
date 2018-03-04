@@ -4,7 +4,7 @@
 --source include/not_valgrind.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] InnoDB: Parent table of FTS auxiliary table.*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Parent table of FTS auxiliary table.*");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --enable_query_log
 
@@ -204,14 +204,11 @@ EOF
 --echo # Files in 'test' dir
 --list_files $MYSQL_TMP_DIR/data57/
 
---echo # Create a bootstrap file in temp location
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---exec echo $MYSQL_TMP_DIR/bootstrap.log
-
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 
+# Add '--read-only' option in the scope of fix of Bug#26636238, to avoid creation of another bulky test.
 --echo # Start the DB server. Server will create and populate Dictionary tables.
---exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --read-only --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -310,6 +307,10 @@ DESC `test`.`initial_vü`;
 --replace_column 15 CREATE_TIME
 SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_type='VIEW';
 SET names default;
+
+--echo #Test case for Bug#26636238
+#Check metadata of a performance schema table when upgrade is performed with --read-only
+SHOW CREATE TABLE performance_schema.threads;
 
 --echo # Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;
@@ -693,13 +694,44 @@ if ($RECORD == 1) {
 }
 
 --echo # Remove copied files
---remove_file $MYSQL_TMP_DIR/data57.zip
 --remove_file $MYSQLD_LOG
 --force-rmdir $MYSQL_TMP_DIR/data57
 
 if ($RECORD == 1) {
 --echo "Recorded JSONs. Please remove the record mode inside test and re-run the test"
 }
+
+--echo #
+--echo # Bug#26944731 : UPGRADE TO 8.0 FAILS: DUPLICATE SET VALUES IN TABLE FROM A PERMISSIVE SQL_MODE..
+--echo # Bug#26948678 : MYSQLD: INVALID DEFAULT VALUE FOR 'CACHED_TIME'
+--echo #
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
+
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+
+# These files are used by other test cases, and is not required here.
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.frm
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYD
+--remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYI
+--force-rmdir $MYSQL_TMP_DIR/data57/partitions
+--force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
+
+# Copy .frm file with blackhole engine and duplicate values in SET
+--copy_file $MYSQLTEST_VARDIR/std_data/t_set.frm $MYSQL_TMP_DIR/data57/test/t_set.frm
+# Test with --explicit-defaults-for-timestamp=0
+--exec echo "restart: --loose-skip-log-bin --explicit-defaults-for-timestamp=0 --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+SHOW CREATE TABLE test.t_set;
+--echo # Stop the server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove copied files
+--remove_file $MYSQL_TMP_DIR/data57.zip
+--remove_file $MYSQLD_LOG
+--force-rmdir $MYSQL_TMP_DIR/data57
 
 --echo # Restart the server with default options.
 --source include/start_mysqld.inc

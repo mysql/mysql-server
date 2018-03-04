@@ -1,0 +1,494 @@
+USE test;
+CREATE TABLE tab(j1 JSON);
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Sven
+json_extract(j1, '$[0]')
+"Sven"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+# Show Viswa
+json_extract(j1, '$[0]')
+"Viswa"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+# Show Nath
+json_extract(j1, '$[0]')
+"Nath"
+# Modify column type from JSON to LONGTEXT
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00"
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Check JSON functions works on TEXT datatype
+JSON_STORAGE_SIZE(j1)
+30056
+JSON_STORAGE_FREE(j1)
+0
+# Show Setlongtext
+json_extract(j1, '$[0]')
+"Setlongtext"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00"
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Check JSON functions works on TEXT datatype
+JSON_STORAGE_SIZE(j1)
+30056
+JSON_STORAGE_FREE(j1)
+0
+# Show Replongtext
+json_extract(j1, '$[0]')
+"Replongtext"
+When column modify from LONGTEXT to JSON
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show Setjson
+json_extract(j1, '$[0]')
+"Setjson"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show Repjson
+json_extract(j1, '$[0]')
+"Repjson"
+To COMPRESSED
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `j1` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show Setcomp
+json_extract(j1, '$[0]')
+"Setcomp"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+# Show Repcomp
+json_extract(j1, '$[0]')
+"Repcomp"
+COMPRESSED to DYNAMIC
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `j1` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show Setdyna
+json_extract(j1, '$[0]')
+"Setdyna"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show Repdyna
+json_extract(j1, '$[0]')
+"Repdyna"
+DYNAMIC to REDUNDANT
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `j1` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show Setredu
+json_extract(j1, '$[0]')
+"Setredu"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+# Show Repredu
+json_extract(j1, '$[0]')
+"Repredu"
+REDUNDANT to COMPACT
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `j1` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show Setcomp
+json_extract(j1, '$[0]')
+"Setcomp"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+# Show Repcomp
+json_extract(j1, '$[0]')
+"Repcomp"
+# Create a view on JSON column
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00"
+    }
+  }
+}
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Check JSON functions works on views
+JSON_STORAGE_SIZE(j1)
+30052
+JSON_STORAGE_FREE(j1)
+0
+# Show Setview
+json_extract(j1, '$[0]')
+"Setview"
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 1,
+      "filtered": "100.00"
+    }
+  }
+}
+# Show Reviewp
+json_extract(j1, '$[0]')
+"Repview"
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Check JSON functions works on views
+JSON_STORAGE_SIZE(j1)
+30052
+JSON_STORAGE_FREE(j1)
+0
+# Modify Compression to ZLIB
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `j1` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT COMPRESSION='ZLIB'
+# Check partial update through procedure
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show Reppro
+json_extract(j1, '$[0]')
+"Reppro"
+# Check JSON functions on views
+JSON_STORAGE_SIZE(j1)
+30052
+JSON_STORAGE_FREE(j1)
+1
+# Modify Compression to 'LZ4'
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `j1` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT COMPRESSION='LZ4'
+# Check partial update through procedure
+Table	Op	Msg_type	Msg_text
+test.tab	analyze	status	OK
+# Show SetLZ
+json_extract(j1, '$[0]')
+"SetLZ"
+# Check pattern for LOB partial update exist
+Pattern "LOB partial update" not found
+# Check JSON functions does not work on BLOB type
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `id` int(11) NOT NULL,
+  `j1` blob,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
+ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
+ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
+# Check partial update with Generated columns
+Table	Op	Msg_type	Msg_text
+test.tab2	analyze	status	OK
+ERROR HY000: The value specified for generated column 'c2' in table 'tab2' is not allowed.
+# Check partial update with partition table
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `a` int(11) DEFAULT NULL,
+  `j1` json DEFAULT NULL,
+  `j2` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+/*!50100 PARTITION BY LINEAR HASH (`a`)
+PARTITIONS 3 */
+a	j1	j2
+1	{"a": "a", "b": "b"}	{"a": "a", "b": "b"}
+1	{"a": "aa", "b": "bb"}	{"a": "aa", "b": "bb"}
+2	NULL	NULL
+2	["Sachin", "Tendulkar"]	["Virat", "Kohili"]
+3	[100, {"A1": "Amarnath", "B1": "Binni"}]	[200, {"A2": "Azar", "S1": "Srikanth"}]
+3	{"Sasri": [500, 600], "Chetan": [300, 400]}	{"Dhoni": [700, 800], "Sidhu": [900, 100]}
+Check with JSON_SET
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab3",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 6,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1",
+        "j2"
+      ]
+    }
+  }
+}
+a	j1	j2
+1	{"a": "x", "b": "z"}	{"a": "y", "b": "b"}
+1	{"a": "x", "b": "z"}	{"a": "y", "b": "bb"}
+2	NULL	NULL
+2	["Sachin", "Tendulkar"]	["Virat", "Kohili"]
+3	[100, {"A1": "Amarnath", "B1": "Binni"}]	[200, {"A2": "Azar", "S1": "Srikanth"}]
+3	{"a": "x", "b": "z", "Sasri": [500, 600], "Chetan": [300, 400]}	{"a": "y", "Dhoni": [700, 800], "Sidhu": [900, 100]}
+Check with JSON_REPLACE
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "table": {
+      "update": true,
+      "table_name": "tab3",
+      "partitions": [
+        "p0",
+        "p1",
+        "p2"
+      ],
+      "access_type": "ALL",
+      "rows_examined_per_scan": 6,
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
+    }
+  }
+}
+# show PartRe
+json_extract(j1, '$[1].A1')
+NULL
+NULL
+"PartRe"
+NULL
+NULL
+NULL
+a	j1	j2
+1	{"a": "x", "b": "z"}	{"a": "y", "b": "b"}
+1	{"a": "x", "b": "z"}	{"a": "y", "b": "bb"}
+2	NULL	NULL
+2	["Sachin", "Tendulkar"]	["Virat", "Kohili"]
+3	[100, {"A1": "PartRe", "B1": "Binni"}]	[200, {"A2": "Azar", "S1": "Srikanth"}]
+3	{"a": "x", "b": "z", "Sasri": [500, 600], "Chetan": [300, 400]}	{"a": "y", "Dhoni": [700, 800], "Sidhu": [900, 100]}

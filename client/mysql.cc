@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -34,30 +41,29 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <m_ctype.h>
 #include <math.h>
-#include <mf_wcomp.h>                  // wild_prefix, wild_one, wild_any
-#include <my_dir.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <time.h>
-#include <violite.h>
 
 #include "client/client_priv.h"
 #include "client/my_readline.h"
+#include "client/pattern_matcher.h"
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "mysql/service_my_snprintf.h"
-#include "prealloced_array.h"
 #include "typelib.h"
+#include "violite.h"
 
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
@@ -72,6 +78,7 @@
 #endif
 
 #if defined(HAVE_TERM_H)
+#define NOMACROS  // move() macro interferes with std::move.
 #include <curses.h>
 #include <term.h>
 #endif
@@ -122,15 +129,20 @@ static char *server_version= NULL;
 #define cmp_database(cs,A,B) strcmp((A),(B))
 #endif
 
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
-
 #include "client/completion_hash.h"
 #include "print_version.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
 
 #define MAX_BATCH_BUFFER_SIZE (1024L * 1024L * 1024L)
+
+/** default set of patterns used for history exclusion filter */
+const static std::string HI_DEFAULTS("*IDENTIFIED*:*PASSWORD*");
+
+/** used for matching which history lines to ignore */
+static Pattern_matcher ignore_matcher;
 
 typedef struct st_status
 {
@@ -181,7 +193,6 @@ static char *current_host,*current_db,*current_user=0,*opt_password=0,
 static char *histfile;
 static char *histfile_tmp;
 static char *opt_histignore= NULL;
-DYNAMIC_STRING histignore_buffer;
 static String glob_buffer,old_buffer;
 static String processed_prompt;
 static char *full_username=0,*part_username=0,*default_prompt=0;
@@ -191,7 +202,6 @@ static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
-static char *opt_server_public_key= 0;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -330,14 +340,6 @@ static int get_result_width(MYSQL_RES *res);
 static int get_field_disp_length(MYSQL_FIELD * field);
 static int normalize_dbname(const char *line, char *buff, uint buff_size);
 static int get_quote_count(const char *line);
-
-typedef Prealloced_array<LEX_STRING, 16> Histignore_patterns;
-Histignore_patterns *histignore_patterns;
-
-static bool check_histignore(const char *string);
-static bool parse_histignore();
-static bool init_hist_patterns();
-static void free_hist_patterns();
 
 static void add_filtered_history(const char *string);
 static void add_syslog(const char *buffer);          /* for syslog */
@@ -1286,7 +1288,16 @@ int main(int argc,char *argv[])
     int stdout_fileno_copy;
     stdout_fileno_copy= dup(fileno(stdout)); /* Okay if fileno fails. */
     if (stdout_fileno_copy == -1)
+    {
       fclose(stdout);
+#ifdef LINUX_ALPINE
+      // On Alpine linux we need to open a dummy file, so that the first
+      // call to socket() does not get file number 1
+      // If socket gets file number 1, then everything printed to stdout
+      // will be sent back to the server over the socket connection.
+      fopen("/dev/null", "r");
+#endif
+    }
     else
       close(stdout_fileno_copy);             /* Clean up dup(). */
   }
@@ -1368,28 +1379,20 @@ int main(int argc,char *argv[])
 
   if (!status.batch)
   {
-    init_dynamic_string(&histignore_buffer, "*IDENTIFIED*:*PASSWORD*",
-                        1024, 1024);
+    // history ignore patterns are initialized to default values
+    ignore_matcher.add_patterns(HI_DEFAULTS);
 
     /*
-      More history-ignore patterns can be supplied using either --histignore
-      option or MYSQL_HISTIGNORE environment variable. If supplied, it will
-      get appended to the default pattern (*IDENTIFIED*:*PASSWORD*). In case
-      both are specified, pattern(s) supplied using --histignore option will
-      be used.
+      Additional patterns may be supplied using either --histignore option or
+      MYSQL_HISTIGNORE environment variable. If supplied, they'll get appended
+      to the default patterns. In case both are specified, pattern(s) supplied
+      using --histignore option will be used.
     */
-    if (opt_histignore)
-    {
-      dynstr_append(&histignore_buffer, ":");
-      dynstr_append(&histignore_buffer, opt_histignore);
-    }
-    else if (getenv("MYSQL_HISTIGNORE"))
-    {
-      dynstr_append(&histignore_buffer, ":");
-      dynstr_append(&histignore_buffer, getenv("MYSQL_HISTIGNORE"));
-    }
 
-    parse_histignore();
+    if (opt_histignore)
+      ignore_matcher.add_patterns(opt_histignore);
+    else if (getenv("MYSQL_HISTIGNORE"))
+      ignore_matcher.add_patterns(getenv("MYSQL_HISTIGNORE"));
 
   #ifdef HAVE_READLINE
     if (!quick)
@@ -1494,8 +1497,6 @@ void mysql_end(int sig)
   my_free(histfile_tmp);
 #endif
   my_free(opt_histignore);
-  dynstr_free(&histignore_buffer);
-  free_hist_patterns();
 
   my_free(current_os_user);
   my_free(current_os_sudouser);
@@ -1881,10 +1882,6 @@ static struct my_option my_long_options[] =
    "piped to mysql or loaded using the 'source' command). This is necessary "
    "when processing output from mysqlbinlog that may contain blobs.",
    &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
-   "File path to the server public RSA key in PEM format.",
-   &opt_server_public_key, &opt_server_public_key, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"connect-expired-password", 0,
    "Notify the server that this client is prepared to handle expired "
    "password sandbox mode.",
@@ -2056,7 +2053,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     opt_protocol = MYSQL_PROTOCOL_PIPE;
 #endif
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'V':
     usage(1);
@@ -2521,7 +2518,10 @@ static bool add_line(String &buffer, char *line, size_t line_length,
       if (*in_string || inchar == 'N')	// \N is short for NULL
       {					// Don't allow commands in string
 	*out++='\\';
-	*out++= (char) inchar;
+        if ((inchar == '`') && (*in_string == inchar))
+          pos--;
+        else
+	  *out++= (char) inchar;
 	continue;
       }
       if ((com= find_command((char) inchar)))
@@ -3132,98 +3132,19 @@ static void fix_line(String *final_command)
 /* Add the given line to mysql history and syslog. */
 static void add_filtered_history(const char *string)
 {
-  if (!check_histignore(string))
-  {
+  // line shouldn't be on history ignore list
+  if (ignore_matcher.is_matching(string, charset_info))
+    return;
+
 #ifdef HAVE_READLINE
-    if (!quick && not_in_history(string))
-      add_history(string);
+  if (!quick && not_in_history(string))
+    add_history(string);
 #endif
-    if (opt_syslog)
-      add_syslog(string);
-  }
+
+  if (opt_syslog)
+    add_syslog(string);
 }
 
-
-/**
-  Perform a check on the given string if it contains
-  any of the histignore patterns.
-
-  @param [in] string         String that needs to be checked.
-
-  @return Operation status
-      @retval 0    No match found
-      @retval 1    Match found
-*/
-
-static
-bool check_histignore(const char *string)
-{
-  int rc;
-
-  LEX_STRING *tmp;
-
-  DBUG_ENTER("check_histignore");
-
-  for (tmp= histignore_patterns->begin();
-       tmp != histignore_patterns->end(); ++tmp)
-  {
-    if ((rc= charset_info->coll->wildcmp(charset_info,
-                                         string, string + strlen(string),
-                                         tmp->str, tmp->str + tmp->length,
-                                         wild_prefix, wild_one,
-                                         wild_many)) == 0)
-      DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
-}
-
-
-/**
-  Parse the histignore list into pattern tokens.
-
-  @return Operation status
-      @retval 0    Success
-      @retval 1    Failure
-*/
-
-static
-bool parse_histignore()
-{
-  LEX_STRING pattern;
-
-  char *token;
-  const char *search= ":";
-
-  DBUG_ENTER("parse_histignore");
-
-  if (init_hist_patterns())
-    DBUG_RETURN(1);
-
-  token= strtok(histignore_buffer.str, search);
-
-  while(token != NULL)
-  {
-    pattern.str= token;
-    pattern.length= strlen(pattern.str);
-    histignore_patterns->push_back(pattern);
-    token= strtok(NULL, search);
-  }
-  DBUG_RETURN(0);
-}
-
-static
-bool init_hist_patterns()
-{
-  histignore_patterns=
-    new (std::nothrow) Histignore_patterns(PSI_NOT_INSTRUMENTED);
-  return histignore_patterns == NULL;
-}
-
-static
-void free_hist_patterns()
-{
-  delete histignore_patterns;
-}
 
 void add_syslog(const char *line) {
   char buff[MAX_SYSLOG_MESSAGE_SIZE];
@@ -5092,8 +5013,7 @@ init_connection_options(MYSQL *mysql)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
-  if (opt_server_public_key && *opt_server_public_key)
-    mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
+  set_server_public_key(mysql);
 
   set_get_server_public_key_option(mysql);
 
@@ -5314,6 +5234,7 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
   {
     if (info_type == INFO_ERROR)
     {
+      (void) fflush(stdout); // flush stdout before stderr
       (void) fflush(file);
       fprintf(file,"ERROR");
       if (error)

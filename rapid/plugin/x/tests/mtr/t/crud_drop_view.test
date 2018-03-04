@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test data
 ## Test starts here
@@ -41,7 +42,7 @@ CREATE TABLE xtest.xtable (first INT, second JSON);
 CREATE VIEW xtest.xview AS SELECT first FROM xtest.xtable;
 SHOW CREATE VIEW xtest.xview;
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 --remove_file $xtest_file
 
@@ -50,5 +51,6 @@ SHOW CREATE VIEW xtest.xview;
 --source include/assert.inc
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

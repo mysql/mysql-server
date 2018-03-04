@@ -39,8 +39,9 @@ PARTITIONS 13 */
 FLUSH STATUS;
 INSERT INTO t1 VALUES (1, 'First row, p1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # 1 commit
 FLUSH STATUS;
@@ -55,16 +56,18 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (0, 'First row, p0'), (2, 'First row, p2'),
 (3, 'First row, p3'), (4, 'First row, p4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	4
 # 1 commit
 FLUSH STATUS;
 INSERT INTO t1 VALUES (1 * 13, 'Second row, p0'), (2 * 13, 'Third row, p0'),
 (3 * 13, 'Fourth row, p0'), (4 * 13, 'Fifth row, p0');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	4
 # 1 commit
 #
@@ -73,24 +76,27 @@ Handler_write	4
 FLUSH STATUS;
 INSERT INTO t2 VALUES (NULL, 'First auto-inc row');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # Auto increment value is not known until write.
 # 1 commit
 FLUSH STATUS;
 INSERT INTO t2 (b) VALUES ('Second auto-inc row');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # Auto increment value is not known until write.
 # 1 commit
 FLUSH STATUS;
 INSERT INTO t2 VALUES (10, "First row, p10");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # Insert pruning on tables with auto increment is not yet supported
 # 1 commit
@@ -100,8 +106,9 @@ Handler_write	1
 FLUSH STATUS;
 UPDATE t2 SET b = CONCAT(b, ", UPDATED") WHERE a = 10;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 # 1 read_key + 1 update + 1 commit
@@ -120,62 +127,72 @@ PARTITIONS 2 */
 FLUSH STATUS;
 INSERT INTO t3 VALUES (1, "Test 1");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 VALUES (2, "Test 2"), (3, "Test 3"), (4, "Test 4");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 VALUES (6, "Test 6"), (8, "Test 8"), (10, "Test 10");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 VALUES (5, "Test 5"), (7, "Test 7"), (9, "Test 9");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 VALUES (0, "Test 0");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a, b) VALUES (1, "Test 1");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a, b) VALUES (2, "Test 2"), (3, "Test 3"), (4, "Test 4");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 (a, b) VALUES (6, "Test 6"), (8, "Test 8"), (10, "Test 10");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 (a, b) VALUES (5, "Test 5"), (7, "Test 7"), (9, "Test 9");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 (a, b) VALUES (0, "Test 0");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 #
 # Test handling of
@@ -184,38 +201,44 @@ Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES (1);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES (2), (3), (4);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES (6), (8), (10);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES (5), (7), (9);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 FLUSH STATUS;
 INSERT INTO t3 (b) VALUES ("Only b 1");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (b) VALUES ("Only b 2"), ("Only b 3");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 SELECT * FROM t3 ORDER BY a, b;
 a	b
@@ -299,8 +322,9 @@ SUBPARTITIONS 4
 FLUSH STATUS;
 INSERT INTO t3 () VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 #
 # Test INSERT with
@@ -312,8 +336,9 @@ INSERT IGNORE INTO t3 VALUES (-1, "ZZZzzzz", "yyyYYY", -1, DEFAULT);
 Warnings:
 Warning	1264	Out of range value for column 'd' at row 1
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 #
 # Test INSERT with
@@ -322,8 +347,9 @@ Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 () VALUES (0, "", "", 0, NULL);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 #
 # Test INSERT with field specifier list for only some fields
@@ -331,27 +357,31 @@ Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES (1);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a, b) VALUES (1, "Part expr fulfilled"),
 (10, "Part expr fulfilled");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 FLUSH STATUS;
 INSERT INTO t3 (d) VALUES (1), (2);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 FLUSH STATUS;
 INSERT INTO t3 (c, d) VALUES ("Subpart expr fulfilled", 1);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a, b, d) VALUES (10, "Full part, half subpart", 1),
@@ -361,15 +391,17 @@ INSERT INTO t3 (a, b, d) VALUES (10, "Full part, half subpart", 1),
 (12, "Full part, half subpart", 4),
 (12, "Full part, half subpart", 0);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	6
 # d = 0 and d = 4 goes to the same subpart!
 FLUSH STATUS;
 INSERT INTO t3 (a, b, c) VALUES (1, "Full part", "Half subpart");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # Adding 'Default' as padding to see if LINEAR KEY uses different parts.
 FLUSH STATUS;
@@ -377,15 +409,17 @@ INSERT INTO t3 (a, c, d) VALUES (12, "Half part, full subpart", 1),
 (12, "Half part, full subpartDefault", 1),
 (12, "Half part, full subpart Default", 1);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	3
 # First and last row goes to the same subpartition.
 FLUSH STATUS;
 INSERT INTO t3 (b, c, d) VALUES ("Half part", "Full subpart", 1);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 #
@@ -393,8 +427,9 @@ FLUSH STATUS;
 #
 INSERT INTO t3 (a, b, c, d) VALUES (1, "Full part", "Full subpart", 1);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 #
 # Test INSERT with no field specifier list and empty value list
@@ -404,8 +439,9 @@ DELETE FROM t3 WHERE a = 10 AND b = 'Default' AND c = 'Default' AND D = 9;
 FLUSH STATUS;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 #
 # Verifing result
@@ -470,7 +506,8 @@ DELETE FROM t3 WHERE a = 10 AND b = 'Default' AND c = 'Default' AND D = 9;
 FLUSH STATUS;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 #
@@ -480,13 +517,15 @@ FLUSH STATUS;
 DELETE FROM t3
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
+Handler_prepare	2
 Handler_read_key	1
 FLUSH STATUS;
 INSERT INTO t3 (b, d, e) VALUES (DEFAULT, DEFAULT, "All default!");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 #
@@ -496,7 +535,8 @@ UPDATE t3
 SET e = CONCAT(e, ", updated")
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 FLUSH STATUS;
@@ -507,7 +547,8 @@ UPDATE t3
 SET a = DEFAULT, b = "Not DEFAULT!", e = CONCAT(e, ", updated2")
 WHERE a = 10 AND b = "Default" AND c = "Default" AND d = 9;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_update	1
@@ -517,7 +558,8 @@ FLUSH STATUS;
 #
 REPLACE INTO t3 (e) VALUES ("New default row");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SELECT * FROM t3
@@ -543,7 +585,8 @@ FLUSH STATUS;
 #
 REPLACE INTO t3 (e) VALUES ("Newest default row");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -611,33 +654,38 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NOW());
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 # 2 writes
 FLUSH STATUS;
@@ -645,8 +693,9 @@ SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -656,9 +705,10 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to updating partitioning field.
@@ -668,8 +718,9 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 # 1 read_key + 1 update (same partition)
@@ -677,14 +728,16 @@ Handler_update	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -697,15 +750,17 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -741,33 +796,38 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NOW());
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 # 2 writes
 FLUSH STATUS;
@@ -775,9 +835,10 @@ SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to DEFAULT function on partitioning column
@@ -787,9 +848,10 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to updating partitioning field.
@@ -799,9 +861,10 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -813,14 +876,16 @@ Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -833,15 +898,17 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -878,33 +945,38 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NOW());
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 # 2 writes
 FLUSH STATUS;
@@ -912,9 +984,10 @@ SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to DEFAULT function on partitioning column
@@ -924,9 +997,10 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to updating partitioning field.
@@ -936,9 +1010,10 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -950,14 +1025,16 @@ Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -970,15 +1047,17 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1014,33 +1093,38 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NOW());
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 # 2 writes
 FLUSH STATUS;
@@ -1048,8 +1132,9 @@ SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1059,9 +1144,10 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to updating partitioning field.
@@ -1071,8 +1157,9 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 # 1 read_key + 1 update (same partition)
@@ -1080,14 +1167,16 @@ Handler_update	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1100,15 +1189,17 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1145,33 +1236,38 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NOW());
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 # 2 writes
 FLUSH STATUS;
@@ -1179,8 +1275,9 @@ SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1190,9 +1287,10 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to updating partitioning field.
@@ -1202,8 +1300,9 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 # 1 read_key + 1 update (same partition)
@@ -1211,14 +1310,16 @@ Handler_update	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1231,15 +1332,17 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1275,33 +1378,38 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NOW());
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 # 2 writes
 FLUSH STATUS;
@@ -1309,9 +1417,10 @@ SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to DEFAULT function on partitioning column
@@ -1321,9 +1430,10 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to updating partitioning field.
@@ -1333,8 +1443,9 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_update	1
@@ -1346,14 +1457,16 @@ Handler_update	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1366,15 +1479,17 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1411,33 +1526,38 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NOW());
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 # 2 writes
 FLUSH STATUS;
@@ -1445,9 +1565,10 @@ SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to DEFAULT function on partitioning column
@@ -1457,9 +1578,10 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to updating partitioning field.
@@ -1469,8 +1591,9 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_update	1
@@ -1482,14 +1605,16 @@ Handler_update	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1502,15 +1627,17 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1546,33 +1673,38 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567890;
 INSERT INTO t3 (a) VALUES (NOW());
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567891;
 INSERT INTO t3 VALUES ();
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:02'), ('2011-01-01 00:00:03');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 # 2 writes
 FLUSH STATUS;
@@ -1580,8 +1712,9 @@ SET TIMESTAMP = 1234567892;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:00')
 ON DUPLICATE KEY UPDATE b = "DUP_KEY";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1591,9 +1724,10 @@ FLUSH STATUS;
 INSERT INTO t3 (a) VALUES ('2011-01-01 00:00:01')
 ON DUPLICATE KEY UPDATE a = '2011-01-01 00:00:05', b = "DUP_KEY2";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # No pruning due to updating partitioning field.
@@ -1603,8 +1737,9 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567893;
 UPDATE t3 SET b = 'Updated' WHERE a = '2011-01-01 00:00:02';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 # 1 read_key + 1 update (same partition)
@@ -1612,14 +1747,16 @@ Handler_update	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 REPLACE INTO t3 VALUES ('2011-01-01 00:00:04', 'Replace2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1632,15 +1769,17 @@ FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace3');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SET TIMESTAMP = 1234567894;
 REPLACE INTO t3 (b) VALUES ('Replace4');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1666,6 +1805,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	
 Handler_delete	
 Handler_external_lock	
+Handler_prepare	
 Handler_read_key	
 Handler_read_next	
 Handler_update	
@@ -1684,8 +1824,9 @@ PARTITIONS 13 */
 FLUSH STATUS;
 INSERT INTO t2 SELECT a, b FROM t1 WHERE a IN (1,4);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	2
 Handler_read_key	2
 Handler_read_next	2
@@ -1703,6 +1844,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	
 Handler_delete	
 Handler_external_lock	
+Handler_prepare	
 Handler_read_key	
 Handler_read_next	
 Handler_update	
@@ -1713,8 +1855,9 @@ Handler_write
 FLUSH STATUS;
 INSERT INTO t2 SELECT a, b FROM t1 WHERE a = 1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	1
 #
@@ -1724,8 +1867,9 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (65, "No duplicate")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", INSERT_DUP_KEY_UPDATE");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # 1 write (insert)
 # 1 commit
@@ -1733,8 +1877,9 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (65, "No duplicate")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", INSERT_DUP_KEY_UPDATE");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1745,8 +1890,9 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (78, "No duplicate")
 ON DUPLICATE KEY UPDATE a = a + 13, b = CONCAT(b, ", INSERT_DUP_KEY_UPDATE");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # If a partitioning column is updated, no pruning
 # 1 write (insert)
@@ -1755,8 +1901,9 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (78, "No duplicate")
 ON DUPLICATE KEY UPDATE a = a + 13, b = CONCAT(b, ", INSERT_DUP_KEY_UPDATE");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -1772,8 +1919,9 @@ INSERT INTO t1 VALUES (78, "No duplicate")
 ON DUPLICATE KEY UPDATE a = a + 13,
 b = CONCAT(b, ", INSERT_DUP_KEY_UPDATE third");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # If partitioning column is updated, no pruning
 # 1 commit
@@ -1799,8 +1947,9 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (104, "No duplicate")
 ON DUPLICATE KEY UPDATE a = a + 1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # If partitioning column is updated, no pruning
 # 1 write
@@ -1809,9 +1958,10 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (104, "No duplicate")
 ON DUPLICATE KEY UPDATE a = a + 1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # If partitioning column is updated, no pruning
@@ -1823,8 +1973,9 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (104, "No duplicate 104")
 ON DUPLICATE KEY UPDATE a = a + 1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # If partitioning column is updated, no pruning
 # 1 write
@@ -1852,16 +2003,18 @@ Handler_write	2
 FLUSH STATUS;
 REPLACE INTO t1 VALUES (5, "REPLACE first");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # 1 write
 # 1 commit
 FLUSH STATUS;
 REPLACE INTO t1 VALUES (5, "REPLACE second");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -2440,8 +2593,9 @@ a	b
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", updated 1") WHERE a IN (13, 26, 39, 52);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	4
 Handler_update	4
 # 4 read_key
@@ -2456,9 +2610,10 @@ Handler_update	4
 FLUSH STATUS;
 UPDATE t1 SET a = 99, b = CONCAT(b, ", updated 2 -> p8") WHERE a = 13;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -2471,8 +2626,9 @@ Handler_write	1
 FLUSH STATUS;
 UPDATE t1 SET a = 13 + 99, b = CONCAT(b, ", updated 3") WHERE a = 99;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_update	1
@@ -2487,9 +2643,10 @@ Handler_update	1
 FLUSH STATUS;
 UPDATE t1 SET a = a + 1, b = CONCAT(b, ", updated 4 -> p9") WHERE a = 112;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -2500,16 +2657,18 @@ Handler_write	1
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", same as min(a) + 2 in t2") WHERE a = (SELECT MIN(a) + 2 FROM t2);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	13
 Handler_read_key	14
 Handler_update	1
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", max(a) in t2: ", (SELECT MAX(a) FROM t2)) WHERE a = 5;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	14
 Handler_read_last	13
 Handler_update	1
@@ -2567,8 +2726,9 @@ SET t1.b = CONCAT(t1.b, ", t2.b:", t2.b),
 t2.b = CONCAT(t2.b, ", t1.b:", t1.b)
 WHERE t2.b = t1.b and t2.a = 4;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	15
 Handler_read_next	1
 Handler_read_rnd	1
@@ -2585,40 +2745,45 @@ Handler_write	1
 FLUSH STATUS;
 CREATE VIEW v1_25 AS SELECT a, b FROM t1 PARTITION (p2, p5);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	5
+Handler_commit	7
 Handler_external_lock	68
+Handler_prepare	4
 Handler_read_key	3
 Handler_write	4
 # 34 locks (dictionary related)
 FLUSH STATUS;
 CREATE VIEW v1_25_check AS SELECT a, b FROM t1 PARTITION (p2, p5) t1_alias WITH CHECK OPTION;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	5
+Handler_commit	7
 Handler_external_lock	68
+Handler_prepare	4
 Handler_read_key	3
 Handler_write	4
 # 34 locks (dictionary related)
 FLUSH STATUS;
 CREATE VIEW v1_9 AS SELECT a, b FROM t1 WHERE a = 9;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	5
+Handler_commit	7
 Handler_external_lock	68
+Handler_prepare	4
 Handler_read_key	3
 Handler_write	4
 # 34 locks (dictionary related)
 FLUSH STATUS;
 CREATE VIEW v1_9_check AS SELECT a, b FROM t1 WHERE a = 9 WITH CHECK OPTION;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	5
+Handler_commit	7
 Handler_external_lock	68
+Handler_prepare	4
 Handler_read_key	3
 Handler_write	4
 # 34 locks (dictionary related)
 FLUSH STATUS;
 CREATE VIEW v1_all AS SELECT a, b FROM t1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	5
+Handler_commit	7
 Handler_external_lock	68
+Handler_prepare	4
 Handler_read_key	3
 Handler_write	4
 # 34 locks (dictionary related)
@@ -2637,8 +2802,9 @@ v1_all	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINE
 FLUSH STATUS;
 INSERT INTO v1_all VALUES (23, "Insert in v1_all");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 SHOW CREATE VIEW v1_25;
 View	Create View	character_set_client	collation_connection
@@ -2646,8 +2812,9 @@ v1_25	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER
 FLUSH STATUS;
 INSERT INTO v1_25 VALUES (18, "Insert in v1_25");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO v1_25 VALUES (17, "Insert in v1_25 fail");
@@ -2666,9 +2833,9 @@ v1_25_check	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY D
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (31, "Insert in v1_25_check");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	3
-Handler_external_lock	6
-Handler_read_key	2
+Handler_commit	2
+Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO v1_25_check VALUES (30, "Insert in v1_25_check fail");
@@ -2687,14 +2854,16 @@ v1_9	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER 
 FLUSH STATUS;
 INSERT INTO v1_9 VALUES (9, "Insert in v1_9");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO v1_9 VALUES (8, "Insert in v1_9 NO CHECK!");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 SELECT * FROM t1 WHERE a = 8;
 a	b
@@ -2730,15 +2899,17 @@ a	b
 FLUSH STATUS;
 DELETE FROM v1_9_check WHERE a = 9;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 FLUSH STATUS;
 INSERT INTO v1_9_check VALUES (9, "Insert in v1_9_check");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 SELECT * FROM v1_9;
@@ -2799,8 +2970,9 @@ DROP VIEW v1_25, v1_25_check;
 FLUSH STATUS;
 CREATE TABLE t3 SELECT a, b FROM t1 WHERE a IN (0, 1, 13, 113, 26);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	11
+Handler_commit	13
 Handler_external_lock	154
+Handler_prepare	4
 Handler_read_first	3
 Handler_read_key	25
 Handler_read_next	12
@@ -2816,8 +2988,9 @@ DROP TABLE t3;
 FLUSH STATUS;
 CREATE TABLE t3 SELECT a, b FROM t1 WHERE b LIKE 'First%';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	11
+Handler_commit	13
 Handler_external_lock	154
+Handler_prepare	4
 Handler_read_key	35
 Handler_read_next	5
 Handler_update	12
@@ -2860,14 +3033,16 @@ SELECT * FROM test.t1 WHERE a between x and y;
 FLUSH STATUS;
 CALL sp_insert(313,"Test313");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 CALL sp_insert_partition("p7", 98, "Test98");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 CALL sp_insert_partition("p8", 111, "Test111");
@@ -2878,8 +3053,9 @@ Handler_external_lock	2
 FLUSH STATUS;
 CALL sp_insert_partition("p7,p8", 111, "Test111");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 CALL sp_select_all();
@@ -3036,18 +3212,20 @@ Handler_external_lock	2
 FLUSH STATUS;
 DELETE FROM t1 WHERE a = 105;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 # 1 read_key
 # 1 delete
 FLUSH STATUS;
 DELETE FROM t1 WHERE b = "No duplicate";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	13
 Handler_read_next	1
 # 13 read_key
@@ -3056,9 +3234,10 @@ Handler_read_next	1
 FLUSH STATUS;
 DELETE FROM t1 WHERE a = (SELECT a + 90 FROM t2 WHERE a = 1);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	2
 # 2 read_key
 # 2 read_next (if more matches after the first match)
@@ -3133,9 +3312,10 @@ FLUSH STATUS;
 DELETE t1, t2 FROM t1, t2
 WHERE t1.a = t2.a AND t1.b = 'First row, p1';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	15
 Handler_read_next	1
 Handler_read_rnd	1
@@ -3253,8 +3433,9 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (2, "First row, p2")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", duplicate key 2");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	2
@@ -3265,8 +3446,9 @@ a	b
 FLUSH STATUS;
 REPLACE INTO t1 VALUES (0, "First row, p0 REPLACED");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	2
@@ -3300,9 +3482,10 @@ PARTITIONS 13 */
 FLUSH STATUS;
 REPLACE INTO t1 VALUES (0, "First row, p0 REPLACED2");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	4
 # (t1 to replace, t3 after insert trigger, t3 after delete trigger)
@@ -3326,9 +3509,10 @@ PARTITIONS 13 */
 FLUSH STATUS;
 REPLACE INTO t1 VALUES (0, "First row, p0 REPLACED3");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	8
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	5
 # (t1 to replace, t3 after insert trigger, t3 before delete trigger,
@@ -3353,8 +3537,9 @@ FLUSH STATUS;
 INSERT INTO t1 VALUES (2, "First row, p2")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", duplicate key 2");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	8
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	3
@@ -3366,9 +3551,10 @@ a	b
 FLUSH STATUS;
 REPLACE INTO t1 VALUES (0, "First row, p0 REPLACED4");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	8
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	5
 # t1, t3 after insert, t3 before delete, t3 after delete
@@ -3390,8 +3576,9 @@ a	b
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", UPDATED2") WHERE a = 3;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_update	1
@@ -3406,8 +3593,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 FLUSH STATUS;
 INSERT INTO t1 VALUES (12, "First row, p12");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_write	2
 # t1, t3 after insert trigger
 CREATE TRIGGER t1_before_insert BEFORE INSERT
@@ -3426,8 +3614,9 @@ PARTITIONS 13 */
 FLUSH STATUS;
 INSERT INTO t1 VALUES (11, "First row, p11");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_write	3
 # Nothing can be pruned, due to triggers.
 # t1, t3 before insert, t3 after insert.
@@ -3466,9 +3655,10 @@ a	b
 FLUSH STATUS;
 DELETE FROM t1 WHERE a = 98;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_key	1
 Handler_write	2
 # t1, t3 before delete trigger, t3 after delete trigger
@@ -3544,31 +3734,35 @@ PARTITIONS 13 */
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "first row, p0");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "Second row, p0")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", duplicate key");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 FLUSH STATUS;
 UPDATE t1 SET a = 1, b = CONCAT(b, ", a was 0") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -3593,31 +3787,35 @@ PARTITIONS 13 */
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "first row, p0");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "Second row, p0")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", duplicate key");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 FLUSH STATUS;
 UPDATE t1 SET a = 2, b = CONCAT(b, ", a was 0") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -3642,32 +3840,36 @@ PARTITIONS 13 */
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "1st p0");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "2nd p0")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", dup key");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 # Lock pruning possible!
 FLUSH STATUS;
 UPDATE t1 SET a = 3, b = CONCAT(b, ", a was 0") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -3693,32 +3895,36 @@ PARTITIONS 13 */
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "1st p0");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "2nd p0")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", dup key");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_update	1
 FLUSH STATUS;
 UPDATE t1 SET a = 4, b = CONCAT(b, ", a was 0") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -3743,31 +3949,35 @@ PARTITIONS 13 */
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "1st p0");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO t1 VALUES (0, "2nd p0")
 ON DUPLICATE KEY UPDATE b = CONCAT(b, ", dup key");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
 FLUSH STATUS;
 UPDATE t1 SET b = CONCAT(b, ", Updated") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 FLUSH STATUS;
 UPDATE t1 SET a = 5, b = CONCAT(b, ", a was 0") WHERE a = 0;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -3863,8 +4073,9 @@ SET t1.b = CONCAT(t1.b, ",(1) t2.b:", t2.b),
 t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
 WHERE t2.b = t1.b and t1.a = 1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	14
 Handler_read_key	16
 Handler_read_rnd	2
@@ -3907,8 +4118,9 @@ SET t1.b = CONCAT(t1.b, ",(2) t2.b:", t2.b),
 t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)
 WHERE t1.b = t2.b and t2.a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	15
 Handler_read_next	1
 Handler_read_rnd	1
@@ -4119,8 +4331,9 @@ UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ", t2.b:", t2.b)
 WHERE t1.a = t2.a and t2.a IN (2, 3);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	2
 Handler_read_key	4
 Handler_read_rnd_next	2
@@ -4138,8 +4351,9 @@ SET t1.b = CONCAT(t1.b, ", t2.b:", t2.b),
 t2.b = CONCAT(t2.b, ", t1.b:", t1.b)
 WHERE t1.a = t2.a and t2.a = 1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	1
 Handler_read_key	3
 Handler_read_rnd	1
@@ -4152,8 +4366,9 @@ SET t1.b = CONCAT(t1.b, ", t2.b:", t2.b),
 t2.b = CONCAT(t2.b, ", t1.b:", t1.b)
 WHERE t1.a = t2.a and t1.a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	1
 Handler_read_key	3
 Handler_read_rnd	1
@@ -4175,9 +4390,10 @@ FLUSH STATUS;
 DELETE t1 FROM t1, t2
 WHERE t1.a = t2.a AND t2.a IN (1, 9);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	2
 Handler_read_key	3
 Handler_read_rnd_next	1
@@ -4195,9 +4411,10 @@ FLUSH STATUS;
 DELETE t1 FROM t1, t2
 WHERE t1.a = t2.a and t2.a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	1
@@ -4221,9 +4438,10 @@ FLUSH STATUS;
 DELETE t1, t2 FROM t1, t2
 WHERE t1.a = t2.a and t2.a = 3;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	1
 Handler_read_key	2
 Handler_read_rnd_next	1
@@ -4326,8 +4544,9 @@ a	b
 FLUSH STATUS;
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.part1' INTO TABLE t1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 SELECT * FROM t1 ORDER BY a, b;
 a	b
@@ -4350,8 +4569,9 @@ a	b
 FLUSH STATUS;
 LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.part1' INTO TABLE t1 PARTITION(p1);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	2
 SELECT * FROM t1 ORDER BY a, b;
 a	b
@@ -4376,11 +4596,12 @@ INSERT INTO t2 VALUES (0, "Zero"), (1, "One"), (2, "Two"),
 FLUSH STATUS;
 ALTER TABLE t2 EXCHANGE PARTITION p1 WITH TABLE t1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	16
-Handler_external_lock	120
+Handler_commit	17
+Handler_external_lock	116
+Handler_prepare	4
 Handler_read_first	1
-Handler_read_key	65
-Handler_read_next	14
+Handler_read_key	63
+Handler_read_next	13
 Handler_read_rnd_next	4
 Handler_update	36
 SELECT * FROM t1 ORDER BY a;
@@ -4410,8 +4631,9 @@ PREPARE stmt FROM 'UPDATE t1 AS P1 INNER JOIN (SELECT N FROM t1 GROUP BY N HAVIN
 FLUSH STATUS;
 EXECUTE stmt;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	6
 Handler_read_key	16
 Handler_read_next	4
@@ -4476,8 +4698,9 @@ PARTITIONS 3 */
 FLUSH STATUS;
 INSERT INTO t2 VALUES ((SELECT a FROM t1), (SELECT b FROM t1));
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_first	2
 Handler_read_key	2
 Handler_read_rnd_next	4
@@ -4487,8 +4710,9 @@ FLUSH STATUS;
 INSERT INTO t2 VALUES (1 + (SELECT a FROM t1),
 CONCAT("subq: ", (SELECT b FROM t1)));
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_first	2
 Handler_read_key	2
 Handler_read_rnd_next	4
@@ -4514,8 +4738,9 @@ PARTITIONS 3 */
 FLUSH STATUS;
 INSERT INTO t2 VALUES ((SELECT max(a) FROM t1), (SELECT min(a) FROM t1));
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_first	6
 Handler_read_key	6
 Handler_read_rnd_next	16
@@ -4536,8 +4761,9 @@ FLUSH STATUS;
 INSERT INTO t2 VALUES ((SELECT a FROM t1 WHERE a = 1),
 (SELECT b FROM t1 WHERE a = 2));
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_first	2
 Handler_read_key	2
 Handler_read_rnd_next	8
@@ -4583,8 +4809,9 @@ INSERT INTO t1 VALUES (1), (3), (9), (2), (8), (7);
 FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 PARTITION (p1, p2);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	10
+Handler_commit	12
 Handler_external_lock	152
+Handler_prepare	4
 Handler_read_first	2
 Handler_read_key	21
 Handler_read_rnd_next	4
@@ -4600,8 +4827,9 @@ DROP TABLE t2;
 FLUSH STATUS;
 CREATE TABLE t2 SELECT * FROM t1 WHERE a IN (1, 3, 9);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	10
+Handler_commit	12
 Handler_external_lock	152
+Handler_prepare	4
 Handler_read_first	2
 Handler_read_key	21
 Handler_read_rnd_next	4
@@ -5263,8 +5491,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	4
 Handler_read_next	1
 Handler_update	1
@@ -5279,8 +5508,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	16
 Handler_read_next	7
 Handler_update	1
@@ -5299,8 +5529,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	4
 Handler_read_next	1
 Handler_update	1
@@ -5315,8 +5546,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	16
 Handler_read_next	7
 Handler_update	1
@@ -5334,8 +5566,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	12
 Handler_read_next	3
@@ -5352,8 +5585,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	24
 Handler_read_next	9
@@ -5373,8 +5607,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	13
 Handler_read_next	4
 Handler_update	1
@@ -5389,8 +5624,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	25
 Handler_read_next	10
 Handler_update	1
@@ -5408,8 +5644,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	12
 Handler_read_next	3
@@ -5426,8 +5663,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	24
 Handler_read_next	9
@@ -5447,8 +5685,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	13
 Handler_read_next	4
 Handler_update	1
@@ -5463,8 +5702,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	25
 Handler_read_next	10
 Handler_update	1
@@ -5583,8 +5823,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	5
 Handler_read_next	1
 Handler_update	2
@@ -5599,8 +5840,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	17
 Handler_read_next	7
 Handler_update	2
@@ -5619,8 +5861,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_key	7
 Handler_read_next	2
 Handler_update	1
@@ -5638,8 +5881,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	4
 Handler_read_next	1
 Handler_update	1
@@ -5654,8 +5898,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	16
 Handler_read_next	7
 Handler_update	1
@@ -5674,8 +5919,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	4
 Handler_read_next	1
 Handler_update	1
@@ -5690,8 +5936,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	16
 Handler_read_next	7
 Handler_update	1
@@ -5709,8 +5956,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	12
 Handler_read_next	3
@@ -5727,8 +5975,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	24
 Handler_read_next	9
@@ -5748,8 +5997,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	13
 Handler_read_next	4
 Handler_update	1
@@ -5764,8 +6014,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	25
 Handler_read_next	10
 Handler_update	1
@@ -5783,8 +6034,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	12
 Handler_read_next	3
@@ -5801,8 +6053,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	24
 Handler_read_next	9
@@ -5822,8 +6075,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	13
 Handler_read_next	4
 Handler_update	1
@@ -5838,8 +6092,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	25
 Handler_read_next	10
 Handler_update	1
@@ -5958,8 +6213,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	5
 Handler_read_next	1
 Handler_update	2
@@ -5974,8 +6230,9 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	17
 Handler_read_next	7
 Handler_update	2
@@ -5994,8 +6251,9 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_key	7
 Handler_read_next	2
 Handler_update	1
@@ -6013,9 +6271,10 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	5
 Handler_read_next	1
 Handler_read_rnd	1
@@ -6031,9 +6290,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	17
 Handler_read_next	7
 Handler_read_rnd	1
@@ -6053,9 +6313,10 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	5
 Handler_read_next	1
 Handler_read_rnd	1
@@ -6071,9 +6332,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	17
 Handler_read_next	7
 Handler_read_rnd	1
@@ -6092,9 +6354,10 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	13
 Handler_read_next	6
@@ -6111,9 +6374,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	25
 Handler_read_next	12
@@ -6133,9 +6397,10 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	14
 Handler_read_next	4
 Handler_read_rnd	1
@@ -6151,9 +6416,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	26
 Handler_read_next	10
 Handler_read_rnd	1
@@ -6172,9 +6438,10 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	13
 Handler_read_next	6
@@ -6191,9 +6458,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	25
 Handler_read_next	12
@@ -6213,9 +6481,10 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	14
 Handler_read_next	4
 Handler_read_rnd	1
@@ -6231,9 +6500,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	26
 Handler_read_next	10
 Handler_read_rnd	1
@@ -6353,9 +6623,10 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	7
 Handler_read_next	1
 Handler_read_rnd	2
@@ -6371,9 +6642,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	2
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	19
 Handler_read_next	7
 Handler_read_rnd	2
@@ -6393,9 +6665,10 @@ FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_key	8
 Handler_read_next	2
 Handler_read_rnd	1
@@ -6414,9 +6687,10 @@ FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	4
 Handler_read_next	1
 SELECT * FROM t2;
@@ -6429,9 +6703,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	16
 Handler_read_next	7
 SELECT * FROM t2;
@@ -6448,9 +6723,10 @@ FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	4
 Handler_read_next	1
 SELECT * FROM t2;
@@ -6463,9 +6739,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = 7 + (SELECT a FROM t1 WHERE b = '1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	16
 Handler_read_next	7
 SELECT * FROM t2;
@@ -6481,9 +6758,10 @@ FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	12
 Handler_read_next	3
@@ -6498,9 +6776,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	24
 Handler_read_next	9
@@ -6518,9 +6797,10 @@ FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	13
 Handler_read_next	4
 SELECT * FROM t2;
@@ -6533,9 +6813,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	25
 Handler_read_next	10
 SELECT * FROM t2;
@@ -6551,9 +6832,10 @@ FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	12
 Handler_read_next	3
@@ -6568,9 +6850,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = 7 + sf_a_from_t1b('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_first	3
 Handler_read_key	24
 Handler_read_next	9
@@ -6588,9 +6871,10 @@ FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	13
 Handler_read_next	4
 SELECT * FROM t2;
@@ -6603,9 +6887,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = 7 + sf_a_from_t1b_d('1');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	1
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	25
 Handler_read_next	10
 SELECT * FROM t2;
@@ -6722,9 +7007,10 @@ FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_key	5
 Handler_read_next	1
 SELECT * FROM t2;
@@ -6736,9 +7022,10 @@ SET autocommit = 0;
 LOCK TABLES t1 read, t2 write;
 DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') OR a = 2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	8
+Handler_commit	9
 Handler_delete	2
 Handler_external_lock	26
+Handler_prepare	2
 Handler_read_key	17
 Handler_read_next	7
 SELECT * FROM t2;
@@ -6754,9 +7041,10 @@ FLUSH STATUS;
 START TRANSACTION;
 DELETE FROM t2 WHERE a = (SELECT a FROM t1 WHERE b = '1') AND a = 2 OR a = 8 AND sf_a_from_t1b('2');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_key	7
 Handler_read_next	2
 SELECT * FROM t2;

@@ -660,3 +660,113 @@ WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
 eval explain format=json $query;
 
 DROP TABLE z, q;
+
+--echo #
+--echo # Bug#26271244: ASSERT FAILS WHEN SHOW CREATE TABLE CALLED ON A FILE
+--echo # CREATED FOR FULLTEXT INDEX
+--echo #
+
+let DATADIR= `SELECT @@datadir`;
+
+--echo # Create Innodb table with full text index
+CREATE TABLE t1(id INT, c CHAR(100) , FULLTEXT KEY `msg_idx` (`c`))
+ENGINE INNODB;
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
+--echo # Find name of first FTS index "table"
+let INCFILE= $MYSQL_TMP_DIR/tmp.inc;
+--perl
+  my $FTS_FILE= "";
+  opendir(DD, "$ENV{'DATADIR'}/test") || die "Could not open $ENV{'DATADIR'}: $!";
+  while ($_= readdir(DD)) {
+    if (/(fts_\S+_index_1)\.ibd/) {
+      $FTS_FILE= $1;
+      last;
+    }
+  }
+  close(DD);
+  open(INC, ">$ENV{'INCFILE'}") || die "Could not open $ENV{'INCFILE'}: $!";
+  print INC "let FTS_FILE= $FTS_FILE;\n";
+  close(INC);
+EOF
+--source $INCFILE
+
+--echo # SHOW CREATE TABLE on an FTS index table should give error
+--echo # (not crash). Query log and error message suppressed as the name of
+--echo # FTS index table is not stable.
+--disable_query_log
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval SHOW CREATE TABLE $FTS_FILE
+
+--disable_result_log
+--echo # Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval OPTIMIZE TABLE $FTS_FILE
+
+--echo # Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval REPAIR TABLE $FTS_FILE
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval ALTER TABLE $FTS_FILE DROP id
+
+--enable_result_log
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval LOCK TABLE $FTS_FILE AS mytable WRITE
+--eval UNLOCK TABLES
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval RENAME TABLE $FTS_FILE TO SOMETHING_ELSE
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval RENAME TABLE t2 TO t3, $FTS_FILE TO SOMETHING_ELSE2
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval TRUNCATE TABLE $FTS_FILE
+
+--error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+--eval DROP TABLE $FTS_FILE
+
+--enable_query_log
+
+DROP TABLE t1, t2;
+
+
+--echo #
+--echo # BUG#21625016: INNODB FULL TEXT CASE SENSITIVE NOT WORKING
+--echo #
+
+CREATE TABLE t1(fld1 VARCHAR(10) COLLATE 'latin1_bin', FULLTEXT INDEX (fld1))
+ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('abCD'),('ABCD');
+
+--echo # With the patch, case sensitive comparison is performed since
+--echo # binary collation is used.
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN NATURAL LANGUAGE MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
+
+--echo # Since binary collation is not used, case insensitive comparison is
+--echo # performed.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10) COLLATE 'latin1_general_cs';
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN NATURAL LANGUAGE MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
+
+--echo # With the patch, case sensitive comparison is performed.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10) COLLATE 'utf8mb4_bin';
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN NATURAL LANGUAGE MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
+
+--echo # Test(using case insensitive collation) added for coverage
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10) COLLATE 'utf8mb4_general_ci';
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN NATURAL LANGUAGE MODE);
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE t1;

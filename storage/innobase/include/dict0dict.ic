@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -24,15 +32,12 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "data0type.h"
-#ifndef UNIV_HOTBACKUP
 #include "dict0load.h"
 #include "rem0types.h"
 #include "fsp0fsp.h"
 #include "srv0srv.h"
 #include "sync0rw.h"
 #include "fsp0sysspace.h"
-
-#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
 Gets the column number.
@@ -257,6 +262,7 @@ dict_table_has_indexed_v_cols(
 	return(false);
 }
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Gets the approximately estimated number of rows in the table.
 @return estimated number of rows */
@@ -306,6 +312,7 @@ dict_table_n_rows_dec(
 		}
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** Gets the nth virtual column of a table.
@@ -361,6 +368,7 @@ dict_table_is_comp(
 	return(table->flags & DICT_TF_COMPACT);
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************************
 Check if the table has an FTS index. */
 UNIV_INLINE
@@ -562,6 +570,7 @@ dict_tf_get_rec_format(
 
 	return(REC_FORMAT_DYNAMIC);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Determine if a table uses atomic BLOBs (no locally stored prefix).
 @param[in]	table	InnoDB table
@@ -574,6 +583,7 @@ dict_table_has_atomic_blobs(
 	return(DICT_TF_HAS_ATOMIC_BLOBS(table->flags));
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Set the various values in a dict_table_t::flags pointer.
 @param[in,out]	flags		Pointer to a 4 byte Table Flags
 @param[in]	format		File Format
@@ -726,6 +736,7 @@ dict_tf_to_sys_tables_type(
 
 	return(type);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Extract the page size info from table flags.
 @param[in]	flags	flags
@@ -932,7 +943,6 @@ dict_table_is_compressed_temporary(
 }
 #endif /* UNIV_DEBUG */
 
-#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Gets the space id of the root of the index tree.
 @return space id */
@@ -1188,6 +1198,7 @@ dict_max_v_field_len_store_undo(
 	return(max_log_len);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Prevent table eviction by moving a table to the non-LRU list from the
 LRU list if it is not already there. */
@@ -1249,6 +1260,7 @@ dict_table_ddl_release(
 		table->ddl_not_evictable = false;
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
 Check if the tablespace for the table has been discarded.
@@ -1274,6 +1286,7 @@ dict_table_is_encrypted(
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_ENCRYPTION));
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Check whether the table is DDTableBuffer. See class DDTableBuffer
 @param[in]	table	table to check
 @return true if this is a DDTableBuffer table. */
@@ -1284,6 +1297,7 @@ dict_table_is_table_buffer(
 {
 	return(table == dict_sys->dynamic_metadata);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Check if the table is in a shared tablespace (System or General).
 @param[in]	id	Space ID to check
@@ -1297,6 +1311,7 @@ dict_table_in_shared_tablespace(
 		|| DICT_TF_HAS_SHARED_SPACE(table->flags));
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Check whether locking is disabled for this table.
 Currently this is done for intrinsic table as their visibility is limited
 to the connection and the DDTableBuffer as it's protected by
@@ -1311,6 +1326,7 @@ dict_table_is_locking_disabled(
 {
 	return(table->is_intrinsic() || dict_table_is_table_buffer(table));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
 Turn-off redo-logging if temporary table. */
@@ -1475,8 +1491,10 @@ dict_table_autoinc_persisted_update(
 	dict_table_t*	table,
 	ib_uint64_t	autoinc)
 {
+#ifndef UNIV_HOTBACKUP
 	ut_ad(dict_table_has_autoinc_col(table));
 	ut_ad(mutex_own(table->autoinc_persisted_mutex));
+#endif /* !UNIV_HOTBACKUP */
 
 	table->autoinc_persisted = autoinc;
 }
@@ -1684,4 +1702,3 @@ dict_table_is_partition(
 	       || strstr(table->name.m_name, "#P#"));
 }
 
-#endif /* !UNIV_HOTBACKUP */

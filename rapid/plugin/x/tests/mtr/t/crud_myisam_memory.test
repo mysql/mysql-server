@@ -11,6 +11,7 @@
 
 --source include/xplugin_preamble.inc
 --source include/have_myisam.inc
+--source include/xplugin_create_user.inc
 
 SET @start_global_value = @@global.default_storage_engine;
 SELECT @start_global_value;
@@ -502,11 +503,12 @@ SELECT * FROM xplugintest.table1;
 
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
 
 #cleanup
+--source include/xplugin_drop_user.inc
 DROP DATABASE IF EXISTS xplugintest;
 ## Postamble
 UNINSTALL PLUGIN mysqlx;

@@ -165,3 +165,37 @@ eval $query;
 
 DROP TABLE t0, t1, t2;
 
+--echo #
+--echo # Bug #26483909: INCORRECT BEHAVIOR FOR QUERY WITH DISTINCT
+--echo #                and ORDER BY ... LIMIT.
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  col_int int(11),
+  col_varchar_key varchar(20),
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key),
+  KEY col_varchar_key_2 (col_varchar_key(5))
+);
+
+INSERT INTO t1 VALUES (1,2,'t'), (2,5,'efqsdksj'),
+       (3,NULL,'fqsdksjijcs'),(4,8,'qsdksjijc'),
+       (5,40,NULL),(6,3,'sdksji'),(7,2,NULL),
+       (8,3,'dks'),(9,0,'ksjijcsz'),
+       (10,84,'sjijcszxwbjj');
+
+let query1=
+SELECT DISTINCT col_int
+FROM t1
+WHERE col_varchar_key <> 'c'
+   OR col_varchar_key > 'w'
+ORDER BY col_varchar_key
+LIMIT 100;
+
+ANALYZE TABLE t1;
+SET @@SESSION.sql_mode='NO_ENGINE_SUBSTITUTION';
+eval EXPLAIN $query1;
+eval $query1;
+
+DROP TABLE t1;

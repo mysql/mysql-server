@@ -3,7 +3,7 @@ CREATE TABLE t1 (a INT)ENGINE=INNODB PARTITION BY HASH(a) PARTITIONS
 1024;
 #Setting innodb_open_files to a common value to have synchronicity across platforms
 # restart: --innodb_open_files=1000000
-Pattern "\[Warning\] InnoDB: innodb_open_files should not be greater than the open_files_limit." found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: innodb_open_files should not be greater than the open_files_limit." found
 SELECT 1 UNION SELECT * FROM t1  UNION SELECT * FROM t1  UNION
 SELECT * FROM t1  UNION SELECT * FROM t1  UNION SELECT * FROM
 t1;

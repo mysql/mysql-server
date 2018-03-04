@@ -3,10 +3,6 @@
 
 --source include/have_null_audit_plugin.inc
 
---echo # Test is temporarily run with show_compatibility_56=ON until Bug#21783798 is fixed.
-select @@global.show_compatibility_56 into @show_compatibility_56_save;
-set @@global.show_compatibility_56=ON;
-
 call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
 call mtr.add_suppression("Command 'Ping' cannot be aborted.");
@@ -122,11 +118,15 @@ SELECT 1;
 --echo ##############
 
 connection default;
+
 --replace_result $event_order_exact <expected_check_exact>
 eval SET @@null_audit_event_order_check_exact = $event_order_exact;
 --replace_result $command_start_id <expected_command_start_id>
 eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
                                           'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_AUDIT_API_ABORT
@@ -149,24 +149,8 @@ SELECT @@null_audit_event_order_check;
 
 --echo # SHOW GLOBAL VARIABLE
 
-SET @old_show_compatibility_56=@@global.show_compatibility_56;
-SET @@global.show_compatibility_56=ON;
-SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
-                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
-                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
-                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
-                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="15";;'
-                                     'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET',
-         @@null_audit_event_order_check_exact = 1;
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
---error ER_AUDIT_API_ABORT
-SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
-SELECT @@null_audit_event_order_check;
-SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
-
-# With show_compatibility_56=0 we get audit notifications for all variables
+# We get audit notifications for all variables
 # and there's no stable order. So we just wait for the first and ignore the name
-SET @@global.show_compatibility_56=OFF;
 SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
                                      'MYSQL_AUDIT_PARSE_PREPARSE;;;'
                                      'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
@@ -180,7 +164,6 @@ SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 SELECT @@null_audit_event_order_check;
 SHOW GLOBAL VARIABLES LIKE 'null_audit_abort_value';
 
-SET @@global.show_compatibility_56=@old_show_compatibility_56;
 
 
 --echo # SHOW GLOBAL VARIABLE
@@ -218,8 +201,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_GLOBAL_VARIABLE_GET;name="null_audit_abort_value" value="1";ABORT_RET';
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_AUDIT_API_ABORT
-#Using IS until Bug#21783798 is fixed.
-SELECT * FROM information_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
+SELECT * FROM performance_schema.global_variables WHERE VARIABLE_NAME = 'null_audit_abort_value';
 SELECT @@null_audit_event_order_check;
 
 --echo ###############################
@@ -1577,7 +1559,7 @@ eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id=
                                           'MYSQL_AUDIT_COMMAND_END;command_id="$command_end_id";';
 
 --disable_result_log
-SELECT * FROM INFORMATION_SCHEMA.TABLES;
+SELECT * FROM INFORMATION_SCHEMA.CHARACTER_SETS;
 --enable_result_log
 SELECT @@null_audit_event_order_check;
 
@@ -1826,4 +1808,3 @@ SELECT @@null_audit_event_record;
 SET @@null_audit_event_record = '';
 
 eval UNINSTALL PLUGIN null_audit;
-set @@global.show_compatibility_56=@show_compatibility_56_save;

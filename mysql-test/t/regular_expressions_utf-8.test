@@ -1,0 +1,660 @@
+--echo #
+--echo # Tests of regular expression functions.
+--echo #
+
+--source ../mysql-test/include/icu_utils.inc
+
+CREATE TABLE t1 (
+  subject char(10),
+  pattern char(10)
+);
+
+--echo #
+--echo # REGEXP_INSTR
+--echo #
+
+--echo # REGEXP_INSTR(), two arguments.
+SELECT regexp_instr( 'abc', 'a' );
+SELECT regexp_instr( 'abc', 'b' );
+SELECT regexp_instr( 'abc', 'c' );
+SELECT regexp_instr( 'abc', 'd' );
+SELECT regexp_instr( NULL, 'a' );
+SELECT regexp_instr( 'a', NULL );
+SELECT regexp_instr( NULL, NULL );
+--echo # This tests that the correct character set is declared. If we don't
+--echo # declare it correctly, the UTF-16 sequence will be interpreted as a
+--echo # two-byte string consisting of the ASCII for '1' and NUL, and the
+--echo # result will be 3100.
+SET NAMES binary;
+SELECT hex( concat(regexp_instr( 'a', 'a' )) );
+SET NAMES DEFAULT;
+
+--echo # REGEXP_INSTR(), illegal types.
+SELECT regexp_instr( 1, 'a' );
+SELECT regexp_instr( 1.1, 'a' );
+SELECT regexp_instr( 'a', 1 );
+SELECT regexp_instr( 'a', 1.1 );
+
+SELECT regexp_instr( subject, pattern ) FROM t1;
+
+--error ER_REGEXP_ILLEGAL_ARGUMENT
+SELECT regexp_instr( 'a', '[[:invalid_bracket_expression:]]' );
+
+--echo # REGEXP_INSTR(), three arguments.
+--echo # subject, pattern, position.
+SELECT regexp_instr( 'abcabcabc', 'a+', 1 );
+SELECT regexp_instr( 'abcabcabc', 'a+', 2 );
+SELECT regexp_instr( 'abcabcabc', 'b+', 1 );
+SELECT regexp_instr( 'abcabcabc', 'b+', 2 );
+SELECT regexp_instr( 'abcabcabc', 'b+', 3 );
+
+--error ER_REGEXP_INDEX_OUTOFBOUNDS_ERROR
+SELECT regexp_instr( 'a', 'a+', 3 );
+
+--echo # REGEXP_INSTR(), four arguments.
+--echo # subject, pattern, position, occurence.
+SELECT regexp_instr( 'abcabcabc', 'a+', 1, 2 );
+SELECT regexp_instr( 'abcabcabc', 'a+', 1, 3 );
+SELECT regexp_instr( 'abcabcabc', 'a+', 1, 4 );
+SELECT regexp_instr( 'abcabcabc', 'a+', 4, 2 );
+
+--echo # REGEXP_INSTR(), five arguments.
+--echo # subject, pattern, position, occurence, return_option
+--error ER_WRONG_ARGUMENTS
+SELECT regexp_instr( 'a', 'a+', 1, 1, 2 );
+--error ER_WRONG_ARGUMENTS
+SELECT regexp_instr( 'a', 'a+', 1, 1, -1 );
+SELECT regexp_instr( 'a', 'a+', 1, 1, NULL );
+SELECT regexp_instr( 'abcabcabc', 'a+', 1, 1, 0 );
+SELECT regexp_instr( 'abcabcabc', 'a+', 1, 1, 1 );
+SELECT regexp_instr( 'aaabcabcabc', 'a+', 1, 1, 1 );
+
+--echo # REGEXP_INSTR(), six arguments.
+--echo # subject, pattern, position, occurence, return_option, match_parameter
+SELECT regexp_instr( 'aaabcabcabc', 'A+', 1, 1, 1, 'c' );
+SELECT regexp_instr( 'aaabcabcabc', 'A+', 1, 1, 1, 'i' );
+SELECT regexp_instr( 'aaabcabcabc', 'A+', 1, 1, 1, 'ci' );
+SELECT regexp_instr( 'aaabcabcabc', 'A+', 1, 1, 1, 'cic' );
+
+--error ER_WRONG_ARGUMENTS
+SELECT regexp_instr( 'a', 'a+', 1, 1, 1, 'x' );
+SELECT regexp_instr( 'a', 'a+', 1, 1, 1, NULL );
+
+
+--echo #
+--echo # REGEXP_LIKE
+--echo #
+
+--echo # REGEXP_LIKE(), two arguments.
+SELECT regexp_like( 'abc', 'a' );
+SELECT regexp_like( 'abc', 'b' );
+SELECT regexp_like( 'abc', 'c' );
+SELECT regexp_like( 'abc', 'd' );
+SELECT regexp_like( 'a', 'a.*' );
+SELECT regexp_like( 'ab', 'a.*' );
+SELECT regexp_like( NULL, 'a' );
+SELECT regexp_like( 'a', NULL );
+SELECT regexp_like( NULL, NULL );
+--echo # This tests that the correct character set is declared. If we don't
+--echo # declare it correctly, the UTF-16 sequence will be interpreted as a
+--echo # two-byte string consisting of the ASCII for '1' and NUL, and the
+--echo # result will be 3100.
+SET NAMES binary;
+SELECT hex( concat(regexp_like( 'a', 'a' )) );
+SET NAMES DEFAULT;
+
+--echo # REGEXP_LIKE(), three arguments.
+SELECT regexp_like( 'abc', 'A', 'i' );
+SELECT regexp_like( 'abc', 'A', 'c' );
+
+--error ER_WRONG_ARGUMENTS
+SELECT regexp_like( 'a', 'a+', 'x' );
+--error ER_WRONG_ARGUMENTS
+SELECT regexp_like( 'a', 'a+', 'cmnux' );
+SELECT regexp_like( 'a', 'a+', NULL );
+
+--echo # REGEXP_LIKE(), illegal types.
+SELECT regexp_like( 1, 'a' );
+SELECT regexp_like( 1.1, 'a' );
+SELECT regexp_like( 'a', 1 );
+SELECT regexp_like( 'a', 1.1 );
+
+--error ER_REGEXP_ILLEGAL_ARGUMENT
+SELECT regexp_like('a', '[[:invalid_bracket_expression:]]');
+
+
+--echo #
+--echo # REGEXP_REPLACE
+--echo #
+
+--echo # REGEXP_REPLACE(), three arguments.
+SELECT regexp_replace( 'aaa', 'a', 'X' );
+SELECT regexp_replace( 'abc', 'b', 'X' );
+SELECT regexp_replace( NULL, 'a', 'X' );
+SELECT regexp_replace( 'aaa', NULL, 'X' );
+SELECT regexp_replace( 'aaa', 'a', NULL );
+--echo # This tests that the correct character set is declared. If we don't
+--echo # declare it correctly, the UTF-16 sequence will be interpreted as a
+--echo # zero-terminated string consisting of 'X', and the
+--echo # result will thus be 'X'.
+SELECT concat( regexp_replace( 'aaa', 'a', 'X' ), 'x' );
+
+--echo # REGEXP_REPLACE(), four arguments.
+--error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+SELECT regexp_replace( 'aaa', 'a', 'X', 0 );
+SELECT regexp_replace( 'aaa', 'a', 'X', 1 );
+
+--error ER_REGEXP_INDEX_OUTOFBOUNDS_ERROR
+SELECT regexp_replace( 'a', 'a+', 'b', 3 );
+
+--echo # REGEXP_REPLACE(), five arguments.
+--error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+SELECT regexp_replace( 'aaabbccbbddaa', 'b+', 'X', 0, 1 );
+SELECT regexp_replace( 'aaabbccbbddaa', 'b+', 'X', 1, 1 );
+SELECT regexp_replace( 'aaabbccbbddaa', 'b+', 'X', 1, 2 );
+SELECT regexp_replace( 'aaabbccbbddaa', '(b+)', '<$1>', 1, 2 );
+SELECT regexp_replace( 'aaabbccbbddaa', 'x+', 'x', 1, 0 );
+SELECT regexp_replace( 'aaabbccbbddaa', 'b+', 'x', 1, 0 );
+SELECT regexp_replace( 'aaab', 'b', 'x', 1, 2 );
+SELECT regexp_replace( 'aaabccc', 'b', 'x', 1, 2 );
+
+SELECT regexp_replace( 'abc', 'b', 'X' );
+SELECT regexp_replace( 'abcbdb', 'b', 'X' );
+
+SELECT regexp_replace( 'abcbdb', 'b', 'X', 3 );
+SELECT regexp_replace( 'aaabcbdb', 'b', 'X', 1 );
+SELECT regexp_replace( 'aaabcbdb', 'b', 'X', 2 );
+SELECT regexp_replace( 'aaabcbdb', 'b', 'X', 3 );
+
+--error ER_REGEXP_ILLEGAL_ARGUMENT
+SELECT regexp_replace( 'a', '[[:invalid_bracket_expression:]]', '$1' );
+
+--echo #
+--echo # Test of the dynamic buffer in REGEXP_REPLACE.
+--echo #
+SELECT regexp_replace( 'aaa', 'a', 'X', 2 );
+SELECT regexp_replace( 'aaa', 'a', 'XX', 2 );
+
+
+--echo #
+--echo # REGEXP_SUBSTR
+--echo #
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT regexp_substr( 'a' );
+
+--error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+SELECT regexp_substr( 'a', 'b', 'c', 'd', 'e', 'f' );
+
+--echo # REGEXP_SUBSTR(), two arguments.
+SELECT regexp_substr( 'ab ac ad', '.d' );
+SELECT regexp_substr( 'ab ac ad', '.D' );
+--echo # This tests that the correct character set is declared. If we don't
+--echo # declare it correctly, the UTF-16 sequence will be interpreted as a
+--echo # zero-terminated string consisting of 'a', and the
+--echo # result will thus be 'a'.
+SELECT concat( regexp_substr( 'aaa', 'a+' ), 'x' );
+
+--echo # REGEXP_SUBSTR(), three arguments.
+--error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
+SELECT regexp_substr( 'ab ac ad', 'a.', 0 );
+SELECT regexp_substr( 'ab ac ad', 'A.', 3 );
+SELECT regexp_substr( 'ab ac ad', 'A.', 3, 1 );
+SELECT regexp_substr( 'ab ac ad', 'A.', 3, 2 );
+SELECT regexp_substr( 'ab ac ad', 'A.', 3, 3 );
+SELECT regexp_substr( 'ab ac ad', 'A.', 3, 3 ) IS NULL;
+
+--echo # REGEXP_SUBSTR(), four arguments.
+SELECT regexp_substr( 'ab ac ad', 'A.', 1, 1, 'c' );
+SELECT regexp_substr( 'ab\nac\nad', 'A.', 1, 1, 'i' );
+SELECT regexp_substr( 'ab\nac\nad', 'A.', 1, 1, 'im' );
+
+--error ER_REGEXP_ILLEGAL_ARGUMENT
+SELECT regexp_substr('a', '[[:invalid_bracket_expression:]]');
+
+SET sql_mode = ''; # Un-strict
+CREATE TABLE t2 ( g GEOMETRY NOT NULL );
+INSERT INTO t2 VALUES ( POINT(1,2) );
+SELECT concat( regexp_like(g, g), 'x' ) FROM t2;
+SET sql_mode = DEFAULT;
+DROP TABLE t2;
+
+--echo #
+
+DROP TABLE t1;
+
+--echo #
+--echo # Error handling.
+--echo #
+
+--echo # Error handling: Stack limit.
+--echo # The following queries are from bug#24449090
+
+--error ER_REGEXP_BAD_INTERVAL
+SELECT regexp_instr( '', '((((((((){80}){}){11}){11}){11}){80}){11}){4}' );
+
+--echo # Query and result logs turned off from here ...
+--disable_query_log
+--disable_result_log
+
+if (`SELECT icu_major_version() > 50`)
+{
+
+SET GLOBAL regexp_stack_limit = 239;
+
+--error ER_REGEXP_STACK_OVERFLOW
+SELECT regexp_instr( '', '(((((((){120}){11}){11}){11}){80}){11}){4}' );
+
+SET GLOBAL regexp_stack_limit = 32;
+
+--error ER_REGEXP_STACK_OVERFLOW
+SELECT regexp_instr( '', '((((((){11}){11}){11}){160}){11}){160}' );
+
+--error ER_REGEXP_STACK_OVERFLOW
+SELECT regexp_instr( '', '(((((){150}){11}){160}){11}){160}' );
+
+--error ER_REGEXP_STACK_OVERFLOW
+SELECT regexp_instr( '', '((((){255}){255}){255}){255}' );
+
+SET GLOBAL regexp_stack_limit = DEFAULT;
+
+SET GLOBAL regexp_time_limit = 1000;
+
+--error ER_REGEXP_TIME_OUT
+SELECT regexp_instr( 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC', '(A+)+B' );
+
+SET GLOBAL regexp_time_limit = DEFAULT;
+
+}
+
+--enable_result_log
+--enable_query_log
+
+--echo # ... to here. The reason is that we're testing the stack limit feature,
+--echo # which is not present (or working) in ICU 5.0 or earlier. We don't need
+--echo # the query or result/error log to test the feature, though. The above
+--echo # tests still fail unless the proper error is thrown.
+
+
+--echo #
+--echo # Character set conversion.
+--echo #
+
+SET NAMES latin1;
+SELECT regexp_instr( _latin1 x'61F662', _latin1 x'F6' );
+SELECT regexp_instr( _latin1 x'61F662', _utf8mb4'ö' );
+# SUSHI, codepoint U+1F363, in SMP
+SELECT regexp_instr( concat('a', _utf8mb4 x'F09F8DA3'), _utf8mb4 x'F09F8DA3' );
+
+SELECT regexp_instr( _utf8mb4'aöb', _utf8mb4'ö' );
+SET NAMES utf8;
+SELECT regexp_instr( 'aöb', 'ö' );
+SET NAMES DEFAULT;
+
+#--echo #
+#--echo # Case sensitivity.
+#--echo #
+#SELECT 'a' REGEXP 'A' COLLATE latin1_general_ci;
+
+#CREATE TABLE t1 ( a char(6), b char(6) );
+#INSERT INTO t1 VALUES ('',''), ('','First'), ('Random','Random');
+#SELECT * FROM t1 WHERE CONCAT ( a, ' ', b ) REGEXP 'First.*';
+#DROP TABLE t1;
+
+#set collation_connection=utf8mb4_general_ci;
+#--source include/ctype_regex.inc
+
+--echo #
+--echo # Bug#30241: Regular expression problems
+--echo #
+SET NAMES utf8;
+SELECT regexp_instr( 'אב רק', /*k*/'^[^ב]' );
+
+PREPARE stmt1 FROM "select 'a' rlike ?";
+DEALLOCATE PREPARE stmt1;
+
+CREATE TABLE t1( a INT, subject CHAR(10) );
+CREATE TABLE t2( pattern CHAR(10) );
+
+insert into t1 values (0, 'apa');
+insert into t2 values ('apa');
+
+DELIMITER ||;
+
+CREATE DEFINER=root@localhost PROCEDURE p1()
+BEGIN
+  UPDATE t1, t2
+  SET a = 1
+  WHERE regexp_like(t1.subject, t2.pattern);
+END||
+
+DELIMITER ;||
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+
+CREATE TABLE t1 ( a INT );
+EXPLAIN SELECT 1 FROM t1 WHERE 1 REGEXP (1 IN (SELECT 1 FROM t1));
+DROP TABLE t1;
+
+PREPARE stmt1 FROM "SELECT regexp_like( 'a', ? )";
+PREPARE stmt2 FROM "SELECT regexp_like( ?, 'a' )";
+PREPARE stmt3 FROM "SELECT regexp_like( ?, ? )";
+
+SET @subject = 'a';
+SET @pattern = 'a+';
+
+EXECUTE stmt1 USING @pattern;
+EXECUTE stmt2 USING @subject;
+EXECUTE stmt3 USING @subject, @pattern;
+
+--echo #
+--echo # Yes, you can circumvent the type checking using prepared statements.
+--echo #
+SET @subject = 1;
+SET @pattern = 1;
+
+EXECUTE stmt1 USING @pattern;
+EXECUTE stmt2 USING @subject;
+EXECUTE stmt3 USING @subject, @pattern;
+
+DEALLOCATE PREPARE stmt1;
+DEALLOCATE PREPARE stmt2;
+DEALLOCATE PREPARE stmt3;
+
+--echo # Let's make sure we handle arguments that raise errors when evaluated.
+--error ER_WRONG_ARGUMENTS
+DO 1 rlike multilinestring(point(1, 1));
+
+--echo #
+--echo # Test of repeated use of one matcher.
+--echo #
+
+CREATE TABLE t1 ( a CHAR(10) );
+INSERT INTO t1 VALUES ( 'abc' ), ( 'bcd' ), ( 'cde' );
+
+SELECT regexp_like( a, 'a' ) FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 ( a CHAR ( 10 ), b CHAR ( 10 ) );
+
+INSERT INTO t1 VALUES( NULL, 'abc' );
+INSERT INTO t1 VALUES( 'def', NULL );
+
+SELECT a, b, regexp_like( a, b ) FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Generated columns.
+--echo #
+CREATE TABLE t1 (
+  c CHAR(10) CHARSET latin1 COLLATE latin1_bin,
+  c_ci CHAR(10) CHARSET latin1 COLLATE latin1_general_ci,
+  c_cs CHAR(10) CHARSET latin1 COLLATE latin1_general_cs
+);
+
+INSERT INTO t1
+VALUES ( 'a', 'a', 'a' ), ( 'A', 'A', 'A' ), ( 'b', 'b', 'b' );
+
+--sorted_result
+SELECT c, c_ci REGEXP 'A', c_cs REGEXP 'A' FROM t1;
+
+DROP TABLE t1;
+
+SELECT regexp_like( _utf8mb4 'ss' COLLATE utf8mb4_german2_ci,
+                    _utf8mb4 'ß'  COLLATE utf8mb4_german2_ci );
+
+SELECT regexp_like( _utf8mb4 'ß'  COLLATE utf8mb4_german2_ci,
+                    _utf8mb4 'ss' );
+
+SELECT regexp_like( _utf8mb4 'ß'  COLLATE utf8mb4_de_pb_0900_as_cs,
+                    _utf8mb4 'ss' );
+
+--echo #
+--echo # Regression testing.
+--echo #
+SET NAMES latin1;
+SELECT regexp_like( 'a', 'A' COLLATE latin1_general_ci );
+SELECT 'a' REGEXP 'A' COLLATE latin1_general_ci;
+SELECT regexp_like( 'a', 'A' COLLATE latin1_general_cs );
+SELECT 'a' REGEXP 'A' COLLATE latin1_general_cs;
+
+--echo # The default behaviour, multiline match is off:
+SELECT regexp_like( 'a\nb\nc', '^b$' );
+--echo # Enabling the multiline option using the PCRE option syntax:
+--echo # (Previously not accepted)
+SELECT regexp_like( 'a\nb\nc', '(?m)^b$' );
+
+--echo # Dot matches newline:
+SELECT regexp_like( 'a\nb\nc', '.*' );
+
+SELECT regexp_like( _utf16 'a' , 'a' );
+SELECT regexp_like( _utf16le 'a' , 'a' );
+
+--echo # Make sure we exit on error.
+--error ER_WRONG_ARGUMENTS
+SELECT regexp_like( 'aaa', 'a+', 1 );
+--error ER_WRONG_ARGUMENTS
+SELECT regexp_substr( 'aaa', 'a+', 1, 1, 1 );
+--error ER_WRONG_ARGUMENTS
+SELECT regexp_substr( 'aaa', 'a+', 1, 1, 1 );
+--error ER_REGEXP_RULE_SYNTAX
+SELECT regexp_substr( 'aaa', '+' );
+
+--echo #
+--echo # Test of a table where the columns are already in the lib's charset and
+--echo # contain NULL.
+--echo #
+CREATE TABLE t1 (
+  a CHAR(3) CHARACTER SET utf16le,
+  b CHAR(3) CHARACTER SET utf16le
+);
+
+INSERT INTO t1 VALUES ( NULL, 'abc' );
+INSERT INTO t1 VALUES ( 'def', NULL );
+INSERT INTO t1 VALUES ( NULL, NULL );
+
+SELECT a regexp b FROM t1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Typecasts.
+--echo #
+CREATE TABLE t1
+(
+  a REAL,
+  b INT,
+  c CHAR(100),
+  d DECIMAL
+);
+
+INSERT INTO t1 VALUES ( regexp_instr('a', 'a'),
+                        regexp_instr('a', 'a'),
+                        regexp_instr('a', 'a'),
+                        regexp_instr('a', 'a') );
+SELECT * FROM t1;
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES ( regexp_like('a', 'a'),
+                        regexp_like('a', 'a'),
+                        regexp_like('a', 'a'),
+                        regexp_like('a', 'a') );
+SELECT * FROM t1;
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES ( regexp_replace('a', 'a', 'a'),
+                        regexp_replace('a', 'a', 'a'),
+                        regexp_replace('a', 'a', 'a'),
+                        regexp_replace('a', 'a', 'a') );
+SELECT * FROM t1;
+DELETE FROM t1;
+
+INSERT INTO t1 VALUES ( regexp_substr('a', 'a'),
+                        regexp_substr('a', 'a'),
+                        regexp_substr('a', 'a'),
+                        regexp_substr('a', 'a') );
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo # At the time of writing, val_int() is not called when inserting into an
+--echo # INT column.
+SELECT cast( regexp_replace('a', 'a', 'a') AS SIGNED INTEGER );
+SELECT cast( regexp_substr ('a', 'a')      AS SIGNED INTEGER );
+
+--echo # Casting to DATETIME/TIME
+--echo # Due to the class hierarchy of function objects, these have to be
+--echo # copy-pasted.
+SELECT cast( regexp_instr  ('a', 'a'     ) AS DATETIME );
+SELECT cast( regexp_like   ('a', 'a'     ) AS DATETIME );
+SELECT cast( regexp_replace('a', 'a', 'a') AS DATETIME );
+SELECT cast( regexp_substr ('a', 'a'     ) AS DATETIME );
+
+SELECT cast( regexp_instr  ('a', 'a'     ) AS TIME );
+SELECT cast( regexp_like   ('a', 'a'     ) AS TIME );
+SELECT cast( regexp_replace('a', 'a', 'a') AS TIME );
+SELECT cast( regexp_substr ('a', 'a'     ) AS TIME );
+
+--echo #
+--echo # Error messages.
+--echo # Test of the error messages themselves.
+--echo #
+
+
+SET GLOBAL net_buffer_length = 1024;
+SET GLOBAL max_allowed_packet = @@global.net_buffer_length;
+SELECT @@global.max_allowed_packet;
+
+--echo # We need to start a new session in order for the changes to the session
+--echo # version of max_allowed_packet to take effect.
+
+--connect(conn1,localhost,root,,)
+--echo # This is now the replacement buffer size in UTF-16 characters.
+SET @buf_sz_utf16 = @@global.max_allowed_packet / length( _utf16'x' );
+SELECT @buf_sz_utf16;
+SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ));
+--error ER_REGEXP_BUFFER_OVERFLOW
+SELECT length(regexp_replace( repeat('a', @buf_sz_utf16 + 1), 'a', 'b' ));
+--error ER_REGEXP_BUFFER_OVERFLOW
+SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'bb' ));
+--disconnect conn1
+--connection default
+
+SET GLOBAL net_buffer_length = DEFAULT;
+SET GLOBAL max_allowed_packet = DEFAULT;
+
+
+--error ER_REGEXP_ILLEGAL_ARGUMENT
+SELECT regexp_like( 'a', '[[:<:]]a' );
+
+--error ER_REGEXP_RULE_SYNTAX
+SELECT regexp_like( 'a', '   **' );
+--error ER_REGEXP_RULE_SYNTAX
+SELECT regexp_like( 'a', ' \n  **' );
+--error ER_REGEXP_RULE_SYNTAX
+SELECT regexp_like( 'a', '  +++' );
+
+--error ER_REGEXP_BAD_ESCAPE_SEQUENCE
+SELECT regexp_like( 'a', '\\' );
+
+--error ER_REGEXP_UNIMPLEMENTED
+SELECT regexp_like('a','(?{})');
+
+--error ER_REGEXP_MISMATCHED_PAREN
+SELECT regexp_like('a','(');
+
+--error ER_REGEXP_BAD_INTERVAL
+SELECT regexp_like('a','a{}');
+
+--error ER_REGEXP_MAX_LT_MIN
+SELECT regexp_like('a','a{2,1}');
+
+--error ER_REGEXP_INVALID_BACK_REF
+SELECT regexp_like('a','\\1');
+
+--error ER_REGEXP_LOOK_BEHIND_LIMIT
+SELECT regexp_substr( 'ab','(?<=a+)b' );
+
+--error ER_REGEXP_MISSING_CLOSE_BRACKET
+SELECT regexp_like( 'a', 'a[' );
+
+--error ER_REGEXP_INVALID_RANGE
+SELECT regexp_substr( 'ab','[b-a]' );
+
+--echo #
+--echo # Test that the replacement buffer can grow beyond the maximum VARCHAR
+--echo # column length.
+--echo #
+CREATE TABLE t1 ( a TEXT );
+# The maximum VARCHAR length, divided by max multibyte character length,
+# plus one.
+INSERT INTO t1 VALUES ( repeat( 'a', 16384 ) );
+SELECT char_length ( regexp_replace( a, 'a', 'b' ) ) FROM t1;
+SET GLOBAL  regexp_time_limit = 10000;
+SELECT regexp_like ( regexp_replace( a, 'a', 'b' ), 'b{16384}' ) FROM t1;
+SET GLOBAL  regexp_time_limit = DEFAULT;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#27134570: DOS: REGEXP TAKES EXPONENTIALLY LONGER, CAN'T BE KILLED,
+--echo # HOGS CPU
+--echo #
+
+--error ER_REGEXP_PATTERN_TOO_BIG
+DO '1' regexp repeat('$', 50000000);
+
+
+--echo #
+--echo # Bug#27140286: REGEXP, ASSERTION FAILED: !THD->IS_ERROR() IN
+--echo # SETUP_FIELDS()
+--echo #
+
+--error ER_DATA_OUT_OF_RANGE
+DO ( (@b) regexp (cot (unhex ( 1 )) ) );
+DO ( (@c) rlike (cot ( (!( @f )) )) );
+--error ER_DATA_OUT_OF_RANGE
+DO ( ('') rlike (cot ( ' %' )) );
+--error ER_WRONG_ARGUMENTS
+DO ( (-28277) regexp (period_add ( -10966, 1381205734 )) );
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO ( (( @f )) rlike (json_depth ( 'key4' )) );
+--error ER_DATA_OUT_OF_RANGE
+DO ( ('-  ') regexp (cot ( right (':#.', 33) )) );
+--error ER_DATA_OUT_OF_RANGE
+DO ( (1) regexp (exp ( 64826 )) );
+DO ( (@g) regexp (cot ( @f )) );
+--error ER_DATA_OUT_OF_RANGE
+DO ( (@b) regexp (exp ( 0x1fc5574c )) );
+--error ER_DATA_OUT_OF_RANGE
+DO ( (25091) rlike (exp ( 14373 )) );
+
+--echo #
+--echo # Bug#27183583: REGEXP OPERATIONS CANT BE KILLED
+--echo #
+SET GLOBAL regexp_time_limit = 1000000;
+
+enable_connect_log;
+
+connect(conn1, localhost, root);
+let $conn1_id= `SELECT CONNECTION_ID()`;
+send SELECT regexp_instr('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC', '(A+)+B');
+
+connection default;
+replace_result $conn1_id <conn1_id>;
+eval KILL QUERY $conn1_id;
+
+connection conn1;
+--error ER_QUERY_INTERRUPTED
+reap;
+disconnect conn1;
+source include/wait_until_disconnected.inc;
+connection default;
+disable_connect_log;
+SET GLOBAL regexp_time_limit = DEFAULT;
+
+--source ../mysql-test/include/cleanup_icu_utils.inc

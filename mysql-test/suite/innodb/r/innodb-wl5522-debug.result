@@ -45,6 +45,8 @@ SELECT * FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
+unlink: t1.ibd
+unlink: t1.cfg
 SET SESSION debug="-d,ib_import_before_commit_crash";
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;

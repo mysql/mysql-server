@@ -1,12 +1,19 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -397,8 +404,8 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name)
     get_default_roles(create_authid_from(acl_user), &default_roles);
     if (default_roles.size() > 0)
     {
-      LEX_STRING *tmp_user;
-      LEX_STRING *tmp_host;
+      LEX_STRING *tmp_user= nullptr;
+      LEX_STRING *tmp_host= nullptr;
       /*
         Make sure we reallocate the default_roles list when using it outside of
         parser code so it has the same mem root as its items.
@@ -450,7 +457,7 @@ err:
 }
 
 
-#include "tztime.h"                     // Time_zone
+#include "sql/tztime.h"                 // Time_zone
 
 /**
   Perform credentials history check and update the password history table
@@ -860,6 +867,7 @@ end:
   @param is_role      CREATE ROLE was used to create the authid.
   @param history_table          The table to verify history against.
   @param[out] history_check_done  Set to on if the history table is updated
+  @param cmd          Command information
 
   @retval 0 ok
   @retval 1 ERROR;
@@ -871,7 +879,8 @@ bool set_and_validate_user_attributes(THD *thd,
                                       bool is_privileged_user,
                                       bool is_role,
                                       TABLE_LIST *history_table,
-                                      bool *history_check_done)
+                                      bool *history_check_done,
+                                      const char * cmd)
 {
   bool user_exists= false;
   ACL_USER *acl_user;
@@ -1086,6 +1095,23 @@ bool set_and_validate_user_attributes(THD *thd,
   }
 
   optimize_plugin_compare_by_pointer(&Str->plugin);
+
+  /*
+    Check if non-default password expiraition option
+    is passed to a plugin that does not support it and raise
+    and error if it is.
+  */
+  if (Str->alter_status.update_password_expired_fields &&
+    !Str->alter_status.use_default_password_lifetime &&
+    Str->alter_status.expire_after_days != 0 &&
+    !auth_plugin_supports_expiration(Str->plugin.str))
+  {
+    my_error(ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD, MYF(0),
+      Str->plugin.length, Str->plugin.str);
+    return 1;
+  }
+
+
   plugin= my_plugin_lock_by_name(0, Str->plugin,
                                  MYSQL_AUTHENTICATION_PLUGIN);
 
@@ -1198,6 +1224,17 @@ bool set_and_validate_user_attributes(THD *thd,
                                      history_table, what_to_set))
     {
       plugin_unlock(0, plugin);
+
+      /*
+        generate_authentication_string may return error status
+        without setting actual error.
+      */
+      if (!thd->is_error())
+      {
+        String error_user;
+        append_user(thd, &error_user, Str, FALSE, FALSE);
+        my_error(ER_CANNOT_USER, MYF(0), cmd, error_user.c_ptr_safe());
+      }
       return(1);
     }
     if (history_check_done)
@@ -1299,6 +1336,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   size_t new_password_len= strlen(new_password);
   bool transactional_tables;
   bool result= false;
+  bool commit_result= false;
   std::string authentication_plugin;
   bool is_role;
   int ret;
@@ -1383,7 +1421,8 @@ bool change_password(THD *thd, const char *host, const char *user,
     combo->uses_identified_by_clause= false;
 
   if (set_and_validate_user_attributes(thd, combo, what_to_set, true, false,
-                                       &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL))
+                                       &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY], NULL,
+                                       "SET PASSWORD"))
   {
     authentication_plugin.assign(combo->plugin.str);
     result= 1;
@@ -1409,15 +1448,15 @@ bool change_password(THD *thd, const char *host, const char *user,
   users.insert(combo);
 
 end:
-  result= log_and_commit_acl_ddl(thd, transactional_tables, &users,
-                                 false, !result, false);
+  commit_result= log_and_commit_acl_ddl(thd, transactional_tables, &users,
+                                        false, !result, false);
 
   mysql_audit_notify(thd,
     AUDIT_EVENT(MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE),
-    thd->is_error(), user, host, authentication_plugin.c_str(),
+    thd->is_error() || result, user, host, authentication_plugin.c_str(),
     is_role, NULL, NULL);
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(result || commit_result);
 }
 
 namespace {
@@ -2009,7 +2048,8 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list, bool if_not_exists, bool
     if (set_and_validate_user_attributes(thd, user_name, what_to_update, true,
                                          is_role,
                                          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY],
-                                         &history_check_done))
+                                         &history_check_done,
+                                         "CREATE USER"))
     {
       result= 1;
       append_user(thd, &wrong_users, user_name, wrong_users.length() > 0,
@@ -2508,7 +2548,7 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     ACL_USER *acl_user;
     ulong what_to_alter= 0;
     bool history_check_done= false;
-    TABLE *history_tbl;
+    TABLE *history_tbl= nullptr;
     bool dummy_row_existed= false;
 
 
@@ -2527,7 +2567,8 @@ bool mysql_alter_user(THD *thd, List <LEX_USER> &list, bool if_exists)
     if (set_and_validate_user_attributes(thd, user_from, what_to_alter,
                                          is_privileged_user, false,
                                          &tables[ACL_TABLES::TABLE_PASSWORD_HISTORY],
-                                         &history_check_done))
+                                         &history_check_done,
+                                         "ALTER USER"))
     {
       result= 1;
       continue;

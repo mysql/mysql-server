@@ -182,6 +182,7 @@ show variables like 'mysqlx_min_worker_threads%';
 Variable_name	Value
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%';
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	LOAD_OPTION
+mysqlx_cache_cleaner	1.0	ACTIVE	AUDIT	ON
 install plugin mysqlx soname "mysqlx.so";
 uninstall plugin mysqlx;
 # restart: --max_connections=151
@@ -189,7 +190,7 @@ install plugin mysqlx soname "mysqlx.so";
 # restart: --max_connections=151
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
-root@localhost	root@localhost	*
+x_root@localhost	x_root@localhost	*
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -265,6 +266,7 @@ mysqlx_min_worker_threads	50
 RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%'
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	LOAD_OPTION
 mysqlx	1.0	ACTIVE	DAEMON	ON
+mysqlx_cache_cleaner	1.0	ACTIVE	AUDIT	ON
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
@@ -362,6 +364,7 @@ mysqlx_min_worker_threads	50
 RUN SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE 'mysqlx%'
 PLUGIN_NAME	PLUGIN_VERSION	PLUGIN_STATUS	PLUGIN_TYPE	LOAD_OPTION
 mysqlx	1.0	ACTIVE	DAEMON	ON
+mysqlx_cache_cleaner	1.0	ACTIVE	AUDIT	ON
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

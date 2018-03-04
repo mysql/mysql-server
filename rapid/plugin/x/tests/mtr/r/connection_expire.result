@@ -1,13 +1,7 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '3.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '4.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '6.1: Unsuccessful login attempt");
-call mtr.add_suppression("Plugin mysqlx reported: '7.1: Unsuccessful login attempt");
-SELECT password_last_changed into @passwordchanged from mysql.user where host='localhost' and user='root';
+SELECT password_last_changed into @passwordchanged from mysql.user where host='localhost' and user='x_root';
 create user foo@localhost;
 alter user foo@localhost password expire;
 create user xplugin@localhost identified by 'xplugin';
@@ -40,11 +34,11 @@ Mysqlx.Ok {
 NOTICE: Account password expired
 Login OK
 ok
-Test: try connecting with non-root user when its password expird and root user password expired,expect password expired notice
-alter user root@localhost password expire;
+Test: try connecting with non-x_root user when its password expird and x_root user password expired,expect password expired notice
+alter user x_root@localhost password expire;
 Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
 not ok
-Test: try connecting with Expired password using root user and expect password expire notice
+Test: try connecting with Expired password using x_root user and expect password expire notice
 send Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -66,7 +60,7 @@ Mysqlx.Ok {
 NOTICE: Account password expired
 Login OK
 ok
-Test: try connecting with non-root user when its password expird and root user password expired,expect password expired notice
+Test: try connecting with non-x_root user when its password expird and x_root user password expired,expect password expired notice
 send Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -88,7 +82,7 @@ Mysqlx.Ok {
 NOTICE: Account password expired
 Login OK
 ok
-Test: try connecting with root user whose password expired with wrong password and expect invalid user or password error
+Test: try connecting with x_root user whose password expired with wrong password and expect invalid user or password error
 send Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -109,7 +103,7 @@ Mysqlx.Ok {
 
 Got expected error: Invalid user or password (code 1045)
 ok
-set password for root@localhost = '';
+set password for x_root@localhost = '';
 # restart: --disconnect_on_expired_password=off
 Test: expect expired Notice for connection
 NOTICE: Account password expired
@@ -120,7 +114,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-set password for root@localhost = '';
+set password for x_root@localhost = '';
 # restart: --skip-disconnect_on_expired_password
 Test: expect expired Notice for connection
 NOTICE: Account password expired
@@ -227,6 +221,6 @@ Mysqlx.Ok {
 ok
 drop user foo@localhost;
 drop user xplugin@localhost;
-update mysql.user set password_last_changed = @passwordchanged where host = 'localhost' and user='root';
+update mysql.user set password_last_changed = @passwordchanged where host = 'localhost' and user='x_root';
 flush privileges;
 uninstall plugin mysqlx;

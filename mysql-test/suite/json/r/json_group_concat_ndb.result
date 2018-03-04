@@ -8,7 +8,7 @@ Warning	1478	Table storage engine 'ndbcluster' does not support the create optio
 insert into t2 values (json_array(ST_GeomFromText('LineString(0 0, 1 1, 2 2)')));
 select group_concat(j order by j) from t2;
 group_concat(j order by j)
-[{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}]
+[{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}]
 drop table t2;
 create table t (c varchar(20)) charset utf8mb4;
 insert into t values ('\\');

@@ -177,3 +177,15 @@ tr4	CREATE TABLE `tr4` (
 ) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE tr1,tr2,tr3,tr4;
 DROP TABLESPACE s1;
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT count(*) INTO @dd_tbs_row_cnt FROM mysql.tablespaces;
+SELECT count(*) INTO @matching_dd_tbs_row_cnt FROM mysql.tablespaces WHERE se_private_data RLIKE 'version=[0-9]+;';
+SELECT @dd_tbs_row_cnt = @matching_dd_tbs_row_cnt ;
+@dd_tbs_row_cnt = @matching_dd_tbs_row_cnt
+1
+SELECT CONCAT(sys.version_major(),".",sys.version_minor(),".",sys.version_patch()) INTO @server_version;
+SELECT count(*) INTO @is_tbs_row_cnt FROM information_schema.innodb_tablespaces;
+SELECT count(*) INTO @matching_is_tbs_row_cnt FROM information_schema.innodb_tablespaces WHERE server_version LIKE CONCAT('%',@server_version,'%');
+SELECT @is_tbs_row_cnt = @matching_is_tbs_row_cnt ;
+@is_tbs_row_cnt = @matching_is_tbs_row_cnt
+1

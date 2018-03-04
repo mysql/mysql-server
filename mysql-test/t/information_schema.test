@@ -1800,6 +1800,24 @@ DROP TABLE t1;
 --error ER_DBACCESS_DENIED_ERROR
 CREATE PROCEDURE information_schema.is() BEGIN END;
 
+
+--echo #
+--echo # Bug#26877788 SELECT FROM INFORMATION_SCHEMA.FILES RETURNS NO RECORDS WHEN ORDER BY IS USED
+--echo #
+
+SELECT ENGINE, SUPPORT, TRANSACTIONS FROM INFORMATION_SCHEMA.ENGINES
+WHERE
+SUPPORT IN (
+SELECT DISTINCT SUPPORT
+FROM INFORMATION_SCHEMA.ENGINES
+WHERE
+ENGINE IN (
+SELECT DISTINCT ENGINE FROM INFORMATION_SCHEMA.ENGINES
+WHERE ENGINE IN ('MEMORY')))
+ORDER BY ENGINE
+LIMIT 1;
+
+
 --echo #
 --echo # End of 5.6 tests
 --echo #
@@ -1952,7 +1970,7 @@ c3 CHAR(255),
 c4 CHAR(255),
 c5 CHAR(255),
 c6 POINT NOT NULL,
-c7 GEOMETRY NOT NULL,
+c7 GEOMETRY NOT NULL SRID 0,
 SPATIAL INDEX(c7),
 PRIMARY KEY (c1, c6),
 KEY c2_key (c2),
@@ -2299,4 +2317,89 @@ SHOW COLUMNS from t1;
 SELECT COLUMN_DEFAULT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME= 't1';
 
 --echo # Cleanup.
+DROP TABLE t1;
+
+--echo #
+--echo # BUG#25185947 -- issues with renaming root user
+--echo #
+
+RENAME USER root@localhost TO master@localhost;
+FLUSH PRIVILEGES;
+
+--echo # Without patch, SHOW DATABASES returns error ERROR 1449 (HY000):
+--echo # The user specified as a definer ('root'@'localhost') does not exist
+SHOW DATABASES;
+
+RENAME USER master@localhost TO root@localhost;
+FLUSH PRIVILEGES;
+
+
+--echo #
+--echo # Bug#27041452 assertion
+--echo # `ticket->m_lock->m_obtrusive_locks_granted_waiting_count != 0' failed.
+--echo #
+
+CREATE TABLE t1(c1 INT);
+LOCK TABLES t1 WRITE;
+
+--echo # The following statement asserts while trying to acquire lock
+--echo # on TABLESPACE, without the fix.
+SELECT file_name, initial_size!=0 FROM information_schema.files
+  WHERE tablespace_name='test/t1';
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#27041526 assertion `mon > 0 && mon < 13' failed.
+--echo #
+
+CREATE TABLE t1(c1 int);
+SET TIMESTAMP=UNIX_TIMESTAMP('2017-11-20 10:44:01');
+SET SESSION TIME_ZONE='-10:00';
+SHOW VARIABLES LIKE 'collation_connection';
+SELECT table_rows FROM information_schema.tables
+  WHERE table_name='t1';
+
+--echo # This SELECT does not return any row without the fix.
+SELECT table_rows FROM information_schema.tables
+  WHERE table_name='t1' AND table_rows>=0;
+
+--echo # The following statement asserts or throws a warning without the fix.
+SET SESSION collation_connection='utf32_general_ci';
+SELECT table_rows FROM information_schema.tables WHERE table_name='t1';
+DROP TABLE t1;
+SET SESSION TIMESTAMP=default;
+SET SESSION collation_connection=default;
+
+--echo #
+--echo # Bug#27041323 INNODB: ASSERTION FAILURE:
+--echo # REM0REC.CC:372:LEN <= COL->LEN || ((COL->MTYPE)==5...
+--echo #
+
+CREATE TABLE t1(c1 INT,c2 CHAR (1)COMMENT'')
+COMMENT='abcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabc
+defghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghija
+bcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabc
+defghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghija
+bcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghi
+jabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefg
+hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
+fghijabcdefghijabcde';
+SET big_tables=1;
+SET character_set_connection=ucs2;
+
+--echo # The below statement asserts or shows comment text in ucs2 instead of
+--echo # using system charset, when run without the fix.
+--replace_column 7 # 8 # 12 # 13 #
+SHOW TABLE STATUS;
+
+SET big_tables=default;
+SET character_set_connection=default;
 DROP TABLE t1;

@@ -10,6 +10,8 @@ call mtr.add_suppression("Error checking relay log repository.");
 call mtr.add_suppression("Slave failed to initialize relay log info structure from the repository");
 call mtr.add_suppression("Error while starting the group replication applier thread");
 call mtr.add_suppression("It was not possible to identify the group replication applier thread");
+call mtr.add_suppression("It was not possible to reset the server read mode settings. Try to reset them manually.");
+call mtr.add_suppression("Error running internal SQL query:*");
 SET SESSION sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 

@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_DIGEST_H
 #define SQL_DIGEST_H
@@ -20,12 +27,93 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"       // IWYU pragma: keep
-#include "my_md5_size.h"       // MD5_HASH_SIZE
 
 class String;
 
 
 #define MAX_DIGEST_STORAGE_SIZE (1024*1024)
+
+/**
+  Write SHA-256 hash value in a string to be used
+  as DIGEST for the statement.
+*/
+#define DIGEST_HASH_TO_STRING(_hash, _str)    \
+  sprintf(_str,                               \
+          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
+          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
+          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
+          "%02x%02x%02x%02x%02x%02x%02x%02x", \
+          _hash[0],                           \
+          _hash[1],                           \
+          _hash[2],                           \
+          _hash[3],                           \
+          _hash[4],                           \
+          _hash[5],                           \
+          _hash[6],                           \
+          _hash[7],                           \
+          _hash[8],                           \
+          _hash[9],                           \
+          _hash[10],                          \
+          _hash[11],                          \
+          _hash[12],                          \
+          _hash[13],                          \
+          _hash[14],                          \
+          _hash[15],                          \
+          _hash[16],                          \
+          _hash[17],                          \
+          _hash[18],                          \
+          _hash[19],                          \
+          _hash[20],                          \
+          _hash[21],                          \
+          _hash[22],                          \
+          _hash[23],                          \
+          _hash[24],                          \
+          _hash[25],                          \
+          _hash[26],                          \
+          _hash[27],                          \
+          _hash[28],                          \
+          _hash[29],                          \
+          _hash[30],                          \
+          _hash[31])
+
+/// SHA-256 = 32 bytes of binary = 64 printable characters.
+#define DIGEST_HASH_TO_STRING_LENGTH 64
+
+/*
+  Various hashes considered for digests.
+
+  MD5:
+  - 128 bits
+  - used up to MySQL 5.7
+  - abandoned in MySQL 8.0, non FIPS compliant.
+
+  SHA1:
+  - 160 bits
+  - non FIPS compliant in strict mode
+  - not used
+
+  SHA2-224
+  - 224 bits
+  - non FIPS compliant in strict mode
+  - not used
+
+  SHA2-256
+  - 256 bits
+  - FIPS compliant
+  - Used starting with MySQL 8.0
+
+  SHA2-384
+  - 384 bits
+
+  SHA2-512
+  - 512 bits
+*/
+
+/**
+  DIGEST hash size, in bytes.
+  256 bits, for SHA256.
+*/
+#define DIGEST_HASH_SIZE 32
 
 ulong get_max_digest_length();
 
@@ -37,7 +125,7 @@ struct sql_digest_storage
 {
   bool m_full;
   size_t m_byte_count;
-  unsigned char m_md5[MD5_HASH_SIZE];
+  unsigned char m_hash[DIGEST_HASH_SIZE];
   /** Character set number. */
   uint m_charset_number;
   /**
@@ -73,7 +161,7 @@ struct sql_digest_storage
     m_full= false;
     m_byte_count= 0;
     m_charset_number= 0;
-    memset(m_md5, 0, MD5_HASH_SIZE);
+    memset(m_hash, 0, DIGEST_HASH_SIZE);
   }
 
   inline bool is_empty()
@@ -97,7 +185,7 @@ struct sql_digest_storage
       m_byte_count= byte_count_copy;
       m_charset_number= from->m_charset_number;
       memcpy(m_token_array, from->m_token_array, m_byte_count);
-      memcpy(m_md5, from->m_md5, MD5_HASH_SIZE);
+      memcpy(m_hash, from->m_hash, DIGEST_HASH_SIZE);
     }
     else
     {
@@ -112,9 +200,9 @@ typedef struct sql_digest_storage sql_digest_storage;
 /**
   Compute a digest hash.
   @param digest_storage The digest
-  @param [out] md5 The computed digest hash. This parameter is a buffer of size @c MD5_HASH_SIZE.
+  @param [out] hash The computed digest hash. This parameter is a buffer of size @c DIGEST_HASH_SIZE.
 */
-void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char *md5);
+void compute_digest_hash(const sql_digest_storage *digest_storage, unsigned char *hash);
 
 /**
   Compute a digest text.

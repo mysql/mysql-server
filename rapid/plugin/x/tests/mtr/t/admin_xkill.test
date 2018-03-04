@@ -3,21 +3,22 @@
 ## This test aims to run list_clients and kill_client admin commands #
 ## Test runs covers below scenarios:                                 #
 ##  - listing client with single session and multiple sessions       #
-##  - killing own session and root user session with privileged user #
-##  - killing own session and root user session with unprivileged user
+##  - killing own session and x_root user session with privileged user #
+##  - killing own session and x_root user session with unprivileged user
 ##  - killing session with value of different data types than UINT   #
-##  - killing root session with user has only process privilege      #
+##  - killing x_root session with user has only process privilege      #
 ##  - listing and killing session with password expired user         #
 ##  - killing valid sql_session id with xprotocol connection         #
 ##  - listing and killing default mysqlx_max_connections ie 100      #
 ##  - listing,killing clients with ssl xprotocol privileged conn     #
-##  - listing and killing clients with ssl xprotocol root connection #
+##  - listing and killing clients with ssl xprotocol x_root connection #
 ##  - kill_client,list_clients stats                                 #
 ##  - check sum of these 2 vars with all mysqlx sessions should be as#
 #        that of with mysql client                                   #
 ######################################################################
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 call mtr.add_suppression("Plugin mysqlx reported: 'Unhandled network error: Bad file descriptor'");
 create user sslcon@localhost identified by 'sslcon';
 grant all on *.* to sslcon@localhost;
@@ -44,11 +45,11 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo create and activate new session
--->newsession aux	root
+-->newsession aux	x_root
 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
@@ -58,9 +59,9 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new root session
+-->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new x_root session
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo switch back to default session
@@ -74,9 +75,9 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default root session where list_clients already executed
+-->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default x_root session where list_clients already executed
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 Mysqlx.Sql.StmtExecute {
@@ -104,13 +105,13 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 3 times and kill_client once
+-->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 3 times and kill_client once
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo create and activate new session abc
--->echo expect only abc user session id 
+-->echo expect only abc user session id
 -->newsession abc	abc	abc
 
 Mysqlx.Sql.StmtExecute {
@@ -121,7 +122,7 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
--->echo killing root user session with unprivileged user 'abc' which should be unsuccessful
+-->echo killing x_root user session with unprivileged user 'abc' which should be unsuccessful
 Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   namespace: "xplugin"
@@ -141,7 +142,7 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with session abc where list_clients and kill_client executed once
 -->sql
 select sleep(0.5);
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 select user(),current_user();
 show grants;
 -->endsql
@@ -182,7 +183,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with new session abc where list_clients executed twice and kill_client executed once
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 select user(),current_user();
 show grants;
 -->endsql
@@ -221,14 +222,14 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 4 times and kill_client once
+-->echo expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 4 times and kill_client once
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 select user(),current_user();
 show grants;
 -->endsql
 
--->echo open process only privileged user seession and kill root user session,expect error "You are not owner of thread"
+-->echo open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 -->newsession process	process	process
 
 Mysqlx.Sql.StmtExecute {
@@ -255,7 +256,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->sleep 1
 
--->echo checking list of clients after root user session killed by xplugin user
+-->echo checking list of clients after x_root user session killed by xplugin user
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -265,12 +266,12 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with process user where list_clients executed 2 times and kill_client once
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 select user(),current_user();
 show grants;
 -->endsql
 
--->echo open privileged user seession and kill root user session,expect success
+-->echo open privileged user seession and kill x_root user session,expect success
 -->newsession xplugin	xplugin	xplugin
 
 Mysqlx.Sql.StmtExecute {
@@ -298,7 +299,7 @@ Mysqlx.Sql.StmtExecute {
 select sleep(0.5);
 -->endsql
 
--->echo checking list of clients after root user session killed by xplugin user
+-->echo checking list of clients after x_root user session killed by xplugin user
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -308,7 +309,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 select user(),current_user();
 show grants;
 -->endsql
@@ -316,7 +317,7 @@ show grants;
 -->echo Cleanup
 -->sql
 drop schema if exists xtest;
-#show status like 'Mysqlx%client%';
+#show status like 'Mysqlx_stmt%client%';
 -->endsql
 EOF
 
@@ -329,7 +330,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
- 
+
 -->echo expect error while killing client with data type other than usinged int
 -->echo try killing xprotocol session with valid sql_session id once xprotocol connetion opened with kill_client,expect error
 
@@ -490,9 +491,9 @@ Mysqlx.Sql.StmtExecute {
 -->expecterror 5016
 -->recvresult
 
--->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with root user even though kill_client returns errors
+-->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with x_root user even though kill_client returns errors
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 EOF
@@ -527,7 +528,7 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect error for status var executed with password expired user
 -->expecterror 1820
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 EOF
@@ -555,9 +556,9 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recverror 1094
 
--->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with root user when these commads executed with mixed case
+-->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with x_root user when these commads executed with mixed case
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 EOF
@@ -627,9 +628,9 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
--->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 
+-->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo create and activate new session xconnection1
@@ -702,14 +703,14 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvresult client_id user host
 
--->sleep 1 
--->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 
+-->sleep 1
+-->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 show status like 'Mysqlx_sessions%'
 -->endsql
 
--->echo killing all newly connected clients except root,one by one
+-->echo killing all newly connected clients except x_root,one by one
 Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   namespace: "xplugin"
@@ -1375,7 +1376,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=49
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 show status like 'Mysqlx_sessions%'
 -->endsql
 
@@ -1496,7 +1497,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=0 and Mysqlx_stmt_kill_client=0 as these are not executed on right namespace
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 EOF
@@ -1519,7 +1520,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo create and activate new session con1
@@ -1535,7 +1536,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo open 3rd xprotocol connection where 2 sessions already opened
@@ -1543,7 +1544,7 @@ show status like 'Mysqlx%client%';
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 ## switch back to default session
@@ -1601,13 +1602,13 @@ Mysqlx.Sql.StmtExecute {
 -->sql
 drop user con1@localhost;
 drop user con2@localhost;
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 EOF
 
---write_file $MYSQL_TMP_DIR/admin_xkill_ssl_root.tmp
--->echo open xconnection with ssl root user kill,expect success
+--write_file $MYSQL_TMP_DIR/admin_xkill_ssl_x_root.tmp
+-->echo open xconnection with ssl x_root user kill,expect success
 -->sql
 create user con1@localhost identified by 'con1';
 create user con2@localhost identified by 'con2';
@@ -1715,11 +1716,11 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo create and activate new session
--->newsession aux	root
+-->newsession aux	x_root
 
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
@@ -1729,9 +1730,9 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new root session
+-->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new x_root session
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo switch back to default session
@@ -1745,9 +1746,9 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect error
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default root session where list_clients already executed
+-->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default x_root session where list_clients already executed
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 Mysqlx.Sql.StmtExecute {
@@ -1774,13 +1775,13 @@ Mysqlx.Sql.StmtExecute {
 #-->recverror 5162
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 3 times and kill_client once
+-->echo expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 3 times and kill_client once
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo create and activate new session abc
--->echo expect only abc user session id 
+-->echo expect only abc user session id
 -->newsession abc	abc	abc
 
 Mysqlx.Sql.StmtExecute {
@@ -1791,7 +1792,7 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
--->echo killing root user session with unprivileged user 'abc' which should be unsuccessful
+-->echo killing x_root user session with unprivileged user 'abc' which should be unsuccessful
 Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   namespace: "xplugin"
@@ -1810,7 +1811,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo open another session of abc user and kill first session of abc user,which should be successful
@@ -1850,7 +1851,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo killing abc user session with its own session 'abc' which should be successful
@@ -1882,12 +1883,12 @@ Mysqlx.Sql.StmtExecute {
 -->echo expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult client_id user host
 
--->echo expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 4 times and kill_client once
+-->echo expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 4 times and kill_client once
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
--->echo open process only privileged user seession and kill root user session,expect error "You are not owner of thread"
+-->echo open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 -->newsession process	process	process
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
@@ -1915,7 +1916,7 @@ Mysqlx.Sql.StmtExecute {
 select sleep(0.5);
 -->endsql
 
--->echo checking list of clients after root user session killed by xplugin user
+-->echo checking list of clients after x_root user session killed by xplugin user
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -1925,10 +1926,10 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect ERROR: SELECT command denied to user 'process'@'localhost' for table 'session_status' (code 1142) for show command
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
--->echo open privileged user seession and kill root user session,expect success
+-->echo open privileged user seession and kill x_root user session,expect success
 -->newsession xplugin	xplugin	xplugin
 
 Mysqlx.Sql.StmtExecute {
@@ -1957,7 +1958,7 @@ Mysqlx.Sql.StmtExecute {
 select sleep(0.5);
 -->endsql
 
--->echo checking list of clients after root user session killed by xplugin user
+-->echo checking list of clients after x_root user session killed by xplugin user
 Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -1967,7 +1968,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
 -->sql
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 -->endsql
 
 -->echo Cleanup
@@ -1978,9 +1979,9 @@ drop schema if exists xtest;
 EOF
 
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_xkill.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill.tmp 2>&1
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_xkill_invaliddtype.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_invaliddtype.tmp 2>&1
 
 ##try executing list_clients and kill_client with password expired user, expect error
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/ /Query/Execute/
@@ -1988,29 +1989,29 @@ EOF
 
 ##execute list_clients and kill_client with mixed case,expect command should be recognized
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_mixedcase.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_mixedcase.tmp 2>&1
 
 ##open 100 xprotocol connections and list and kill them ony by one,expect success
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_list_kill_100conns.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_list_kill_100conns.tmp 2>&1
 
 ##execute list_clients,kill_client with invalid name space other than xplugin,exect unsuccess
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_list_kill_sqlnamespace.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_list_kill_sqlnamespace.tmp 2>&1
 
 ##verify list_clients and kill_client works with ssl privileged user
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
 --exec $MYSQLXTEST -usslcon --password='sslcon' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/admin_xkill_ssl.tmp 2>&1
 
-##verify list_clients and kill_client works with root user having ssl
+##verify list_clients and kill_client works with x_root user having ssl
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -uroot --password='' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/admin_xkill_ssl_root.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/admin_xkill_ssl_x_root.tmp 2>&1
 ##expect sum of all stats of kill_client,list_clients with native mysql clients as these are global to mysql client and local to mysqlx session
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 #show status like 'Mysqlx_sessions%';
 
 ##verify Mysqlx_stmt_kill_client and Mysqlx_stmt_list_clients
-let $restart_parameters = restart: ; 
+let $restart_parameters = restart: ;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 drop user abc@localhost;
 drop user xplugin@localhost;
@@ -2018,16 +2019,16 @@ drop user process@localhost;
 drop user expire@localhost;
 ###expects zero stats for kill_client,list_clients once server started first time
 set @@global.mysqlx_max_connections=100;
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 select sleep(0.5);
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.tmp 2>&1
 ##expect sum of all stats of kill_client,list_clients with native mysql clients as these are global to mysql client and local to mysqlx session
 ##seems to be it is not working that way
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 --remove_file $MYSQL_TMP_DIR/admin_xkill.tmp
 --remove_file $MYSQL_TMP_DIR/admin_xkill_ssl.tmp
---remove_file $MYSQL_TMP_DIR/admin_xkill_ssl_root.tmp
+--remove_file $MYSQL_TMP_DIR/admin_xkill_ssl_x_root.tmp
 --remove_file $MYSQL_TMP_DIR/admin_xkill_invaliddtype.tmp
 --remove_file $MYSQL_TMP_DIR/admin_xkill_pwd_expire.tmp
 --remove_file $MYSQL_TMP_DIR/admin_mixedcase.tmp
@@ -2036,6 +2037,7 @@ show status like 'Mysqlx%client%';
 --remove_file $MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;
 drop user abc@localhost;
 drop user xplugin@localhost;

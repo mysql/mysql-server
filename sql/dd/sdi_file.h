@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__SDI_FILE_INCLUDED
 #define DD__SDI_FILE_INCLUDED
@@ -56,15 +63,6 @@ const String_type EXT= ".sdi";
 String_type sdi_filename(Object_id id, const String_type &entity_name,
                          const String_type &schema);
 
-/**
-  Stores sdi for schema in a file.
-
-  @param sdi json string to store
-  @param schema dd object from which sdi was generated
-  @retval true if an error occurs
-  @retval false otherwise
-*/
-bool store_sch_sdi(const dd::Sdi_type &sdi, const dd::Schema &schema);
 
 /**
   Stores sdi for table in a file.
@@ -87,14 +85,6 @@ bool store_tbl_sdi(const Sdi_type &sdi, const dd::Table &table,
 */
 bool remove(const String_type &fname);
 
-/**
-  Removes sdi file for a schema.
-
-  @param schema dd object for which to remove sdi
-  @retval true if an error occurs
-  @retval false otherwise
-*/
-bool drop_sch_sdi(const dd::Schema &schema);
 
 /**
   Removes sdi file for a table.

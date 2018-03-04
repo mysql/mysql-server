@@ -3,6 +3,14 @@
 --source include/not_crashrep.inc
 --source include/big_test.inc
 
+--disable_query_log
+--disable_result_log
+# Basically, these are sporadic warnings/errors and harmless to the table
+CALL mtr.add_suppression("InnoDB: Operating system error number 32 in a file operation.");
+CALL mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files.");
+--enable_result_log
+--enable_query_log
+
 LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;
 
 CREATE TABLESPACE ts1 ADD DATAFILE 'data1.ibd';
@@ -104,6 +112,7 @@ call mtr.add_suppression("Could not find a valid tablespace file for");
 call mtr.add_suppression("Operating system error number 2 in a file operation.");
 call mtr.add_suppression("The error means the system cannot find the path specified.");
 call mtr.add_suppression("Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Tablespace.*, name 'test.t[12].*', unable to open file '.*test.t[12].*\\.ibd' - Data structure corruption");
 --enable_query_log
 
 let $create_statement= CREATE TABLE $table_name

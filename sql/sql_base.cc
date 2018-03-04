@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -572,12 +579,14 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     if (column->is_hidden())
       continue;
 
+    MDL_key mdl_key;
+    dd::Column_statistics::create_mdl_key(schema->name(),
+                                          table_def->name(),
+                                          column->name(),
+                                          &mdl_key);
+
     MDL_request *request= new (thd->mem_root) MDL_request;
-    dd::String_type mdl_key=
-      dd::Column_statistics::create_mdl_key(schema->name(), table_def->name(),
-                                            column->name());
-    MDL_REQUEST_INIT(request, MDL_key::COLUMN_STATISTICS, "", mdl_key.c_str(),
-                     MDL_SHARED_READ, MDL_STATEMENT);
+    MDL_REQUEST_INIT_BY_KEY(request, &mdl_key, MDL_SHARED_READ, MDL_STATEMENT);
     mdl_requests.push_front(request);
   }
 
@@ -682,12 +691,32 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
   for ( ;; )
   {
     auto it= table_def_cache->find(string(key, key_length));
-    if (it == table_def_cache->end()) break;
+    if (it == table_def_cache->end())
+    {
+      if (thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
+                                                       db, "",
+                                                       MDL_INTENTION_EXCLUSIVE))
+      {
+         break;
+      }
+      mysql_mutex_unlock(&LOCK_open);
 
+      if (dd::mdl_lock_schema(thd, db, MDL_TRANSACTION))
+      {
+        // Lock LOCK_open again to preserve function contract
+        mysql_mutex_lock(&LOCK_open);
+        DBUG_RETURN(nullptr);
+      }
+
+      mysql_mutex_lock(&LOCK_open);
+      // Need to re-try the find after getting the mutex again
+      continue;
+    }
     share= it->second.get();
     if (!share->m_open_in_progress)
       DBUG_RETURN(process_found_table_share(thd, share, open_view));
 
+    DEBUG_SYNC(thd, "get_share_before_COND_open_wait");
     mysql_cond_wait(&COND_open, &LOCK_open);
   }
 
@@ -742,13 +771,11 @@ TABLE_SHARE *get_table_share(THD *thd, const char *db,
 
   {
     // We must make sure the schema is released and unlocked in the right order.
-    dd::Schema_MDL_locker mdl_handler(thd);
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Schema *sch= nullptr;
     const dd::Abstract_table *abstract_table= nullptr;
     open_table_err= true; // Assume error to simplify code below.
-    if (mdl_handler.ensure_locked(share->db.str) ||
-        thd->dd_client()->acquire(share->db.str, &sch) ||
+    if (thd->dd_client()->acquire(share->db.str, &sch) ||
         thd->dd_client()->acquire(share->db.str, share->table_name.str, &
                                   abstract_table))
     { }
@@ -1490,7 +1517,7 @@ static void close_open_tables(THD *thd)
   @param  db          Database name.
   @param  table_name  Table name.
   @param  remove_from_locked_tables
-                      True if the table is being dropped or renamed.
+                      True if the table is being dropped.
                       In that case the documented behaviour is to
                       implicitly remove the table from LOCK TABLES list.
   @param  skip_table  TABLE instance that should be kept open.
@@ -2043,7 +2070,7 @@ bool close_temporary_tables(THD *thd)
   /* scan sorted tmps to generate sequence of DROP */
   for (table= thd->temporary_tables; table; table= next)
   {
-    if (is_user_table(table))
+    if (is_user_table(table) && table->should_binlog_drop_if_temp())
     {
       bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
@@ -2064,27 +2091,31 @@ bool close_temporary_tables(THD *thd)
            table= next)
       {
         /* Separate transactional from non-transactional temp tables */
-        if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
+        if (table->should_binlog_drop_if_temp())
         {
-          found_trans_table= true;
-          /*
-            We are going to add ` around the table names and possible more
-            due to special characters
-          */
-          append_identifier(thd, &s_query_trans, table->s->table_name.str,
-                            strlen(table->s->table_name.str));
-          s_query_trans.append(',');
-        }
-        else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
-        {
-          found_non_trans_table= true;
-          /*
-            We are going to add ` around the table names and possible more
-            due to special characters
-          */
-          append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
-                            strlen(table->s->table_name.str));
-          s_query_non_trans.append(',');
+          /* Separate transactional from non-transactional temp tables */
+          if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
+          {
+            found_trans_table= true;
+            /*
+              We are going to add ` around the table names and possible more
+              due to special characters
+            */
+            append_identifier(thd, &s_query_trans, table->s->table_name.str,
+                              strlen(table->s->table_name.str));
+            s_query_trans.append(',');
+          }
+          else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
+          {
+            found_non_trans_table= true;
+            /*
+              We are going to add ` around the table names and possible more
+              due to special characters
+            */
+            append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
+                              strlen(table->s->table_name.str));
+            s_query_non_trans.append(',');
+          }
         }
 
         next= table->next;
@@ -2165,6 +2196,11 @@ bool close_temporary_tables(THD *thd)
     else
     {
       next= table->next;
+      /*
+        This is for those cases when we have acquired lock but drop temporary table
+        will not be logged.
+      */
+      mysql_lock_remove(thd, thd->lock, table);
       close_temporary(thd, table, 1, 1);
       slave_closed_temp_tables++;
     }
@@ -3566,6 +3602,12 @@ share_found:
       goto err_lock;
     }
 
+    if (table_def && table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE)
+    {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
+               table_list->table_name);
+      goto err_lock;
+    }
 
     /* make a new table */
     if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
@@ -4147,6 +4189,85 @@ Locked_tables_list::reopen_tables(THD *thd)
     thd->lock= merged_lock;
   }
   return FALSE;
+}
+
+
+/**
+  Update database and table names of table locked with LOCK TABLES after
+  table rename.
+
+  @param old_table_list     Table list element representing old db/table name.
+  @param new_db             Table's new database.
+  @param new_table_name     Table's new name.
+  @param target_mdl_ticket  Ticket representing metadata lock acquired on new
+                            table name.
+
+  @note This function is a no-op if we're not under LOCK TABLES.
+*/
+
+void
+Locked_tables_list::rename_locked_table(TABLE_LIST *old_table_list,
+                                        const char *new_db,
+                                        const char *new_table_name,
+                                        MDL_ticket *target_mdl_ticket)
+{
+  for (TABLE_LIST *table_list= m_locked_tables;
+       table_list; table_list= table_list->next_global)
+  {
+    if (my_strcasecmp(table_alias_charset,
+                      table_list->db, old_table_list->db) == 0 &&
+        my_strcasecmp(table_alias_charset,
+                      table_list->table_name, old_table_list->table_name) == 0)
+    {
+      DBUG_ASSERT(table_list->table == nullptr);
+
+      /*
+        Update TABLE_LIST element with new db and name. Allocate
+        them on Locked_tables_list private memory root.
+      */
+      size_t new_db_len= strlen(new_db);
+      size_t new_table_name_len= strlen(new_table_name);
+      const char *new_db_root=  strmake_root(&m_locked_tables_root,
+                                             new_db, new_db_len);
+      const char *new_table_name_root= strmake_root(&m_locked_tables_root,
+                                                    new_table_name,
+                                                    new_table_name_len);
+
+      if (new_db_root != nullptr && new_table_name_root != nullptr)
+      {
+        TABLE_LIST *save_next_global= table_list->next_global;
+        TABLE_LIST **save_prev_global= table_list->prev_global;
+
+        /*
+          If explicit alias was used in LOCK TABLES then it makes sense
+          to preserve it after rename. We might have several instances of
+          the same table locked in different modes, so alias is useful to
+          differentiate between them.
+        */
+        bool real_alias = my_strcasecmp(table_alias_charset,
+                                        table_list->table_name,
+                                        table_list->alias) != 0;
+
+        table_list->init_one_table(new_db_root, new_db_len,
+                                   new_table_name_root, new_table_name_len,
+                                   real_alias ? table_list->alias :
+                                                new_table_name_root,
+                                   table_list->lock_descriptor().type);
+        table_list->mdl_request.ticket= target_mdl_ticket;
+        table_list->next_global= save_next_global;
+        table_list->prev_global= save_prev_global;
+      }
+      else
+      {
+        // OOM. We just unlink table from the list of locked tables.
+        *table_list->prev_global= table_list->next_global;
+        if (table_list->next_global == nullptr)
+          m_locked_tables_last= table_list->prev_global;
+        else
+          table_list->next_global->prev_global= table_list->prev_global;
+      }
+    }
+  }
 }
 
 
@@ -5369,31 +5490,57 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
         DBUG_ASSERT(thd->locked_tables_mode == LTM_LOCK_TABLES);
 
         /*
-          If we are only building prelocking list under LOCK TABLES then table
-          which caused addition of this FK element to prelocked set must exist
-          and properly locked. So the table which corresponds to FK element
-          must have been locked at LOCK TABLES time in appropriate mode as well
-          (though it might be missing, e.g. if it is parent table which was
-          dropped using FOREIGN_KEY_CHECKS=0).
+          Even though LOCK TABLES tries to automatically lock parent and child
+          tables which might be necessary for foreign key checks/actions, there
+          are some cases when we might miss them. So it is better to check that
+          we have appropriate metadata lock explicitly and error out if not.
 
-          If prelocking list has been already built then situation is different.
-          Both child and parent definitions might have changed since then so at
-          LOCK TABLES time FK which corresponds to this element of prelocked set
-          might be no longer around. In theory, we might be processing statement
-          which is not marked as requiring prelocked set invalidation (and thus
-          ignoring table version mismatches) or tables might be missing and this
-          error can be suppressed. In such case we might not have appropriate
-          metadata lock on our child table. However, this should be safe as FK
-          should not be used in this case.
+          Some examples of problematic cases are:
+
+          *) We are executing DELETE FROM t1 under LOCK TABLES t1 READ
+             and table t1 is a parent in a foreign key.
+             In this case error about inappropriate lock on t1 will be
+             reported at later stage than prelocking set is built.
+             So we can't assume/assert that we have proper lock on the
+             corresponding child table here.
+
+         *)  Table t1 has a trigger, which contains DELETE FROM t2 and
+             t2 is participating in FK as parent. In such situation
+             LOCK TABLE t1 WRITE will lock t2 for write implicitly
+             so both updates and delete on t2 will be allowed. However,
+             t3 will be locked only in a way as if only deletes from
+             t2 were allowed.
+
+          *) Prelocking list has been built earlier. Both child and parent
+             definitions might have changed since this time so at LOCK TABLES
+             time FK which corresponds to this element of prelocked set
+             might be no longer around. In theory, we might be processing statement
+             which is not marked as requiring prelocked set invalidation (and thus
+             ignoring table version mismatches) or tables might be missing and this
+             error can be suppressed. In such case we might not have appropriate
+             metadata lock on our child/parent table.
         */
-        DBUG_ASSERT(has_prelocking_list ||
-                    thd->mdl_context.owns_equal_or_stronger_lock(
-                      MDL_key::TABLE, rt->db(), rt->name(),
-                      ((rt->type() ==
-                        Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK ||
-                        rt->type() ==
-                        Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK) ?
-                       MDL_SHARED_READ_ONLY : MDL_SHARED_NO_READ_WRITE)));
+        if (rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_PARENT_CHECK ||
+            rt->type() == Sroutine_hash_entry::FK_TABLE_ROLE_CHILD_CHECK)
+        {
+          if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      rt->db(), rt->name(),
+                                                      MDL_SHARED_READ_ONLY))
+          {
+            my_error(ER_TABLE_NOT_LOCKED, MYF(0), rt->name());
+            DBUG_RETURN(true);
+          }
+        }
+        else
+        {
+          if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                      rt->db(), rt->name(),
+                                                      MDL_SHARED_NO_READ_WRITE))
+          {
+            my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), rt->name());
+            DBUG_RETURN(true);
+          }
+        }
       }
 
 
@@ -5404,25 +5551,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           In order to continue building prelocked set or validating
           prelocked set which already has been built we need to get
           access to table's TABLE_SHARE.
-        */
 
-        if (thd->locked_tables_mode == LTM_LOCK_TABLES &&
-            has_prelocking_list &&
-            ! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                      rt->db(), rt->name(), MDL_SHARED_NO_READ_WRITE))
-        {
-          /*
-            We are under LOCK TABLES, are validating existing prelocked set
-            and don't have appropriate metadata lock on child table.
-            This means that parent table was not locked, has changed its
-            definition or didn't even exist at the LOCK TABLES time.
-            We can assume that child table won't be accessed due to this
-            foreign key and can ignore this element.
-          */
-          break; // Jump out of switch without error.
-        }
-
-        /*
           Getting unused TABLE object is more scalable that going
           directly for the TABLE_SHARE. If there are no unused TABLE
           object we might get at least pointer to the TABLE_SHARE
@@ -5646,7 +5775,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
     routines used by this view; for a non-view derived table, those routines
     are already part of the containing query's structures.
   */
-  if (tables->is_derived())
+  if (tables->is_derived() || tables->is_table_function())
     goto end;
 
   DBUG_ASSERT(!tables->common_table_expr());
@@ -5981,7 +6110,7 @@ int run_before_dml_hook(THD *thd)
   @retval true   Failure (e.g. connection was killed)
   @retval false  Success.
 */
-static bool
+bool
 get_and_lock_tablespace_names(THD *thd,
                               TABLE_LIST *tables_start,
                               TABLE_LIST *tables_end,
@@ -6197,7 +6326,7 @@ lock_table_names(THD *thd,
     to do this, we must have acquired a lock on the table.
   */
   return get_and_lock_tablespace_names(
-           thd, tables_start, tables_end, lock_wait_timeout, flags);
+    thd, tables_start, tables_end, lock_wait_timeout, flags);
 }
 
 
@@ -7675,6 +7804,8 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 
   if (add_to_temporary_tables_list)
   {
+    tmp_table->set_binlog_drop_if_temp(!thd->is_current_stmt_binlog_disabled()
+                                 && !thd->is_current_stmt_binlog_format_row());
     /* growing temp list at the head */
     tmp_table->next= thd->temporary_tables;
     if (tmp_table->next)
@@ -8532,7 +8663,10 @@ find_field_in_tables(THD *thd, Item_ident *item,
     db= name_buff;
   }
 
-  if (last_table)
+  if (first_table && first_table->select_lex &&
+      first_table->select_lex->end_lateral_table)
+    last_table= first_table->select_lex->end_lateral_table;
+  else if (last_table)
     last_table= last_table->next_name_resolution_table;
 
   for (; cur_table != last_table ;
@@ -8829,7 +8963,7 @@ find_item_in_list(THD *thd, Item *find, List<Item> &items, uint *counter,
         SELECT 1 FROM t1 AS t1_o GROUP BY a
           HAVING (SELECT t1_o.a FROM t1 AS t1_i GROUP BY t1_i.a LIMIT 1).
         Processing all Item_refs here will cause t1_o.a to resolve to itself.
-        We still need to process the special case of Item_direct_view_ref 
+        We still need to process the special case of Item_view_ref
         because in the context of views they have the same meaning as 
         Item_field for tables.
       */
@@ -9701,7 +9835,15 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
       TABLE_LIST *tr= field->table_ref;
       if ((want_privilege & UPDATE_ACL) && !tr->is_updatable())
       {
-        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tr->alias, "UPDATE");
+        /*
+          The base table of the column may have beeen referenced through a view
+          or derived table. If so, print the name of the upper-most view
+          referring to this table in order to print the error message with the
+          alias of the view as written in the original query instead of the
+          alias of the base table.
+        */
+        my_error(ER_NON_UPDATABLE_TABLE, MYF(0), tr->top_table()->alias,
+                 "UPDATE");
         DBUG_RETURN(true);
       }
       if ((want_privilege & INSERT_ACL) && !tr->is_insertable())
@@ -9712,7 +9854,8 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
           one base table, for which the INSERT privileges are checked in
           Sql_cmd_insert_base::prepare_inner()
         */
-        my_error(ER_NON_INSERTABLE_TABLE, MYF(0), tr->alias, "INSERT");
+        my_error(ER_NON_INSERTABLE_TABLE, MYF(0), tr->top_table()->alias,
+                 "INSERT");
         DBUG_RETURN(true);
         /* purecov: end */
       }
@@ -9730,9 +9873,21 @@ bool setup_fields(THD *thd, Ref_item_array ref_item_array,
 
     if (sum_func_list)
     {
+      /*
+        (1) Contains a grouped aggregate but is not one. If it is one, we do
+        not split, but in create_tmp_table() we look at its arguments and add
+        them to the tmp table, which achieves the same result as for window
+        functions in (2) but differently.
+        @todo: unify this (do like (2), probably).
+        (2) Contains a window function. Even if it is a window function, we
+        have to collect its arguments and add them to the hidden list of
+        items, as those arguments have to be stored in the first tmp tables,
+        and carried forward up to the tmp table where the WF can be
+        evaluated.
+      */
       if ((item->has_aggregation() && !(item->type() == Item::SUM_FUNC_ITEM &&
-           !item->m_is_window_function)) ||
-          item->has_wf())
+                                        !item->m_is_window_function)) || //(1)
+          item->has_wf())                       // (2)
         item->split_sum_func(thd, ref_item_array, *sum_func_list);
     }
 

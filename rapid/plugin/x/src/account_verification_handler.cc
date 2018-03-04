@@ -1,29 +1,34 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "account_verification_handler.h"
+#include "plugin/x/src/account_verification_handler.h"
 
-#include "ngs/interface/sql_session_interface.h"
-#include "query_string_builder.h"
-#include "sql_data_result.h"
-#include "xpl_client.h"
-#include "xpl_log.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/xpl_log.h"
 
 namespace xpl {
 
@@ -35,7 +40,7 @@ ngs::Error_code Account_verification_handler::authenticate(
   if (sasl_message.empty() ||
       !extract_sub_message(sasl_message, message_position, schema) ||
       !extract_sub_message(sasl_message, message_position, account) ||
-      !extract_sub_message(sasl_message, message_position, passwd))
+      !extract_last_sub_message(sasl_message, message_position, passwd))
     return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
 
   if (account.empty())
@@ -45,6 +50,17 @@ ngs::Error_code Account_verification_handler::authenticate(
       account.c_str(), m_session->client().client_hostname(),
       m_session->client().client_address(), schema.c_str(), passwd,
       account_verificator, m_session->client().supports_expired_passwords());
+}
+
+bool Account_verification_handler::extract_last_sub_message(
+    const std::string &message, std::size_t &element_position,
+    std::string &sub_message) const {
+  if (std::string::npos == element_position) return false;
+
+  sub_message = message.substr(element_position);
+  element_position = std::string::npos;
+
+  return true;
 }
 
 bool Account_verification_handler::extract_sub_message(
@@ -81,7 +97,7 @@ Account_verification_handler::get_account_verificator_id(
   if (name == "mysql_native_password")
     return ngs::Account_verification_interface::Account_native;
   if (name == "sha256_password")
-    return ngs::Account_verification_interface::Account_sha256;
+    return ngs::Account_verification_interface::Account_type::Account_sha256;
   if (name == "caching_sha2_password")
     return ngs::Account_verification_interface::Account_sha2;
   return ngs::Account_verification_interface::Account_unsupported;
@@ -94,11 +110,22 @@ ngs::Error_code Account_verification_handler::verify_account(
   if (ngs::Error_code error = get_account_record(user, host, record))
     return error;
 
+  ngs::Account_verification_interface::Account_type account_verificator_id;
+  // If SHA256_MEMORY is used then no matter what auth_plugin is used we
+  // will be using cache-based verification
+  if (m_account_type ==
+      ngs::Account_verification_interface::Account_type::Account_sha256_memory) {
+    account_verificator_id =
+      ngs::Account_verification_interface::Account_type::Account_sha256_memory;
+  } else {
+    account_verificator_id = get_account_verificator_id(
+        record.auth_plugin_name);
+  }
+  auto *p = get_account_verificator(account_verificator_id);
+
   // password check
-  const ngs::Account_verification_interface *p =
-      get_account_verificator(
-          get_account_verificator_id(record.auth_plugin_name));
-  if (!p || !p->verify_authentication_string(passwd, record.db_password_hash))
+  if (!p || !p->verify_authentication_string(user, host, passwd,
+                                             record.db_password_hash))
     return ngs::Error_code(ER_NO_SUCH_USER, "Invalid user or password");
 
   // password check succeeded but...

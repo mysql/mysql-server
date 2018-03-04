@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -229,7 +236,7 @@ public:
       group_optimized_away(false),
       simple_order(false),
       simple_group(false),
-      ordered_index_usage(ordered_index_void),
+      m_ordered_index_usage(ORDERED_INDEX_VOID),
       no_order(false),
       skip_sort_order(false),
       need_tmp_before_win(false),
@@ -256,6 +263,7 @@ public:
       cond_equal(NULL),
       return_tab(0),
       ref_items(nullptr),
+      before_ref_item_slice_tmp3(nullptr),
       current_ref_item_slice(REF_SLICE_SAVE),
       recursive_iteration_count(0),
       zero_result_cause(NULL),
@@ -263,7 +271,6 @@ public:
       allow_outer_refs(false),
       sj_tmp_tables(),
       sjm_exec_list(),
-      set_group_rpa(false),
       group_sent(false),
       calc_found_rows(false),
       with_json_agg(select->json_agg_func_used()),
@@ -414,6 +421,15 @@ public:
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   Item_sum  **sum_funcs, ***sum_funcs_end;
+  /**
+     Describes a temporary table.
+     Each tmp table has its own tmp_table_param.
+     The one here has two roles:
+     - is transiently used as a model by create_intermediate_table(), to build
+     the tmp table's own tmp_table_param.
+     - is also used as description of the pseudo-tmp-table of grouping
+     (REF_SLICE_TMP3) (e.g. in end_send_group()).
+  */
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
   
@@ -439,23 +455,26 @@ public:
   bool simple_order, simple_group;
 
   /*
-    ordered_index_usage is set if an ordered index access
+    m_ordered_index_usage is set if an ordered index access
     should be used instead of a filesort when computing 
     ORDER/GROUP BY.
   */
   enum
   {
-    ordered_index_void,       // No ordered index avail.
-    ordered_index_group_by,   // Use index for GROUP BY
-    ordered_index_order_by    // Use index for ORDER BY
-  } ordered_index_usage;
+    ORDERED_INDEX_VOID,       // No ordered index avail.
+    ORDERED_INDEX_GROUP_BY,   // Use index for GROUP BY
+    ORDERED_INDEX_ORDER_BY    // Use index for ORDER BY
+  } m_ordered_index_usage;
 
   /**
     Is set only in case if we have a GROUP BY clause
     and no ORDER BY after constant elimination of 'order'.
   */
   bool no_order;
-  /** Is set if we have a GROUP BY and we have ORDER BY on a constant. */
+  /**
+    Is set if we have a GROUP BY and we have ORDER BY on a constant or when
+    sorting isn't required.
+  */
   bool          skip_sort_order;
 
   /**
@@ -474,10 +493,27 @@ public:
   /// List storing all expressions of select list
   List<Item> &fields_list;
 
-  /// "all_fields" changed to use temporary table (uses slice 1 -(N-1))
+  /**
+     This is similar to tmp_fields_list, but it also contains necessary
+     extras: expressions added for ORDER BY, GROUP BY, window clauses,
+     underlying items of split items.
+  */
   List<Item> *tmp_all_fields;
 
-  /// "fields_list" changed to use temporary table (uses slice 1 - (N-1))
+  /**
+    Array of pointers to lists of expressions.
+    Each list represents the SELECT list at a certain stage of execution.
+    This array is only used when the query makes use of tmp tables: after
+    writing to tmp table (e.g. for GROUP BY), if this write also does a
+    function's calculation (e.g. of SUM), after the write the function's value
+    is in a column of the tmp table. If a SELECT list expression is the SUM,
+    and we now want to read that materialized SUM and send it forward, a new
+    expression (Item_field type instead of Item_sum), is needed. The new
+    expressions are listed in JOIN::tmp_fields_list[x]; 'x' is a number
+    (REF_SLICE_).
+    Same is applicable to tmp_all_fields.
+    @see JOIN::make_tmp_tables_info()
+  */
   List<Item> *tmp_fields_list;
 
   int error; ///< set in optimize(), exec(), prepare_result()
@@ -574,14 +610,30 @@ public:
       slice overwriting is necessary, and it is used to restore
       original values in slice 0 after having been overwritten.
     - slices 5 -> N are used by windowing:
-      1 window: N==5       N==7 used by window 1 for framing tmp table
-      2 windows: N==6      N==8 used by window 2 for framing tmp table
+      first are all the window's out tmp tables,
+      the next indexes are reserved for the windows' frame buffers (in the same
+      order), if any, e.g.
+
+      One window:      5: window 1's out table
+                       6: window 1's FB
+
+      Two windows:     5: window 1's out table
+                       6: window 2's out table
+                       7: window 1's FB
+                       8: window 2's FB
+      and so on.
 
     Slice 0 is allocated for the lifetime of a statement, whereas slices 1-4
     are associated with a single optimization. The size of slice 0 determines
     the slice size used when allocating the other slices.
    */
   Ref_item_array *ref_items; // cardinality: REF_SLICE_SAVE + 1 + #windows*2
+
+  /**
+     If slice REF_SLICE_TMP3 has been created, this is the QEP_TAB which is
+     right before calculation of items in this slice.
+  */
+  QEP_TAB *before_ref_item_slice_tmp3;
 
   /**
     The slice currently stored in ref_items[0].
@@ -626,8 +678,6 @@ public:
   List<Semijoin_mat_exec> sjm_exec_list;
   /* end of allocation caching storage */
 
-  /** TRUE <=> current ref_item slice is set to REF_SLICE_TMP3 */
-  bool set_group_rpa;
   /** Exec time only: TRUE <=> current group has been sent */
   bool group_sent;
   /// If true, calculate found rows for this query block
@@ -687,7 +737,7 @@ public:
 
     @returns false if success, true if error
   */
-  bool alloc_ref_item_slice(THD *thd_arg, uint sliceno)
+  bool alloc_ref_item_slice(THD *thd_arg, int sliceno)
   {
     DBUG_ASSERT(sliceno > 0 &&
                 ref_items[sliceno].is_null());
@@ -706,13 +756,24 @@ public:
   */
   void set_ref_item_slice(uint sliceno)
   {
-    DBUG_ASSERT(sliceno >= 1);
-    copy_ref_item_slice(REF_SLICE_BASE, sliceno);
-    current_ref_item_slice= sliceno;
+    DBUG_ASSERT((int)sliceno >= 1);
+    if (current_ref_item_slice != sliceno)
+    {
+      copy_ref_item_slice(REF_SLICE_BASE, sliceno);
+      DBUG_PRINT("info",("ref slice %u -> %u", current_ref_item_slice, sliceno));
+      current_ref_item_slice= sliceno;
+    }
   }
 
   /// @note do also consider Switch_ref_item_slice
   uint get_ref_item_slice() const { return current_ref_item_slice; }
+
+  /**
+     Returns the clone of fields_list which is appropriate for evaluating
+     expressions at the current stage of execution; which stage is denoted by
+     the value of current_ref_item_slice.
+  */
+  List<Item> *get_current_fields();
 
   bool optimize_rollup();
   bool rollup_process_const_fields();
@@ -978,7 +1039,7 @@ private:
       been transformed to a GROUP BY at this stage if it is a candidate for 
       ordered index optimization.
       If a decision was made to use an ordered index, the availability
-      if such an access path is stored in 'ordered_index_usage' for later
+      if such an access path is stored in 'm_ordered_index_usage' for later
       use by 'execute' or 'explain'
   */
   void test_skip_sort();
@@ -999,7 +1060,8 @@ public:
   Switch_ref_item_slice(JOIN *join_arg, uint new_v):
   join(join_arg), saved(join->get_ref_item_slice())
   {
-    join->set_ref_item_slice(new_v);
+    if (!join->ref_items[new_v].is_null())
+      join->set_ref_item_slice(new_v);
   }
   ~Switch_ref_item_slice()
   {

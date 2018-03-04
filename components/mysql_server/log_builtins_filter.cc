@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,10 +23,10 @@
 /**
   services: log filter: basic filtering
 
-  This implementation, "draugnet" is currently the default filter
+  This implementation, "dragnet" is currently the default filter
   and therefore built-in.  Basic configuration is built into the
   server proper (via log_error_verbosity etc.); for advanced configuration,
-  load the service log_filter_draugnet which implements a configuration
+  load the service log_filter_dragnet which implements a configuration
   language for this engine.  See there for details about the Configuration
   Stage.  Some of the code-paths are only available via the configuration
   language or an equivalent service (but not without any such service loaded).
@@ -66,70 +73,25 @@
   The event itself is not locked.
 */
 
-#include <my_atomic.h>
 #include <mysqld_error.h>
 
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
+#include "my_atomic.h"
 #include "sql/log.h"
 // for the default rules
 #include "sql/mysqld.h"
 
 
-static bool  filter_inited=    false;
-static ulong filter_rule_uuid= 0;
-
-static PSI_rwlock_key key_rwlock_THR_LOCK_log_builtins_filter;
-
-#ifdef HAVE_PSI_INTERFACE
-
-static PSI_rwlock_info log_builtins_filter_rwlocks[]=
-{
-  { &key_rwlock_THR_LOCK_log_builtins_filter,
-    "THR_LOCK_log_builtin_filter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
-};
-#endif
+#define THROTTLE_DEFAULT_WINDOW_SIZE_IN_SECONDS 60
+#define THROTTLE_MICROSECOND_MULTIPLIER         1000000
 
 
-log_filter_ruleset log_filter_rules;
+static bool         filter_inited=            false;
+static ulong        filter_rule_uuid=         0;
 
-
-/**
-  Lock and get the filter rules.
-
-  @param  lt   LOG_BUILTINS_LOCK_SHARED     lock for reading
-               LOG_BUILTINS_LOCK_EXCLUSIVE  lock for writing
-
-  @retval      a pointer to a ruleset structure
-*/
-static log_filter_ruleset
-*log_builtins_filter_ruleset_get(log_builtins_filter_lock lt)
-{
-  if (!filter_inited)
-    return nullptr;
-
-  switch (lt) {
-  case LOG_BUILTINS_LOCK_SHARED:
-    mysql_rwlock_rdlock(&log_filter_rules.ruleset_lock);
-    break;
-  case LOG_BUILTINS_LOCK_EXCLUSIVE:
-    mysql_rwlock_wrlock(&log_filter_rules.ruleset_lock);
-    break;
-  default:
-    return nullptr;
-  }
-
-  return &log_filter_rules;
-}
-
-
-/**
-  Release lock on filter rules.
-*/
-static void log_builtins_filter_ruleset_release()
-{
-  mysql_rwlock_unlock(&log_filter_rules.ruleset_lock);
-}
+log_filter_ruleset *log_filter_builtin_rules= nullptr;
+log_filter_tag      rule_tag_builtin=         { "log_filter_builtin", nullptr };
 
 
 /**
@@ -142,12 +104,13 @@ static void log_builtins_filter_ruleset_release()
 */
 static bool log_filter_ruleset_full(log_filter_ruleset *rs)
 {
-  return (rs->count >= LOG_FILTER_MAX);
+  return (rs->count >= LOG_FILTER_RULE_MAX);
 }
 
 
 /**
   Initialize a new rule.
+
   This clears the first unused rule. It does not update the rules
   count; this is for the caller to do if it succeeds in setting up
   the rule to its satisfaction. If the caller fails, it should
@@ -158,13 +121,15 @@ static bool log_filter_ruleset_full(log_filter_ruleset *rs)
                     caller must increase rule count.  on failure,
                     it must call rule_free.
 */
-static log_filter_rule *log_builtins_filter_rule_init()
+static log_filter_rule
+*log_builtins_filter_rule_init(log_filter_ruleset *ruleset)
 {
-  log_filter_rule *r= &log_filter_rules.rule[log_filter_rules.count];
+  log_filter_rule *r= &ruleset->rule[ruleset->count];
 
   memset(r, 0, sizeof(log_filter_rule));
 
-  r->id= ++filter_rule_uuid;
+  r->id=                   ++filter_rule_uuid;
+  r->throttle_window_size= THROTTLE_DEFAULT_WINDOW_SIZE_IN_SECONDS; // 1 minute
 
   if (mysql_rwlock_init(0, &(r->rule_lock)))
     return nullptr;
@@ -174,7 +139,7 @@ static log_filter_rule *log_builtins_filter_rule_init()
 
 
 /**
-  release all resources associated with a filter rule.
+  Release all resources associated with a filter rule.
 
   @param  ri  the rule to release
 
@@ -183,7 +148,7 @@ static log_filter_rule *log_builtins_filter_rule_init()
 static int log_builtins_filter_rule_free(log_filter_rule *ri)
 {
   ri->cond= LOG_FILTER_COND_NONE;
-  ri->verb= LOG_FILTER_NOP;
+  ri->verb= LOG_FILTER_UNDEF;
 
   // release memory if needed
   log_item_free(&(ri->match));
@@ -194,17 +159,121 @@ static int log_builtins_filter_rule_free(log_filter_rule *ri)
 
 
 /**
+   Create a new set of filter rules.
+
+   @param   tag       tag for this ruleset
+   @param   count     number of rules to allocate, 0 for default
+
+   @retval            a pointer to a ruleset structure, or nullptr on failure
+*/
+static log_filter_ruleset *log_builtins_filter_ruleset_new(log_filter_tag *tag,
+                                                           size_t count)
+{
+  log_filter_ruleset *ruleset= nullptr;
+
+  if ((tag == nullptr) || (tag->filter_name == nullptr))
+    return nullptr;    /* purecov: inspected */
+
+  ruleset= (log_filter_ruleset *)
+    my_malloc(0, sizeof(log_filter_ruleset), MYF(0));
+
+  if (ruleset != nullptr)
+  {
+    memset(ruleset, 0, sizeof(log_filter_ruleset));
+    ruleset->tag=   tag;
+    ruleset->alloc= (count < 1)
+                    ? LOG_FILTER_RULE_MAX
+                    : count;
+
+    if (mysql_rwlock_init(0, &ruleset->ruleset_lock))
+    {
+      my_free((void *) ruleset);  /* purecov: inspected */
+      ruleset= nullptr;           /* purecov: inspected */
+    }
+  }
+
+  return ruleset;
+}
+
+
+/**
+  Lock and get the filter rules.
+
+  @param  ruleset  the ruleset to lock
+  @param  lt       LOG_BUILTINS_LOCK_SHARED     lock for reading
+                   LOG_BUILTINS_LOCK_EXCLUSIVE  lock for writing
+
+  @retval  0       lock acquired
+  @retval !0       failed to acquire lock
+*/
+static int log_builtins_filter_ruleset_lock(log_filter_ruleset *ruleset,
+                                            log_builtins_filter_lock lt)
+{
+  if ((!filter_inited) || (ruleset == nullptr))
+    return -1;
+
+  switch (lt) {
+  case LOG_BUILTINS_LOCK_SHARED:
+    mysql_rwlock_rdlock(&ruleset->ruleset_lock);
+    break;
+  case LOG_BUILTINS_LOCK_EXCLUSIVE:
+    mysql_rwlock_wrlock(&ruleset->ruleset_lock);
+    break;
+  default:
+    return -2;  /* purecov: inspected */
+  }
+
+  return 0;
+}
+
+
+/**
   Drop an entire filter rule-set. Must hold lock.
 */
-static void log_builtins_filter_ruleset_drop()
+static void log_builtins_filter_ruleset_drop(log_filter_ruleset *ruleset)
 {
   log_filter_rule *ri;
 
-  while (log_filter_rules.count > 0)
+  while (ruleset->count > 0)
   {
-    log_filter_rules.count--;
-    ri= &log_filter_rules.rule[log_filter_rules.count];
+    ruleset->count--;
+    ri= &ruleset->rule[ruleset->count];
     log_builtins_filter_rule_free(ri);
+  }
+}
+
+
+/**
+  Unlock filter ruleset.
+*/
+static void log_builtins_filter_ruleset_unlock(log_filter_ruleset *ruleset)
+{
+  if (ruleset != nullptr)
+  {
+    mysql_rwlock_unlock(&(ruleset->ruleset_lock));
+  }
+}
+
+
+/**
+  Free filter ruleset.
+*/
+static void log_builtins_filter_ruleset_free(log_filter_ruleset **ruleset)
+{
+  if (ruleset != nullptr)
+  {
+    log_filter_ruleset *rs= *ruleset;
+    if (rs != nullptr)
+    {
+      *ruleset= nullptr;
+
+      log_builtins_filter_ruleset_drop(rs);
+      log_builtins_filter_ruleset_unlock(rs);
+
+      mysql_rwlock_destroy(&(rs->ruleset_lock));
+
+      my_free((void *) rs);
+    }
   }
 }
 
@@ -213,54 +282,33 @@ static void log_builtins_filter_ruleset_drop()
   Defaults for when the configuration engine isn't loaded;
   aim for 5.7 compatibilty.
 */
-static void log_builtins_filter_defaults()
+static void log_builtins_filter_set_defaults(log_filter_ruleset *ruleset)
 {
   log_filter_rule *r;
 
+  DBUG_ASSERT(ruleset != nullptr);
+
+  DBUG_ASSERT(!log_filter_ruleset_full(ruleset));
+
   // sys_var: log_error_verbosity
-  r= log_builtins_filter_rule_init();
+  r= log_builtins_filter_rule_init(ruleset);
   log_item_set_with_key(&r->match, LOG_ITEM_LOG_PRIO, nullptr,
                         LOG_ITEM_FREE_NONE)->data_integer= log_error_verbosity;
-  r->cond=   LOG_FILTER_COND_GE;
-  r->verb=   LOG_FILTER_GAG;
-  r->flags=  LOG_FILTER_FLAG_SYNTHETIC;
-  log_filter_rules.count++;
+  r->cond=   LOG_FILTER_COND_GT;
+  r->verb=   LOG_FILTER_DROP;
 
+  ruleset->count++;
 
-  // example: error code => re-prio start-up message
-  // "MySQL_error==1408? set_priority 0."
-  r= log_builtins_filter_rule_init();
-  log_item_set_with_key(&r->match, LOG_ITEM_SQL_ERRCODE, nullptr,
-                        LOG_ITEM_FREE_NONE)->data_integer= ER_STARTUP;
-  r->cond=  LOG_FILTER_COND_EQ;
-  r->verb=  LOG_FILTER_PRIO_ABS;
-  // new prio
-  log_item_set(&r->aux, LOG_ITEM_GEN_INTEGER)->data_integer= ERROR_LEVEL;
-  log_filter_rules.count++;
-
-
-  // example: error code => re-label start-up message
-  // "MySQL_error==1408? add_field log_label:=\"HELO\"."
-  r= log_builtins_filter_rule_init();
-  log_item_set_with_key(&r->match, LOG_ITEM_SQL_ERRCODE, nullptr,
-                        LOG_ITEM_FREE_NONE)->data_integer= ER_STARTUP;
-  r->cond=  LOG_FILTER_COND_EQ;
-  r->verb=  LOG_FILTER_ITEM_ADD;
-  // new label
-  // as the aux item is added to the bag, it has to be a fully set up.
-  log_item_set(&r->aux, LOG_ITEM_LOG_LABEL)->data_string=
-    { C_STRING_WITH_LEN("Note") };
-  log_filter_rules.count++;
 
   // example: remove all source-line log items
-  // "+source_line? delete_field."
   // these are not desirable by default, only while debugging.
-  r= log_builtins_filter_rule_init();
+  r= log_builtins_filter_rule_init(ruleset);
   log_item_set(&r->match, LOG_ITEM_SRC_LINE);
-  r->cond=  LOG_FILTER_COND_PRESENT;
-  r->verb=  LOG_FILTER_ITEM_DEL;
+  r->cond=   LOG_FILTER_COND_PRESENT;
+  r->verb=   LOG_FILTER_ITEM_DEL;
   // aux optional
-  log_filter_rules.count++;
+
+  ruleset->count++;
 }
 
 
@@ -278,14 +326,16 @@ int log_builtins_filter_exit()
   /*
     Nobody else should run at this point anyway, but
     since we made a big song and dance about having
-    to hold this log above ...
+    to hold this lock above ...
   */
-  mysql_rwlock_wrlock(&log_filter_rules.ruleset_lock);
-  filter_inited= false;
-  log_builtins_filter_ruleset_drop();
-  mysql_rwlock_unlock(&log_filter_rules.ruleset_lock);
-
-  mysql_rwlock_destroy(&log_filter_rules.ruleset_lock);
+  if (log_filter_builtin_rules != nullptr)
+  {
+    mysql_rwlock_wrlock(&log_filter_builtin_rules->ruleset_lock);
+    filter_inited= false;
+    log_builtins_filter_ruleset_free(&log_filter_builtin_rules);
+  }
+  else
+    filter_inited= false;  /* purecov: inspected */
 
   return 0;
 }
@@ -296,26 +346,19 @@ int log_builtins_filter_exit()
   We need to do this early, before the component system is up.
 
   @retval  0   Success!
-  @retval -1   Couldn't initialize ruleset lock
+  @retval -1   Couldn't initialize ruleset
   @retval -2   Filter was already initialized?
 */
 int log_builtins_filter_init()
 {
   if (!filter_inited)
   {
-#ifdef HAVE_PSI_INTERFACE
-    const char *category= "log";
-    int         count= array_elements(log_builtins_filter_rwlocks);
-
-    mysql_rwlock_register(category, log_builtins_filter_rwlocks, count);
-#endif
-
-    if (mysql_rwlock_init(key_rwlock_THR_LOCK_log_builtins_filter,
-                          &log_filter_rules.ruleset_lock))
+    log_filter_builtin_rules= log_builtins_filter_ruleset_new(&rule_tag_builtin,
+                                                              0);
+    if (log_filter_builtin_rules == nullptr)
       return -1;
 
-    log_filter_rules.count= 0;
-    log_builtins_filter_defaults();
+    log_builtins_filter_set_defaults(log_filter_builtin_rules);
     filter_inited=          true;
 
     return 0;
@@ -346,32 +389,8 @@ static log_filter_apply
 {
   switch (r->verb)
   {
-  case LOG_FILTER_GAG:
+  case LOG_FILTER_DROP:
     log_line_item_free_all(ll);
-    break;
-
-  case LOG_FILTER_PRIO_ABS:
-  case LOG_FILTER_PRIO_REL:
-    {
-      int pi;
-
-      if (!(ll->seen & LOG_ITEM_LOG_PRIO))
-      {
-        // no priority set, add item
-        if (log_line_full(ll))
-          return LOG_FILTER_APPLY_ITEM_BAG_FULL;
-
-        log_line_item_set(ll, LOG_ITEM_LOG_PRIO)->data_integer= ERROR_LEVEL;
-      }
-
-      pi= log_line_index_by_type(ll, LOG_ITEM_LOG_PRIO);
-      DBUG_ASSERT(pi >= 0);
-
-      if (r->verb == LOG_FILTER_PRIO_ABS)
-        ll->item[pi].data.data_integer=   r->aux.data.data_integer;
-      else
-        ll->item[pi].data.data_integer+=  r->aux.data.data_integer;
-    }
     break;
 
   case LOG_FILTER_THROTTLE:
@@ -398,8 +417,8 @@ static log_filter_apply
 
         // new window
         r->throttle_matches= 0;
-        r->throttle_window_end= now + 60000000; // window fixed 1 min for now
-
+        r->throttle_window_end= now + (r->throttle_window_size *
+                                       THROTTLE_MICROSECOND_MULTIPLIER);
       }
 
       matches= ++r->throttle_matches;
@@ -407,9 +426,9 @@ static log_filter_apply
       mysql_rwlock_unlock(&(r->rule_lock));
 
       /*
-        If it's over the limit for the current window, gag the whole
-        log line.  A rate of 0 ("gag all") is allowed for convenience,
-        but the gag verb should be used instead.
+        If it's over the limit for the current window, discard the whole
+        log line.  A rate of 0 ("discard all") is allowed for convenience,
+        but the DROP verb should be used instead.
       */
       if (matches > rate)
       {
@@ -425,21 +444,30 @@ static log_filter_apply
     }
     break;
 
-  case LOG_FILTER_ITEM_ADD:
-    // TBD: if a match exists, we should simply overwrite it! ###
-    if (!log_line_full(ll))
-    {
-      ll->item[ll->count]=       r->aux;
-      /*
-         It's a shallow copy, don't try to free it.
-         As a downside, the filter rules must remain shared-locked until
-         the line is logged. The assumption is that logging happens vastly
-         more than changing of the ruleset.
-      */
-      ll->item[ll->count].alloc= LOG_ITEM_FREE_NONE;
-      ll->seen |= r->aux.type;
-      ll->count++;
-    }
+  case LOG_FILTER_ITEM_SET:
+    if (r->aux.key == nullptr)
+      return LOG_FILTER_APPLY_TARGET_NOT_IN_LOG_LINE;
+
+    // if not same field as in match, look for it
+    if ((ln < 0) || (0 != native_strcasecmp(r->aux.key, ll->item[ln].key)))
+      ln= log_line_index_by_item(ll, &r->aux);
+
+    if (ln >= 0)                    // found? release for over-write!
+      log_item_free(&ll->item[ln]);
+    else if (log_line_full(ll))     // otherwise, add it if there's still space
+      return LOG_FILTER_APPLY_OUT_OF_MEMORY;
+    else
+      ln= ll->count++;
+
+    ll->item[ln]=       r->aux;
+    /*
+      It's a shallow copy, don't try to free it.
+      As a downside, the filter rules must remain shared-locked until
+      the line is logged. The assumption is that logging happens vastly
+      more than changing of the ruleset.
+    */
+    ll->item[ln].alloc= LOG_ITEM_FREE_NONE;
+    ll->seen |=         r->aux.type;
     break;
 
   case LOG_FILTER_ITEM_DEL:
@@ -494,6 +522,18 @@ static log_filter_match log_filter_try_match(log_item *li, log_filter_rule *ri)
   bool             rc, lc;
   log_filter_match e= LOG_FILTER_MATCH_UNCOMPARED;
 
+  /*
+    If a condition is e.g.  prio > 4,
+    - the "4" is part of the filter-rule (rule-item "ri")
+    - the "prio" will be substitute with that field's value
+      in the log-event (the corresponding log-item, "li")
+
+    I.e. we're lucky in that as mnemonics go, the "l" in
+    "lc", "lf", "li" can stand for both "log-event" and
+    "left in the comparison", and as can the "r" for both
+    "rule" and "right in the comparison."
+  */
+
   DBUG_ASSERT(ri != nullptr);
 
   /*
@@ -506,12 +546,17 @@ static log_filter_match log_filter_try_match(log_item *li, log_filter_rule *ri)
       ? LOG_FILTER_MATCH_SUCCESS
       : LOG_FILTER_MATCH_UNSATISFIED;
 
-  if (ri->cond == LOG_FILTER_COND_PRESENT)
+  else if (ri->cond == LOG_FILTER_COND_PRESENT)
     return LOG_FILTER_MATCH_SUCCESS;
 
+  else if (ri->cond == LOG_FILTER_COND_ABSENT)
+    return LOG_FILTER_MATCH_UNSATISFIED;
+
+  // item class on left hand side / right hand side
   rc= log_item_string_class(ri->match.item_class);
   lc= log_item_string_class(li->item_class);
 
+  // if one's a string and the other isn't, fail for now
   if (rc != lc)
     e= LOG_FILTER_MATCH_CLASSES_DIFFER;
 
@@ -520,66 +565,83 @@ static log_filter_match log_filter_try_match(log_item *li, log_filter_rule *ri)
     e= LOG_FILTER_MATCH_UNSATISFIED;
     double rf, lf;
 
+    // we're comparing two strings
     if (rc)
     {
-      switch(ri->cond)
-      {
-      case LOG_FILTER_COND_EQ:
-        if ((ri->match.data.data_string.length == li->data.data_string.length)
-            &&
-            (strncmp(ri->match.data.data_string.str,
-                     li->data.data_string.str,
-                     li->data.data_string.length) == 0))
-          e= LOG_FILTER_MATCH_SUCCESS;
-        break;
-      case LOG_FILTER_COND_NE:
-        if ((ri->match.data.data_string.length != li->data.data_string.length)
-            ||
-            (strncmp(ri->match.data.data_string.str,
-                     li->data.data_string.str,
-                     li->data.data_string.length) != 0))
-          e= LOG_FILTER_MATCH_SUCCESS;
-        break;
-      default:
-        return LOG_FILTER_MATCH_UNSUPPORTED_FOR_TYPE;
-      }
+      /*
+        We're setting up lf to be the result of our string-comparison
+        (<0, 0, >0), and rf to be 0.  This allows us to use all the
+        numerical comparators below that compare lf and rf.
+      */
+
+      rf= 0;
+
+      // some ado in case the strings aren't \0 terminated
+      size_t len;  // length of the shorter string
+      len= (ri->match.data.data_string.length < li->data.data_string.length)
+           ? ri->match.data.data_string.length
+           : li->data.data_string.length;
+
+      // compare for the shorter of the given lengths
+      lf= log_string_compare(li->data.data_string.str,
+                             ri->match.data.data_string.str,
+                             len, false);  // case-sensitive
+
+      /*
+        If strings are the same for the shared length,
+        but are of different length, longer string "wins"
+      */
+      if ((lf == 0) &&
+          (ri->match.data.data_string.length != li->data.data_string.length))
+        lf= (li->data.data_string.length > len) ? 1 : -1;
     }
 
+    // we're comparing numerically
     else
     {
+      // get values as floats (works for integer items as well)
       log_item_get_float(&ri->match, &rf);
       log_item_get_float(li, &lf);
+    }
 
-      switch(ri->cond)
-      {
-      case LOG_FILTER_COND_EQ:
-        if (lf == rf)
-          e= LOG_FILTER_MATCH_SUCCESS;
-        break;
+    // do the actual comparison
+    switch(ri->cond)
+    {
+    case LOG_FILTER_COND_EQ:            // ==  Equal
+      if (lf == rf)
+        e= LOG_FILTER_MATCH_SUCCESS;
+      break;
 
-      case LOG_FILTER_COND_NE:
-        if (lf != rf)
-          e= LOG_FILTER_MATCH_SUCCESS;
-        break;
+    case LOG_FILTER_COND_NE:            // !=  Not Equal
+      if (lf != rf)
+        e= LOG_FILTER_MATCH_SUCCESS;
+      break;
 
-      case LOG_FILTER_COND_GE:
-        if (lf >= rf)
-          e= LOG_FILTER_MATCH_SUCCESS;
-        break;
+    case LOG_FILTER_COND_GE:            // >=  Greater or Equal
+      if (lf >= rf)
+        e= LOG_FILTER_MATCH_SUCCESS;
+      break;
 
-      // WL#9651: will probably want to add the following
-      case LOG_FILTER_COND_LT:
-      case LOG_FILTER_COND_LE:
-      case LOG_FILTER_COND_GT:
-        e= LOG_FILTER_MATCH_UNSUPPORTED_FOR_TYPE;
-        break;
+    case LOG_FILTER_COND_LT:            // <   Less Than
+      if (lf < rf)
+        e= LOG_FILTER_MATCH_SUCCESS;
+      break;
 
-        // unknown comparison type
-      default:
-        e= LOG_FILTER_MATCH_COMPARATOR_UNKNOWN;
-        DBUG_ASSERT(0);
-      } // comparator switch
-    }  // numeric/string
+    case LOG_FILTER_COND_LE:            // <=  Less or Equal
+      if (lf <= rf)
+        e= LOG_FILTER_MATCH_SUCCESS;
+      break;
+
+    case LOG_FILTER_COND_GT:            // >   Greater than
+      if (lf > rf)
+        e= LOG_FILTER_MATCH_SUCCESS;
+      break;
+
+     // unknown comparison type
+    default:
+      e= LOG_FILTER_MATCH_COMPARATOR_UNKNOWN;  /* purecov: inspected */
+      DBUG_ASSERT(false);
+    } // comparator switch
   } // class mismatch?
 
   return e;
@@ -589,28 +651,31 @@ static log_filter_match log_filter_try_match(log_item *li, log_filter_rule *ri)
 /**
   Apply all matching rules from a filter rule set to a given log line.
 
-  @param           instance             instance (currently unused)
+  @param           ruleset              rule-set to apply
   @param           ll                   the current log line
 
   @retval          int                  number of matched rules
 */
-int log_builtins_filter_run(void *instance MY_ATTRIBUTE((unused)),
-                            log_line *ll)
+int log_builtins_filter_run(log_filter_ruleset *ruleset, log_line *ll)
 {
-  size_t           rn;
-  int              ln;
-  log_filter_rule *r;
-  int              p= 0;
+  size_t             rn;           // rule     number
+  int                ln= -1;       // log-item number
+  log_filter_rule   *r;            // current  rule
+  int                processed= 0;
+  log_filter_match   cond_result;
 
   DBUG_ASSERT(filter_inited);
 
-  mysql_rwlock_rdlock(&log_filter_rules.ruleset_lock);
+  if (ruleset == nullptr)
+    return 0;                      /* purecov: inspected */
+
+  mysql_rwlock_rdlock(&ruleset->ruleset_lock);
 
   for (rn= 0;
-       ((rn < log_filter_rules.count) && (ll->seen != LOG_ITEM_END));
+       ((rn < ruleset->count) && (ll->seen != LOG_ITEM_END));
        rn++)
   {
-    r= &log_filter_rules.rule[rn];
+    r=  &ruleset->rule[rn];
 
     /*
       If the rule is temporarily disabled, skip over it.
@@ -624,9 +689,26 @@ int log_builtins_filter_run(void *instance MY_ATTRIBUTE((unused)),
     /*
       Look for a matching field in the event!
     */
+
     /*
-      WL#9651: currently applies to 0 or 1 match, do we ever have multi-match?
+      Currently applies to 0 or 1 match, there is no multi-match
     */
+
+    if (r->cond == LOG_FILTER_COND_NONE)  // in ELSE etc. there is no condition
+    {
+      /*
+        We could just initialize this at a top and then chain this
+        (i.e. rules with conditions will overwrite this; while rules
+        without (i.e. ELSE) will "inherit" the previous value, but we
+        don't currently have to as implicit-DELETE-field is set up at
+        parse-time, not at execution time. For that reason, we always
+        reset this for the time being so people will find the code
+        easier to understand.
+      */
+      ln= -1;
+      goto apply_action;
+    }
+
     ln= log_line_index_by_item(ll, &r->match);
 
     /*
@@ -636,19 +718,56 @@ int log_builtins_filter_run(void *instance MY_ATTRIBUTE((unused)),
       ln == -1  would indicate "not found", which we can actually
       match against for cases like, "if one doesn't exist, create one now."
     */
-    if (log_filter_try_match((ln >= 0) ? &ll->item[ln] : nullptr, r) ==
-        LOG_FILTER_MATCH_SUCCESS)
+    cond_result= log_filter_try_match((ln >= 0) ? &ll->item[ln] : nullptr, r);
+
+    if (cond_result == LOG_FILTER_MATCH_SUCCESS)
     {
       ++r->match_count;
 
-      log_filter_try_apply(ll, ln, r);
-      p++;
+      if (r->verb == LOG_FILTER_CHAIN_AND)        // AND -- test next condition
+        continue; // proceed with next cond
+
+      else if (r->verb == LOG_FILTER_CHAIN_OR)    // OR -- one match is enough
+      { // skip any other conditions in OR
+        while (ruleset->rule[rn].verb == LOG_FILTER_CHAIN_OR)
+          rn++;
+        r= &ruleset->rule[rn];
+      }
+      /*
+        If we're here, we either had a single-condition IF match,
+        or one condition in an OR-chain matched.
+        In either case, it's time to apply the verb now.
+      */
     }
+    else if (cond_result == LOG_FILTER_MATCH_UNSATISFIED)
+    {
+      if (r->verb == LOG_FILTER_CHAIN_AND)
+      { // jump to next branch (ELSEIF/ELSE/ENDIF)
+        while (ruleset->rule[++rn].verb == LOG_FILTER_CHAIN_AND)
+          ;         // skip over all AND conditions
+      }
+      /*
+        skip over rule:
+        - if this was an AND-chain,  it'll skip over last cond and the action
+        - if this was an OR-chain,   it'll proceed to the next condition
+        - if this was a solitary IF, it'll skip the action
+      */
+      continue;     // skip over last condition (the one with the actual action)
+    }
+    else            // misc. failures (type mismatch etc.)
+      continue;
+
+  apply_action:
+    log_filter_try_apply(ll, ln, r);
+    processed++;
+
+    if (r->jump != 0)     // we're at the end of a block; jump to ENDIF
+      rn += r->jump - 1;
   }
 
-  mysql_rwlock_unlock(&log_filter_rules.ruleset_lock);
+  mysql_rwlock_unlock(&ruleset->ruleset_lock);
 
-  return p;
+  return processed;
 }
 
 
@@ -674,20 +793,21 @@ int log_builtins_filter_update_verbosity(int verbosity)
   log_filter_rule *r;
   int              rr= -99;
 
-  if (!filter_inited)
+  if (log_builtins_filter_ruleset_lock(log_filter_builtin_rules,
+                                       LOG_BUILTINS_LOCK_EXCLUSIVE) < 0)
     return -1;
 
-  mysql_rwlock_wrlock(&log_filter_rules.ruleset_lock);
-
-  // if a log_error_verbosity item already exists, update it
-  for (rn= 0; (rn < log_filter_rules.count); rn++)
+  /*
+    If a log_error_verbosity item already exists, update it.
+    This should always be the case now since we create an item on start-up!
+  */
+  for (rn= 0; (rn < log_filter_builtin_rules->count); rn++)
   {
-    r= &log_filter_rules.rule[rn];
+    r= &log_filter_builtin_rules->rule[rn];
 
     if ((r->match.type == LOG_ITEM_LOG_PRIO) &&
-        (r->verb       == LOG_FILTER_GAG) &&
-        (r->cond       == LOG_FILTER_COND_GE) &&
-        (r->flags      &  LOG_FILTER_FLAG_SYNTHETIC))
+        (r->verb       == LOG_FILTER_DROP) &&
+        (r->cond       == LOG_FILTER_COND_GT))
     {
       r->match.data.data_integer= verbosity;
       r->flags &= ~LOG_FILTER_FLAG_DISABLED;
@@ -696,26 +816,28 @@ int log_builtins_filter_update_verbosity(int verbosity)
     }
   }
 
+  /* purecov: begin deadcode */
+
   // if no log_error_verbosity item already exists, create one
-  if (log_filter_ruleset_full(&log_filter_rules))
-  {
+  if (log_filter_ruleset_full(log_filter_builtin_rules))
+  {             /* since this is a private rule-set, this should never happen */
     rr= -2;
     goto done;
   }
 
-  r= log_builtins_filter_rule_init();
+  r= log_builtins_filter_rule_init(log_filter_builtin_rules);
+
   log_item_set_with_key(&r->match, LOG_ITEM_LOG_PRIO, nullptr,
                         LOG_ITEM_FREE_NONE)->data_integer= verbosity;
-  r->cond=   LOG_FILTER_COND_GE;
-  r->verb=   LOG_FILTER_GAG;
-  r->flags=  LOG_FILTER_FLAG_SYNTHETIC;
+  r->cond=   LOG_FILTER_COND_GT;
+  r->verb=   LOG_FILTER_DROP;
 
-  log_filter_rules.count++;
+  log_filter_builtin_rules->count++;
 
-  rr= 1;
+  rr= 1;  /* purecov: end */
 
 done:
-  mysql_rwlock_unlock(&log_filter_rules.ruleset_lock);
+  log_builtins_filter_ruleset_unlock(log_filter_builtin_rules);
 
   return rr;
 }
@@ -726,35 +848,88 @@ done:
 */
 
 
-DEFINE_METHOD(int, log_builtins_filter_imp::filter_run, (void *instance,
-                                                         log_line *ll))
+DEFINE_METHOD(log_filter_ruleset *,
+              log_builtins_filter_imp::filter_ruleset_new,
+                                         (log_filter_tag *tag, size_t count))
 {
-  return log_builtins_filter_run(instance, ll);
+  return log_builtins_filter_ruleset_new(tag, count);
 }
 
 
-DEFINE_METHOD(void *, log_builtins_filter_imp::filter_ruleset_get,
-                                         (log_builtins_filter_lock locktype))
+DEFINE_METHOD(int, log_builtins_filter_imp::filter_ruleset_lock,
+              (log_filter_ruleset *ruleset, log_builtins_filter_lock locktype))
 {
-  return (void *) log_builtins_filter_ruleset_get(locktype);
+  return log_builtins_filter_ruleset_lock(ruleset, locktype);
 }
 
 
-DEFINE_METHOD(void,   log_builtins_filter_imp::filter_ruleset_drop, ())
+DEFINE_METHOD(void,   log_builtins_filter_imp::filter_ruleset_unlock,
+                                                (log_filter_ruleset *ruleset))
 {
-  log_builtins_filter_ruleset_drop();
+  log_builtins_filter_ruleset_unlock(ruleset);
 }
 
 
-DEFINE_METHOD(void,   log_builtins_filter_imp::filter_ruleset_release, ())
+DEFINE_METHOD(void,   log_builtins_filter_imp::filter_ruleset_drop,
+                                                 (log_filter_ruleset *ruleset))
 {
-  log_builtins_filter_ruleset_release();
+  log_builtins_filter_ruleset_drop(ruleset);
 }
 
 
-DEFINE_METHOD(void *, log_builtins_filter_imp::filter_rule_init, ())
+DEFINE_METHOD(void,   log_builtins_filter_imp::filter_ruleset_free,
+                                                 (log_filter_ruleset **ruleset))
 {
-  if (log_filter_ruleset_full(&log_filter_rules))
+  log_builtins_filter_ruleset_free(ruleset);
+}
+
+
+DEFINE_METHOD(int, log_builtins_filter_imp::filter_ruleset_move,
+                                             (log_filter_ruleset *from,
+                                              log_filter_ruleset *to))
+{
+  uint32 rule_index;
+
+  if (from->count > to->alloc)           // do we have enough space in target?
+    return -1;                           /* purecov: inspected */
+
+  log_builtins_filter_ruleset_drop(to);  // clear destination
+
+  to->tag= from->tag;
+
+  for (rule_index= 0; rule_index < from->count; rule_index++)
+  {
+    to->rule[rule_index]= from->rule[rule_index];
+    memset(&from->rule[rule_index], 0, sizeof(log_filter_rule));
+  }
+
+  to->count=   from->count;
+  from->count= 0;
+
+  return 0;
+}
+
+
+DEFINE_METHOD(void *, log_builtins_filter_imp::filter_rule_init,
+                                                (log_filter_ruleset *ruleset))
+{
+  if (log_filter_ruleset_full(ruleset))
     return nullptr;
-  return (void *) log_builtins_filter_rule_init();
+  return (void *) log_builtins_filter_rule_init(ruleset);
+}
+
+
+DEFINE_METHOD(int, log_builtins_filter_imp::filter_run,
+                                              (log_filter_ruleset *ruleset,
+                                               log_line *ll))
+{
+  return log_builtins_filter_run(ruleset, ll);
+}
+
+
+DEFINE_METHOD(log_filter_ruleset *,
+              log_builtins_filter_debug_imp::filter_debug_ruleset_get,
+                                               (void))
+{
+  return log_filter_builtin_rules;
 }

@@ -1099,7 +1099,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((not((`a` regexp _latin1'H.+o')))) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS ((not(regexp_like(`a`,_latin1'H.+o')))) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('hello',default);
@@ -1176,7 +1176,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((`a` regexp _latin1'H.+o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS (regexp_like(`a`,_latin1'H.+o')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('hello',default);
@@ -1253,7 +1253,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
-  `b` tinyint(1) GENERATED ALWAYS AS ((`a` regexp _latin1'H.+o')) VIRTUAL
+  `b` tinyint(1) GENERATED ALWAYS AS (regexp_like(`a`,_latin1'H.+o')) VIRTUAL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 insert into t1 values ('Hello',default);
 insert into t1 values ('MySQL',default);
@@ -2913,25 +2913,6 @@ insert into t1 values ('testing',default);
 select * from t1;
 a	b
 testing	ae2b1fca515949e5d54fb22b8ed95575
-drop table t1;
-set sql_warnings = 0;
-# PASSWORD()
-set sql_warnings = 1;
-create table t1 (a varchar(1024), b varchar(1024) generated always as (password(a)) virtual) charset latin1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` varchar(1024) DEFAULT NULL,
-  `b` varchar(1024) GENERATED ALWAYS AS (password(`a`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-insert into t1 values ('badpwd',default);
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-select * from t1;
-a	b
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-Warnings:
-badpwd	*AAB3E285149C0135D51A520E1940DD3263DC008C
 drop table t1;
 set sql_warnings = 0;
 # SHA1()

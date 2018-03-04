@@ -28,11 +28,11 @@ ALTER TABLE t1 DROP INDEX b, ADD INDEX (b);
 --source include/start_mysqld.inc
 
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
-# Look for at least one MLOG_FILE_CREATE2 in the error log.
+# Look for at least one MLOG_FILE_CREATE in the error log.
 # Theoretically, it may have been written by this test or an earlier test.
 # FIXME: redirect the error log of the restart to a new file,
 # and ensure that we have exactly 2 records there.
-let SEARCH_PATTERN=scan .*:.*log rec MLOG_FILE_CREATE2.*page .*:0;
+let SEARCH_PATTERN=scan .*:.*log rec MLOG_FILE_CREATE.*page .*:0;
 --source include/search_pattern.inc
 # Look for at least one MLOG_INDEX_LOAD in the error log.
 # Theoretically, it may have been written by this test or an earlier test.

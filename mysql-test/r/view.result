@@ -6256,13 +6256,13 @@ UPDATE vtt SET b2=b2+1 WHERE a2=1;
 UPDATE vtr SET b1=b1+1 WHERE a1=1;
 UPDATE vtrd SET b1=b1+1 WHERE a1=1;
 UPDATE vtr SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table dt2 of the UPDATE is not updatable
+ERROR HY000: The target table vtr of the UPDATE is not updatable
 UPDATE vtrd SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table dt2 of the UPDATE is not updatable
+ERROR HY000: The target table vtrd of the UPDATE is not updatable
 UPDATE vrt SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table dt1 of the UPDATE is not updatable
+ERROR HY000: The target table vrt of the UPDATE is not updatable
 UPDATE vrtd SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table dt1 of the UPDATE is not updatable
+ERROR HY000: The target table vrtd of the UPDATE is not updatable
 UPDATE vrt SET b2=b2+1 WHERE a2=1;
 UPDATE vrtd SET b2=b2+1 WHERE a2=1;
 UPDATE vrr SET b1=b1+1 WHERE a1=1;
@@ -6278,23 +6278,23 @@ UPDATE vtt, v0 SET b2=b2+1 WHERE a2=1;
 UPDATE vtr, v0 SET b1=b1+1 WHERE a1=1;
 UPDATE vtrd, v0 SET b1=b1+1 WHERE a1=1;
 UPDATE vtr, v0 SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table dt2 of the UPDATE is not updatable
+ERROR HY000: The target table vtr of the UPDATE is not updatable
 UPDATE vtrd, v0 SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table dt2 of the UPDATE is not updatable
+ERROR HY000: The target table vtrd of the UPDATE is not updatable
 UPDATE vrt, v0 SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table dt1 of the UPDATE is not updatable
+ERROR HY000: The target table vrt of the UPDATE is not updatable
 UPDATE vrtd, v0 SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table dt1 of the UPDATE is not updatable
+ERROR HY000: The target table vrtd of the UPDATE is not updatable
 UPDATE vrt, v0 SET b2=b2+1 WHERE a2=1;
 UPDATE vrtd, v0 SET b2=b2+1 WHERE a2=1;
 UPDATE vrr, v0 SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table dt1 of the UPDATE is not updatable
+ERROR HY000: The target table vrr of the UPDATE is not updatable
 UPDATE vrrd, v0 SET b1=b1+1 WHERE a1=1;
-ERROR HY000: The target table dt1 of the UPDATE is not updatable
+ERROR HY000: The target table vrrd of the UPDATE is not updatable
 UPDATE vrr, v0 SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table dt2 of the UPDATE is not updatable
+ERROR HY000: The target table vrr of the UPDATE is not updatable
 UPDATE vrrd, v0 SET b2=b2+1 WHERE a2=1;
-ERROR HY000: The target table dt2 of the UPDATE is not updatable
+ERROR HY000: The target table vrrd of the UPDATE is not updatable
 SELECT * FROM vtt;
 a1	b1	a2	b2
 1	106	1	106
@@ -6550,6 +6550,7 @@ CREATE VIEW t1_view_N3 AS SELECT * FROM t1_base_N3 WHERE `pk` BETWEEN 1 AND
 2;
 CREATE VIEW t1_view_N4 AS SELECT * FROM ( SELECT * FROM t1_view_N3 ) AS A;
 UPDATE t1_view_N3 AS A JOIN t1_view_N4 B SET A. col_int = 1 , B. col_int = 2;
+ERROR HY000: The target table B of the UPDATE is not updatable
 DROP VIEW t1_view_N3, t1_view_N4;
 DROP TABLE t1_base_N3;
 #
@@ -6684,3 +6685,125 @@ DROP VIEW v1, v2, v3, v4, v5, v6, v7, v8, v9, v10, v11, v12, v13, v14, v15,
 v16, v17, v18, v19;
 DROP TABLE t1, t2;
 DROP DATABASE db;
+#
+# Bug#25832861: TABLE_SHARE->TMP_TABLE != NO_TMP_TABLE || M_LOCK_TYPE == 1' AT HANDLER::HA_UPDAT
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+CREATE VIEW v1 AS SELECT a FROM t1;
+CREATE VIEW v2 AS SELECT 1;
+CREATE VIEW v3 AS SELECT a FROM (SELECT a FROM v1) AS dt;
+CREATE VIEW v4 AS SELECT a FROM (SELECT a FROM t1) AS dt;
+CREATE VIEW v5 AS SELECT a FROM (SELECT a FROM v3) AS dt2;
+UPDATE v3 SET v3.a=3;
+ERROR HY000: The target table v3 of the UPDATE is not updatable
+UPDATE v3, v2 SET v3.a=3;
+ERROR HY000: The target table v3 of the UPDATE is not updatable
+UPDATE v3, v1 SET v1.a=3;
+SELECT * FROM t1;
+a
+3
+3
+UPDATE v3, t1 SET t1.a=4;
+SELECT * FROM t1;
+a
+4
+4
+UPDATE v4 SET v4.a=6;
+ERROR HY000: The target table v4 of the UPDATE is not updatable
+SELECT * FROM t1;
+a
+4
+4
+UPDATE v4, v2 SET v4.a=6;
+ERROR HY000: The target table v4 of the UPDATE is not updatable
+UPDATE v4, v1 SET v1.a=6;
+SELECT * FROM t1;
+a
+6
+6
+UPDATE v4, t1 SET t1.a=7;
+SELECT * FROM t1;
+a
+7
+7
+UPDATE v5 SET v5.a=9;
+ERROR HY000: The target table v5 of the UPDATE is not updatable
+UPDATE v5, v2 SET v5.a=9;
+ERROR HY000: The target table v5 of the UPDATE is not updatable
+UPDATE v5, v1 SET v1.a=9;
+SELECT * FROM t1;
+a
+9
+9
+UPDATE v5, t1 SET t1.a=10;
+SELECT * FROM t1;
+a
+10
+10
+DROP TABLE t1;
+DROP VIEW v1, v2, v3, v4, v5;
+# Bug#26659699 Assertion !(thd->lex->context_analysis_only & 2) failed
+CREATE TABLE t1(pk INTEGER, cik INTEGER, UNIQUE KEY(cik))
+PARTITION BY KEY(cik) PARTITIONS 10;
+CREATE TABLE t2(pk INTEGER, cvk VARCHAR(20), cik INTEGER, UNIQUE KEY(cik))
+PARTITION BY KEY(cik) PARTITIONS 10;
+CREATE VIEW v1 AS
+SELECT MAX(t2.pk) AS field1
+FROM t1, t2
+WHERE (SELECT 7 FROM DUAL) IS NOT NULL AND
+t1.pk BETWEEN 123 AND (123 + 128) AND
+t2.cvk <= 'p'
+ORDER BY t1.pk DESC;
+DROP VIEW v1;
+DROP TABLE t1, t2;
+#
+# BUG#26266789: ON SERVER 8.0 CREATE OR REPLACE VIEW FAILS FOR COLUMN SIZE > 64
+#
+CREATE TABLE t1(fld1 INT, fld2 INT);
+INSERT INTO t1 VALUES(1, 1);
+# Without patch, a dictionary store error is triggered on release
+# build and an assert on debug build.
+CREATE OR REPLACE VIEW v1
+(`x12345678901234567890123456789012345678901234567890123456789012322`) AS
+SELECT fld1 FROM t1;
+ERROR 42000: Incorrect column name 'x12345678901234567890123456789012345678901234567890123456789012322'
+# Clean up.
+DROP TABLE t1;
+#
+# Bug#26360114 WRONG RESULT WITH AGGREGATE AND HAVING CLAUSE IN VIEW
+#
+CREATE TABLE t1 (
+col_date_key DATE,
+KEY col_date_key (col_date_key)
+);
+INSERT INTO t1 VALUES ('2007-02-08');
+INSERT INTO t1 VALUES ('2007-02-08');
+INSERT INTO t1 VALUES ('2008-11-04');
+INSERT INTO t1 VALUES ('2008-11-04');
+INSERT INTO t1 VALUES ('2009-01-14');
+INSERT INTO t1 VALUES ('2009-01-14');
+SELECT MAX(col_date_key) AS x
+FROM t1
+HAVING x >= CAST('2009-01-01' AS DATE)
+;
+x
+2009-01-14
+CREATE VIEW v1 AS
+SELECT MAX(col_date_key) AS x
+FROM t1
+HAVING x >= CAST('2009-01-01' AS DATE)
+;
+SELECT * FROM v1;
+x
+2009-01-14
+DROP VIEW v1;
+DROP TABLE t1;
+#
+# Bug#27121663: SIG 11 IN FILL_DD_VIEW_TABLES | SQL/DD/DD_VIEW.CC
+#
+CREATE TABLE t1 (pk INT);
+CREATE VIEW v1 AS SELECT COUNT(*) FROM t1
+ORDER BY (SELECT 1 FROM t1 WHERE 1 IN (SELECT * FROM (SELECT 1 as field) AS dt));
+DROP TABLE t1;
+DROP VIEW v1;

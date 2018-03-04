@@ -21,10 +21,10 @@ view_a	VIEW
 view_b	COLLECTION_VIEW
 command ok
 View	Create View	character_set_client	collation_connection
-view_a	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`view_a` AS select `xtest`.`coll_a`.`doc` AS `doc`,`xtest`.`coll_a`.`_id` AS `_id` from `xtest`.`coll_a`	utf8mb4	utf8mb4_general_ci
+view_a	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`view_a` AS select `xtest`.`coll_a`.`doc` AS `doc`,`xtest`.`coll_a`.`_id` AS `_id` from `xtest`.`coll_a`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 View	Create View	character_set_client	collation_connection
-view_b	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`view_b` AS select `xtest`.`coll_a`.`doc` AS `doc` from `xtest`.`coll_a`	utf8mb4	utf8mb4_general_ci
+view_b	CREATE ALGORITHM=UNDEFINED DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`view_b` AS select `xtest`.`coll_a`.`doc` AS `doc` from `xtest`.`coll_a`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Create view based on another view
@@ -33,7 +33,7 @@ Mysqlx.Ok {
 }
 
 View	Create View	character_set_client	collation_connection
-view_c	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`view_c` AS select `view_a`.`doc` AS `doc` from `xtest`.`view_a`	utf8mb4	utf8mb4_general_ci
+view_c	CREATE ALGORITHM=TEMPTABLE DEFINER=`x_root`@`localhost` SQL SECURITY DEFINER VIEW `xtest`.`view_c` AS select `view_a`.`doc` AS `doc` from `xtest`.`view_a`	utf8mb4	utf8mb4_general_ci
 0 rows affected
 
 Error when try modify view which is not updatable.
@@ -102,10 +102,10 @@ view_c	COLLECTION_VIEW
 view_d	VIEW
 command ok
 TABLE_NAME	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	VIEW_DEFINITION
-view_a	NONE	YES	root@localhost	DEFINER	select `xtest`.`coll_a`.`doc` AS `doc`,`xtest`.`coll_a`.`_id` AS `_id` from `xtest`.`coll_a`
-view_b	NONE	YES	root@localhost	DEFINER	select `xtest`.`coll_a`.`doc` AS `doc` from `xtest`.`coll_a`
-view_c	NONE	NO	root@localhost	DEFINER	select `view_a`.`doc` AS `doc` from `xtest`.`view_a`
-view_d	NONE	YES	root@localhost	DEFINER	select `xtest`.`tab_a`.`second` AS `doc` from `xtest`.`tab_a`
+view_a	NONE	YES	x_root@localhost	DEFINER	select `xtest`.`coll_a`.`doc` AS `doc`,`xtest`.`coll_a`.`_id` AS `_id` from `xtest`.`coll_a`
+view_b	NONE	YES	x_root@localhost	DEFINER	select `xtest`.`coll_a`.`doc` AS `doc` from `xtest`.`coll_a`
+view_c	NONE	NO	x_root@localhost	DEFINER	select `view_a`.`doc` AS `doc` from `xtest`.`view_a`
+view_d	NONE	YES	x_root@localhost	DEFINER	select `xtest`.`tab_a`.`second` AS `doc` from `xtest`.`tab_a`
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

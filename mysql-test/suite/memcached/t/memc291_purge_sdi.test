@@ -11,7 +11,7 @@ CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
 # We wiped out entire SDI created by Server. This is to avoid server
 # SDI interference with memcached inserted SDI. So server complains
 # on missing SDI
-CALL mtr.add_suppression("\\[Warning\\] sdi_delete*");
+CALL mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] sdi_delete*");
 # Create the memcached tables
 source include/memcache_config.inc;
 --enable_query_log

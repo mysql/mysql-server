@@ -11,6 +11,8 @@ log_filter_internal; log_sink_internal
 
 INSTALL COMPONENT "file://component_log_sink_json";
 SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_filter_internal; log_sink_json";
+ERROR 42000: Variable 'log_error_services' can't be set to the value of 'log_filter_internal; log_sink_internal; log_filter_internal; log_sink_json'
+SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_sink_json";
 SELECT "Let's do the double dutch!";
 Let's do the double dutch!
 Let's do the double dutch!
@@ -31,6 +33,11 @@ SELECT "I SHOULD be visible in the error log!";
 I SHOULD be visible in the error log!
 I SHOULD be visible in the error log!
 SET GLOBAL log_error_services= DEFAULT;
+SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio";
+SELECT "I should be visible with \"System\" label!";
+I should be visible with "System" label!
+I should be visible with "System" label!
+SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
 SET GLOBAL log_error_verbosity= DEFAULT;
 
 # cleanup
@@ -42,24 +49,26 @@ FLUSH ERROR LOGS;
 ### error log file
 ###
 
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SET @@session.debug="+d,log_error_normalize"
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_filter_internal; log_sink_json"
-{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET GLOBAL log_error_services= \"log_filter_internal; log_sink_internal; log_filter_internal; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SELECT "Let's do the double dutch!"
-{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"Let's do the double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SET GLOBAL log_error_services= "log_sink_internal; log_sink_internal"
-{ "prio" : 2, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET GLOBAL log_error_services= \"log_sink_internal; log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
-{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET GLOBAL log_error_services= \"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note", "stream_id" : "0" }
-{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET GLOBAL log_error_services= \"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note", "stream_id" : "1" }
-{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"Jacob Toot-Toot\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note", "stream_id" : "0" }
-{ "prio" : 2, "subsystem" : "parser", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"Jacob Toot-Toot\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note", "stream_id" : "1" }
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SET GLOBAL log_error_services= DEFAULT
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SET GLOBAL log_error_services= "log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SELECT "I SHOULD be visible in the error log!"
-1970-01-01T00:00:00.000000Z 0 [Note] Parser saw: SET GLOBAL log_error_verbosity= DEFAULT
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,log_error_normalize"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_filter_internal; log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_sink_json"
+{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET GLOBAL log_error_services= \"log_filter_internal; log_sink_internal; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "Let's do the double dutch!"
+{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"Let's do the double dutch!\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET GLOBAL log_error_services= "log_sink_internal; log_sink_internal"
+{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET GLOBAL log_error_services= \"log_sink_internal; log_sink_internal\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET GLOBAL log_error_services= \"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note", "stream_id" : "0" }
+{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET GLOBAL log_error_services= \"log_sink_json; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note", "stream_id" : "1" }
+{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"Jacob Toot-Toot\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note", "stream_id" : "0" }
+{ "prio" : 3, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT \"Jacob Toot-Toot\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note", "stream_id" : "1" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET GLOBAL log_error_services= DEFAULT
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET GLOBAL log_error_services= "log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT "I SHOULD be visible in the error log!"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio"
+1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] Parser saw: SELECT "I should be visible with \"System\" label!"
 
 ###
 ### done

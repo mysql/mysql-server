@@ -63,7 +63,7 @@ XA END 'x';
 XA PREPARE 'x';
 # Kill the server
 # Attempt to start without an *.ibd file.
-Pattern "\[ERROR\] InnoDB:.*tablespace \d+ .*not found:.*test.bug16735660.ibd.*" found
+Pattern "\[ERROR\].*InnoDB: Could not find any file associated with the tablespace ID:.*" found
 # restart
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 SELECT * FROM bug16735660;

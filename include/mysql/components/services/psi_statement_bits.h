@@ -1,25 +1,31 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef COMPONENTS_SERVICES_PSI_STATEMENT_BITS_H
 #define COMPONENTS_SERVICES_PSI_STATEMENT_BITS_H
 
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
+#ifndef MYSQL_ABI_CHECK
+#include <stddef.h> /* size_t */
+#endif
 
 /**
   @file
@@ -102,7 +108,7 @@ struct PSI_statement_info_v1
     The flags of the statement instrument to register.
     @sa PSI_FLAG_MUTABLE
   */
-  uint m_flags;
+  unsigned int m_flags;
   /** Documentation. */
   const char *m_documentation;
 };
@@ -128,61 +134,61 @@ struct PSI_statement_locker_state_v1
   /** In prepare flag. */
   bool m_in_prepare;
   /** Metric, no index used flag. */
-  uchar m_no_index_used;
+  unsigned char m_no_index_used;
   /** Metric, no good index used flag. */
-  uchar m_no_good_index_used;
+  unsigned char m_no_good_index_used;
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Instrumentation class. */
   void *m_class;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_statement;
   /** Locked time. */
-  ulonglong m_lock_time;
+  unsigned long long m_lock_time;
   /** Rows sent. */
-  ulonglong m_rows_sent;
+  unsigned long long m_rows_sent;
   /** Rows examined. */
-  ulonglong m_rows_examined;
+  unsigned long long m_rows_examined;
   /** Metric, temporary tables created on disk. */
-  ulong m_created_tmp_disk_tables;
+  unsigned long m_created_tmp_disk_tables;
   /** Metric, temporary tables created. */
-  ulong m_created_tmp_tables;
+  unsigned long m_created_tmp_tables;
   /** Metric, number of select full join. */
-  ulong m_select_full_join;
+  unsigned long m_select_full_join;
   /** Metric, number of select full range join. */
-  ulong m_select_full_range_join;
+  unsigned long m_select_full_range_join;
   /** Metric, number of select range. */
-  ulong m_select_range;
+  unsigned long m_select_range;
   /** Metric, number of select range check. */
-  ulong m_select_range_check;
+  unsigned long m_select_range_check;
   /** Metric, number of select scan. */
-  ulong m_select_scan;
+  unsigned long m_select_scan;
   /** Metric, number of sort merge passes. */
-  ulong m_sort_merge_passes;
+  unsigned long m_sort_merge_passes;
   /** Metric, number of sort merge. */
-  ulong m_sort_range;
+  unsigned long m_sort_range;
   /** Metric, number of sort rows. */
-  ulong m_sort_rows;
+  unsigned long m_sort_rows;
   /** Metric, number of sort scans. */
-  ulong m_sort_scan;
+  unsigned long m_sort_scan;
   /** Statement digest. */
   const struct sql_digest_storage *m_digest;
   /** Current schema name. */
   char m_schema_name[PSI_SCHEMA_NAME_LEN];
   /** Length in bytes of @c m_schema_name. */
-  uint m_schema_name_length;
+  unsigned int m_schema_name_length;
   /** Statement character set number. */
-  uint m_cs_number;
+  unsigned int m_cs_number;
   /** Statement query sample. */
   const char *m_query_sample;
   /** Length in bytes of @c m_query_sample. */
-  uint m_query_sample_length;
+  unsigned int m_query_sample_length;
   /** True if @c m_query_sample was truncated. */
   bool m_query_sample_truncated;
 
@@ -194,13 +200,13 @@ typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 struct PSI_sp_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Stored Procedure share. */
   PSI_sp_share *m_sp_share;
 };
@@ -249,9 +255,9 @@ typedef struct PSI_statement_locker *(*refine_statement_v1_t)(
 */
 typedef void (*start_statement_v1_t)(struct PSI_statement_locker *locker,
                                      const char *db,
-                                     uint db_length,
+                                     unsigned int db_length,
                                      const char *src_file,
-                                     uint src_line);
+                                     unsigned int src_line);
 
 /**
   Set the statement text for a statement event.
@@ -263,7 +269,7 @@ typedef void (*start_statement_v1_t)(struct PSI_statement_locker *locker,
 */
 typedef void (*set_statement_text_v1_t)(struct PSI_statement_locker *locker,
                                         const char *text,
-                                        uint text_len);
+                                        unsigned int text_len);
 
 /**
   Set a statement event lock time.
@@ -271,7 +277,7 @@ typedef void (*set_statement_text_v1_t)(struct PSI_statement_locker *locker,
   @param lock_time the locked time, in microseconds
 */
 typedef void (*set_statement_lock_time_t)(struct PSI_statement_locker *locker,
-                                          ulonglong lock_time);
+                                          unsigned long long lock_time);
 
 /**
   Set a statement event rows sent metric.
@@ -279,7 +285,7 @@ typedef void (*set_statement_lock_time_t)(struct PSI_statement_locker *locker,
   @param count the number of rows sent
 */
 typedef void (*set_statement_rows_sent_t)(struct PSI_statement_locker *locker,
-                                          ulonglong count);
+                                          unsigned long long count);
 
 /**
   Set a statement event rows examined metric.
@@ -287,7 +293,7 @@ typedef void (*set_statement_rows_sent_t)(struct PSI_statement_locker *locker,
   @param count the number of rows examined
 */
 typedef void (*set_statement_rows_examined_t)(
-  struct PSI_statement_locker *locker, ulonglong count);
+  struct PSI_statement_locker *locker, unsigned long long count);
 
 /**
   Increment a statement event "created tmp disk tables" metric.
@@ -295,7 +301,7 @@ typedef void (*set_statement_rows_examined_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_created_tmp_disk_tables_t)(
-  struct PSI_statement_locker *locker, ulong count);
+  struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "created tmp tables" metric.
@@ -303,7 +309,7 @@ typedef void (*inc_statement_created_tmp_disk_tables_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_created_tmp_tables_t)(
-  struct PSI_statement_locker *locker, ulong count);
+  struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select full join" metric.
@@ -311,7 +317,7 @@ typedef void (*inc_statement_created_tmp_tables_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_full_join_t)(
-  struct PSI_statement_locker *locker, ulong count);
+  struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select full range join" metric.
@@ -319,7 +325,7 @@ typedef void (*inc_statement_select_full_join_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_full_range_join_t)(
-  struct PSI_statement_locker *locker, ulong count);
+  struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select range join" metric.
@@ -327,7 +333,7 @@ typedef void (*inc_statement_select_full_range_join_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_range_t)(
-  struct PSI_statement_locker *locker, ulong count);
+  struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select range check" metric.
@@ -335,7 +341,7 @@ typedef void (*inc_statement_select_range_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_range_check_t)(
-  struct PSI_statement_locker *locker, ulong count);
+  struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select scan" metric.
@@ -343,7 +349,7 @@ typedef void (*inc_statement_select_range_check_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_scan_t)(struct PSI_statement_locker *locker,
-                                            ulong count);
+                                            unsigned long count);
 
 /**
   Increment a statement event "sort merge passes" metric.
@@ -351,7 +357,7 @@ typedef void (*inc_statement_select_scan_t)(struct PSI_statement_locker *locker,
   @param count the metric increment value
 */
 typedef void (*inc_statement_sort_merge_passes_t)(
-  struct PSI_statement_locker *locker, ulong count);
+  struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "sort range" metric.
@@ -359,7 +365,7 @@ typedef void (*inc_statement_sort_merge_passes_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_sort_range_t)(struct PSI_statement_locker *locker,
-                                           ulong count);
+                                           unsigned long count);
 
 /**
   Increment a statement event "sort rows" metric.
@@ -367,7 +373,7 @@ typedef void (*inc_statement_sort_range_t)(struct PSI_statement_locker *locker,
   @param count the metric increment value
 */
 typedef void (*inc_statement_sort_rows_t)(struct PSI_statement_locker *locker,
-                                          ulong count);
+                                          unsigned long count);
 
 /**
   Increment a statement event "sort scan" metric.
@@ -375,7 +381,7 @@ typedef void (*inc_statement_sort_rows_t)(struct PSI_statement_locker *locker,
   @param count the metric increment value
 */
 typedef void (*inc_statement_sort_scan_t)(struct PSI_statement_locker *locker,
-                                          ulong count);
+                                          unsigned long count);
 
 /**
   Set a statement event "no index used" metric.
@@ -406,7 +412,7 @@ typedef void (*end_statement_v1_t)(struct PSI_statement_locker *locker,
 */
 typedef PSI_prepared_stmt *(*create_prepared_stmt_v1_t)(
   void *identity,
-  uint stmt_id,
+  unsigned int stmt_id,
   PSI_statement_locker *locker,
   const char *stmt_name,
   size_t stmt_name_length,
@@ -434,6 +440,15 @@ typedef void (*execute_prepared_stmt_v1_t)(PSI_statement_locker *locker,
                                            PSI_prepared_stmt *prepared_stmt);
 
 /**
+  Set the statement text for a prepared statment event.
+  @param prepared_stmt prepared statement.
+  @param text the prepared statement text
+  @param text_len the prepared statement text length
+*/
+typedef void (*set_prepared_stmt_text_v1_t)(PSI_prepared_stmt *prepared_stmt,
+                                            const char *text,
+                                            unsigned int text_len);
+/**
   Get a digest locker for the current statement.
   @param locker a statement locker for the running thread
 */
@@ -457,11 +472,11 @@ typedef void (*digest_end_v1_t)(struct PSI_digest_locker *locker,
   @param object_name_length length of object_name
   @return a stored program share instrumentation, or NULL
 */
-typedef struct PSI_sp_share *(*get_sp_share_v1_t)(uint object_type,
+typedef struct PSI_sp_share *(*get_sp_share_v1_t)(unsigned int object_type,
                                                   const char *schema_name,
-                                                  uint schema_name_length,
+                                                  unsigned int schema_name_length,
                                                   const char *object_name,
-                                                  uint object_name_length);
+                                                  unsigned int object_name_length);
 
 /**
   Release a stored program share.
@@ -474,11 +489,11 @@ typedef PSI_sp_locker *(*start_sp_v1_t)(struct PSI_sp_locker_state_v1 *state,
 
 typedef void (*end_sp_v1_t)(struct PSI_sp_locker *locker);
 
-typedef void (*drop_sp_v1_t)(uint object_type,
+typedef void (*drop_sp_v1_t)(unsigned int object_type,
                              const char *schema_name,
-                             uint schema_name_length,
+                             unsigned int schema_name_length,
                              const char *object_name,
-                             uint object_name_length);
+                             unsigned int object_name_length);
 
 
 typedef struct PSI_statement_info_v1 PSI_statement_info;
@@ -486,7 +501,5 @@ typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 
 /** @} (end of group psi_abi_statement) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_STATEMENT_BITS_H */

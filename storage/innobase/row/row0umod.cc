@@ -3,16 +3,24 @@
 Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -48,6 +56,7 @@ Created 2/27/1997 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 
+#include <debug_sync.h>
 #include "current_thd.h"
 
 /* Considerations on undoing a modify operation.
@@ -98,9 +107,14 @@ row_undo_mod_clust_low(
 				latching any further pages */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
+	DBUG_ENTER("row_undo_mod_clust_low");
+
+	DBUG_LOG("undo", "undo_no=" << node->undo_no);
+
 	btr_pcur_t*	pcur;
 	btr_cur_t*	btr_cur;
 	dberr_t		err;
+	trx_t*		trx = thr_get_trx(thr);
 #ifdef UNIV_DEBUG
 	ibool		success;
 #endif /* UNIV_DEBUG */
@@ -121,6 +135,7 @@ row_undo_mod_clust_low(
 	if (mode != BTR_MODIFY_LEAF
 	    && dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
 		*rebuilt_old_pk = row_log_table_get_pk(
+			trx,
 			btr_cur_get_rec(btr_cur),
 			btr_cur_get_index(btr_cur), NULL, sys, &heap);
 	} else {
@@ -145,12 +160,13 @@ row_undo_mod_clust_low(
 			| BTR_KEEP_SYS_FLAG,
 			btr_cur, offsets, offsets_heap, heap,
 			&dummy_big_rec, node->update,
-			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
+			node->cmpl_info, thr, thr_get_trx(thr)->id,
+			node->undo_no, mtr);
 
 		ut_a(!dummy_big_rec);
 	}
 
-	return(err);
+	DBUG_RETURN(err);
 }
 
 /***********************************************************//**
@@ -237,7 +253,9 @@ row_undo_mod_remove_clust_low(
 		are passing rollback=false, just like purge does. */
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   false, mtr);
+					   false, node->trx->id,
+					   node->undo_no, node->rec_type,
+					   mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -276,6 +294,8 @@ row_undo_mod_clust(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	online = dict_index_is_online_ddl(index);
+	DEBUG_SYNC(current_thd, "row_undo_mod_clust");
+
 	if (online) {
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 	}
@@ -336,7 +356,7 @@ row_undo_mod_clust(
 			break;
 		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
-				btr_pcur_get_rec(pcur), node->row,
+				node->trx, btr_pcur_get_rec(pcur), node->row,
 				index, offsets, sys);
 			break;
 		default:
@@ -526,9 +546,9 @@ row_undo_mod_del_mark_or_remove_sec_low(
 			the distinction only matters when deleting a
 			record that contains externally stored columns. */
 			ut_ad(!index->is_clustered());
-			btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-						   false, &mtr);
-
+			btr_cur_pessimistic_delete(
+				&err, FALSE, btr_cur, 0, false, node->trx->id,
+				node->undo_no, node->rec_type, &mtr);
 			/* The delete operation may fail if we have little
 			file space left: TODO: easiest to crash the database
 			and restart with more file space */
@@ -595,7 +615,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 				BTR_MODIFY_TREE */
 	que_thr_t*	thr,	/*!< in: query thread */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry */
+	dtuple_t*	entry,	/*!< in: index entry */
+	undo_no_t	undo_no)
+				/*!< in: undo number upto which to rollback.*/
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur		= btr_pcur_get_btr_cur(&pcur);
@@ -779,7 +801,8 @@ try_again:
 			err = btr_cur_pessimistic_update(
 				flags, btr_cur, &offsets, &offsets_heap,
 				heap, &dummy_big_rec,
-				update, 0, thr, thr_get_trx(thr)->id, &mtr);
+				update, 0, thr, thr_get_trx(thr)->id,
+				undo_no, &mtr);
 			ut_a(!dummy_big_rec);
 		}
 
@@ -925,10 +948,11 @@ row_undo_mod_del_mark_sec(
 		ut_a(entry);
 
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
-			BTR_MODIFY_LEAF, thr, index, entry);
+			BTR_MODIFY_LEAF, thr, index, entry, node->undo_no);
 		if (err == DB_FAIL) {
 			err = row_undo_mod_del_unmark_sec_and_undo_update(
-				BTR_MODIFY_TREE, thr, index, entry);
+				BTR_MODIFY_TREE, thr, index, entry,
+				node->undo_no);
 		}
 
 		if (err == DB_DUPLICATE_KEY) {
@@ -1071,10 +1095,11 @@ row_undo_mod_upd_exist_sec(
 		ut_a(entry);
 
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
-			BTR_MODIFY_LEAF, thr, index, entry);
+			BTR_MODIFY_LEAF, thr, index, entry, node->undo_no);
 		if (err == DB_FAIL) {
 			err = row_undo_mod_del_unmark_sec_and_undo_update(
-				BTR_MODIFY_TREE, thr, index, entry);
+				BTR_MODIFY_TREE, thr, index, entry,
+				node->undo_no);
 		}
 
 		if (err == DB_DUPLICATE_KEY) {
@@ -1096,7 +1121,7 @@ row_undo_mod_upd_exist_sec(
 
 /** Parses the row reference and other info in a modify undo log record.
 @param[in]	node	row undo node
-@param[in,out]	mdl	MDL ticket */
+@param[in,out]	mdl	MDL ticket or nullptr if unnecessary */
 static
 void
 row_undo_mod_parse_undo_rec(
@@ -1113,9 +1138,6 @@ row_undo_mod_parse_undo_rec(
 	ulint		type;
 	ulint		cmpl_info;
 	bool		dummy_extern;
-	bool		get_mdl;
-
-	get_mdl = dd_mdl_for_undo(current_thd);
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
 				    &dummy_extern, &undo_no, &table_id);
@@ -1126,12 +1148,8 @@ row_undo_mod_parse_undo_rec(
 	took here. Notably, there cannot be a race between ROLLBACK and
 	DROP TEMPORARY TABLE, because temporary tables are
 	private to a single connection. */
-	if (get_mdl) {
-		node->table = dd_table_open_on_id(
-			table_id, current_thd, mdl, false, true);
-	} else {
-		node->table = dd_table_open_on_id_in_mem(table_id, false);
-	}
+	node->table = dd_table_open_on_id(
+		table_id, current_thd, mdl, false, true);
 
 	if (node->table == NULL) {
 		/* Table was dropped */
@@ -1139,11 +1157,7 @@ row_undo_mod_parse_undo_rec(
 	}
 
 	if (node->table->ibd_file_missing) {
-		if (get_mdl) {
-			dd_table_close(node->table, current_thd, mdl, false);
-		} else {
-			dd_table_close(node->table, nullptr, nullptr, false);
-		}
+		dd_table_close(node->table, current_thd, mdl, false);
 
 		/* We skip undo operations to missing .ibd files */
 		node->table = NULL;
@@ -1169,11 +1183,7 @@ row_undo_mod_parse_undo_rec(
 
 	if (!row_undo_search_clust_to_pcur(node)) {
 
-		if (get_mdl) {
-			dd_table_close(node->table, current_thd, mdl, false);
-		} else {
-			dd_table_close(node->table, nullptr, nullptr, false);
-		}
+		dd_table_close(node->table, current_thd, mdl, false);
 
 		node->table = NULL;
 	}
@@ -1207,7 +1217,8 @@ row_undo_mod(
 
 	ut_ad(thr_get_trx(thr) == node->trx);
 
-	row_undo_mod_parse_undo_rec(node, &mdl);
+	row_undo_mod_parse_undo_rec(
+		node, dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
 	if (node->table == NULL) {
 		/* It is already undone, or will be undone by another query
@@ -1246,11 +1257,7 @@ row_undo_mod(
 		err = row_undo_mod_clust(node, thr);
 	}
 
-	if (dd_mdl_for_undo(current_thd)) {
-		dd_table_close(node->table, current_thd, &mdl, false);
-	} else {
-		dd_table_close(node->table, nullptr, nullptr, false);
-	}
+	dd_table_close(node->table, current_thd, &mdl, false);
 
 	node->table = NULL;
 

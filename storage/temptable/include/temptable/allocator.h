@@ -1,16 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /** @file storage/temptable/include/temptable/allocator.h
 TempTable custom allocator. */
@@ -41,13 +49,13 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
  */
 #define _WIN32_WINNT 0x0601
 #include <Windows.h>
+
 #define HAVE_WINNUMA
 #endif /* _WIN32 */
 // clang-format on
 
-#include "temptable/constants.h"       /* temptable::ALLOCATOR_MAX_BLOCK_* */
-#include "temptable/result.h"          /* Result */
 #include "my_config.h"              /* HAVE_LIBNUMA */
+
 #include "my_dbug.h"                /* DBUG_ASSERT(), DBUG_PRINT() */
 #include "my_io.h"                  /* File */
 #include "my_psi_config.h"          /* HAVE_PSI_MEMORY_INTERFACE */
@@ -56,6 +64,8 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 #include "mysql/psi/psi_base.h"     /* PSI_NOT_INSTRUMENTED */
 #include "mysql/psi/psi_memory.h"   /* PSI_memory_key, PSI_memory_info */
 #include "sql/mysqld.h"             /* temptable_max_ram */
+#include "storage/temptable/include/temptable/constants.h" /* temptable::ALLOCATOR_MAX_BLOCK_* */
+#include "storage/temptable/include/temptable/result.h" /* Result */
 
 #ifdef HAVE_LIBNUMA
 #define TEMPTABLE_USE_LINUX_NUMA

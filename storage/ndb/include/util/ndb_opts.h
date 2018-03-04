@@ -2,13 +2,20 @@
    Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,8 +27,8 @@
 
 #include <ndb_global.h>
 
-#include <my_sys.h> /* loglevel needed by my_getopt.h */
-#include <my_getopt.h>
+#include "my_sys.h" /* loglevel needed by my_getopt.h */
+#include "my_getopt.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -140,21 +147,41 @@ ndb_std_get_one_option(int optid,
 		       const struct my_option *opt MY_ATTRIBUTE((unused)),
                        char *argument);
 
-void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
-               struct my_option *my_long_options);
 void ndb_short_usage_sub(const char* extra);
 
 bool ndb_is_load_default_arg_separator(const char* arg);
 
-/* Read the given [groups] from <conf_file> and return in argc/argv */
-int ndb_load_defaults(const char* conf_file,
-                      const char** groups,
-                      int *argc, char*** argv);
-/* Free memory returned in "argv" from ndb_load_defaults() */
-void ndb_free_defaults(char** argv);
-
 #ifdef __cplusplus
 }
+
+class Ndb_opts {
+public:
+  Ndb_opts(int & argc_ref, char** & argv_ref,
+           struct my_option * long_options,
+           const char * default_groups[] = 0);
+
+  ~Ndb_opts();
+
+  void set_usage_funcs(void(*short_usage_fn)(void),
+                       void(* long_usage_fn)(void) = 0);
+
+  int handle_options(bool (*get_opt_fn)(int, const struct my_option *,
+                                        char *) = ndb_std_get_one_option) const;
+  void usage() const;
+
+  static void registerUsage(Ndb_opts *);
+  static void release();
+
+private:
+  int * main_argc_ptr;
+  char *** main_argv_ptr;
+  const char ** mycnf_default_groups;
+  struct my_option * options;
+  char ** defaults_argv;
+  void (*short_usage_fn)(void), (*long_usage_extra_fn)(void);
+};
+
+
 #endif
 
 #endif /*_NDB_OPTS_H */

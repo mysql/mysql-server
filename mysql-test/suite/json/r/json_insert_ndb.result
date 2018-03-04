@@ -78,7 +78,7 @@ i	LENGTH(j)	j
 25	17	"23:24:25.000000"
 26	12	"2015-01-15"
 27	28	"2015-01-15 23:24:25.000000"
-28	40	{"type": "Point", "coordinates": [1, 1]}
+28	44	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	2	[]
 30	20	"base64:type15:yv4="
 31	24	"base64:type15:yv66vg=="
@@ -167,3 +167,16 @@ drop prepare ps2;
 drop table pt1;
 drop table pt2;
 drop table t1;
+#
+# Bug#26867509: JSON_OBJECT CREATES INVALID JSON CODE
+#
+CREATE TABLE t1(i INT, KEY(i));
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2(i INT, vc VARCHAR(100));
+INSERT INTO t2 SELECT i, JSON_ARRAY(i) FROM t1 GROUP BY i;
+SELECT * FROM t2 ORDER BY i;
+i	vc
+1	[1]
+2	[2]
+3	[3]
+DROP TABLE t1, t2;

@@ -1,5 +1,7 @@
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
+SET @orig_log_error_verbosity= @@global.log_error_verbosity;
+SET @@global.log_error_verbosity= 3;
 ------ Run plugin ------------------------------------------------
 INSTALL PLUGIN test_services_threaded SONAME 'TESTSERVICESTHREADED';
 ------ Wait until test execution in plugin is ready --------------
@@ -9,20 +11,21 @@ WHERE variable_name LIKE 'test_services_status';
 source include/wait_condition.inc;
 ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services_threaded;
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 ------ Service: my_snprintf --------------------------------------
 Starting test of my_snprintf in test_services_threaded.
 This is a text output of test_services_threaded formatted with my_snprintf.
 Shutting down test of my_snprintf in test_services_threaded.
 ------ Service: my_plugin_log_service ----------------------------
-CREATE TABLE t1 (c1 varchar(30), c2 TEXT);
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 
 FIELDS TERMINATED BY ' [';
-SELECT replace(c2,'\r','') FROM t1 WHERE c2 LIKE '%test_services_threaded%';
-replace(c2,'\r','')
-Note] Plugin test_services_threaded reported: 'Test_services_threaded with_snprintf_val: 1'
-Note] Plugin test_services_threaded reported: 'Test_services_threaded with_log_message_val: 1'
-Note] Plugin test_services_threaded reported: 'This is the test plugin for services'
-Warning] Plugin test_services_threaded reported: 'This is a warning from test plugin for services'
-ERROR] Plugin test_services_threaded reported: 'This is an error from test plugin for services'
-Note] Shutting down plugin 'test_services_threaded'
+SELECT replace(concat('[',c2,' [',c3),'\r','') AS msg FROM t1 WHERE c3 LIKE '%test_services_threaded%';
+msg
+[Note] [MY-000000] Plugin test_services_threaded reported: 'Test_services_threaded with_snprintf_val: 1'
+[Note] [MY-000000] Plugin test_services_threaded reported: 'Test_services_threaded with_log_message_val: 1'
+[Note] [MY-000000] Plugin test_services_threaded reported: 'This is the test plugin for services'
+[Warning] [MY-000000] Plugin test_services_threaded reported: 'This is a warning from test plugin for services'
+[ERROR] [MY-000000] Plugin test_services_threaded reported: 'This is an error from test plugin for services'
+[Note] [MY-010733] Shutting down plugin 'test_services_threaded'
 DROP TABLE IF EXISTS t1;

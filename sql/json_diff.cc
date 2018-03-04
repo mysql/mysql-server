@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,6 +24,7 @@
 
 #include "my_dbug.h"                            // DBUG_ASSERT
 #include "sql/current_thd.h"                    // current_thd
+#include "sql/debug_sync.h"
 #include "sql/field.h"                          // Field_json
 #include "sql/json_dom.h"                       // Json_dom, Json_wrapper
 #include "sql/json_path.h"                      // Json_path
@@ -503,6 +511,13 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
         {
           if (!replaced_path)
             DBUG_RETURN(enum_json_diff_status::REJECTED);
+          DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff",
+                          {
+                            const char act[]= "now SIGNAL signal.rpl_row_jsondiff_binarydiff_created";
+                            DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                            DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                               STRING_WITH_LEN(act)));
+                          };);
           continue;
         }
       }

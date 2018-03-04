@@ -1,17 +1,38 @@
 /* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <sys/types.h>
+
+#ifndef _WIN32
+#include <poll.h>
+#endif
 
 /**
   @file
@@ -219,22 +240,12 @@
     All tcp messages from beyond the event horizon will be ignored.
 
 */
-#include "xcom_profile.h"
-
-#include <assert.h>
-#include <errno.h>
-#include <limits.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/time.h>
-#include <sys/types.h>
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
-#include "x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 
 #ifndef _WIN32
 #include <net/if.h>
@@ -250,48 +261,53 @@
 #include <windows.h>
 #endif
 
-#include "app_data.h"
-#include "node_no.h"
-#include "server_struct.h"
-#include "simset.h"
-#include "site_struct.h"
-#include "task.h"
-#include "task_os.h"
-#include "xcom_base.h"
-#include "xcom_common.h"
-#include "xcom_detector.h"
-#include "xcom_transport.h"
-#include "xcom_vp.h"
-#include "xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/app_data.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/server_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_detector.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "xcom_ssl_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 #endif
 
-#include "bitset.h"
-#include "node_list.h"
-#include "node_set.h"
-#include "pax_msg.h"
-#include "site_def.h"
-#include "sock_probe.h"
-#include "synode_no.h"
-#include "task_debug.h"
-#include "task_net.h"
-#include "xcom_cache.h"
-#include "xcom_cfg.h"
-#include "xcom_interface.h"
-#include "xcom_memory.h"
-#include "xcom_msg_queue.h"
-#include "xcom_recover.h"
-#include "xcom_statistics.h"
-#include "xcom_vp_str.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/bitset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_list.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_set.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/pax_msg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cache.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_msg_queue.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_recover.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_statistics.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_vp_str.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/ssl.h"
+#ifdef WIN32
+// In OpenSSL before 1.1.0, we need this first.
+#include <winsock2.h>
+#endif  // WIN32
+#include <openssl/ssl.h>
 #endif
 
 /* {{{ Defines and constants */
 
+#define SYS_STRERROR_SIZE 512
 unsigned int event_horizon = EVENT_HORIZON_MIN;
 
 static void set_event_horizon(unsigned int eh) MY_ATTRIBUTE((unused));
@@ -311,7 +327,7 @@ int const threephase = 0;
 
 /* }}} */
 
-#include "retry.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/retry.h"
 
 #ifdef NODE_0_IS_ARBITRATOR
 int ARBITRATOR_HACK = 1;
@@ -3615,6 +3631,7 @@ int acceptor_learner_task(task_arg arg) {
   char *buf;
   linkage reply_queue;
   int errors;
+  server *srv;
   END_ENV;
 
   TASK_BEGIN
@@ -3629,6 +3646,7 @@ int acceptor_learner_task(task_arg arg) {
   ep->buflen = 0;
   ep->buf = NULL;
   ep->errors = 0;
+  ep->srv = 0;
 
   /* We have a connection, make socket non-blocking and wait for request */
   unblock_fd(ep->rfd.fd);
@@ -3685,9 +3703,9 @@ again:
     unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
     if (use_buffered_read) {
-      TASK_CALL(buffered_read_msg(&ep->rfd, ep->in_buf, ep->p, &n));
+      TASK_CALL(buffered_read_msg(&ep->rfd, ep->in_buf, ep->p, ep->srv, &n));
     } else {
-      TASK_CALL(read_msg(&ep->rfd, ep->p, &n));
+      TASK_CALL(read_msg(&ep->rfd, ep->p, ep->srv, &n));
     }
     if (((int)ep->p->op < (int)client_msg || ep->p->op > LAST_OP)) {
       /* invalid operation, ignore message */
@@ -3700,6 +3718,19 @@ again:
       break;
     }
     site = find_site_def(ep->p->synode);
+    /*
+      Getting a pointer to the server needs to be done after we have
+      received a message, since without having received a message, we
+      cannot know who it is from. We could peek at the message and de‐
+      serialize the message number and from field, but since the server
+      does not change, it should be sufficient to cache the server in
+      the acceptor_learner task. A cleaner solution would have been to
+      move the timestamps out of the server object, and have a map in‐
+      dexed by IP/port or UUID to track the timestamps, since this is
+      common to both the sender_task, reply_handler_task,  and the ac‐
+      ceptor_learner_task.
+    */
+    ep->srv = get_server(site, ep->p->from);
     ep->p->refcnt = 1; /* Refcnt from other end is void here */
     MAY_DBG(FN; NDBG(ep->rfd.fd, d); NDBG(task_now(), f);
             COPY_AND_FREE_GOUT(dbg_pax_msg(ep->p)););
@@ -3848,7 +3879,7 @@ int reply_handler_task(task_arg arg) {
 
       ADD_EVENTS(add_event(string_arg("ep->s->con.fd"));
                  add_event(int_arg(ep->s->con.fd)););
-      TASK_CALL(read_msg(&ep->s->con, ep->reply, &n));
+      TASK_CALL(read_msg(&ep->s->con, ep->reply, ep->s, &n));
       ADD_EVENTS(add_event(string_arg("ep->s->con.fd"));
                  add_event(int_arg(ep->s->con.fd)););
       ep->reply->refcnt = 1; /* Refcnt from other end is void here */
@@ -4554,128 +4585,107 @@ static inline result xcom_shut_close_socket(int *sock) {
   return res;
 }
 
+#define CONNECT_FAIL ret_fd = -1; goto end
+
 static int timed_connect(int fd, sockaddr *sock_addr, socklen_t sock_size) {
-  struct timeval timeout;
-  fd_set rfds, wfds, efds;
-  int res;
+  int timeout = 10000;
+  int ret_fd = fd;
+  int syserr;
+  int sysret;
+  struct pollfd fds;
 
-  timeout.tv_sec = 10;
-  timeout.tv_usec = 0;
-
-  FD_ZERO(&rfds);
-  FD_ZERO(&wfds);
-  FD_ZERO(&efds);
-  FD_SET(fd, &rfds);
-  FD_SET(fd, &wfds);
-  FD_SET(fd, &efds);
+  fds.fd = fd;
+  fds.events = POLLOUT;
+  fds.revents = 0;
 
   /* Set non-blocking */
   if (unblock_fd(fd) < 0) return -1;
 
   /* Trying to connect with timeout */
-  res = connect(fd, sock_addr, sock_size);
+  SET_OS_ERR(0);
+  sysret = connect(fd, sock_addr, sock_size);
 
-#if defined(_WIN32)
-  if (res == SOCKET_ERROR) {
-    res = WSAGetLastError();
-    /* If the error is WSAEWOULDBLOCK, wait. */
-    if (res == WSAEWOULDBLOCK) {
-      MAY_DBG(FN;
-              STRLIT("connect - error=WSAEWOULDBLOCK. Invoking select..."););
-#else
-  if (res < 0) {
-    if (errno == EINPROGRESS) {
-      MAY_DBG(FN; STRLIT("connect - errno=EINPROGRESS. Invoking select..."););
-#endif
-      res = select(fd + 1, &rfds, &wfds, &efds, &timeout);
-      MAY_DBG(FN; STRLIT("select - Finished. "); NEXP(res, d));
-      if (res == 0) {
-        G_MESSAGE(
-            "Timed out while waiting for connection to be established! "
-            "Cancelling connection attempt. (socket= %d, error=%d)",
-            fd, res);
-        G_WARNING("select - Timeout! Cancelling connection...");
-        return -1;
-      }
-#if defined(_WIN32)
-      else if (res == SOCKET_ERROR) {
+  if (is_socket_error(sysret)) {
+    syserr = GET_OS_ERR;
+    /* If the error is SOCK_EWOULDBLOCK or SOCK_EINPROGRESS or SOCK_EALREADY,
+     * wait. */
+    switch (syserr) {
+      case SOCK_EWOULDBLOCK:
+      case SOCK_EINPROGRESS:
+      case SOCK_EALREADY:
+        break;
+      default:
         G_WARNING(
-            "select - Error while connecting! "
-            "(socket= %d, error=%d)",
-            fd, WSAGetLastError());
-#else
-      else if (res < 0) {
-        G_WARNING(
-            "select - Error while connecting! "
-            "(socket= %d, error=%d, error msg='%s')",
-            fd, errno, strerror(errno));
-#endif
-        return -1;
-      } else {
-        if (FD_ISSET(fd, &wfds) || FD_ISSET(fd, &rfds)) {
-          MAY_DBG(FN; STRLIT("select - Socket ready!"););
-        }
-
-        if (FD_ISSET(fd, &efds)) {
-          /*
-            This is a non-blocking socket, so one needs to
-            find the issue that triggered the exception.
-           */
-          int socket_errno = 0;
-          socklen_t socket_errno_len = sizeof(errno);
-          if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (void *)&socket_errno,
-                         &socket_errno_len)) {
-            G_WARNING(
-                "Connection to socket %d failed. Unable to sort out the "
-                "connection error!",
-                fd);
-          } else {
-#if defined(_WIN32)
-            G_WARNING("Connection to socket %d failed with error %d.", fd,
-                      socket_errno);
-#else
-            G_WARNING("Connection to socket %d failed with error %d - %s.", fd,
-                      socket_errno, strerror(socket_errno));
-#endif
-          }
-          return -1;
-        }
-      }
-    } else {
-#if defined(_WIN32)
-      G_WARNING(
-          "connect - Error connecting "
-          "(socket=%d, error=%d).",
-          fd, WSAGetLastError());
-#else
-      G_WARNING(
-          "connect - Error connecting "
-          "(socket=%d, error=%d, error message='%s').",
-          fd, errno, strerror(errno));
-#endif
-      return -1;
+            "connect - Error connecting "
+            "(socket=%d, error=%d).",
+            fd, GET_OS_ERR);
+        CONNECT_FAIL;
     }
-  } else {
-    MAY_DBG(FN; STRLIT("connect - Connected to socket without waiting!"););
+
+    SET_OS_ERR(0);
+    while ((sysret = poll(&fds, 1, timeout)) < 0) {
+      syserr = GET_OS_ERR;
+      if (syserr != SOCK_EINTR && syserr != SOCK_EINPROGRESS) break;
+      SET_OS_ERR(0);
+    }
+    MAY_DBG(FN; STRLIT("poll - Finished. "); NEXP(sysret, d));
+
+    if (sysret == 0) {
+      G_MESSAGE(
+          "Timed out while waiting for connection to be established! "
+          "Cancelling connection attempt. (socket= %d, error=%d)",
+          fd, sysret);
+      /* G_WARNING("poll - Timeout! Cancelling connection..."); */
+      CONNECT_FAIL;
+    }
+
+    if (is_socket_error(sysret)) {
+      G_WARNING(
+          "poll - Error while connecting! "
+          "(socket= %d, error=%d)",
+          fd, GET_OS_ERR);
+      CONNECT_FAIL;
+    }
+
+    {
+      int socket_errno = 0;
+      socklen_t socket_errno_len = sizeof(socket_errno);
+
+      if ((fds.revents & POLLOUT) == 0) {
+        MAY_DBG(FN; STRLIT("POLLOUT not set - Socket failure!"););
+        ret_fd = -1;
+      }
+
+      if (fds.revents & (POLLERR | POLLHUP | POLLNVAL)) {
+        MAY_DBG(FN;
+                STRLIT("POLLERR | POLLHUP | POLLNVAL set - Socket failure!"););
+        ret_fd = -1;
+      }
+      if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &socket_errno,
+                     &socket_errno_len) != 0) {
+        G_WARNING("getsockopt socket %d failed.", fd);
+        ret_fd = -1;
+      } else {
+        if (socket_errno != 0) {
+          G_WARNING("Connection to socket %d failed with error %d.", fd,
+                    socket_errno);
+          ret_fd = -1;
+        }
+      }
+    }
   }
 
+end:
   /* Set blocking */
+  SET_OS_ERR(0);
   if (block_fd(fd) < 0) {
-#if defined(_WIN32)
     G_WARNING(
         "Unable to set socket back to blocking state. "
         "(socket=%d, error=%d).",
-        fd, WSAGetLastError());
-#else
-    G_WARNING(
-        "Unable to set socket back to blocking state. "
-        "(socket=%d, error=%d, error message='%s').",
-        fd, errno, strerror(errno));
-#endif
+        fd, GET_OS_ERR);
     return -1;
   }
-
-  return fd;
+  return ret_fd;
 }
 
 /* Connect to server on given port */
@@ -4684,6 +4694,7 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
   result ret = {0, 0};
   struct sockaddr_in sock_addr;
   socklen_t sock_size;
+  char buf[SYS_STRERROR_SIZE];
 
   DBGOUT(FN; STREXP(server); NEXP(port, d));
   G_MESSAGE("connecting to %s %d", server, port);
@@ -4705,19 +4716,11 @@ static connection_descriptor *connect_xcom(char *server, xcom_port port) {
   SET_OS_ERR(0);
   if (timed_connect(fd.val, (struct sockaddr *)&sock_addr, sock_size) == -1) {
     fd.funerr = to_errno(GET_OS_ERR);
-#if defined(_WIN32)
-    G_MESSAGE(
-        "Connecting socket to address %s in port %d failed with error %d.",
-        server, port, fd.funerr);
-#else
-    G_MESSAGE(
-        "Connecting socket to address %s in port %d failed with error %d - %s.",
-        server, port, fd.funerr, strerror(fd.funerr));
-#endif
+    G_MESSAGE("Connecting socket to address %s in port %d failed with error %d - %s.",
+              server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
     xcom_close_socket(&fd.val);
     return NULL;
   }
-
   {
     int peer = 0;
     /* Sanity check before return */

@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,21 +27,19 @@
 
 #include <fcntl.h>
 #include <limits.h>
-#include <m_ctype.h>
-#include <my_bit.h>
-#include <myisampack.h>
 #include <stdarg.h>
 #include <algorithm>
 #include <new>
 
 #include "lex_string.h"
+#include "m_ctype.h"
+#include "my_bit.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_io.h"
 #include "my_psi_config.h"
 #include "myisam.h"
-#include "myisamdef.h"
-#include "rt_index.h"
+#include "myisampack.h"
 #include "sql/current_thd.h"
 #include "sql/derror.h"
 #include "sql/key.h"                            // key_copy
@@ -44,6 +49,8 @@
 #include "sql/sql_plugin.h"
 #include "sql/sql_table.h"                      // tablename_to_filename
 #include "sql/system_variables.h"
+#include "storage/myisam/myisamdef.h"
+#include "storage/myisam/rt_index.h"
 
 using std::min;
 using std::max;
@@ -169,7 +176,7 @@ static void mi_check_print_msg(MI_CHECK *param,	const char* msg_type,
 
   if (!thd->get_protocol()->connection_alive())
   {
-    sql_print_error("%s", msgbuf);
+    LogErr(ERROR_LEVEL, ER_MYISAM_CHECK_METHOD_ERROR, msgbuf);
     return;
   }
 
@@ -645,13 +652,14 @@ void _mi_report_crashed(MI_INFO *file, const char *message,
     LogErr(ERROR_LEVEL, ER_MYISAM_CRASHED_ERROR_IN, sfile, sline);
 
   if (message)
-    sql_print_error("%s", message);
+    LogErr(ERROR_LEVEL, ER_MYISAM_CRASHED_ERROR, message);
 
   for (element= file->s->in_use; element; element= list_rest(element))
   {
     THD *thd= (THD*) element->data;
-    sql_print_error("%s", thd ? thd_security_context(thd, buf, sizeof(buf), 0)
-                              : "Unknown thread accessing table");
+    LogErr(ERROR_LEVEL, ER_MYISAM_CRASHED_ERROR,
+           thd ? thd_security_context(thd, buf, sizeof(buf), 0)
+               : "Unknown thread accessing table");
   }
   mysql_mutex_unlock(&file->s->intern_lock);
 }

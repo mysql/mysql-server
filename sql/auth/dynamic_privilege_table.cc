@@ -1,17 +1,24 @@
-/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/dynamic_privilege_table.h"
 
 #include <string.h>
@@ -33,7 +40,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "mysql/service_plugin_registry.h"
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-#include "records.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_auth_cache.h"
@@ -105,15 +111,9 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst)
   READ_RECORD read_record_info;
   Acl_table_intact table_intact(thd);
 
-  if (!tablelst[0].table->key_info ||
-      table_intact.check(tablelst[0].table,
+  if (table_intact.check(tablelst[0].table,
                          ACL_TABLES::TABLE_DYNAMIC_PRIV))
-  {
-    TABLE *table= tablelst[0].table;
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
     DBUG_RETURN(true);
-  }
 
   TABLE *table= tablelst[0].table;
   table->use_all_columns();
@@ -228,14 +228,8 @@ bool modify_dynamic_privileges_in_table(THD *thd, TABLE *table,
   uchar user_key[MAX_KEY_LENGTH];
   Acl_table_intact table_intact(thd);
 
-
-  if (!table->key_info ||
-      table_intact.check(table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
+  if (table_intact.check(table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
     DBUG_RETURN(true);
-  }
 
   table->use_all_columns();
   table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]

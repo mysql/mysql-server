@@ -1,40 +1,47 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <algorithm>
 #include <array>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "client/xprotocol_impl.h"
 #include "errmsg.h"
-#include "mock/factory.h"
-#include "mock/connection.h"
-#include "mock/connection_state.h"
-#include "mock/message_handler.h"
-#include "mock/query_result.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "client/xssl_config.h"
-#include "client/xconnection_config.h"
-#include "message_helpers.h"
+#include "plugin/x/client/xconnection_config.h"
+#include "plugin/x/client/xprotocol_impl.h"
+#include "plugin/x/client/xssl_config.h"
+#include "unittest/gunit/xplugin/xcl/message_helpers.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection_state.h"
+#include "unittest/gunit/xplugin/xcl/mock/factory.h"
+#include "unittest/gunit/xplugin/xcl/mock/message_handler.h"
+#include "unittest/gunit/xplugin/xcl/mock/query_result.h"
 
 
 namespace xcl {

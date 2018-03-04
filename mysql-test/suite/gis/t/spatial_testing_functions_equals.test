@@ -3,8 +3,8 @@
 # This test is aimed to focus on Functions for testing Relations between      #
 # Geometry Objects.                                                           #
 #                                                                             #
-# These functions take 2 geometries as inpout parameters and return           #
-# a qualitative or quantitavive realtion between themrealtion between them.   #
+# These functions take 2 geometries as input parameters and return            #
+# a qualitative or quantitative relation between them.                        #
 #                                                                             #
 # Creation Date: 2013-12-16                                                   #
 # Author : Horst Hunger                                                       #
@@ -1374,20 +1374,17 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_c
 --echo #====================================================================================
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 
---error ER_SRS_NOT_FOUND
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
---error ER_SRS_NOT_FOUND
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_SRS_NOT_FOUND
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
 
---error ER_SRS_NOT_FOUND
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
 
---error ER_SRS_NOT_FOUND
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
@@ -1418,6 +1415,18 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center
 --error ER_SRS_NOT_FOUND
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
 
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 
@@ -1437,8 +1446,11 @@ SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTEXT(@star_
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_SRS_NOT_FOUND
-SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_EQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT ST_EQUALS(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1510,8 +1522,11 @@ SELECT ST_EQUALS(,ST_GEOMFROMTEXT(@star_top));
 --error ER_GIS_DIFFERENT_SRIDS
 SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 
---error ER_SRS_NOT_FOUND
-SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT MBREQUALS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
 
 SELECT MBREQUALS(NULL,ST_GEOMFROMTEXT(@star_top));
 
@@ -1714,36 +1729,6 @@ SELECT MBREQUALS(
   ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 );
 
---echo # Undefined SRS (should fail)
-# Assume SRID 15000000 is undefined
---error ER_SRS_NOT_FOUND
-SELECT ST_EQUALS(
-  ST_GEOMFROMTEXT('POINT(0 0)', 15000000),
-  ST_GEOMFROMTEXT('POINT(0 0)', 15000000)
-);
---error ER_SRS_NOT_FOUND
-SELECT MBREQUALS(
-  ST_GEOMFROMTEXT('POINT(0 0)', 15000000),
-  ST_GEOMFROMTEXT('POINT(0 0)', 15000000)
-);
-
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 15000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (15000001, 1, 'TEST15000001', 'Foo', 15000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-SELECT ST_EQUALS(
-  ST_GEOMFROMTEXT('POINT(0 0)', 15000001),
-  ST_GEOMFROMTEXT('POINT(0 0)', 15000001)
-);
---error ER_SRS_PARSE_ERROR
-SELECT MBREQUALS(
-  ST_GEOMFROMTEXT('POINT(0 0)', 15000001),
-  ST_GEOMFROMTEXT('POINT(0 0)', 15000001)
-);
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 15000001;
-
 --echo #
 --echo # WL#10827 Ellipsoidal R-tree support functions
 --echo #
@@ -1768,8 +1753,8 @@ SELECT MBREquals(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
 
 CREATE TABLE t1 (
   id INT,
-  c GEOMETRY NOT NULL,
-  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+  c GEOMETRY NOT NULL SRID 0,
+  g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
   SPATIAL INDEX c_idx (c),
   SPATIAL INDEX g_idx (g)
 );
@@ -1849,3 +1834,19 @@ SELECT id, ST_AsText(g)
   ORDER BY id;
 
 DROP TABLE t1;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO MBREQUALS(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);
+--error ER_SRS_NOT_FOUND
+DO ST_EQUALS(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

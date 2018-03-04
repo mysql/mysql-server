@@ -44,7 +44,7 @@
 --source ../inc/group_replication.inc
 
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("\\[ERROR\\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
 SET SESSION sql_log_bin=1;
 
 # Store the values of gr_communication_debug_options before doing any operations on server1
@@ -173,7 +173,7 @@ SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="GCS_DEBUG_ALL";
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("\\[ERROR\\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin group_replication reported: 'Some debug options in '.*' are not valid.'");
 SET SESSION sql_log_bin=1;
 
 SET GLOBAL group_replication_group_name= "89ab83b0-9f17-11e3-a5e2-0800200c9a66";
@@ -204,3 +204,10 @@ SET GLOBAL GROUP_REPLICATION_COMMUNICATION_DEBUG_OPTIONS="";
 --enable_query_log
 
 --source ../inc/group_replication_end.inc
+
+# Known issue: Once bug#26729404 is fixed, remove the below lines.
+# For Server2, the value of gr_communications_debug_options can't be
+# set back to GCS_DEBUG_INVALID since its a garbage value and this
+# will cause check-testcase failure on server2. Thus, disabling the
+# check-testcase by sourcing 'force_restart.inc' file for the test.
+--source include/force_restart.inc

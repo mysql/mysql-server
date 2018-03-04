@@ -3,16 +3,24 @@
 Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -1199,5 +1207,17 @@ afer rename.
 dberr_t
 fts_upgrade_aux_tables(
 	dict_table_t*	table);
+
+/** Rename FTS AUX tablespace name from 8.0 format to 5.7 format.
+This will be done on upgrade failure
+@param[in]	table		parent table
+@param[in]	rollback	rollback the rename from 8.0 to 5.7
+				if true, rename to 5.7 format
+				if false, mark the table as evictable
+@return DB_SUCCESS on success, DB_ERROR on error */
+dberr_t
+fts_upgrade_rename(
+	const dict_table_t*	table,
+	bool			rollback);
 
 #endif /*!< fts0fts.h */

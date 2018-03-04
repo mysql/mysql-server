@@ -1,152 +1,102 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/gcs/xplatform/my_xp_mutex.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
 
-#ifdef _WIN32
-My_xp_mutex_win::My_xp_mutex_win()
-  :m_mutex(static_cast<native_mutex_t *>(malloc(sizeof(*m_mutex))))
+#ifndef XCOM_STANDALONE
+My_xp_mutex_server::My_xp_mutex_server()
+  :m_mutex(static_cast<mysql_mutex_t *>(malloc(sizeof(*m_mutex))))
 {}
 
 
-My_xp_mutex_win::~My_xp_mutex_win()
+My_xp_mutex_server::~My_xp_mutex_server()
 {
   free(m_mutex);
 }
 
 
-native_mutex_t *My_xp_mutex_win::get_native_mutex()
+mysql_mutex_t *My_xp_mutex_server::get_native_mutex()
 {
   return m_mutex;
 }
 
 
-int My_xp_mutex_win::init(const native_mutexattr_t *attr)
-{
-  InitializeCriticalSection(m_mutex);
-  return 0;
-};
-
-
-int My_xp_mutex_win::destroy()
-{
-  DeleteCriticalSection(m_mutex);
-  return 0;
-}
-
-
-int My_xp_mutex_win::lock()
-{
-  EnterCriticalSection(m_mutex);
-  return 0;
-}
-
-
-int My_xp_mutex_win::trylock()
-{
-  if (TryEnterCriticalSection(m_mutex))
-  {
-    /* Don't allow recursive lock */
-    if (m_mutex->RecursionCount > 1)
-    {
-      LeaveCriticalSection(m_mutex);
-      return EBUSY;
-    }
-    return 0;
-  }
-  return EBUSY;
-}
-
-
-int My_xp_mutex_win::unlock()
-{
-  LeaveCriticalSection(m_mutex);
-  return 0;
-}
-
-
-int My_xp_mutex_util::attr_init(native_mutexattr_t *attr)
-{
-  return 0;
-}
-
-
-int My_xp_mutex_util::attr_destroy(native_mutexattr_t *attr)
-{
-  return 0;
-}
-
-#else
-My_xp_mutex_pthread::My_xp_mutex_pthread()
-  :m_mutex(static_cast<native_mutex_t *>(malloc(sizeof(*m_mutex))))
-{}
-
-
-My_xp_mutex_pthread::~My_xp_mutex_pthread()
-{
-  free(m_mutex);
-}
-
-
-native_mutex_t *My_xp_mutex_pthread::get_native_mutex()
-{
-  return m_mutex;
-}
-
-int My_xp_mutex_pthread::init(const native_mutexattr_t *attr)
+int My_xp_mutex_server::init(PSI_mutex_key key, const native_mutexattr_t *attr)
 {
   if (m_mutex == NULL)
     return -1;
 
-  return pthread_mutex_init(m_mutex, attr);
-};
-
-
-int My_xp_mutex_pthread::destroy()
-{
-  return pthread_mutex_destroy(m_mutex);
+  return mysql_mutex_init(key, m_mutex, attr);
 }
 
 
-int My_xp_mutex_pthread::lock()
+int My_xp_mutex_server::destroy()
 {
-  return pthread_mutex_lock(m_mutex);
+  return mysql_mutex_destroy(m_mutex);
 }
 
-/* purecov: begin deadcode */
-int My_xp_mutex_pthread::trylock()
-{
-  return pthread_mutex_trylock(m_mutex);
-}
-/* purecov: end */
 
-int My_xp_mutex_pthread::unlock()
+int My_xp_mutex_server::lock()
 {
-  return pthread_mutex_unlock(m_mutex);
+  return mysql_mutex_lock(m_mutex);
 }
 
-/* purecov: begin deadcode */
+
+int My_xp_mutex_server::trylock()
+{
+  return mysql_mutex_trylock(m_mutex);
+}
+
+
+int My_xp_mutex_server::unlock()
+{
+  return mysql_mutex_unlock(m_mutex);
+}
+#endif
+
+
 int My_xp_mutex_util::attr_init(native_mutexattr_t *attr)
 {
+  /*
+    On Windows there is no initialization of mutex attributes.
+    Therefore, we simply return 0.
+  */
+#ifdef _WIN32
+  return 0;
+#else
   return pthread_mutexattr_init(attr);
+#endif
 }
 
 
 int My_xp_mutex_util::attr_destroy(native_mutexattr_t *attr)
 {
+  /*
+    On Windows there is no destruction of mutex attributes.
+    Therefore, we simply return 0.
+  */
+#ifdef _WIN32
+  return 0;
+#else
   return pthread_mutexattr_destroy(attr);
-}
-/* purecov: end */
 #endif
+}

@@ -272,9 +272,6 @@ WHERE name LIKE 'wait/synch/mutex/%'
 UPDATE performance_schema.setup_consumers SET enabled = 'YES';
 
 --error ER_TABLEACCESS_DENIED_ERROR
-UPDATE performance_schema.setup_timers SET timer_name = 'TICK';
-
---error ER_TABLEACCESS_DENIED_ERROR
 TRUNCATE TABLE performance_schema.events_waits_history_long;
 
 --error ER_TABLEACCESS_DENIED_ERROR
@@ -292,7 +289,6 @@ TRUNCATE TABLE performance_schema.events_waits_current;
 --echo # Grant access to change tables with the root account
 
 GRANT UPDATE ON performance_schema.setup_consumers TO pfs_user_4;
-GRANT UPDATE ON performance_schema.setup_timers TO pfs_user_4;
 GRANT UPDATE, SELECT ON performance_schema.setup_instruments TO pfs_user_4;
 GRANT DROP ON performance_schema.events_waits_current TO pfs_user_4;
 GRANT DROP ON performance_schema.events_waits_history TO pfs_user_4;
@@ -309,8 +305,6 @@ WHERE name LIKE 'wait/synch/mutex/%'
 
 UPDATE performance_schema.setup_consumers SET enabled = 'YES';
 
-UPDATE performance_schema.setup_timers SET timer_name = 'TICK';
-
 TRUNCATE TABLE performance_schema.events_waits_history_long;
 TRUNCATE TABLE performance_schema.events_waits_history;
 TRUNCATE TABLE performance_schema.events_waits_current;
@@ -324,11 +318,6 @@ DROP USER pfs_user_4;
 flush privileges;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
 UPDATE performance_schema.setup_consumers SET enabled = 'YES';
-
-UPDATE performance_schema.setup_timers SET timer_name = 'MICROSECOND' where name="idle";
-UPDATE performance_schema.setup_timers SET timer_name = 'CYCLE'       where name="wait";
-UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="stage";
-UPDATE performance_schema.setup_timers SET timer_name = 'NANOSECOND'  where name="statement";
 
 --echo #
 --echo # WL#2284: Increase the length of a user name

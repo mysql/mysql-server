@@ -5,3 +5,4 @@ call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations
 Test
 Message sizes match
 Postamble
+UNINSTALL PLUGIN mysqlx;

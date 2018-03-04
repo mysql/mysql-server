@@ -1,8 +1,5 @@
 # Test the detection of innodb_data_file_path mismatch.
 
-# Temporarily skipping the test when log-bin is enabled due to Bug#22269500
---source include/not_log_bin.inc
-
 --source include/not_valgrind.inc
 
 # Can be 0, depends on where the mysqld process was killed
@@ -84,7 +81,7 @@ SHOW TABLES;
 --error 1
 --exec $old_mysqld --innodb-fast-shutdown=0 --innodb-nonexistent-option
 
-let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern.inc
 
 --remove_file $SEARCH_FILE
@@ -121,7 +118,7 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 --error 1
 --exec $old_mysqld --innodb-force-recovery=1 --innodb-fast-shutdown=0 --innodb-nonexistent-option
 
-let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern.inc
 
 --remove_file $SEARCH_FILE

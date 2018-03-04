@@ -42,7 +42,9 @@ SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))
 SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
 SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+# star_collection_elems contains at least one invalid geometry.
 SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+# star_collection_multilinestr contains at least one invalid geometry.
 SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 
 # Star identical to the base star 
@@ -417,10 +419,13 @@ SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,1
 --echo #====================================================================================
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems)));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=110;
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
@@ -764,15 +769,13 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOL
 --echo #####################################################################################
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100)));
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145)));
 
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)));
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000)));
 
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)));
-
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
-
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)));
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135)));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
@@ -790,11 +793,7 @@ SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEO
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326)));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326)));
-
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,1048576)));
-
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326)));
 
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 
@@ -1015,27 +1014,60 @@ SELECT ST_ASTEXT(ST_INTERSECTION(
   ST_GEOMFROMTEXT('POINT(0 0)', 2000)
 ));
 
---echo # Geographic SRS (should pass)
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 SELECT ST_ASTEXT(ST_INTERSECTION(
   ST_GEOMFROMTEXT('POINT(0 0)', 4326),
   ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 ));
 
---echo # Undefined SRS (should pass with warning)
-# Assume SRID 16000000 is undefined
-SELECT ST_ASTEXT(ST_INTERSECTION(
-  ST_GEOMFROMTEXT('POINT(0 0)', 16000000),
-  ST_GEOMFROMTEXT('POINT(0 0)', 16000000)
-));
+--echo #
+--echo # Bug #25510403 SRID OF RESULT OF SET OPERATION IS DIFFERENT FROM INPUT
+--echo # GEOMETRIES
+--echo #
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 16000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (16000001, 1, 'TEST16000001', 'Foo', 16000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-SELECT ST_ASTEXT(ST_INTERSECTION(
-  ST_GEOMFROMTEXT('POINT(0 0)', 16000001),
-  ST_GEOMFROMTEXT('POINT(0 0)', 16000001)
-));
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 16000001;
+SELECT ST_SRID(ST_Intersection(
+  ST_GeomFromText('LINESTRING(0 0, 10 10)', 2000),
+  ST_GeomFromText('POINT(5 5)', 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Intersection(
+  ST_GeomFromText('LINESTRING(0 0, 10 10)', 2000),
+  ST_GeomFromText('LINESTRING(5 5, 15 15)', 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Intersection(
+  ST_GeomFromText('LINESTRING(0 0,10 10)', 2000),
+  ST_GeomFromText('POLYGON((20 20,20 25,25 25,25 20,20 20))', 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Intersection(
+  ST_GeomFromText('LINESTRING(0 0, 10 10)', 2000),
+  ST_GeomFromText('MULTIPOINT(5 5, 15 15)', 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Intersection(
+  ST_GeomFromText('LINESTRING(0 0,10 10)', 2000),
+  ST_GeomFromText('MULTILINESTRING((-5 -5,0 0),(0 0,10 10))', 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Intersection(
+  ST_GeomFromText('LINESTRING(0 0,10 10)', 2000),
+  ST_GeomFromText('MULTIPOLYGON(((20 20,20 25,25 25,25 20,20 20)))', 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Intersection(
+  ST_GeomFromText('LINESTRING(0 0, 10 10)', 2000),
+  ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 1,1 1,0 0)))', 2000)
+)) AS result;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_INTERSECTION(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

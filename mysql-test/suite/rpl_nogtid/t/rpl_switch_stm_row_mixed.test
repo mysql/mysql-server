@@ -326,7 +326,7 @@ connection master;
 let $you_want_to_test_UDF=0;
 if ($you_want_to_test_UDF)
 {
-  CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
+  CREATE FUNCTION metaphon RETURNS STRING SONAME '$UDF_EXAMPLE_LIB';
   prepare stmt1 from 'insert into t1 select metaphon(?)';
   set @string="emergency_133_";
   insert into t1 values("work_134_");

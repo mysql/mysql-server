@@ -3,13 +3,20 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -180,16 +187,25 @@ public:
   }
   const char* get_user() { return user; }
   const char* get_host() { return host; }
-  ulonglong get_timestamp();
+  ulonglong get_timestamp() const { return timestamp; }
   void set_user_host(THD* thd);
   my_option* get_option() { return &option; }
-  /**
-    THD::query_start_timeval_trunc() is used to measure query execution time
-    We dont need this as this is not about elapsed time for query, we only
-    need current  timestamp, thus using this function.
-  */
-  void set_timestamp() { timestamp= my_getsystime() / 10ULL; }
+  void set_timestamp()
+  {
+    timestamp= my_micro_time();
+  }
+  void clear_user_host_timestamp()
+  {
+    user[0] = '\0';
+    host[0] = '\0';
+    timestamp = 0;
+  }
   virtual bool is_non_persistent() {return flags & NOTPERSIST; }
+  /**
+    Check if plugin variable is persisted as a read only variable. For
+    server variables always return false.
+  */
+  virtual bool is_plugin_var_read_only() { return 0; }
 
   /**
      Update the system variable with the default value from either
@@ -348,8 +364,7 @@ public:
   int resolve(THD *thd);
   int check(THD *thd);
   int update(THD *thd);
-  void update_source();
-  void update_user_host_timestamp(THD *thd);
+  void update_source_user_host_timestamp(THD *thd);
   int light_check(THD *thd);
   /**
     Print variable in short form.
@@ -459,7 +474,7 @@ sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);
 sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length=0,
                          bool throw_error= false, bool locked= false);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
-
+bool keyring_access_test();
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 
 sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd);

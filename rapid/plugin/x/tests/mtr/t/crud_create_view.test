@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test data
 ## Test starts here
@@ -227,7 +228,7 @@ CREATE TABLE xtest.xtable (first INT, second JSON);
 CREATE USER xuser;
 
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 --let $assert_text= Global status of 'Mysqlx_crud_create_view'
 --let $assert_cond= [SHOW GLOBAL STATUS LIKE \'Mysqlx_crud_create_view\', Value, 1] = 15
@@ -237,6 +238,7 @@ CREATE USER xuser;
 
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 DROP USER xuser;
 UNINSTALL PLUGIN mysqlx;

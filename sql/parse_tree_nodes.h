@@ -1,13 +1,20 @@
 /* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,6 +23,8 @@
 #ifndef PARSE_TREE_NODES_INCLUDED
 #define PARSE_TREE_NODES_INCLUDED
 
+#include <cctype>                    // std::isspace
+#include <limits>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -40,9 +49,11 @@
 #include "sql/item_func.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
+#include "sql/sql_load.h"            // Sql_cmd_load_table
 #include "sql/mdl.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"              // table_alias_charset
+#include "sql/opt_explain.h"         // Sql_cmd_explain_other_thread
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h"  // PT_item_list
 #include "sql/parse_tree_node_base.h"
@@ -51,6 +62,7 @@
 #include "sql/query_result.h"        // Query_result
 #include "sql/resourcegroups/resource_group_sql_cmd.h"
 #include "sql/resourcegroups/resource_group_sql_cmd.h" // Type, Range
+#include "sql/sql_restart_server.h"  // Sql_cmd_restart_server
 #include "sql/session_tracker.h"
 #include "sql/set_var.h"
 #include "sql/sp_head.h"             // sp_head
@@ -59,6 +71,7 @@
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_cmd_ddl_table.h"   // Sql_cmd_create_table
+#include "sql/sql_cmd_srs.h"
 #include "sql/sql_lex.h"             // LEX
 #include "sql/sql_list.h"
 #include "sql/sql_parse.h"           // add_join_natural
@@ -75,6 +88,7 @@
 #include "sql/table.h"                   // Common_table_expr
 
 #include "thr_lock.h"
+#include "sql/table_function.h"          // Json_table_column
 
 class PT_field_def_base;
 class PT_hint_list;
@@ -543,17 +557,17 @@ class PT_table_factor_table_ident : public PT_table_reference
 
   Table_ident *table_ident;
   List<String> *opt_use_partition;
-  LEX_STRING *opt_table_alias;
+  const char * const opt_table_alias;
   List<Index_hint> *opt_key_definition;
 
 public:
   PT_table_factor_table_ident(Table_ident *table_ident_arg,
                               List<String> *opt_use_partition_arg,
-                              LEX_STRING *opt_table_alias_arg,
+                              const LEX_CSTRING &opt_table_alias_arg,
                               List<Index_hint> *opt_key_definition_arg)
   : table_ident(table_ident_arg),
     opt_use_partition(opt_use_partition_arg),
-    opt_table_alias(opt_table_alias_arg),
+    opt_table_alias(opt_table_alias_arg.str),
     opt_key_definition(opt_key_definition_arg)
   {}
 
@@ -576,6 +590,38 @@ public:
       return true;
     return false;
   }
+};
+
+
+class PT_json_table_column : public Parse_tree_node
+{
+public:
+  virtual Json_table_column *get_column() = 0;
+};
+
+
+class PT_table_factor_function : public PT_table_reference
+{
+  typedef PT_table_reference super;
+
+public:
+  PT_table_factor_function(Item *expr,
+                           const LEX_STRING &path,
+                           Trivial_array<PT_json_table_column *> *nested_cols,
+                           const LEX_STRING &table_alias)
+    : m_expr(expr),
+      m_path(path),
+      m_nested_columns(nested_cols),
+      m_table_alias(table_alias)
+  {}
+
+  bool contextualize(Parse_context *pc) override;
+
+private:
+  Item *m_expr;
+  const LEX_STRING m_path;
+  Trivial_array<PT_json_table_column *> *m_nested_columns;
+  const LEX_STRING m_table_alias;
 };
 
 
@@ -608,14 +654,14 @@ class PT_derived_table : public PT_table_reference
   typedef PT_table_reference super;
 
 public:
-  PT_derived_table(PT_subquery *subquery, LEX_STRING *table_alias,
+  PT_derived_table(PT_subquery *subquery, const LEX_CSTRING &table_alias,
                    Create_col_name_list *column_names);
 
   virtual bool contextualize(Parse_context *pc);
 
 private:
   PT_subquery *m_subquery;
-  LEX_STRING *m_table_alias;
+  const char * const m_table_alias;
   /// List of explicitely specified column names; if empty, no list.
   const Create_col_name_list column_names;
 };
@@ -1765,14 +1811,9 @@ public:
 };
 
 
-class PT_into_destination_outfile : public PT_into_destination
+class PT_into_destination_outfile final : public PT_into_destination
 {
   typedef PT_into_destination super;
-
-  const char *file_name;
-  const CHARSET_INFO *charset;
-  const Field_separators field_term;
-  const Line_separators line_term;
 
 public:
   PT_into_destination_outfile(const POS &pos,
@@ -1780,62 +1821,59 @@ public:
                               const CHARSET_INFO *charset_arg,
                               const Field_separators &field_term_arg,
                               const Line_separators &line_term_arg)
-    : PT_into_destination(pos),
-      file_name(file_name_arg.str),
-      charset(charset_arg),
-      field_term(field_term_arg),
-      line_term(line_term_arg)
-  {}
+    : PT_into_destination(pos), m_exchange(file_name_arg.str, false)
+  {
+    m_exchange.cs= charset_arg;
+    m_exchange.field.merge_field_separators(field_term_arg);
+    m_exchange.line.merge_line_separators(line_term_arg);
+  }
 
-  virtual bool contextualize(Parse_context *pc)
+  bool contextualize(Parse_context *pc) override
   {
     if (super::contextualize(pc))
       return true;
 
     LEX *lex= pc->thd->lex;
     lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-    if (!(lex->exchange= new (*THR_MALLOC) sql_exchange(file_name, 0)) ||
-        !(lex->result= new (*THR_MALLOC) Query_result_export(pc->thd, lex->exchange)))
+    if (!(lex->result= new (*THR_MALLOC) Query_result_export(pc->thd,
+                                                             &m_exchange)))
       return true;
-
-    lex->exchange->cs= charset;
-    lex->exchange->field.merge_field_separators(field_term);
-    lex->exchange->line.merge_line_separators(line_term);
 
     return false;
   }
+
+private:
+  sql_exchange m_exchange;
 };
 
 
-class PT_into_destination_dumpfile : public PT_into_destination
+class PT_into_destination_dumpfile final : public PT_into_destination
 {
   typedef PT_into_destination super;
 
-  const char *file_name;
-
 public:
-  explicit PT_into_destination_dumpfile(const POS &pos,
-                                        const LEX_STRING &file_name_arg)
-    : PT_into_destination(pos),
-      file_name(file_name_arg.str)
+  PT_into_destination_dumpfile(const POS &pos, const LEX_STRING &file_name_arg)
+    : PT_into_destination(pos), m_exchange(file_name_arg.str, true)
   {}
 
-  virtual bool contextualize(Parse_context *pc)
+  bool contextualize(Parse_context *pc) override
   {
     if (super::contextualize(pc))
       return true;
 
     LEX *lex= pc->thd->lex;
-    if (!lex->describe)
+    if (!lex->is_explain())
     {
       lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
-      if (!(lex->exchange= new (*THR_MALLOC) sql_exchange(file_name, 1)))
-        return true;
-      if (!(lex->result= new (*THR_MALLOC) Query_result_dump(pc->thd, lex->exchange)))
+      if (!(lex->result= new (*THR_MALLOC) Query_result_dump(pc->thd,
+                                                             &m_exchange)))
         return true;
     }
     return false;
   }
+
+private:
+  sql_exchange m_exchange;
 };
 
 
@@ -1898,7 +1936,7 @@ public:
     }
 
     LEX * const lex= pc->thd->lex;
-    if (lex->describe)
+    if (lex->is_explain())
       return false;
 
     Query_dumpvar *dumpvar= new (pc->mem_root) Query_dumpvar(pc->thd);
@@ -2436,9 +2474,9 @@ private:
 };
 
 
-class PT_select_stmt : public Parse_tree_node
+class PT_select_stmt : public Parse_tree_root
 {
-  typedef Parse_tree_node super;
+  typedef Parse_tree_root super;
 
 public:
   /**
@@ -2465,18 +2503,7 @@ public:
 
   PT_select_stmt(PT_query_expression *qe) : PT_select_stmt(qe, NULL) {}
 
-  virtual bool contextualize(Parse_context *pc)
-  {
-    if (super::contextualize(pc))
-      return true;
-
-    pc->thd->lex->sql_command= m_sql_command;
-
-    return m_qe->contextualize(pc) ||
-      contextualize_safe(pc, m_into);
-  }
-
-  virtual Sql_cmd *make_cmd(THD *thd);
+  Sql_cmd *make_cmd(THD *thd) override;
 
 private:
   enum_sql_command m_sql_command;
@@ -2712,6 +2739,265 @@ class PT_shutdown final : public Parse_tree_root
 
 public:
   Sql_cmd *make_cmd(THD *) override { return &sql_cmd; }
+};
+
+
+/**
+  Top-level node for the CREATE [OR REPLACE] SPATIAL REFERENCE SYSTEM statement.
+
+  @ingroup ptn_stmt
+*/
+class PT_create_srs final : public Parse_tree_root
+{
+  /// The SQL command object.
+  Sql_cmd_create_srs sql_cmd;
+  /// Whether OR REPLACE is specified.
+  bool m_or_replace;
+  /// Whether IF NOT EXISTS is specified.
+  bool m_if_not_exists;
+  /// SRID of the SRS to create.
+  ///
+  /// The range is larger than that of gis::srid_t, so it must be
+  /// verified to be less than the uint32 maximum value.
+  unsigned long long m_srid;
+  /// All attributes except SRID.
+  const Sql_cmd_srs_attributes &m_attributes;
+
+  /// Check if a UTF-8 string contains control characters.
+  ///
+  /// @note This function only checks single byte control characters (U+0000 to
+  /// U+001F, and U+007F). There are some control characters at U+0080 to U+00A0
+  /// that are not detected by this function.
+  ///
+  /// @param str The string.
+  /// @param length Length of the string.
+  ///
+  /// @retval false The string contains no control characters.
+  /// @retval true The string contains at least one control character.
+  bool contains_control_char(char *str, size_t length)
+  {
+    for (size_t pos= 0; pos < length; pos++)
+    {
+      if (std::iscntrl(str[pos]))
+        return true;
+    }
+    return false;
+  }
+
+public:
+  PT_create_srs (unsigned long long srid,
+                 const Sql_cmd_srs_attributes &attributes,
+                 bool or_replace, bool if_not_exists)
+    : m_or_replace(or_replace), m_if_not_exists(if_not_exists), m_srid(srid),
+      m_attributes(attributes)
+  {}
+
+  Sql_cmd *make_cmd(THD *thd) override
+  {
+    // Note: This function hard-codes the maximum length of various
+    // strings. These lengths must match those in
+    // sql/dd/impl/tables/spatial_reference_systems.cc.
+
+    thd->lex->sql_command= SQLCOM_CREATE_SRS;
+
+    if (m_srid > std::numeric_limits<gis::srid_t>::max())
+    {
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SRID",
+               m_or_replace ? "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM"
+                            : "CREATE SPATIAL REFERENCE SYSTEM");
+      return nullptr;
+    }
+    if (m_srid == 0)
+    {
+      my_error(ER_CANT_MODIFY_SRID_0, MYF(0));
+      return nullptr;
+    }
+
+    if (m_attributes.srs_name.str == nullptr)
+    {
+      my_error(ER_SRS_MISSING_MANDATORY_ATTRIBUTE, MYF(0), "NAME");
+      return nullptr;
+    }
+    MYSQL_LEX_STRING srs_name_utf8= {nullptr, 0};
+    if (thd->convert_string(&srs_name_utf8,
+                            &my_charset_utf8_bin,
+                            m_attributes.srs_name.str,
+                            m_attributes.srs_name.length,
+                            thd->charset()))
+    {
+      /* purecov: begin inspected */
+      my_error(ER_OOM, MYF(0));
+      return nullptr;
+      /* purecov: end */
+    }
+    if (srs_name_utf8.length == 0 ||
+        std::isspace(srs_name_utf8.str[0]) ||
+        std::isspace(srs_name_utf8.str[srs_name_utf8.length - 1]))
+    {
+      my_error(ER_SRS_NAME_CANT_BE_EMPTY_OR_WHITESPACE, MYF(0));
+      return nullptr;
+    }
+    if (contains_control_char(srs_name_utf8.str, srs_name_utf8.length))
+    {
+      my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "NAME");
+      return nullptr;
+    }
+    String srs_name_str(srs_name_utf8.str, srs_name_utf8.length,
+                        &my_charset_utf8_bin);
+    if (srs_name_str.numchars() > 80)
+    {
+      my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "NAME", 80);
+      return nullptr;
+    }
+
+    if (m_attributes.definition.str == nullptr)
+    {
+      my_error(ER_SRS_MISSING_MANDATORY_ATTRIBUTE, MYF(0), "DEFINITION");
+      return nullptr;
+    }
+    MYSQL_LEX_STRING definition_utf8= {nullptr, 0};
+    if (thd->convert_string(&definition_utf8,
+                            &my_charset_utf8_bin,
+                            m_attributes.definition.str,
+                            m_attributes.definition.length,
+                            thd->charset()))
+    {
+      /* purecov: begin inspected */
+      my_error(ER_OOM, MYF(0));
+      return nullptr;
+      /* purecov: end */
+    }
+    String definition_str(definition_utf8.str, definition_utf8.length,
+                        &my_charset_utf8_bin);
+    if (contains_control_char(definition_utf8.str, definition_utf8.length))
+    {
+      my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "DEFINITION");
+      return nullptr;
+    }
+    if (definition_str.numchars() > 4096)
+    {
+      my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "DEFINITION", 4096);
+      return nullptr;
+    }
+
+    MYSQL_LEX_STRING organization_utf8= {nullptr, 0};
+    if (m_attributes.organization.str != nullptr)
+    {
+      if (thd->convert_string(&organization_utf8,
+                              &my_charset_utf8_bin,
+                              m_attributes.organization.str,
+                              m_attributes.organization.length,
+                              thd->charset()))
+      {
+        /* purecov: begin inspected */
+        my_error(ER_OOM, MYF(0));
+        return nullptr;
+        /* purecov: end */
+      }
+      if (organization_utf8.length == 0 ||
+          std::isspace(organization_utf8.str[0]) ||
+          std::isspace(organization_utf8.str[organization_utf8.length - 1]))
+      {
+        my_error(ER_SRS_ORGANIZATION_CANT_BE_EMPTY_OR_WHITESPACE, MYF(0));
+        return nullptr;
+      }
+      String organization_str(organization_utf8.str, organization_utf8.length,
+                            &my_charset_utf8_bin);
+      if (contains_control_char(organization_utf8.str,
+                                organization_utf8.length))
+      {
+        my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "ORGANIZATION");
+        return nullptr;
+      }
+      if (organization_str.numchars() > 256)
+      {
+        my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "ORGANIZATION", 256);
+        return nullptr;
+      }
+
+      if (m_attributes.organization_coordsys_id >
+          std::numeric_limits<gis::srid_t>::max())
+      {
+        my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "IDENTIFIED BY",
+                 m_or_replace ? "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM"
+                 : "CREATE SPATIAL REFERENCE SYSTEM");
+        return nullptr;
+      }
+    }
+
+    MYSQL_LEX_STRING description_utf8= {nullptr, 0};
+    if (m_attributes.description.str != nullptr)
+    {
+      if (thd->convert_string(&description_utf8,
+                              &my_charset_utf8_bin,
+                              m_attributes.description.str,
+                              m_attributes.description.length,
+                              thd->charset()))
+      {
+        /* purecov: begin inspected */
+        my_error(ER_OOM, MYF(0));
+        return nullptr;
+        /* purecov: end */
+      }
+      String description_str(description_utf8.str, description_utf8.length,
+                            &my_charset_utf8_bin);
+      if (contains_control_char(description_utf8.str, description_utf8.length))
+      {
+        my_error(ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE, MYF(0), "DESCRIPTION");
+        return nullptr;
+      }
+      if (description_str.numchars() > 2048)
+      {
+        my_error(ER_SRS_ATTRIBUTE_STRING_TOO_LONG, MYF(0), "DESCRIPTION", 2048);
+        return nullptr;
+      }
+    }
+
+    sql_cmd.init(m_or_replace, m_if_not_exists, m_srid, srs_name_utf8,
+                 definition_utf8, organization_utf8,
+                 m_attributes.organization_coordsys_id, description_utf8);
+    return &sql_cmd;
+  }
+};
+
+
+/**
+  Top-level node for the DROP SPATIAL REFERENCE SYSTEM statement.
+
+  @ingroup ptn_stmt
+*/
+class PT_drop_srs final : public Parse_tree_root
+{
+  /// The SQL command object.
+  Sql_cmd_drop_srs sql_cmd;
+  /// SRID of the SRS to drop.
+  ///
+  /// The range is larger than that of gis::srid_t, so it must be
+  /// verified to be less than the uint32 maximum value.
+  unsigned long long m_srid;
+
+public:
+  PT_drop_srs (unsigned long long srid, bool if_exists)
+    : sql_cmd(srid, if_exists), m_srid(srid)
+  {}
+
+  Sql_cmd *make_cmd(THD *thd) override {
+    thd->lex->sql_command= SQLCOM_DROP_SRS;
+
+    if (m_srid > std::numeric_limits<gis::srid_t>::max())
+    {
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "SRID",
+               "DROP SPATIAL REFERENCE SYSTEM");
+      return nullptr;
+    }
+    if (m_srid == 0)
+    {
+      my_error(ER_CANT_MODIFY_SRID_0, MYF(0));
+      return nullptr;
+    }
+
+    return &sql_cmd;
+  }
 };
 
 
@@ -3565,7 +3851,7 @@ public:
                        const List<LEX_USER> *opt_except_roles= NULL)
   : sql_cmd(role_type, opt_except_roles)
   {
-    DBUG_ASSERT(role_type == ROLE_ALL || opt_except_roles == NULL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || opt_except_roles == NULL);
   }
   explicit PT_set_role(const List<LEX_USER> *roles) : sql_cmd(roles) {}
 
@@ -3783,12 +4069,12 @@ public:
 };
 
 
-class PT_show_privileges final : public Parse_tree_root
+class PT_show_grants final : public Parse_tree_root
 {
-  Sql_cmd_show_privileges sql_cmd;
+  Sql_cmd_show_grants sql_cmd;
 
 public:
-   PT_show_privileges(const LEX_USER *opt_for_user,
+   PT_show_grants(const LEX_USER *opt_for_user,
                       const List<LEX_USER> *opt_using_users)
   : sql_cmd(opt_for_user, opt_using_users)
   {
@@ -5260,6 +5546,84 @@ private:
 };
 
 
+class PT_json_table_column_for_ordinality final : public PT_json_table_column
+{
+  typedef PT_json_table_column super;
+
+public:
+  explicit PT_json_table_column_for_ordinality(const LEX_STRING &name)
+    : m_column(enum_jt_column::JTC_ORDINALITY),
+      m_name(name.str)
+  {}
+
+  bool contextualize(Parse_context *pc) override
+  {
+    m_column.init_for_tmp_table(MYSQL_TYPE_LONGLONG, 10, 0, true, true, 8,
+                                m_name);
+    return super::contextualize(pc);
+  }
+
+  Json_table_column *get_column() override { return &m_column; }
+
+private:
+  Json_table_column m_column;
+  const char *m_name;
+};
+
+
+class PT_json_table_column_with_path final : public PT_json_table_column
+{
+  typedef PT_json_table_column super;
+
+public:
+  PT_json_table_column_with_path(const LEX_STRING &name,
+                                 PT_type *type,
+                                 enum_jt_column col_type,
+                                 LEX_STRING path,
+                                 enum_jtc_on on_err,
+                                 const LEX_STRING &error_def,
+                                 enum_jtc_on on_empty,
+                                 const LEX_STRING &missing_def)
+    : m_column(col_type, path, on_err, error_def, on_empty, missing_def),
+      m_name(name.str),
+      m_type(type)
+  {}
+
+  bool contextualize(Parse_context *pc) override;
+
+  Json_table_column *get_column() override { return &m_column; }
+
+private:
+  Json_table_column m_column;
+  const char *m_name;
+  PT_type *m_type;
+};
+
+
+class PT_json_table_column_with_nested_path final : public PT_json_table_column
+{
+  typedef PT_json_table_column super;
+
+public:
+  PT_json_table_column_with_nested_path(
+      const LEX_STRING &path,
+      Trivial_array<PT_json_table_column *> *nested_cols)
+    : m_path(path),
+      m_nested_columns(nested_cols),
+      m_column(nullptr)
+  {}
+
+  bool contextualize(Parse_context *pc) override;
+
+  Json_table_column *get_column() override { return m_column; }
+
+private:
+  const LEX_STRING m_path;
+  const Trivial_array<PT_json_table_column *> *m_nested_columns;
+  Json_table_column *m_column;
+};
+
+
 struct Alter_tablespace_parse_context : public Tablespace_options
 {
   THD * const thd;
@@ -5592,6 +5956,111 @@ public:
 
 
   virtual ~PT_set_resource_group() {}
+};
+
+
+class PT_explain_for_connection final : public Parse_tree_root
+{
+public:
+  explicit
+  PT_explain_for_connection(my_thread_id thread_id) : m_cmd(thread_id) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+private:
+  Sql_cmd_explain_other_thread m_cmd;
+};
+
+
+class PT_explain final : public Parse_tree_root
+{
+public:
+  PT_explain(Explain_format_type format, Parse_tree_root *explainable_stmt)
+    : m_format(format), m_explainable_stmt(explainable_stmt)
+  {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+private:
+  const Explain_format_type m_format;
+  Parse_tree_root * const m_explainable_stmt;
+};
+
+
+class PT_load_table final : public Parse_tree_root
+{
+public:
+  PT_load_table(enum_filetype filetype,
+                thr_lock_type lock_type,
+                bool is_local_file,
+                const LEX_STRING filename,
+                On_duplicate on_duplicate,
+                Table_ident *table,
+                List<String> *opt_partitions,
+                const CHARSET_INFO *opt_charset,
+                String *opt_xml_rows_identified_by,
+                const Field_separators &opt_field_separators,
+                const Line_separators &opt_line_separators,
+                ulong opt_ignore_lines,
+                PT_item_list *opt_fields_or_vars,
+                PT_item_list *opt_set_fields,
+                PT_item_list *opt_set_exprs,
+                List<String> *opt_set_expr_strings)
+    : m_cmd(filetype,
+            is_local_file,
+            filename,
+            on_duplicate,
+            table,
+            opt_partitions,
+            opt_charset,
+            opt_xml_rows_identified_by,
+            opt_field_separators,
+            opt_line_separators,
+            opt_ignore_lines,
+            opt_fields_or_vars ? &opt_fields_or_vars->value : nullptr,
+            opt_set_fields ? &opt_set_fields->value : nullptr,
+            opt_set_exprs ? &opt_set_exprs->value : nullptr,
+            opt_set_expr_strings),
+      m_lock_type(lock_type),
+      m_opt_fields_or_vars(opt_fields_or_vars),
+      m_opt_set_fields(opt_set_fields),
+      m_opt_set_exprs(opt_set_exprs)
+  {
+      DBUG_ASSERT((opt_set_fields == nullptr) ^
+                  (opt_set_exprs != nullptr));
+      DBUG_ASSERT(opt_set_fields == nullptr ||
+                  opt_set_fields->value.elements ==
+                  opt_set_exprs->value.elements);
+  }
+
+  Sql_cmd *make_cmd(THD *thd) override;
+
+private:
+  Sql_cmd_load_table m_cmd;
+
+  const thr_lock_type m_lock_type;
+  PT_item_list *m_opt_fields_or_vars;
+  PT_item_list *m_opt_set_fields;
+  PT_item_list *m_opt_set_exprs;
+};
+
+
+/**
+  Top-level node for the SHUTDOWN statement
+
+  @ingroup ptn_stmt
+*/
+
+class PT_restart_server final : public Parse_tree_root
+{
+public:
+  Sql_cmd *make_cmd(THD *thd) override {
+    thd->lex->sql_command= SQLCOM_RESTART_SERVER;
+    return &sql_cmd;
+  }
+
+private:
+  Sql_cmd_restart_server sql_cmd;
 };
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

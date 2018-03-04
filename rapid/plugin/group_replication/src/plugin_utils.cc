@@ -1,22 +1,29 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin_utils.h"
+#include "plugin/group_replication/include/plugin_utils.h"
 
 #include "my_inttypes.h"
-#include "plugin.h"
+#include "plugin/group_replication/include/plugin.h"
 
 using std::vector;
 
@@ -65,4 +72,26 @@ void Blocked_transaction_handler::unblock_waiting_transactions()
     }
   }
   mysql_mutex_unlock(&unblocking_process_lock);
+}
+
+void log_primary_member_details()
+{
+  // Special case to display Primary member details in secondary member logs.
+  if (local_member_info->in_primary_mode() &&
+      (local_member_info->get_role() == Group_member_info::MEMBER_ROLE_SECONDARY))
+  {
+    std::string primary_member_uuid;
+    group_member_mgr->get_primary_member_uuid(primary_member_uuid);
+    Group_member_info* primary_member_info=
+                 group_member_mgr->get_group_member_info(primary_member_uuid);
+    if (primary_member_info != NULL)
+    {
+      log_message(MY_INFORMATION_LEVEL,
+                  "This server is working as secondary member with primary "
+                  "member address %s:%u.",
+                  primary_member_info->get_hostname().c_str(),
+                  primary_member_info->get_port());
+      delete primary_member_info;
+    }
+  }
 }

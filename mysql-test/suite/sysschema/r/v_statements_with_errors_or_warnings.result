@@ -9,7 +9,7 @@ warnings	bigint(20) unsigned	NO		NULL
 warning_pct	decimal(27,4)	NO		0.0000	
 first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
 last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-digest	varchar(32)	YES		NULL	
+digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.statements_with_errors_or_warnings;
 DESC sys.x$statements_with_errors_or_warnings;
 Field	Type	Null	Key	Default	Extra
@@ -22,5 +22,5 @@ warnings	bigint(20) unsigned	NO		NULL
 warning_pct	decimal(27,4)	NO		0.0000	
 first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
 last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-digest	varchar(32)	YES		NULL	
+digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.x$statements_with_errors_or_warnings;

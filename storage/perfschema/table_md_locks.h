@@ -1,17 +1,24 @@
 /* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TABLE_METADATA_LOCK_H
 #define TABLE_METADATA_LOCK_H
@@ -23,9 +30,9 @@
 
 #include <sys/types.h>
 
-#include "pfs_column_types.h"
-#include "pfs_engine_table.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/table_helper.h"
 
 struct PFS_metadata_lock;
 
@@ -50,8 +57,8 @@ struct row_metadata_lock
   ulong m_owner_thread_id;
   /** Column OWNER_EVENT_ID. */
   ulong m_owner_event_id;
-  /** Columns OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME. */
-  PFS_object_row m_object;
+  /** Columns OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME. */
+  PFS_column_row m_object;
 };
 
 class PFS_index_metadata_locks : public PFS_engine_index
@@ -68,8 +75,9 @@ public:
 
   PFS_index_metadata_locks(PFS_engine_key *key_1,
                            PFS_engine_key *key_2,
-                           PFS_engine_key *key_3)
-    : PFS_engine_index(key_1, key_2, key_3)
+                           PFS_engine_key *key_3,
+                           PFS_engine_key *key_4)
+    : PFS_engine_index(key_1, key_2, key_3, key_4)
   {
   }
 
@@ -102,10 +110,11 @@ class PFS_index_metadata_locks_by_object : public PFS_index_metadata_locks
 {
 public:
   PFS_index_metadata_locks_by_object()
-    : PFS_index_metadata_locks(&m_key_1, &m_key_2, &m_key_3),
+    : PFS_index_metadata_locks(&m_key_1, &m_key_2, &m_key_3, &m_key_4),
       m_key_1("OBJECT_TYPE"),
       m_key_2("OBJECT_SCHEMA"),
-      m_key_3("OBJECT_NAME")
+      m_key_3("OBJECT_NAME"),
+      m_key_4("COLUMN_NAME")
   {
   }
 
@@ -119,6 +128,7 @@ private:
   PFS_key_object_type m_key_1;
   PFS_key_object_schema m_key_2;
   PFS_key_object_name m_key_3;
+  PFS_key_column_name m_key_4;
 };
 
 class PFS_index_metadata_locks_by_owner : public PFS_index_metadata_locks

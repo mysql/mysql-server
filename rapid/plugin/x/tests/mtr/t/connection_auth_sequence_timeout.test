@@ -1,0 +1,76 @@
+## Test cases for authorization plugins
+
+--source include/have_ssl.inc
+--let $dont_load_mysqlx_cleaner_plugin = 0
+--source include/xplugin_preamble.inc
+
+
+#
+## Setup
+#
+
+call mtr.add_suppression("Maximum number of authentication attempts reached");
+
+--write_file $MYSQL_TMP_DIR/auth_seq.tmp
+-->import connection_auth_mechanism_memory_helpers.macro
+-->import ssl.macro
+
+-->echo
+-->echo #######################################################################
+-->echo ## 3. Authentication fails, and client is idle
+-->echo ##
+-->echo ## * Establish a connection, try to login with invalid data, do nothing
+-->echo ##   (waiting for disconnection)
+-->echo ## * Establish a connection, enable ssl, try to login with invalid data,
+-->echo ##   do nothing (waiting for disconnection)
+-->echo ##
+-->echo #
+
+-->echo
+-->echo #######################################################################
+-->echo ## New connection & SSL, user is waiting for disconnection after the auth
+-->echo ## failure
+newsession seq	-;
+
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_native	native	test	sha256_memory;
+
+peerdisc 30000 30000;
+
+-->echo
+-->echo #######################################################################
+-->echo ## New connection, user is waiting for disconnection after the auth
+-->echo ## failure
+newsession seq	-;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_native	native	test	sha256_memory;
+
+peerdisc 30000 30000;
+
+EOF
+
+--let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='AES256-SHA'
+
+--source ../include/create_mysql_accounts_for_xplugin_tests.inc
+
+
+#
+## Test starts here
+#
+
+SET GLOBAL mysqlx_connect_timeout = 15;
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.tmp 2>&1;
+
+#
+# Postamble
+#
+--remove_file $MYSQL_TMP_DIR/auth_seq.tmp
+
+--source ../include/remove_mysql_accounts_for_xplugin_tests.inc
+
+SET GLOBAL mysqlx_connect_timeout = DEFAULT;
+UNINSTALL PLUGIN mysqlx;
+UNINSTALL PLUGIN mysqlx_cache_cleaner;

@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -66,6 +73,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "sql/dd/dd_schema.h"               // dd::Schema_MDL_locker
+#include "sql/dd/types/table.h"             // dd::Table
 #include "sql/dd/string_type.h"
 #include "sql/debug_sync.h"                 // DEBUG_SYNC
 #include "sql/derror.h"                     // ER_THD
@@ -237,6 +245,9 @@ static bool show_plugins(THD *thd, plugin_ref plugin,
     break;
   case PLUGIN_IS_READY:
     table->field[2]->store(STRING_WITH_LEN("ACTIVE"), cs);
+    break;
+  case PLUGIN_IS_DYING:
+    table->field[2]->store(STRING_WITH_LEN("DELETING"), cs);
     break;
   case PLUGIN_IS_DISABLED:
     table->field[2]->store(STRING_WITH_LEN("DISABLED"), cs);
@@ -1622,12 +1633,33 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   {
     show_table_options= TRUE;
 
+    // Show tablespace name only if it is explicitly provided by user.
+    bool show_tablespace= false;
+    if (share->tmp_table)
+    {
+      // Innodb allows temporary tables in be in system temporary tablespace.
+      show_tablespace= share->tablespace;
+    }
+    else if (share->tablespace)
+    {
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Table *table_obj= nullptr;
+      if (thd->dd_client()->acquire(dd::String_type(share->db.str),
+                                    dd::String_type(share->table_name.str),
+                                    &table_obj))
+      {
+        DBUG_RETURN(true);
+      }
+      DBUG_ASSERT(table_obj != nullptr);
+      show_tablespace= table_obj->is_explicit_tablespace();
+    }
+
     /* TABLESPACE and STORAGE */
-    if (share->tablespace ||
+    if (show_tablespace ||
         share->default_storage_media != HA_SM_DEFAULT)
     {
       packet->append(STRING_WITH_LEN(" /*!50100"));
-      if (share->tablespace)
+      if (show_tablespace)
       {
         packet->append(STRING_WITH_LEN(" TABLESPACE "));
         append_identifier(thd, packet, share->tablespace,
@@ -4063,7 +4095,7 @@ static int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   else
     partial_cond= make_cond_for_info_schema(cond, tables);
 
-  if (lex->describe)
+  if (lex->is_explain())
   {
     /* EXPLAIN SELECT */
     error= 0;
@@ -5174,7 +5206,7 @@ bool get_schema_tables_result(JOIN *join,
   {
     QEP_TAB *const tab= join->qep_tab + i;
     if (!tab->table() || !tab->table_ref)
-      break;
+      continue;
 
     TABLE_LIST *const table_list= tab->table_ref;
     if (table_list->schema_table && thd->fill_information_schema_tables())
@@ -5187,7 +5219,7 @@ bool get_schema_tables_result(JOIN *join,
         continue;
 
       /* skip I_S optimizations specific to get_all_tables */
-      if (thd->lex->describe &&
+      if (thd->lex->is_explain() &&
           (table_list->schema_table->fill_table != get_all_tables))
         continue;
 
@@ -6025,3 +6057,231 @@ static void get_cs_converted_string_value(THD *thd,
   }
   return;
 }
+
+
+/**
+  A field's SQL type printout
+
+  @param type     the type to print
+  @param metadata field's metadata, depending on the type
+                  could be nothing, length, or length + decimals
+  @param str      String to print to
+  @param field_cs field's charset. When given [var]char length is printed in
+                  characters, otherwise - in bytes
+
+*/
+
+void show_sql_type(enum_field_types type, uint16 metadata, String *str,
+                   const CHARSET_INFO *field_cs)
+{
+  DBUG_ENTER("show_sql_type");
+  DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
+
+  switch (type)
+  {
+  case MYSQL_TYPE_TINY:
+    str->set_ascii(STRING_WITH_LEN("tinyint"));
+    break;
+
+  case MYSQL_TYPE_SHORT:
+    str->set_ascii(STRING_WITH_LEN("smallint"));
+    break;
+
+  case MYSQL_TYPE_LONG:
+    str->set_ascii(STRING_WITH_LEN("int"));
+    break;
+
+  case MYSQL_TYPE_FLOAT:
+    str->set_ascii(STRING_WITH_LEN("float"));
+    break;
+
+  case MYSQL_TYPE_DOUBLE:
+    str->set_ascii(STRING_WITH_LEN("double"));
+    break;
+
+  case MYSQL_TYPE_NULL:
+    str->set_ascii(STRING_WITH_LEN("null"));
+    break;
+
+  case MYSQL_TYPE_TIMESTAMP:
+  case MYSQL_TYPE_TIMESTAMP2:
+    str->set_ascii(STRING_WITH_LEN("timestamp"));
+    break;
+
+  case MYSQL_TYPE_LONGLONG:
+    str->set_ascii(STRING_WITH_LEN("bigint"));
+    break;
+
+  case MYSQL_TYPE_INT24:
+    str->set_ascii(STRING_WITH_LEN("mediumint"));
+    break;
+
+  case MYSQL_TYPE_NEWDATE:
+  case MYSQL_TYPE_DATE:
+    str->set_ascii(STRING_WITH_LEN("date"));
+    break;
+
+  case MYSQL_TYPE_TIME:
+  case MYSQL_TYPE_TIME2:
+    str->set_ascii(STRING_WITH_LEN("time"));
+    break;
+
+  case MYSQL_TYPE_DATETIME:
+  case MYSQL_TYPE_DATETIME2:
+    str->set_ascii(STRING_WITH_LEN("datetime"));
+    break;
+
+  case MYSQL_TYPE_YEAR:
+    str->set_ascii(STRING_WITH_LEN("year"));
+    break;
+
+  case MYSQL_TYPE_VAR_STRING:
+  case MYSQL_TYPE_VARCHAR:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length;
+      if (field_cs)
+        length= cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                                   "varchar(%u)", metadata / field_cs->mbmaxlen);
+      else
+        length= cs->cset->snprintf(cs, (char*) str->ptr(),
+                                   str->alloced_length(),
+                                   "varchar(%u(bytes))", metadata);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_BIT:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "bit(%d)", bit_length);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_DECIMAL:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "decimal(%d,?)", metadata);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_NEWDECIMAL:
+    {
+      const CHARSET_INFO *cs= str->charset();
+      /*
+        Field_new_decimal encodes metadata this way. Bit shifts can't be used
+        due to different endianness on different platforms.
+      */
+      uchar *metadata_ptr= (uchar*)&metadata;
+      uint len= *metadata_ptr;
+      uint dec= *(metadata_ptr + 1);
+      size_t length=
+        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                           "decimal(%d,%d)", len, dec);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_ENUM:
+    str->set_ascii(STRING_WITH_LEN("enum"));
+    break;
+
+  case MYSQL_TYPE_SET:
+    str->set_ascii(STRING_WITH_LEN("set"));
+    break;
+
+  case MYSQL_TYPE_TINY_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("tinyblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("tinytext"));
+    break;
+
+  case MYSQL_TYPE_MEDIUM_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("mediumblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("mediumtext"));
+    break;
+
+  case MYSQL_TYPE_LONG_BLOB:
+    if (!field_cs || field_cs == &my_charset_bin)
+      str->set_ascii(STRING_WITH_LEN("longblob"));
+    else
+      str->set_ascii(STRING_WITH_LEN("longtext"));
+    break;
+
+  case MYSQL_TYPE_BLOB:
+    /*
+      Field::real_type() lies regarding the actual type of a BLOB, so
+      it is necessary to check the pack length to figure out what kind
+      of blob it really is.
+      Non-'BLOB' is handled above.
+     */
+    switch (metadata)
+    {
+    case 1:
+      str->set_ascii(STRING_WITH_LEN("tinyblob"));
+      break;
+
+    case 3:
+      str->set_ascii(STRING_WITH_LEN("mediumblob"));
+      break;
+
+    case 4:
+      str->set_ascii(STRING_WITH_LEN("longblob"));
+      break;
+
+    default:
+    case 2:
+      if (!field_cs || field_cs == &my_charset_bin)
+        str->set_ascii(STRING_WITH_LEN("blob"));
+      else
+        str->set_ascii(STRING_WITH_LEN("text"));
+      break;
+    }
+    break;
+
+  case MYSQL_TYPE_STRING:
+    {
+      /*
+        This is taken from Field_string::unpack.
+      */
+      const CHARSET_INFO *cs= str->charset();
+      uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
+      size_t length;
+      if (field_cs)
+        length=
+          cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                             "char(%d)", bytes / field_cs->mbmaxlen);
+      else
+        length=
+          cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
+                             "char(%d(bytes))", bytes);
+      str->length(length);
+    }
+    break;
+
+  case MYSQL_TYPE_GEOMETRY:
+    str->set_ascii(STRING_WITH_LEN("geometry"));
+    break;
+
+  case MYSQL_TYPE_JSON:
+    str->set_ascii(STRING_WITH_LEN("json"));
+    break;
+
+  default:
+    str->set_ascii(STRING_WITH_LEN("<unknown type>"));
+  }
+  DBUG_VOID_RETURN;
+}
+
+
+

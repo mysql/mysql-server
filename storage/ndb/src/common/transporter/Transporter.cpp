@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -38,8 +45,11 @@ Transporter::Transporter(TransporterRegistry &t_reg,
 			 NodeId rNodeId,
 			 NodeId serverNodeId,
 			 int _byteorder, 
-			 bool _compression, bool _checksum, bool _signalId,
-                         Uint32 max_send_buffer)
+			 bool _compression,
+			 bool _checksum,
+			 bool _signalId,
+             Uint32 max_send_buffer,
+             bool _presend_checksum)
   : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
@@ -75,6 +85,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   byteOrder       = _byteorder;
   compressionUsed = _compression;
   checksumUsed    = _checksum;
+  check_send_checksum = _presend_checksum;
   signalIdUsed    = _signalId;
 
   m_timeOutMillis = 3000;
@@ -119,6 +130,7 @@ Transporter::configure(const TransporterConfiguration* conf)
       conf->localNodeId == localNodeId &&
       (conf->serverNodeId == conf->localNodeId) == isServer &&
       conf->checksum == checksumUsed &&
+      conf->preSendChecksum == check_send_checksum &&
       conf->signalId == signalIdUsed &&
       conf->isMgmConnection == isMgmConnection &&
       conf->type == m_type)
@@ -140,7 +152,7 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   }
 
   // Cache the connect address
-  my_socket_connect_address(sockfd, &m_connect_address);
+  ndb_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_server_impl(sockfd))
   {
@@ -213,7 +225,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     DBUG_RETURN(true);
   }
 
-  if (!my_socket_valid(sockfd))
+  if (!ndb_socket_valid(sockfd))
   {
     DBUG_PRINT("error", ("Socket " MY_SOCKET_FORMAT " is not valid",
                          MY_SOCKET_FORMAT_VALUE(sockfd)));
@@ -230,7 +242,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   if (s_output.println("%d %d", localNodeId, m_type) < 0)
   {
     DBUG_PRINT("error", ("Send of 'hello' failed"));
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -241,7 +253,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   if (s_input.gets(buf, 256) == 0)
   {
     DBUG_PRINT("error", ("Failed to read reply"));
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -257,7 +269,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     break;
   default:
     DBUG_PRINT("error", ("Failed to parse reply"));
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -269,7 +281,7 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   {
     g_eventLogger->error("Connected to wrong nodeid: %d, expected: %d",
                          nodeId, remoteNodeId);
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
@@ -280,12 +292,12 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
     g_eventLogger->error("Connection to node: %d uses different transporter "
                          "type: %d, expected type: %d",
                          nodeId, remote_transporter_type, m_type);
-    NDB_CLOSE_SOCKET(sockfd);
+    ndb_socket_close(sockfd);
     DBUG_RETURN(false);
   }
 
   // Cache the connect address
-  my_socket_connect_address(sockfd, &m_connect_address);
+  ndb_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_client_impl(sockfd))
     DBUG_RETURN(false);
@@ -317,3 +329,68 @@ Transporter::resetCounters()
   m_overload_count = 0;
   m_slowdown_count = 0;
 };
+
+void
+Transporter::checksum_state::dumpBadChecksumInfo(Uint32 inputSum,
+                                                 Uint32 badSum,
+                                                 size_t offset,
+                                                 Uint32 sig_remaining,
+                                                 const void* buf,
+                                                 size_t len) const
+{
+  /* Timestamped event showing issue, followed by details */
+  /* As eventLogger and stderr may not be in-sync, put details together */
+  g_eventLogger->error("Transporter::checksum_state::compute() failed");
+  fprintf(stderr,
+          "checksum_state::compute() failed "
+          "with sum 0x%x.\n"
+          "Input sum 0x%x compute offset %llu len %u "
+          "bufflen %llu\n",
+          badSum,
+          inputSum,
+          Uint64(offset),
+          sig_remaining,
+          Uint64(len));
+  /* Next dump buf content, with word alignment
+   * Buffer is a byte aligned window on signals made of words
+   * remaining bytes to end of multiple-of-word sized signal
+   * indicates where word alignmnent boundaries are
+   */
+  {
+    Uint32 pos = 0;
+    Uint32 buf_remain = Uint32(len);
+    const char* data = (const char*) buf;
+    const Uint32 firstWordBytes = Uint32((offset + sig_remaining) & 3);
+    if (firstWordBytes && (buf_remain >= firstWordBytes))
+    {
+      /* Partial first word */
+      Uint32 word = 0;
+      memcpy(&word, data, firstWordBytes);
+      fprintf(stderr, "\n-%4x  : 0x%08x\n", 4 - firstWordBytes, word);
+      buf_remain -= firstWordBytes;
+      pos += firstWordBytes;
+    }
+
+    if (buf_remain)
+      fprintf(stderr, "\n %4x  : ", pos);
+
+    while (buf_remain > 4)
+    {
+      Uint32 word;
+      memcpy(&word, data+pos, 4);
+      pos += 4;
+      buf_remain -= 4;
+      fprintf(stderr, "0x%08x ", word);
+      if (((pos + firstWordBytes) % 24) == 0)
+        fprintf(stderr, "\n %4x  : ", pos);
+    }
+    if (buf_remain > 0)
+    {
+      /* Partial last word */
+      Uint32 word = 0;
+      memcpy(&word, data + pos, buf_remain);
+      fprintf(stderr, "0x%08x\n", word);
+    }
+    fprintf(stderr, "\n\n");
+  }
+}

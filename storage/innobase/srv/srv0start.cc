@@ -18,16 +18,24 @@ their permission, and subject to the conditions contained in the file
 COPYING.Percona.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -78,7 +86,6 @@ Created 2/16/1996 Heikki Tuuri
 #include "trx0sys.h"
 #include "trx0trx.h"
 #include "ut0mem.h"
-#ifndef UNIV_HOTBACKUP
 # include <zlib.h>
 
 # include "arch0arch.h"
@@ -109,12 +116,6 @@ Created 2/16/1996 Heikki Tuuri
 # include "usr0sess.h"
 # include "ut0crc32.h"
 # include "ut0new.h"
-
-#ifdef HAVE_LZO1X
-#include <lzo/lzo1x.h>
-
-extern bool srv_lzo_disabled;
-#endif /* HAVE_LZO1X */
 
 /** fil_space_t::flags for hard-coded tablespaces */
 extern ulint		predefined_flags;
@@ -166,7 +167,7 @@ enum srv_start_state_t {
 };
 
 /** Track server thrd starting phases */
-static ulint	srv_start_state;
+static uint64_t	srv_start_state = SRV_START_STATE_NONE;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
@@ -177,7 +178,6 @@ static pfs_os_file_t	files[1000];
 
 /** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
-#endif /* !UNIV_HOTBACKUP */
 
 /** */
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
@@ -277,9 +277,8 @@ srv_file_check_mode(
 	return(true);
 }
 
-#ifndef UNIV_HOTBACKUP
 /** I/o-handler thread function.
-@param[in]      segment         The AIO segment the thread will work on */
+@param[in]	segment		The AIO segment the thread will work on */
 static
 void
 io_handler_thread(ulint segment)
@@ -290,9 +289,7 @@ io_handler_thread(ulint segment)
 		fil_aio_wait(segment);
 	}
 }
-#endif /* !UNIV_HOTBACKUP */
 
-#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates a log file.
 @return DB_SUCCESS or error code */
@@ -319,7 +316,7 @@ create_log_file(
 		<< (srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
 		<< " MB";
 
-	ret = os_file_set_size(name, *file,
+	ret = os_file_set_size(name, *file, 0,
 			       (os_offset_t) srv_log_file_size
 			       << UNIV_PAGE_SIZE_SHIFT,
 			       srv_read_only_mode, true);
@@ -412,8 +409,9 @@ create_log_files(
 		"innodb_redo_log", dict_sys_t::s_log_space_first_id,
 		fsp_flags_set_page_size(0, univ_page_size),
 		FIL_TYPE_LOG);
-	ut_a(fil_validate());
-	ut_a(log_space != NULL);
+
+	ut_ad(fil_validate());
+	ut_a(log_space != nullptr);
 
 	/* Once the redo log is set to be encrypted,
 	initialize encryption information. */
@@ -437,18 +435,20 @@ create_log_files(
 	logfile0 = fil_node_create(
 		logfilename, static_cast<page_no_t>(srv_log_file_size),
 		log_space, false, false);
-	ut_a(logfile0);
+
+	ut_a(logfile0 != nullptr);
 
 	for (unsigned i = 1; i < srv_n_log_files; i++) {
 
 		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
 
-		if (!fil_node_create(logfilename,
-				     static_cast<page_no_t>(srv_log_file_size),
-				     log_space, false, false)) {
+		if (fil_node_create(
+			logfilename,
+			static_cast<page_no_t>(srv_log_file_size),
+			log_space, false, false) == nullptr) {
 
 			ib::error()
-				<< "Cannot create file node for log file "
+				<< "Cannot create file for log file "
 				<< logfilename;
 
 			return(DB_ERROR);
@@ -462,7 +462,6 @@ create_log_files(
 	}
 
 	fil_open_log_and_system_tablespace_files();
-	fil_tablespace_open_create();
 
 	/* Create a log checkpoint. */
 	log_mutex_enter();
@@ -472,12 +471,12 @@ create_log_files(
 
 	/* Write encryption information into the first log file header
 	if redo log is set with encryption. */
-	if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags)) {
-		if (!log_write_encryption(log_space->encryption_key,
-					  log_space->encryption_iv,
-					  true)) {
-			return(DB_ERROR);
-		}
+	if (FSP_FLAGS_GET_ENCRYPTION(log_space->flags)
+	    && !log_write_encryption(
+		    log_space->encryption_key, log_space->encryption_iv,
+		    true)) {
+
+		return(DB_ERROR);
 	}
 
 	return(DB_SUCCESS);
@@ -496,7 +495,7 @@ create_log_files_rename(
 {
 	/* If innodb_flush_method=O_DSYNC,
 	we need to explicitly flush the log buffers. */
-	fil_flush(dict_sys_t::s_log_space_first_id);
+	fil_flush_file_redo();
 	/* Close the log files, so that we can rename
 	the first one. */
 	fil_close_log_files(false);
@@ -615,7 +614,7 @@ srv_undo_tablespace_create(
 		ib::info() << "Physically writing the file full";
 
 		ret = os_file_set_size(
-			file_name, fh,
+			file_name, fh, 0,
 			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES
 				<< UNIV_PAGE_SIZE_SHIFT,
 			srv_read_only_mode, true);
@@ -793,7 +792,7 @@ srv_undo_tablespace_fixup(
 }
 
 /** Open an undo tablespace.
-@param[in]	space_id	tablespace ID
+@param[in]	space_id	Undo tablespace ID
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -803,21 +802,23 @@ srv_undo_tablespace_open(space_id_t space_id)
 	bool			success;
 	ulint			flags;
 	bool			atomic_write;
+	std::string		scanned_name;
 	dberr_t			err = DB_ERROR;
 	undo::Tablespace	undo_space(space_id);
 	char*			undo_name = undo_space.space_name();
 	char*			file_name = undo_space.file_name();
-	fil_space_t*		space;
-	fil_node_t*		node = nullptr;
 
 	/* See if the previous name in the file map is correct. */
-	std::string	recover_name = fil_system_open_fetch(space_id);
-	if (recover_name.length() != 0
-	    && !fil_paths_equal(file_name, recover_name.c_str())) {
+	scanned_name = fil_system_open_fetch(space_id);
+
+	if (scanned_name.length() != 0
+		&& !Fil_path::equal(file_name, scanned_name)) {
+
 		/* Make sure that this space_id is used by the
 		correctly named undo tablespace. */
-		ib::error() << "Cannot create " << file_name
-			<< " because " << recover_name.c_str()
+		ib::info()
+			<< "Cannot create " << file_name
+			<< " because " << scanned_name
 			<< " already uses Space ID=" << space_id
 			<< "!  Did you change innodb_undo_directory?";
 
@@ -825,11 +826,14 @@ srv_undo_tablespace_open(space_id_t space_id)
 	}
 
 	/* Check if it was already opened during redo recovery. */
-	space = fil_space_get(space_id);
-	if (space != nullptr) {
-		node = UT_LIST_GET_FIRST(space->chain);
+	fil_space_t*	space = fil_space_get(space_id);
 
-		ut_ad(fil_paths_equal(recover_name.c_str(), node->name));
+	if (space != nullptr) {
+
+#ifdef UNIV_DEBUG
+		const auto&     file = space->files.front();
+		ut_ad(Fil_path::equal(scanned_name, file.name));
+#endif /* UNIV_DEBUG */
 
 		fil_flush(space_id);
 
@@ -879,22 +883,32 @@ srv_undo_tablespace_open(space_id_t space_id)
 		space = fil_space_create(
 			undo_name, space_id, flags, FIL_TYPE_TABLESPACE);
 
-		ut_a(space);
-		ut_a(fil_validate());
+		ut_a(space != nullptr);
+		ut_ad(fil_validate());
 
 		os_offset_t size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t)-1);
 		page_no_t	n_pages = static_cast<page_no_t>(
 			size / UNIV_PAGE_SIZE);
 
-		if (nullptr == fil_node_create(file_name, n_pages, space,
-					       false, atomic_write)) {
+		if (fil_node_create(
+			file_name, n_pages, space, false, atomic_write)
+			== nullptr) {
+
 			os_file_close(fh);
-			ib::error() << "Error creating file node for " << undo_name;
+
+			ib::error()
+				<< "Error creating file for "
+				<< undo_name;
+
 			return(DB_ERROR);
 		}
+
 	} else {
-		node->atomic_write = atomic_write;
+
+		auto&	file = space->files.front();
+
+		file.atomic_write = atomic_write;
 	}
 
 	/* Read the encryption metadata in this undo tablespace.
@@ -916,7 +930,8 @@ srv_undo_tablespace_open(space_id_t space_id)
 	But if it is under construction, we cannot open it until the
 	header page has been written. */
 	if (!undo::is_under_construction(space_id)) {
-		ut_a(fil_space_open(space_id));
+		bool	success = fil_space_open(space_id);
+		ut_a(success);
 	}
 
 	return(DB_SUCCESS);
@@ -933,7 +948,7 @@ dberr_t
 srv_undo_tablespaces_open(
 	ulong	target_undo_spaces)
 {
-	dberr_t					err;
+	dberr_t		err;
 
 	/* Build a list of existing undo tablespaces from the references
 	in the TRX_SYS page. (not including the system tablespace) */
@@ -1128,8 +1143,10 @@ srv_undo_tablespaces_create(
 
 		undo::spaces->add(space_id);
 
+		++cur_undo_spaces;
+
 		/* Quit when we have enough. */
-		if (++cur_undo_spaces >= target_undo_spaces) {
+		if (cur_undo_spaces >= target_undo_spaces) {
 			break;
 		}
 	}
@@ -1161,7 +1178,6 @@ srv_undo_tablespaces_construct(bool create_new_db)
 	ut_a(!srv_read_only_mode);
 	ut_a(!srv_force_recovery);
 
-	Space_Ids::const_iterator	it;
 	for (auto space_id : undo::s_under_construction) {
 
 		/* Enable undo log encryption if it's ON. */
@@ -1185,7 +1201,7 @@ srv_undo_tablespaces_construct(bool create_new_db)
 
 		mtr_start(&mtr);
 
-		mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
+		mtr_x_lock(fil_space_get_latch(space_id), &mtr);
 
 		if (!fsp_header_init(space_id,
 				     SRV_UNDO_TABLESPACE_SIZE_IN_PAGES,
@@ -1283,6 +1299,7 @@ srv_undo_tablespaces_upgrade()
 /** Downgrade undo tablespaces by deleting the new undo tablespaces which
 are not referenced by the TRX_SYS page.
 @return error code */
+static
 void
 srv_undo_tablespaces_downgrade()
 {
@@ -1561,7 +1578,6 @@ srv_start_state_is_set(
 
 /**
 Shutdown all background threads created by InnoDB. */
-static
 void
 srv_shutdown_all_bg_threads()
 {
@@ -1744,9 +1760,9 @@ srv_prepare_to_delete_redo_log_files(
 
 		log_write_up_to(flushed_lsn, true);
 
-		/* If innodb_flush_method=O_DSYNC,
-		we need to explicitly flush the log buffers. */
-		fil_flush(dict_sys_t::s_log_space_first_id);
+		/* If innodb_flush_method=O_DSYNC, we need to explicitly
+		flush the log buffers. */
+		fil_flush_file_redo();
 
 		ut_ad(flushed_lsn == log_get_lsn());
 
@@ -1778,7 +1794,7 @@ srv_prepare_to_delete_redo_log_files(
 					recovery "dir1;dir2; ... dirN"
 @return DB_SUCCESS or error code */
 dberr_t
-srv_start(bool create_new_db, const char* scan_directories)
+srv_start(bool create_new_db, const std::string& scan_directories)
 {
 	lsn_t		flushed_lsn;
 	page_no_t	sum_of_data_file_sizes;
@@ -1816,6 +1832,11 @@ srv_start(bool create_new_db, const char* scan_directories)
 		if (srv_read_only_mode) {
 			ib::error() << "Database upgrade cannot be"
 				" accomplished in read-only mode.";
+			return(srv_init_abort(DB_ERROR));
+		}
+		if (srv_force_recovery != 0) {
+			ib::error() << "Database upgrade cannot be"
+				<< " accomplished with innodb_force_recovery > 0";
 			return(srv_init_abort(DB_ERROR));
 		}
 	}
@@ -1900,15 +1921,14 @@ srv_start(bool create_new_db, const char* scan_directories)
 	ib::info() << (ut_crc32_cpu_enabled ? "Using" : "Not using")
 		<< " CPU crc32 instructions";
 
-	if (!create_new_db
-	    && scan_directories != nullptr
-	    && strlen(scan_directories) > 0) {
+	os_create_block_cache();
 
-		err = fil_scan_for_tablespaces(scan_directories);
+	fil_init(srv_max_n_open_files);
 
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
-		}
+	err = fil_scan_for_tablespaces(scan_directories);
+
+	if (err != DB_SUCCESS) {
+		return(srv_init_abort(err));
 	}
 
 	if (!srv_read_only_mode) {
@@ -1920,12 +1940,12 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 			srv_monitor_file_name = static_cast<char*>(
 				ut_malloc_nokey(
-					strlen(fil_path_to_mysql_datadir)
+					MySQL_datadir_path.len()
 					+ 20 + sizeof "/innodb_status."));
 
 			sprintf(srv_monitor_file_name,
 				"%s/innodb_status." ULINTPF,
-				fil_path_to_mysql_datadir,
+				static_cast<const char*>(MySQL_datadir_path),
 				os_proc_get_number());
 
 			srv_monitor_file = fopen(srv_monitor_file_name, "w+");
@@ -1987,8 +2007,6 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 		return(srv_init_abort(DB_ERROR));
 	}
-
-	fil_init(srv_file_per_table ? 50000 : 5000, srv_max_n_open_files);
 
 	double	size;
 	char	unit;
@@ -2061,19 +2079,19 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 		if (t < start) {
 			if (t == 0) {
-		                os_thread_create(
+				os_thread_create(
 					io_ibuf_thread_key,
 					io_handler_thread,
 					t);
 			} else {
 				ut_ad(t == 1);
-		                os_thread_create(
+				os_thread_create(
 					io_log_thread_key,
 					io_handler_thread, t);
 			}
 		} else if (t >= start && t < (start + srv_n_read_io_threads)) {
 
-		        os_thread_create(
+			os_thread_create(
 				io_read_thread_key,
 				io_handler_thread, t);
 
@@ -2081,11 +2099,11 @@ srv_start(bool create_new_db, const char* scan_directories)
 			   && t < (start + srv_n_read_io_threads
 				   + srv_n_write_io_threads)) {
 
-		        os_thread_create(
+			os_thread_create(
 				io_write_thread_key,
 				io_handler_thread, t);
 		} else {
-		        os_thread_create(
+			os_thread_create(
 				io_handler_thread_key,
 				io_handler_thread, t);
 		}
@@ -2265,8 +2283,8 @@ srv_start(bool create_new_db, const char* scan_directories)
 			fsp_flags_set_page_size(0, univ_page_size),
 			FIL_TYPE_LOG);
 
-		ut_a(fil_validate());
-		ut_a(log_space);
+		ut_ad(fil_validate());
+		ut_a(log_space != nullptr);
 
 		/* srv_log_file_size is measured in pages; if page size is 16KB,
 		then we have a limit of 64TB on 32 bit systems */
@@ -2275,10 +2293,11 @@ srv_start(bool create_new_db, const char* scan_directories)
 		for (unsigned j = 0; j < i; j++) {
 			sprintf(logfilename + dirnamelen, "ib_logfile%u", j);
 
-			if (!fil_node_create(
+			if (fil_node_create(
 				logfilename,
 				static_cast<page_no_t>(srv_log_file_size),
-				log_space, false, false)) {
+				log_space, false, false) == nullptr) {
+
 				return(srv_init_abort(DB_ERROR));
 			}
 		}
@@ -2290,17 +2309,16 @@ srv_start(bool create_new_db, const char* scan_directories)
 
 		/* Read the first log file header to get the encryption
 		information if it exist. */
-		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-		    if (!log_read_encryption()) {
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
+		    && !log_read_encryption()) {
+
 			return(srv_init_abort(DB_ERROR));
-		    }
 		}
 	}
 
 files_checked:
 	/* Open all log files and data files in the system
-	tablespace: we keep them open until database
-	shutdown */
+	tablespace: we keep them open until database shutdown */
 
 	fil_open_log_and_system_tablespace_files();
 
@@ -2348,7 +2366,8 @@ files_checked:
 
 		flushed_lsn = log_get_lsn();
 
-		fil_write_flushed_lsn(flushed_lsn);
+		err = fil_write_flushed_lsn(flushed_lsn);
+		ut_a(err == DB_SUCCESS);
 
 		create_log_files_rename(
 			logfilename, dirnamelen, flushed_lsn, logfile0);
@@ -2422,15 +2441,15 @@ files_checked:
 		    && fil_check_missing_tablespaces()) {
 
 			ib::error()
-				<< "Use --innodb-scan-directories to find the"
-				<< " the tablespace files. If that fails then use"
+				<< "Use --innodb-directories to find the"
+				<< " tablespace files. If that fails then use"
 				<< " --innodb-force-recvovery=1 to ignore"
 				<< " this and to permanently lose all changes"
 				<< " to the missing tablespace(s)";
 
 			/* Set the abort flag to true. */
-			void*	ptr = recv_recovery_from_checkpoint_finish(true);
-			ut_a(ptr == nullptr);
+			auto	p = recv_recovery_from_checkpoint_finish(true);
+			ut_a(p == nullptr);
 
 			return(srv_init_abort(DB_ERROR));
 		}
@@ -2466,13 +2485,22 @@ files_checked:
 		    && (srv_log_file_size_requested != srv_log_file_size
 			|| srv_n_log_files_found != srv_n_log_files)) {
 
-			if (!srv_dict_metadata->empty()) {
+			/* Prepare to replace the redo log files. */
+
+			if (srv_read_only_mode) {
+				ib::error() << "Cannot resize log files"
+					" in read-only mode.";
+				return(srv_init_abort(DB_READ_ONLY));
+			}
+
+			if (srv_dict_metadata != nullptr
+			    && !srv_dict_metadata->empty()) {
+
 				/* Open this table in case srv_dict_metadata
 				should be applied to this table before
 				checkpoint. And because DD is not fully up yet,
-				the table can be opened by internal APIs.
-				FIXME: What if there is no enough room
-				in redo logs? */
+				the table can be opened by internal APIs. */
+
 				fil_space_t*	space =
 					fil_space_acquire_silent(
 						dict_sys_t::s_space_id);
@@ -2484,8 +2512,10 @@ files_checked:
 						dict_sys_t::s_dd_space_name,
 						dict_sys_t::s_dd_space_name,
 						dict_sys_t::s_dd_space_file_name,
-						true);
+						true, false);
 					if (error != DB_SUCCESS) {
+						ib::error() << "Cannot open"
+							" DD tablespace.";
 						return(srv_init_abort(
 							DB_ERROR));
 					}
@@ -2495,15 +2525,11 @@ files_checked:
 
 				dict_persist->table_buffer = UT_NEW_NOKEY(
 					DDTableBuffer());
+				/* This writes redo logs. Since the log file
+				size hasn't changed now, there should be enough
+				room in log files, supposing log_free_check()
+				works fine before crash */
 				srv_dict_metadata->store();
-			}
-
-			/* Prepare to replace the redo log files. */
-
-			if (srv_read_only_mode) {
-				ib::error() << "Cannot resize log files"
-					" in read-only mode.";
-				return(srv_init_abort(DB_READ_ONLY));
 			}
 
 			/* Prepare to delete the old redo log files */
@@ -2519,7 +2545,8 @@ files_checked:
 			RECOVERY_CRASH(3);
 
 			/* Stamp the LSN to the data files. */
-			fil_write_flushed_lsn(flushed_lsn);
+			err = fil_write_flushed_lsn(flushed_lsn);
+			ut_a(err == DB_SUCCESS);
 
 			RECOVERY_CRASH(4);
 
@@ -2707,9 +2734,14 @@ files_checked:
 	server could crash in middle of key rotation. Some tablespace
 	didn't complete key rotation. Here, we will resume the
 	rotation. */
-	if (!srv_read_only_mode && !create_new_db
+	if (!srv_read_only_mode
+	    && !create_new_db
 	    && srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
-		fil_encryption_rotate();
+
+		if (!fil_encryption_rotate()) {
+
+			ib::info() << "fil_encryption_rotate() failed!";
+		}
 	}
 
 	srv_is_being_started = false;
@@ -2793,15 +2825,15 @@ files_checked:
 /** Applier of dynamic metadata */
 struct metadata_applier
 {
-        /** Default constructor */
-        metadata_applier() {}
-        /** Visitor.
-        @param[in]      table   table to visit */
-        void operator()(dict_table_t* table) const
-        {
-                ut_ad(dict_sys->dynamic_metadata != NULL);
+	/** Default constructor */
+	metadata_applier() {}
+	/** Visitor.
+	@param[in]      table   table to visit */
+	void operator()(dict_table_t* table) const
+	{
+		ut_ad(dict_sys->dynamic_metadata != NULL);
 		ib_uint64_t	autoinc = table->autoinc;
-                dict_table_load_dynamic_metadata(table);
+		dict_table_load_dynamic_metadata(table);
 		/* For those tables which were not opened by
 		ha_innobase::open() and not initialized by
 		innobase_initialize_autoinc(), the next counter should be
@@ -2809,7 +2841,7 @@ struct metadata_applier
 		if (autoinc != table->autoinc && table->autoinc != ~0ULL) {
 			++table->autoinc;
 		}
-        }
+	}
 };
 
 /** Apply the dynamic metadata to all tables */
@@ -2817,15 +2849,15 @@ static
 void
 apply_dynamic_metadata()
 {
-        const metadata_applier  applier;
+	const metadata_applier  applier;
 
-        dict_sys->for_each_table(applier);
+	dict_sys->for_each_table(applier);
 
-        if (srv_dict_metadata != NULL) {
-                srv_dict_metadata->apply();
-                UT_DELETE(srv_dict_metadata);
-                srv_dict_metadata = NULL;
-        }
+	if (srv_dict_metadata != NULL) {
+		srv_dict_metadata->apply();
+		UT_DELETE(srv_dict_metadata);
+		srv_dict_metadata = NULL;
+	}
 }
 
 /** On a restart, initialize the remaining InnoDB subsystems so that
@@ -2893,8 +2925,10 @@ srv_start_threads(
 		return;
 	}
 
-	if (!bootstrap && srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
+	if (!bootstrap
+	    && srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
 	    && trx_sys_need_rollback()) {
+
 		/* Rollback all recovered transactions that are
 		not in committed nor in XA PREPARE state. */
 		trx_rollback_or_clean_is_active = true;
@@ -2947,7 +2981,7 @@ srv_fts_close(void)
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		fts_t*          fts = table->fts;
+		fts_t*	fts = table->fts;
 
 		if (fts != NULL) {
 			fts_sync_table(table);
@@ -2956,7 +2990,7 @@ srv_fts_close(void)
 
 	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
 	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		fts_t*          fts = table->fts;
+		fts_t*	fts = table->fts;
 
 		if (fts != NULL) {
 			fts_sync_table(table);
@@ -3150,7 +3184,6 @@ srv_shutdown()
 	srv_shutdown_state = SRV_SHUTDOWN_NONE;
 	srv_start_state = SRV_START_STATE_NONE;
 }
-#endif /* !UNIV_HOTBACKUP */
 
 #if 0 // TODO: Enable this in WL#6608
 /********************************************************************
@@ -3242,28 +3275,19 @@ srv_get_encryption_data_filename(
 	char*		filename,
 	ulint		max_len)
 {
-	ulint		len;
-	char*		path;
-
 	/* Make sure the data_dir_path is set. */
 	dd_get_and_save_data_dir_path<dd::Table>(table, NULL, false);
 
-	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
+	std::string	path = dict_table_get_datadir(table);
 
-		path = fil_make_filepath(
-			table->data_dir_path, table->name.m_name, CFP, true);
-	} else {
-		path = fil_make_filepath(NULL, table->name.m_name, CFP, false);
-	}
+	auto	filepath = Fil_path::make(path, table->name.m_name, CFP, true);
 
-	ut_a(path);
-	len = ut_strlen(path);
+	size_t	len = strlen(filepath);
 	ut_a(max_len >= len);
 
-	strcpy(filename, path);
+	strcpy(filename, filepath);
 
-	ut_free(path);
+	ut_free(filepath);
 }
 
 /** Call exit(3) */

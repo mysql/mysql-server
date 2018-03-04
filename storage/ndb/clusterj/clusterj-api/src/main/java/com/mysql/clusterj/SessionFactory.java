@@ -2,13 +2,20 @@
  *  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
+ *  it under the terms of the GNU General Public License, version 2.0,
+ *  as published by the Free Software Foundation.
+ *
+ *  This program is also distributed with certain software (including
+ *  but not limited to OpenSSL) that is licensed under separate terms,
+ *  as designated in a particular file or component or in included license
+ *  documentation.  The authors of MySQL hereby grant you an additional
+ *  permission to link the program and your derivative works with the
+ *  separately licensed software that they have included with MySQL.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU General Public License, version 2.0, for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
@@ -98,5 +105,51 @@ public interface SessionFactory {
         }
         public final int value;
     }
+
+    /** Bind receive threads to cpuids for all connections in the connection
+     * pool. Specify -1 to unset receive thread cpu binding for a connection.
+     * The cpuid must be between 0 and the number of cpus in the machine.
+     * @throws ClusterJUserException if the cpuid is illegal or if the
+     *   number of elements in cpuids is not equal to the number of connections
+     *   in the connection pool.
+     * @throws ClusterJFatalInternalException if the binding fails due to some
+     *   internal reason.
+     * @since 7.5.7
+     */
+    public void setRecvThreadCPUids(short[] cpuids);
+
+    /** Get receive thread bindings to cpus for all connections in the
+     * connection pool. If a receive thread is not bound to a cpu, the
+     * corresponding value will be -1.
+     * @since 7.5.7
+     */
+    public short[] getRecvThreadCPUids();
+
+    /** Set the receive thread activation threshold for all connections in the
+     * connection pool. 16 or higher means that receive threads are never used
+     * as receivers. 0 means that the receive thread is always active, and that
+     * retains poll rights for its own exclusive use, effectively blocking all
+     * user threads from becoming receivers. In such cases care should be taken
+     * to ensure that the receive thread does not compete with the user thread
+     * for CPU resources; it is preferable for it to be locked to a CPU for its
+     * own exclusive use. The default is 8.
+     * @throws ClusterJUserException if the value is negative
+     * @throws ClusterJFatalInternalException if the method fails due to some
+     *    internal reason.
+     * @since 7.5.7
+     */
+    public void setRecvThreadActivationThreshold(int threshold);
+
+    /** Get the receive thread activation threshold for all connections in the
+     * connection pool. 16 or higher means that receive threads are never used
+     * as receivers. 0 means that the receive thread is always active, and that
+     * retains poll rights for its own exclusive use, effectively blocking all
+     * user threads from becoming receivers. In such cases care should be taken
+     * to ensure that the receive thread does not compete with the user thread
+     * for CPU resources; it is preferable for it to be locked to a CPU for its
+     * own exclusive use. The default is 8.
+     * @since 7.5.7
+     */
+    public int getRecvThreadActivationThreshold();
 
 }

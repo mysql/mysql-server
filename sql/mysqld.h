@@ -1,27 +1,35 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef MYSQLD_INCLUDED
 #define MYSQLD_INCLUDED
 
 #include "my_config.h"
 
+#include <atomic>
 #include <signal.h>
+#include <stdint.h>  // int32_t
 #include <sys/types.h>
 #include <time.h>
-#include <atomic>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -60,6 +68,9 @@
 #include "mysql/psi/psi_statement.h"       /* PSI_statement_info */
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"                     // SERVER_VERSION_LENGTH
+#ifdef _WIN32
+#include "sql/nt_servc.h"
+#endif // _WIN32
 #include "sql/rpl_filter.h"                // Rpl_filter
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"                 // UUID_LENGTH
@@ -111,6 +122,16 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> Key_map; /* Used for finding keys */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
 
 /* Function prototypes */
+
+
+/**
+  Signal the server thread for restart.
+
+  @return false if the thread has been successfully signalled for restart
+          else true.
+*/
+
+bool signal_restart_server();
 void kill_mysql(void);
 void refresh_status();
 bool is_secure_file_path(const char *path);
@@ -153,12 +174,16 @@ extern bool opt_help;
 extern bool opt_verbose;
 extern bool opt_character_set_client_handshake;
 extern MYSQL_PLUGIN_IMPORT std::atomic<int32> connection_events_loop_aborted_flag;
+extern bool opt_no_dd_upgrade;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
 extern bool opt_slave_compressed_protocol;
 extern ulong slave_exec_mode_options;
-extern Rpl_filter* global_rpl_filter;
+extern Rpl_global_filter rpl_global_filter;
+extern int32_t opt_regexp_time_limit;
+extern int32_t opt_regexp_stack_limit;
+
 
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
@@ -307,11 +332,6 @@ extern handlerton *temptable_hton;
 extern handlerton *innodb_hton;
 extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-/* engine specific hook, to be made generic */
-extern int(*ndb_wait_setup_func)(ulong);
-extern ulong opt_ndb_wait_setup;
-#endif
 extern const char *load_default_groups[];
 extern struct my_option my_long_early_options[];
 extern bool mysqld_server_started;
@@ -336,6 +356,20 @@ extern uint host_cache_size;
 extern ulong log_error_verbosity;
 
 extern bool persisted_globals_load;
+extern bool opt_keyring_operations;
+extern char *opt_keyring_migration_user;
+extern char *opt_keyring_migration_host;
+extern char *opt_keyring_migration_password;
+extern char *opt_keyring_migration_socket;
+extern char *opt_keyring_migration_source;
+extern char *opt_keyring_migration_destination;
+extern ulong opt_keyring_migration_port;
+/**
+  Variable to check if connection related options are set
+  as part of keyring migration.
+*/
+extern bool migrate_connect_options;
+
 
 extern LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
 
@@ -609,6 +643,8 @@ extern MYSQL_PLUGIN_IMPORT char mysql_real_data_home[];
 extern char mysql_unpacked_real_data_home[];
 extern MYSQL_PLUGIN_IMPORT struct System_variables global_system_variables;
 extern char default_logfile_name[FN_REFLEN];
+extern bool log_bin_supplied;
+extern char default_binlogfile_name[FN_REFLEN];
 
 #define mysql_tmpdir (my_tmpdir(&mysql_tmpdir_list))
 
@@ -634,6 +670,7 @@ extern mysql_mutex_t LOCK_default_password_lifetime;
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_mutex_t LOCK_reset_gtid_table;
 extern mysql_mutex_t LOCK_compress_gtid_table;
+extern mysql_mutex_t LOCK_keyring_operations;
 
 extern mysql_cond_t COND_server_started;
 extern mysql_cond_t COND_compress_gtid_table;
@@ -676,6 +713,13 @@ static inline void set_connection_events_loop_aborted(bool value)
 {
   connection_events_loop_aborted_flag.store(value);
 }
+
+#ifdef _WIN32
+
+bool is_windows_service();
+NTService *get_win_service_ptr();
+
+#endif
 
 extern LEX_STRING opt_mandatory_roles;
 extern bool opt_mandatory_roles_cache;

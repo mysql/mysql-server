@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -123,7 +130,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"      // I_List
-#include "sql/sql_load.h"      // mysql_load
+#include "sql/sql_load.h"      // Sql_cmd_load_table
 #include "sql/sql_locale.h"    // my_locale_by_number
 #include "sql/sql_parse.h"     // mysql_test_parse_for_slave
 #include "sql/sql_plugin.h" // plugin_foreach
@@ -509,7 +516,7 @@ static int convert_handler_error(int error, THD* thd, TABLE *table)
     actual_error= (thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
-      sql_print_warning("Unknown error detected %d in handler", error);
+      LogErr(WARNING_LEVEL, ER_UNKNOWN_ERROR_DETECTED_IN_SE, error);
   }
 
   return (actual_error);
@@ -1567,9 +1574,14 @@ err:
   if (!res)
   {
     DBUG_ASSERT(error != 0);
+#if defined(MYSQL_SERVER)
+    LogErr(ERROR_LEVEL, ER_READ_LOG_EVENT_FAILED, error, data_len,
+           head[EVENT_TYPE_OFFSET]);
+#else
     sql_print_error("Error in Log_event::read_log_event(): "
                     "'%s', data_len: %lu, event_type: %d",
 		    error,data_len,head[EVENT_TYPE_OFFSET]);
+#endif
     my_free(buf);
     /*
       The SQL slave thread will check if file->error<0 to know
@@ -2015,7 +2027,7 @@ static const uchar *get_quote_table()
   static uchar buf[256][5];
   for (int i= 0; i < 256; i++)
   {
-    char str[5];
+    char str[6];
     switch (i)
     {
     case '\b': strcpy(str, "\\b"); break;
@@ -3179,7 +3191,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
     being executed.
 
   @param        ev log event that has to be scheduled next.
-  @param       rli Pointer to coordinato's relay log info.
+  @param       rli Pointer to coordinator's relay log info.
   @return      true if error
                false otherwise
  */
@@ -3208,6 +3220,11 @@ static bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
       my_error(ER_MTS_INCONSISTENT_DATA, MYF(0), errbuf);
       return true;
     }
+    /* Don't have to do anything. */
+    return true;
+  case -1:
+    /* Unable to schedule: wait_for_last_committed_trx has failed */
+    return true;
   default:
     return false;
   }
@@ -3976,7 +3993,7 @@ int Log_event::apply_event(Relay_log_info *rli)
 #endif
 
 err:
-  if (rli_thd->is_error())
+  if (rli_thd->is_error() || (!worker && rli->abort_slave))
   {
     DBUG_ASSERT(!worker);
 
@@ -3998,7 +4015,7 @@ err:
     DBUG_ASSERT(worker || rli->curr_group_assigned_parts.size() == 0);
   }
 
-  DBUG_RETURN((!rli_thd->is_error() ||
+  DBUG_RETURN((!(rli_thd->is_error() || (!worker && rli->abort_slave)) ||
                DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0)) ?
               0 : -1);
 }
@@ -5344,8 +5361,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                                     thd->db().length,
                                                     thd->charset(), NULL);
         THD_STAGE_INFO(thd, stage_starting);
-        MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
-                                 thd->query().length);
+
         if (thd->m_digest != NULL)
           thd->m_digest->reset(thd->m_token_array, max_digest_length);
 
@@ -6289,6 +6305,31 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     thd->variables.sql_mode= global_system_variables.sql_mode;
     thd->variables.auto_increment_increment=
       thd->variables.auto_increment_offset= 1;
+    /*
+      Rotate_log_events are generated on Slaves with server_id=0
+      for all the ignored events, so that the positions in the repository
+      is updated properly even for ignored events.
+
+      This kind of Rotate_log_event is generated when
+
+        1) the event is generated on the same host and reached due
+           to circular replication (server_id == ::server_id)
+
+        2) the event is from the host which is listed in ignore_server_ids
+
+        3) IO thread is receiving HEARTBEAT event from the master
+
+        4) IO thread is receiving PREVIOUS_GTID_LOG_EVENT from the master.
+
+      We have to free thd's mem_root here after we update the positions
+      in the repository table. Otherwise, imagine a situation where
+      Slave is keep getting ignored events only and no other (non-ignored)
+      events from the Master, Slave never executes free_root (that generally
+      happens from Query_log_event::do_apply_event or
+      Rows_log_event::do_apply_event when they find end of the group event).
+    */
+    if (server_id == 0)
+      free_root(thd->mem_root, MYF(MY_KEEP_PREALLOC));
   }
   else
     rli->inc_event_relay_log_pos();
@@ -6672,7 +6713,7 @@ bool Xid_log_event::do_commit(THD *thd_arg)
 
 /**
    Worker commits Xid transaction and in case of its transactional
-   info table marks the current group as done in the Coordnator's
+   info table marks the current group as done in the Coordinator's
    Group Assigned Queue.
 
    @return zero as success or non-zero as an error
@@ -8104,6 +8145,9 @@ Load_query_generator::Load_query_generator(THD *thd_arg, const sql_exchange *ex,
 
 const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
 {
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_LOAD);
+  auto cmd= down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd);
+
   str.append("LOAD DATA ");
 
   if (is_concurrent)
@@ -8112,7 +8156,7 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
   if (fn_start)
     *fn_start= str.length()-1;
 
-  if (thd->lex->local_file)
+  if (cmd->m_is_local_file)
     str.append("LOCAL ");
   str.append("INFILE ");
   pretty_print_str(&str, fname, strlen(fname));
@@ -8165,9 +8209,9 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
   }
 
   /* prepare fields-list */
-  if (!thd->lex->load_field_list.is_empty())
+  if (!cmd->m_opt_fields_or_vars.is_empty())
   {
-    List_iterator<Item> li(thd->lex->load_field_list);
+    List_iterator<Item> li(cmd->m_opt_fields_or_vars);
     Item *item;
     str.append(" (");
 
@@ -8185,10 +8229,10 @@ const String* Load_query_generator::generate(size_t *fn_start, size_t *fn_end)
     str.append(')');
   }
 
-  if (!thd->lex->load_update_list.is_empty())
+  if (!cmd->m_opt_set_fields.is_empty())
   {
-    List_iterator<Item> lu(thd->lex->load_update_list);
-    List_iterator<String> ls(thd->lex->load_set_str_list);
+    List_iterator<Item> lu(cmd->m_opt_set_fields);
+    List_iterator<String> ls(*cmd->m_opt_set_expr_strings);
     Item *item;
 
     str.append(" SET ");
@@ -8608,8 +8652,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     if (length > remaining_space ||
         ((length + block_size) > remaining_space))
     {
-      sql_print_error("The row data is greater than 4GB, which is too big to "
-                      "write to the binary log.");
+      LogErr(ERROR_LEVEL, ER_ROW_DATA_TOO_BIG_TO_WRITE_IN_BINLOG);
       DBUG_RETURN(ER_BINLOG_ROW_LOGGING_FAILED);
     }
     const size_t new_alloc= 
@@ -9137,7 +9180,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
          ptr++)
     {
       Field *field= *ptr;
-      if (bitmap_is_set(cols, field->field_index))
+      if (bitmap_is_set(cols, field->field_index) && !field->is_virtual_gcol())
       {
         /* compare null bit */
         if (field->is_null() != field->is_null_in_record(table->record[1]))
@@ -9416,8 +9459,7 @@ Rows_log_event::next_record_scan(bool first_read)
                                                  HA_READ_KEY_EXACT)))
       {
         DBUG_PRINT("info",("no record matching the key found in the table"));
-        if (error == HA_ERR_RECORD_DELETED)
-          error= HA_ERR_KEY_NOT_FOUND;
+        error= HA_ERR_KEY_NOT_FOUND;
       }
   }
 
@@ -10180,7 +10222,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       DBUG_RETURN(-1);
     }
     else if (state == GTID_STATEMENT_SKIP)
-      DBUG_RETURN(0);
+      goto end;
 
     /*
       The current statement is just about to begin and 
@@ -13830,19 +13872,39 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
   transaction_length+= POST_HEADER_LENGTH;
   transaction_length+= get_commit_timestamp_length();
   transaction_length+= is_checksum_enabled ? BINLOG_CHECKSUM_LEN : 0;
+  /*
+    Notice that it is not possible to determine the transaction_length field
+    size using pack.cc:net_length_size() since the length of the field itself
+    must be added to the value.
+
+    Example: Suppose transaction_length is 250 without considering the
+    transaction_length field. Using net_length_size(250) would return 1, but
+    when adding the transaction_length field size to it (+1), the
+    transaction_length becomes 251, and the field must be represented using two
+    more bytes, so the correct transaction length must be in fact 253.
+  */
+#ifndef DBUG_OFF
+  ulonglong size_without_transaction_length= transaction_length;
+#endif
   // transaction_length will use at least TRANSACTION_LENGTH_MIN_LENGTH
   transaction_length+= TRANSACTION_LENGTH_MIN_LENGTH;
+  DBUG_ASSERT(transaction_length - size_without_transaction_length == 1);
   if (transaction_length >= 251ULL)
   {
     // transaction_length will use at least 3 bytes
     transaction_length+= 2;
+    DBUG_ASSERT(transaction_length - size_without_transaction_length == 3);
     if (transaction_length >= 65536ULL)
     {
       // transaction_length will use at least 4 bytes
       transaction_length+= 1;
+      DBUG_ASSERT(transaction_length - size_without_transaction_length == 4);
       if (transaction_length >= 16777216ULL)
-      // transaction_length will use 9 bytes
-        transaction_length+= 4;
+      {
+        // transaction_length will use 9 bytes
+        transaction_length+= 5;
+        DBUG_ASSERT(transaction_length - size_without_transaction_length == 9);
+      }
     }
   }
 }

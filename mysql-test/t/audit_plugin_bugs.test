@@ -32,7 +32,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 
 --echo # Search for default abort message
 let SEARCH_FILE= $error_log;
-let SEARCH_PATTERN= \[ERROR\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTUP_STARTUP\'.1\)\.;
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTUP_STARTUP\'.1\)\.;
 --source include/search_pattern.inc
 
 --error 0,1
@@ -44,7 +44,7 @@ let SEARCH_PATTERN= \[ERROR\] Aborted by Audit API \(\'MYSQL_AUDIT_SERVER_STARTU
 --exec $MYSQLD_CMD --loose-console $AUDIT_NULL_OPT --plugin-load=null_audit=adt_null.$expected_extension --null_audit_event_order_check="MYSQL_AUDIT_SERVER_STARTUP_STARTUP;;ABORT_RET" --null_audit_abort_message="Abort message custom" > $error_log 2>&1
 
 --echo # Search for custom abort message
-let SEARCH_PATTERN= \[ERROR\] Abort message custom;
+let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] Abort message custom;
 --source include/search_pattern.inc
 
 --error 0,1
@@ -90,24 +90,6 @@ SET @@GLOBAL.null_audit_event_order_check= NULL;
 SET @@GLOBAL.null_audit_abort_message= NULL;
 # Let's hope 10000 calls will overrun the stack frame
 SET @@GLOBAL.null_audit_event_order_check_consume_ignore_count= 0;
-
---echo # test
-connect(user1_con,localhost,root,);
-
-SET @@null_audit_event_order_check= "MYSQL_AUDIT_GENERAL_ERROR;;ABORT_RET";
-SET @@null_audit_abort_message= "Abort message.";
---echo # Try to enter error state infinitely. my_message calls will overrun the stack frame.
-SET @@null_audit_event_order_check_consume_ignore_count= 10000;
-
---echo # Must not crash
---replace_regex /[0-9]+ byte[s]?/<NUMBER>/
---error ER_NO_SUCH_TABLE
-SELECT 1 FROM mysql.fictional_table;
-SELECT @@null_audit_event_order_check_consume_ignore_count;
-
---echo # Clean up
-connection default;
-disconnect user1_con;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

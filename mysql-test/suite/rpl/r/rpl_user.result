@@ -13,8 +13,8 @@ create user 'foo'@'fakehost';
 create user 'foo'@'fakehost', 'bar'@'fakehost';
 ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
 create user 'bar'@'fakehost';
-create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
-  IDENTIFIED BY PASSWORD'*1111111111111111111111111111111111111111',
+create user 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password 'BY 'foo1',
+'foo2'@'fakehost' IDENTIFIED BY PASSWORD'*1111111111111111111111111111111111111111',
 'foo3'@'fakehost';
 Warnings:
 Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
@@ -89,16 +89,16 @@ DROP USER 9591_user@localhost;
 include/sync_slave_sql_with_master.inc
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost' IDENTIFIED WITH 'mysql_native_password'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'bar'@'fakehost' IDENTIFIED WITH 'mysql_native_password'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*6EAC5249D53050AE649BDB0CC4B85D1AE90CA16E','foo2'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111','foo3'@'fakehost' IDENTIFIED WITH 'mysql_native_password'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'bar'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password ' AS '*6EAC5249D53050AE649BDB0CC4B85D1AE90CA16E','foo2'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111','foo3'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
 master-bin.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
 master-bin.000001	#	Query	#	#	use `test`; drop user 'foofoo'@'fakehost'
 master-bin.000001	#	Query	#	#	use `test`; drop user 'bar'@'fakehost'
 master-bin.000001	#	Query	#	#	use `test`; drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'must_change2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B4AD7521513E598788362B069D1AEA3C8837A221'
+master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'must_change2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' PASSWORD EXPIRE
-master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*F827ACC9688DECC68F54398510B5B921E9725DE1'
+master-bin.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 master-bin.000001	#	Query	#	#	use `test`; DROP USER must_change2@localhost
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER '9591_user'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE
 master-bin.000001	#	Query	#	#	use `test`; DROP USER 9591_user@localhost

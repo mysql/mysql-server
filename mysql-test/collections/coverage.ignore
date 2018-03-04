@@ -6,3 +6,4 @@
 rapid/plugin/x/tests/driver/
 rapid/unittest/gunit/xplugin
 extra/protobuf
+extra/icu

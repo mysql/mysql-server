@@ -2,6 +2,7 @@ call mtr.add_suppression("Message of size .* received, exceeding the limit of");
 
 --echo Setup
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 USE `test`;
 SET GLOBAL Mysqlx_max_allowed_packet=1024;
 CREATE TABLE IF NOT EXISTS `first_table`(`column_name` INTEGER DEFAULT 0 NOT NULL);
@@ -19,7 +20,7 @@ USE test;
 LOCK TABLES `first_table` WRITE;
 -->endsql
 
--->newsession %SESSION%	root		test
+-->newsession %SESSION%	x_root		test
 Mysqlx.Sql.StmtExecute {
   stmt:"LOCK TABLES `first_table` READ;"
   namespace: "sql"
@@ -75,7 +76,7 @@ Mysqlx.Sql.StmtExecute {
 
 
 -->macro Send_two_messages_as_one_and_queue_in_input %SESSION% %PACKET_COMMENT_SIZE%
--->newsession %SESSION%	root		test
+-->newsession %SESSION%	x_root		test
 
 -->vargen %COMMENT% c %PACKET_COMMENT_SIZE%
 -->varsub %COMMENT%
@@ -144,7 +145,7 @@ SET GLOBAL Mysqlx_max_allowed_packet=%I2%;
 
 -->echo Bug 21839782 (fixed) - no data in buffer for incoming message (infinite loop)
 # Current connection shouldn't be impacted by packet change
--->newsession invalid_1	root		
+-->newsession invalid_1	x_root		
 -->sql
 SET GLOBAL mysqlx_max_allowed_packet=1048597;
 -->endsql
@@ -163,9 +164,10 @@ Mysqlx.Sql.StmtExecute {
 EOF
 
 --echo Test case
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-input-queue.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-input-queue.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-input-queue.tmp
 
 --echo Cleanup
+--source include/xplugin_drop_user.inc
 DROP TABLE `first_table`;
 UNINSTALL PLUGIN `mysqlx`;

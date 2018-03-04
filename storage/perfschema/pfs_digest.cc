@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/pfs_digest.cc
@@ -29,14 +36,14 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
 #include "sql/sql_get_diagnostics.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_signal.h"
 #include "sql_string.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/table_helper.h"
 
 size_t digest_max = 0;
 ulong digest_lost = 0;
@@ -259,8 +266,8 @@ find_or_create_digest(PFS_thread *thread,
   */
   PFS_digest_key hash_key;
   memset(&hash_key, 0, sizeof(hash_key));
-  /* Copy MD5 Hash of the tokens received. */
-  memcpy(&hash_key.m_md5, digest_storage->m_md5, MD5_HASH_SIZE);
+  /* Copy digest hash of the tokens received. */
+  memcpy(&hash_key.m_hash, digest_storage->m_hash, DIGEST_HASH_SIZE);
   /* Add the current schema to the key */
   hash_key.m_schema_name_length = schema_name_length;
   if (schema_name_length > 0)

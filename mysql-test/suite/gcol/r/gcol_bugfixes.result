@@ -807,3 +807,75 @@ SELECT (SELECT MAX(c) FROM v);
 (SELECT MAX(c) FROM v)
 1
 DROP TABLE v;
+# Bug#23021693 gcol:assertion '!table->in_use->is_error()' failed
+CREATE TABLE t1 (
+pk INTEGER AUTO_INCREMENT,
+c1 INTEGER,
+gc1 INTEGER GENERATED ALWAYS AS (c1+c1) VIRTUAL,
+gc2 INTEGER GENERATED ALWAYS AS (gc1 + c1) VIRTUAL,
+c2 VARCHAR(5),
+gc3 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(c2, c2)) VIRTUAL,
+gc4 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(gc3, 'x')) VIRTUAL,
+PRIMARY KEY (pk DESC),
+KEY(gc1),
+KEY(gc3),
+UNIQUE KEY (gc1, gc3),
+UNIQUE KEY (gc2, gc4)
+)  ENGINE=InnoDB;
+INSERT INTO t1 (c1, c2) VALUES (3, 'cek'),(3,'eks');
+CREATE TABLE t2 (
+pk INTEGER AUTO_INCREMENT,
+c1 INTEGER,
+gc1 INTEGER GENERATED ALWAYS AS (c1 + c1) VIRTUAL,
+gc2 INTEGER GENERATED ALWAYS AS (gc1 + c1) VIRTUAL,
+c2 VARCHAR(5),
+gc3 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(c2, c2)) VIRTUAL,
+gc4 VARCHAR(10) GENERATED ALWAYS AS (CONCAT(gc3, 'x')) VIRTUAL,
+PRIMARY KEY (pk DESC),
+KEY(gc1),
+KEY(gc3),
+UNIQUE KEY (gc1, gc3),
+UNIQUE KEY (gc2, gc4)
+)  ENGINE=InnoDB;
+INSERT INTO t2 (c1, c2) VALUES
+(3, 'ksa'), (6,'sate'), (3, 'a'), (NULL, 't'), (9, 'efq'),
+(NULL, 'f'), (6, 'qsdk'), (63, NULL), (3, 's'), (1,NULL);
+DELETE outr1.*
+FROM t2 AS outr1 INNER JOIN t1 AS outr2
+ON outr1.gc4 = outr2.gc4
+WHERE outr1.pk > (SELECT innr1.gc2 AS y
+FROM t1 AS innr1
+WHERE innr1.pk = 5 OR outr2.pk <> 7
+);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE t1, t2;
+#
+# Bug#23321196: GCOLS: ASSERTION FAILURE:
+#               DFIELD_IS_NULL(DFIELD2) || DFIELD2->DATA
+#
+CREATE TABLE t(gc TEXT GENERATED ALWAYS AS (NULL) NOT NULL, KEY (gc(1)));
+INSERT IGNORE INTO t VALUES ();
+Warnings:
+Warning	1048	Column 'gc' cannot be null
+SELECT * FROM t;
+gc
+
+DELETE FROM t;
+SELECT * FROM t;
+gc
+DROP TABLE t;
+#
+# Bug #27041382: ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED.
+#
+CREATE TABLE t1 (c1 VARCHAR(100),
+c2 VARCHAR(400) GENERATED ALWAYS AS (CONCAT(c1,c1)));
+CREATE TRIGGER trg1 BEFORE INSERT ON t1
+FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
+INSERT INTO t1  VALUES (),();
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+INSERT INTO t1(c1)  SELECT 1 FROM DUAL;
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+LOAD DATA INFILE '../../std_data/loaddata5.dat'
+ INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1) ;
+ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
+DROP TABLE t1;

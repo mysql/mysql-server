@@ -132,7 +132,7 @@ CREATE TABLE t14 (
   FULLTEXT KEY (a)
 ) ENGINE = INNODB;
 
-create table t15 (c1 int, c2 geometry not null, spatial index (c2)) engine=innodb;
+create table t15 (c1 int, c2 geometry not null SRID 0, spatial index (c2)) engine=innodb;
 
 CREATE TABLE t16 (
         a INT,
@@ -430,3 +430,40 @@ if ($RECORD == 1) {
 if ($RECORD == 1) {
 --echo "Recorded JSONs. Please remove the record mode inside test and re-run the test"
 }
+
+--echo #
+--echo # Bug#27151163 - INNODB: ASSERTION FAILURE: DICT0SDI.CC:.*
+--echo #
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot find space for ts1 in tablespace memory cache");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("InnoDB: Tablespace .*, name 'ts1', file 'ts1.ibd' is missing!");
+call mtr.add_suppression("InnoDB: Cannot find tablespace for 'ts1' in tablespace memory cache");
+
+--enable_query_log
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE DATABASE sdi;
+
+CREATE TABLE sdi.t1(i int) TABLESPACE ts1;
+
+--echo # Shutdown the server
+--source include/shutdown_mysqld.inc
+
+--echo # Remove ts1.ibd file
+--remove_file $MYSQLD_DATADIR/ts1.ibd
+
+--source include/start_mysqld.inc
+
+--error ER_TABLESPACE_MISSING
+ALTER TABLE sdi.t1 ADD COLUMN j INT;
+--error ER_TABLESPACE_MISSING
+ALTER TABLE sdi.t1 RENAME COLUMN i to j;
+--error ER_TABLESPACE_MISSING
+ALTER TABLESPACE ts1 RENAME to ts2;
+DROP DATABASE sdi;
+DROP TABLESPACE ts1;

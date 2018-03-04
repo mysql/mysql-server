@@ -3710,4 +3710,65 @@ SELECT MIN(t1.pk) FROM t1, t2 WHERE t2.vc = t1.vc OR t2.i = t1.pk;
 MIN(t1.pk)
 1
 DROP TABLE t1, t2;
+#
+# Bug #26727773: OPTIMIZER CHOSES COMPOSITE INDEX FOR REF OVER RANGE
+#
+CREATE TABLE transactions (
+app_trans_id INT DEFAULT NULL,
+id INT NOT NULL,
+tbl INT NOT NULL DEFAULT 1,
+created TIMESTAMP NOT NULL DEFAULT '2017-01-01 01:01:01',
+trans_type INT NOT NULL,
+description BLOB,
+source_lvl1 INT DEFAULT NULL,
+source_lvl2 INT DEFAULT NULL,
+KEY tbl_id_idx (tbl,id),
+KEY created_idx (created),
+KEY trans_type_created_idx (trans_type,created),
+KEY app_trans_id_idx (app_trans_id)
+) ENGINE=INNODB ;
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1), (1000), (2000), (3000), (4000), (5000), (6000),
+(7000), (8000), (9000);
+CREATE PROCEDURE p()
+BEGIN
+SET @x = 1;
+REPEAT
+INSERT IGNORE INTO transactions(id,trans_type, description)
+SELECT c1 + @x, @x , 'abcd'
+  FROM t1;
+SET @x =  @x + 1;
+UNTIL @x > 300 END REPEAT;
+END $
+CALL p();
+SELECT count(*) FROM transactions;
+count(*)
+3000
+INSERT IGNORE INTO transactions(id,trans_type, description, created)
+SELECT 3, 3 , 'abcd', '2018-01-01 01:01:01'
+  FROM dual;
+EXPLAIN SELECT '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2,
+COUNT(DISTINCT(app_trans_id))
+FROM transactions
+WHERE created > '2017-10-23 01:01:01' AND tbl = 1 AND trans_type in (3)
+GROUP BY '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	transactions	NULL	range	tbl_id_idx,created_idx,trans_type_created_idx	created_idx	4	NULL	1	5.00	Using index condition; Using where; Using MRR; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select '2017-10-23 01:01:01' AS `2017-10-23 01:01:01`,hour(`test`.`transactions`.`created`) AS `HOUR(created)`,`test`.`transactions`.`source_lvl1` AS `source_lvl1`,`test`.`transactions`.`source_lvl2` AS `source_lvl2`,count(distinct `test`.`transactions`.`app_trans_id`) AS `COUNT(DISTINCT(app_trans_id))` from `test`.`transactions` where ((`test`.`transactions`.`trans_type` = 3) and (`test`.`transactions`.`tbl` = 1) and (`test`.`transactions`.`created` > '2017-10-23 01:01:01')) group by '2017-10-23 01:01:01',hour(`test`.`transactions`.`created`),`test`.`transactions`.`source_lvl1`,`test`.`transactions`.`source_lvl2`
+SET optimizer_trace="enabled=on";
+SELECT '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2,
+COUNT(DISTINCT(app_trans_id))
+FROM transactions
+WHERE created > '2017-10-23 01:01:01' AND tbl = 1 AND trans_type in (3)
+GROUP BY '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2;
+2017-10-23 01:01:01	HOUR(created)	source_lvl1	source_lvl2	COUNT(DISTINCT(app_trans_id))
+2017-10-23 01:01:01	1	NULL	NULL	0
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "range_uses_more_keyparts";
+@trace RLIKE "range_uses_more_keyparts"
+1
+SET optimizer_trace="enabled=off";
+DROP PROCEDURE p;
+DROP TABLE t1, transactions;
 set optimizer_switch=default;

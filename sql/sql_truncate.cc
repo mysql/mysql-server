@@ -1,13 +1,20 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -278,6 +285,15 @@ static truncate_result handler_truncate_base(THD *thd,
   if (! (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
     if (fk_truncate_illegal_if_parent(thd, table_ref->table))
       DBUG_RETURN(TRUNCATE_FAILED_SKIP_BINLOG);
+
+  /*
+    Remove all TABLE/handler instances except the one to be used for
+    handler::ha_truncate() call. This is necessary for InnoDB to be
+    able to correctly handle truncate as atomic drop and re-create
+    internally. If we under LOCK TABLES the caller will re-open tables
+    as necessary later.
+  */
+  close_all_tables_for_name(thd, table_ref->table->s, false, table_ref->table);
 
   int error= table_ref->table->file->ha_truncate(table_def);
 
@@ -565,6 +581,12 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
   {
     TABLE *tmp_table= table_ref->table;
 
+    /*
+      THD::decide_logging_format has not yet been called and may
+      not be called at all depending on the engine, so call it here.
+    */
+    if (thd->decide_logging_format(table_ref) != 0)
+      DBUG_RETURN(true);
     /* In RBR, the statement is not binlogged if the table is temporary. */
     binlog_stmt= !thd->is_current_stmt_binlog_format_row();
 

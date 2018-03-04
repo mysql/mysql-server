@@ -8,16 +8,13 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-5
+4
 select count(*) from performance_schema.setup_consumers;
 count(*)
 15
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
-select count(*) from performance_schema.setup_timers;
-count(*)
-5
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -90,7 +87,6 @@ select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
 select * from performance_schema.setup_threads;
-select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
@@ -253,7 +249,6 @@ CYCLE
 NANOSECOND
 MICROSECOND
 MILLISECOND
-TICK
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
 events_stages_current	YES
@@ -271,13 +266,6 @@ events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	YES
 statements_digest	YES
-select NAME from performance_schema.setup_timers;
-NAME
-idle
-wait
-stage
-statement
-transaction
 select * from performance_schema.accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 select * from performance_schema.cond_instances;
@@ -345,7 +333,7 @@ FILE_NAME	EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_W
 select * from performance_schema.hosts;
 HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 select * from performance_schema.metadata_locks;
-OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_INSTANCE_BEGIN	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS	SOURCE	OWNER_THREAD_ID	OWNER_EVENT_ID
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	COLUMN_NAME	OBJECT_INSTANCE_BEGIN	LOCK_TYPE	LOCK_DURATION	LOCK_STATUS	SOURCE	OWNER_THREAD_ID	OWNER_EVENT_ID
 select * from performance_schema.mutex_instances;
 NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
 select * from performance_schema.objects_summary_global_by_type;

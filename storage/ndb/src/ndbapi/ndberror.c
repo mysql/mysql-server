@@ -2,13 +2,20 @@
    Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,14 +24,12 @@
 
 
 #include <ndb_global.h>
-
-#include <my_base.h>
 #include <ndberror.h>
-#include <m_string.h>
 
 #include "../mgmsrv/ndb_mgmd_error.h"
-
 #include "NdbQueryBuilderImpl.hpp"
+#include "m_string.h"
+#include "my_base.h"
 
 typedef struct ErrorBundle {
   int code;
@@ -740,6 +745,7 @@ ErrorBundle ErrorCodes[] = {
   { 4329, DMEC, AE, "Variable stored attributes not yet supported" },
   { 4340, DMEC, AE, "Result or attribute record must be a base table ndbrecord, not an index ndbrecord" },
   { 4342, DMEC, AE, "Scan defined but not prepared" },
+  { 4343, DMEC, AE, "Table with blobs does not support refreshTuple()" },
 
   { 4400, DMEC, AE, "Status Error in NdbSchemaCon" },
   { 4401, DMEC, AE, "Only one schema operation per schema transaction" },

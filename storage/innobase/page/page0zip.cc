@@ -4,16 +4,24 @@ Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -55,12 +63,14 @@ const byte field_ref_zero[FIELD_REF_SIZE] = {
 # include "lock0lock.h"
 # include "srv0mon.h"
 # include "srv0srv.h"
-# include "ut0crc32.h"
-#else /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
+#include "ut0crc32.h"
+#ifdef UNIV_HOTBACKUP
 # include "buf0checksum.h"
 
 # define lock_move_reorganize_page(block, temp_block)	((void) 0)
 # define buf_LRU_stat_inc_unzip()			((void) 0)
+# define MONITOR_INC(x)					((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
 #include <algorithm>
@@ -95,7 +105,6 @@ Compare at most sizeof(field_ref_zero) bytes.
 #define ASSERT_ZERO_BLOB(b) \
 	ut_ad(!memcmp(b, field_ref_zero, sizeof field_ref_zero))
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Determine the guaranteed free space on an empty page.
 @return minimum payload size on the page */
@@ -167,7 +176,6 @@ page_zip_is_too_big(
 
 	return(false);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /*************************************************************//**
 Gets a pointer to the compressed page trailer (the dense page directory),
@@ -243,9 +251,9 @@ page_zip_compress_write_log(
 	/* Add the space occupied by BLOB pointers. */
 	trailer_size += page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE;
 	ut_a(page_zip->m_end > PAGE_DATA);
-#if FIL_PAGE_DATA > PAGE_DATA
-# error "FIL_PAGE_DATA > PAGE_DATA"
-#endif
+
+	static_assert(FIL_PAGE_DATA <= PAGE_DATA, "FIL_PAGE_DATA > PAGE_DATA");
+
 	ut_a(page_zip->m_end + trailer_size <= page_zip_get_size(page_zip));
 
 	log_ptr = mlog_write_initial_log_record_fast((page_t*) page,
@@ -1066,11 +1074,13 @@ page_zip_compress(
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	FILE*			logfile = NULL;
 #endif
+#ifndef UNIV_HOTBACKUP
 	/* A local copy of srv_cmp_per_index_enabled to avoid reading that
 	variable multiple times in this function since it can be changed at
 	anytime. */
 	bool			cmp_per_index_enabled;
 	cmp_per_index_enabled	= srv_cmp_per_index_enabled;
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_index_page_check(page));
@@ -1473,6 +1483,9 @@ page_zip_hexdump_func(
 
 /** Flag: make page_zip_validate() compare page headers only */
 ibool	page_zip_validate_header_only = FALSE;
+
+#define page_zip_fail(fmt_args) page_zip_fail_func fmt_args
+int page_zip_fail_func(const char* fmt, ...);
 
 /**********************************************************************//**
 Check that the compressed and decompressed pages match.
@@ -2079,13 +2092,13 @@ The information must already have been updated on the uncompressed page. */
 void
 page_zip_write_blob_ptr(
 /*====================*/
-	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
-	const byte*	rec,	/*!< in/out: record whose data is being
-				written */
-	dict_index_t*	index,	/*!< in: index of the page */
-	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
-	ulint		n,	/*!< in: column index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle,
+	page_zip_des_t*		page_zip,/*!< in/out: compressed page */
+	const byte*		rec,	/*!< in/out: record whose data is being
+					written */
+	const dict_index_t*	index,	/*!< in: index of the page */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint			n,	/*!< in: column index */
+	mtr_t*			mtr)	/*!< in: mini-transaction handle,
 				or NULL if no logging is needed */
 {
 	const byte*	field;
@@ -2794,9 +2807,9 @@ page_zip_write_header_log(
 
 	ut_ad(offset < PAGE_DATA);
 	ut_ad(offset + length < PAGE_DATA);
-#if PAGE_DATA > 255
-# error "PAGE_DATA > 255"
-#endif
+
+	static_assert(PAGE_DATA <= 255, "PAGE_DATA > 255");
+
 	ut_ad(length < 256);
 
 	/* If no logging is requested, we may return now */
@@ -2844,7 +2857,9 @@ page_zip_reorganize(
 	buf_block_t*	temp_block;
 	page_t*		temp_page;
 
+#ifndef UNIV_HOTBACKUP
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+#endif /* !UNIV_HOTBACKUP */
 	ut_ad(page_is_comp(page));
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(!index->table->is_temporary());
@@ -2859,7 +2874,6 @@ page_zip_reorganize(
 	temp_block = buf_block_alloc(buf_pool);
 	btr_search_drop_page_hash_index(block);
 #else /* !UNIV_HOTBACKUP */
-	ut_ad(block == back_block1);
 	temp_block = back_block2;
 #endif /* !UNIV_HOTBACKUP */
 	temp_page = temp_block->frame;

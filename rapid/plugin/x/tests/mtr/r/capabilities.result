@@ -20,6 +20,15 @@ Mysqlx.Connection.Capabilities {
             }
           }
         }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
       }
     }
   }
@@ -32,6 +41,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -401,121 +420,6 @@ Mysqlx.Error {
 }
 
 ok
-setting read/write  pwd_expire param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
-Bug#21633502 logged and change result files once it is fixed
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "client.pwd_expire_ok"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_FLOAT
-          v_float: 19.49
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Ok {
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "client.pwd_expire_ok"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_DOUBLE
-          v_double: 1111111
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Ok {
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "client.pwd_expire_ok"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_NULL
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'client.pwd_expire_ok\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "client.pwd_expire_ok"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_OCTETS
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'client.pwd_expire_ok\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "client.pwd_expire_ok"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_UINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Ok {
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "client.pwd_expire_ok"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_SINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Ok {
-}
-
-ok
 setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
 send Mysqlx.Connection.CapabilitiesGet {
 }
@@ -535,6 +439,15 @@ Mysqlx.Connection.Capabilities {
             }
           }
         }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
       }
     }
   }
@@ -547,6 +460,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -744,6 +667,15 @@ Mysqlx.Connection.Capabilities {
             }
           }
         }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
       }
     }
   }
@@ -756,6 +688,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -934,6 +876,371 @@ Mysqlx.Error {
 }
 
 ok
+setting "client.pwd_expire_ok" param with possible invalid data types
+setting "client.pwd_expire_ok" capability
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.pwd_expire_ok"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+setting "client.interactive" param with possible invalid data types
+setting "client.interactive" capability
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: true
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_DOUBLE
+          v_double: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int: 1
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "client.interactive"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int: 0
+        }
+      }
+    }
+  }
+}
+
+Mysqlx.Ok {
+}
+
+ok
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
@@ -952,6 +1259,15 @@ Mysqlx.Connection.Capabilities {
             }
           }
         }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
       }
     }
   }
@@ -964,6 +1280,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }
@@ -1208,6 +1534,15 @@ Mysqlx.Connection.Capabilities {
             }
           }
         }
+        value {
+          type: SCALAR
+          scalar {
+            type: V_STRING
+            v_string {
+              value: "SHA256_MEMORY"
+            }
+          }
+        }
       }
     }
   }
@@ -1220,6 +1555,16 @@ Mysqlx.Connection.Capabilities {
         v_string {
           value: "text"
         }
+      }
+    }
+  }
+  capabilities {
+    name: "client.interactive"
+    value {
+      type: SCALAR
+      scalar {
+        type: V_BOOL
+        v_bool: false
       }
     }
   }

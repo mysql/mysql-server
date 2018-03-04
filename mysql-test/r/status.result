@@ -30,7 +30,7 @@ update t1 set n = 3;
 # Switched to connection: default
 # wait for the second UPDATE to get blocked
 Timeout in wait_condition.inc for select 1 from INFORMATION_SCHEMA.PROCESSLIST
-where ID = 5 and STATE = "Waiting for table level lock"
+where ID = 9 and STATE = "Waiting for table level lock"
 select release_lock('mysqltest_lock');
 release_lock('mysqltest_lock')
 1
@@ -68,10 +68,10 @@ a
 6
 show status like 'last_query_cost';
 Variable_name	Value
-Last_query_cost	10.999000
+Last_query_cost	5.249000
 show status like 'last_query_cost';
 Variable_name	Value
-Last_query_cost	10.999000
+Last_query_cost	5.249000
 select 1;
 1
 1
@@ -121,7 +121,7 @@ a
 1
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	1.399000
+Last_query_cost	0.449000
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -132,7 +132,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1`
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	1.399000
+Last_query_cost	0.449000
 SELECT a FROM t1 UNION SELECT a FROM t1 ORDER BY a;
 a
 1
@@ -167,32 +167,8 @@ a	a
 1	1
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	3.199038
+Last_query_cost	1.099010
 DROP TABLE t1;
-show status like 'com_show_status';
-Variable_name	Value
-Com_show_status	3
-show status like 'hand%write%';
-Variable_name	Value
-Handler_write	0
-show status like '%tmp%';
-Variable_name	Value
-Created_tmp_disk_tables	0
-Created_tmp_files	0
-Created_tmp_tables	0
-show status like 'hand%write%';
-Variable_name	Value
-Handler_write	0
-show status like '%tmp%';
-Variable_name	Value
-Created_tmp_disk_tables	0
-Created_tmp_files	0
-Created_tmp_tables	0
-show status like 'com_show_status';
-Variable_name	Value
-Com_show_status	8
-rnd_diff	tmp_table_diff
-2898	0
 flush status;
 show status like 'Com%function';
 Variable_name	Value
@@ -291,8 +267,8 @@ select * from t1;
 i
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	0
-Table_open_cache_misses	1
+Table_open_cache_hits	1
+Table_open_cache_misses	15
 Table_open_cache_overflows	0
 # The second statement accessing the same table should
 # result in table cache hit.
@@ -300,24 +276,24 @@ select * from t1;
 i
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	1
-Table_open_cache_misses	1
+Table_open_cache_hits	2
+Table_open_cache_misses	15
 Table_open_cache_overflows	0
 # Again table cache miss if accessing different table.
 select * from t2;
 j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	1
-Table_open_cache_misses	2
+Table_open_cache_hits	17
+Table_open_cache_misses	16
 Table_open_cache_overflows	0
 # And cache hit then accessing it second time.
 select * from t2;
 j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	2
-Table_open_cache_misses	2
+Table_open_cache_hits	18
+Table_open_cache_misses	16
 Table_open_cache_overflows	0
 # The below statement should result in 2 cache hits and 
 # 4 cache misses since it needs 6 table instances in total.
@@ -325,8 +301,8 @@ select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
 i	j	i	j	i	j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	4
-Table_open_cache_misses	6
+Table_open_cache_hits	20
+Table_open_cache_misses	20
 Table_open_cache_overflows	0
 # Reduce size of table cache to check that status
 # variable tracking cache overflows works.
@@ -339,18 +315,18 @@ select * from t1;
 i
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	5
-Table_open_cache_misses	6
-Table_open_cache_overflows	14
+Table_open_cache_hits	21
+Table_open_cache_misses	20
+Table_open_cache_overflows	18
 # This statement should result in 4 cache hits, 2 cache misses/
 # overflows.
 select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
 i	j	i	j	i	j
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	8
-Table_open_cache_misses	9
-Table_open_cache_overflows	17
+Table_open_cache_hits	24
+Table_open_cache_misses	23
+Table_open_cache_overflows	21
 # Finally, the below statement should result in 1 cache miss
 # and 1 overflow since it accesses table which is not yet in
 # cache and table cache is full.
@@ -358,9 +334,9 @@ select * from t3;
 k
 show status like 'table_open_cache_%';
 Variable_name	Value
-Table_open_cache_hits	8
-Table_open_cache_misses	10
-Table_open_cache_overflows	18
+Table_open_cache_hits	24
+Table_open_cache_misses	39
+Table_open_cache_overflows	37
 # Cleanup
 set @@global.table_open_cache= @old_table_open_cache;
 drop tables t1, t2, t3;

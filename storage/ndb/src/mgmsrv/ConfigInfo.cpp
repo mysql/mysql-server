@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,7 +29,7 @@
 #include <mgmapi_config_parameters.h>
 #include <ndb_limits.h>
 #include "InitConfigFileParser.hpp"
-#include <m_string.h>
+#include "m_string.h"
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
@@ -1556,10 +1563,10 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupDataBufferSize",
     DB_TOKEN,
     "Default size of databuffer for a backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
-    "16M",
+    "1M",
     "512K",
     STR_VALUE(MAX_INT_RNIL) },
 
@@ -1580,7 +1587,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupWriteSize",
     DB_TOKEN,
     "Default size of filesystem writes made by backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "256K",
@@ -1592,7 +1599,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "BackupMaxWriteSize",
     DB_TOKEN,
     "Max size of filesystem writes made by backup (in bytes)",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "1M",
@@ -1660,6 +1667,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
  
   {
+    CFG_DB_O_DIRECT_SYNC_FLAG,
+    "ODirectSyncFlag",
+    DB_TOKEN,
+    "O_DIRECT writes are treated as sync:ed writes",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true"},
+
+  {
     CFG_DB_O_DIRECT,
     "ODirect",
     DB_TOKEN,
@@ -1670,6 +1689,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "false",
     "false",
     "true"},
+
   {
     CFG_DB_COMPRESSED_BACKUP,
     "CompressedBackup",
@@ -2233,9 +2253,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     0,
     ConfigInfo::CI_BOOL,
-    "false",
+    "true",
     "false",
     "true"
+  },
+  {
+    CFG_DB_RECOVERY_WORK,
+    "RecoveryWork",
+    DB_TOKEN,
+    "Percentage of storage overhead for LCP files, increasing the value"
+    " means less work in normal operation and more at recovery, decreasing"
+    " it means more work in normal operation and less work in recovery",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "50",
+    "25",
+    "100"
   },
 
   {
@@ -2298,6 +2332,51 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "120000",
     "0",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_UI_BUILD_MAX_BATCHSIZE,
+    "MaxUIBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for building unique indexes.  "
+    "Increasing this may speed up unique index builds, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
+  },
+
+  {
+    CFG_DB_FK_BUILD_MAX_BATCHSIZE,
+    "MaxFKBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for building foreign keys.  "
+    "Increasing this may speed up foreign key builds, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
+  },
+
+  {
+    CFG_DB_REORG_BUILD_MAX_BATCHSIZE,
+    "MaxReorgBuildBatchSize",
+    DB_TOKEN,
+    "Max scan batch size to use for reorganising table partitions.  "
+    "Increasing this may speed up reorganisation of table partitions, at the "
+    "risk of greater impact to ongoing traffic.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "64",
+    "16",
+    "512"
   },
 
   /***************************************************************************
@@ -2919,6 +2998,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true" },
 
   {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "TCP",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_CONNECTION_SERVER_PORT,
     "PortNumber",
     "TCP",
@@ -3179,6 +3272,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true",
     "false",
     "true" },
+
+  {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "SHM",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
   
   {
     CFG_SHM_KEY,
@@ -3399,6 +3506,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "SCI",
     "If checksum is enabled, all signals between nodes are checked for errors",
     ConfigInfo::CI_EXPERIMENTAL,
+    false,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
+    CFG_CONNECTION_PRESEND_CHECKSUM,
+    "PreSendChecksum",
+    "SCI",
+    "If PreSendChecksum AND Checksum are enabled,\n"
+    "pre-send checksum checks are done, and\n"
+    "all signals between nodes are checked for errors",
+    ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_BOOL,
     "false",

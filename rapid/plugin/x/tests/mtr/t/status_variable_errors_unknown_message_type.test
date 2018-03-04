@@ -1,7 +1,7 @@
 ## Test cases for unknown message types
 
 --source include/xplugin_preamble.inc
-
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 
@@ -99,10 +99,10 @@ EOF
 CREATE SCHEMA xtest;
 CREATE TABLE xtest.table(field INT);
 
---exec $MYSQLXTEST -uroot --file=$xtest_file_crud 2>&1
---exec $MYSQLXTEST --no-auth -uroot --file=$xtest_file_connection 2>&1
+--exec $MYSQLXTEST -ux_root --file=$xtest_file_crud 2>&1
+--exec $MYSQLXTEST --no-auth -ux_root --file=$xtest_file_connection 2>&1
 --replace_regex /auth_data: ".+"/auth_data: "XXX"/
---exec $MYSQLXTEST --no-auth -uroot --file=$xtest_file_session 2>&1
+--exec $MYSQLXTEST --no-auth -ux_root --file=$xtest_file_session 2>&1
 
 --echo Global status
 --let $wait_condition= SELECT variable_value = 5 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_errors_unknown_message_type'
@@ -118,4 +118,5 @@ CREATE TABLE xtest.table(field INT);
 --remove_file $xtest_file_session
 
 DROP SCHEMA IF EXISTS xtest;
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PLUGIN_UTILS_INCLUDED
 #define PLUGIN_UTILS_INCLUDED
@@ -26,7 +33,9 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin_psi.h"
+#include "plugin/group_replication/include/plugin_psi.h"
+
+void log_primary_member_details();
 
 class Blocked_transaction_handler
 {
@@ -482,6 +491,7 @@ public:
     DBUG_ASSERT(arg != NULL);
 
     mysql_mutex_init(key_GR_LOCK_write_lock_protection, &write_lock, MY_MUTEX_INIT_FAST);
+    mysql_cond_init(key_GR_COND_write_lock_protection, &write_lock_protection);
 
     DBUG_VOID_RETURN;
   }
@@ -489,6 +499,7 @@ public:
   virtual ~Shared_writelock()
   {
     mysql_mutex_destroy(&write_lock);
+    mysql_cond_destroy(&write_lock_protection);
   }
 
   int try_grab_write_lock()
@@ -511,6 +522,15 @@ public:
   void grab_write_lock()
   {
     mysql_mutex_lock(&write_lock);
+    DBUG_EXECUTE_IF("group_replication_continue_kill_pending_transaction",
+                    {
+                      const char act[]= "now SIGNAL signal.gr_applier_early_failure";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+    while (write_lock_in_use == true)
+      mysql_cond_wait(&write_lock_protection, &write_lock);
+
     shared_write_lock->wrlock();
     write_lock_in_use= true;
     mysql_mutex_unlock(&write_lock);
@@ -521,6 +541,7 @@ public:
     mysql_mutex_lock(&write_lock);
     shared_write_lock->unlock();
     write_lock_in_use= false;
+    mysql_cond_broadcast(&write_lock_protection);
     mysql_mutex_unlock(&write_lock);
   }
 
@@ -558,6 +579,7 @@ public:
 private:
   Checkable_rwlock *shared_write_lock;
   mysql_mutex_t write_lock;
+  mysql_cond_t  write_lock_protection;
   bool write_lock_in_use;
 };
 

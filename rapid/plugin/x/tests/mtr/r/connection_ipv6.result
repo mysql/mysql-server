@@ -2,7 +2,6 @@ Preamble
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-call mtr.add_suppression("Plugin mysqlx reported: .+: Unsuccessful login attempt: Invalid user or password");
 CREATE USER `user_localhost`@`localhost`;
 CREATE USER `user_127_0_0_1`@`127.0.0.1`;
 CREATE USER `user_::1`@`::1`;

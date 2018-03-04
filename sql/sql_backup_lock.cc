@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,7 +24,7 @@
 
 #include "mysqld_error.h"     // ER_SPECIFIC_ACCESS_DENIED_ERROR
 #include "sql_class.h"        // THD
-#include "sql_security_ctx.h" // Security_context
+#include "sql/auth/sql_security_ctx.h" // Security_context
 
 /**
   Check if a current user has the privilege BACKUP_ADMIN required to run
@@ -143,4 +150,24 @@ bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout)
 {
   return acquire_mdl_for_backup(thd, MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION,
                                 lock_wait_timeout);
+}
+
+
+Is_instance_backup_locked_result is_instance_backup_locked(THD *thd)
+{
+  Is_instance_backup_locked_result res;
+  MDL_key key(MDL_key::BACKUP_LOCK, "", "");
+  MDL_lock_is_owned_visitor backup_lock_owner;
+
+  if (thd->mdl_context.find_lock_owner(&key, &backup_lock_owner))
+    res= Is_instance_backup_locked_result::OOM;
+  else
+  {
+    if (backup_lock_owner.exists())
+      res= Is_instance_backup_locked_result::LOCKED;
+    else
+      res= Is_instance_backup_locked_result::NOT_LOCKED;
+  }
+
+  return res;
 }

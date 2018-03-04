@@ -1,17 +1,24 @@
 /* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_record.h"
 
@@ -28,6 +35,7 @@
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"       // ER_THD
 #include "sql/field.h"        // Field
 #include "sql/json_diff.h"    // Json_diff_vector
@@ -636,15 +644,11 @@ unpack_row(Relay_log_info const *rli,
                                        &partial_bits, &event_value_options);
     /*
       We *can* compute partial updates if event_value_options has
-      PARTIAL_JSON, and we *need* the partial updates if
-      session_value_options has PARTIAL_JSON, unless only_seek==true.
+      PARTIAL_JSON, unless only_seek==true.
     */
-    ulonglong session_value_options=
-      current_thd->variables.binlog_row_value_options;
     DBUG_PRINT("info", ("event_value_options=%llu only_seek=%d",
                         event_value_options, (int)only_seek));
     if ((event_value_options & PARTIAL_JSON_UPDATES) != 0 &&
-        (session_value_options & PARTIAL_JSON_UPDATES) &&
         !only_seek)
     {
       if (table->has_columns_marked_for_partial_update())
@@ -667,14 +671,33 @@ unpack_row(Relay_log_info const *rli,
           of the statement, when close_thread_tables calls
           cleanup_partial_update.
         */
+#ifndef DBUG_OFF
+        int marked_columns= 0;
+#endif
         for (uint col_i= 0;
              col_i < master_column_count && table->field[col_i] != nullptr;
              col_i++)
           if (tabledef->type(col_i) == MYSQL_TYPE_JSON &&
               bitmap_is_set(column_image, col_i))
+          {
+#ifndef DBUG_OFF
+            marked_columns++;
+#endif
             if (table->mark_column_for_partial_update(table->field[col_i]))
               // my_error was already called
               DBUG_RETURN(true); /* purecov: inspected */
+          }
+#ifndef DBUG_OFF
+        DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff",
+                        {if (marked_columns == 1)
+                         {
+                           const char act[]= "now SIGNAL signal.rpl_row_jsondiff_binarydiff_marked_columns";
+                           DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                           DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                              STRING_WITH_LEN(act)));
+                         }};
+                       );
+#endif
         table->setup_partial_update();
       }
     }

@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test data
 --let $xtest_file= $MYSQL_TMP_DIR/crud_view_sundries.tmp
@@ -92,7 +93,7 @@ Mysqlx.Crud.Find {
 
 
 -->title -Error on create view for non privilege user
--->newsessionplain xuser_session	xuser
+-->newsession xuser_session	xuser
 Mysqlx.Crud.CreateView {
   collection { name: "view_e" schema: "xtest" }
   stmt: {
@@ -120,11 +121,12 @@ INSERT INTO xtest.tab_a (first, second) VALUES (1, '{"_id":"one", "name":"Adam"}
 CREATE USER xuser;
 
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 --remove_file $xtest_file
 
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 DROP USER xuser;
 UNINSTALL PLUGIN mysqlx;

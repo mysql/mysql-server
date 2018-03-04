@@ -1,27 +1,27 @@
 # Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_BINARY_DIR}/include
-  ${CMAKE_SOURCE_DIR}/libmysql
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${CMAKE_SOURCE_DIR}/strings
-  ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${SSL_INCLUDE_DIRS}
-  ${SSL_INTERNAL_INCLUDE_DIRS})
+  ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 ADD_DEFINITIONS(${SSL_DEFINES})
 
 SET(CLIENT_API_FUNCTIONS
@@ -139,6 +139,7 @@ mysql_reset_connection
 mysql_get_option
 mysql_session_track_get_first
 mysql_session_track_get_next
+mysql_reset_server_public_key
 
 CACHE INTERNAL "Functions exported by client API"
 
@@ -162,19 +163,23 @@ CACHE INTERNAL "Undocumented functions exported by client API"
 )
 
 SET(CLIENT_SOURCES
-  get_password.cc
   libmysql.cc
   errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.c 
   ../sql-common/client_authentication.cc
+  ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
   ../sql/auth/password.cc
   ../sql/auth/sha2_password_common.cc
 )
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 IF (WIN32 AND OPENSSL_APPLINK_C)
-  LIST(APPEND CLIENT_SOURCES "${OPENSSL_APPLINK_C}")
+  ADD_COMPILE_FLAGS(
+    ../sql-common/client_authentication.cc
+    COMPILE_FLAGS -DHAVE_OPENSSL_APPLINK_C
+  )
 ENDIF()
 
 #
@@ -214,19 +219,26 @@ MESSAGE(STATUS "Creating LDAP authentication SASL client library.")
 ADD_SUBDIRECTORY(authentication_ldap)
   
 # Merge several convenience libraries into one big mysqlclient
-MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
+MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
- INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
- INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
-ENDIF()
+  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
 
-MACRO(GET_TARGET_NAME target out_name)
-  GET_TARGET_PROPERTY(location ${target} LOCATION)
-  GET_FILENAME_COMPONENT(name ${location} NAME)
-  SET(${out_name} ${name})
-ENDMACRO()
+  INSTALL_DEBUG_TARGET(auth_win_client DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(clientlib DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(mysys DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(mysys_ssl DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(strings DESTINATION ${INSTALL_LIBDIR}/debug)
+  INSTALL_DEBUG_TARGET(vio DESTINATION ${INSTALL_LIBDIR}/debug)
+  IF(WITH_SSL STREQUAL "bundled")
+    INSTALL_DEBUG_TARGET(taocrypt DESTINATION ${INSTALL_LIBDIR}/debug)
+    INSTALL_DEBUG_TARGET(yassl DESTINATION ${INSTALL_LIBDIR}/debug)
+  ENDIF()
+  IF(WITH_ZLIB STREQUAL "bundled")
+    INSTALL_DEBUG_TARGET(zlib DESTINATION ${INSTALL_LIBDIR}/debug)
+  ENDIF()
+ENDIF()
 
 IF(UNIX)
   MACRO(GET_VERSIONED_LIBNAME LIBNAME EXTENSION VERSION OUTNAME)
@@ -245,7 +257,7 @@ ENDIF()
 IF(NOT DISABLE_SHARED)
   # Merge several convenience libraries into one big mysqlclient
   # and link them together into shared library.
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS}
+  MERGE_LIBRARIES_SHARED(libmysql ${LIBS}
     EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_FUNCTIONS_UNDOCUMENTED}
     COMPONENT SharedLibraries)
   IF(UNIX)
@@ -265,7 +277,7 @@ IF(NOT DISABLE_SHARED)
 
     IF(APPLE)
       SET_TARGET_PROPERTIES(libmysql PROPERTIES
-        INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}"
+        MACOSX_RPATH ON 
       )
     ENDIF()
 
@@ -317,9 +329,15 @@ IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
 ENDIF()
 
-IF(DISABLE_SHARED)
+# We need to find both SSL .dlls and libmysql.dll, link statically on WIN32
+IF(DISABLE_SHARED OR WIN32)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS})
 ELSE()
   TARGET_LINK_LIBRARIES(libmysql_api_test libmysql)
 ENDIF()
 
+# Verify that libmysql_api_test runs OK
+ADD_CUSTOM_COMMAND(TARGET libmysql_api_test POST_BUILD
+  COMMAND $<TARGET_FILE:libmysql_api_test>
+  > ${CMAKE_CURRENT_BINARY_DIR}/libmysql_api_test.out
+  )

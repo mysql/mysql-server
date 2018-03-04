@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef RECOVERY_STATE_TRANSFER_INCLUDE
 #define RECOVERY_STATE_TRANSFER_INCLUDE
@@ -20,10 +27,10 @@
 #include <string>
 #include <vector>
 
-#include "channel_observation_manager.h"
-#include "member_info.h"
 #include "my_io.h"
-#include "replication_threads_api.h"
+#include "plugin/group_replication/include/channel_observation_manager.h"
+#include "plugin/group_replication/include/member_info.h"
+#include "plugin/group_replication/include/replication_threads_api.h"
 
 
 class Recovery_state_transfer
@@ -175,6 +182,22 @@ public:
   */
   void set_stop_wait_timeout (ulong timeout){
     donor_connection_interface.set_stop_wait_timeout(timeout);
+  }
+
+  /** Set a public key file*/
+  void set_recovery_public_key_path(const char* public_key_path)
+  {
+    if (public_key_path != NULL)
+    {
+      (void) strncpy(recovery_public_key_path, public_key_path,
+        strlen(public_key_path)+1);
+    }
+  }
+
+  /** Get preference to get public key */
+  void set_recovery_get_public_key(bool set)
+  {
+    recovery_get_public_key= set;
   }
 
   //Methods that update the state transfer process
@@ -364,6 +387,8 @@ private:
 
   /** If the use of SSL is obligatory on recovery connections */
   bool recovery_use_ssl;
+  /** Get public key */
+  bool recovery_get_public_key;
   /** The configured SSL trusted certificate authorities file */
   char recovery_ssl_ca[FN_REFLEN];
   /** The configured directory that contains trusted SSL CA files*/
@@ -380,6 +405,8 @@ private:
   char recovery_ssl_crlpath[FN_REFLEN];
   /** If the server's Common Name value checks against donor sent certificate.*/
   bool recovery_ssl_verify_server_cert;
+  /** Public key information */
+  char recovery_public_key_path[FN_REFLEN];
 
   /* The lock for the recovery wait condition */
   mysql_mutex_t recovery_lock;

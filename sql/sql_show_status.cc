@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -161,7 +168,7 @@ build_query(const POS &pos,
 
   /* ... FROM performance_schema.<table_name> ... */
   PT_table_factor_table_ident *table_factor;
-  table_factor= new (thd->mem_root) PT_table_factor_table_ident(table_ident, NULL, NULL, NULL);
+  table_factor= new (thd->mem_root) PT_table_factor_table_ident(table_ident, NULL, NULL_CSTR, NULL);
   if (table_factor == NULL)
     return NULL;
 
@@ -195,14 +202,11 @@ build_query(const POS &pos,
   if (sub_query == NULL)
     return NULL;
 
-  LEX_STRING derived_table_name;
-  if (!thd->make_lex_string(&derived_table_name, table_name.str, table_name.length, false))
-    return NULL;
   Create_col_name_list column_names;
   column_names.init(thd->mem_root);
   PT_derived_table *derived_table;
   derived_table= new (thd->mem_root) PT_derived_table(sub_query,
-                                                      &derived_table_name,
+                                                      to_lex_cstring(table_name),
                                                       &column_names);
   if (derived_table == NULL)
    return NULL;
@@ -286,18 +290,14 @@ build_query(const POS &pos,
   if (query_expression2 == NULL)
     return NULL;
 
-  PT_select_stmt *select2;
-  select2= new (thd->mem_root) PT_select_stmt(query_expression2);
-  if (select2 == NULL)
-    return NULL;
-
   LEX *lex= thd->lex;
   SELECT_LEX *current_select= lex->current_select();
   Parse_context pc(thd, current_select);
   if (thd->is_error())
     return NULL;
 
-  if (select2->contextualize(&pc))
+  lex->sql_command= SQLCOM_SELECT;
+  if (query_expression2->contextualize(&pc))
     return NULL;
 
   /* contextualize sets to COM_SELECT */

@@ -1,38 +1,43 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "xpl_dispatcher.h"
+#include "plugin/x/src/xpl_dispatcher.h"
 
-#include "admin_cmd_handler.h"
-#include "admin_cmd_arguments.h"
-#include "crud_cmd_handler.h"
-#include "expect/expect_stack.h"
-#include "expr_generator.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/mysqlx/getter_any.h"
-#include "notices.h"
-#include "sql_data_context.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_resultset.h"
-#include "xpl_server.h"
-#include "xpl_session.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/admin_cmd_arguments.h"
+#include "plugin/x/src/admin_cmd_handler.h"
+#include "plugin/x/src/crud_cmd_handler.h"
+#include "plugin/x/src/expect/expect_stack.h"
+#include "plugin/x/src/expr_generator.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_resultset.h"
+#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/xpl_session.h"
 
 namespace {
 

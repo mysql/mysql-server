@@ -147,7 +147,7 @@ server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
-server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'user'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'user'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-
@@ -175,7 +175,7 @@ server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Table_map	#	#	table_id: # (test.tt_1)
 server-binary-log.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 server-binary-log.000001	#	Xid	#	#	COMMIT /* XID */
-server-binary-log.000001	#	Query	#	#	use `test`; ALTER USER 'user'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*D8DECEC305209EEFEC43008E1D420E1AA06B19E0'
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER USER 'user'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 -e-e-e-e-e-e-e-e-e-e-e- >> << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> << -b-b-b-b-b-b-b-b-b-b-b-

@@ -4,6 +4,7 @@
 --echo Preamble
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Unsuccessful login attempt");
@@ -54,7 +55,7 @@ GRANT ALL ON *.* TO user6_mysqlx@localhost;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-setup.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-setup.tmp 2>&1
 
 --write_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
 -->sql
@@ -125,6 +126,8 @@ ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 --let $expected_error_msg=  Current account requires TLS to be activate. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
 --exec $MYSQLXTEST -u user6_mysqlx --password='dwh@#ghd' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+
+--source include/xplugin_drop_user.inc
 
 # Postamble
 UNINSTALL PLUGIN mysqlx;

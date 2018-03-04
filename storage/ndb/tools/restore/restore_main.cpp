@@ -2,33 +2,40 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <ndb_global.h>
-#include <ndb_opts.h>
-#include <Vector.hpp>
-#include <Properties.hpp>
-#include <ndb_limits.h>
-#include <NdbTCP.h>
-#include <NdbOut.hpp>
-#include <OutputStream.hpp>
-#include <NDBT_ReturnCodes.h>
 #include <Logger.hpp>
+#include <NDBT_ReturnCodes.h>
+#include <NdbOut.hpp>
+#include <NdbTCP.h>
+#include <OutputStream.hpp>
+#include <Properties.hpp>
+#include <Vector.hpp>
+#include <ndb_global.h>
+#include <ndb_limits.h>
+#include <ndb_opts.h>
 
-#include "consumer_restore.hpp"
-#include "consumer_printer.hpp"
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
+#include "consumer_printer.hpp"
+#include "consumer_restore.hpp"
 
 #define TMP_TABLE_PREFIX "#sql"
 #define TMP_TABLE_PREFIX_LEN 4
@@ -440,10 +447,6 @@ static void short_usage_sub(void)
 {
   ndb_short_usage_sub("[<path to backup files>]");
 }
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
 
 static bool
 get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
@@ -562,7 +565,7 @@ makeExternalTableName(const BaseString &internalName)
   return externalName;
 }
 
-#include "../../../../sql/ndb_dist_priv_util.h"
+#include "sql/ndb_dist_priv_util.h"
 
 // Exclude privilege tables unless explicitely included
 void
@@ -581,20 +584,18 @@ exclude_privilege_tables()
 
 
 bool
-readArguments(int *pargc, char*** pargv) 
+readArguments(Ndb_opts & opts, char*** pargv)
 {
   Uint32 i;
   BaseString tmp;
   debug << "Load defaults" << endl;
-  const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
 
   init_nodegroup_map();
-  ndb_load_defaults(NULL,load_default_groups,pargc,pargv);
   debug << "handle_options" << endl;
 
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
+  opts.set_usage_funcs(short_usage_sub);
 
-  if (handle_options(pargc, pargv, my_long_options, get_one_option))
+  if (opts.handle_options(get_one_option))
   {
     exit(NDBT_ProgramExit(NDBT_WRONGARGS));
   }
@@ -1261,10 +1262,11 @@ check_data_truncations(const TableS * table)
 int
 main(int argc, char** argv)
 {
-  NDB_INIT(argv[0]);
+  const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
+  Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
 
   debug << "Start readArguments" << endl;
-  if (!readArguments(&argc, &argv))
+  if (!readArguments(opts, &argv))
   {
     exitHandler(NDBT_FAILED);
   }
@@ -1822,7 +1824,7 @@ main(int argc, char** argv)
       if (!g_consumers[i]->update_apply_status(metaData))
       {
         err << "Restore: Failed to restore epoch" << endl;
-        return -1;
+        exitHandler(NDBT_FAILED);
       }
   }
 
@@ -1853,13 +1855,13 @@ main(int argc, char** argv)
       for(Uint32 j= 0; j < g_consumers.size(); j++)
       {
         if (!g_consumers[j]->rebuild_indexes(* table))
-          return -1;
+          exitHandler(NDBT_FAILED);
       }
     }
     for(Uint32 j= 0; j < g_consumers.size(); j++)
     {
       if (!g_consumers[j]->endOfTablesFK())
-        return -1;
+        exitHandler(NDBT_FAILED);
     }
   }
 

@@ -1,17 +1,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /*
@@ -408,7 +415,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     if (result == Item::COND_FALSE)
     {
       no_rows= true;                               // Impossible WHERE
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "Impossible WHERE", true, 0);
@@ -438,7 +445,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     {
       no_rows= true;
 
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "No matching rows after partition pruning",
@@ -457,9 +464,6 @@ bool Sql_cmd_update::update_single_table(THD *thd)
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->mark_columns_needed_for_update(thd, false/*mark_binlog_columns=false*/);
-  if (table->vfield &&
-      validate_gc_assignment(update_field_list, update_value_list, table))
-    DBUG_RETURN(true);
 
   qep_tab.set_table(table);
   qep_tab.set_condition(conds);
@@ -481,7 +485,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
     }
     if (no_rows)
     {
-      if (thd->lex->describe)
+      if (thd->lex->is_explain())
       {
         Modification_plan plan(thd, MT_UPDATE, table,
                                "Impossible WHERE", true, 0);
@@ -577,7 +581,7 @@ bool Sql_cmd_update::update_single_table(THD *thd)
                            (!using_filesort && (used_key_is_modified || order)),
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
-    if (thd->lex->describe)
+    if (thd->lex->is_explain())
     {
       bool err= explain_single_table_modification(thd, &plan, select_lex);
       DBUG_RETURN(err);
@@ -1391,9 +1395,12 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   if (select->setup_tables(thd, table_list, false))
     DBUG_RETURN(true);            /* purecov: inspected */
 
-  if (select->derived_table_count)
+  thd->want_privilege= SELECT_ACL;
+  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
+  thd->mark_used_columns= MARK_COLUMNS_READ;
+  if (select->derived_table_count || select->table_func_count)
   {
-    if (select->resolve_derived(thd, apply_semijoin))
+    if (select->resolve_placeholder_tables(thd, apply_semijoin))
       DBUG_RETURN(true);
     /*
       @todo - This check is a bit primitive and ad-hoc. We have not yet analyzed
@@ -1459,10 +1466,6 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
   }
 
   lex->allow_sum_func= 0;          // Query block cannot be aggregated
-
-  thd->want_privilege= SELECT_ACL;
-  enum enum_mark_columns mark_used_columns_saved= thd->mark_used_columns;
-  thd->mark_used_columns= MARK_COLUMNS_READ;
 
   if (select->setup_conds(thd))
     DBUG_RETURN(true);
@@ -1538,6 +1541,10 @@ bool Sql_cmd_update::prepare_inner(THD *thd)
     tl->updating= tl->map() & tables_for_update;
     if (tl->updating)
     {
+      if (tl->table->vfield &&
+          validate_gc_assignment(update_fields, update_value_list, tl->table))
+        DBUG_RETURN(true);                      /* purecov: inspected */
+
       // Mark all containing view references as updating
       for (TABLE_LIST *ref= tl; ref != NULL; ref= ref->referencing_view)
         ref->updating= true;
@@ -2067,9 +2074,6 @@ bool Query_result_update::optimize()
       }
     }
 
-    if (table->vfield &&
-        validate_gc_assignment(fields, values, table))
-      DBUG_RETURN(false);                      /* purecov: inspected */
     /*
       enable uncacheable flag if we update a view with check option
       and check option has a subselect, otherwise, the check option
@@ -2160,14 +2164,10 @@ loop_end:
     tmp_param->field_count=temp_fields.elements;
     tmp_param->group_parts=1;
     tmp_param->group_length= table->file->ref_length;
-    /* small table, ignore SQL_BIG_TABLES */
-    bool save_big_tables= thd->variables.big_tables; 
-    thd->variables.big_tables= FALSE;
     tmp_tables[cnt]=create_tmp_table(thd, tmp_param, temp_fields,
                                      &group, 0, 0,
                                      TMP_TABLE_ALL_COLUMNS, HA_POS_ERROR, "",
                                      TMP_WIN_NONE);
-    thd->variables.big_tables= save_big_tables;
     if (!tmp_tables[cnt])
       DBUG_RETURN(1);
 

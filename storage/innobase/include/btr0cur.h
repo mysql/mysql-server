@@ -3,16 +3,24 @@
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -69,6 +77,7 @@ struct btr_latch_leaves_t {
 #include "ha0ha.h"
 #include "que0types.h"
 #include "row0types.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #define BTR_CUR_ADAPT
 #define BTR_CUR_HASH_ADAPT
@@ -492,6 +501,10 @@ btr_cur_pessimistic_update(
 				| BTR_CREATE_FLAG
 				| BTR_KEEP_SYS_FLAG) */
 	trx_id_t	trx_id,	/*!< in: transaction id */
+	undo_no_t	undo_no,
+				/*!< in: undo number of the transaction. This
+				is needed for rollback to savepoint of
+				partially updated LOB.*/
 	mtr_t*		mtr)	/*!< in/out: mini-transaction; must be committed
 				before latching any further pages */
 	MY_ATTRIBUTE((warn_unused_result));
@@ -594,8 +607,14 @@ btr_cur_pessimistic_delete(
 				deleted record on function exit */
 	ulint		flags,	/*!< in: BTR_CREATE_FLAG or 0 */
 	bool		rollback,/*!< in: performing rollback? */
+	trx_id_t	trx_id,	/*!< in: the current transaction id. */
+	undo_no_t	undo_no,
+				/*!< in: undo number of the transaction. This
+				is needed for rollback to savepoint of
+				partially updated LOB.*/
+	ulint		rec_type,
+				/*!< in: undo record type. */
 	mtr_t*		mtr);	/*!< in: mtr */
-#endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of updating a record in-place.
 @return end of log record or NULL */
@@ -664,6 +683,8 @@ btr_estimate_number_of_different_key_vals(
 	dict_index_t*	index);	/*!< in: index */
 
 /** Copies an externally stored field of a record to mem heap.
+@param[in]	trx		the trx doing the operation.
+@param[in]	index		index containing the LOB.
 @param[in]	rec		record in a clustered index; must be
 				protected by a lock or a page latch
 @param[in]	offsets		array returned by rec_get_offsets()
@@ -675,6 +696,8 @@ btr_estimate_number_of_different_key_vals(
 @return the field copied to heap, or NULL if the field is incomplete */
 byte*
 btr_rec_copy_externally_stored_field_func(
+	trx_t*			trx,
+	dict_index_t*		index,
 	const rec_t*		rec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,
@@ -724,6 +747,7 @@ btr_cur_latch_leaves(
 	ulint			latch_mode,
 	btr_cur_t*		cursor,
 	mtr_t*			mtr);
+#endif /* !UNIV_HOTBACKUP */
 
 /*######################################################################*/
 
@@ -886,7 +910,6 @@ extern ulint	btr_cur_n_non_sea_old;
 srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
 extern ulint	btr_cur_n_sea_old;
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /* Flag to limit optimistic insert records */

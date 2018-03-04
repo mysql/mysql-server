@@ -7,6 +7,7 @@
 #  - WL#9807: X Protocol Crud.Insert with upsert
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/features.tmp
@@ -52,8 +53,9 @@ Mysqlx.Expect.Close {
 -->callmacro Verify_expect_open	all features in single request	%ALL_COND%
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/features.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/features.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/features.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

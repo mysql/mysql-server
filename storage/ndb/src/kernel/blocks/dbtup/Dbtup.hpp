@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -357,10 +364,10 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   typedef Tup_page Page;
   typedef Ptr<Page> PagePtr;
   typedef ArrayPool<Page> Page_pool;
-  typedef DLList<Page, Page_pool> Page_list;
-  typedef LocalDLList<Page, Page_pool> Local_Page_list;
-  typedef DLFifoList<Page, Page_pool> Page_fifo;
-  typedef LocalDLFifoList<Page, Page_pool> Local_Page_fifo;
+  typedef DLList<Page_pool> Page_list;
+  typedef LocalDLList<Page_pool> Local_Page_list;
+  typedef DLFifoList<Page_pool> Page_fifo;
+  typedef LocalDLFifoList<Page_pool> Local_Page_fifo;
 
   // Scan position
   struct ScanPos {
@@ -404,8 +411,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   };
   typedef Ptr<ScanLock> ScanLockPtr;
   typedef ArrayPool<ScanLock> ScanLock_pool;
-  typedef DLFifoList<ScanLock, ScanLock_pool> ScanLock_fifo;
-  typedef LocalDLFifoList<ScanLock, ScanLock_pool> Local_ScanLock_fifo;
+  typedef DLFifoList<ScanLock_pool> ScanLock_fifo;
+  typedef LocalDLFifoList<ScanLock_pool> Local_ScanLock_fifo;
 
   ScanLock_pool c_scanLockPool;
 
@@ -481,8 +488,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   };
   typedef Ptr<ScanOp> ScanOpPtr;
   typedef ArrayPool<ScanOp> ScanOp_pool;
-  typedef DLList<ScanOp, ScanOp_pool> ScanOp_list;
-  typedef LocalDLList<ScanOp, ScanOp_pool> Local_ScanOp_list;
+  typedef DLList<ScanOp_pool> ScanOp_list;
+  typedef LocalDLList<ScanOp_pool> Local_ScanOp_list;
   ScanOp_pool c_scanOpPool;
 
   void scanReply(Signal*, ScanOpPtr scanPtr);
@@ -516,9 +523,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Uint32 m_magic;
   }; // 32 bytes
   
-  typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
-  typedef DLFifoList<Page_request, Page_request_pool> Page_request_list;
-  typedef LocalDLFifoList<Page_request, Page_request_pool> Local_page_request_list;
+  typedef RecordPool<WOPool<Page_request> > Page_request_pool;
+  typedef DLFifoList<Page_request_pool> Page_request_list;
+  typedef LocalDLFifoList<Page_request_pool> Local_page_request_list;
 
   STATIC_CONST( EXTENT_SEARCH_MATRIX_COLS = 4 ); // Guarantee size
   STATIC_CONST( EXTENT_SEARCH_MATRIX_ROWS = 5 ); // Total size
@@ -556,12 +563,12 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     }
   }; // 40 bytes
 
-  typedef RecordPool<Extent_info, RWPool<Extent_info> > Extent_info_pool;
-  typedef DLList<Extent_info, Extent_info_pool> Extent_info_list;
-  typedef LocalDLList<Extent_info, Extent_info_pool> Local_extent_info_list;
-  typedef DLHashTable<Extent_info_pool, Extent_info> Extent_info_hash;
-  typedef SLList<Extent_info, Extent_info_pool, Extent_list_t> Fragment_extent_list;
-  typedef LocalSLList<Extent_info, Extent_info_pool, Extent_list_t> Local_fragment_extent_list;
+  typedef RecordPool<RWPool<Extent_info> > Extent_info_pool;
+  typedef DLList<Extent_info_pool> Extent_info_list;
+  typedef LocalDLList<Extent_info_pool> Local_extent_info_list;
+  typedef DLHashTable<Extent_info_pool> Extent_info_hash;
+  typedef SLList<Extent_info_pool, Extent_list_t> Fragment_extent_list;
+  typedef LocalSLList<Extent_info_pool, Extent_list_t> Local_fragment_extent_list;
   struct Tablerec;
   struct Disk_alloc_info 
   {
@@ -705,6 +712,8 @@ struct Fragrecord {
   Uint64 m_lcp_changed_rows;
   // Number of fixed-seize tuple parts (which equals the tuple count).
   Uint64 m_fixedElemCount;
+  Uint64 m_row_count;
+  Uint64 m_committed_changes;
   /**
     Number of variable-size tuple parts, i.e. the number of tuples that has
     one or more non-NULL varchar/varbinary or blob fields. (The first few bytes
@@ -834,6 +843,7 @@ struct Operationrec {
      */
     unsigned int m_triggers : 2;
     unsigned int m_disable_fk_checks : 1;
+    unsigned int m_tuple_existed_at_start : 1;
   };
 
   union OpStruct {
@@ -945,7 +955,7 @@ struct TupTriggerData {
 
 typedef Ptr<TupTriggerData> TriggerPtr;
 typedef ArrayPool<TupTriggerData> TupTriggerData_pool;
-typedef DLList<TupTriggerData, TupTriggerData_pool> TupTriggerData_list;
+typedef DLList<TupTriggerData_pool> TupTriggerData_list;
 
 /**
  * Pool of trigger data record
@@ -1381,7 +1391,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   };
   typedef Ptr<BuildIndexRec> BuildIndexPtr;
   typedef ArrayPool<BuildIndexRec> BuildIndexRec_pool;
-  typedef DLList<BuildIndexRec, BuildIndexRec_pool> BuildIndexRec_list;
+  typedef DLList<BuildIndexRec_pool> BuildIndexRec_list;
   BuildIndexRec_pool c_buildIndexPool;
   BuildIndexRec_list c_buildIndexList;
   Uint32 c_noOfBuildIndexRec;
@@ -1457,8 +1467,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     STATIC_CONST( ALLOC       = 0x00100000 ); // Is record allocated now
     STATIC_CONST( NOT_USED_BIT= 0x00200000 ); //
     STATIC_CONST( MM_GROWN    = 0x00400000 ); // Has MM part grown
-    STATIC_CONST( FREED       = 0x00800000 ); // Is freed
-    STATIC_CONST( FREE        = 0x00800000 ); // alias
+    STATIC_CONST( FREE        = 0x00800000 ); // Is free
     STATIC_CONST( LCP_SKIP    = 0x01000000 ); // Should not be returned in LCP
     STATIC_CONST( VAR_PART    = 0x04000000 ); // Is there a varpart
     STATIC_CONST( REORG_MOVE  = 0x08000000 ); // Tuple will be moved in reorg
@@ -1807,7 +1816,10 @@ public:
   Uint32 get_max_lcp_record_size(Uint32 tableId);
   
   int nr_read_pk(Uint32 fragPtr, const Local_key*, Uint32* dataOut, bool&copy);
-  int nr_update_gci(Uint32 fragPtr, const Local_key*, Uint32 gci);
+  int nr_update_gci(Uint32 fragPtr,
+                    const Local_key*,
+                    Uint32 gci,
+                    bool tuple_exists);
   int nr_delete(Signal*, Uint32, Uint32 fragPtr, const Local_key*, Uint32 gci);
 
   void nr_delete_page_callback(Signal*, Uint32 op, Uint32 page);
@@ -1823,6 +1835,7 @@ public:
   void stop_lcp_scan(Uint32 tableId, Uint32 fragmentId);
   void lcp_frag_watchdog_print(Uint32 tableId, Uint32 fragmentId);
 
+  Uint64 get_restore_row_count(Uint32 tableId, Uint32 fragmentId);
   void set_lcp_start_gci(Uint32 fragPtrI, Uint32 startGci);
   void get_lcp_frag_stats(Uint32 fragPtrI,
                           Uint32 startGci,
@@ -1835,6 +1848,8 @@ public:
   // Statistics about fragment memory usage.
   struct FragStats
   {
+    Uint64 committedRowCount;
+    Uint64 committedChanges;
     // Size of fixed-size part of record.
     Uint32 fixedRecordBytes;
     // Page size (32k, see File_formats::NDB_PAGE_SIZE).
@@ -3212,16 +3227,20 @@ private:
                        Uint32 page_no);
 
   void record_delete_by_pageid(Signal *signal,
+                               Uint32 tableId,
                                Uint32 fragmentId,
                                ScanOp &scan,
-                               Local_key &key,
-                               Uint32 record_size);
+                               Uint32 page_no,
+                               Uint32 record_size,
+                               bool set_scan_state);
 
   void record_delete_by_rowid(Signal *signal,
+                              Uint32 tableId,
                               Uint32 fragmentId,
                               ScanOp &scan,
                               Local_key &key,
-                              Uint32 foundGCI);
+                              Uint32 foundGCI,
+                              bool set_scan_state);
 
 //---------------------------------------------------------------
 // Variable Allocator
@@ -3621,6 +3640,7 @@ public:
   bool is_disk_columns_in_table(Uint32 tableId);
 
 private:
+  bool c_started;
   // these 2 were file-static before mt-lqh
   bool f_undo_done;
   Dbtup::Apply_undo f_undo;

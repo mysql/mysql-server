@@ -1149,7 +1149,7 @@ Rows matched: 1  Changed: 1  Warnings: 0
 RUN SELECT * FROM xtest.mycoll
 doc	_id
 {"_id": "1", "name": "watermelon_replace", "amount": null}	1
-{"_id": "2", "name": "watermelon_replace", "third": 3, "amount": null, "fourth": "four"}	2
+{"_id": "2", "name": "watermelon_replace", "third": 3.0, "amount": null, "fourth": "four"}	2
 {"_id": "3", "amount": [null, "Update_ArrayAppend"]}	3
 {"_id": "4", "name": "watermelon_replace", "amount": null}	4
 {"_id": "5", "name": "watermelon_replace", "amount": null}	5
@@ -1215,7 +1215,7 @@ Rows matched: 1  Changed: 1  Warnings: 0
 RUN SELECT * FROM xtest.mycoll
 doc	_id
 {"_id": "1", "name": "watermelon_replace", "amount": null}	1
-{"_id": "2", "name": "watermelon_replace", "third": 3, "amount": null, "fourth": "four"}	2
+{"_id": "2", "name": "watermelon_replace", "third": 3.0, "amount": null, "fourth": "four"}	2
 {"_id": "3", "amount": [null, "Update_ArrayAppend"]}	3
 {"_id": "4", "name": "watermelon_replace", "amount": null}	4
 {"_id": "5", "name": "watermelon_replace", "amount": null}	5

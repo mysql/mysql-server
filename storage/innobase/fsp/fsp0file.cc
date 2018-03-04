@@ -3,16 +3,24 @@
 Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -25,6 +33,7 @@ Created 2013-7-26 by Kevin Lewis
 
 #include "ha_prototypes.h"
 
+#include "dict0dd.h"
 #include "fsp0file.h"
 #include "fil0fil.h"
 #include "fsp0types.h"
@@ -33,6 +42,10 @@ Created 2013-7-26 by Kevin Lewis
 #include "page0page.h"
 #include "srv0start.h"
 #include "ut0new.h"
+
+#ifdef UNIV_HOTBACKUP
+# include "my_sys.h"
+#endif /* UNIV_HOTBACKUP */
 
 /** Initialize the name and flags of this datafile.
 @param[in]	name	tablespace name, will be copied
@@ -207,13 +220,22 @@ void
 Datafile::make_filepath(
 	const char*	dirpath,
 	const char*	filename,
-	ib_extention	ext)
+	ib_file_suffix	ext)
 {
-	ut_ad(dirpath != NULL || filename != NULL);
-
 	free_filepath();
 
-	m_filepath = fil_make_filepath(dirpath, filename, ext, false);
+	std::string	path;
+	std::string	name;
+
+	if (dirpath != nullptr) {
+		path.assign(dirpath);
+	}
+
+	if (filename != nullptr) {
+		name.assign(filename);
+	}
+
+	m_filepath = Fil_path::make(path, name, ext);
 
 	ut_ad(m_filepath != NULL);
 
@@ -295,12 +317,24 @@ Datafile::set_name(const char*	name)
 		undo::Tablespace	undo_space(m_space_id);
 		m_name = mem_strdup(undo_space.space_name());
 	} else {
+#ifndef UNIV_HOTBACKUP
 		/* Give this general tablespace a temporary name. */
 		m_name = static_cast<char*>(
 			ut_malloc_nokey(strlen(general_space_name) + 20));
 
 		sprintf(m_name, "%s_" SPACE_ID_PF, general_space_name,
 			m_space_id);
+#else /* !UNIV_HOTBACKUP */
+		/* Use the absolute path of general tablespaces. Absolute path
+		will help MEB to ignore the dirty records from the redo logs
+		pertaining to the same tablespace but with older space_ids.
+		It will also not cause name clashes with remote tablespaces or
+		tables in schema directory. */
+		size_t len = strlen(m_filepath);
+		m_name = static_cast<char*>(ut_malloc_nokey(len + 1));
+		memcpy(m_name, m_filepath, len);
+		m_name[len] = '\0';
+#endif /* !UNIV_HOTBACKUP */
 	}
 }
 
@@ -368,6 +402,10 @@ Datafile::read_first_page(bool read_only_mode)
 		m_flags = fsp_header_get_flags(m_first_page);
 
 		m_space_id = fsp_header_get_space_id(m_first_page);
+
+		m_server_version = fsp_header_get_server_version(m_first_page);
+
+		m_space_version = fsp_header_get_space_version(m_first_page);
 	}
 
 	return(err);
@@ -401,7 +439,7 @@ Datafile::validate_to_dd(
 	dberr_t err;
 
 	if (!is_open()) {
-		return DB_ERROR;
+		return(DB_ERROR);
 	}
 
 	/* Validate this single-table-tablespace with the data dictionary,
@@ -516,7 +554,7 @@ m_is_valid is set true on success, else false.
 @param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
 @param[in]	for_import	if it is for importing
 (only valid for the first file of the system tablespace)
-@retval DB_TABLESPACE_NOT_FOUND tablespace in file header doesn't match
+@retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
 	expected value
 @retval DB_SUCCESS on if the datafile is valid
 @retval DB_CORRUPTION if the datafile is not readable
@@ -602,12 +640,19 @@ Datafile::validate_first_page(
 		/* Tablespace ID mismatch. The file could be in use
 		by another tablespace. */
 
+#ifndef UNIV_HOTBACKUP
 		ut_d(ib::info()
 		     << "Tablespace file '" << filepath() << "' ID mismatch"
 		     << ", expected " << space_id << " but found "
 		     << m_space_id);
+#else /* !UNIV_HOTBACKUP */
+		ib::trace_2()
+		     << "Tablespace file '" << filepath() << "' ID mismatch"
+		     << ", expected " << space_id << " but found "
+		     << m_space_id;
+#endif /* !UNIV_HOTBACKUP */
 
-		return(DB_TABLESPACE_NOT_FOUND);
+		return(DB_WRONG_FILE_NAME);
 
 	} else {
 		BlockReporter	reporter(
@@ -618,6 +663,19 @@ Datafile::validate_first_page(
 			/* Look for checksum and other corruptions. */
 			error_txt = "Checksum mismatch";
 		}
+
+		/** TODO: Enable following after WL#11063: Update
+		server version information in InnoDB tablespaces:
+
+		else if (!for_import
+			   && (fsp_header_get_server_version(m_first_page)
+			       != DD_SPACE_CURRENT_SRV_VERSION)) {
+			error_txt = "Wrong server version";
+		} else if (!for_import
+			   && (fsp_header_get_space_version(m_first_page)
+			       != DD_SPACE_CURRENT_SPACE_VERSION)) {
+			error_txt = "Wrong tablespace version";
+		} */
 	}
 
 	if (error_txt != NULL) {
@@ -641,8 +699,19 @@ Datafile::validate_first_page(
 		m_encryption_iv = static_cast<byte*>(
 			ut_zalloc_nokey(ENCRYPTION_KEY_LEN));
 #ifdef	UNIV_ENCRYPT_DEBUG
-                fprintf(stderr, "Got from file %lu:", m_space_id);
+		fprintf(stderr, "Got from file %lu:", m_space_id);
 #endif
+
+#ifdef UNIV_HOTBACKUP
+		if (!meb_get_encryption_key(m_space_id,
+					    m_encryption_key,
+					    m_encryption_iv)) {
+			ib::fatal()
+				<< "Encryption information in"
+				<< " datafile: " << m_filepath
+				<< " cannot be decrypted.\n"
+				<< "MEB cannot proceed with the operation.";
+#else /* UNIV_HOTBACKUP */
 		if (!fsp_header_get_encryption_key(m_flags,
 						   m_encryption_key,
 						   m_encryption_iv,
@@ -654,6 +723,7 @@ Datafile::validate_first_page(
 				<< " , please confirm the keyfile"
 				<< " is match and keyring plugin"
 				<< " is loaded.";
+#endif /* UNIV_HOTBACKUP */
 
 			m_is_valid = false;
 			free_first_page();

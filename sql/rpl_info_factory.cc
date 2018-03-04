@@ -1,13 +1,20 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -302,11 +309,10 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
   }
 
   /* Set filters here to guarantee that any rli object has a valid filter */
-  rpl_filter= rpl_filter_map.get_channel_filter(channel);
+  rpl_filter= rpl_channel_filters.get_channel_filter(channel);
   if (rpl_filter == NULL)
   {
-    sql_print_error("Slave: failed in creating filter for channel '%s'",
-                    channel);
+    LogErr(ERROR_LEVEL, ER_RPL_SLAVE_FILTER_CREATE_FAILED, channel);
     msg= msg_alloc;
     goto err;
   }
@@ -1029,9 +1035,8 @@ bool Rpl_info_factory::configure_channel_replication_filters(
     */
     if (rli->rpl_filter->copy_global_replication_filters())
     {
-      sql_print_error("Slave: failed in copying the global filters to "
-                      "its own per-channel filters on configuration "
-                      "for channel '%s'", channel_name);
+      LogErr(ERROR_LEVEL, ER_RPL_SLAVE_GLOBAL_FILTERS_COPY_FAILED,
+             channel_name);
       DBUG_RETURN(true);
     }
   }
@@ -1044,10 +1049,7 @@ bool Rpl_info_factory::configure_channel_replication_filters(
     */
     if (!rli->rpl_filter->is_empty())
     {
-      sql_print_warning("There are per-channel replication filter(s) "
-                        "configured for channel '%.192s' which does not "
-                        "exist. The filter(s) have been discarded.",
-                        channel_name);
+      LogErr(WARNING_LEVEL, ER_RPL_SLAVE_RESET_FILTER_OPTIONS, channel_name);
       rli->rpl_filter->reset();
     }
   }

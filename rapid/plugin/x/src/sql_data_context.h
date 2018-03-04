@@ -1,32 +1,37 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef XPL_SQL_DATA_CONTEXT_H_
 #define XPL_SQL_DATA_CONTEXT_H_
 
-#include "buffering_command_delegate.h"
 #include "mysql/service_command.h"
 #include "mysql/service_my_snprintf.h"
-#include "ngs_common/connection_type.h"
-#include "ngs/interface/sql_session_interface.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "streaming_command_delegate.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs_common/connection_type.h"
+#include "plugin/x/src/buffering_command_delegate.h"
+#include "plugin/x/src/streaming_command_delegate.h"
 
 // Use an internal MySQL server user
 #define MYSQL_SESSION_USER "mysql.session"
@@ -84,12 +89,16 @@ class Sql_data_context : public ngs::Sql_session_interface {
   ngs::Error_code execute(const char *sql, std::size_t sql_len,
                           ngs::Resultset_interface *rset) override;
 
+  ngs::Error_code attach() override;
+  ngs::Error_code detach() override;
+
+
   ngs::Error_code init();
   ngs::Error_code init(const int client_port, const ngs::Connection_type type);
   void deinit();
 
   MYSQL_THD get_thd() const;
-  void detach();
+
   bool kill();
   bool is_acl_disabled();
   void switch_to_local_user(const std::string &username);

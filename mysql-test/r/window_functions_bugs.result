@@ -1,0 +1,656 @@
+#
+# Bug#26475312 VALGRIND MEMORY LEAK ( CMP_FIELD_VALUE(FIELD*, LONG) (SQL_EXECUTOR.CC:3598)
+#
+CREATE TABLE H (
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_varchar_255_latin1_key varchar(255)  CHARACTER SET latin1,
+col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
+col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8,
+col_int int,
+col_int_key int,
+col_varchar_255_utf8 varchar(255)  CHARACTER SET utf8,
+pk integer auto_increment,
+col_varchar_255_latin1 varchar(255)  CHARACTER SET latin1,
+/*Indices*/
+key (col_varchar_255_latin1_key ),
+key (col_varchar_10_latin1_key ),
+key (col_varchar_10_utf8_key ),
+key (col_varchar_255_utf8_key ),
+key (col_int_key ),
+primary key (pk)) ENGINE=innodb;
+INSERT IGNORE INTO H VALUES
+('about', 'z', 'they', 'm', 'x', 'could',
+3, 155189248,
+'xyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdqpqtwnugrwwcxumxofffljfhpkpddctnalygeuaugnnwxylfjdpzwvybdgtfyagjeqniouizgdzbhwahrylqwmnqzcjrhoivxidqmuikodwulsugcmwtxsadjdztkpdwbdxtvckayxskunxtompmmcbgiyedwfbjafnpcbvmxnrzvubwpnxfuzndvkxkfhjnzdvvkowuizfymqqexdtppmiznrhwfsngzbcvrynormfrjlflywpsmcsifmjuvwislbtaivizpbisvasqpyscnanwlttnqpzpdbiphzuujfksinzkcbbarimkigwdxjhscyrlmiqglyrdrwvhyoltdmpqlyzgknqzmfptjcmzeyokthfkdktzcsohicugzwgevhnsublfvasvftxhgk', NULL, 't');
+Warnings:
+Warning	1265	Data truncated for column 'col_varchar_255_utf8' at row 1
+CREATE TABLE DD (
+col_varchar_255_latin1_key varchar(255)  CHARACTER SET latin1,
+col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8,
+col_varchar_255_latin1 varchar(255)  CHARACTER SET latin1,
+col_varchar_10_latin1_key varchar(10)  CHARACTER SET latin1,
+col_int_key int,
+col_varchar_255_utf8 varchar(255)  CHARACTER SET utf8,
+pk integer auto_increment,
+col_varchar_10_utf8 varchar(10)  CHARACTER SET utf8,
+col_int int,
+col_varchar_10_latin1 varchar(10)  CHARACTER SET latin1,
+col_varchar_10_utf8_key varchar(10)  CHARACTER SET utf8,
+/*Indices*/
+key (col_varchar_255_latin1_key ),
+key (col_varchar_255_utf8_key ),
+key (col_varchar_10_latin1_key ),
+key (col_int_key ),
+primary key (pk),
+key (col_varchar_10_utf8_key )) ENGINE=innodb;
+INSERT IGNORE INTO DD VALUES  ('q',
+'brmucbzjaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdqpqtwnugrwwcxumxofffljfhpkpddctnalygeuaugnnwxylfjdpzwvybdgtfyagjeqniouizgdzbhwahrylqwmnqzcjrhoivxidqmuikodwulsugcmwtxsadjdztkpdwbdxtvckayxskunxtompmmcbgiyedwfbjafnpcbvmxnrzvubwpnxfuzndvkxkf', 'now',
+'you\'re', 1811152896, 'or', NULL, 'this', 6, 'then', 'e') ,  ('did', 'j',
+'they',
+'rmucbzjaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdqpqtwnugrwwcxumxofffljfhpkpddctnalygeuaugnnwxylfjdpzwvybdgtfyagjeqniouizgdzbhwahrylqwmnqzcjrhoivxidqmuikodwulsugcmwtxsadjdztkpdwbdxtvckayxskunxtompmmcbgiyedwfbjafnpcbvmxnrzvubwpnxfuzndvkxkfhjnzdvvkowu',
+2087649280,
+'mucbzjaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbm',
+NULL, 'would', -64421888, 'I\'m', 'do') ,  ('l',
+'ucbzjaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillur', 'yes', 'it', 8,
+'cbzjaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgke', NULL,'bzjaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylc', 5,
+'zjaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbquk', 'i') ,
+('d', 'l', 'u',
+'jaeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfke', -772603904, 'yes', NULL, 'l', 1, 'p',
+'aeueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdqpqtwnugrwwcxumxofffljfhpkpddctnalygeuaugnnwxylfjdpzwvybdgtfyagjeqniouizgdzbhwahrylqwmnqzcjrhoivxidqmuikodwulsugcmwtxsadjdztkpdwbdxtvckayxskunxtompmmcbgiyedwfbjafnpcbvmxnrzvubwpnxfuz') ,  ('well',
+'eueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkje
+bunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwgg
+kspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuz
+jvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxy
+odli', 'of', 'on', 0,
+'ueffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjeb
+unithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggk
+spxpaoxldymllvikfrwhblzugcnlgmoz', NULL,'effwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkb',
+-479461376,
+'ffwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemcl','fwxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdqpqtwnugrwwcxumxofff') ,
+('wxeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcb', 'we', 'w', 'me', 0,
+'xeyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmr', NULL, 'with', 6, 'for', 'b') ,  ('say', 'l', 't', 'b', 9,
+'eyonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflm', NULL, 'she', 8, 'come',
+'yonrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmf')
+,  ('or', 'c', 'q', 'from', 559546368, 'as', NULL, 'q', -988545024, 'do',
+'onrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnb') ,
+('nrgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdqpqtwnugrwwcxumxofffljfhpkpddctnalygeuaugnnwxylfjdpzwvybdgtfyagjeqniouizgdzbhwahrylqwmnqzcjrhoivxi', 'one', 'n',
+'rgouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdq', -681639936,'gouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiunassfsitgtnbbqukaeoubigzikncxyodlihgflmcbkqxdcvjpiqmnoorrutfxankapsmbdiicuytbwekanfyklnbjliaaebckybutdqwptyalaxaeuihzhclgqsmahtzogdxwslioxailzxafyztqpcakqukruoggiuemclpylcufjtmzxbutyghfkezxvfwojgolicczdqpqtwnugrwwcxumxofffljfhpkpddctnalygeuaugnnwxylfjdpzwvybdgtfyagjeqniouizgdzbhwahrylqwmnqzcjrhoivxidqmuikodwulsugcmwtxsadjdztkpdwbdxtvckayxskunxtompmmcbgiyedwfbjafnpcbvmxnrzvubwpnxfuzndvkxkf', NULL, 'n', 5, 'p','ouqbsvekyzrfizdybnlisnzpgplythqeyugzvhzjmxhmzqnbmldcuskteeyxqeesumyuohkhmoxtlpsumxsuahxrnybqsdvkiiiiatzeihtiwqjgxrspppoytvmuufhhkcgbnpemioxkjebunithymftmsroaqsxdrxhcozhqdagsxfxndeimavrxfdocfgafdxzxqoehcikppndcieybkyxmumqsbcwcmmrweiprthlrnphvebnfgjfhrkrxxorzzbedateyoomxdzgkevuyyvmusoduugukillurhwggkspxpaoxldymllvikfrwhblzugcnlgmozwbhvpytvyogbythupkkfgjqpqjgprksqcndkbsrzgiuvqgkqtqvucjdnyfqhigpgfeclnxyrkcxviqrwelsktxpoecytteiloxyzksesbdqhrcrfdzuxboyppuzjvssddkrsgvagetbssudtdsxcmpqpemiqbztutrkxougxqcpwlacgbyktskefotymojkkjnbkvkmqjgzrvmfpzwkixtxioqbzfvomgkicobwpsjeyfcaxwqxegkkiun');
+Warnings:
+Warning	1265	Data truncated for column 'col_varchar_255_utf8_key' at row 1
+Warning	1265	Data truncated for column 'col_varchar_10_latin1_key' at row 2
+Warning	1265	Data truncated for column 'col_varchar_255_utf8_key' at row 3
+Warning	1265	Data truncated for column 'col_varchar_255_utf8' at row 3
+Warning	1265	Data truncated for column 'col_varchar_10_utf8' at row 3
+Warning	1265	Data truncated for column 'col_varchar_10_latin1' at row 3
+Warning	1265	Data truncated for column 'col_varchar_10_latin1_key' at row 4
+Warning	1265	Data truncated for column 'col_varchar_10_utf8_key' at row 4
+Warning	1265	Data truncated for column 'col_varchar_255_utf8_key' at row 5
+Warning	1265	Data truncated for column 'col_varchar_255_utf8' at row 5
+Warning	1265	Data truncated for column 'col_varchar_10_utf8' at row 5
+Warning	1265	Data truncated for column 'col_varchar_10_latin1' at row 5
+Warning	1265	Data truncated for column 'col_varchar_10_utf8_key' at row 5
+Warning	1265	Data truncated for column 'col_varchar_255_latin1_key' at row 6
+Warning	1265	Data truncated for column 'col_varchar_255_utf8' at row 7
+Warning	1265	Data truncated for column 'col_varchar_10_utf8_key' at row 7
+Warning	1265	Data truncated for column 'col_varchar_10_utf8_key' at row 8
+Warning	1265	Data truncated for column 'col_varchar_255_latin1_key' at row 9
+Warning	1265	Data truncated for column 'col_varchar_10_latin1_key' at row 9
+Warning	1265	Data truncated for column 'col_varchar_255_utf8' at row 9
+Warning	1265	Data truncated for column 'col_varchar_10_utf8_key' at row 9
+SELECT
+alias1 . col_int AS field1 ,
+CUME_DIST() OVER (   ORDER BY alias1 . pk) AS field2 ,
+alias1 . col_int_key AS field3 ,
+PERCENT_RANK() OVER ( ORDER BY  alias2 .col_varchar_255_utf8_key,
+alias1 . col_varchar_10_latin1_key,  alias1. col_varchar_255_utf8 )
+AS field4 ,
+alias1 . col_int_key AS field5 ,
+PERCENT_RANK() OVER (
+PARTITION BY  alias2 .col_varchar_10_utf8,  alias1 .col_int_key,
+alias2 .col_varchar_255_utf8
+ORDER BY alias1. col_varchar_10_latin1
+ROWS CURRENT ROW  ) AS field6 ,
+alias1 . col_int AS field7 ,
+RANK() OVER ( ORDER BY  alias1 . col_int ) AS field8 ,
+alias2 . pk AS field9 ,
+NTILE ( 1 ) OVER (
+PARTITION BY
+alias1 .col_varchar_255_latin1,alias2 . col_varchar_255_latin1,
+alias1. col_varchar_255_utf8_key,  alias1. col_varchar_10_latin1,
+alias2 . col_int_key
+ORDER BY alias1 . col_int,  alias1 . col_int_key)
+AS field10 ,
+alias1 . col_int AS field11 ,
+NTILE ( 5 ) OVER ( ORDER BY  alias1. col_int ) AS field12
+FROM DD AS alias1 LEFT  JOIN H AS alias2
+ON alias1 . pk =  alias2 . col_int
+WHERE alias1 . pk > 3
+GROUP BY
+field1, alias1.pk, field3,alias2.col_varchar_255_utf8_key,
+alias1.col_varchar_10_latin1_key,alias1.col_varchar_255_utf8, field5,
+alias2.col_varchar_10_utf8,alias1.col_int_key,
+alias2.col_varchar_255_utf8,alias1.col_varchar_10_latin1, field7,
+alias1.col_int, field9,alias1.col_varchar_255_latin1,
+alias2.col_varchar_255_latin1,alias1.col_varchar_255_utf8_key,
+alias1.col_varchar_10_latin1,alias2.col_int_key, alias1.col_int,
+alias1.col_int_key, field11,alias1.col_int
+HAVING field3 >= 7
+ORDER BY field10  , field6  , field4;
+field1	field2	field3	field4	field5	field6	field7	field8	field9	field10	field11	field12
+8	0.5	9	0	9	0	8	2	NULL	1	8	2
+-988545024	1	559546368	1	559546368	0	-988545024	1	NULL	1	-988545024	1
+DROP TABLE DD,H;
+#
+# Bug#27060420 WINDOW FUNC, VIEW, CRASH IN DO_COPY_MAYBE_NULL
+#
+CREATE TABLE t (a INT NOT NULL, b BLOB NOT NULL) ENGINE=INNODB;
+CREATE VIEW v AS SELECT * FROM t;
+INSERT INTO t VALUES (1, ''), (1, '');
+SELECT a, PERCENT_RANK() OVER w1 FROM t GROUP BY b,1 WITH ROLLUP WINDOW w1 AS();
+a	PERCENT_RANK() OVER w1
+1	0
+NULL	0
+NULL	0
+used to fail
+SELECT a, PERCENT_RANK() OVER w1 FROM v GROUP BY b,1 WITH ROLLUP WINDOW w1 AS();
+a	PERCENT_RANK() OVER w1
+1	0
+NULL	0
+NULL	0
+DROP VIEW v;
+DROP TABLE t;
+#
+# Bug#26848089 LEAD/LAG WINDOW FUNCTIONS ON QUOTED JSON STRINGS RETURNS SAME VALUE FOR ALL ROWS
+#
+CREATE TABLE t1 (doc JSON);
+INSERT INTO t1 VALUES
+('{"txt": "abcd"}'), ('{"txt": "bcde"}'),
+('{"txt": "cdef"}'), ('{"txt": "defg"}');
+SELECT doc->'$.txt', LAG(doc->'$.txt') OVER (ORDER BY doc->'$.txt') FROM t1;
+doc->'$.txt'	LAG(doc->'$.txt') OVER (ORDER BY doc->'$.txt')
+"abcd"	NULL
+"bcde"	"abcd"
+"cdef"	"bcde"
+"defg"	"cdef"
+DROP TABLE t1;
+#
+# Bug#27061487 WINDOW FUNC, CRASH IN DECIMAL2BIN
+#
+CREATE TABLE t(a INT);
+INSERT INTO t VALUES (1), (2), (3);
+SELECT FIRST_VALUE(-2605.952148) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+FROM t WINDOW w1 AS (PARTITION BY a);
+FIRST_VALUE(-2605.952148) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+-2605.952148
+-2605.952148
+-2605.952148
+SELECT LAST_VALUE(-2605.952148) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+FROM t WINDOW w1 AS (PARTITION BY a);
+LAST_VALUE(-2605.952148) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+-2605.952148
+-2605.952148
+-2605.952148
+These don't suffer from the error as their maybe_null==true,
+but including tests since we updated their code in case this
+changes: NTH(<non-null arg>, 1) is really the same as
+FIRST_VALUE, for example, and could have been made
+maybe_null==false.
+SELECT NTH_VALUE(-2605.952148, 1) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+FROM t WINDOW w1 AS (PARTITION BY a);
+NTH_VALUE(-2605.952148, 1) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+-2605.952148
+-2605.952148
+-2605.952148
+SELECT LEAD(-2605.952148, 1) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+FROM t WINDOW w1 AS (PARTITION BY a);
+LEAD(-2605.952148, 1) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+NULL
+NULL
+NULL
+SELECT MAX(-2605.952148) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+FROM t WINDOW w1 AS (PARTITION BY a);
+MAX(-2605.952148) OVER
+(PARTITION BY a ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING)
+-2605.952148
+-2605.952148
+-2605.952148
+DROP TABLE t;
+#
+# Bug #27135084: WINDOW FUNC: CRASH IN ITEM_FUNC_INT_DIV::VAL_INT
+#
+SELECT ((PERIOD_DIFF('7766-05-30','2955-06-11'))DIV(LAST_VALUE(';')OVER()));
+ERROR HY000: Incorrect arguments to period_diff
+SELECT ((BIT_OR(COT('f?e')))DIV(LAG(' ',133,0xbb054701d650)OVER()));
+ERROR 22003: DOUBLE value is out of range in 'cot('f?e')'
+SELECT ((EXP(2778419536874221989))DIV(LAST_VALUE('{ }')OVER()));
+ERROR 22003: DOUBLE value is out of range in 'exp(2778419536874221989)'
+SELECT ((PERIOD_ADD(-6001,16973))DIV(LAST_VALUE('')OVER()));
+ERROR HY000: Incorrect arguments to period_add
+SELECT((LAST_VALUE(PERIOD_ADD(32733,1518714932))OVER())DIV(NULL));
+ERROR HY000: Incorrect arguments to period_add
+SELECT ((EXP(0x6108))DIV(LAG(NULL,21,' 4F')OVER()));
+ERROR 22003: DOUBLE value is out of range in 'exp(0x6108)'
+SELECT ((FIRST_VALUE(EXP(0x41a129))OVER())DIV(-969));
+ERROR 22003: DOUBLE value is out of range in 'exp(0x41a129)'
+#
+# Bug #27136492: WINDOW FUNC: MAKETIME: CRASH IN MY_DECIMAL2LLDIV_T
+#
+SELECT MAKETIME('1',(!(999*1.421474e+308)),LAST_VALUE(-25038)RESPECT NULLS
+OVER());
+ERROR 22003: DOUBLE value is out of range in '(999 * 1.421474e+308)'
+# End of test for Bug#27135084, Bug#27136492
+#
+# Bug#27149369: ASSERTION FAILURE IN BOOL
+#               READ_FRAME_BUFFER_ROW(INT64, WINDOW*, BOOL)
+#
+CREATE TABLE t1 ( i INTEGER);
+INSERT INTO t1 VALUES (392),(392),(1027),(1027),(1027),(1034),(1039);
+SELECT i, LAST_VALUE(i) OVER w FROM t1
+WINDOW w AS (ORDER BY i RANGE BETWEEN 7 PRECEDING AND 1 PRECEDING);
+i	LAST_VALUE(i) OVER w
+392	NULL
+392	NULL
+1027	NULL
+1027	NULL
+1027	NULL
+1034	1027
+1039	1034
+DROP TABLE t1;
+#
+# Bug #27062031: WINDOW FUNC: CRASH IN COUNT_FIELD_TYPES() /
+#                ASSERTION FAILED: N < M_SIZE
+#
+CREATE TABLE t(a INT);
+INSERT INTO t values (1),(2),(3),(6),(0);
+Discard w
+SELECT 1 FROM t WINDOW w AS(PARTITION BY NULL,NULL ORDER BY NULL ASC);
+1
+1
+1
+1
+1
+1
+EXPLAIN FORMAT=JSON SELECT 1 FROM t WINDOW w AS(PARTITION BY NULL,NULL ORDER BY NULL ASC);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "table": {
+      "table_name": "t",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.50",
+        "prefix_cost": "0.75",
+        "data_read_per_join": "40"
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t`
+Discard w
+SELECT 1 FROM t WINDOW w AS(PARTITION BY 1+2,3+4,5+6 ORDER BY 1+2,3+4);
+1
+1
+1
+1
+1
+1
+EXPLAIN FORMAT=JSON SELECT 1 FROM t WINDOW w AS(PARTITION BY 1+2,3+4,5+6 ORDER BY 1+2,3+4);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "table": {
+      "table_name": "t",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 5,
+      "rows_produced_per_join": 5,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "0.50",
+        "prefix_cost": "0.75",
+        "data_read_per_join": "40"
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t`
+Discard w2
+SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+RANK() OVER w1
+1
+2
+3
+4
+5
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`a`"
+          ],
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        },
+        "used_columns": [
+          "a"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w1` AS `RANK() OVER w1` from `test`.`t` window `w1` AS (ORDER BY `test`.`t`.`a` ) 
+Don't discard either w1 or w2. Non-optimal: could replace with
+one window since w1 isn't used and even if it were used, the
+semantics are the same.
+SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+RANK() OVER w2
+1
+2
+3
+4
+5
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`a`"
+          ],
+          "functions": [
+          ]
+        },
+        {
+          "name": "w2",
+          "definition_position": 2,
+          "last_executed_window": true,
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        },
+        "used_columns": [
+          "a"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w2` AS `RANK() OVER w2` from `test`.`t` window `w1` AS (ORDER BY `test`.`t`.`a` ) , `w2` AS (`w1` ) 
+Discard w3. Non-optimal: see previous case.
+SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1), w3 AS (w1);
+RANK() OVER w2
+1
+2
+3
+4
+5
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1), w3 AS (w1);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`a`"
+          ],
+          "functions": [
+          ]
+        },
+        {
+          "name": "w2",
+          "definition_position": 2,
+          "using_temporary_table": true,
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        },
+        "used_columns": [
+          "a"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w2` AS `RANK() OVER w2` from `test`.`t` window `w1` AS (ORDER BY `test`.`t`.`a` ) , `w2` AS (`w1` ) 
+Discard w1. Non-optimal: see previous case.
+SELECT RANK() OVER w3 FROM t WINDOW w1 AS (w2), w3 AS (w2), w2 AS ();
+RANK() OVER w3
+1
+1
+1
+1
+1
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w3 FROM t WINDOW w1 AS (w2), w3 AS (w2), w2 AS ();
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w3",
+          "definition_position": 2,
+          "using_temporary_table": true,
+          "functions": [
+            "rank"
+          ]
+        },
+        {
+          "name": "w2",
+          "definition_position": 3,
+          "last_executed_window": true,
+          "functions": [
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w3` AS `RANK() OVER w3` from `test`.`t` window `w3` AS (`w2` ) , `w2` AS () 
+Discard w2.
+SELECT RANK() OVER w1 FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a);
+RANK() OVER w1
+1
+2
+3
+4
+5
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w1 FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        },
+        "used_columns": [
+          "a"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select rank() OVER `w1` AS `RANK() OVER w1` from `test`.`t` window `w1` AS (ORDER BY `test`.`t`.`a` ) 
+Discard none.
+SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ROWS UNBOUNDED PRECEDING);
+RANK() OVER w1
+1
+1
+1
+1
+1
+EXPLAIN FORMAT=JSON SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ROWS UNBOUNDED PRECEDING);
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "0.75"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "w1",
+          "functions": [
+            "rank"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 5,
+        "rows_produced_per_join": 5,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "0.50",
+          "prefix_cost": "0.75",
+          "data_read_per_join": "40"
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	3599	Window function 'rank' ignores the frame clause of window 'w1' and aggregates over the whole partition
+Note	1003	/* select#1 */ select rank() OVER `w1` AS `RANK() OVER w1` from `test`.`t` window `w1` AS (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+DROP TABLE t;
+# End of test for Bug#27062031

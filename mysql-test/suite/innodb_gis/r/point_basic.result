@@ -72,7 +72,7 @@ DROP TABLE gis_point;
 # Test some ALTER TABLE operations on POINT tables
 #
 CREATE TABLE t1 (
-p POINT NOT NULL,
+p POINT NOT NULL SRID 0,
 g GEOMETRY NOT NULL
 ) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(ST_PointFromText('POINT(0 1)'), ST_PointFromText('POINT(10 11)'));
@@ -89,7 +89,7 @@ SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE nam
 name	mtype	prtype	len
 p	14	1535	12
 g	14	1535	12
-ALTER TABLE t1 ADD COLUMN p1 POINT, ADD COLUMN p2 POINT, ADD KEY(p);
+ALTER TABLE t1 ADD COLUMN p1 POINT SRID 0, ADD COLUMN p2 POINT, ADD KEY(p);
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
 name	mtype	prtype	len
 p	14	1535	12
@@ -1343,7 +1343,7 @@ DROP TABLE gis_point;
 # Test inserting/updating different type data into POINT field
 #
 CREATE TABLE gis_point (i INT, p POINT) ENGINE=InnoDB;
-CREATE TABLE geom (i INT, g GEOMETRY NOT NULL, SPATIAL KEY(g)) ENGINE=InnoDB;
+CREATE TABLE geom (i INT, g GEOMETRY NOT NULL SRID 0, SPATIAL KEY(g)) ENGINE=InnoDB;
 INSERT INTO gis_point VALUES(0, ST_PointFromText('POINT(1 1)'));
 INSERT INTO gis_point VALUES(1, ST_PointFromText('POINT(2 2)'));
 INSERT INTO gis_point VALUES(2, NULL);
@@ -1382,12 +1382,12 @@ POINT(1 2)
 POINT(1 1)
 DELETE FROM geom WHERE g = ST_GeomFromText('POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 From GEOMETRY to POINT, now ALL the data are POINT
-ALTER TABLE geom MODIFY g POINT NOT NULL;
+ALTER TABLE geom MODIFY g POINT NOT NULL SRID 0;
 SHOW CREATE TABLE geom;
 Table	Create Table
 geom	CREATE TABLE `geom` (
   `i` int(11) DEFAULT NULL,
-  `g` point NOT NULL,
+  `g` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `g` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT ST_AsText(g) FROM geom;
@@ -1395,22 +1395,22 @@ ST_AsText(g)
 POINT(0 0)
 POINT(10 10)
 From POINT to GEOMETRY, all data are POINT
-ALTER TABLE geom MODIFY g GEOMETRY NOT NULL;
+ALTER TABLE geom MODIFY g GEOMETRY NOT NULL SRID 0;
 SHOW CREATE TABLE geom;
 Table	Create Table
 geom	CREATE TABLE `geom` (
   `i` int(11) DEFAULT NULL,
-  `g` geometry NOT NULL,
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `g` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 TRUNCATE TABLE geom;
 From GEOMETRY to POINT, the table is empty
-ALTER TABLE geom MODIFY g POINT NOT NULL;
+ALTER TABLE geom MODIFY g POINT NOT NULL SRID 0;
 SHOW CREATE TABLE geom;
 Table	Create Table
 geom	CREATE TABLE `geom` (
   `i` int(11) DEFAULT NULL,
-  `g` point NOT NULL,
+  `g` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `g` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SELECT ST_AsText(g) FROM geom;

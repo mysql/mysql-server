@@ -15,24 +15,26 @@ left join t1 on variable_name=test_name where test_name is null ORDER BY variabl
 There should be *no* variables listed below:
 activate_all_roles_on_login
 activate_all_roles_on_login
-binlog_expire_logs_seconds
-binlog_expire_logs_seconds
 cte_max_recursion_depth
 cte_max_recursion_depth
 disabled_storage_engines
 disabled_storage_engines
 innodb_dedicated_server
 innodb_dedicated_server
+keyring_operations
+keyring_operations
 mandatory_roles
 mandatory_roles
 password_history
 password_history
 password_reuse_interval
 password_reuse_interval
+regexp_stack_limit
+regexp_stack_limit
+regexp_time_limit
+regexp_time_limit
 resultset_metadata
 tls_version
 tls_version
-windowing_use_high_precision
-windowing_use_high_precision
 drop table t1;
 drop table t2;

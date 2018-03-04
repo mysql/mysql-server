@@ -4,6 +4,8 @@
 #
 create table t1 (f1 int primary key, f3 linestring not null,
 spatial key(f3)) engine=innodb row_format=compressed key_block_size=1;
+Warnings:
+Warning	3674	The spatial index on column 'f3' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

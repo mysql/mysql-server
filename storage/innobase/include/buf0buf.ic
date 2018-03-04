@@ -10,16 +10,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -38,6 +46,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "sync0debug.h"
 #include "fsp0types.h"
 #include "ut0new.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
 struct buf_chunk_t{
@@ -67,6 +76,7 @@ buf_pool_get_curr_size(void)
 	return(srv_buf_pool_curr_size);
 }
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Calculates the index of a buffer pool to the buf_pool[] array.
 @return the position of the buffer pool in buf_pool[] */
@@ -250,6 +260,7 @@ buf_block_get_state(
 	return(buf_page_get_state(&block->page));
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /** Assert that a given buffer pool page is private to the caller: no pointers
 to it exist in any buffer pool list or hash table. Accessing pages by iterating
@@ -283,7 +294,8 @@ buf_page_is_private(
 
 	return(true);
 }
-#endif
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /** Sets the state of a block.
 @param[in,out]	bpage	pointer to control block
@@ -294,6 +306,7 @@ buf_page_set_state(
 	buf_page_t*		bpage,
 	enum buf_page_state	state)
 {
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 	enum buf_page_state	old_state	= buf_page_get_state(bpage);
 	buf_pool_t*		buf_pool	= buf_pool_from_bpage(bpage);
@@ -345,6 +358,7 @@ buf_page_set_state(
 		break;
 	}
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 	bpage->state = state;
 	ut_ad(buf_page_get_state(bpage) == state);
 }
@@ -714,6 +728,7 @@ buf_page_set_accessed(
 		bpage->access_time = static_cast<uint>(ut_time_ms());
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Gets the buf_block_t handle of a buffered file block if an uncompressed
 page frame exists, or NULL. page frame exists, or NULL. The caller must hold
@@ -728,11 +743,13 @@ buf_page_get_block(
 	buf_page_t*	bpage)
 {
 	if (bpage != NULL) {
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 		buf_pool_t*	buf_pool	= buf_pool_from_bpage(bpage);
 		ut_ad(buf_page_hash_lock_held_s_or_x(buf_pool, bpage)
 		      || mutex_own(&buf_pool->LRU_list_mutex));
-#endif
+#endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 		ut_ad(buf_page_in_file(bpage));
 
 		if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
@@ -742,8 +759,8 @@ buf_page_get_block(
 
 	return(NULL);
 }
-#endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Gets a pointer to the memory frame of a block.
@@ -764,9 +781,7 @@ buf_block_get_frame(
 		ut_error;
 		break;
 	case BUF_BLOCK_FILE_PAGE:
-# ifndef UNIV_HOTBACKUP
 		ut_a(block->page.buf_fix_count > 0);
-# endif /* !UNIV_HOTBACKUP */
 		/* fall through */
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:
@@ -778,6 +793,7 @@ ok:
 	return((buf_frame_t*) block->frame);
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************
 FIXME_FTS Gets the frame the pointer is pointing to. */

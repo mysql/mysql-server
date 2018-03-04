@@ -2,13 +2,20 @@
    Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1149,7 +1156,7 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
     // validate comment string to invalid utf8 characters.
     if (is_invalid_string(chistics->comment,
                           system_charset_info))
-      DBUG_RETURN(SP_INTERNAL_ERROR);
+      DBUG_RETURN(true);
 
     // Check comment string length.
     if (check_string_char_length({ chistics->comment.str,
@@ -2531,10 +2538,12 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_ALTER_INSTANCE:
   case SQLCOM_CREATE_ROLE:
   case SQLCOM_DROP_ROLE:
+  case SQLCOM_CREATE_SRS:
+  case SQLCOM_DROP_SRS:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:
-    flags= lex->describe ? sp_head::MULTI_RESULTS : 0;
+    flags= lex->is_explain() ? sp_head::MULTI_RESULTS : 0;
     break;
   }
   return flags;
@@ -2626,6 +2635,8 @@ Item *sp_prepare_func_item(THD* thd, Item **it_addr)
     DBUG_PRINT("info", ("fix_fields() failed"));
     return NULL;
   }
+
+  thd->lex->set_exec_started();
 
   return *it_addr;
 }

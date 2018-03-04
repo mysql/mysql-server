@@ -1,82 +1,97 @@
 /*
-* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; version 2 of the
-* License.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-* 02110-1301  USA
-*/
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
+ *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ */
 
-#include "ngs/protocol/message_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 
 #include "my_dbug.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
-using namespace ngs;
 
+namespace ngs {
 
 Message_builder::Message_builder()
-: m_out_buffer(NULL)
-{}
-
-Message_builder::~Message_builder()
-{
+: m_out_buffer(NULL) {
 }
 
-void Message_builder::encode_uint32(uint32 value, bool write)
-{
+Message_builder::~Message_builder() {
+}
+
+void Message_builder::encode_uint32(
+    const uint32 value,
+    const bool write) {
   ++m_field_number;
-  if (write)
-  {
+
+  if (write) {
     google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream.get());
     m_out_stream->WriteVarint32(value);
   }
 }
 
-void Message_builder::encode_uint64(uint64 value, bool write)
-{
+void Message_builder::encode_uint64(
+    const uint64 value,
+    const bool write) {
   ++m_field_number;
-  if (write)
-  {
+
+  if (write) {
     google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream.get());
     m_out_stream->WriteVarint64(value);
   }
 }
 
-void Message_builder::encode_int32(int32 value, bool write)
-{
+void Message_builder::encode_int32(
+    const int32 value,
+    const bool write) {
   ++m_field_number;
-  if (write)
-  {
+  if (write) {
     google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT, m_out_stream.get());
     m_out_stream->WriteVarint32SignExtended(value);
   }
 }
 
-void Message_builder::encode_string(const char* value, size_t len, bool write)
-{
+void Message_builder::encode_string(
+    const char* value,
+    const size_t len,
+    const bool write) {
   ++m_field_number;
-  if (write)
-  {
+
+  if (write) {
     google::protobuf::internal::WireFormatLite::WriteTag(m_field_number, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, m_out_stream.get());
     m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(len));
     m_out_stream->WriteRaw(value, static_cast<int>(len));
   }
 }
 
-void Message_builder::start_message(Output_buffer* out_buffer, uint8 type)
-{
+void Message_builder::encode_string(
+    const char* value,
+    const bool write) {
+  encode_string(value, write ? strlen(value) : 0, write);
+}
+
+void Message_builder::start_message(
+    Output_buffer* out_buffer,
+    const uint8 type) {
   m_field_number = 0;
 
   m_out_buffer = out_buffer;
@@ -88,10 +103,13 @@ void Message_builder::start_message(Output_buffer* out_buffer, uint8 type)
   // at this point we don't know the size but we need to reserve the space for it
   // it is possible that the size which is stored on 4-bytes will be split into 2 pages
   // in that case we need to keep 2 addresses to be able to write the size when it is known
-  m_out_stream->GetDirectBufferPointer(reinterpret_cast<void**>(&m_size_addr1), &m_size_addr1_size);
+  m_out_stream->GetDirectBufferPointer(
+      reinterpret_cast<void**>(&m_size_addr1),
+      &m_size_addr1_size);
+
   DBUG_ASSERT(m_size_addr1_size >= 1);
-  if (static_cast<size_t>(m_size_addr1_size) < sizeof(google::protobuf::uint32))
-  {
+
+  if (static_cast<size_t>(m_size_addr1_size) < sizeof(google::protobuf::uint32)) {
     int bytes_left = sizeof(google::protobuf::uint32) - m_size_addr1_size;
     int size_addr2_size;
     m_out_stream->Skip(m_size_addr1_size);
@@ -141,9 +159,12 @@ void Message_builder::end_message()
   }
 }
 
-void Message_builder::encode_empty_message(Output_buffer* out_buffer, uint8 type)
-{
+void Message_builder::encode_empty_message(
+    Output_buffer* out_buffer,
+    const uint8 type) {
   const uint32 MSG_SIZE = sizeof(uint8);
   out_buffer->add_int32(MSG_SIZE);
   out_buffer->add_int8(type);
 }
+
+}  // namespace ngs

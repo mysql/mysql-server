@@ -150,3 +150,65 @@ connection default;
 SET GLOBAL mandatory_roles="PUBLIC";
 DROP USER u1@localhost, r1, r2, r3;
 
+--echo
+--echo # Anonymous roles aren't allowed
+SET GLOBAL mandatory_roles='';
+CREATE USER ''@'localhost';
+GRANT ALL ON sys.* TO ''@'localhost';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mandatory_roles='``@`localhost`';
+SHOW GRANTS;
+CREATE USER u1@localhost identified by 'foo';
+GRANT SELECT ON *.* To u1@localhost;
+connect(con2,localhost,u1,foo,test,,,);
+SELECT CURRENT_USER();
+--echo # Should not show any anonymous mandatory role
+SHOW GRANTS;
+connection default;
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+connection con2;
+SELECT CURRENT_USER();
+SHOW GRANTS;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL mandatory_roles='';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL mandatory_roles='foo@localhost';
+connection default;
+disconnect con2;
+--error ER_FAILED_ROLE_GRANT
+GRANT ''@'localhost' TO u1@localhost;
+SET GLOBAL mandatory_roles='';
+DROP USER u1@localhost, ''@'localhost';
+
+--echo # SET ROLE DEFAULT ALL should include mandatory roles
+CREATE ROLE r1, r2, r3;
+GRANT SELECT ON *.* TO r1;
+CREATE USER paul@localhost IDENTIFIED BY 'foo';
+GRANT r3 TO paul@localhost;
+GRANT INSERT ON test.* TO r3;
+SET GLOBAL mandatory_roles='r1,r2,r3';
+SET DEFAULT ROLE ALL TO paul@localhost;
+connect(con3,localhost,paul,foo,test,,,);
+--echo # Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+SET ROLE ALL;
+--echo # Should still show all mandatory roles
+SELECT CURRENT_ROLE();
+connection default;
+ALTER USER paul@localhost DEFAULT ROLE ALL;
+connection con3;
+SET ROLE DEFAULT;
+--echo # Should show mandatory roles
+SELECT CURRENT_ROLE();
+SET ROLE ALL;
+--echo # Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+--echo # no duplicates
+SET ROLE r1,r1,r1,r1,r1,r2,r2,r2,r2,r3,r3,r3,r3;
+SELECT CURRENT_ROLE();
+connection default;
+SET GLOBAL mandatory_roles="PUBLIC";
+DROP USER paul@localhost;
+DROP ROLE r1,r2,r3;
+disconnect con3;
+

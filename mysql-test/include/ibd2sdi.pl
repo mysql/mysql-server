@@ -1,6 +1,5 @@
 use strict;
 use warnings;
-use LWP::Simple;
 use File::Copy;
 
 my $json_file_path = $ENV{'JSON_FILE_PATH'} or die;
@@ -43,10 +42,13 @@ sub ibd2sdi_replace() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)[0-9]+;"/$1X$3Y;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
 
     # Remove mysql version id
-    $_=~ s/("mysqld_version_id": )[0-9]+/$1X/g;
+    $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
+
+    # Remove dd version id
+    $_=~ s/("dd_version": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)
@@ -106,10 +108,13 @@ sub ibd2sdi_replace_system() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)[0-9]+;"/$1X$3Y;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
 
     # Remove mysql version id
-    $_=~ s/("mysqld_version_id": )[0-9]+/$1X/g;
+    $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
+
+    # Remove dd version id
+    $_=~ s/("dd_version": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)
@@ -168,10 +173,13 @@ sub ibd2sdi_replace_mysql() {
     $_=~ s/("name": "innodb_file_per_table.)[0-9]+"/$1X"/g;
 
     # Remove id output in se_prvate_data of dd::Tablespace
-    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)[0-9]+;"/$1X$3Y;"/g;
+    $_=~ s/("se_private_data": "flags=)([0-9]+)(;id=)([0-9]+)(;server_version=)([0-9]+)(;space_version=)([0-9]+);"/$1X$3Y$5Z$7M;"/g;
 
     # Remove mysql version id
-    $_=~ s/("mysqld_version_id": )[0-9]+/$1X/g;
+    $_=~ s/("mysqld?_version_id": )[0-9]+/$1X/g;
+
+    # Remove dd version id
+    $_=~ s/("dd_version": )[0-9]+/$1X/g;
 
     # Remove extra path separator seen on windows and partition names
     if (m/"filename":/)

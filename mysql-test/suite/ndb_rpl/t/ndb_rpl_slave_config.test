@@ -6,7 +6,7 @@
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 disable_query_log;
-call mtr.add_suppression("Slave SQL.*: Configuration 'slave_parallel_workers = 2' is not supported when applying to Ndb");
+call mtr.add_suppression(".* 'slave_parallel_workers = 2' is not supported when applying to Ndb");
 call mtr.add_suppression("Slave SQL.*: Request to stop slave SQL Thread");
 call mtr.add_suppression("Slave SQL.*: Worker 1 failed");
 call mtr.add_suppression("Slave SQL.*: Worker 2 failed");

@@ -1,5 +1,5 @@
 SET GLOBAL innodb_file_per_table=1;
-create table t1 (c1 int, c2 geometry not null, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;
+create table t1 (c1 int, c2 geometry not null SRID 0, spatial index (c2))engine=innodb ROW_FORMAT=COMPRESSED;
 create procedure insert_t1(IN total int)
 begin
 declare i int default 1;

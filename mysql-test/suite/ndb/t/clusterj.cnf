@@ -2,6 +2,6 @@
 
 [cluster_config]
 #######
-DataMemory=40M
-MaxNoOfOrderedIndexes = 140
+DataMemory=50M
+MaxNoOfOrderedIndexes = 150
 #

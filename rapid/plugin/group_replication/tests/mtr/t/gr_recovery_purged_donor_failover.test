@@ -96,6 +96,8 @@ call mtr.add_suppression("Error while starting the group replication recovery re
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: Access denied for user 'recovery_user'.*");
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
 call mtr.add_suppression("Slave I/O thread couldn't register on master");
+call mtr.add_suppression("Error while creating the group replication recovery channel with donor.*");
+call mtr.add_suppression("Error when configuring the group recovery connection to the donor.*");
 SET SESSION sql_log_bin= 1;
 
 --disable_warnings

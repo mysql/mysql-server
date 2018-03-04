@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -137,6 +145,8 @@ trx_init(
 	trx->id = 0;
 
 	trx->no = TRX_ID_MAX;
+
+	trx->skip_lock_inheritance = false;
 
 	trx->is_recovered = false;
 
@@ -2217,6 +2227,9 @@ trx_commit(
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 
+		DBUG_EXECUTE_IF("ib_trx_commit_crash_rseg_updated",
+				DBUG_SUICIDE(););
+
 		mtr_start_sync(mtr);
 	} else {
 		mtr = NULL;
@@ -2858,6 +2871,17 @@ trx_prepare(
 	trx_sys->n_prepared_trx++;
 	trx_sys_mutex_exit();
 	/*--------------------------------------*/
+
+	/* Release read locks after PREAPARE for READ COMMITTED
+	and lower isolation. */
+	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
+
+		/* Stop inherting GAP locks. */
+		trx->skip_lock_inheritance = true;
+
+		/* Release only GAP locks for now. */
+		lock_trx_release_read_locks(trx, true);
+	}
 
 	switch (thd_requested_durability(trx->mysql_thd)) {
 	case HA_IGNORE_DURABILITY:

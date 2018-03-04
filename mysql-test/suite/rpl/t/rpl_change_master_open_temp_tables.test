@@ -20,7 +20,7 @@
 #
 
 --source include/master-slave.inc
---source include/have_binlog_format_mixed.inc
+--source include/have_binlog_format_statement.inc
 
 --echo
 --echo # create a temporary table, replicate at slave for all the tests below.

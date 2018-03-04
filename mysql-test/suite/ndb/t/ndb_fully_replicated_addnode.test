@@ -1,7 +1,7 @@
 -- source include/have_ndb.inc
 
 CREATE TABLE t1 (
-  a char(10) NOT NULL primary key,
+  a char(10) CHARSET latin1 NOT NULL primary key,
   b int,
   c blob,
   unique key (b)
@@ -84,7 +84,8 @@ drop table counters_at_startup;
 # Explictly check table options include fully_replicated
 # Remove this explicit test than complete ndb_desc above is correct.
 let $ndb_exec_command= $NDB_DESC -b -d test t1;
-let $ndb_exec_select= row like 'Table options:%' or row like '-- % --';
+let $ndb_exec_select= output_line like 'Table options:%'
+  or output_line like '-- % --';
 let $ndb_exec_replace= /([ _])[0-9][0-9]*/\1#/;
 source suite/ndb/include/ndb_exec.inc;
 
@@ -204,7 +205,8 @@ drop table counters_at_startup;
 # Explictly check table options include fully_replicated
 # Remove this explicit test than complete ndb_desc above is correct.
 let $ndb_exec_command= $NDB_DESC -b -d test t1;
-let $ndb_exec_select= row like 'Table options:%' or row like '-- % --';
+let $ndb_exec_select= output_line like 'Table options:%'
+  or output_line like '-- % --';
 let $ndb_exec_replace= /([ _])[0-9][0-9]*/\1#/;
 source suite/ndb/include/ndb_exec.inc;
 

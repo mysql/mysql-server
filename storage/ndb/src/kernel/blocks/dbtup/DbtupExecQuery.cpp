@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -42,6 +49,13 @@
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_DELETE 1
+#ifdef DEBUG_DELETE
+#define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DELETE(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_LCP_LGMAN 1
@@ -275,6 +289,8 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
       prevOpPtr.p->op_struct.bit_field.m_load_diskpage_on_commit;
     regOperPtr.p->op_struct.bit_field.m_gci_written=
       prevOpPtr.p->op_struct.bit_field.m_gci_written;
+    regOperPtr.p->op_struct.bit_field.m_tuple_existed_at_start=
+      prevOpPtr.p->op_struct.bit_field.m_tuple_existed_at_start;
     regOperPtr.p->m_undo_buffer_space= prevOpPtr.p->m_undo_buffer_space;
     // start with prev mask (matters only for UPD o UPD)
 
@@ -940,16 +956,23 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    
 
    const Uint32 loc_prepare_page_id = prepare_page_no;
-   if (Roptype == ZINSERT && Local_key::isInvalid(pageid, pageidx))
+   if (!Local_key::isInvalid(pageid, pageidx))
    {
-     // No tuple allocated yet
-     goto do_insert;
+     regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 1;
    }
-
-   if (Roptype == ZREFRESH && Local_key::isInvalid(pageid, pageidx))
+   else
    {
-     // No tuple allocated yet
-     goto do_refresh;
+     regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 0;
+     if (Roptype == ZINSERT)
+     {
+       // No tuple allocated yet
+       goto do_insert;
+     }
+     if (Roptype == ZREFRESH)
+     {
+       // No tuple allocated yet
+       goto do_refresh;
+     }
    }
 
    if (unlikely(isCopyTuple(pageid, pageidx)))
@@ -2189,6 +2212,25 @@ int Dbtup::handleInsertReq(Signal* signal,
     base = (Tuple_header*)ptr;
     base->m_operation_ptr_i= regOperPtr.i;
 
+#ifdef DEBUG_DELETE
+    char *insert_str;
+    if (req_struct->m_is_lcp)
+    {
+      insert_str = (char*)"LCP_INSERT";
+    }
+    else
+    {
+      insert_str = (char*)"INSERT";
+    }
+    DEB_DELETE(("(%u)%s: tab(%u,%u) rowid(%u,%u)",
+                instance(),
+                insert_str,
+                regFragPtr->fragTableId,
+                regFragPtr->fragmentId,
+                frag_page_id,
+                regOperPtr.p->m_tuple_location.m_page_idx));
+#endif
+
     /**
      * The LCP_SKIP and LCP_DELETE flags must be retained even when allocating
      * a new row since they record state for the rowid and not for the record
@@ -2355,7 +2397,7 @@ exit_error:
 
 disk_prealloc_error:
   jam();
-  base->m_header_bits |= Tuple_header::FREED;
+  base->m_header_bits |= Tuple_header::FREE;
   setInvalidChecksum(base, regTabPtr);
   goto exit_error;
 }
@@ -4555,7 +4597,10 @@ Dbtup::optimize_var_part(KeyReqStruct* req_struct,
 }
 
 int
-Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
+Dbtup::nr_update_gci(Uint32 fragPtrI,
+                     const Local_key* key,
+                     Uint32 gci,
+                     bool tuple_exists)
 {
   FragrecordPtr fragPtr;
   fragPtr.i= fragPtrI;
@@ -4564,7 +4609,20 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
   tablePtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  if (tablePtr.p->m_bits & Tablerec::TR_RowGCI)
+  /**
+   * GCI on the row is mandatory since many versions back.
+   * During restore we have temporarily disabled this
+   * flag to avoid it being set other than when done
+   * with a purpose to actually set it (happens in
+   * DELETE BY PAGEID and DELETE BY ROWID).
+   *
+   * This code is called in restore for DELETE BY
+   * ROWID and PAGEID. We want to set the GCI in
+   * this specific case, but not for WRITEs and
+   * INSERTs, so we make this condition always
+   * true.
+   */
+  if (tablePtr.p->m_bits & Tablerec::TR_RowGCI || true)
   {
     Local_key tmp = *key;
     PagePtr pagePtr;
@@ -4573,6 +4631,7 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     if (unlikely(pagePtr.i == RNIL))
     {
       jam();
+      ndbassert(!tuple_exists);
       return 0;
     }
 
@@ -4580,8 +4639,15 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
     
     Tuple_header* ptr = (Tuple_header*)
       ((Fix_page*)pagePtr.p)->get_ptr(tmp.m_page_idx, 0);
-    
-    ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
+
+    if (tuple_exists)
+    {
+      ndbrequire(!(ptr->m_header_bits & Tuple_header::FREE));
+    }
+    else
+    {
+      ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
+    }
     update_gci(fragPtr.p, tablePtr.p, ptr, gci);
   }
   return 0;
@@ -4722,7 +4788,18 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
   
   Local_key disk;
   memcpy(&disk, ptr->get_disk_ref_ptr(tablePtr.p), sizeof(disk));
-  
+
+  DEB_DELETE(("(%u)nr_delete, tab(%u,%u) rowid(%u,%u), gci: %u",
+               instance(),
+               fragPtr.p->fragTableId,
+               fragPtr.p->fragmentId,
+               key->m_page_no,
+               key->m_page_idx,
+               *ptr->get_mm_gci(tablePtr.p)));
+
+  /* A row is deleted as part of Copy fragment or Restore */
+  fragPtr.p->m_row_count--;
+
   if (tablePtr.p->m_attributes[MM].m_no_of_varsize +
       tablePtr.p->m_attributes[MM].m_no_of_dynamic)
   {

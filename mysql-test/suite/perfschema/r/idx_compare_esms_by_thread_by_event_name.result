@@ -131,14 +131,6 @@ OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========
-SELECT * FROM performance_schema.events_statements_summary_by_thread_by_event_name WHERE thread_id = 9999999 OR event_name = 'statement/sql/select'
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
 SELECT * FROM performance_schema.events_statements_summary_by_thread_by_event_name WHERE thread_id > 9999999
 
 OK: Handler_read_key

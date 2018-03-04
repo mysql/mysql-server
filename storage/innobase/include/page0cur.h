@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -138,7 +146,6 @@ void
 page_cur_move_to_prev(
 /*==================*/
 	page_cur_t*	cur);	/*!< in/out: cursor; not before first */
-#ifndef UNIV_HOTBACKUP
 /***********************************************************//**
 Inserts a record next to page cursor. Returns pointer to inserted record if
 succeed, i.e., enough space available, NULL otherwise. The cursor stays at
@@ -166,7 +173,6 @@ page_cur_tuple_insert(
 				/*!< in: if true, then use record cache to
 				hold the tuple converted record. */
 	MY_ATTRIBUTE((warn_unused_result));
-#endif /* !UNIV_HOTBACKUP */
 
 /** Inserts a record next to page cursor. Returns pointer to inserted record
 if succeed, i.e., enough space available, NULL otherwise. The cursor stays at
@@ -273,7 +279,6 @@ page_cur_delete_rec(
 	const ulint*		offsets,/*!< in: rec_get_offsets(
 					cursor->rec, index) */
 	mtr_t*			mtr);	/*!< in: mini-transaction handle */
-#ifndef UNIV_HOTBACKUP
 /** Search the right position for a page cursor.
 @param[in] block buffer block
 @param[in] index index tree
@@ -356,7 +361,6 @@ page_cur_open_on_rnd_user_rec(
 /*==========================*/
 	buf_block_t*	block,	/*!< in: page */
 	page_cur_t*	cursor);/*!< out: page cursor */
-#endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a log record of a record insert on a page.
 @return end of log record or NULL */

@@ -1,37 +1,41 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "crud_cmd_handler.h"
+#include "plugin/x/src/crud_cmd_handler.h"
 
-#include "ngs_common/protocol_protobuf.h"
-
-#include "xpl_log.h"
-#include "expr_generator.h"
-#include "xpl_error.h"
-#include "update_statement_builder.h"
-#include "find_statement_builder.h"
-#include "delete_statement_builder.h"
-#include "insert_statement_builder.h"
-#include "view_statement_builder.h"
-#include "notices.h"
-#include "xpl_session.h"
-#include "xpl_resultset.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/delete_statement_builder.h"
+#include "plugin/x/src/expr_generator.h"
+#include "plugin/x/src/find_statement_builder.h"
+#include "plugin/x/src/insert_statement_builder.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/update_statement_builder.h"
+#include "plugin/x/src/view_statement_builder.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_resultset.h"
+#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 
@@ -76,6 +80,13 @@ void Crud_command_handler::notice_handling_common(
     notices::send_message(session.proto(), info.message);
 }
 
+namespace {
+inline bool check_message(const std::string &msg, const char *pattern,
+                          std::string::size_type *pos) {
+  return (*pos = msg.find(pattern)) != std::string::npos;
+}
+}  // namespace
+
 // -- Insert
 ngs::Error_code Crud_command_handler::execute_crud_insert(
     Session &session, const Mysqlx::Crud::Insert &msg) {
@@ -98,15 +109,20 @@ ngs::Error_code Crud_command_handler::error_handling(
                         "Document is missing a required field");
 
     case ER_BAD_FIELD_ERROR:
-      return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
-                        "Table '%s' is not a document collection",
-                        msg.collection().name().c_str());
+        return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
+                          "Table '%s' is not a document collection",
+                          msg.collection().name().c_str());
 
     case ER_DUP_ENTRY:
       return ngs::Error(
           ER_X_DOC_ID_DUPLICATE,
           "Document contains a field value that is not unique but "
           "required to be");
+
+    case ER_X_BAD_UPSERT_DATA:
+      return ngs::Error(ER_X_BAD_UPSERT_DATA,
+                        "Unable upsert data in document collection '%s'",
+                        msg.collection().name().c_str());
   }
   return error;
 }
@@ -188,13 +204,6 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
-namespace {
-inline bool check_message(const std::string &msg, const char *pattern,
-                          std::string::size_type &pos) {
-  return (pos = msg.find(pattern)) != std::string::npos;
-}
-}  // namespace
-
 template <>
 ngs::Error_code Crud_command_handler::error_handling(
     const ngs::Error_code &error, const Mysqlx::Crud::Find &msg) const {
@@ -203,16 +212,16 @@ ngs::Error_code Crud_command_handler::error_handling(
   switch (error.error) {
     case ER_BAD_FIELD_ERROR:
       std::string::size_type pos = std::string::npos;
-      if (check_message(error.message, "having clause", pos))
+      if (check_message(error.message, "having clause", &pos))
         return ngs::Error(ER_X_EXPR_BAD_VALUE,
                           "Invalid expression in grouping criteria");
 
-      if (check_message(error.message, "where clause", pos))
+      if (check_message(error.message, "where clause", &pos))
         return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING,
                           "%sselection criteria",
                           error.message.substr(0, pos - 1).c_str());
 
-      if (check_message(error.message, "field list", pos))
+      if (check_message(error.message, "field list", &pos))
         return ngs::Error(ER_X_DOC_REQUIRED_FIELD_MISSING, "%scollection",
                           error.message.substr(0, pos - 1).c_str());
   }

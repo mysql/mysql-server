@@ -1,6 +1,7 @@
 ## Inserting and placeholders  
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test data
 DROP SCHEMA IF EXISTS xtest;
@@ -103,11 +104,12 @@ Mysqlx.Crud.Insert {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/crud_insert_args.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_args.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/crud_insert_args.tmp
 
 SELECT * FROM xtest.xtable;
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

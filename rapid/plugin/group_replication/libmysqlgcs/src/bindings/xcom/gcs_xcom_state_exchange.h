@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,22 +23,21 @@
 #ifndef GCS_XCOM_STATE_EXCHANGE_INCLUDED
 #define GCS_XCOM_STATE_EXCHANGE_INCLUDED
 
-#include <map>
-#include <set>
-#include <vector>
-#include <string>
 #include <stdio.h>
 #include <sys/types.h>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
 
-#include "mysql/gcs/gcs_message.h"
-#include "mysql/gcs/gcs_communication_interface.h"
-#include "mysql/gcs/gcs_view.h"
-
-#include "gcs_xcom_utils.h"
-#include "gcs_xcom_view_identifier.h"
-#include "gcs_internal_message.h"
-#include "gcs_xcom_group_member_information.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_view.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_view_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
 #define WIRE_XCOM_VARIABLE_VIEW_ID_SIZE 8
 #define WIRE_XCOM_VIEW_ID_SIZE 4

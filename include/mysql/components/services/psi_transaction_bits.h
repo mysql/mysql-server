@@ -1,25 +1,27 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef COMPONENTS_SERVICES_PSI_TRANSACTION_BITS_H
 #define COMPONENTS_SERVICES_PSI_TRANSACTION_BITS_H
-
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
 
 /**
   @file
@@ -50,15 +52,15 @@ typedef struct PSI_transaction_locker PSI_transaction_locker;
 struct PSI_transaction_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Instrumentation class. */
   void *m_class;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_transaction;
   /** True if read-only transaction, false if read-write. */
@@ -66,13 +68,13 @@ struct PSI_transaction_locker_state_v1
   /** True if transaction is autocommit. */
   bool m_autocommit;
   /** Number of statements. */
-  ulong m_statement_count;
+  unsigned long m_statement_count;
   /** Total number of savepoints. */
-  ulong m_savepoint_count;
+  unsigned long m_savepoint_count;
   /** Number of rollback_to_savepoint. */
-  ulong m_rollback_to_savepoint_count;
+  unsigned long m_rollback_to_savepoint_count;
   /** Number of release_savepoint. */
-  ulong m_release_savepoint_count;
+  unsigned long m_release_savepoint_count;
 };
 typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state_v1;
 
@@ -89,7 +91,7 @@ typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state_v1;
 typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
   struct PSI_transaction_locker_state_v1 *state,
   const void *xid,
-  const ulonglong *trxid,
+  const unsigned long long *trxid,
   int isolation_level,
   bool read_only,
   bool autocommit);
@@ -102,7 +104,7 @@ typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
 */
 typedef void (*start_transaction_v1_t)(struct PSI_transaction_locker *locker,
                                        const char *src_file,
-                                       uint src_line);
+                                       unsigned int src_line);
 
 /**
   Set the transaction xid.
@@ -138,7 +140,7 @@ typedef void (*set_transaction_gtid_v1_t)(struct PSI_transaction_locker *locker,
   @param trxid the storage engine transaction ID
 */
 typedef void (*set_transaction_trxid_v1_t)(
-  struct PSI_transaction_locker *locker, const ulonglong *trxid);
+  struct PSI_transaction_locker *locker, const unsigned long long *trxid);
 
 /**
   Increment a transaction event savepoint count.
@@ -146,7 +148,7 @@ typedef void (*set_transaction_trxid_v1_t)(
   @param count the increment value
 */
 typedef void (*inc_transaction_savepoints_v1_t)(
-  struct PSI_transaction_locker *locker, ulong count);
+  struct PSI_transaction_locker *locker, unsigned long count);
 
 /**
   Increment a transaction event rollback to savepoint count.
@@ -154,7 +156,7 @@ typedef void (*inc_transaction_savepoints_v1_t)(
   @param count the increment value
 */
 typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
-  struct PSI_transaction_locker *locker, ulong count);
+  struct PSI_transaction_locker *locker, unsigned long count);
 
 /**
   Increment a transaction event release savepoint count.
@@ -162,7 +164,7 @@ typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
   @param count the increment value
 */
 typedef void (*inc_transaction_release_savepoint_v1_t)(
-  struct PSI_transaction_locker *locker, ulong count);
+  struct PSI_transaction_locker *locker, unsigned long count);
 
 /**
   Commit or rollback the transaction.
@@ -175,7 +177,5 @@ typedef void (*end_transaction_v1_t)(struct PSI_transaction_locker *locker,
 typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;
 
 /** @} (end of group psi_abi_transaction) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_TRANSACTION_BITS_H */

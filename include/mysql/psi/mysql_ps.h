@@ -1,13 +1,20 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -28,6 +35,7 @@
 #endif
 
 #ifdef HAVE_PSI_PS_INTERFACE
+
 #define MYSQL_CREATE_PS(                                            \
   IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
   inline_mysql_create_prepared_stmt(                                \
@@ -38,7 +46,11 @@
   inline_mysql_destroy_prepared_stmt(PREPARED_STMT)
 #define MYSQL_REPREPARE_PS(PREPARED_STMT) \
   inline_mysql_reprepare_prepared_stmt(PREPARED_STMT)
+#define MYSQL_SET_PS_TEXT(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH) \
+  inline_mysql_set_prepared_stmt_text(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH)
+
 #else
+
 #define MYSQL_CREATE_PS(                                            \
   IDENTITY, ID, LOCKER, NAME, NAME_LENGTH, SQLTEXT, SQLTEXT_LENGTH) \
   NULL
@@ -54,6 +66,11 @@
   do                                      \
   {                                       \
   } while (0)
+#define MYSQL_SET_PS_TEXT(PREPARED_STMT, SQLTEXT, SQLTEXT_LENGTH) \
+  do                                                              \
+  {                                                               \
+  } while (0)
+
 #endif
 
 #ifdef HAVE_PSI_PS_INTERFACE
@@ -106,6 +123,18 @@ inline_mysql_reprepare_prepared_stmt(PSI_prepared_stmt *prepared_stmt)
     PSI_PS_CALL(reprepare_prepared_stmt)(prepared_stmt);
   }
 }
+
+static inline void
+inline_mysql_set_prepared_stmt_text(PSI_prepared_stmt *prepared_stmt,
+                                    const char *text,
+                                    uint text_len)
+{
+  if (prepared_stmt != NULL)
+  {
+    PSI_PS_CALL(set_prepared_stmt_text)(prepared_stmt, text, text_len);
+  }
+}
+
 #endif
 
 #endif

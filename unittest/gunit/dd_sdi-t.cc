@@ -1,26 +1,33 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <gtest/gtest.h>
-#include <m_string.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/stringbuffer.h>
 #include <stddef.h>
 
+#include "m_string.h"
 #include "my_inttypes.h"
 #include "sql/dd/dd.h"
 #include "sql/dd/impl/sdi.h"
@@ -38,11 +45,9 @@
 #include "sql/dd/types/foreign_key_element.h"
 #include "sql/dd/types/index.h"
 #include "sql/dd/types/index_element.h"
-#include "sql/dd/types/object_type.h"
 #include "sql/dd/types/partition.h"
 #include "sql/dd/types/partition_index.h"
 #include "sql/dd/types/partition_value.h"
-#include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/tablespace.h"
 #include "sql/dd/types/tablespace_file.h"
@@ -78,13 +83,6 @@ static void mock_properties(dd::Properties &p, uint64 size)
     std::string key= std::to_string(i);
     p.set_uint64(dd::String_type{key.begin(), key.end()}, i);
   }
-}
-
-
-static void mock_dd_obj(dd::Schema *s)
-{
-  s->set_created(42);
-  s->set_last_altered(42);
 }
 
 
@@ -385,11 +383,6 @@ void api_test(const AP &ap)
 
 // Test cases
 
-TEST(SdiTest, Schema)
-{
-  simple_test<dd::Schema>();
-}
-
 TEST(SdiTest, Column_type_element)
 {
   simple_test<dd::Column_type_element>();
@@ -475,13 +468,6 @@ TEST(SdiTest, Tablespace_file)
 TEST(SdiTest, Tablespace)
 {
   simple_test<dd::Tablespace>();
-}
-
-TEST(SdiTest, Schema_API)
-{
-  std::unique_ptr<dd::Schema> s(dd::create_object<dd::Schema>());
-  mock_dd_obj(s.get());
-  api_test(s);
 }
 
 TEST(SdiTest, Table_API)

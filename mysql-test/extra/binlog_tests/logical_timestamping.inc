@@ -191,8 +191,7 @@ DROP TABLE t1;
 
 
 #
-# Testing DROP of multiple tables logging when a query produces few groups
-# into binary log.
+# Testing DROP of multiple tables logging
 #
 
 CREATE TABLE t1 (a int) ENGINE= innodb;
@@ -201,16 +200,13 @@ RESET MASTER;
 CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
 
-# The query is logged in four parts where only
-# the first one is sequenced.
-# Such logging is caused by just one cache is used for logging.
-
---echo *** The query is logged in four parts.
+--echo *** The query is logged in four part.
 
 DROP TABLE tm,t1,ttm1,tti1;
 
-
 --let $logical_timestamps= 0 1;1 2;2 3;3 4;4 5;5 6
+# CREATE/DROP TEMPORARY TABLE is not binlogged under MIXED
+--let $logical_timestamps_mix= 0 1;1 2
 --source include/assert_logical_timestamps.inc
 
 #

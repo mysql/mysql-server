@@ -34,11 +34,15 @@ DROP USER u5@localhost;
 DROP USER u6@localhost;
 DROP USER u7@localhost;
 
+--let $mask_user_password_events=1
 --source include/show_binlog_events.inc
+--let $mask_user_password_events=0
 
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]
+--let $mask_user_password_events=1
 --source include/show_binlog_events.inc
+--let $mask_user_password_events=0
 --source include/rpl_end.inc
 
 --echo

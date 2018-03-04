@@ -59,8 +59,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "actor"
   schema: "minisakila"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 10
   flags: 304
 }
@@ -74,7 +72,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "minisakila"
   catalog: "def"
   collation: 255
-  fractional_digits: 0
   length: 180
   flags: 16
 }
@@ -88,7 +85,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "minisakila"
   catalog: "def"
   collation: 255
-  fractional_digits: 0
   length: 180
   flags: 16
 }
@@ -101,8 +97,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "actor"
   schema: "minisakila"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 1
   flags: 16
 }
@@ -868,9 +862,7 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: "mysqlxcoll"
   catalog: "def"
   collation: 63
-  fractional_digits: 0
   length: 4294967295
-  flags: 0
   content_type: 2
 }
 

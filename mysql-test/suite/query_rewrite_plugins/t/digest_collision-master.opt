@@ -1,3 +1,4 @@
 --no-console
 --log-error=$MYSQL_TMP_DIR/digest_collision.err
 --local-infile=true
+--log-error-verbosity=3

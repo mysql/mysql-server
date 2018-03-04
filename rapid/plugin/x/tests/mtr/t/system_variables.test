@@ -7,7 +7,7 @@
 # Please update the test case when the variable count changes
 # add/remove variable
 let $wait_condition=
-  SELECT COUNT(*)=16 FROM performance_schema.global_variables where variable_name like "Mysqlx_%";
+  SELECT COUNT(*)=20 FROM performance_schema.global_variables where variable_name like "Mysqlx_%";
 --source include/wait_condition_or_abort.inc
 
 # Values for variables that were overwritten by MTR
@@ -42,6 +42,22 @@ let $wait_condition=
 
 --let $assert_text= Mysqlx_connect_timeout must be 30 seconds, the default value
 --let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_connect_timeout", Value, 1] = 30
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_wait_timeout must be 28800 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_wait_timeout", Value, 1] = 28800
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_interactive_timeout must be 28800 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_interactive_timeout", Value, 1] = 28800
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_read_timeout must be 30 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_read_timeout", Value, 1] = 30
+--source include/assert.inc
+
+--let $assert_text= Mysqlx_write_timeout must be 60 seconds, the default value
+--let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_write_timeout", Value, 1] = 60
 --source include/assert.inc
 
 --let $assert_text= Mysqlx_ssl_key must be empty, the default value

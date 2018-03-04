@@ -1,20 +1,25 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 syntax = "proto2";
 
@@ -120,7 +125,7 @@ import "mysqlx.proto"; // comment_out_if PROTOBUF_LITE
 
 
 package Mysqlx.Resultset;
-option java_package = "com.mysql.cj.mysqlx.protobuf";
+option java_package = "com.mysql.cj.x.protobuf";
 
 // resultsets are finished, OUT paramset is next
 message FetchDoneMoreOutParams {
@@ -141,7 +146,7 @@ message FetchDone {
 //
 // .. note:: the encoding used for the different ``bytes`` fields in the meta data is externally
 //   controlled.
-//   .. seealso:: https://dev.mysql.com/doc/refman/5.0/en/charset-connection.html
+//   .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/charset-connection.html
 //
 // .. note::
 //   The server may not set the ``original_{table|name}`` fields if they are equal to the plain
@@ -213,7 +218,7 @@ message FetchDone {
 //       LONGLONG SIGNED 20
 //       =============== ==
 //
-//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/8.0/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded signed 64 integer
@@ -239,7 +244,7 @@ message FetchDone {
 //       LONGLONG UNSIGNED 20
 //       ================= ==
 //
-//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: definition of ``M`` in https://dev.mysql.com/doc/refman/8.0/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded unsigned 64 integer
@@ -250,7 +255,7 @@ message FetchDone {
 //       maximum number of displayable binary digits
 //
 //       .. note:: valid range for M of the ``BIT`` type is 1 - 64
-//       .. seealso:: https://dev.mysql.com/doc/refman/5.5/en/numeric-type-overview.html
+//       .. seealso:: https://dev.mysql.com/doc/refman/8.0/en/numeric-type-overview.html
 //
 //     ``value``
 //       variable length encoded unsigned 64 integer
@@ -522,4 +527,17 @@ enum ContentType_BYTES {
   GEOMETRY = 1;
   JSON = 2;
   XML = 3;
+};
+
+// a hint about the higher-level encoding of a DATETIME field
+//
+// ======   ====== ===========
+// type     value  description
+// ======== ====== ===========
+// DATE     0x0001 DATETIME contains only date part
+// DATETIME 0x0002 DATETIME contains both date and time parts
+// ======   ====== ===========
+enum ContentType_DATETIME {
+  DATE = 1;
+  DATETIME = 2;
 };

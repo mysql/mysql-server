@@ -6,6 +6,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 DROP DATABASE IF EXISTS xplugintest;
 CREATE DATABASE xplugintest;
 USE xplugintest;
@@ -130,7 +131,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/stmtexecute_select.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/stmtexecute_select.tmp
 
 
@@ -178,8 +179,8 @@ END_MESSAGE
  close(OUTPUT);
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out1.tmp 2>&1 &
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out1.tmp 2>&1 &
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
 let $wait_timeout= 90;
 let $wait_condition= select count(*)=2 from test.counttest1;
 --source include/wait_condition.inc
@@ -189,5 +190,6 @@ let $wait_condition= select count(*)=2 from test.counttest1;
 --remove_file $MYSQL_TMP_DIR/mysqlx-out1.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
 ## Postamble
+--source include/xplugin_drop_user.inc
 DROP TABLE test.counttest1;
 UNINSTALL PLUGIN mysqlx;

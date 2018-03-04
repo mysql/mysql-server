@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -449,11 +456,13 @@ public:
   */
 
   /**
-    Non-null for a group aggregate which is aggregated into an outer query
-    block and is the argument of a function; it is then a pointer to that
-    function's args[i] pointer.
+    For a group aggregate which is aggregated into an outer query
+    block; none, or just the first or both cells may be non-zero. They are
+    filled with references to the group aggregate (for example if it is the
+    argument of a function; it is then a pointer to that function's args[i]
+    pointer). "ref_by" stands for "referenced by".
   */
-  Item **ref_by;
+  Item **ref_by[2];
   Item_sum *next; ///< next in the circular chain of registered objects
   Item_sum *in_sum_func;   ///< the containing set function if any
   SELECT_LEX *base_select; ///< query block where function is placed
@@ -700,11 +709,14 @@ public:
   virtual bool framing() const { return true; }
 
   /**
-    Return true if we need to know the cardinality of the partition, i.e.
-    we need two passes over the rows in the partition to be able to evaluate
-    the window function.
+    Return true if we need to make two passes over the rows in the partition -
+    either because we need the cardinality of it (and we need to read all
+    rows to detect the next partition), or we need to have all partition rows
+    available to evaluate the window function for some other reason, e.g.
+    we may need the last row in the partition in the frame buffer to be able
+    to evaluate LEAD.
   */
-  virtual bool two_pass() const { return false; }
+  virtual bool needs_card() const { return false; }
 
   /**
     Common initial actions for window functions. For non-buffered processing
@@ -980,7 +992,6 @@ public:
     :Item_sum_num(pos, item_par, window), hybrid_type(INVALID_RESULT), m_count(0),
      m_frame_null_count(0)
   {
-    clear();
     set_distinct(distinct);
   }
 
@@ -1521,6 +1532,17 @@ protected:
   bool wf_semantics(THD *thd, SELECT_LEX *select,
                     Window::Evaluation_requirements *r,
                     bool min);
+  /**
+    This function implements the optimized version of retrieving min/max
+    value. When we have "ordered ASC" results in a window, min will always
+    be the first value in the result set (neglecting the NULL's) and max
+    will always be the last value (or the other way around, if ordered DESC).
+    It is based on the implementation of FIRST_VALUE/LAST_VALUE, except for
+    the NULL handling.
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 
 public:
   Item_sum_hybrid(Item *item_par,int sign)
@@ -1551,7 +1573,6 @@ public:
   void clear() override;
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
                       List<Item>& fields) override;
-  void compute();
   double val_real() override;
   longlong val_int() override;
   longlong val_time_temporal() override;
@@ -1951,6 +1972,9 @@ class Item_func_group_concat final : public Item_sum
   /** The number of selected items, aka the expr list. */
   uint arg_count_field;
   uint row_count;
+  /** The maximum permitted result length in bytes as set for
+      group_concat_max_len system variable */
+  uint group_concat_max_len;
   bool distinct;
   bool warning_for_row;
   bool always_null;
@@ -2050,7 +2074,7 @@ public:
   The subclasses can be divided in two disjoint sub-categories:
      - one-pass
      - two-pass (requires partition cardinality to be evaluated)
-  cf. method two_pass.
+  cf. method needs_card.
 */
 class Item_non_framing_wf : public Item_sum
 {
@@ -2199,7 +2223,7 @@ public:
   bool check_wf_semantics(THD *thd, SELECT_LEX *select,
                           Window::Evaluation_requirements *reqs) override;
 
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
   void clear() override {};
   longlong val_int() override;
   double val_real() override;
@@ -2218,15 +2242,18 @@ class Item_percent_rank : public Item_non_framing_wf
   typedef Item_non_framing_wf super;
   // Execution state variables
   ulonglong m_rank_ctr;    ///< Increment when window order columns change
-  ulonglong m_duplicates;  ///< Needed to make PERCENT_RANK same for peers
-  List<Cached_item> m_previous; ///< Values of previous row's ORDER BY items
+  ulonglong m_peers;       ///< Needed to make PERCENT_RANK same for peers
+  /**
+    Set when the last peer has been visited. Needed to increment m_rank_ctr.
+  */
+  bool m_last_peer_visited;
 
 public:
   Item_percent_rank(const POS &pos, PT_window *w) :
     Item_non_framing_wf(pos, w),
     m_rank_ctr(0),
-    m_duplicates(0),
-    m_previous()
+    m_peers(0),
+    m_last_peer_visited(false)
   {}
 
   const char *func_name() const override { return "percent_rank"; }
@@ -2240,7 +2267,7 @@ public:
 
   bool check_wf_semantics(THD *thd, SELECT_LEX *select,
                           Window::Evaluation_requirements *reqs) override;
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
 
   void clear() override;
   void cleanup() override;
@@ -2285,15 +2312,12 @@ public:
                           Window::Evaluation_requirements *reqs) override;
   Item_result result_type() const override { return INT_RESULT; }
   void clear() override {}
-  bool two_pass() const override { return true; }
+  bool needs_card() const override { return true; }
 };
 
 
 /**
   LEAD/LAG window functions, cf. SQL 2011 Section 6.10 \<window function\>
-
-  The result type of this function is the same as the argument, so we
-  inherit only Item_func.
 */
 class Item_lead_lag : public Item_non_framing_wf
 {
@@ -2304,6 +2328,7 @@ class Item_lead_lag : public Item_non_framing_wf
   Item_cache *m_value;
   Item_cache *m_default;
   /**
+    Execution state: if set, we already have a value for current row.
     State is used to avoid interference with other LEAD/LAG functions on
     the same window, since they share the same eval loop and they should
     trigger evaluation only when they are on the "right" row relative to
@@ -2311,7 +2336,7 @@ class Item_lead_lag : public Item_non_framing_wf
     for this function yet, or if we do (m_has_value==true), return the
     found value.
   */
-  bool m_has_value; ///< execution state: already have a value for current row
+  bool m_has_value;
   bool m_use_default; ///< execution state: use default value for current row
   typedef Item_non_framing_wf super;
 public:
@@ -2348,13 +2373,22 @@ public:
   double val_real() override;
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *decimal_buffer) override;
-  
+
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
-  bool two_pass() const override
+  bool needs_card() const override
   {
-    return true; /* FIXME poss. optimization: m_is_lead; */
+    /*
+      A possible optimization here: if LAG, we are only interested in rows we
+      have already seen, so we might compute the result without reading the
+      entire partition as soon as we have the current row.  Similarly, a small
+      LEAD value might avoid reading the entire partition also, giving shorter
+      time to first result. For now, we read the entirely partition for these
+      window functions - for simplicity.
+    */
+    return true;
   }
 
   void split_sum_func(THD* thd, Ref_item_array ref_item_array,
@@ -2362,12 +2396,18 @@ public:
 
   void set_has_value(bool value) { m_has_value= value; }
   bool has_value() const { return m_has_value; }
+
   void set_use_default(bool value) { m_use_default= value; }
   bool use_default() const { return m_use_default; }
 
 private:
   bool setup_lead_lag();
-  void compute();
+  /**
+    Core logic of LEAD/LAG window functions
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 };
 
 
@@ -2415,6 +2455,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
@@ -2425,7 +2466,12 @@ public:
 
 private:
   bool setup_first_last();
-  void compute();
+  /**
+    Core logic of FIRST/LAST_VALUE window functions
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 };
 
 
@@ -2480,6 +2526,7 @@ public:
 
   bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override;
   bool get_time(MYSQL_TIME *ltime) override;
+  bool val_json(Json_wrapper *wr) override;
 
   void reset_field() override { DBUG_ASSERT(false); }
   void update_field() override { DBUG_ASSERT(false); }
@@ -2489,7 +2536,12 @@ public:
                       List<Item>& fields) override;
 
 private:
-  void compute();
+  /**
+    Core logic of NTH_VALUE window functions
+
+    @return true if computation yielded a NULL or error
+  */
+  bool compute();
 };
 
 /**

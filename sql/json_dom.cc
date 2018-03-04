@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,6 +25,11 @@
 #include <errno.h>
 #include <float.h>
 #include <limits.h>
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+#include <rapidjson/error/en.h>
+#include <rapidjson/error/error.h>
+#include <rapidjson/memorystream.h>
+#include <rapidjson/reader.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
@@ -28,20 +40,15 @@
 #include "base64.h"
 #include "decimal.h"
 #include "m_ctype.h"
-#include "m_string.h"           // my_gcvt, _dig_vec_lower, my_strtod
+#include "m_string.h"           // my_gcvt, _dig_vec_lower
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
-#include "my_rapidjson_size_t.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"       // ER_*
-#include "rapidjson/error/en.h"
-#include "rapidjson/error/error.h"
-#include "rapidjson/memorystream.h"
-#include "rapidjson/reader.h"
 #ifdef MYSQL_SERVER
 #include "sql/check_stack.h"
 #endif
@@ -198,10 +205,12 @@ static bool add_if_missing(Json_dom *candidate,
 
   @return true if only one result is needed and a result has been found
 */
+#ifdef MYSQL_SERVER
 static inline bool is_seek_done(const Json_dom_vector *hits, bool only_need_one)
 {
   return only_need_one && hits->size() > 0;
 }
+#endif // ifdef MYSQL_SERVER
 
 
 /**
@@ -570,16 +579,17 @@ public:
     return seeing_value(create_dom_ptr<Json_double>(d));
   }
 
-  bool RawNumber(const char* str, SizeType length, bool)
+  /* purecov: begin deadcode */
+  bool RawNumber(const char*, SizeType, bool)
   {
-    char *end[]= { const_cast<char*>(str) + length };
-    int error= 0;
-    double value = my_strtod(str, end, &error);
-
-    if (error == EOVERFLOW)
-      return false;
-    return Double(value);
+    /*
+      Never called, since we don't instantiate the parser with
+      kParseNumbersAsStringsFlag.
+    */
+    DBUG_ASSERT(false);
+    return false;
   }
+  /* purecov: end */
 
   bool String(const char* str, SizeType length, bool)
   {
@@ -661,16 +671,12 @@ private:
 
 #ifdef MYSQL_SERVER
 Json_dom_ptr Json_dom::parse(const char *text, size_t length,
-                             const char **syntaxerr, size_t *offset,
-                             bool handle_numbers_as_double)
+                             const char **syntaxerr, size_t *offset)
 {
   Rapid_json_handler handler;
   MemoryStream ss(text, length);
   Reader reader;
-  bool success=
-    handle_numbers_as_double ?
-    reader.Parse<kParseNumbersAsStringsFlag>(ss, handler) :
-    reader.Parse<kParseDefaultFlags>(ss, handler);
+  bool success= reader.Parse<kParseDefaultFlags>(ss, handler);
 
   if (success)
   {
@@ -740,8 +746,17 @@ public:
   { return seeing_scalar(); }
   bool String(const char*, SizeType, bool) { return seeing_scalar(); }
   bool Key(const char*, SizeType, bool) { return seeing_scalar(); }
+  /* purecov: begin deadcode */
   bool RawNumber(const char*, SizeType, bool)
-  { return seeing_scalar(); }
+  {
+    /*
+      Never called, since we don't instantiate the parser with
+      kParseNumbersAsStringsFlag.
+    */
+    DBUG_ASSERT(false);
+    return false;
+  }
+  /* purecov: end */
 };
 
 } // namespace
@@ -1864,10 +1879,22 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       if (buffer->reserve(MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true;                           /* purecov: inspected */
       double d= wr.get_double();
+      const char *start= buffer->ptr() + buffer->length();
       size_t len= my_gcvt(d, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
-                          const_cast<char *>(buffer->ptr()) + buffer->length(),
-                          NULL);
+                          const_cast<char *>(start), nullptr);
       buffer->length(buffer->length() + len);
+      /*
+        my_gcvt() doesn't preserve trailing zeros after the decimal point,
+        so for floating-point values with no fractional part we get 1
+        instead of 1.0. We want the string representation to preserve the
+        information that this is a floating-point number, so append ".0" if
+        my_gcvt() neither used scientific notation nor included a decimal
+        point. This makes it distinguishable from integers.
+      */
+      if (std::none_of(start, start + len,
+                       [](char c) { return c == '.' || c == 'e'; }) &&
+          buffer->append(STRING_WITH_LEN(".0")))
+        return true;                          /* purecov: inspected */
       break;
     }
   case enum_json_type::J_INT:
@@ -3131,34 +3158,53 @@ int Json_wrapper::compare(const Json_wrapper &other) const
 
 
 /**
-  Push a warning about a problem encountered when coercing a JSON
+  Push a warning/error about a problem encountered when coercing a JSON
   value to some other data type.
 
+  @param[in] cr_error     what to issue: a warning or an error
   @param[in] target_type  the name of the target type of the coercion
   @param[in] error_code   the error code to use for the warning
   @param[in] msgnam       the name of the field/expression being coerced
 */
-static void push_json_coercion_warning(const char *target_type,
-                                       int error_code,
-                                       const char *msgnam)
+
+static void handle_coercion_error(enum_coercion_error cr_error,
+                                  const char *target_type,
+                                  int error_code,
+                                  const char *msgnam)
 {
-  /*
-    One argument is no longer used (the empty string), but kept to avoid
-    changing error message format.
-  */
-  push_warning_printf(current_thd,
-                      Sql_condition::SL_WARNING,
-                      error_code,
-                      ER_THD(current_thd, error_code),
-                      target_type,
-                      "",
-                      msgnam,
-                      current_thd->get_stmt_da()->current_row_for_condition());
+  switch (cr_error)
+  {
+    case CE_WARNING:
+    {
+      /*
+        One argument is no longer used (the empty string), but kept to avoid
+        changing error message format.
+      */
+      push_warning_printf(current_thd,
+                          Sql_condition::SL_WARNING,
+                          error_code,
+                          ER_THD(current_thd, error_code),
+                          target_type,
+                          "",
+                          msgnam,
+                          current_thd->get_stmt_da()->current_row_for_condition());
+      return;
+    }
+    case CE_ERROR:
+    {
+      my_error(error_code, MYF(0), target_type, "", msgnam,
+               current_thd->get_stmt_da()->current_row_for_condition());
+      return;
+    }
+  }
 }
 
 
-longlong Json_wrapper::coerce_int(const char *msgnam) const
+longlong Json_wrapper::coerce_int(const char *msgnam, bool *err,
+                                  enum_coercion_error cr_error) const
 {
+  if (err)
+    *err= false;
   switch (type())
   {
   case enum_json_type::J_UINT:
@@ -3184,7 +3230,9 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
         int code= (error == MY_ERRNO_ERANGE ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning("INTEGER", code, msgnam);
+        handle_coercion_error(cr_error, "INTEGER", code, msgnam);
+        if (err)
+          *err= true;
       }
 
       return value;
@@ -3223,21 +3271,28 @@ longlong Json_wrapper::coerce_int(const char *msgnam) const
         return (longlong) rint(j);
       }
 
-      push_json_coercion_warning("INTEGER",
+      handle_coercion_error(cr_error, "INTEGER",
                                  ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      if (err)
+        *err= true;
       return res;
     }
   default:;
   }
 
-  push_json_coercion_warning("INTEGER", ER_INVALID_JSON_VALUE_FOR_CAST,
-                             msgnam);
+  handle_coercion_error(cr_error, "INTEGER",
+                        ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+  if (err)
+    *err= true;
   return 0;
 }
 
 
-double Json_wrapper::coerce_real(const char *msgnam) const
+double Json_wrapper::coerce_real(const char *msgnam, bool *err,
+                                 enum_coercion_error cr_error) const
 {
+  if (err)
+    *err= false;
   switch (type())
   {
   case enum_json_type::J_DECIMAL:
@@ -3268,7 +3323,9 @@ double Json_wrapper::coerce_real(const char *msgnam) const
         int code= (error == EOVERFLOW ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning("DOUBLE", code, msgnam);
+        handle_coercion_error(cr_error, "DOUBLE", code, msgnam);
+        if (err)
+          *err= true;
       }
       return value;
     }
@@ -3283,15 +3340,20 @@ double Json_wrapper::coerce_real(const char *msgnam) const
   default:;
   }
 
-  push_json_coercion_warning("DOUBLE", ER_INVALID_JSON_VALUE_FOR_CAST,
-                             msgnam);
+  handle_coercion_error(cr_error, "DOUBLE",
+                        ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+  if (err)
+    *err= true;
   return 0.0;
 }
 
 my_decimal
 *Json_wrapper::coerce_decimal(my_decimal *decimal_value,
-                              const char *msgnam) const
+                              const char *msgnam, bool *err,
+                              enum_coercion_error cr_error) const
 {
+  if (err)
+    *err= false;
   switch (type())
   {
   case enum_json_type::J_DECIMAL:
@@ -3302,38 +3364,47 @@ my_decimal
       /*
         For a string result, we must first get the string and then convert it
         to a decimal.
+        it has own error reporting, but not very informative, disable it, except
+        for OOM
       */
-      // has own error handling, but not very informative
-      int err= str2my_decimal(E_DEC_FATAL_ERROR, get_data(), get_data_length(),
-                              &my_charset_utf8mb4_bin, decimal_value);
-      if (err)
+      int error= str2my_decimal(E_DEC_OOM, get_data(), get_data_length(),
+                                &my_charset_utf8mb4_bin, decimal_value);
+      if (error)
       {
-        int code= (err == E_DEC_OVERFLOW ?
+        int code= (error == E_DEC_OVERFLOW ?
                    ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE :
                    ER_INVALID_JSON_VALUE_FOR_CAST);
-        push_json_coercion_warning("DECIMAL", code, msgnam);
+        handle_coercion_error(cr_error, "DECIMAL", code, msgnam);
+        if (err)
+          *err= true;
       }
       return decimal_value;
     }
   case enum_json_type::J_DOUBLE:
     if (double2my_decimal(E_DEC_FATAL_ERROR, get_double(), decimal_value))
     {
-      push_json_coercion_warning("DECIMAL",
-                                 ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      handle_coercion_error(cr_error, "DECIMAL",
+                            ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      if (err)
+        *err= true;
     }
     return decimal_value;
   case enum_json_type::J_INT:
     if (longlong2decimal(get_int(), decimal_value))
     {
-      push_json_coercion_warning("DECIMAL",
-                                 ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      handle_coercion_error(cr_error, "DECIMAL",
+                            ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      if (err)
+        *err= true;
     }
     return decimal_value;
   case enum_json_type::J_UINT:
     if (longlong2decimal(get_uint(), decimal_value))
     {
-      push_json_coercion_warning("DECIMAL",
-                                 ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      handle_coercion_error(cr_error, "DECIMAL",
+                            ER_NUMERIC_JSON_VALUE_OUT_OF_RANGE, msgnam);
+      if (err)
+        *err= true;
     }
     return decimal_value;
   case enum_json_type::J_BOOLEAN:
@@ -3344,8 +3415,10 @@ my_decimal
   default:;
   }
 
-  push_json_coercion_warning("DECIMAL", ER_INVALID_JSON_VALUE_FOR_CAST,
-                             msgnam);
+  handle_coercion_error(cr_error, "DECIMAL",
+                        ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+  if (err)
+    *err= true;
 
   my_decimal_set_zero(decimal_value);
   return decimal_value;
@@ -3353,9 +3426,10 @@ my_decimal
 
 
 bool Json_wrapper::coerce_date(MYSQL_TIME *ltime,
-                               const char *msgnam) const
+                               const char *msgnam,
+                               enum_coercion_error cr_error) const
 {
-  bool result= coerce_time(ltime, msgnam);
+  bool result= coerce_time(ltime, msgnam, cr_error);
 
   if (!result && ltime->time_type == MYSQL_TIMESTAMP_TIME)
   {
@@ -3368,7 +3442,8 @@ bool Json_wrapper::coerce_date(MYSQL_TIME *ltime,
 
 
 bool Json_wrapper::coerce_time(MYSQL_TIME *ltime,
-                               const char *msgnam) const
+                               const char *msgnam,
+                               enum_coercion_error cr_error) const
 {
   switch (type())
   {
@@ -3380,8 +3455,8 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime,
     get_datetime(ltime);
     return false;
   default:
-    push_json_coercion_warning("DATE/TIME/DATETIME/TIMESTAMP",
-                               ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
+    handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
+                          ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
     return true;
   }
 }
@@ -3579,6 +3654,7 @@ private:
   before types with higher identifiers.
   See also note for Json_dom::enum_json_type.
 */
+#ifdef MYSQL_SERVER
 constexpr uchar JSON_KEY_NULL=        '\x00';
 constexpr uchar JSON_KEY_NUMBER_NEG=  '\x01';
 constexpr uchar JSON_KEY_NUMBER_ZERO= '\x02';
@@ -3592,6 +3668,7 @@ constexpr uchar JSON_KEY_DATE=        '\x09';
 constexpr uchar JSON_KEY_TIME=        '\x0A';
 constexpr uchar JSON_KEY_DATETIME=    '\x0B';
 constexpr uchar JSON_KEY_OPAQUE=      '\x0C';
+#endif // ifdef MYSQL_SERVER
 
 } // namespace
 
@@ -4094,13 +4171,14 @@ bool Json_wrapper::attempt_binary_update(const Field_json *field,
   DBUG_ASSERT(result->length() >= data_offset + needed);
 
   char *destination= const_cast<char *>(result->ptr());
+  bool changed= false;
   if (parent.update_in_shadow(field, element_pos, new_value, data_offset,
-                              needed, original, destination))
+                              needed, original, destination, &changed))
     return true;                                /* purecov: inspected */
 
   m_value= parse_binary(result->ptr(), result->length());
   *partially_updated= true;
-  *replaced_path= true;
+  *replaced_path= changed;
   return false;
 }
 

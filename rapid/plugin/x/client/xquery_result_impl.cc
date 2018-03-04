@@ -1,21 +1,28 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
+
+#include "plugin/x/client/xquery_result_impl.h"
 
 #include <set>
 #include <string>
@@ -24,9 +31,8 @@
 
 #include "errmsg.h"
 #include "my_compiler.h"
-#include "mysqlxclient/xrow.h"
-#include "mysqlxclient/mysqlxclient_error.h"
-#include "xquery_result_impl.h"
+#include "plugin/x/client/mysqlxclient/mysqlxclient_error.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
 
 
 namespace details {
@@ -134,7 +140,6 @@ Query_result::Query_result(
   m_query_instances(query_instances),
   m_instance_id(m_query_instances->instances_fetch_begin()),
   m_context(context) {
-
   m_notice_handler_id = m_protocol->add_notice_handler(
       [this](XProtocol *protocol MY_ATTRIBUTE((unused)),
              const bool is_global,
@@ -154,7 +159,6 @@ Query_result::~Query_result() {
   }
 }
 
-
 bool Query_result::had_fetch_not_ended() const {
   return !m_error && !m_received_fetch_done;
 }
@@ -172,17 +176,20 @@ bool Query_result::try_get_info_message(std::string *out_value) const {
 }
 
 bool Query_result::next_resultset(XError *out_error) {
+  m_metadata.clear();
+
   if (!had_fetch_not_ended()) {
-    *out_error = m_error;
+    if (nullptr != out_error)
+      *out_error = m_error;
+
     return false;
   }
 
-  if (!verify_current_instance(out_error))
+  if (!verify_current_instance(out_error)) {
     return false;
+  }
 
-
-  if (m_holder.is_one_of({Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK})) {
-    set_result_fetch_done();
+  if (check_if_fetch_done()) {
     return false;
   }
 
@@ -202,7 +209,9 @@ bool Query_result::next_resultset(XError *out_error) {
           ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS}));
   }
 
-  clear();
+  // Accept another series of
+  // RESULTSET_COLUMN_META_DATA
+  m_read_metadata = true;
 
   if (m_error) {
     if (nullptr != out_error)
@@ -212,7 +221,8 @@ bool Query_result::next_resultset(XError *out_error) {
   }
 
   if (!m_holder.is_one_of({::Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA,
-                           ::Mysqlx::ServerMessages::RESULTSET_ROW })) {
+                           ::Mysqlx::ServerMessages::RESULTSET_ROW,
+                           ::Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK })) {
     m_holder.clear_cached_message();
   }
 
@@ -290,10 +300,7 @@ void Query_result::read_stmt_ok() {
   if (m_error)
     return;
 
-  if (Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK ==
-      m_holder.get_cached_message_id()) {
-    set_result_fetch_done();
-  }
+  check_if_fetch_done();
 }
 
 XError Query_result::read_dump_out_params_or_resultset(
@@ -317,6 +324,7 @@ const XQuery_result::Metadata &Query_result::get_metadata(XError *out_error) {
       return m_metadata;
 
     read_if_needed_metadata();
+    check_if_fetch_done();
 
     if (out_error && m_error)
       *out_error = m_error;
@@ -430,11 +438,6 @@ XError Query_result::read_metadata(
   return {};
 }
 
-void Query_result::clear() {
-  m_read_metadata = true;
-  m_metadata.clear();
-}
-
 bool Query_result::verify_current_instance(XError *out_error) {
   if (!m_query_instances->is_instance_active(m_instance_id)) {
     m_context->m_global_error = m_error = XError{
@@ -462,13 +465,16 @@ void Query_result::check_error(const XError &error) {
   }
 }
 
-void Query_result::set_result_fetch_done() {
+bool Query_result::check_if_fetch_done() {
   if (!m_error && !m_received_fetch_done) {
-    m_query_instances->instances_fetch_end();
-    m_protocol->remove_notice_handler(m_notice_handler_id);
+    if (m_holder.is_one_of({Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK})) {
+      m_query_instances->instances_fetch_end();
+      m_protocol->remove_notice_handler(m_notice_handler_id);
+      m_received_fetch_done = true;
+    }
   }
 
-  m_received_fetch_done = true;
+  return m_received_fetch_done;
 }
 
 }  // namespace xcl

@@ -3,6 +3,7 @@
 ## Added tests to verify data from performance schema.
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --append_file $MYSQL_TMP_DIR/admin_create_collection.tmp
@@ -217,8 +218,9 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_create_collection.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_create_collection.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/admin_create_collection.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

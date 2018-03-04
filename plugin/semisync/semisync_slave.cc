@@ -1,20 +1,27 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "semisync_slave.h"
+#include "plugin/semisync/semisync_slave.h"
 
 #include <assert.h>
 #include <sys/types.h>
@@ -35,7 +42,7 @@ int ReplSemiSyncSlave::initObject()
 
   if (init_done_)
   {
-    sql_print_warning("%s called twice", kWho);
+    LogErr(WARNING_LEVEL, ER_SEMISYNC_FUNCTION_CALLED_TWICE, kWho);
     return 1;
   }
   init_done_ = true;
@@ -64,12 +71,12 @@ int ReplSemiSyncSlave::slaveReadSyncHeader(const char *header,
     *payload     = header + 2;
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: reply - %d", kWho, *need_reply);
+      LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SLAVE_REPLY, kWho, *need_reply);
   }
   else
   {
-    sql_print_error("Missing magic number for semi-sync packet, packet "
-                    "len: %lu", total_len);
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_MISSING_MAGIC_NO_FOR_SEMISYNC_PKT,
+           total_len);
     read_res = -1;
   }
 
@@ -79,13 +86,12 @@ int ReplSemiSyncSlave::slaveReadSyncHeader(const char *header,
 int ReplSemiSyncSlave::slaveStart(Binlog_relay_IO_param *param)
 {
   bool semi_sync= getSlaveEnabled();
-  
-  sql_print_information("Slave I/O thread: Start %s replication to\
- master '%s@%s:%d' in log '%s' at position %lu",
-			semi_sync ? "semi-sync" : "asynchronous",
-			param->user, param->host, param->port,
-			param->master_log_name[0] ? param->master_log_name : "FIRST",
-			(unsigned long)param->master_log_pos);
+
+  LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SLAVE_START,
+         semi_sync ? "semi-sync" : "asynchronous",
+         param->user, param->host, param->port,
+         param->master_log_name[0] ? param->master_log_name : "FIRST",
+         (unsigned long)param->master_log_pos);
 
   if (semi_sync && !rpl_semi_sync_slave_status)
     rpl_semi_sync_slave_status= 1;
@@ -133,8 +139,8 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql,
          name_len + 1 /* including trailing '\0' */);
 
   if (trace_level_ & kTraceDetail)
-    sql_print_information("%s: reply (%s, %lu)", kWho,
-                          binlog_filename, (ulong)binlog_filepos);
+    LogErr(INFORMATION_LEVEL, ER_SEMISYNC_SLAVE_REPLY_WITH_BINLOG_INFO,
+           kWho, binlog_filename, (ulong)binlog_filepos);
 
   net_clear(net, 0);
   /* Send the reply. */
@@ -144,12 +150,12 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql,
   {
     reply_res = net_flush(net);
     if (reply_res)
-      sql_print_error("Semi-sync slave net_flush() reply failed");
+      LogErr(ERROR_LEVEL, ER_SEMISYNC_SLAVE_NET_FLUSH_REPLY_FAILED);
   }
   else
   {
-    sql_print_error("Semi-sync slave send reply failed: %s (%d)",
-                    net->last_error, net->last_errno);
+    LogErr(ERROR_LEVEL, ER_SEMISYNC_SLAVE_SEND_REPLY_FAILED,
+           net->last_error, net->last_errno);
   }
 
   return function_exit(kWho, reply_res);

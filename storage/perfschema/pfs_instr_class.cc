@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/pfs_instr_class.cc
@@ -29,17 +36,17 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_column_values.h"
-#include "pfs_events_waits.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_program.h"
-#include "pfs_setup_object.h"
-#include "pfs_timer.h"
-#include "sql/mysqld.h" // lower_case_table_names
+#include "sql/mysqld.h"  // lower_case_table_names
 #include "sql/table.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_events_waits.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/pfs_setup_object.h"
+#include "storage/perfschema/pfs_timer.h"
 
 /**
   @defgroup performance_schema_buffers Performance Schema Buffers
@@ -161,27 +168,6 @@ PFS_ALIGNED PFS_instr_class global_metadata_class;
 PFS_ALIGNED PFS_error_class global_error_class;
 PFS_ALIGNED PFS_transaction_class global_transaction_class;
 
-/** Class-timer map */
-enum_timer_name *class_timers[] = {
-  &wait_timer,        /* PFS_CLASS_NONE */
-  &wait_timer,        /* PFS_CLASS_MUTEX */
-  &wait_timer,        /* PFS_CLASS_RWLOCK */
-  &wait_timer,        /* PFS_CLASS_COND */
-  &wait_timer,        /* PFS_CLASS_FILE */
-  &wait_timer,        /* PFS_CLASS_TABLE */
-  &stage_timer,       /* PFS_CLASS_STAGE */
-  &statement_timer,   /* PFS_CLASS_STATEMENT */
-  &transaction_timer, /* PFS_CLASS_TRANSACTION */
-  &wait_timer,        /* PFS_CLASS_SOCKET */
-  &wait_timer,        /* PFS_CLASS_TABLE_IO */
-  &wait_timer,        /* PFS_CLASS_TABLE_LOCK */
-  &idle_timer,        /* PFS_CLASS_IDLE */
-  &wait_timer,        /* PFS_CLASS_METADATA */
-  &wait_timer,        /* PFS_CLASS_MEMORY */
-  &wait_timer,        /* PFS_CLASS_ERROR */
-  &wait_timer         /* PFS_CLASS_THREAD */
-};
-
 /**
   Hash index for instrumented table shares.
   This index is searched by table fully qualified name (@c PFS_table_share_key),
@@ -296,7 +282,6 @@ register_global_classes()
                    PFS_CLASS_ERROR);
   global_error_class.m_event_name_index = GLOBAL_ERROR_INDEX;
   global_error_class.m_enabled = true; /* Enabled by default */
-  global_error_class.m_timer = NULL;
   configure_instr_class(&global_error_class);
   global_error_class.m_timed = false; /* Not applicable */
   error_class_max = 1;                /* only one error class as of now. */
@@ -388,7 +373,7 @@ cleanup_sync_class(void)
 
   if (mutex_class_array != NULL)
   {
-    for (i=0; i<mutex_class_max; i++)
+    for (i = 0; i < mutex_class_max; i++)
     {
       my_free(mutex_class_array[i].m_documentation);
     }
@@ -403,7 +388,7 @@ cleanup_sync_class(void)
 
   if (rwlock_class_array != NULL)
   {
-    for (i=0; i<rwlock_class_max; i++)
+    for (i = 0; i < rwlock_class_max; i++)
     {
       my_free(rwlock_class_array[i].m_documentation);
     }
@@ -419,7 +404,7 @@ cleanup_sync_class(void)
 
   if (cond_class_array != NULL)
   {
-    for (i=0; i<cond_class_max; i++)
+    for (i = 0; i < cond_class_max; i++)
     {
       my_free(cond_class_array[i].m_documentation);
     }
@@ -474,7 +459,7 @@ cleanup_thread_class(void)
 
   if (thread_class_array != NULL)
   {
-    for (i=0; i<thread_class_max; i++)
+    for (i = 0; i < thread_class_max; i++)
     {
       my_free(thread_class_array[i].m_documentation);
     }
@@ -929,7 +914,7 @@ cleanup_file_class(void)
 
   if (file_class_array != NULL)
   {
-    for (i=0; i<file_class_max; i++)
+    for (i = 0; i < file_class_max; i++)
     {
       my_free(file_class_array[i].m_documentation);
     }
@@ -985,7 +970,7 @@ cleanup_stage_class(void)
 
   if (stage_class_array != NULL)
   {
-    for (i=0; i<stage_class_max; i++)
+    for (i = 0; i < stage_class_max; i++)
     {
       my_free(stage_class_array[i].m_documentation);
     }
@@ -1041,7 +1026,7 @@ cleanup_statement_class(void)
 
   if (statement_class_array != NULL)
   {
-    for (i=0; i<statement_class_max; i++)
+    for (i = 0; i < statement_class_max; i++)
     {
       my_free(statement_class_array[i].m_documentation);
     }
@@ -1097,7 +1082,7 @@ cleanup_socket_class(void)
 
   if (socket_class_array != NULL)
   {
-    for (i=0; i<socket_class_max; i++)
+    for (i = 0; i < socket_class_max; i++)
     {
       my_free(socket_class_array[i].m_documentation);
     }
@@ -1153,7 +1138,7 @@ cleanup_memory_class(void)
 
   if (memory_class_array.load() != nullptr)
   {
-    for (i=0; i<memory_class_max; i++)
+    for (i = 0; i < memory_class_max; i++)
     {
       my_free(memory_class_array[i].m_documentation);
     }
@@ -1186,7 +1171,6 @@ init_instr_class(PFS_instr_class *klass,
   klass->m_enabled = true;
   klass->m_timed = true;
   klass->m_type = class_type;
-  klass->m_timer = class_timers[class_type];
 
   klass->m_documentation = NULL;
   if (documentation != NULL)
@@ -1194,7 +1178,8 @@ init_instr_class(PFS_instr_class *klass,
     /* PSI_DOCUMENT_ME is an empty string. */
     if (documentation[0] != '\0')
     {
-      klass->m_documentation = my_strdup(PSI_NOT_INSTRUMENTED, documentation, 0);
+      klass->m_documentation =
+        my_strdup(PSI_NOT_INSTRUMENTED, documentation, 0);
     }
   }
 }

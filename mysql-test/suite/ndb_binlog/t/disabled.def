@@ -30,5 +30,3 @@ ndb_binlog_flush_log_waits: Bug#25931184 NDB_BINLOG_INDEX IS NOT UPDATE
 ndb_binlog_discover: Need WL#9185 MySQL Cluster support for new DD
 ndb_binlog_basic: Need WL#9185 MySQL Cluster support for new DD
 
-# Tests disabled under various bugs pending further investigation
-ndb_binlog_log_reads: Bug #26484275 FAILURE OF NDB_DD_SQL_FEATURES TEST ON WINDOWS

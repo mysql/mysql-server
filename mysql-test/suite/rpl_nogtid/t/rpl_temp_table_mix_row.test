@@ -1,76 +1,10 @@
-# ==== Purpose ====
-#
-# Test that temporary tables are correctly replicated after switching to ROW format in MIX mode.
-# This test case will test the condition of the bug#40013.
-# The test step is:
-#   1: create temp table on connection 'master';
-#   2: switch to ROW format using 'INSERT INTO t1 VALUES (UUID());'
-#   3: disconnect 'master' and connect to a new connection 'master1';
-#   4: sync to slave and check the number of temp tables on slave.
-#
-
-source include/master-slave.inc;
-source include/have_binlog_format_mixed.inc;
-source include/have_myisam.inc;
-
---echo ==== Initialize ====
-
---echo [on master]
---connection master
-
-CREATE TABLE t1 (a CHAR(48));
-CREATE TEMPORARY TABLE t1_tmp1(a INT);
-INSERT INTO t1 VALUES (UUID());
-
---echo [on slave]
---source include/sync_slave_sql_with_master.inc
-
---echo ==== Verify results on slave ====
-SHOW STATUS LIKE "Slave_open_temp_tables";
-
---echo [on master]
---connection master
-
-disconnect master;
---echo [on master1]
---connection master1
-
-# waiting DROP TEMPORARY TABLE event to be written into binlog
-let $wait_binlog_event= DROP;
-source include/wait_for_binlog_event.inc;
-
---echo [on slave]
---source include/sync_slave_sql_with_master.inc
-
---echo ==== Verify results on slave ====
-SHOW STATUS LIKE "Slave_open_temp_tables";
-
---echo ==== Clean up ====
-
---echo [on master]
---let $rpl_connection_name= master
---let $rpl_server_number= 1
---source include/rpl_connect.inc
---connection master
-DROP TABLE t1;
-
---echo [on slave]
---source include/sync_slave_sql_with_master.inc
-
-#
 # BUG#43046: mixed mode switch to row format with temp table lead to wrong
 # result
 #
 # NOTES
 # =====
 #  
-#  1. Temporary tables cannot be logged using the row-based
-#     format. Thus, once row-based logging is used, all subsequent
-#     statements using that table are unsafe, and we approximate this
-#     condition by treating all statements made by that client as
-#     unsafe until the client no longer holds any temporary tables.
-#
-#  2. Two different connections can use the same temporary table
+#  1. Two different connections can use the same temporary table
 #     name without conflicting with each other or with an
 #     existing non-TEMPORARY table of the same name.
 #
@@ -79,21 +13,24 @@ DROP TABLE t1;
 #  
 #   The test is implemented as follows:
 #     1. create regular tables 
-#     2. create a temporary table t1_tmp: should be logged as statement
-#     3. issue an alter table: should be logged as statement
-#     4. issue statement that forces switch to RBR
+#     2. create a temporary table t1_tmp: should not be logged
+#     3. issue an alter table: should not be logged
+#     4. issue statement that forces the query to be logged in Row format.
 #     5. create another temporary table t2_tmp: should not be logged
 #     6. issue alter table on t1_tmp: should not be logged
 #     7. drop t1_tmp and regular table on same statement: should log both in
 #        statement format (but different statements)
-#     8. issue deterministic insert: logged as row (because t2_tmp still
-#        exists).
+#     8. issue deterministic insert: logged as statement as the statement is
+#        safe.
 #     9. drop t2_tmp and issue deterministic statement: should log drop and
-#        query in statement format (show switch back to STATEMENT format)
+#        query in statement format.
 #    10. in the end the slave should not have open temp tables.
 #  
 
---source include/rpl_reset.inc
+source include/master-slave.inc;
+source include/have_binlog_format_mixed.inc;
+source include/have_myisam.inc;
+
 -- connection master
 
 # action: setup environment
@@ -102,22 +39,22 @@ CREATE TABLE t2 ( i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1) );
 CREATE TABLE t3 ( i1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (i1) );
 CREATE TRIGGER tr1 AFTER DELETE ON t2 FOR EACH ROW INSERT INTO t3 () VALUES ();
 
-# assertion: assert that CREATE is logged as STATEMENT
+# assertion: assert that CREATE is not logged.
 CREATE TEMPORARY TABLE t1_tmp (i1 int);
 
-# assertion: assert that ALTER TABLE is logged as STATEMENT
+# assertion: assert that ALTER TABLE is not logged.
 ALTER TABLE t1_tmp ADD COLUMN b INT;
 
-# action: force switch to RBR
+# action: Log this in ROW format 
 DELETE FROM t2;
 
-# assertion: assert that t2_tmp will not make into the binlog (RBR logging atm)
+# assertion: assert that t2_tmp will not make into the binlog.
 CREATE TEMPORARY TABLE t2_tmp (a int);
 
 # assertion: assert that ALTER TABLE on t1_tmp will not make into the binlog
 ALTER TABLE t1_tmp ADD COLUMN c INT;
 
--- echo ### assertion: assert that there is one open temp table on slave
+-- echo ### assertion: assert that slave has no temp table opened.
 --source include/sync_slave_sql_with_master.inc
 SHOW STATUS LIKE 'Slave_open_temp_tables';
 
@@ -126,15 +63,14 @@ SHOW STATUS LIKE 'Slave_open_temp_tables';
 # assertion: assert that both drops are logged
 DROP TABLE t1_tmp, t2;
 
-# assertion: assert that statement is logged as row (master still has one
-#            opened temporary table - t2_tmp.
+# assertion: assert that statement is logged as statement format.
+
 INSERT INTO t1 VALUES (1);
 
 # assertion: assert that DROP TABLE *is* logged despite CREATE is not.
 DROP TEMPORARY TABLE t2_tmp;
 
-# assertion: assert that statement is now logged as STMT (mixed mode switches
-#            back to STATEMENT).
+# assertion: assert that statement is now logged as STMT.
 INSERT INTO t1 VALUES (2);
 
 --source include/sync_slave_sql_with_master.inc
@@ -189,7 +125,7 @@ DROP TEMPORARY TABLE t1;
 # will be fixed by the patch for bug#55709. So This statement cannot be
 # executed until Bug#55709 is fixed
 #
-# INSERT INTO t1 VALUES(1);
+#INSERT INTO t1 VALUES(1);
 
 --echo # The rows event will binlogged before 'DROP TEMPORARY TABLE t1',
 --echo # as t1 is non-transactional table

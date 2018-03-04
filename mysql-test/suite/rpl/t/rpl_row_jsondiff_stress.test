@@ -43,8 +43,13 @@
 --source include/rpl_init.inc
 --source include/rpl_default_connections.inc
 
---connection master
+--source include/rpl_connection_slave.inc
+SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
+SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
+SET @old_slave_rows_search_algorithms= @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS;
+SET @old_slave_exec_mode= @@GLOBAL.SLAVE_EXEC_MODE;
 
+--source include/rpl_connection_master.inc
 SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 
@@ -446,13 +451,35 @@ while (!$done)
       eval INSERT INTO t(i) VALUES ($row_i);
       --inc $row_i
     }
-    --eval $fix
+    if ($fix)
+    {
+      --eval $fix
+    }
     COMMIT;
 
     if ($verb>=1) { SELECT * FROM t; }
 
     if ($verb==3) { echo # Replicate, reset binlogs, reset replication, pickup new slave config; }
-    --source include/rpl_reset.inc
+
+    --source include/rpl_sync.inc
+
+    --source include/rpl_connection_master.inc
+    RESET MASTER;
+
+    --source include/rpl_connection_slave.inc
+    --source include/stop_slave.inc
+    RESET MASTER;
+    RESET SLAVE;
+    --source include/start_slave.inc
+
+    --let $rpl_connection_name=server_3
+    --source include/rpl_connection.inc
+    --source include/stop_slave.inc
+    RESET MASTER;
+    RESET SLAVE;
+    --source include/start_slave.inc
+
+    --source include/rpl_connection_master.inc
     --source include/save_binlog_position.inc
 
     if ($verb==3) { echo # Execute UPDATE; }
@@ -471,6 +498,7 @@ while (!$done)
     --source include/rpl_diff.inc
 
     DROP TABLE t;
+    --source include/rpl_sync.inc
   }
 
   --inc $iteration
@@ -485,5 +513,13 @@ while (!$done)
     }
   }
 }
+
+--source include/rpl_connection_slave.inc
+--enable_query_log
+SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
+SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
+SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS= @old_slave_rows_search_algorithms;
+SET @@GLOBAL.SLAVE_EXEC_MODE= @old_slave_exec_mode;
+--disable_query_log
 
 --source include/rpl_end.inc

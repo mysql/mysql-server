@@ -30,7 +30,7 @@
 
 --let $binlog_file=
 
---let $ddl_query=CREATE USER user1
+--let $ddl_query=CREATE USER user1 IDENTIFIED WITH 'mysql_native_password'
 --let $pre_binlog_crash_check=SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1'
 --let $post_binlog_crash_check=SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
@@ -193,7 +193,7 @@ DEALLOCATE PREPARE stmt;
 --let $post_binlog_crash_check=SELECT count(*) = 0 FROM information_schema.VIEWS where TABLE_NAME = 'v_0'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc
 
---let $ddl_query= CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so'
+--let $ddl_query= CREATE FUNCTION metaphon RETURNS STRING SONAME '$UDF_EXAMPLE_LIB'
 --let $pre_binlog_crash_check=SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon'
 --let $post_binlog_crash_check=SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon'
   --source extra/binlog_tests/binlog_crash_safe_ddl.inc

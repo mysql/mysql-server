@@ -1,13 +1,25 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -29,6 +41,7 @@
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
+#include <unordered_map>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -37,7 +50,6 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "my_static.h"
 #include "my_sys.h"
 #include "my_thread.h"
 #include "mysql/psi/mysql_cond.h"
@@ -56,8 +68,9 @@
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysys/my_static.h"
+#include "mysys/mysys_priv.h"
 #include "mysys_err.h"
-#include "mysys_priv.h"
 
 #ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
@@ -141,10 +154,10 @@ bool my_init()
 
   /* Default creation of new files */
   if ((str= getenv("UMASK")) != 0)
-    my_umask= (int) (atoi_octal(str) | 0640);
+    my_umask= (int) (atoi_octal(str) | 0600);
   /* Default creation of new dir's */
   if ((str= getenv("UMASK_DIR")) != 0)
-    my_umask_dir= (int) (atoi_octal(str) | 0750);
+    my_umask_dir= (int) (atoi_octal(str) | 0700);
 
   instrumented_stdin.m_file= stdin;
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
@@ -174,18 +187,6 @@ bool my_init()
 
 
 	/* End my_sys */
-
-void charset_uninit()
-{
-  for (CHARSET_INFO *cs : all_charsets)
-  {
-    if (cs && cs->coll->uninit)
-    {
-      cs->coll->uninit(cs);
-    }
-  }
-}
-
 void my_end(int infoflag)
 {
   /*

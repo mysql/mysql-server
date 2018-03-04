@@ -339,7 +339,7 @@ F	30	30
 SELECT TRACE RLIKE 'minmax_keypart_in_disjunctive_query'
 AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 OK
-0
+1
 SET optimizer_trace_max_mem_size=DEFAULT;
 SET optimizer_trace=DEFAULT;
 SET end_markers_in_json=DEFAULT;
@@ -604,4 +604,84 @@ WHERE (c2 = 2)),
 c1
 2
 10
+DROP TABLE t1;
+#
+# Bug #26532061: SELECT DISTINCT WITH SECONDARY KEY FOR
+#                'USING INDEX FOR GROUP-BY' BAD RESULTS
+#
+CREATE TABLE t1(
+pk INT NOT NULL,
+c1 CHAR(2),
+c2 INT,
+PRIMARY KEY(pk),
+UNIQUE KEY ukey(c1, c2)
+);
+INSERT INTO t1(pk, c1, c2) VALUES (1,1,1),(2,2,2),(3,3,3),(4,5,4);
+SET @a:=5;
+INSERT IGNORE INTo t1(pk, c1, c2)
+SELECT (@a:=@a+1),@a,@a FROM t1, t1 t2,t1 t3, t1 t4;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT * FROM t1 WHERE pk = 1 OR pk = 231;
+pk	c1	c2
+1	1	1
+231	23	231
+EXPLAIN SELECT DISTINCT c1
+FROM t1 FORCE INDEX(ukey)
+WHERE pk IN (1,231) and c1 IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	ukey	ukey	14	NULL	260	20.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` FORCE INDEX (`ukey`) where ((`test`.`t1`.`pk` in (1,231)) and (`test`.`t1`.`c1` is not null))
+EXPLAIN SELECT DISTINCT c1
+FROM t1 IGNORE INDEX(ukey)
+WHERE pk IN (1,231) and c1 IS NOT NULL;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	PRIMARY,ukey	PRIMARY	4	NULL	2	90.00	Using where; Using temporary
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`c1` AS `c1` from `test`.`t1` IGNORE INDEX (`ukey`) where ((`test`.`t1`.`pk` in (1,231)) and (`test`.`t1`.`c1` is not null))
+SELECT DISTINCT c1
+FROM t1 FORCE INDEX(ukey)
+WHERE pk IN (1,231) and c1 IS NOT NULL;
+c1
+1
+23
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX(ukey)
+WHERE pk IN (1,231) and c1 IS NOT NULL;
+c1
+1
+23
+DROP TABLE t1;
+#
+# Bug #25989915: LOOSE INDEX SCANS RETURNING WRONG RESULT
+#
+CREATE TABLE t1 (
+pk INT NOT NULL AUTO_INCREMENT,
+c1 varchar(100) DEFAULT NULL,
+c2 INT NOT NULL,
+PRIMARY KEY (pk),
+UNIQUE KEY ukey (c2,c1)
+);
+INSERT INTO t1(pk, c2) VALUES (100, 0), (101, 0), (102, 0), (103, 0);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT COUNT(DISTINCT(c2)) FROM t1 WHERE pk IN (102, 101);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY,ukey	ukey	407	NULL	4	50.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`c2`) AS `COUNT(DISTINCT(c2))` from `test`.`t1` where (`test`.`t1`.`pk` in (102,101))
+EXPLAIN SELECT COUNT(DISTINCT(c2)) FROM t1 WHERE pk IN (102, 100);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	PRIMARY,ukey	ukey	407	NULL	4	50.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`c2`) AS `COUNT(DISTINCT(c2))` from `test`.`t1` where (`test`.`t1`.`pk` in (102,100))
+SELECT COUNT(DISTINCT(c2)) FROM t1 WHERE pk IN (102, 101);
+COUNT(DISTINCT(c2))
+1
+SELECT COUNT(DISTINCT(c2)) FROM t1 WHERE pk IN (102, 100);
+COUNT(DISTINCT(c2))
+1
 DROP TABLE t1;

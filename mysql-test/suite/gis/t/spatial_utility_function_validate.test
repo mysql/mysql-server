@@ -355,14 +355,8 @@ SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_center,-1024)));
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_all_points,-1)));
 
---error ER_SRS_NOT_CARTESIAN
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_lines_near_vertical,4236)));
-
---error ER_SRS_NOT_CARTESIAN_UNDEFINED
-SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star,123456789)));
-
---error ER_SRS_NOT_CARTESIAN_UNDEFINED
-SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_VALIDATE(ST_GEOMFROMTEXT(@star_of_elems,4294967297)));
@@ -405,19 +399,13 @@ DO ST_VALIDATE(ST_GEOMFROMTEXT('POINT(0 0)', 0));
 DO ST_VALIDATE(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 
 --echo # Geographic SRS (should fail)
---error ER_SRS_NOT_CARTESIAN
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 DO ST_VALIDATE(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
 
---echo # Undefined SRS (should fail)
-# Assume SRID 4000000 is undefined
---error ER_SRS_NOT_CARTESIAN_UNDEFINED
-DO ST_VALIDATE(ST_GEOMFROMTEXT('POINT(0 0)', 4000000));
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 4000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (4000001, 1, 'TEST4000001', 'Foo', 4000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-DO ST_VALIDATE(ST_GEOMFROMTEXT('POINT(0 0)', 4000001));
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 4000001;
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_VALIDATE(x'0A000000010100000000000000000000000000000000000000');

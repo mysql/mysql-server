@@ -703,7 +703,7 @@ drop table t1;
 #
 CREATE TABLE t1 (a varchar(500));
 
-ALTER TABLE t1 ADD b GEOMETRY NOT NULL, ADD SPATIAL INDEX(b);
+ALTER TABLE t1 ADD b GEOMETRY NOT NULL SRID 0, ADD SPATIAL INDEX(b);
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 ADD KEY(b(50));
 SHOW CREATE TABLE t1;
@@ -777,7 +777,8 @@ drop table t1;
 # It should be consistent across all platforms and for all engines
 # (Before 5.1 this was not true as behavior was different between
 # Unix/Windows and transactional/non-transactional tables).
-# See also innodb_mysql.test
+# See also innodb_mysql.test.
+# See alter_table-big.test for extended full ALTER TABLE RENAME coverage.
 #
 --disable_warnings
 drop table if exists t1, t2, t3;
@@ -798,12 +799,12 @@ select * from t1;
 alter table t1 change i c char(10) default "Two";
 insert into t1 values ();
 select * from t1;
-# If table is renamed then it should be removed from the list
-# of locked tables. 'Fast' ALTER TABLE with RENAME clause:
+# If table is renamed then it should stay in the list of locked tables
+# under new name (unless SE doesn't support atomic DDL and it is an error).
+# 'Fast' ALTER TABLE with RENAME clause:
 alter table t1 modify c char(10) default "Three", rename to t2;
 --error ER_TABLE_NOT_LOCKED
 select * from t1;
---error ER_TABLE_NOT_LOCKED
 select * from t2;
 select * from t3;
 unlock tables;
@@ -812,7 +813,6 @@ select * from t2;
 lock table t2 write, t3 read;
 # Full ALTER TABLE with RENAME
 alter table t2 change c vc varchar(100) default "Four", rename to t1;
---error ER_TABLE_NOT_LOCKED
 select * from t1;
 --error ER_TABLE_NOT_LOCKED
 select * from t2;
@@ -2784,16 +2784,10 @@ SELECT * FROM t1;
 CREATE TABLE t3(a int, b int, KEY(b)) ENGINE=InnoDB;
 ALTER TABLE t3 ADD CONSTRAINT FOREIGN KEY(b) REFERENCES t1(bb);
 SHOW CREATE TABLE t3;
---error ER_NOT_SUPPORTED_YET
 ALTER TABLE t1 RENAME COLUMN bb TO b;
 SHOW CREATE TABLE t1;
 ALTER TABLE t3 RENAME COLUMN b TO c;
 SHOW CREATE TABLE t3;
-
-# Workaround until SQL-layer code properly supports renaming of columns in FKs
-# I.e. until bug #26659110 is fixed.
-ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
-ALTER TABLE t1 RENAME COLUMN bb TO b;
 
 # Different Algorithm
 CREATE TABLE t4(a int);

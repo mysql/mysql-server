@@ -195,6 +195,7 @@ eval_log_error () {
   esac
 
   #echo "Running mysqld: [$cmd]"
+  cmd="env MYSQLD_PARENT_PID=$$ $cmd"
   eval "$cmd"
 }
 
@@ -901,12 +902,18 @@ fast_restart=0
 max_fast_restarts=5
 # flag whether a usable sleep command exists
 have_sleep=1
-
 while true
 do
   start_time=`date +%M%S`
+  echo $cmd
 
   eval_log_error "$cmd"
+  if [ $? -eq 16 ] ; then
+    dont_restart_mysqld=false
+    echo "Restarting mysqld..."
+  else
+    dont_restart_mysqld=true
+  fi
 
   # hypothetical: log was renamed but not
   # flushed yet. we'd recreate it with
@@ -936,15 +943,17 @@ do
 
   end_time=`date +%M%S`
 
-  if test ! -f "$pid_file"		# This is removed if normal shutdown
-  then
-    break
-  else                                  # self's mysqld crashed or other's mysqld running
-    PID=`cat "$pid_file"`
-    if @CHECK_PID@
-    then                                # true when above pid belongs to a running mysqld process
-      log_error "A mysqld process with pid=$PID is already running. Aborting!!"
-      exit 1
+  if $dont_restart_mysqld; then
+    if test ! -f "$pid_file"		# This is removed if normal shutdown
+    then
+      break
+    else                                  # self's mysqld crashed or other's mysqld running
+        PID=`cat "$pid_file"`
+        if @CHECK_PID@
+        then                                # true when above pid belongs to a running mysqld process
+          log_error "A mysqld process with pid=$PID is already running. Aborting!!"
+          exit 1
+        fi
     fi
   fi
 

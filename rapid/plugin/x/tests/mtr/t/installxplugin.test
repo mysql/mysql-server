@@ -1,6 +1,7 @@
 ## This is test file for install xplugin feature
 ##
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 call mtr.add_suppression("Plugin mysqlx reported: 'Delayed startup failed. Plugin is unable to accept connections.'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Invalid server state'");
 call mtr.add_suppression("Plugin mysqlx reported: '.*: Internal error executing query'");
@@ -80,7 +81,7 @@ show variables like 'mysqlx_min_worker_threads%';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-setup.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-setup.tmp 2>&1
 
 ###try uninstaling mysqlx plugin with unprivileged user using mysqlx protocol
 --exec $MYSQLXTEST -u xplugin --password='xplugin' --file=$MYSQL_TMP_DIR/mysqlx-uninstallxplugin.tmp 2>&1
@@ -128,7 +129,7 @@ let $restart_parameters = restart: --loose-mysqlx_idle_worker_thread_timeout=70 
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --replace_regex /ERROR.*(No connection could be made because the target machine actively refused it connecting to *| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/
 --error 1
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 show variables like 'mysqlx_idle_worker_thread_timeout%';
 show variables like 'mysqlx_max_allowed_packet%';
 show variables like 'mysqlx_max_connections%';
@@ -167,7 +168,7 @@ let $restart_parameters = restart: --max_connections=151;
 --source include/xplugin_install_and_wait.inc
 let $restart_parameters = restart: --max_connections=151;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 ###start server without this plugin and install plugin using mysql and restart without this plugin and having these plugin variables and connect using xprotocol:server should be started with given mysqlxplugin variablessuccess
 uninstall plugin mysqlx;
@@ -178,7 +179,7 @@ let $restart_parameters = restart: --max_connections=151;
 --source include/xplugin_install_and_wait.inc
 let $restart_parameters = restart: --max_connections=151 --mysqlx_idle_worker_thread_timeout=70 --mysqlx_max_allowed_packet=4048576 --mysqlx_max_connections=500 --mysqlx_min_worker_threads=50;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-xplugin-variables.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-xplugin-variables.tmp 2>&1
 
 ##start server with wrong plugin-dir and try to install plugin
 uninstall plugin mysqlx;
@@ -204,7 +205,7 @@ uninstall plugin mysqlx;
 --replace_regex /\.dll/.so/
 let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN --mysqlx_idle_worker_thread_timeout=70 --mysqlx_max_allowed_packet=4048576 --mysqlx_max_connections=500 --mysqlx_min_worker_threads=50;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-uninstallxplugin.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-uninstallxplugin.tmp 2>&1
 
 ###uninstall mysqlx plugin when xplugin variables are in use,by mysqlx protocol session
 --exec $MYSQLXTEST -u session --password='session' --file=$MYSQL_TMP_DIR/mysqlx-uninstallxplugin-variables.tmp 2>&1
@@ -220,6 +221,7 @@ let $restart_parameters = restart: --plugin-load=$MYSQLXPLUGIN --mysqlx_idle_wor
 --remove_file $MYSQL_TMP_DIR/mysqlx-xplugin-variables.tmp
 
 ##cleanup
+--source include/xplugin_drop_user.inc
 drop user xplugin@localhost;
 drop user session@localhost;
 uninstall plugin mysqlx;

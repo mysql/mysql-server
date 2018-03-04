@@ -151,14 +151,8 @@ SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', -1024), ST_GEOMFR
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', -1), ST_GEOMFROMTEXT('POINT(-1 1)', -1)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1), ST_GEOMFROMTEXT('POINT(-1 1)', 1)));
-ERROR SR001: Function st_makeenvelope is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1, which has not been defined.
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1000), ST_GEOMFROMTEXT('POINT(-1 1)', 1000)));
-ERROR SR001: Function st_makeenvelope is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1000, which has not been defined.
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(-1 1)', 1)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 1, which should have been identical.
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 1), ST_GEOMFROMTEXT('POINT(-1 -1)', -1)));
-ERROR 22003: SRID value is out of range in 'st_geomfromtext'
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 0), ST_GEOMFROMTEXT('POINT(-1 1)', 4145)));
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 4145, which should have been identical.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0), ST_GEOMFROMTEXT('POINT(0 0)', 4236)));
 ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 4236, which should have been identical.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('MULTIPOINT(0 0)')));
@@ -183,8 +177,8 @@ SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT(
 ERROR HY000: Incorrect arguments to st_makeenvelope
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()'), ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()')));
 ERROR HY000: Incorrect arguments to st_makeenvelope
-SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 10), ST_GEOMFROMTEXT('POINT(1 1)'));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 10 and 0, which should have been identical.
+SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), ST_GEOMFROMTEXT('POINT(1 1)'));
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4326 and 0, which should have been identical.
 SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'), ST_GEOMFROMTEXT('POINT(1 1e1000)'));
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 0)'));
@@ -209,20 +203,13 @@ DO ST_MAKEENVELOPE(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 );
-ERROR 22S00: Function st_makeenvelope is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4326, which is not Cartesian.
-# Undefined SRS (should fail)
+ERROR 22S00: st_makeenvelope(POINT, POINT) has not been implemented for geographic spatial reference systems.
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
 DO ST_MAKEENVELOPE(
-ST_GEOMFROMTEXT('POINT(0 0)', 3000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 3000000)
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
 );
-ERROR SR001: Function st_makeenvelope is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 3000000, which has not been defined.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (3000001, 1, 'TEST3000001', 'Foo', 3000001, 'FOOBAR', '');
-DO ST_MAKEENVELOPE(
-ST_GEOMFROMTEXT('POINT(0 0)', 3000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 3000001)
-);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 3000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 3000001;
+ERROR SR001: There's no spatial reference system with SRID 10.

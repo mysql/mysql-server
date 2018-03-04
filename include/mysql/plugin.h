@@ -1,13 +1,20 @@
 /* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -90,7 +97,7 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
-#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0108
+#define MYSQL_PLUGIN_INTERFACE_VERSION 0x0109
 
 /*
   The allowable types of plugins
@@ -179,6 +186,12 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
 #define PLUGIN_VAR_MEMALLOC     0x8000 /* String needs memory allocated */
 #define PLUGIN_VAR_NOPERSIST    0x10000 /* SET PERSIST_ONLY is prohibited
                                            for read only variables */
+/**
+  There can be some variables which needs to be set before plugin is loaded but
+  not after plugin is loaded. ex: GR specific variables. Below flag must be set
+  for these kind of variables.
+*/
+#define PLUGIN_VAR_PERSIST_AS_READ_ONLY    0x20000
 
 struct st_mysql_sys_var;
 struct st_mysql_value;
@@ -232,7 +245,8 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd,
         (PLUGIN_VAR_READONLY | PLUGIN_VAR_NOSYSVAR | \
          PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_NOCMDARG | \
          PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC | \
-         PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST)
+         PLUGIN_VAR_NODEFAULT | PLUGIN_VAR_NOPERSIST | \
+         PLUGIN_VAR_PERSIST_AS_READ_ONLY)
 
 #define MYSQL_PLUGIN_VAR_HEADER \
   int flags;                    \

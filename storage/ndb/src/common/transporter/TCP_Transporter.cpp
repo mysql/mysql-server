@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -97,7 +104,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
 	      0, false, 
 	      conf->checksum,
 	      conf->signalId,
-	      conf->tcp.sendBufferSize),
+	      conf->tcp.sendBufferSize,
+	      conf->preSendChecksum),
   reportFreq(4096),
   receiveCount(0), receiveSize(0),
   sendCount(0), sendSize(0), 
@@ -106,7 +114,7 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   maxReceiveSize = conf->tcp.maxReceiveSize;
   
   // Initialize member variables
-  my_socket_invalidate(&theSocket);
+  ndb_socket_invalidate(&theSocket);
 
   sockOptNodelay    = 1;
   setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 0);
@@ -118,6 +126,8 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
    * Always set slowdown limit to 60% of overload limit
    */
   m_slowdown_limit = m_overload_limit * 6 / 10;
+
+  send_checksum_state.init();
 }
 
 
@@ -139,7 +149,7 @@ TCP_Transporter::configure_derived(const TransporterConfiguration* conf)
 TCP_Transporter::~TCP_Transporter() {
   
   // Disconnect
-  if (my_socket_valid(theSocket))
+  if (ndb_socket_valid(theSocket))
     doDisconnect();
   
   // Delete receive buffer!!
@@ -152,6 +162,7 @@ TCP_Transporter::resetBuffers()
 {
   assert(!isConnected());
   receiveBuffer.clear();
+  send_checksum_state.init();
 }
 
 bool TCP_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
@@ -173,6 +184,7 @@ bool TCP_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
 
   get_callback_obj()->lock_transporter(remoteNodeId);
   theSocket = sockfd;
+  send_checksum_state.init();
   get_callback_obj()->unlock_transporter(remoteNodeId);
 
   DBUG_PRINT("info", ("Successfully set-up TCP transporter to node %d",
@@ -195,6 +207,7 @@ TCP_Transporter::initTransporter() {
     return false;
   }
   
+  send_checksum_state.init();
   return true;
 }
 
@@ -204,11 +217,11 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
 	int val)
 {
   int actual = 0, defval = 0;
-  socket_len_t len = sizeof(actual);
+  ndb_socket_len_t len = sizeof(actual);
 
-  my_getsockopt(fd, level, optval, (char*)&defval, &len);
+  ndb_getsockopt(fd, level, optval, (char*)&defval, &len);
 
-  if (my_setsockopt(fd, level, optval,
+  if (ndb_setsockopt(fd, level, optval,
                     (char*)&val, sizeof(val)) < 0)
   {
 #ifdef DEBUG_TRANSPORTER
@@ -218,7 +231,7 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
   }
   
   len = sizeof(actual);
-  if ((my_getsockopt(fd, level, optval,
+  if ((ndb_getsockopt(fd, level, optval,
                      (char*)&actual, &len) == 0) &&
       actual != val)
   {
@@ -266,7 +279,7 @@ TCP_Transporter::setSocketOptions(NDB_SOCKET_TYPE socket)
 
 bool TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket)
 {
-  if(my_socket_nonblock(socket, true)==0)
+  if(ndb_socket_nonblock(socket, true)==0)
     return true;
   return false;
 }
@@ -282,7 +295,7 @@ TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
 {
   ndb_socket_poller poller;
 
-  if (!my_socket_valid(fd))
+  if (!ndb_socket_valid(fd))
     return false;
 
   poller.add(fd, false, true, false);
@@ -301,6 +314,7 @@ bool
 TCP_Transporter::doSend() {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
+  Uint32 init_cnt = cnt;
 
   if (cnt == 0)
   {
@@ -330,8 +344,52 @@ TCP_Transporter::doSend() {
   {
     send_cnt++;
     Uint32 iovcnt = cnt > m_os_max_iovec ? m_os_max_iovec : cnt;
-    int nBytesSent = (int)my_socket_writev(theSocket, iov+pos, iovcnt);
+    if (checksumUsed && check_send_checksum)
+    {
+      /* Check combination of sent + potential-to-be-sent */
+      checksum_state cs = send_checksum_state;
+      if (!cs.computev(iov + pos, iovcnt))
+      {
+        g_eventLogger->error("TCP_Transporter::doSend(%u) computev() failed. "
+                             "cnt %u iovcnt %u pos %u send_cnt %u sum_sent %u "
+                             "remain %u",
+                             remoteNodeId,
+                             cnt,
+                             iovcnt,
+                             pos,
+                             send_cnt,
+                             sum_sent,
+                             remain);
+        /* Consider disconnecting remote rather than killing node */
+        require(false);
+      }
+    }
+    int nBytesSent = (int)ndb_socket_writev(theSocket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
+
+    if (checksumUsed && check_send_checksum)
+    {
+      /* Add + check sent into current state */
+      if (nBytesSent > 0)
+      {
+        if (!send_checksum_state.computev(iov + pos, iovcnt, nBytesSent))
+        {
+          g_eventLogger->error("TCP_Transporter::doSend(%u) computev() failed. "
+                               "nBytesSent %u cnt %u iovcnt %u pos %u send_cnt %u "
+                               "sum_sent %u remain %u",
+                               remoteNodeId,
+                               nBytesSent,
+                               cnt,
+                               iovcnt,
+                               pos,
+                               send_cnt,
+                               sum_sent,
+                               remain);
+          /* Consider disconnecting remote rather than killing node */
+          require(false);
+        }
+      }
+    }
 
     if (Uint32(nBytesSent) == remain)  //Completed this send
     {
@@ -343,6 +401,7 @@ TCP_Transporter::doSend() {
     else if (nBytesSent > 0)           //Sent some, more pending
     {
       sum_sent += nBytesSent;
+      require(remain >= (Uint32)nBytesSent);
       remain -= nBytesSent;
 
       /**
@@ -354,6 +413,8 @@ TCP_Transporter::doSend() {
         nBytesSent -= iov[pos].iov_len;
         pos++;
         cnt--;
+        require(cnt <= init_cnt); //prevent overflow/ wrap around
+        require(pos < init_cnt); // avoid seg fault
       }
 
       if (nBytesSent > 0)
@@ -365,14 +426,14 @@ TCP_Transporter::doSend() {
     }
     else                               //Send failed, terminate
     {
-      const int err = my_socket_errno();
+      const int err = ndb_socket_errno();
 
 #if defined DEBUG_TRANSPORTER
       g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
                            "nBytesSent = %d "
                            "errno = %d strerror = %s",
                            DISCONNECT_ERRNO(err, nBytesSent),
-                           remoteNodeId, nBytesSent, my_socket_errno(),
+                           remoteNodeId, nBytesSent, ndb_socket_errno(),
                            (char*)ndbstrerror(err));
 #endif
 
@@ -410,7 +471,7 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
   // It reads the external TCP/IP interface once
   Uint32 size = receiveBuffer.sizeOfBuffer - receiveBuffer.sizeOfData;
   if(size > 0){
-    const int nBytesRead = (int)my_recv(theSocket,
+    const int nBytesRead = (int)ndb_recv(theSocket,
 				receiveBuffer.insertPtr,
 				size < maxReceiveSize ? size : maxReceiveSize,
 				0);
@@ -418,6 +479,8 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
     if (nBytesRead > 0) {
       receiveBuffer.sizeOfData += nBytesRead;
       receiveBuffer.insertPtr  += nBytesRead;
+      require(receiveBuffer.insertPtr <= (char*)(receiveBuffer.startOfBuffer) +
+                 receiveBuffer.sizeOfBuffer); // prevent buf overflow
       
       if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
 #ifdef DEBUG_TRANSPORTER
@@ -446,12 +509,12 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
 #if defined DEBUG_TRANSPORTER
       g_eventLogger->error("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
                            "errno = %d strerror = %s",
-                           DISCONNECT_ERRNO(my_socket_errno(), nBytesRead),
-                           remoteNodeId, nBytesRead, my_socket_errno(),
-                           (char*)ndbstrerror(my_socket_errno()));
+                           DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead),
+                           remoteNodeId, nBytesRead, ndb_socket_errno(),
+                           (char*)ndbstrerror(ndb_socket_errno()));
 #endif   
-      if(DISCONNECT_ERRNO(my_socket_errno(), nBytesRead)){
-	do_disconnect(my_socket_errno());
+      if(DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead)){
+	do_disconnect(ndb_socket_errno());
       } 
     }
     return nBytesRead;
@@ -466,13 +529,13 @@ TCP_Transporter::disconnectImpl()
   get_callback_obj()->lock_transporter(remoteNodeId);
 
   NDB_SOCKET_TYPE sock = theSocket;
-  my_socket_invalidate(&theSocket);
+  ndb_socket_invalidate(&theSocket);
 
   get_callback_obj()->unlock_transporter(remoteNodeId);
 
-  if(my_socket_valid(sock))
+  if(ndb_socket_valid(sock))
   {
-    if(my_socket_close(sock) < 0){
+    if(ndb_socket_close(sock) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }

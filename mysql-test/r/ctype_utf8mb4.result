@@ -300,7 +300,6 @@ insert into t1 values('aaa','aba');
 insert into t1 values(null,'abc');
 insert into t1 values('def',null);
 insert into t1 values(null,null);
-insert into t1 values('ghi','ghi[');
 select HIGH_PRIORITY s1 regexp s2 from t1;
 s1 regexp s2
 1
@@ -316,31 +315,10 @@ s1 regexp s2
 NULL
 NULL
 NULL
-NULL
+SELECT 'ghi' REGEXP 'ghi[';
+ERROR HY000: The regular expression contains an unclosed bracket expression.
 drop table t1;
 set names utf8mb4;
-set names utf8mb4;
-select  'вася'  rlike '[[:<:]]вася[[:>:]]';
-'вася'  rlike '[[:<:]]вася[[:>:]]'
-1
-select  'вася ' rlike '[[:<:]]вася[[:>:]]';
-'вася ' rlike '[[:<:]]вася[[:>:]]'
-1
-select ' вася'  rlike '[[:<:]]вася[[:>:]]';
-' вася'  rlike '[[:<:]]вася[[:>:]]'
-1
-select ' вася ' rlike '[[:<:]]вася[[:>:]]';
-' вася ' rlike '[[:<:]]вася[[:>:]]'
-1
-select  'васяz' rlike '[[:<:]]вася[[:>:]]';
-'васяz' rlike '[[:<:]]вася[[:>:]]'
-0
-select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
-'zвася'  rlike '[[:<:]]вася[[:>:]]'
-0
-select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
-'zвасяz' rlike '[[:<:]]вася[[:>:]]'
-0
 CREATE TABLE t1 (a enum ('Y', 'N') DEFAULT 'N' COLLATE utf8mb4_unicode_ci);
 ALTER TABLE t1 ADD COLUMN b CHAR(20);
 DROP TABLE t1;

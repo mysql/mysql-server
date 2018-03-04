@@ -10,16 +10,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -35,15 +43,15 @@ Created 9/11/1995 Heikki Tuuri
 
 #include "univ.i"
 #ifndef UNIV_HOTBACKUP
-#include "my_compiler.h"
-#include "os0event.h"
-#include "ut0counter.h"
-#include "ut0mutex.h"
-
+# include "my_compiler.h"
+# include "os0event.h"
+# include "ut0counter.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "ut0mutex.h"
 
 struct rw_lock_t;
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_LIBRARY
 
 #ifdef UNIV_DEBUG
@@ -123,6 +131,7 @@ struct rw_lock_stats_t {
 	resulted during sx locks */
 	uint64_counter_t	rw_sx_os_wait_count;
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /* Latch types; these are used also in btr0btr.h and mtr0mtr.h: keep the
 numerical values smaller than 30 (smaller than BTR_MODIFY_TREE and
@@ -135,7 +144,6 @@ enum rw_lock_type_t {
 	RW_NO_LATCH = 8
 };
 
-#ifndef UNIV_HOTBACKUP
 /* We decrement lock_word by X_LOCK_DECR for each x_lock. It is also the
 start value for the lock_word, meaning that it limits the maximum number
 of concurrent read locks before the rw_lock breaks. */
@@ -152,10 +160,13 @@ typedef UT_LIST_BASE_NODE_T(rw_lock_t)	rw_lock_list_t;
 extern rw_lock_list_t			rw_lock_list;
 extern ib_mutex_t			rw_lock_list_mutex;
 
+#ifndef UNIV_HOTBACKUP
 /** Counters for RW locks. */
 extern rw_lock_stats_t	rw_lock_stats;
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_LIBRARY
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_PFS_RWLOCK
 /******************************************************************//**
 Creates, or rather, initializes an rw-lock object in a specified memory
@@ -495,6 +506,7 @@ rw_lock_x_lock_move_ownership(
 /*==========================*/
 	rw_lock_t*	lock);	/*!< in: lock which was x-locked in the
 				buffer read */
+#endif /* !UNIV_HOTBACKUP */
 /******************************************************************//**
 Returns the value of writer_count for the lock. Does not reserve the lock
 mutex, so the caller must be sure it is not changed during the call.
@@ -577,6 +589,7 @@ rw_lock_set_writer_id_and_recursion_flag(
 	rw_lock_t*	lock,
 	bool		recursive);
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks if the thread has locked the rw-lock in the specified mode, with
@@ -600,6 +613,7 @@ rw_lock_own_flagged(
 					OR of the rw_lock_flag_t values */
 	MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 /******************************************************************//**
 Checks if somebody has locked the rw-lock in the specified mode.
 @return true if locked */
@@ -771,6 +785,7 @@ struct	rw_lock_debug_t {
 #endif /* UNIV_DEBUG */
 
 #ifndef UNIV_LIBRARY
+#ifndef UNIV_HOTBACKUP
 /* For performance schema instrumentation, a new set of rwlock
 wrap functions are created if "UNIV_PFS_RWLOCK" is defined.
 The instrumentations are not planted directly into original

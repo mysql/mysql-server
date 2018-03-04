@@ -1,7 +1,7 @@
 --source include/have_debug.inc
 
---echo # Prevent background threads to acquire mdl locks, which
---echo # the result unstable
+--echo # Prevent background threads to acquire mdl locks,
+--echo # which makes the result unstable
 SET GLOBAL innodb_fast_shutdown=0;
 let $restart_parameters = restart: --debug=d,do_not_meta_lock_in_background;
 --source include/restart_mysqld.inc
@@ -71,7 +71,7 @@ select thread_id_name(@user1_tid);
 select thread_id_name(@user2_tid);
 
 prepare dump_metadata_locks from
-  "select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME,
+  "select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME,
     LOCK_TYPE, LOCK_DURATION, LOCK_STATUS,
     thread_id_name(OWNER_THREAD_ID) as OWNER_THREAD_ID
     from performance_schema.metadata_locks

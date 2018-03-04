@@ -30,3 +30,9 @@ SET @@global.innodb_ft_aux_table = @start_global_value;
 SELECT @@global.innodb_ft_aux_table;
 @@global.innodb_ft_aux_table
 NULL
+set @a:=repeat(':/',128);
+set global innodb_ft_aux_table =@a;
+ERROR 42000: Variable 'innodb_ft_aux_table' can't be set to the value of ':/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/'
+set @a:=repeat(':/',256);
+set global innodb_ft_aux_table =@a;
+ERROR 42000: Variable 'innodb_ft_aux_table' can't be set to the value of ':/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/:/'

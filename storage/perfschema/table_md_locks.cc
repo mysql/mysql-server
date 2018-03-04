@@ -1,17 +1,24 @@
 /* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/table_md_locks.cc
@@ -25,12 +32,12 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
 
 THR_LOCK table_metadata_locks::m_table_lock;
 
@@ -43,6 +50,7 @@ Plugin_table table_metadata_locks::m_table_def(
   "  OBJECT_TYPE VARCHAR(64) not null,\n"
   "  OBJECT_SCHEMA VARCHAR(64),\n"
   "  OBJECT_NAME VARCHAR(64),\n"
+  "  COLUMN_NAME VARCHAR(64),\n"
   "  OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,\n"
   "  LOCK_TYPE VARCHAR(32) not null,\n"
   "  LOCK_DURATION VARCHAR(32) not null,\n"
@@ -51,7 +59,7 @@ Plugin_table table_metadata_locks::m_table_def(
   "  OWNER_THREAD_ID BIGINT unsigned,\n"
   "  OWNER_EVENT_ID BIGINT unsigned,\n"
   "  PRIMARY KEY (OBJECT_INSTANCE_BEGIN) USING HASH,\n"
-  "  KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME) USING HASH,\n"
+  "  KEY (OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME) USING HASH,\n"
   "  KEY (OWNER_THREAD_ID, OWNER_EVENT_ID) USING HASH\n",
   /* Options */
   " ENGINE=PERFORMANCE_SCHEMA",
@@ -90,7 +98,7 @@ PFS_index_metadata_locks_by_instance::match(const PFS_metadata_lock *pfs)
 bool
 PFS_index_metadata_locks_by_object::match(const PFS_metadata_lock *pfs)
 {
-  PFS_object_row object_row;
+  PFS_column_row object_row;
 
   if (object_row.make_row(&pfs->m_mdl_key))
   {
@@ -116,6 +124,14 @@ PFS_index_metadata_locks_by_object::match(const PFS_metadata_lock *pfs)
   if (m_fields >= 3)
   {
     if (!m_key_3.match(&object_row))
+    {
+      return false;
+    }
+  }
+
+  if (m_fields >= 4)
+  {
+    if (!m_key_4.match(&object_row))
     {
       return false;
     }
@@ -324,24 +340,25 @@ table_metadata_locks::read_row_values(TABLE *table,
       case 0: /* OBJECT_TYPE */
       case 1: /* OBJECT_SCHEMA */
       case 2: /* OBJECT_NAME */
+      case 3: /* COLUMN_NAME */
         m_row.m_object.set_nullable_field(f->field_index, f);
         break;
-      case 3: /* OBJECT_INSTANCE */
+      case 4: /* OBJECT_INSTANCE */
         set_field_ulonglong(f, (intptr)m_row.m_identity);
         break;
-      case 4: /* LOCK_TYPE */
+      case 5: /* LOCK_TYPE */
         set_field_mdl_type(f, m_row.m_mdl_type);
         break;
-      case 5: /* LOCK_DURATION */
+      case 6: /* LOCK_DURATION */
         set_field_mdl_duration(f, m_row.m_mdl_duration);
         break;
-      case 6: /* LOCK_STATUS */
+      case 7: /* LOCK_STATUS */
         set_field_mdl_status(f, m_row.m_mdl_status);
         break;
-      case 7: /* SOURCE */
+      case 8: /* SOURCE */
         set_field_varchar_utf8(f, m_row.m_source, m_row.m_source_length);
         break;
-      case 8: /* OWNER_THREAD_ID */
+      case 9: /* OWNER_THREAD_ID */
         if (m_row.m_owner_thread_id != 0)
         {
           set_field_ulonglong(f, m_row.m_owner_thread_id);
@@ -351,7 +368,7 @@ table_metadata_locks::read_row_values(TABLE *table,
           f->set_null();
         }
         break;
-      case 9: /* OWNER_EVENT_ID */
+      case 10: /* OWNER_EVENT_ID */
         if (m_row.m_owner_event_id != 0)
         {
           set_field_ulonglong(f, m_row.m_owner_event_id);

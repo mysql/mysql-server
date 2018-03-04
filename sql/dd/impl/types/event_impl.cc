@@ -1,17 +1,24 @@
-/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/types/event_impl.h"
 
@@ -34,21 +41,8 @@ using dd::tables::Events;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Event implementation.
+// Event_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Event::OBJECT_TABLE()
-{
-  return Events::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Event::TYPE()
-{
-  static Event_type s_instance;
-  return s_instance;
-}
 
 Event_impl::Event_impl()
  :m_interval_field(IF_YEAR),
@@ -84,7 +78,7 @@ bool Event_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Event_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Schema ID is not set");
     return true;
   }
@@ -218,7 +212,7 @@ bool Event_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Event::update_id_key(id_key_type *key, Object_id id)
+bool Event::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -226,7 +220,7 @@ bool Event::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Event::update_name_key(name_key_type *key,
+bool Event::update_name_key(Name_key *key,
                             Object_id schema_id,
                             const String_type &name)
 { return Events::update_object_key(key, schema_id, name); }
@@ -273,10 +267,15 @@ void Event_impl::debug_print(String_type &outb) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Event_type implementation.
+
+const Object_table &Event_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Event_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Event_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Events>();
 }

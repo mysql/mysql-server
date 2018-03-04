@@ -383,9 +383,9 @@ DROP TABLESPACE ibport_s2;
 --rmdir $MYSQL_TMP_DIR/portability
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number [0-9]* in a file operation");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: A link file was found named '.*isl' but the linked tablespace '.*ibd' could not be opened read-only");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number [0-9]* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: A link file was found named '.*isl' but the linked tablespace '.*ibd' could not be opened read-only");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
 --enable_query_log

@@ -22,8 +22,11 @@ a
 DEALLOCATE PREPARE stmt1;
 DEALLOCATE PREPARE stmt2;
 DEALLOCATE PREPARE stmt3;
+include/rpl_sync.inc
 
 [connection server2]
+include/assert.inc ['Check table t1 exist on server 2']
+include/assert.inc ['Check all records exists on server 2']
 PREPARE stmt4 FROM "INSERT INTO t1(a) value (?)";
 SET @val=4;
 EXECUTE stmt4 USING @val;
@@ -57,8 +60,10 @@ DEALLOCATE PREPARE stmt4;
 DEALLOCATE PREPARE stmt5;
 DEALLOCATE PREPARE stmt6;
 DEALLOCATE PREPARE stmt7;
+include/rpl_sync.inc
 
 [connection server1]
+include/assert.inc ['Check all records exists on server 1']
 PREPARE stmt8 FROM "SELECT * FROM t1";
 EXECUTE stmt8;
 a

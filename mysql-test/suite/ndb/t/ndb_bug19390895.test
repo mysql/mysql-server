@@ -7,8 +7,8 @@
 create table t1 (
   a int,
   b int not null,
-  c1 char(255),
-  c2 char(255),
+  c1 char(255) CHARSET latin1,
+  c2 char(255) CHARSET latin1,
   key k1(b, c1, c2)
 )
 engine = ndb

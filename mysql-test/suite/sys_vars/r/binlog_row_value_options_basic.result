@@ -86,25 +86,25 @@ SET SESSION sql_log_bin = 0;
 SET @@session.binlog_row_value_options = '';
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4547	When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET @@binlog_row_value_options = '';
 SET @@binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4547	When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET SESSION sql_log_bin = 1;
 
 # warning for statement
 SET SESSION binlog_format = statement;
 Warnings:
-Warning	4547	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET @@session.binlog_row_value_options = '';
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4547	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET @@binlog_row_value_options = '';
 SET @@binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4547	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 
 # no warning for mixed or row
 SET SESSION binlog_format = mixed;
@@ -121,15 +121,15 @@ SET @@binlog_row_value_options = 'PARTIAL_JSON';
 # warning for full
 SET SESSION binlog_row_image = FULL;
 Warnings:
-Warning	4549	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
 SET @@session.binlog_row_value_options = '';
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4549	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
 SET @@binlog_row_value_options = '';
 SET @@binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4549	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
 
 # no warning for NOBLOB or MINIMAL
 SET SESSION binlog_row_image = NOBLOB;
@@ -148,7 +148,7 @@ SET GLOBAL log_bin_use_v1_row_events = 1;
 SET @@session.binlog_row_value_options = '';
 SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4548	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
 
 # no warning for new format
 SET GLOBAL log_bin_use_v1_row_events = 0;
@@ -163,11 +163,11 @@ SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 # warning for statement
 SET GLOBAL binlog_format = statement;
 Warnings:
-Warning	4547	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4547	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 
 # no warning for mixed or row
 SET GLOBAL binlog_format = mixed;
@@ -180,11 +180,11 @@ SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 # warning for full
 SET GLOBAL binlog_row_image = FULL;
 Warnings:
-Warning	4549	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4549	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
 
 # no warning for NOBLOB or MINIMAL
 SET GLOBAL binlog_row_image = NOBLOB;
@@ -197,11 +197,11 @@ SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 # warning for old format
 SET GLOBAL log_bin_use_v1_row_events = 1;
 Warnings:
-Warning	4548	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
 SET @@global.binlog_row_value_options = '';
 SET @@global.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4548	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
 
 # no warning for new format
 SET GLOBAL log_bin_use_v1_row_events = 0;
@@ -216,11 +216,11 @@ SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 # warning for statement
 SET PERSIST binlog_format = statement;
 Warnings:
-Warning	4547	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 SET @@persist.binlog_row_value_options = '';
 SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4547	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
+Warning	3645	When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON will be ignored and updates will be written in full format to binary log.
 
 # no warning for mixed or row
 SET PERSIST binlog_format = mixed;
@@ -233,11 +233,11 @@ SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 # warning for full
 SET PERSIST binlog_row_image = FULL;
 Warnings:
-Warning	4549	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
 SET @@persist.binlog_row_value_options = '';
 SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4549	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
 
 # no warning for NOBLOB or MINIMAL
 SET PERSIST binlog_row_image = NOBLOB;
@@ -250,11 +250,11 @@ SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 # warning for old format
 SET PERSIST log_bin_use_v1_row_events = 1;
 Warnings:
-Warning	4548	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
 SET @@persist.binlog_row_value_options = '';
 SET @@persist.binlog_row_value_options = 'PARTIAL_JSON';
 Warnings:
-Warning	4548	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
+Warning	3646	When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log.
 
 # no warning for new format
 SET PERSIST log_bin_use_v1_row_events = 0;

@@ -2,8 +2,7 @@
  * Copyright (c) 2003-2006 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  * This file was modified by Oracle on 28-08-2015.
- * Modifications copyright (c) 2015, Oracle and/or its affiliates.
- * All rights reserved.
+ * Modifications copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

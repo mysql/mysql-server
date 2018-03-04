@@ -1,3 +1,6 @@
+# Avoid check for result file
+--source include/ndb_no_result_file.inc
+
 #
 # check that conflict detection in ndbcluster works as usual
 # with --binlog-row-image=MINIMAL

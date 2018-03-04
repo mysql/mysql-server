@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -101,6 +108,7 @@
 #include "sql_string.h"
 #include "template_utils.h"              // down_cast
 #include "thr_mutex.h"
+#include "table_function.h"              // Table_function
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -3929,7 +3937,7 @@ Table_check_intact::check(THD *thd, TABLE *table,
 
   /* Whether the table definition has already been validated. */
   if (table->s->table_field_def_cache == table_def)
-    DBUG_RETURN(FALSE);
+    goto end;
 
   if (table->s->fields != table_def->count)
   {
@@ -4046,6 +4054,15 @@ Table_check_intact::check(THD *thd, TABLE *table,
 
   if (! error)
     table->s->table_field_def_cache= table_def;
+
+end:
+
+  if (has_keys && !error && !table->key_info)
+  {
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    error= TRUE;
+  }
 
   DBUG_RETURN(error);
 }
@@ -4353,10 +4370,91 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   /* Tables may be reused in a sub statement. */
   DBUG_ASSERT(!db_stat || !file->extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
 
-  bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
-  DBUG_ASSERT(!error);
+  /*
+    Do not call refix_gc_items() for tables which are not directly used by the
+    statement (i.e. used by the substatements of routines or triggers to be
+    invoked by the statement).
+
+    Firstly, there will be call to refix_gc_items() at the start of execution
+    of substatement which directly uses this table anyway.Secondly, cleanup of
+    generated column (call to cleanup_gc_items()) for the table will be done
+    only at the end of execution of substatement which uses it. Because of this
+    call to refix_gc_items() for prelocking placeholder will miss corresponding
+    call to cleanup_gc_items() if substatement which uses the table is not
+    executed for some reason.
+  */
+  if (!pos_in_table_list->prelocking_placeholder)
+  {
+    bool error MY_ATTRIBUTE((unused))= refix_gc_items(thd);
+    DBUG_ASSERT(!error);
+  }
 }
 
+
+/**
+  Initialize table as internal tmp table
+
+  @param thd        thread handle
+  @param share      table share
+  @param m_root     table's mem root
+  @param charset    table's charset
+  @param alias_arg  table's alias
+  @param fld        table's fields array
+  @param blob_fld   buffer for blob field index
+  @param is_virtual TRUE <=> it's a virtual tmp table
+
+  @returns
+    true  OOM
+    false otherwise
+*/
+
+bool TABLE::init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
+                           CHARSET_INFO *charset, const char* alias_arg,
+                           Field **fld, uint *blob_fld, bool is_virtual)
+{
+  if (!is_virtual)
+  {
+    char *name, path[FN_REFLEN];
+    DBUG_ASSERT(sizeof(my_thread_id) == 4);
+    sprintf(path,"%s%lx_%x_%x", tmp_file_prefix, current_pid, thd->thread_id(),
+            thd->tmp_table++);
+    fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
+    if (!(name= (char*)alloc_root(m_root, strlen(path) + 1)))
+      return true;
+    my_stpcpy(name, path);
+
+    init_tmp_table_share(thd, share, "", 0, name, name, m_root);
+  }
+  s= share;
+  in_use= thd;
+
+  share->blob_field= blob_fld;
+  share->db_low_byte_first=1;                // True for HEAP and MyISAM
+  share->ref_count++;
+  share->primary_key= MAX_KEY;
+  share->keys_for_keyread.init();
+  share->keys_in_use.init();
+  share->keys= 0;
+  share->field= field= fld;
+  share->table_charset= charset;
+  set_not_started();
+  alias= alias_arg;
+  reginfo.lock_type=TL_WRITE;	/* Will be updated */
+  db_stat= HA_OPEN_KEYFILE + HA_OPEN_RNDFILE;
+  copy_blobs= 1;
+  quick_keys.init();
+  possible_quick_keys.init();
+  covering_keys.init();
+  merge_keys.init();
+  keys_in_use_for_query.init();
+  keys_in_use_for_group_by.init();
+  keys_in_use_for_order_by.init();
+  set_not_started();
+#ifndef DBUG_OFF
+  set_tmp_table_seq_id(thd->get_tmp_table_seq_id());
+#endif
+  return false;
+}
 
 bool TABLE::refix_gc_items(THD *thd)
 {
@@ -4536,6 +4634,7 @@ TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
   join_nest->embedding= embedding;
   join_nest->join_list= belongs_to;
   join_nest->select_lex= select;
+  join_nest->nested_join->first_nested= NO_PLAN_IDX;
 
   join_nest->nested_join->join_list.empty();
 
@@ -5425,16 +5524,16 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
     table_name= view->table_name;
   }
   /*
-    @note Creating an Item_direct_view_ref object on top of an Item_field
+    @note Creating an Item_view_ref object on top of an Item_field
           means that the underlying Item_field object may be shared by
           multiple occurrences of superior fields. This is a vulnerable
           practice, so special precaution must be taken to avoid programming
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
   */
-  Item *item= new Item_direct_view_ref(context, field_ref,
-                                       view->alias, table_name,
-                                       name, view);
+  Item *item= new Item_view_ref(context, field_ref,
+                                view->alias, table_name,
+                                name, view);
   DBUG_RETURN(item);
 }
 
@@ -5541,7 +5640,8 @@ const char *Field_iterator_table_ref::get_table_name()
   else if (table_ref->is_natural_join)
     return natural_join_it.column_ref()->table_name();
 
-  DBUG_ASSERT(!strcmp(table_ref->table_name,
+  DBUG_ASSERT(table_ref->is_table_function() ||
+              !strcmp(table_ref->table_name,
                       table_ref->table->s->table_name.str));
   return table_ref->table_name;
 }
@@ -6488,18 +6588,7 @@ void TABLE::drop_unused_tmp_keys(bool modify_share)
 void TABLE::mark_columns_needed_for_insert(THD *thd)
 {
   mark_columns_per_binlog_row_image(thd);
-  if (triggers)
-  {
-    /*
-      We don't need to mark columns which are used by ON DELETE and
-      ON UPDATE triggers, which may be invoked in case of REPLACE or
-      INSERT ... ON DUPLICATE KEY UPDATE, since before doing actual
-      row replacement or update write_record() will mark all table
-      fields as used.
-    */
-    if (triggers->mark_fields(TRG_EVENT_INSERT))
-      return;
-  }
+
   if (found_next_number_field)
     mark_auto_increment_column();
   /* Mark all generated columns as writable */
@@ -6956,7 +7045,13 @@ uint TABLE_LIST::leaf_tables_count() const
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
-  if (uses_materialization())
+  if (is_table_function())
+  {
+    // FIXME: open question - there's no estimate for table function.
+    // return arbitrary, non-zero number;
+    table->file->stats.records= PLACEHOLDER_TABLE_ROW_ESTIMATE;
+  }
+  else if (uses_materialization())
   {
     /*
       @todo: CostModel: This updates the stats.record value to the
@@ -6977,7 +7072,8 @@ int TABLE_LIST::fetch_number_of_rows()
     */
     table->file->stats.records=
       std::max(select_lex->master_unit()->query_result()->estimated_rowcount,
-               (ha_rows)2); // Recursive reference is never a const table
+               // Recursive reference is never a const table
+               (ha_rows)PLACEHOLDER_TABLE_ROW_ESTIMATE);
   }
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -7713,6 +7809,28 @@ bool TABLE_LIST::set_recursive_reference()
 }
 
 
+/**
+  Propagate table map of a table up by nested join tree. Used to check
+  dependencies for LATERAL JOIN of table functions.
+
+  @param map_arg  table map to propagate
+*/
+
+void TABLE_LIST::propagate_table_maps(table_map map_arg)
+{
+  table_map prop_map;
+  if (nested_join)
+  {
+    nested_join->used_tables|= map_arg;
+    prop_map= nested_join->used_tables;
+  }
+  else
+    prop_map= map();
+  if (embedding)
+    embedding->propagate_table_maps(prop_map);
+}
+
+
 st_lex_user *
 st_lex_user::alloc(THD *thd, LEX_STRING *user_arg, LEX_STRING *host_arg)
 {
@@ -8371,5 +8489,15 @@ void TABLE::blobs_need_not_keep_old_value()
     if (vfield->type() == MYSQL_TYPE_BLOB && vfield->is_virtual_gcol())
       (down_cast<Field_blob*>(vfield))->set_keep_old_value(false);
   }
+}
+
+void TABLE::set_binlog_drop_if_temp(bool should_binlog)
+{
+  should_binlog_drop_if_temp_flag= should_binlog;
+}
+
+bool TABLE::should_binlog_drop_if_temp(void) const
+{
+  return should_binlog_drop_if_temp_flag;
 }
 //////////////////////////////////////////////////////////////////////////

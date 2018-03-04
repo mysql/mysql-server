@@ -1,0 +1,512 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+command ok
+
+Member: $
+=========
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$\'))
+0 rows affected
+
+Member: $.path
+==============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path\'))
+0 rows affected
+
+Member: $.path.to.member
+========================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path.to.member\'))
+0 rows affected
+
+Member: $.p1ath
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.p1ath\'))
+0 rows affected
+
+Member: $.path1
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path1\'))
+0 rows affected
+
+Member: $.$
+===========
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.$\'))
+0 rows affected
+
+Member: $.$$
+============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.$$\'))
+0 rows affected
+
+Member: $.$$$
+=============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.$$$\'))
+0 rows affected
+
+Member: $.$.path
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.$.path\'))
+0 rows affected
+
+Member: $.path.$
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path.$\'))
+0 rows affected
+
+Member: $.$path
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.$path\'))
+0 rows affected
+
+Member: $.pa$th
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.pa$th\'))
+0 rows affected
+
+Member: $.path$
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path$\'))
+0 rows affected
+
+Member: $.$pa$th$
+=================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.$pa$th$\'))
+0 rows affected
+
+Member: $._
+===========
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$._\'))
+0 rows affected
+
+Member: $.__
+============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.__\'))
+0 rows affected
+
+Member: $.___
+=============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.___\'))
+0 rows affected
+
+Member: $._.path
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$._.path\'))
+0 rows affected
+
+Member: $.path._
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path._\'))
+0 rows affected
+
+Member: $._path
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$._path\'))
+0 rows affected
+
+Member: $.pa_th
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.pa_th\'))
+0 rows affected
+
+Member: $.path_
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path_\'))
+0 rows affected
+
+Member: $._pa_th_
+=================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$._pa_th_\'))
+0 rows affected
+
+Member: $.*
+===========
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.*\'))
+0 rows affected
+
+Member: $.*.path
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.*.path\'))
+0 rows affected
+
+Member: $.path.*
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path.*\'))
+0 rows affected
+
+Member: $.path[1]
+=================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path[1]\'))
+0 rows affected
+
+Member: $.path[123]
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path[123]\'))
+0 rows affected
+
+Member: $.path[1].path[2]
+=========================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path[1].path[2]\'))
+0 rows affected
+
+Member: $.path[1].path
+======================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path[1].path\'))
+0 rows affected
+
+Member: $.path[1].*
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path[1].*\'))
+0 rows affected
+
+Member: $.*.path[1]
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.*.path[1]\'))
+0 rows affected
+
+Member: $.path[*]
+=================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path[*]\'))
+0 rows affected
+
+Member: $[1]
+============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$[1]\'))
+0 rows affected
+
+Member: $[1][2]
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$[1][2]\'))
+0 rows affected
+
+Member: $[1].path[2]
+====================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$[1].path[2]\'))
+0 rows affected
+
+Member: $[1][2].path
+====================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$[1][2].path\'))
+0 rows affected
+
+Member: $.path[1][2]
+====================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path[1][2]\'))
+0 rows affected
+
+Member: $.\"pa th\"
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."pa th"\'))
+0 rows affected
+
+Member: $.\"pa\tth\"
+====================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."pa	th"\'))
+0 rows affected
+
+Member: $.\"\"\"
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."""\'))
+0 rows affected
+
+Member: $.\"\"path\"
+====================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.""path"\'))
+0 rows affected
+
+Member: $.\"path\"\"
+====================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."path""\'))
+0 rows affected
+
+Member: $.\"#\"
+===============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."#"\'))
+0 rows affected
+
+Member: $.\"path#\"
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."path#"\'))
+0 rows affected
+
+Member: $.\"#path\"
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."#path"\'))
+0 rows affected
+
+Member: $.\"#\"[1]
+==================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."#"[1]\'))
+0 rows affected
+
+Member: $.\"\"
+==============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.""\'))
+0 rows affected
+
+Member: $**.path
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$**.path\'))
+0 rows affected
+
+Member: $**[1]
+==============
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$**[1]\'))
+0 rows affected
+
+Member: $.path**.path
+=====================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path**.path\'))
+0 rows affected
+
+Member: $.path**[1]
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.path**[1]\'))
+0 rows affected
+
+Member: $[1]**.path
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$[1]**.path\'))
+0 rows affected
+
+Member: $[1]**[1]
+=================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$[1]**[1]\'))
+0 rows affected
+
+Member: $.***.path
+==================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$.***.path\'))
+0 rows affected
+
+Member: $.\"**\"
+================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."**"\'))
+0 rows affected
+
+Member: $.\"***\"
+=================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."***"\'))
+0 rows affected
+
+Member: $.\"pa.th\"
+===================
+GENERATION_EXPRESSION
+json_unquote(json_extract(`doc`,_utf8mb4\'$."pa.th"\'))
+0 rows affected
+
+Member: $.
+==========
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: .path
+=============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: path
+============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.1
+===========
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.1path
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.**
+============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.***
+=============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.*path
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.pa*th
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path*
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.*pa*th*
+=================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path[-1]
+==================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path[a]
+=================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path[]
+================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path[
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path]
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.[path]
+================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.[1]
+=============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path[**]
+==================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path[*1]
+==================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path[1*]
+==================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path[1*1]
+===================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.pa th
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.pa\th
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.\"
+============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.\"path
+================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path\"
+================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.#
+===========
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path#
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.#path
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $**
+===========
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path**
+================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $[1]**
+==============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $***
+============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.path***
+=================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $[1]***
+===============
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $.**.path
+=================
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+
+Member: $*
+==========
+Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

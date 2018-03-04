@@ -7,7 +7,7 @@
 # Test :
 # 0. This test requires 3 servers.
 # 1. Start two servers (server1 and server2) and form a group.
-# 2. Create a table and insert 1000 records on server1.
+# 2. Create a table and insert 100 records on server1.
 # 3. Check the status of gtids using WAIT_FOR_EXECUTED_GTID_SET on server1.
 # 4. Add a server (server3) to the group using start group_replication command.
 # 5. Wait for recovery channel to be created for a newly added member and call
@@ -15,7 +15,7 @@
 #    data to be synced.
 # 6. Stop gr on server3 and validate some error cases for MASTER_POS_WAIT
 #    function when channels are not present.
-# 7. Create a table t2 on server2 and insert 500 records.
+# 7. Create a table t2 on server2 and insert 50 records.
 # 8. Start the group replication on server3.
 # 9. Use the WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS and WAIT_FOR_EXECUTED_GTID_SET
 #    function calls to make sure data is synced (which is inserted in step6).
@@ -55,13 +55,13 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("'It is not possible to ensure the proper order when logging the view change log event.'");
 SET SESSION sql_log_bin= 1;
 
-# Create a table t1 on server1 and insert 1000 records
+# Create a table t1 on server1 and insert 100 records
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 CREATE TABLE test.t1 ( a int primary key);
 --source include/rpl_sync.inc
 --disable_query_log
---let $i=1000
+--let $i=100
 while($i)
 {
     --EVAL INSERT INTO t1 VALUES ($i)
@@ -69,15 +69,15 @@ while($i)
 }
 --enable_query_log
 
-# Call and wait for gtid set to reach 1003 using WAIT_FOR_EXECUTED_GTID_SET(),
-# After 1000 inserts and all the operations gtid executed will be 1003 for server
+# Call and wait for gtid set to reach 103 using WAIT_FOR_EXECUTED_GTID_SET(),
+# After 100 inserts and all the operations gtid executed will be 103 for server
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-1003');
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-103');
 
 # This call should wait for 5 seconds and come out as gtid set
-# will not reach the value 1006, and returns 1
+# will not reach the value 106, and returns 1
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-1200',5);
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-120',5);
 --source include/rpl_sync.inc
 
 --let $rpl_connection_name= server1
@@ -88,9 +88,7 @@ eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-1200',5)
 --let $m1_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+--source ../inc/gr_stop_applier_sql_thread.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -100,9 +98,7 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --let $m2_saved_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+--source ../inc/gr_stop_applier_sql_thread.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -142,15 +138,11 @@ if (`SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status WHE
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+--source ../inc/gr_start_applier_sql_thread.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+--source ../inc/gr_start_applier_sql_thread.inc
 
 # Stop the group replication
 --let $rpl_connection_name= server3
@@ -171,7 +163,7 @@ CREATE TABLE test.t2 ( a int primary key);
 
 --source include/rpl_sync.inc
 --disable_query_log
---let $i=500
+--let $i=50
 while($i)
 {
     --EVAL INSERT INTO t2 VALUES ($i)
@@ -182,15 +174,11 @@ while($i)
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+--source ../inc/gr_stop_applier_sql_thread.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+--source ../inc/gr_stop_applier_sql_thread.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -205,48 +193,44 @@ STOP SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
 --let $group_replication_member_state= RECOVERING
 --source ../inc/gr_wait_for_member_state.inc
 
-# Call and wait for 20 seconds, for gtid set to reach 1256 using WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS()
+# Call and wait for 20 seconds, for gtid set to reach 126 using WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS()
 # Result log has been disabled because, it prints the difference of gtids synced.
 # which may not be same across different runs
 
 --disable_result_log
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1056", 20, "group_replication_recovery");
+eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:126", 20, "group_replication_recovery");
 --enable_result_log
 
-# Call and wait for 10 seconds, for gtid set to reach 1306 using WAIT_FOR_EXECUTED_GTID_SET()
+# Call and wait for 10 seconds, for gtid set to reach 136 using WAIT_FOR_EXECUTED_GTID_SET()
 --disable_result_log
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-1306',10);
+eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$group_replication_group_name:1-136',10);
 --enable_result_log
 
-# This call should wait for gtid set to reach 1506(wait_time 0 means, wait for
+# This call should wait for gtid set to reach 155(wait_time 0 means, wait for
 # infinite time till the gtid values is reached)
 
 # Result log has been disabled because, it prints the difference of gtids synced.
 # which may not be same across different runs
 --disable_result_log
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-1505", 0, "group_replication_recovery");
+eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-155", 0, "group_replication_recovery");
 --enable_result_log
 
 # Check the gtid executed using WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS on group
 --replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
-eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-1505", 10, "group_replication_applier");
+eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("$group_replication_group_name:1-155", 10, "group_replication_applier");
 
 # Start appliers on server1 and server2 to assist server3 come out of recovery
 # Wait till all the servers are online
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+--source ../inc/gr_start_applier_sql_thread.inc
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-START SLAVE SQL_THREAD FOR CHANNEL "group_replication_applier";
---let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_applier_status WHERE channel_name="group_replication_applier"
---source include/wait_condition.inc
+--source ../inc/gr_start_applier_sql_thread.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
@@ -256,22 +240,22 @@ let $wait_condition=
 
 # Validate the record count in server3
 --let $assert_text= 'Checking the number of records in test.t1'
---let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 1000
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 100
 --source include/assert.inc
 
 --let $assert_text= 'Checking the number of records in test.t2'
---let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 500
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 50
 --source include/assert.inc
 
 # Validate the record count in server2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $assert_text= 'Checking the number of records in test.t1'
---let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 1000
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t1,count, 1] = 100
 --source include/assert.inc
 
 --let $assert_text= 'Checking the number of records in test.t2'
---let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 500
+--let $assert_cond= [SELECT COUNT(*) as count FROM test.t2,count, 1] = 50
 --source include/assert.inc
 
 # Cleanup

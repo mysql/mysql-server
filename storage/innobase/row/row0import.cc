@@ -3,16 +3,24 @@
 Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -49,6 +57,11 @@ Created 2012-02-08 by Sunny Bains.
 #include "dict0crea.h"
 #include "lob0lob.h"
 #include "dict0dd.h"
+#include "lob0first.h"
+#include "lob0impl.h"
+#include "lob0pages.h"
+#include "zlob0first.h"
+#include "dict0upgrade.h"
 
 #include <vector>
 
@@ -1659,7 +1672,8 @@ IndexPurge::purge_pessimistic_delete() UNIV_NOTHROW
 			dict_table_is_comp(m_index->table)));
 
 	btr_cur_pessimistic_delete(
-		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, false, &m_mtr);
+		&err, FALSE, btr_pcur_get_btr_cur(&m_pcur), 0, false,
+		0, 0, 0, &m_mtr);
 
 	ut_a(err == DB_SUCCESS);
 
@@ -1740,8 +1754,12 @@ PageConverter::adjust_cluster_index_blob_column(
 	if (is_compressed_table()) {
 		mach_write_to_4(field, get_space_id());
 
+		ut_ad(m_index->m_srv_index != nullptr);
+		ut_ad(m_index->m_srv_index->is_clustered());
+
 		page_zip_write_blob_ptr(
-			m_page_zip_ptr, rec, m_cluster_index, offsets, i, 0);
+			m_page_zip_ptr, rec, m_index->m_srv_index, offsets, i, 0);
+
 	} else {
 		mlog_write_ulint(field, get_space_id(), MLOG_4BYTES, 0);
 	}
@@ -2061,6 +2079,72 @@ PageConverter::update_page(
 		/* This is page 0 in the system tablespace. */
 		return(DB_CORRUPTION);
 
+	case FIL_PAGE_TYPE_LOB_FIRST:
+	{
+		lob::first_page_t first_page(block);
+		first_page.import(m_trx->id);
+		first_page.set_space_id_no_redo(get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_LOB_INDEX:
+	{
+		lob::node_page_t node_page(block);
+		node_page.import(m_trx->id);
+		node_page.set_space_id_no_redo(get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_LOB_DATA:
+	{
+		lob::data_page_t data_page(block);
+		data_page.set_trx_id_no_redo(m_trx->id);
+		data_page.set_space_id_no_redo(get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_FIRST:
+	{
+		dict_index_t* index = const_cast<dict_index_t*>(m_index->m_srv_index);
+		lob::z_first_page_t first_page(block, nullptr, index);
+		first_page.import(m_trx->id);
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_DATA:
+	{
+		lob::z_data_page_t dpage(block);
+		dpage.set_trx_id_no_redo(m_trx->id);
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_INDEX:
+	{
+		lob::z_index_page_t ipage(block);
+		ipage.import(m_trx->id);
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_FRAG:
+	{
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
+	case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
+	{
+		byte* ptr = get_frame(block) + FIL_PAGE_SPACE_ID;
+		mach_write_to_4(ptr, get_space_id());
+		return(err);
+	}
+
 	case FIL_PAGE_TYPE_XDES:
 		err = set_current_xdes(
 			block->page.id.page_no(), get_frame(block));
@@ -2073,7 +2157,6 @@ PageConverter::update_page(
 	case FIL_PAGE_TYPE_BLOB:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
-	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_BLOB:
 	case FIL_PAGE_SDI_ZBLOB:
 	case FIL_PAGE_TYPE_RSEG_ARRAY:
@@ -2248,7 +2331,8 @@ row_import_discard_changes(
 
 	table->ibd_file_missing = TRUE;
 
-	fil_close_tablespace(trx, table->space);
+	err = fil_close_tablespace(trx, table->space);
+	ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND);
 }
 
 /*****************************************************************//**
@@ -3729,13 +3813,15 @@ row_import_for_mysql(
 	dd_get_and_save_data_dir_path(table, table_def, true);
 
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		ut_a(table->data_dir_path);
 
-		filepath = fil_make_filepath(
-			table->data_dir_path, table->name.m_name, IBD, true);
+		ut_a(table->data_dir_path != nullptr);
+
+		const auto	dir = table->data_dir_path;
+
+		filepath = Fil_path::make(dir, table->name.m_name, IBD, true);
 	} else {
-		filepath = fil_make_filepath(
-			NULL, table->name.m_name, IBD, false);
+		filepath = Fil_path::make_ibd_from_table_name(
+			table->name.m_name);
 	}
 
 	DBUG_EXECUTE_IF(
@@ -3765,7 +3851,8 @@ row_import_for_mysql(
 
 	err = fil_ibd_open(
 		true, FIL_TYPE_IMPORT, table->space,
-		fsp_flags, tablespace_name.c_str(), table->name.m_name, filepath, true);
+		fsp_flags, tablespace_name.c_str(), table->name.m_name,
+		filepath, true, false);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);
@@ -3929,6 +4016,10 @@ row_import_for_mysql(
 		dict_sdi_remove_from_cache(table->space, NULL, true);
 		btr_sdi_create_index(table->space, true);
 		dict_mutex_exit_for_mysql();
+		/* Update server version number in the page 0 of tablespace */
+		if (upgrade_space_version(table->space)) {
+			return(row_import_error(prebuilt, trx, DB_TABLESPACE_NOT_FOUND));
+		}
 	} else {
 		ut_ad(space->flags == space_flags_from_disk);
 	}

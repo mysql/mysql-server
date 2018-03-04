@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2611,6 +2618,7 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   syncPtr.p->m_requestInfo      = req->requestInfo;
   syncPtr.p->m_frag_cnt         = req->fragCount;
   syncPtr.p->m_frag_id          = req->fragId;
+  syncPtr.p->m_scan_batchsize   = req->batchSize;
   syncPtr.p->m_tableId          = subPtr.p->m_tableId;
   syncPtr.p->m_sourceInstance   = RNIL;
   syncPtr.p->m_headersSection   = RNIL;
@@ -2667,8 +2675,8 @@ Suma::sendDIH_SCAN_TAB_REQ(Signal *signal,
   req->tableId = tableId;
   req->schemaTransId = schemaTransId;
   req->jamBufferPtr = jamBuffer();
-  EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                    DihScanTabReq::SignalLength, 0);
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   Uint32 retCode = conf->senderData;
   conf->senderData = synPtrI;
@@ -2794,8 +2802,8 @@ Suma::sendDIGETNODESREQ(Signal *signal,
     req->scan_indicator = ZTRUE;
     req->jamBufferPtr = jamBuffer();
     req->get_next_fragid_indicator = 0;
-    EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                   DiGetNodesReq::SignalLength, 0);
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                      DiGetNodesReq::SignalLength, 0);
 
     jamEntry();
     DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
@@ -3122,7 +3130,6 @@ Suma::SyncRecord::nextScan(Signal* signal)
   BlockReference lqhRef = numberToRef(DBLQH, instanceKey, suma.getOwnNodeId());
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
-  const Uint32 parallelism = 16;
   //const Uint32 attrLen = 5 + attrBuf.getSize();
 
   req->senderData = ptrI;
@@ -3183,9 +3190,8 @@ Suma::SyncRecord::nextScan(Signal* signal)
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (suma.getOwnNodeId() << 8);
   req->clientOpPtr = (ptrI << 16);
-  req->batch_size_rows= parallelism;
-
-  req->batch_size_bytes= 0;
+  req->batch_size_rows= m_scan_batchsize;
+  req->batch_size_bytes = m_scan_batchsize * MAX_NORMAL_ROW_SIZE;
 
   Uint32 * attrInfo = signal->theData + 25;
   attrInfo[0] = attrBuf.getSize();
@@ -3296,10 +3302,12 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
 
   ndbrequire(c_subscriptions.find(subPtr, key));
 
+  Uint32 batchSize;
   Uint32 instanceKey;
   {
     Ptr<SyncRecord> syncPtr;
     c_syncPool.getPtr(syncPtr, syncPtrI);
+    batchSize = syncPtr.p->m_scan_batchsize;
     LocalSyncRecordBuffer fragBuf(c_dataBufferPool, syncPtr.p->m_fragments);
     SyncRecordBuffer::DataBufferIterator fragIt;
     bool ok = fragBuf.position(fragIt, syncPtr.p->m_currentFragment);
@@ -3315,8 +3323,8 @@ Suma::execSUB_SYNC_CONTINUE_CONF(Signal* signal){
   req->requestInfo = 0;
   req->transId1 = 0;
   req->transId2 = (SUMA << 20) + (getOwnNodeId() << 8);
-  req->batch_size_rows = 16;
-  req->batch_size_bytes = 0;
+  req->batch_size_rows = batchSize;
+  req->batch_size_bytes = batchSize * MAX_NORMAL_ROW_SIZE;
   sendSignal(lqhRef, GSN_SCAN_NEXTREQ, signal, 
 	     ScanFragNextReq::SignalLength, JBB);
 }
@@ -3334,8 +3342,8 @@ Suma::SyncRecord::completeScan(Signal* signal, int error)
   rep->tableId = subPtr.p->m_tableId;
   rep->scanCookie = m_scan_cookie;
   rep->jamBufferPtr = jamBuffer();
-  suma.EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                      DihScanTabCompleteRep::SignalLength, 0);
+  suma.EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                         DihScanTabCompleteRep::SignalLength, 0);
 
 #if PRINT_ONLY
   ndbout_c("GSN_SUB_SYNC_CONF (data)");

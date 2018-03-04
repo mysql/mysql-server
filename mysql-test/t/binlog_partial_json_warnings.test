@@ -19,13 +19,14 @@ call mtr.add_suppression("When binlog_format=STATEMENT, the option binlog_row_va
 call mtr.add_suppression("When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON");
 call mtr.add_suppression("When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1");
 call mtr.add_suppression("When the binary log is disabled, the option binlog_row_value_options=PARTIAL_JSON");
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 
 --echo # binlog-format=stmt is not compatible with partial json
 --let $restart_parameters= "restart: --log-bin --binlog-format=statement --binlog-row-value-options=PARTIAL_JSON --binlog-row-image=MINIMAL"
 --source include/restart_mysqld.inc
 
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after= CURRENT_TEST: main.binlog_partial_updates_warnings
+--let $assert_only_after= CURRENT_TEST: main.binlog_partial_json_warnings
 --let $assert_count= 1
 --let $assert_select= When binlog_format=STATEMENT, the option binlog_row_value_options=PARTIAL_JSON
 --let $assert_text= There shall be a warning when binlog_format=STATEMENT
@@ -46,7 +47,7 @@ SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;
 --source include/restart_mysqld.inc
 
 --let $assert_select= When binlog_row_value_options=PARTIAL_JSON, the option log_bin_use_v1_row_events=1
---let $assert_text= There shall be a warning when binlog_row_value_options=PARTIAL_JSON
+--let $assert_text= There shall be a warning when log_bin_use_v1_row_events=1
 --source include/assert_grep.inc
 
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= PARTIAL_JSON;

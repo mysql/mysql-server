@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -25,7 +32,7 @@
 #include <NdbThread.h>
 #include <NdbSleep.h>
 #include <NdbTick.h>
-#include <ndb_socket.h>
+#include "ndb_socket.h"
 #include <OwnProcessInfo.hpp>
 
 SocketServer::SocketServer(unsigned maxSessions) :
@@ -45,8 +52,8 @@ SocketServer::~SocketServer() {
     delete session;
   }
   for(i = 0; i<m_services.size(); i++){
-    if(my_socket_valid(m_services[i].m_socket))
-      my_socket_close(m_services[i].m_socket);
+    if(ndb_socket_valid(m_services[i].m_socket))
+      ndb_socket_close(m_services[i].m_socket);
     delete m_services[i].m_service;
   }
 }
@@ -64,25 +71,25 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
       return false;
   }
 
-  const NDB_SOCKET_TYPE sock = my_socket_create(AF_INET, SOCK_STREAM, 0);
-  if (!my_socket_valid(sock))
+  const NDB_SOCKET_TYPE sock = ndb_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!ndb_socket_valid(sock))
     return false;
 
   DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
                      MY_SOCKET_FORMAT_VALUE(sock)));
 
-  if (my_socket_reuseaddr(sock, true) == -1)
+  if (ndb_socket_reuseaddr(sock, true) == -1)
   {
-    NDB_CLOSE_SOCKET(sock);
+    ndb_socket_close(sock);
     return false;
   }
   
-  if (my_bind_inet(sock, &servaddr) == -1) {
-    NDB_CLOSE_SOCKET(sock);
+  if (ndb_bind_inet(sock, &servaddr) == -1) {
+    ndb_socket_close(sock);
     return false;
   }
 
-  NDB_CLOSE_SOCKET(sock);
+  ndb_socket_close(sock);
   return true;
 }
 
@@ -104,8 +111,8 @@ SocketServer::setup(SocketServer::Service * service,
       DBUG_RETURN(false);
   }
   
-  const NDB_SOCKET_TYPE sock = my_socket_create(AF_INET, SOCK_STREAM, 0);
-  if (!my_socket_valid(sock))
+  const NDB_SOCKET_TYPE sock = ndb_socket_create(AF_INET, SOCK_STREAM, 0);
+  if (!ndb_socket_valid(sock))
   {
     DBUG_PRINT("error",("socket() - %d - %s",
 			socket_errno, strerror(socket_errno)));
@@ -115,30 +122,30 @@ SocketServer::setup(SocketServer::Service * service,
   DBUG_PRINT("info",("NDB_SOCKET: " MY_SOCKET_FORMAT,
                      MY_SOCKET_FORMAT_VALUE(sock)));
 
-  if (my_socket_reuseaddr(sock, true) == -1)
+  if (ndb_socket_reuseaddr(sock, true) == -1)
   {
     DBUG_PRINT("error",("setsockopt() - %d - %s",
 			errno, strerror(errno)));
-    NDB_CLOSE_SOCKET(sock);
+    ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
 
-  if (my_bind_inet(sock, &servaddr) == -1) {
+  if (ndb_bind_inet(sock, &servaddr) == -1) {
     DBUG_PRINT("error",("bind() - %d - %s",
 			socket_errno, strerror(socket_errno)));
-    NDB_CLOSE_SOCKET(sock);
+    ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
 
   /* Get the address and port we bound to */
   struct sockaddr_in serv_addr;
-  socket_len_t addr_len = sizeof(serv_addr);
+  ndb_socket_len_t addr_len = sizeof(serv_addr);
   if(ndb_getsockname(sock, (struct sockaddr *) &serv_addr, &addr_len))
   {
     ndbout_c("An error occurred while trying to find out what"
 	     " port we bound to. Error: %d - %s",
-             my_socket_errno(), strerror(my_socket_errno()));
-    my_socket_close(sock);
+             ndb_socket_errno(), strerror(ndb_socket_errno()));
+    ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
   *port = ntohs(serv_addr.sin_port);
@@ -146,12 +153,12 @@ SocketServer::setup(SocketServer::Service * service,
 
   DBUG_PRINT("info",("bound to %u", *port));
 
-  if (my_listen(sock, m_maxSessions > MAX_SOCKET_SERVER_TCP_BACKLOG ?
+  if (ndb_listen(sock, m_maxSessions > MAX_SOCKET_SERVER_TCP_BACKLOG ?
                       MAX_SOCKET_SERVER_TCP_BACKLOG : m_maxSessions) == -1)
   {
     DBUG_PRINT("error",("listen() - %d - %s",
 			socket_errno, strerror(socket_errno)));
-    my_socket_close(sock);
+    ndb_socket_close(sock);
     DBUG_RETURN(false);
   }
 
@@ -206,8 +213,8 @@ SocketServer::doAccept()
     ServiceInstance & si = m_services[i];
     assert(m_services_poller.is_socket_equal(i, si.m_socket));
 
-    const NDB_SOCKET_TYPE childSock = my_accept(si.m_socket, 0, 0);
-    if (!my_socket_valid(childSock))
+    const NDB_SOCKET_TYPE childSock = ndb_accept(si.m_socket, 0, 0);
+    if (!ndb_socket_valid(childSock))
     {
       // Could not 'accept' socket(maybe at max fds), indicate error
       // to caller by returning false
@@ -405,7 +412,7 @@ sessionThread_C(void* _sc){
   if(!si->m_stop)
     si->runSession();
   else
-    NDB_CLOSE_SOCKET(si->m_socket);
+    ndb_socket_close(si->m_socket);
 
   // Mark the thread as stopped to allow the
   // session resources to be released

@@ -5,6 +5,9 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+# This test is also meant to check read-only persisted value of log-slave-updates,
+# thus, it makes sense to run this test when log-bin and log-slave-updates are enabled.
+-- source include/have_log_bin.inc
 
 --echo # Syntax check for PERSIST_ONLY option
 SET PERSIST_ONLY autocommit=0;
@@ -272,12 +275,12 @@ RESET PERSIST;
 --echo # test reset on readonly persisted variables
 SET @@persist_only.innodb_log_file_size= 4194304;
 SET @@persist_only.slave_type_conversions = ALL_UNSIGNED;
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SET PERSIST auto_increment_increment=10;
 SET PERSIST innodb_checksum_algorithm=strict_crc32;
 SET @@persist_only.innodb_log_file_size= DEFAULT;
 SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 --echo # reset slave_type_conversions
 RESET PERSIST slave_type_conversions;
 --echo # return 0 rows.
@@ -286,10 +289,11 @@ SELECT * FROM performance_schema.persisted_variables
 RESET PERSIST auto_increment_increment;
 RESET PERSIST innodb_log_file_size;
 SELECT * FROM performance_schema.persisted_variables
-  WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size');
+  WHERE VARIABLE_NAME IN ('auto_increment_increment', 'innodb_log_file_size')
+  ORDER BY 1;
 RESET PERSIST;
 --echo # return 0 rows.
-SELECT * FROM performance_schema.persisted_variables;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -393,3 +397,37 @@ SET @@persist_only.innodb_buffer_pool_load_at_startup= "";
 RESET PERSIST;
 DROP USER wl9787;
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug26395134: SET PERSIST_ONLY HAS WRONG EFFECT ON P_S.VARIABLES_INFO
+--echo #
+
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'max_connections';
+SET PERSIST_ONLY max_connections = 151;
+# ensure user/host/timestamp/variable_source are not changed.
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'max_connections';
+
+--echo # Restart server
+--let $restart_parameters=restart
+--source include/restart_mysqld.inc
+
+# ensure variable source is set to PERSISTED
+SELECT VARIABLE_SOURCE, SET_USER, SET_HOST FROM performance_schema.variables_info
+  WHERE VARIABLE_NAME = 'max_connections';
+
+# cleanup
+RESET PERSIST;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+--echo #
+--echo # Bug27193853: ASSERT `(0)' AT SYS_VARS.H:2416 FOR SET PERSIST_ONLY
+--echo #               GTID_OWNED/EXECUTED
+--echo #
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY gtid_owned='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET PERSIST_ONLY gtid_executed='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+

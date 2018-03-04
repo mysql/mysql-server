@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
 #include <cstring>
@@ -24,7 +31,8 @@
 #include "sql/json_dom.h"
 #include "sql/sql_time.h"
 #include "sql_string.h"
-#include "test_utils.h"
+#include "unittest/gunit/benchmark.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace json_binary_unittest {
 
@@ -300,6 +308,18 @@ TEST_F(JsonBinaryTest, BasicTest)
   EXPECT_EQ(E_DEC_OK,
             my_decimal2double(E_DEC_FATAL_ERROR, &md_out, &d_out));
   EXPECT_EQ(123.45, d_out);
+}
+
+
+TEST_F(JsonBinaryTest, EmptyDocument)
+{
+  /*
+    An empty binary document is interpreted as the JSON null literal.
+    This is a special case to handle NULL values inserted into NOT
+    NULL columns using INSERT IGNORE or similar mechanisms.
+  */
+  Value val= parse_binary("", 0);
+  EXPECT_EQ(Value::LITERAL_NULL, val.type());
 }
 
 
@@ -836,8 +856,12 @@ static void check_corruption(THD *thd, const Json_dom *dom)
   EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
   EXPECT_TRUE(json_binary::parse_binary(buf.ptr(), buf.length()).is_valid());
 
-  // Truncated values should always be detected by is_valid().
-  for (size_t i= 0; i < buf.length() - 1; ++i)
+  /*
+    Truncated values should always be detected by is_valid(). Except
+    if it's truncated to an empty string, since parse_binary()
+    interprets the empty string as the JSON null literal.
+  */
+  for (size_t i= 1; i < buf.length() - 1; ++i)
   {
     EXPECT_FALSE(json_binary::parse_binary(buf.ptr(), i).is_valid());
     check_corrupted_binary(thd, buf.ptr(), i);
@@ -1405,5 +1429,78 @@ TEST_F(JsonBinaryTest, HasSpace)
   }
 }
 
+/**
+  Helper function for microbenchmarks that test the performance of
+  json_binary::serialize().
+
+  @param dom             the Json_dom to serialize
+  @param num_iterations  the number of iterations in the test
+*/
+static void serialize_benchmark(const Json_dom *dom, size_t num_iterations)
+{
+  my_testing::Server_initializer initializer;
+  initializer.SetUp();
+  const THD *thd= initializer.thd();
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    String buf;
+    EXPECT_FALSE(json_binary::serialize(thd, dom, &buf));
+  }
+
+  StopBenchmarkTiming();
+
+  initializer.TearDown();
+}
+
+/**
+  Microbenchmark which tests the performance of serializing a JSON
+  array with 10000 integers.
+*/
+static void BM_JsonBinarySerializeIntArray(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  Json_array array;
+  for (int i= 0; i < 10000; ++i)
+    array.append_alias(create_dom_ptr<Json_int>(i * 1000));
+
+  serialize_benchmark(&array, num_iterations);
+}
+BENCHMARK(BM_JsonBinarySerializeIntArray);
+
+/**
+  Microbenchmark which tests the performance of serializing a JSON
+  array with 10000 double values.
+*/
+static void BM_JsonBinarySerializeDoubleArray(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  Json_array array;
+  for (int i= 0; i < 10000; ++i)
+    array.append_alias(create_dom_ptr<Json_double>(i * 1000));
+
+  serialize_benchmark(&array, num_iterations);
+}
+BENCHMARK(BM_JsonBinarySerializeDoubleArray);
+
+/**
+  Microbenchmark which tests the performance of serializing a JSON
+  array with 10000 strings.
+*/
+static void BM_JsonBinarySerializeStringArray(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+
+  Json_array array;
+  for (int i= 0; i < 10000; ++i)
+    array.append_alias(create_dom_ptr<Json_string>(std::to_string(i)));
+
+  serialize_benchmark(&array, num_iterations);
+}
+BENCHMARK(BM_JsonBinarySerializeStringArray);
 
 }

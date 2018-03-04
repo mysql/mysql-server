@@ -1,18 +1,24 @@
 /*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License as
-    published by the Free Software Foundation; version 2 of the
-    License.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+    as published by the Free Software Foundation.
+
+    This program is also distributed with certain software (including
+    but not limited to OpenSSL) that is licensed under separate terms,
+    as designated in a particular file or component or in included license
+    documentation.  The authors of MySQL hereby grant you an additional
+    permission to link the program and your derivative works with the
+    separately licensed software that they have included with MySQL.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU General Public License for more details.
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License, version 2.0, for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -89,10 +95,15 @@ Srv_session* srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx)
     DBUG_RETURN(NULL);
   }
 
+  bool simulate_reach_max_connections= false;
+  DBUG_EXECUTE_IF("simulate_reach_max_connections",
+                  simulate_reach_max_connections= true;);
+
   Connection_handler_manager *conn_manager=
       Connection_handler_manager::get_instance();
 
-  if (!conn_manager->check_and_incr_conn_count())
+  if (simulate_reach_max_connections ||
+      !conn_manager->check_and_incr_conn_count())
   {
     if (error_cb)
       error_cb(plugin_ctx, ER_CON_COUNT_ERROR, ER_DEFAULT(ER_CON_COUNT_ERROR));
@@ -195,6 +206,38 @@ int srv_session_close(Srv_session* session)
 int srv_session_server_is_available()
 {
   return get_server_state() == SERVER_OPERATING;
+}
+
+/**
+  Attaches a session to current srv_session physical thread.
+
+  @param session  Session handle to attach
+  @param ret_previous_thd Previously attached THD
+
+  @returns
+    0  success
+    1  failure
+*/
+int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd)
+{
+  DBUG_ENTER("srv_session_attach");
+
+  if (!Srv_session::is_srv_session_thread())
+  {
+    DBUG_PRINT("error", ("Thread can't be used with srv_session API"));
+    DBUG_RETURN(1);
+  }
+
+  if (!session || !Srv_session::is_valid(session))
+  {
+    DBUG_PRINT("error", ("Session is not valid"));
+    DBUG_RETURN(1);
+  }
+
+  if (ret_previous_thd)
+    *ret_previous_thd = current_thd;
+
+  DBUG_RETURN(session->attach());
 }
 
 } /* extern "C" */

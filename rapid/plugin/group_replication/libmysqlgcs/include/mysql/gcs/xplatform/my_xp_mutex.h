@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,33 +23,19 @@
 #ifndef MY_XP_MUTEX_INCLUDED
 #define MY_XP_MUTEX_INCLUDED
 
-#include <errno.h>
-#include <stdlib.h>
-
-#ifdef _WIN32
-#include <windows.h>
-
-typedef CRITICAL_SECTION native_mutex_t;
-typedef int              native_mutexattr_t;
-#else
-#include <pthread.h>
-#include <stdio.h>
-
-typedef pthread_mutex_t     native_mutex_t;
-typedef pthread_mutexattr_t native_mutexattr_t;
-#endif
+#include "mysql/psi/mysql_mutex.h"
 
 /**
   @class My_xp_mutex
 
-  Abstract class used to wrap mutex for various platforms.
+  Abstract class used to wrap mutex for various implementations.
 
   A typical use case is:
 
   @code{.cpp}
 
-  My_xp_mutex mutex= new My_xp_mutex_impl();
-  mutex->init(NULL);
+  My_xp_mutex *mutex= new My_xp_mutex_impl();
+  mutex->init(mutex_PSI_key, NULL);
 
   mutex->lock();
   ...
@@ -56,11 +49,12 @@ public:
   /**
     Initialize mutex.
 
+    @param key mutex instrumentation key
     @param attr mutex attributes reference
     @return success status
   */
 
-  virtual int init(const native_mutexattr_t *attr)= 0;
+  virtual int init(PSI_mutex_key key, const native_mutexattr_t *attr)= 0;
 
 
   /**
@@ -105,52 +99,34 @@ public:
     @return native mutex pointer
   */
 
-  virtual native_mutex_t *get_native_mutex()= 0;
+  virtual mysql_mutex_t *get_native_mutex()= 0;
 
 
   virtual ~My_xp_mutex() {}
 };
 
-#ifdef _WIN32
-class My_xp_mutex_win : public My_xp_mutex
+#ifndef XCOM_STANDALONE
+class My_xp_mutex_server : public My_xp_mutex
 {
-private:
-  /*
-    Disabling the copy constructor and assignment operator.
-  */
-  My_xp_mutex_win(My_xp_mutex_win const&);
-  My_xp_mutex_win& operator=(My_xp_mutex_win const&);
 public:
-  explicit My_xp_mutex_win();
-  virtual ~My_xp_mutex_win();
-#else
-class My_xp_mutex_pthread : public My_xp_mutex
-{
-private:
-  /*
-    Disabling the copy constructor and assignment operator.
-  */
-  My_xp_mutex_pthread(My_xp_mutex_pthread const&);
-  My_xp_mutex_pthread& operator=(My_xp_mutex_pthread const&);
-public:
-  explicit My_xp_mutex_pthread();
-  virtual ~My_xp_mutex_pthread();
-#endif
-  int init(const native_mutexattr_t *attr);
+  explicit My_xp_mutex_server();
+  virtual ~My_xp_mutex_server();
+
+  int init(PSI_mutex_key key, const native_mutexattr_t *attr);
   int destroy();
   int lock();
   int trylock();
   int unlock();
-  native_mutex_t *get_native_mutex();
+  mysql_mutex_t *get_native_mutex();
 
 protected:
-  native_mutex_t *m_mutex;
+  mysql_mutex_t *m_mutex;
 };
+#endif
 
-#ifdef _WIN32
-class My_xp_mutex_impl : public My_xp_mutex_win
-#else
-class My_xp_mutex_impl : public My_xp_mutex_pthread
+
+#ifndef XCOM_STANDALONE
+class My_xp_mutex_impl : public My_xp_mutex_server
 #endif
 {
 public:

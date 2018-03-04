@@ -5,7 +5,8 @@
 # include default.weekly
 
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features --unit-tests-report
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features --unit-tests-report --non-parallel-test
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps --ps-protocol
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=partitions --vardir=var-parts      --suite=parts
@@ -16,5 +17,3 @@ perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collection
 perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --suite=memcached
 perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=var-interactive  --suite=interactive_utilities
 perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=innodb_undo-debug --vardir=var-innodb-undo --experimental=collections/default.experimental --suite=innodb_undo --mysqld=--innodb_undo_tablespaces=2 --bootstrap --innodb_undo_tablespaces=2
-# Replication test cases using many mysqlds (rpl_many_mysqlds)
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=90 --parallel=1 --experimental=collections/default.experimental --comment=rpl_many_mysqlds-big --vardir=var-rpl_many_mysqlds-big --suite=rpl_many_mysqlds --no-skip

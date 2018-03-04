@@ -119,6 +119,8 @@ REPLACE INTO mysql.user VALUES ('localhost','root','Y','Y','Y','Y','Y','Y','Y','
 REPLACE INTO mysql.user VALUES ('localhost','mysql.sys','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',NULL,NULL,'Y','N','N', NULL, NULL);
 INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
 UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 UPDATE mysql.user SET password_last_changed=@plc, authentication_string=@auth_str, plugin= @plugin where user='root';
 UPDATE mysql.user SET password_last_changed=@sys_plc, authentication_string=@sys_auth_str, plugin= @sys_plugin where user='mysql.sys';
 FLUSH PRIVILEGES;

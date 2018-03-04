@@ -30,7 +30,7 @@
 SET SQL_LOG_BIN=0;
 
 --sorted_result
-SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session');
+SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session', 'mysql.infoschema');
 
 CREATE USER 'plug_user_p' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_p';
 CREATE USER 'plug_user_wp' IDENTIFIED WITH 'test_plugin_server' AS 'proxy_user_wp';
@@ -40,7 +40,7 @@ CREATE USER 'regular_user_p' IDENTIFIED BY 'password';
 CREATE USER 'regular_user_wp' IDENTIFIED BY '';
 
 --sorted_result
-SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session');
+SELECT user, plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys','mysql.session', 'mysql.infoschema');
 
 GRANT PROXY ON proxy_user_p to plug_user_p;
 GRANT PROXY ON proxy_user_wp to plug_user_wp;
@@ -64,7 +64,7 @@ SET SQL_LOG_BIN=1;
 #
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST';
+CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIST', MASTER_SSL = 1;
 
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --error ER_SQLTHREAD_WITH_SECURE_SLAVE
@@ -270,7 +270,7 @@ CHANGE MASTER TO MASTER_USER= 'DOES NOT EXIST', MASTER_PASSWORD = 'DOES NOT EXIS
 #
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER= 'plug_user_p', MASTER_PASSWORD= 'proxy_user_p';
+CHANGE MASTER TO MASTER_USER= 'plug_user_p', MASTER_PASSWORD= 'proxy_user_p', MASTER_SSL = 1;
 --source include/start_slave.inc
 --source include/check_slave_is_running.inc
 
@@ -295,7 +295,7 @@ GRANT ALL ON *.* TO ssl_user REQUIRE SSL;
 connect (con_ssl,127.0.0.1,ssl_user,,test,$SLAVE_MYPORT,,SSL);
 --connection con_ssl
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '';
+CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '' , MASTER_SSL = 0;
 --source include/start_slave.inc
 
 --source include/stop_slave.inc

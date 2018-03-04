@@ -3,7 +3,6 @@ install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
 call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
-call mtr.add_suppression('21.1: Unsuccessful login attempt: Invalid user or password');
 call mtr.add_suppression("Plugin \'InnoDB\'");
 select sleep(1);
 sleep(1)
@@ -67,8 +66,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 21
   flags: 16
 }
@@ -148,8 +145,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 1
   flags: 16
 }
@@ -460,7 +455,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 command ok
 
 Bug #21825183 - WHEN CLIENTS LAST SESSION IS CLOSED THEN NOT ALL QUEUED MESSAGES ARE SEND

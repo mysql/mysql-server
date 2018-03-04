@@ -697,7 +697,7 @@ INSERT INTO t VALUES (14, 0, "ss");
 ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
 --error ER_DIVISION_BY_ZERO
 CREATE INDEX idx ON t(c);
-CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+CALL mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Compute virtual column values failed");
 DROP TABLE t;
 }
 
@@ -847,5 +847,106 @@ ANALYZE TABLE t1, t2;
 --eval EXPLAIN $query
 --eval $query
 DROP TABLE t1, t2;
+
+if ($support_virtual_index) {
+--echo #
+--echo # Bug#24345509: WRONG RESULTS WHEN GCOL INDEX IS USED
+--echo #
+CREATE TABLE t1 (
+  pk INT PRIMARY KEY AUTO_INCREMENT,
+  i INT,
+  vc VARCHAR(7),
+  gc1 VARCHAR(14) GENERATED ALWAYS AS (concat(vc, vc)) VIRTUAL NOT NULL,
+  gc2 VARCHAR(14) GENERATED ALWAYS AS (concat(gc1, 'x')) VIRTUAL NOT NULL,
+  KEY gc2_key (gc2),
+  KEY gc2_key_prefix (gc2(5))
+);
+
+INSERT INTO t1 (i, vc) VALUES
+(7, 'xcek'), (3, 'ceksat'), (3, 'eksate'), (3, 'ksatef'), (6, 's');
+
+ANALYZE TABLE t1;
+
+# Missing rows in the result when using a non-covering secondary index
+# and the end-range condition referenced a virtual column.
+
+let $query = SELECT i FROM t1 WHERE gc2 <= 'ksatefksatefx';
+--eval EXPLAIN $query
+--eval $query
+let $query = SELECT i FROM t1 FORCE INDEX (gc2_key_prefix)
+             WHERE gc2 <= 'ksatefksatefx';
+--eval EXPLAIN $query
+--eval $query
+
+# Similar test case with covering index. Used to miss rows when using
+# a prefix index.
+
+let $query = SELECT COUNT(*) FROM t1 WHERE gc2 <= 'ksatefksatefx';
+--eval EXPLAIN $query
+--eval $query
+let $query = SELECT COUNT(*) FROM t1 FORCE INDEX (gc2_key_prefix)
+             WHERE gc2 <= 'ksatefksatefx';
+--eval EXPLAIN $query
+--eval $query
+
+# After bug#23481444 InnoDB also checks the end-range condition on
+# page boundaries if many not yet committed records have been scanned.
+# Fill up a page with uncommitted rows at the beginning of the
+# secondary index to exercise this code.
+CREATE TABLE t2 (
+  i INT NOT NULL,
+  gc INT GENERATED ALWAYS AS (i) VIRTUAL NOT NULL,
+  KEY (gc)
+);
+
+INSERT INTO t2 (i) VALUES (-1), (0), (1), (2);
+
+BEGIN;
+--disable_query_log
+--let $i = 2000
+while ($i > 0)
+{
+  INSERT INTO t2 (i) VALUES (-10);
+  dec $i;
+}
+--enable_query_log
+
+CONNECT (con1,localhost,root,,);
+# This query used to return zero rows.
+SELECT i FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+# Similar query using covering index was correct even before.
+SELECT gc FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+DISCONNECT con1;
+CONNECTION default;
+
+COMMIT;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#27010089: ASSERTION FAILURE:
+--echo # ROW0SEL.CC:2846:TEMPL->MYSQL_COL_LEN == LEN
+--echo #
+
+CREATE TABLE t (
+pk INTEGER AUTO_INCREMENT PRIMARY KEY,
+col_int_key INTEGER GENERATED ALWAYS AS (1) VIRTUAL,
+col_varchar VARCHAR(7) ,
+col_varchar_key VARCHAR(14) GENERATED ALWAYS AS ('abc') VIRTUAL,
+KEY (col_varchar_key(5), col_int_key),
+KEY (col_int_key, col_varchar_key));
+
+INSERT INTO t VALUES (), ();
+
+SELECT 1 FROM t AS alias1
+WHERE EXISTS
+(SELECT SQ2_alias1.col_int_key AS SQ2_field1
+ FROM t AS SQ2_alias1 JOIN t AS SQ2_alias2
+ ON (SQ2_alias2.col_varchar_key = SQ2_alias1.col_varchar_key)
+ WHERE SQ2_alias1.col_varchar <> alias1.col_varchar AND
+       SQ2_alias1.col_int_key >= SQ2_alias2.pk);
+
+DROP TABLE t;
+}
 
 --echo #

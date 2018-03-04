@@ -1,20 +1,28 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <cstring>
-#include <my_dbug.h>
+
+#include "my_dbug.h"
 #include "pfs_example_continent.h"
 
 /* Global share pointer for a table */
@@ -31,6 +39,18 @@ unsigned int continent_next_available_index = 0;
 Continent_record continent_records_array[CONTINENT_MAX_ROWS] = {
   {"", 0, false}
 };
+
+
+int continent_delete_all_rows(void)
+{
+  native_mutex_lock(&LOCK_continent_records_array);
+  for (int i = 0; i < CONTINENT_MAX_ROWS; i++)
+    continent_records_array[i].m_exist = false;
+  continent_rows_in_table = 0;
+  continent_next_available_index = 0;
+  native_mutex_unlock(&LOCK_continent_records_array);
+  return 0;
+}
 
 /**
  * Instantiate Continent_Table_Handle at plugin code when corresponding table
@@ -302,11 +322,12 @@ init_continent_share(PFS_engine_table_share_proxy *share)
                                  continent_index_next,
                                  continent_read_column_value,
                                  continent_reset_position,
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
-                                 NULL, /* READONLY TABLE */
+                                 /* READONLY TABLE */
+                                 NULL, /* write_column_value */
+                                 NULL, /* write_row_values */
+                                 NULL, /* update_column_value */
+                                 NULL, /* update_row_values */
+                                 NULL, /* delete_row_values */
                                  continent_open_table,
                                  continent_close_table};
 }

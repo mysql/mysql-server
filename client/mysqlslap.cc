@@ -2,13 +2,20 @@
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -80,16 +87,17 @@ TODO:
 
 #include "my_config.h"
 
-#include <caching_sha2_passwordopt-vars.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <my_dir.h>
 #include <mysqld_error.h>
 #include <signal.h>
-#include <sslopt-vars.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
+#include "caching_sha2_passwordopt-vars.h"
+#include "my_dir.h"
+#include "sslopt-vars.h"
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -97,7 +105,6 @@ TODO:
 #include <sys/time.h>
 #endif
 #include <time.h>
-#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #include "client/client_priv.h"
 #include "my_dbug.h"
@@ -109,6 +116,7 @@ TODO:
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h"   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #ifdef _WIN32
 #define srandom  srand
@@ -371,6 +379,7 @@ int main(int argc, char **argv)
   if (using_opt_enable_cleartext_plugin)
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
                   (char*) &opt_enable_cleartext_plugin);
+  set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
   if (!opt_only_print) 
   {
@@ -714,8 +723,8 @@ static struct my_option my_long_options[] =
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"sql_mode", 0, "Specify sql-mode to run mysqlslap tool.", &sql_mode,
     &sql_mode, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#include <caching_sha2_passwordopt-longopts.h>
-#include <sslopt-longopts.h>
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
 
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -784,7 +793,7 @@ get_one_option(int optid, const struct my_option *opt,
       argument= (char *)"-"; /* use stdout */
     opt_csv_str= argument;
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'V':
     print_version();

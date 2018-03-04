@@ -588,6 +588,102 @@ SELECT LEAD(a,2) over w1, LEAD(a,1) OVER w1 FROM t1e WINDOW w1 as ();
 SELECT LEAD(a,2) over w1, LEAD(a,0) OVER w1, LEAD(a,1) OVER w1 FROM t1e WINDOW w1 as ();
 DROP TABLE t1e;
 
+
+--echo #
+--echo # Bug#26703246 ASSERTION FAILED: DELSUM+(INT) Y/4-TEMP >= 0
+--echo # Also solves Bug#26703156.
+
+--echo Assertion used to fail: delsum+(int) y/4-temp >= 0
+
+DO TO_SECONDS(LAG(POINT(2.804466E+307,-2032),75) OVER());
+DO IS_IPV4(TIMESTAMP(LAG(-19131 ,188) OVER(),@F));
+DO WEEKOFYEAR(LAG(-16726 ,247)RESPECT NULLS OVER());
+DO DAYOFYEAR(LEAD(-6653420797178186265 ,29)OVER());
+DO YEARWEEK(LEAD(FOUND_ROWS(),250)OVER());
+DO DAYOFYEAR(LAG('] .| /= ',63) OVER());
+DO IFNULL((DAYNAME(LEAD(STDDEV(@F),162) OVER())),(0xD73E));
+DO TO_DAYS(LEAD(((LOCATE(0xA812,0xE8DE))OR(@G)),148)OVER());
+DO WEEKOFYEAR(LEAD(('5183-10-18 06:15:35.076079')SOUNDS LIKE(0x9E335D89),68)OVER());
+DO DAYOFYEAR(LEAD(ROW_COUNT(),177)OVER());
+DO MONTHNAME(LAG(' =',74) OVER());
+DO SHA(BIN(MONTHNAME(LEAD(UNCOMPRESSED_LENGTH(SHA1("")),224)OVER())));
+DO (((NOT(1)))^(HOUR(MONTHNAME(LEAD(DATABASE(),89)OVER()))));
+DO MONTHNAME(LEAD(CHARSET(CONVERT((MOD(CURTIME(4),STDDEV(NULL)))USING CP850)),12) OVER());
+DO LAST_DAY(LAG(NULL,113) OVER());
+DO LAST_DAY(LEAD(-2201 ,98)RESPECT NULLS OVER());
+DO OCTET_LENGTH(((LAST_DAY(LEAD(-28178,163)OVER()))OR(COLLATION(@E))));
+DO LAST_DAY(LAG('*',36)RESPECT NULLS OVER());
+DO LAST_DAY(LEAD( _CP932 '',241)OVER(RANGE UNBOUNDED PRECEDING));
+
+--echo Assertion used to fail: !check_time_mmssff_range(ltime)
+
+DO ((CAST((LEAD(NULL,152) OVER()) AS TIME))*(1));
+DO CAST((LAG(SHA(STDDEV('-0E%_')),224) OVER()) AS TIME);
+DO CAST((LAG(_UJIS '8CA} ',144) OVER()) AS TIME);
+DO CAST((LAG(-16520,156) OVER()) AS TIME);
+DO CAST((LEAD(-6011,202) OVER()) AS TIME);
+DO CAST((LEAD(0x45,104) OVER())AS TIME);
+DO CAST((LAG(POLYGON( LINESTRING( POINT(4099,17421),
+                                  POINT(22259,-5875.0796),
+                                  POINT(30179,6542),
+                                  POINT(12331,-18840)),
+                                  LINESTRING( POINT( 8162.2539,-29332),
+                                              POINT(24157,-23393),
+                                              POINT(268435459,-26835),
+                                              POINT(3.933871E+307,-25808)),
+                                  LINESTRING( POINT(30360,-1049),
+                                              POINT(15405,5.816757E+307),
+                                              POINT( 3717.3555,1.599730E+308),
+                                              POINT(-23002,-19077))),
+                      70)
+         OVER())
+        AS DATETIME );
+DO UNIX_TIMESTAMP(
+     LAG(ROUND(((UTC_TIME()) OR
+                ((NOT (INET6_ATON(IS_IPV4(((MAKETIME(-10966,
+                                                     233,
+                                                     2795.439453))
+                                           OR(MAKEDATE(-3030,19)))))))))),
+         140) OVER());
+DO LAST_DAY(SQRT(CAST((LAG(REPEAT('B',64),91)OVER())AS DATETIME)));
+--echo We Must disable warning for next statement because we get two instead of
+--echo one with -ps protocol vs plain protocol.
+--disable_warnings
+DO CAST((LAG(CHAR(PASSWORD('* $')USING SJIS),223)OVER())AS DATETIME);
+--enable_warnings
+DO CAST((LEAD(-197994311,60)OVER())AS DATETIME);
+DO IFNULL((NULL ),(UNIX_TIMESTAMP(LEAD(NULL,12)RESPECT NULLS OVER())));
+
+--echo Assertion used to fail: !check_datetime_range(ltime)
+
+DO ((CONVERT((VARIANCE(-18951))USING CP866)) <=
+    (JSON_ARRAY(LEAD(CAST((35184372088833)AS DATETIME),126)OVER())));
+DO ((LAG(LAST_DAY("]<$*_#[DB!^+ : 3"),89) OVER (RANGE UNBOUNDED PRECEDING)) >
+    (CONVERT(("1985-10-19 03:36:29.304455" -
+              INTERVAL(0x1446C5A2627FB06D88DC63D66B36DF) DAY_MICROSECOND)
+             USING BIG5)));
+
+--echo #
+--echo # Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+--echo #               FALSE IN ITEM::VAL_JSON
+--echo #
+
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+               (LAG(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+                    ,7)OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+SELECT ((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((LAG(JSON_MERGE_PATCH(1.755913e+308,'{ }'),0)OVER())<=(1));
+SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+                          162)OVER())))>=(CONNECTION_ID()));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
+                          0)OVER())))>=(CONNECTION_ID()));
+SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),172)OVER());
+SELECT JSON_LENGTH(LEAD(JSON_OBJECTAGG('key2','*B'),0)OVER());
+
+--echo # End of test for Bug#26740557
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

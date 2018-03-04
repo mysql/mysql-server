@@ -3,22 +3,30 @@
 /* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <new>
+#include <unordered_map>
 
 #include "m_string.h"
 #include "mem_root_fwd.h"
@@ -112,7 +120,7 @@ public:
   /**
      Has the owner thread been killed?
    */
-  virtual int  is_killed() = 0;
+  virtual int  is_killed() const = 0;
 
   /**
     Does the owner still have connection to the client?
@@ -397,7 +405,31 @@ public:
   uint db_name_length() const { return m_db_name_length; }
 
   const char *name() const { return m_ptr + m_db_name_length + 2; }
-  uint name_length() const { return m_length - m_db_name_length - 3; }
+  uint name_length() const { return m_object_name_length; }
+
+  const char *col_name() const
+  {
+    if (m_db_name_length + m_object_name_length + 3 < m_length)
+    {
+      /* A column name was stored in the key buffer. */
+      return m_ptr + m_db_name_length + m_object_name_length + 3;
+    }
+
+    /* No column name stored. */
+    return NULL;
+  }
+
+  uint col_name_length() const
+  {
+    if (m_db_name_length + m_object_name_length + 3 < m_length)
+    {
+      /* A column name was stored in the key buffer. */
+      return m_length - m_db_name_length - m_object_name_length - 4;
+    }
+
+    /* No column name stored. */
+    return 0;
+  }
 
   enum_mdl_namespace mdl_namespace() const
   { return (enum_mdl_namespace)(m_ptr[0]); }
@@ -431,17 +463,116 @@ public:
 	    effectively lock all implicit tablespaces in the same
 	    schema. A possible fix is to lock on a prefix of length
 	    NAME_LEN * 2, since this is the real buffer size of
-	    the metadata lock key. Dependecies from the PFS
+	    the metadata lock key. Dependencies from the PFS
 	    implementation, possibly relying on the key format,
 	    must be investigated first, though.
     */
-    DBUG_ASSERT(strlen(db) <= NAME_LEN && (mdl_namespace == TABLESPACE ||
-					   strlen(name) <= NAME_LEN));
+    DBUG_ASSERT(strlen(db) <= NAME_LEN);
+    DBUG_ASSERT((mdl_namespace == TABLESPACE) || (strlen(name) <= NAME_LEN));
     m_db_name_length= static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) -
                                           m_ptr - 1);
-    m_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,
-                                          NAME_LEN) - m_ptr + 1);
+    m_object_name_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,
+                                          NAME_LEN) - m_ptr - m_db_name_length - 2);
+    m_length= m_db_name_length + m_object_name_length + 3;
   }
+
+  /**
+    Construct a metadata lock key from a quadruplet (mdl_namespace,
+    database, table and column name).
+
+    @remark The key for a column is
+      @<mdl_namespace@>+@<database name@>+@<table name@>+@<column name@>
+
+    @param  mdl_namespace Id of namespace of object to be locked
+    @param  db            Name of database to which the object belongs
+    @param  name          Name of of the object
+    @param  column_name   Name of of the column
+  */
+  void mdl_key_init(enum_mdl_namespace mdl_namespace,
+                    const char *db, const char *name,
+                    const char *column_name)
+  {
+    m_ptr[0]= (char) mdl_namespace;
+    char *start;
+    char *end;
+
+    DBUG_ASSERT(strlen(db) <= NAME_LEN);
+    start = m_ptr + 1;
+    end= strmake(start, db, NAME_LEN);
+    m_db_name_length= static_cast<uint16>(end - start);
+
+    DBUG_ASSERT(strlen(name) <= NAME_LEN);
+    start = end + 1;
+    end= strmake(start, name, NAME_LEN);
+    m_object_name_length= static_cast<uint16>(end - start);
+
+    size_t col_len= strlen(column_name);
+    DBUG_ASSERT(col_len <= NAME_LEN);
+    start = end + 1;
+    size_t remaining = MAX_MDLKEY_LENGTH - m_db_name_length - m_object_name_length - 3;
+    uint16 extra_length= 0;
+
+    /*
+      In theory:
+      - schema name is up to NAME_LEN characters
+      - object name is up to NAME_LEN characters
+      - column name is up to NAME_LEN characters
+      - NAME_LEN is 64 characters
+      - 1 character is up to 3 bytes (UTF8MB3),
+        and when moving to UTF8MB4, up to 4 bytes.
+      - Storing a SCHEMA + OBJECT MDL key
+        can take up to 387 bytes
+      - Storing a SCHEMA + OBJECT + COLUMN MDL key
+        can take up to 580 bytes.
+
+      In practice:
+      - full storage is allocated for SCHEMA + OBJECT only,
+        storage for COLUMN is **NOT** reserved.
+      - SCHEMA and OBJECT names are typically shorter,
+        and are not using systematically multi-bytes characters
+        for each character, so that less space is required.
+      - MDL keys that are not COLUMN_STATISTICS
+        are stored in full, without truncation.
+
+      For the COLUMN_STATISTICS name space:
+      - either the full SCHEMA + OBJECT + COLUMN key fits
+        within 387 bytes, in which case the fully qualified
+        column name is stored,
+        leading to MDL locks per column (as intended)
+      - or the SCHEMA and OBJECT names are very long,
+        so that not enough room is left to store a column name,
+        in which case the MDL key is truncated to be
+        COLUMN_STATISTICS + SCHEMA + NAME.
+        In this case, MDL locks for columns col_X and col_Y
+        in table LONG_FOO.LONG_BAR will both share the same
+        key LONG_FOO.LONG_BAR, in effect providing a lock
+        granularity not per column but per table.
+        This is a degraded mode of operation,
+        which serializes MDL access to columns
+        (for tables with a very long fully qualified name),
+        to reduce the memory footprint for all MDL access.
+
+      To be revised if the MDL key buffer is allocated dynamically
+      instead.
+    */
+
+    static_assert(MAX_MDLKEY_LENGTH == 387, "UTF8MB3");
+
+    /*
+      Check if there is room to store the whole column name.
+      This code is not trying to store truncated column names,
+      to avoid cutting column_name in the middle of a
+      multi-byte character.
+    */
+    if (remaining >= col_len + 1)
+    {
+      end= strmake(start, column_name, remaining);
+      extra_length= static_cast<uint16>(end - start) + 1; // With \0
+    }
+    m_length= m_db_name_length + m_object_name_length + 3 + extra_length;
+    DBUG_ASSERT(m_length <= MAX_MDLKEY_LENGTH);
+  }
+
   /**
     Construct a metadata lock key from namespace and partial key, which
     contains info about object database and name.
@@ -470,17 +601,20 @@ public:
     memcpy(m_ptr + 1, part_key, part_key_length);
     m_length= static_cast<uint16>(part_key_length + 1);
     m_db_name_length= static_cast<uint16>(db_length);
+    m_object_name_length= m_length - m_db_name_length - 3;
   }
   void mdl_key_init(const MDL_key *rhs)
   {
     memcpy(m_ptr, rhs->m_ptr, rhs->m_length);
     m_length= rhs->m_length;
     m_db_name_length= rhs->m_db_name_length;
+    m_object_name_length= rhs->m_object_name_length;
   }
   void reset()
   {
     m_ptr[0]= NAMESPACE_END;
     m_db_name_length= 0;
+    m_object_name_length= 0;
     m_length= 0;
   }
   bool is_equal(const MDL_key *rhs) const
@@ -524,6 +658,7 @@ public:
 private:
   uint16 m_length;
   uint16 m_db_name_length;
+  uint16 m_object_name_length;
   char m_ptr[MAX_MDLKEY_LENGTH];
   static PSI_stage_info m_namespace_to_wait_state_name[NAMESPACE_END];
 private:
@@ -738,6 +873,7 @@ public:
   */
   MDL_ticket *next_in_context;
   MDL_ticket **prev_in_context;
+
   /**
     Pointers for participating in the list of satisfied/pending requests
     for the lock. Externally accessible.
@@ -768,6 +904,11 @@ public:
   /** Implement MDL_wait_for_subgraph interface. */
   virtual bool accept_visitor(MDL_wait_for_graph_visitor *dvisitor);
   virtual uint get_deadlock_weight() const;
+
+#ifndef DBUG_OFF
+  enum_mdl_duration get_duration() const { return m_duration; }
+  void set_duration(enum_mdl_duration dur) { m_duration= dur; }
+#endif
 
 public:
   /**
@@ -806,6 +947,7 @@ private:
 #endif
                             );
   static void destroy(MDL_ticket *ticket);
+
 private:
   /** Type of metadata lock. Externally accessible. */
   enum enum_mdl_type m_type;
@@ -846,6 +988,222 @@ private:
 private:
   MDL_ticket(const MDL_ticket &);               /* not implemented */
   MDL_ticket &operator=(const MDL_ticket &);    /* not implemented */
+};
+
+
+/**
+  Keep track of MDL_ticket for different durations. Maintains a
+  hash-based secondary index into the linked lists, to speed up access
+  by MDL_key.
+ */
+class MDL_ticket_store
+{
+public:
+  /**
+    Utility struct for representing a ticket pointer and its duration.
+   */
+  struct MDL_ticket_handle
+  {
+    enum_mdl_duration m_dur= MDL_DURATION_END;
+    MDL_ticket *m_ticket= nullptr;
+
+    MDL_ticket_handle() = default;
+    MDL_ticket_handle(MDL_ticket *t, enum_mdl_duration d)
+      : m_dur{d}, m_ticket{t}
+    {}
+  };
+
+private:
+  using Ticket_p_list=
+    I_P_List<MDL_ticket,
+             I_P_List_adapter<MDL_ticket,
+                              &MDL_ticket::next_in_context,
+                              &MDL_ticket::prev_in_context>>;
+
+  struct Duration
+  {
+    Ticket_p_list m_ticket_list;
+    /**
+      m_mat_front tracks what was the front of m_ticket_list, the last
+      time MDL_context::materialize_fast_path_locks() was called. This
+      just an optimization which allows
+      MDL_context::materialize_fast_path_locks() only to consider the
+      locks added since the last time it ran. Consequently, it can be
+      assumed that every ticket after m_mat_front is materialized, but
+      the converse is not necessarily true as new, already
+      materialized, locks may have been added since the last time
+      materialize_fast_path_locks() ran.
+     */
+    MDL_ticket *m_mat_front = nullptr;
+  };
+
+  Duration m_durations[MDL_DURATION_END];
+
+  struct Hash
+  {
+    size_t operator()(const MDL_key *k) const;
+  };
+
+  struct Key_equal
+  {
+    bool operator()(const MDL_key *a, const MDL_key *b) const
+    {
+      return a->is_equal(b);
+    }
+  };
+
+  using Ticket_map=
+    std::unordered_multimap<const MDL_key*, MDL_ticket_handle, Hash, Key_equal>;
+
+  /**
+    If the number of tickets in the ticket store (in all durations) is equal
+    to, or exceeds this constant the hash index (in the form of an
+    unordered_multi_map) will be maintained and used for lookups.
+
+    The value 256 is chosen as it has worked well in benchmarks.
+  */
+  const size_t THRESHOLD= 256;
+
+  /**
+    Initial number of buckets in the hash index. THRESHOLD is chosen
+    to get a fill-factor of 50% when reaching the threshold value.
+   */
+  const size_t INITIAL_BUCKET_COUNT= THRESHOLD*2;
+  size_t m_count= 0;
+
+  std::unique_ptr<Ticket_map> m_map;
+
+  MDL_ticket_handle find_in_lists(const MDL_request &req) const;
+  MDL_ticket_handle find_in_hash(const MDL_request &req) const;
+
+public:
+  /**
+    Public alias.
+  */
+  using List_iterator= Ticket_p_list::Iterator;
+
+  /**
+    Constructs store. The hash index is initially empty. Filled on demand.
+  */
+  MDL_ticket_store() :
+    // Comment in to test threshold values in unit test micro benchmark
+    // THRESHOLD{read_from_env("TS_THRESHOLD", 500)},
+    m_map{nullptr}
+  {}
+
+  /**
+    Calls the closure provided as argument for each of the MDL_tickets
+    in the given duration.
+    @param dur duration list to iterate over
+    @param clos closure to invoke for each ticket in the list
+   */
+  template <typename CLOS>
+  void for_each_ticket_in_duration_list(enum_mdl_duration dur, CLOS &&clos)
+  {
+    List_iterator it(m_durations[dur].m_ticket_list);
+    for (MDL_ticket *t= it++; t != nullptr; t= it++)
+    {
+      clos(t, dur);
+    }
+  }
+
+  /**
+    Calls the closure provided as argument for each of the MDL_tickets
+    in the store.
+    @param clos closure to invoke for each ticket in the store
+   */
+  template <typename CLOS>
+  void for_each_ticket_in_ticket_lists(CLOS &&clos)
+  {
+    for_each_ticket_in_duration_list(MDL_STATEMENT, std::forward<CLOS>(clos));
+    for_each_ticket_in_duration_list(MDL_TRANSACTION, std::forward<CLOS>(clos));
+    for_each_ticket_in_duration_list(MDL_EXPLICIT, std::forward<CLOS>(clos));
+  }
+
+  /**
+    Predicate for the emptiness of the store.
+    @return true if there are no tickets in the store
+   */
+  bool is_empty() const;
+
+  /**
+    Predicate for the emptiness of a given duration list.
+    @param di the duration to check
+    @return true if there are no tickets with the given duration
+  */
+  bool is_empty(int di) const;
+
+  /**
+    Return the first MDL_ticket for the given duration.
+
+    @param di duration to get first ticket for
+
+    @return first ticket in the given duration or nullptr if no such
+    tickets exist
+   */
+  MDL_ticket *front(int di);
+
+  /**
+    Push a ticket onto the list for a given duration.
+    @param dur duration list to push into
+    @param ticket to push
+  */
+  void push_front(enum_mdl_duration dur, MDL_ticket *ticket);
+
+  /**
+    Remove a ticket from a duration list. Note that since the
+    underlying list is an intrusive linked list there is no guarantee
+    that the ticket is actually in the duration list. It will be
+    removed from which ever list it is in.
+
+    @param dur
+    @param ticket
+   */
+  void remove(enum_mdl_duration dur, MDL_ticket *ticket);
+
+  /**
+    Return a P-list iterator to the given duration.
+    @param di duration list index
+    @return P-list iterator to tickets with given duration
+   */
+  List_iterator list_iterator(int di) const
+  {
+    return List_iterator{m_durations[di].m_ticket_list};
+  }
+
+  /**
+    Move all tickets to the explicit duration list.
+   */
+  void move_all_to_explicit_duration();
+
+  /**
+    Move all tickets to the transaction duration list.
+   */
+  void move_explicit_to_transaction_duration();
+
+  /**
+    Look up a ticket based on its MDL_key.
+    @param req request to locate ticket for
+    @return MDL_ticket_handle with ticket pointer and found duration
+            (or nullptr and MDL_DURATION_END if not found
+   */
+  MDL_ticket_handle find(const MDL_request &req) const;
+
+  /**
+    Mark boundary for tickets with fast_path=false, so that later
+    calls to materialize_fast_path_locks() do not have to traverse the
+    whole set of tickets.
+   */
+  void set_materialized();
+
+  /**
+    Return the first ticket for which materialize_fast_path_locks
+    already has been called for the given duration.
+
+    @param di duration list index
+    @return first materialized ticket for the given duration
+   */
+  MDL_ticket *materialized_front(int di);
 };
 
 
@@ -986,6 +1344,9 @@ public:
   void release_locks(MDL_release_locks_visitor *visitor);
   void release_lock(MDL_ticket *ticket);
 
+  bool owns_equal_or_stronger_lock(const MDL_key *mdl_key,
+                                   enum_mdl_type mdl_type);
+
   bool owns_equal_or_stronger_lock(MDL_key::enum_mdl_namespace mdl_namespace,
                                    const char *db, const char *name,
                                    enum_mdl_type mdl_type);
@@ -996,9 +1357,7 @@ public:
 
   inline bool has_locks() const
   {
-    return !(m_tickets[MDL_STATEMENT].is_empty() &&
-             m_tickets[MDL_TRANSACTION].is_empty() &&
-             m_tickets[MDL_EXPLICIT].is_empty());
+    return !m_ticket_store.is_empty();
   }
 
   bool has_locks(MDL_key::enum_mdl_namespace mdl_namespace) const;
@@ -1007,8 +1366,8 @@ public:
 
   MDL_savepoint mdl_savepoint()
   {
-    return MDL_savepoint(m_tickets[MDL_STATEMENT].front(),
-                         m_tickets[MDL_TRANSACTION].front());
+    return MDL_savepoint(m_ticket_store.front(MDL_STATEMENT),
+                         m_ticket_store.front(MDL_TRANSACTION));
   }
 
   void set_explicit_duration_for_all_locks();
@@ -1148,7 +1507,8 @@ private:
     - HANDLER locks
     - GLOBAL READ LOCK locks
   */
-  Ticket_list m_tickets[MDL_DURATION_END];
+  MDL_ticket_store m_ticket_store;
+
   MDL_context_owner *m_owner;
   /**
     TRUE -  if for this context we will break protocol and try to
@@ -1292,5 +1652,44 @@ const int32 MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT= 1000;
 const double MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO= 0.25;
 
 int32 mdl_get_unused_locks_count();
+
+/**
+  Inspect if MDL_context is owned by any thread.
+*/
+class MDL_lock_is_owned_visitor : public MDL_context_visitor
+{
+public:
+  MDL_lock_is_owned_visitor()
+    : m_exists(false)
+  { }
+
+
+  /**
+    Collects relevant information about the MDL lock owner.
+
+    This function is only called by MDL_context::find_lock_owner() when
+    searching for MDL lock owners to collect extra information about the
+    owner. As we only need to know that the MDL lock is owned, setting
+    m_exists to true is enough.
+  */
+
+  void visit_context(const MDL_context *ctx MY_ATTRIBUTE((unused))) override
+  {
+    m_exists= true;
+  }
+
+
+  /**
+    Returns if an owner for the MDL lock being inspected exists.
+
+    @return true when MDL lock is owned, false otherwise.
+  */
+
+  bool exists() const { return m_exists; }
+
+private:
+  /* holds information about MDL being owned by any thread */
+  bool m_exists;
+};
 
 #endif

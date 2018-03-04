@@ -30,7 +30,7 @@
 --source include/rpl_connection_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB= ((db1, db2));
 --source include/start_slave.inc
---query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters
+--query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB'
 CREATE DATABASE db2;
 
 --source include/rpl_connection_master.inc
@@ -75,7 +75,7 @@ DROP DATABASE db2;
 --echo #
 --echo # Verify that the REPLICATE_REWRITE_DB filter is hit 8 times on slave.
 --echo #
---query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters
+--query_vertical SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters WHERE CHANNEL_NAME = '' AND FILTER_NAME = 'REPLICATE_REWRITE_DB'
 
 --source include/stop_slave.inc
 CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB= ();

@@ -17,9 +17,9 @@
 
 --source include/restart_mysqld.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
-call mtr.add_suppression('21.1: Unsuccessful login attempt: Invalid user or password');
 # Plugin 'InnoDB' has ref_count=1 after shutdown
 call mtr.add_suppression("Plugin \'InnoDB\'");
 # wait a little to give time for internal temporary session to die out
@@ -60,7 +60,7 @@ show global status like 'mysqlx_connections_%';
 
 -->title #Close_peer_disconnected
 -->title -Connect and disconnect while idle
--->newsession sess	root
+-->newsession sess	x_root
 -->closesession abort
 
 -->sql
@@ -71,7 +71,7 @@ show global status like 'mysqlx_connections_%';
 ##########
 
 -->title -Connect and disconnect while running a query
--->newsession sess	root
+-->newsession sess	x_root
 
 Mysqlx.Sql.StmtExecute {
     stmt: "select sleep(%SLEEP%)"
@@ -89,7 +89,7 @@ show global status like 'mysqlx_connections_%';
 ##########
 
 -->title -Connect and disconnect while streaming result
--->newsession sess	root
+-->newsession sess	x_root
 
 Mysqlx.Sql.StmtExecute {
     stmt: "show variables"
@@ -105,7 +105,7 @@ show global status like 'mysqlx_connections_%';
 ###########
 
 -->title -Connect and disconnect while input queue is full
--->newsession sess	root
+-->newsession sess	x_root
 
 Mysqlx.Sql.StmtExecute {
     stmt: "select sleep(%SLEEP%)"
@@ -122,7 +122,7 @@ show global status like 'mysqlx_connections_%';
 
 -->title -Disconnect while in a pipeline
 
--->newsession sess	root
+-->newsession sess	x_root
 Mysqlx.Sql.StmtExecute {
     stmt: "select 6"
 }
@@ -138,7 +138,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->title -Close when idle
 
--->newsession sess	root
+-->newsession sess	x_root
 Mysqlx.Sql.StmtExecute {
     stmt: "select 1"
 }
@@ -152,7 +152,7 @@ show global status like 'mysqlx_connections_%';
 
 -->title -Close in a pipeline
 
--->newsession sess	root
+-->newsession sess	x_root
 Mysqlx.Sql.StmtExecute {
     stmt: "select 2"
 }
@@ -178,7 +178,7 @@ select 4;
 
 -->title -Kill a session while idle
 
--->newsession sess	root
+-->newsession sess	x_root
 -->varlet %SESS_CLIENT_ID% %ACTIVE_CLIENT_ID%
 -->setsession
 
@@ -204,7 +204,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->title -Kill a session executing query
 
--->newsession sess	root
+-->newsession sess	x_root
 -->varlet %SESS_CLIENT_ID% %ACTIVE_CLIENT_ID%
 Mysqlx.Sql.StmtExecute {
     stmt: "call test.get_stuck()"
@@ -380,7 +380,7 @@ Mysqlx.Connection.CapabilitiesGet {
 
 -->title -Send illegal message after handshake
 
--->newsession sess	root
+-->newsession sess	x_root
 -->binsend \x00\xff\xff\xff\xffxxxxx
 
 -->peerdisc 500 500
@@ -388,13 +388,13 @@ Mysqlx.Connection.CapabilitiesGet {
 -->title -Connection failure by auth
 
 -->expecterror 1045
--->newsession sess	root	badpass
+-->newsession sess	x_root	badpass
 
 ###########
 
 -->title #Other conditions
 -->title -Connect and disconnect after queue read timeout
--->newsession sess	root
+-->newsession sess	x_root
 
 # 1s more than the value in the plugin
 -->varlet %SESSION_MESSAGE_QUEUE_TIMEOUT% 7
@@ -441,7 +441,7 @@ Mysqlx.Session.Close {
 EOF
 
 --replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/client_close.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/client_close.tmp
 
 # sleep for a while to ensure clean up finished
@@ -453,4 +453,5 @@ show global status like 'mysqlx_connections_%';
 SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
 drop procedure test.get_stuck;
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

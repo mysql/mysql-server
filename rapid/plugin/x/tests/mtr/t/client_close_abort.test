@@ -1,11 +1,11 @@
 --source include/restart_mysqld.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ##Pipelining the message after closing the pipe leads to undefined behaviour hence is not suppoerted on Windows OS
 --source include/not_windows.inc
 
 call mtr.add_suppression('Message of size 4294967040 received, exceeding the limit of 1048576');
-call mtr.add_suppression('22.1: Unsuccessful login attempt: Invalid user or password');
 # wait a little to give time for internal temporary session to die out
 select sleep(1);
 --replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/
@@ -18,7 +18,7 @@ SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCE
 --write_file $MYSQL_TMP_DIR/client_close_abort.tmp
 
 -->title -Close in a pipeline and try to do something after close
--->newsession sess	root
+-->newsession sess	x_root
 Mysqlx.Sql.StmtExecute {
     stmt: "select 4.1"
 }
@@ -43,7 +43,7 @@ Mysqlx.Sql.StmtExecute {
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/client_close_abort.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/client_close_abort.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/client_close_abort.tmp
 
 # sleep for a while to ensure clean up finished
@@ -54,4 +54,5 @@ show global status like 'mysqlx_connections_%';
 --replace_regex /localhost[:0-9]*/localhost/ /Execute/Query/
 SELECT `user`,`host`,`db`,`command`,`state`,`info` FROM INFORMATION_SCHEMA.PROCESSLIST WHERE `state` != 'cleaning up';
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

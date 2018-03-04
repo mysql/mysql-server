@@ -45,8 +45,8 @@ COMMIT;
 --echo # Assert that a conflict between a huge transaction, one that
 --echo # does change all table rows, and a small transaction is
 --echo # detected.
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=UPDATE t1 SET balance=1000
 --let $remote_transaction=UPDATE t1 SET balance=200 WHERE id>70000 AND id<70100

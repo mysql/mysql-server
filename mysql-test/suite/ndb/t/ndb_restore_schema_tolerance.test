@@ -17,7 +17,7 @@ create table t1 (
   g char(20),
   h text,
   i int,
-  primary key(a,b)) TABLESPACE ts1 engine = ndb;
+  primary key(a,b)) engine = ndb;
 
 insert into t1 values
         (1, 1, 1, 1, '1', 1, 'Rankin', 'Rebus', 1),
@@ -143,7 +143,7 @@ USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M
 ENGINE NDB;
 
-alter table t1 change i i int storage disk;
+alter table t1 TABLESPACE ts1, change i i int storage disk;
 
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -165,8 +165,8 @@ alter table t1 change c c int column_format dynamic;
 select * from t1 order by a;
 
 drop table t1;
-alter tablespace ts1 drop datafile 'datafile.dat' engine=ndb;
-drop tablespace ts1 engine=ndb;
+alter tablespace ts1 drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1 engine=ndb;
 
 --echo Different PK columns, should fail
@@ -180,7 +180,7 @@ create table t1 (
   g char(20),
   h text,
   i int,
-  primary key (a)) TABLESPACE ts1 engine = ndb;
+  primary key (a)) engine = ndb;
 
 --error 1
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -199,7 +199,7 @@ create table t1 (
   g char(20),
   h text,
   i int,
-  primary key(a,b)) TABLESPACE ts1 engine = ndb partition by key(a);
+  primary key(a,b)) engine = ndb partition by key(a);
 
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT

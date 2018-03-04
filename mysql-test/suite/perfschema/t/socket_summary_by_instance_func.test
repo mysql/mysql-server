@@ -175,28 +175,6 @@ if(!$success)
 --disable_query_log
 
 #
-# Lower the resolution of the wait timer from the default 'CYCLE'
-# to 'NANOSECOND'.
-# Hint: The timer columns contains values in picoseconds independent
-#       of the timer resolution.
-#       The timer resolution has an impact on the precision of the value.
-# This should prevent the failures seen on some suspicious PB boxes where
-# - calculations exceeded the BIGINT UNSIGNED (data type of the counter columns)
-#   value range.
-# - we have reached from whatever reason 20 digit values 
-# The consequence for the current test is the following:
-#    The common sense rule
-#       In case COUNT_<A> increases than SUM_TIMER_<A> must also increase
-#    is no more valid because some action might need less time than the
-#    timer resolution.
-#
-let $wait_timer= `SELECT TIMER_NAME FROM performance_schema.setup_timers
-                  WHERE NAME = 'wait'`;
-UPDATE performance_schema.setup_timers
-SET TIMER_NAME = 'NANOSECOND'
-WHERE NAME = 'wait';
-
-#
 # Additional SCHEMA used for
 # - detection of our "worker" session within the PROCESSLIST.
 #   No other connection should use this schema as default schema.
@@ -1703,10 +1681,6 @@ if($print_details)
 #==================
 # Cleanup
 --disable_query_log
-eval
-UPDATE performance_schema.setup_timers
-SET TIMER_NAME = '$wait_timer'
-WHERE NAME = 'wait';
 DROP SCHEMA mysqltest;
 DROP SCHEMA mysqlsupertest;
 --connection con1

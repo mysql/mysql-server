@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
 #include <stddef.h>
@@ -66,7 +73,7 @@ void SetRingOrderTest::set_order_and_compare(const std::string &s1,
   wkt.set(s1.c_str(), s1.length(), latincc);
   wkt2.set(s2.c_str(), s2.length(), latincc);
 
-  Gis_polygon_ring *ringp= static_cast<Gis_polygon_ring *>
+  Gis_line_string *ringp= static_cast<Gis_line_string *>
     (geometry_from_text(wkt, &str, &buffer));
   DBUG_ASSERT(ringp->get_geotype() == Geometry::wkb_linestring);
   Gis_polygon_ring ring(ringp->get_ptr(),
@@ -74,7 +81,7 @@ void SetRingOrderTest::set_order_and_compare(const std::string &s1,
   EXPECT_EQ(ring.set_ring_order(want_ccw), false);
 
 
-  ringp= static_cast<Gis_polygon_ring *>(geometry_from_text(wkt2, &str2,
+  ringp= static_cast<Gis_line_string *>(geometry_from_text(wkt2, &str2,
                                                             &buffer2));
   DBUG_ASSERT(ringp->get_geotype() == Geometry::wkb_linestring);
   Gis_polygon_ring ring2(ringp->get_ptr(),
@@ -155,7 +162,7 @@ TEST_F(SetRingOrderTest, RingDegradedToPointTest)
   std::string s1("linestring(0 0, 0 0, 0 0, 0 0, 0 0)");
   wkt.set(s1.c_str(), s1.length(), latincc);
 
-  Gis_polygon_ring *ringp= static_cast<Gis_polygon_ring *>
+  Gis_line_string *ringp= static_cast<Gis_line_string *>
     (geometry_from_text(wkt, &str, &buffer));
   DBUG_ASSERT(ringp->get_geotype() == Geometry::wkb_linestring);
   Gis_polygon_ring ring(ringp->get_ptr(),

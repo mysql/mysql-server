@@ -2,13 +2,20 @@
    Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1926,6 +1933,7 @@ runCheckOpenNextRedoLogFile(NDBT_Context* ctx, NDBT_Step* step)
   // Commit the open transaction to trim the redo log.
   int retries = -1;
   int success_after_err = 0;
+  bool committed = false;
   NdbError err;
   int upval = 0;
   g_err << "Filling redo logs" << endl;
@@ -1949,10 +1957,13 @@ runCheckOpenNextRedoLogFile(NDBT_Context* ctx, NDBT_Step* step)
       CHK3(nodeid != 0, "No nodeid found with almost full logpart");
       CHK3(full_logpart != UINT32_MAX, "No logpart became full");
 
-      // Commit the open transaction to trim the redo log part.
-      CHK3(ops->execute_Commit(GETNDB(step)) == 0,
-           "Error: failed to commit the open transaction.");
-
+      if (!committed)
+      {
+        // Commit the open transaction to trim the redo log part.
+        CHK3(ops->execute_Commit(GETNDB(step)) == 0,
+             "Error: failed to commit the open transaction.");
+      }
+      committed = true;
       g_err << "Check whether the redo log is trimmed" << endl;
       CHK3(((redologpart_is_trimmed(ctx, usage_before, full_logpart,
                                     nodeid)) == NDBT_OK),

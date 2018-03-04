@@ -1,21 +1,25 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License as
-   published by the Free Software Foundation; version 2 of the
-   License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <m_ctype.h>
-#include <my_sys.h>
 #include <mysql/plugin.h>
 #include <mysql/plugin_audit.h>
 #include <mysqld_error.h>
@@ -23,9 +27,11 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
+#include "my_sys.h"
 
 /** Event strings. */
 LEX_CSTRING event_names[][6] = {
@@ -102,7 +108,7 @@ LEX_CSTRING event_names[][6] = {
 static volatile int number_of_calls;
 
 #define AUDIT_NULL_VAR(x) static volatile int number_of_calls_ ## x;
-#include "audit_null_variables.h"
+#include "plugin/audit_null/audit_null_variables.h"
 
 #undef AUDIT_NULL_VAR
 
@@ -118,7 +124,7 @@ static struct st_mysql_show_var simple_status[] =
 
 #define AUDIT_NULL_VAR(x) { "Audit_null_" #x, (char*)&number_of_calls_ ## x, \
                             SHOW_INT, SHOW_SCOPE_GLOBAL },
-#include "audit_null_variables.h"
+#include "plugin/audit_null/audit_null_variables.h"
 
 #undef AUDIT_NULL_VAR
 

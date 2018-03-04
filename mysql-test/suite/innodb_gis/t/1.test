@@ -31,7 +31,6 @@ SHOW FIELDS FROM gis_multi_polygon;
 SHOW FIELDS FROM gis_geometrycollection;
 SHOW FIELDS FROM gis_geometry;
 
-
 INSERT INTO gis_point VALUES 
 (101, ST_PointFromText('POINT(10 10)')),
 (102, ST_PointFromText('POINT(20 10)')),
@@ -170,12 +169,12 @@ DROP TABLE t1;
 SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 explain SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_GeometryFromText('POINT(1 4)'))));
 explain SELECT ST_AsText(ST_GeometryFromWKB(ST_AsWKB(ST_PointFromText('POINT(1 4)'))));
-SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
-explain SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',101));
+SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',0));
+explain SELECT ST_SRID(ST_GeomFromText('LineString(1 1,2 2)',0));
 #select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6)),ST_issimple(ST_PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),ST_issimple(ST_GeometryFromText('POINT(1 4)')), ST_issimple(ST_AsWKB(ST_GeometryFromText('POINT(1 4)')));
 explain select ST_issimple(MultiPoint(Point(3, 6), Point(4, 10))), ST_issimple(Point(3, 6));
 
-create table t1 (a geometry not null);
+create table t1 (a geometry not null SRID 0);
 insert into t1 values (ST_GeomFromText('Point(1 2)'));
 -- error 1416
 insert into t1 values ('Garbage');
@@ -302,7 +301,7 @@ drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`
-geometry NOT NULL default '') ENGINE=InnoDB ;
+geometry NOT NULL) ENGINE=InnoDB ;
 
 SET sql_mode = default;
 
@@ -1004,38 +1003,38 @@ ST_PolyFromText(
 (52 18,66 23,73 9,48 6,52 18), 
 (59 18,67 18,67 13,59 13,59 18) 
 )', 
-101)); 
+0)); 
 
 
 --echo # Road Segments
 
 INSERT INTO road_segments VALUES(102, 'Route 5', NULL, 2, 
 ST_LineFromText( 
-'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,101)); 
+'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,0)); 
 
 INSERT INTO road_segments VALUES(103, 'Route 5', 'Main Street', 4, 
 ST_LineFromText( 
-'LINESTRING( 44 31, 56 34, 70 38 )' ,101)); 
+'LINESTRING( 44 31, 56 34, 70 38 )' ,0)); 
 
 INSERT INTO road_segments VALUES(104, 'Route 5', NULL, 2, 
 ST_LineFromText( 
-'LINESTRING( 70 38, 72 48 )' ,101)); 
+'LINESTRING( 70 38, 72 48 )' ,0)); 
 
 INSERT INTO road_segments VALUES(105, 'Main Street', NULL, 4, 
 ST_LineFromText( 
-'LINESTRING( 70 38, 84 42 )' ,101)); 
+'LINESTRING( 70 38, 84 42 )' ,0)); 
 
 INSERT INTO road_segments VALUES(106, 'Dirt Road by Green Forest', NULL, 
 1, 
 ST_LineFromText( 
-'LINESTRING( 28 26, 28 0 )',101)); 
+'LINESTRING( 28 26, 28 0 )',0)); 
 
 --echo # DividedRoutes 
 
 INSERT INTO divided_routes VALUES(119, 'Route 75', 4, 
 ST_MLineFromText( 
 'MULTILINESTRING((10 48,10 21,10 0), 
-(16 0,16 23,16 48))', 101)); 
+(16 0,16 23,16 48))', 0)); 
 
 --echo # Forests 
 
@@ -1043,36 +1042,36 @@ INSERT INTO forests VALUES(109, 'Green Forest',
 ST_MPolyFromText( 
 'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26), 
 (52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))', 
-101)); 
+0)); 
 
 --echo # Bridges 
 
 INSERT INTO bridges VALUES(110, 'Cam Bridge', ST_PointFromText( 
-'POINT( 44 31 )', 101)); 
+'POINT( 44 31 )', 0)); 
 
 --echo # Streams 
 
 INSERT INTO streams VALUES(111, 'Cam Stream', 
 ST_LineFromText( 
-'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 101)); 
+'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 0)); 
 
 INSERT INTO streams VALUES(112, NULL, 
 ST_LineFromText( 
-'LINESTRING( 76 0, 78 4, 73 9 )', 101)); 
+'LINESTRING( 76 0, 78 4, 73 9 )', 0)); 
 
 --echo # Buildings 
 
 INSERT INTO buildings VALUES(113, '123 Main Street', 
 ST_PointFromText( 
-'POINT( 52 30 )', 101), 
+'POINT( 52 30 )', 0), 
 ST_PolyFromText( 
-'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 101)); 
+'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 0)); 
 
 INSERT INTO buildings VALUES(114, '215 Main Street', 
 ST_PointFromText( 
-'POINT( 64 33 )', 101), 
+'POINT( 64 33 )', 0), 
 ST_PolyFromText( 
-'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 101)); 
+'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 0)); 
 
 
 --echo # Ponds 
@@ -1080,23 +1079,23 @@ ST_PolyFromText(
 INSERT INTO ponds VALUES(120, NULL, 'Stock Pond', 
 ST_MPolyFromText( 
 'MULTIPOLYGON( ( ( 24 44, 22 42, 24 40, 24 44) ), 
-( ( 26 44, 26 40, 28 42, 26 44) ) )', 101)); 
+( ( 26 44, 26 40, 28 42, 26 44) ) )', 0)); 
 
 --echo # Named Places 
 
 INSERT INTO named_places VALUES(117, 'Ashton', 
 ST_PolyFromText( 
-'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 101)); 
+'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 0)); 
 
 INSERT INTO named_places VALUES(118, 'Goose Island', 
 ST_PolyFromText( 
-'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 101)); 
+'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 0)); 
 
 --echo # Map Neatlines 
 
 INSERT INTO map_neatlines VALUES(115, 
 ST_PolyFromText( 
-'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 101)); 
+'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 0)); 
 
 --echo #
 --echo # C.3.3.3 Geometry types and functions schema test queries 
@@ -1151,7 +1150,7 @@ WHERE name = 'Goose Island';
 
 --echo # Conformance Item T9 
 # TODO: ST_AsBinary(), ST_PolyFromWKB() aliases
-SELECT ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),101)) 
+SELECT ST_AsText(ST_PolyFromWKB(ST_AsBinary(boundary),0)) 
 FROM named_places 
 WHERE name = 'Goose Island'; 
 
@@ -1321,32 +1320,21 @@ SELECT ST_Area(shores)
 FROM ponds 
 WHERE fid = 120; 
 
---echo # Conformance Item T37 
-# TODO: ST_PolyFromText() alias
---error ER_SRS_NOT_FOUND
-SELECT ST_Equals(boundary, 
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1)) 
-FROM named_places 
-WHERE name = 'Goose Island'; 
-
 --echo # Conformance Item T37
 --echo # Geometry arguments' SRIDs must be identical.
---error ER_SRS_NOT_FOUND
 SELECT ST_Equals(boundary,
-ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
+ST_PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',0))
 FROM named_places
 WHERE name = 'Goose Island';
 
 
---echo # Conformance Item T38 
---error ER_SRS_NOT_FOUND
+--echo # Conformance Item T38
 SELECT ST_Disjoint(centerlines, boundary) 
 FROM divided_routes, named_places 
 WHERE divided_routes.name = 'Route 75' 
 AND named_places.name = 'Ashton'; 
 
---echo # Conformance Item T39 
---error ER_SRS_NOT_FOUND
+--echo # Conformance Item T39
 SELECT ST_Touches(centerline, shore) 
 FROM streams, lakes 
 WHERE streams.name = 'Cam Stream' 
@@ -1368,21 +1356,18 @@ AND lakes.name = 'Blue Lake';
 
 --echo # Conformance Item T42
 # FIXME: TODO: ST_Crosses() alias
---error ER_SRS_NOT_FOUND
 SELECT ST_Crosses(road_segments.centerline, divided_routes.centerlines)
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75'; 
 
---echo # Conformance Item T43 
---error ER_SRS_NOT_FOUND
+--echo # Conformance Item T43
 SELECT ST_Intersects(road_segments.centerline, divided_routes.centerlines) 
 FROM road_segments, divided_routes 
 WHERE road_segments.fid = 102 
 AND divided_routes.name = 'Route 75'; 
 
---echo # Conformance Item T44 
---error ER_SRS_NOT_FOUND
+--echo # Conformance Item T44
 SELECT ST_Contains(forests.boundary, named_places.boundary) 
 FROM forests, named_places 
 WHERE forests.name = 'Green Forest' 
@@ -1393,13 +1378,12 @@ AND named_places.name = 'Ashton';
 #SELECT Relate(forests.boundary, named_places.boundary, 'TTTTTTTTT') 
 #FROM forests, named_places 
 #WHERE forests.name = 'Green Forest' 
-#AND named_places.name = 'Ashton'; 
+#AND named_places.name = 'Ashton';
 
---echo # Conformance Item T46 
---error ER_SRS_NOT_FOUND
-SELECT ST_Distance(position, boundary) 
-FROM bridges, named_places 
-WHERE bridges.name = 'Cam Bridge' 
+--echo # Conformance Item T46
+SELECT ST_Distance(position, boundary)
+FROM bridges, named_places
+WHERE bridges.name = 'Cam Bridge'
 AND named_places.name = 'Ashton'; 
 
 # FIXME: wrong result: NULL, expected 12
@@ -1427,9 +1411,8 @@ FROM lakes, named_places
 WHERE lakes.name = 'Blue Lake' 
 AND named_places.name = 'Ashton'; 
 
---echo # Conformance Item T51 
---error ER_SRS_NOT_FOUND
-SELECT count(*) 
+--echo # Conformance Item T51
+SELECT count(*)
 FROM buildings, bridges 
 WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1; 
 

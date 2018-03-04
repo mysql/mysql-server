@@ -7,8 +7,8 @@ call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations
 1
 0 rows affected
 SCHEMA_NAME	DIGEST_TEXT	COUNT_STAR
-null	SELECT ? 	1
 null	TRUNCATE TABLE `performance_schema` . `events_statements_summary_by_digest` 	1
+null	SELECT ? 	1
 0 rows affected
 
 1 rows affected
@@ -29,7 +29,7 @@ INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"one\"}')
 
 1 rows affected
 Query
-INSERT INTO `xtest`.`test` (doc) VALUES (CAST('{\"_id\": \"two\"}' AS JSON)) ON DUPLICATE KEY UPDATE doc = JSON_SET(VALUES(doc), '$._id', JSON_EXTRACT(doc, '$._id'))
+INSERT INTO `xtest`.`test` (doc) VALUES (CAST('{\"_id\": \"two\"}' AS JSON)) ON DUPLICATE KEY UPDATE doc = IF(JSON_EXTRACT(doc, '$._id') = JSON_EXTRACT(VALUES(doc), '$._id'), VALUES(doc), MYSQLX_ERROR(5018))
 0 rows affected
 ######### Crud.Update #########
 
@@ -100,7 +100,7 @@ CREATE TABLE `xtest`.`test2` (doc JSON,_id VARCHAR(32) GENERATED ALWAYS AS (JSON
 command ok
 Query
 CREATE TABLE `xtest`.`test2` (doc JSON,_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED PRIMARY KEY) CHARSET utf8mb4 ENGINE=InnoDB
-SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$(\\.[[:alnum:]_]+)+\\\\''\\)') THEN 1 ELSE NULL END) AS gen FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
+SELECT COUNT(*) AS cnt,COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END) AS doc,COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END) AS id,COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*\\\\''\\)') THEN 1 ELSE NULL END) AS gen FROM information_schema.columns WHERE table_name = 'test2' AND table_schema = 'xtest'
 0 rows affected
 ######### create_collection_index #########
 
@@ -154,7 +154,7 @@ test2	COLLECTION
 command ok
 Query
 SHOW TABLES FROM `xtest`
-SELECT T.table_name AS name, IF(ANY_VALUE(T.table_type) LIKE '%VIEW', IF(COUNT(*)=1 AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$(\\.[[:alnum:]_]+)+\\\\''\\)') THEN 1 ELSE NULL END) AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1 AND COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END)=1, 'COLLECTION', 'TABLE')) AS type FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C ON (T.table_schema = C.table_schema AND T.table_name = C.table_name) WHERE T.table_schema = 'xtest' GROUP BY name ORDER BY name
+SELECT T.table_name AS name, IF(ANY_VALUE(T.table_type) LIKE '%VIEW', IF(COUNT(*)=1 AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1, 'COLLECTION_VIEW', 'VIEW'), IF(COUNT(*)-2 = COUNT(CASE WHEN (column_name != '_id' AND column_name != 'doc' AND generation_expression RLIKE 'json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*\\\\''\\)') THEN 1 ELSE NULL END) AND COUNT(CASE WHEN (column_name = 'doc' AND data_type = 'json') THEN 1 ELSE NULL END)=1 AND COUNT(CASE WHEN (column_name = '_id' AND generation_expression RLIKE '^json_unquote\\(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\''\\$\\._id\\\\''\\)\\)$') THEN 1 ELSE NULL END)=1, 'COLLECTION', 'TABLE')) AS type FROM information_schema.tables AS T LEFT JOIN information_schema.columns AS C ON (T.table_schema = C.table_schema AND T.table_name = C.table_name) WHERE T.table_schema = 'xtest' GROUP BY name ORDER BY name
 0 rows affected
 ######### drop_collection #########
 
@@ -168,24 +168,24 @@ DROP TABLE `xtest`.`test2`
 
 0 rows affected
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 command ok
 Query
-create user unpriv@localhost
-set password for unpriv@localhost = password('x')
+CREATE USER 'unpriv'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+SET PASSWORD FOR `unpriv`@`localhost`=<secret>
 SHOW WARNINGS
 0 rows affected
 ######### kill_client #########
 connecting...
 active session is now 'unpriv'
 connecting...
-active session is now 'root'
+active session is now 'x_root'
 
 command ok
 
 0 rows affected
 Query
-/* xplugin authentication */ SELECT @@require_secure_transport, `authentication_string`, `plugin`,(`account_locked`='Y') as is_account_locked, (`password_expired`!='N') as `is_password_expired`, @@disconnect_on_expired_password as `disconnect_on_expired_password`, @@offline_mode and (`Super_priv`='N') as `is_offline_mode_and_not_super_user`,`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` FROM mysql.user WHERE 'root' = `user` AND 'localhost' = `host`
+/* xplugin authentication */ SELECT @@require_secure_transport, `authentication_string`, `plugin`,(`account_locked`='Y') as is_account_locked, (`password_expired`!='N') as `is_password_expired`, @@disconnect_on_expired_password as `disconnect_on_expired_password`, @@offline_mode and (`Super_priv`='N') as `is_offline_mode_and_not_super_user`,`ssl_type`, `ssl_cipher`, `x509_issuer`, `x509_subject` FROM mysql.user WHERE 'x_root' = `user` AND 'localhost' = `host`
 KILL
 drop user unpriv@localhost
 0 rows affected
@@ -225,7 +225,7 @@ SHOW WARNINGS
 command ok
 Query
 0 rows affected
-closing session root
+closing session x_root
 Mysqlx.Ok {
   msg: "bye!"
 }

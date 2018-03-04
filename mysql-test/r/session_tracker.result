@@ -437,6 +437,8 @@ Warnings:
 Warning	1231	validate_password_policy is not a valid system variable and will be ignored.
 # Now lets install the validate password plugin.
 INSTALL PLUGIN validate_password SONAME 'validate_password.so';
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 # plugin installed!
 
 SELECT @@session.session_track_system_variables;
@@ -447,6 +449,8 @@ SET @@session.session_track_system_variables='validate_password_policy,autocommi
 
 # Cleanup.
 UNINSTALL PLUGIN validate_password;
+Warnings:
+Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
 #
 # WL#6885  Track session state change
 #

@@ -1,17 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__VIEW_ROUTINE_IMPL_INCLUDED
 #define DD__VIEW_ROUTINE_IMPL_INCLUDED
@@ -22,7 +29,6 @@
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/object_type.h"        // dd::Object_type
 #include "sql/dd/types/view_routine.h"       // dd::View_routine
 
 namespace dd {
@@ -52,8 +58,9 @@ public:
   { }
 
 public:
-  virtual const Object_table &object_table() const
-  { return View_routine::OBJECT_TABLE(); }
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
+  virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
 
@@ -131,17 +138,6 @@ private:
 
   // References to other objects
   View_impl *m_view;
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class View_routine_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  { return new (std::nothrow) View_routine_impl(); }
 };
 
 ///////////////////////////////////////////////////////////////////////////

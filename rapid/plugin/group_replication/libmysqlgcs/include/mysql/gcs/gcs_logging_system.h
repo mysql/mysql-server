@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -15,25 +22,25 @@
 #ifndef GCS_LOG_SYSTEM_INCLUDED
 #define	GCS_LOG_SYSTEM_INCLUDED
 
+#include <errno.h>
 #include <stddef.h>
+#include <string.h>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <sstream>
-#include <errno.h>
-#include <string.h>
 #include <string>
-#include <vector>
 #include <thread>
+#include <vector>
 
-#include "xplatform/my_xp_thread.h"
-#include "gcs_psi.h"
-#include "gcs_logging.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_thread.h"
 
 
 #ifndef XCOM_STANDALONE
-#include <my_sys.h>
+#include "my_sys.h"
 #endif /* XCOM_STANDALONE */
 
 #define GCS_MAX_LOG_BUFFER 512
@@ -241,13 +248,6 @@ class Gcs_async_buffer
     My_xp_cond *m_wait_for_events_cond;
 
     /**
-      Mutex variable that is used by the producer to notify the consumer that
-      it should wake up.
-    */
-    My_xp_mutex *m_wait_for_events_mutex;
-
-
-    /**
       Conditional variable that is used by the consumer to notify the producer
       that there are free slots.
     */
@@ -364,13 +364,7 @@ class Gcs_async_buffer
 
     void sleep_consumer() const
     {
-      struct timespec ts;
-      unsigned long wait_ms= 500;
-
-      m_wait_for_events_mutex->lock();
-      My_xp_util::set_timespec_nsec(&ts, wait_ms * 1000000);
-      m_wait_for_events_cond->timed_wait(m_wait_for_events_mutex->get_native_mutex(), &ts);
-      m_wait_for_events_mutex->unlock();
+      m_wait_for_events_cond->wait(m_free_buffer_mutex->get_native_mutex());
     }
 
 

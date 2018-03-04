@@ -12,35 +12,17 @@ a	b	c	d
 ["ibd2sdi"
 ,
 {
-	"type": 0,
-	"id": X,
-	"object":
-		{
-    "mysqld_version_id": X,
-    "dd_version": 1,
-    "sdi_version": 1,
-    "dd_object_type": "Schema",
-    "dd_object": {
-        "name": "test",
-        "default_collation_id": 255,
-        "created": NNN,
-        "last_altered": NNN
-    }
-}
-}
-,
-{
 	"type": 1,
 	"id": X,
 	"object":
 		{
     "mysqld_version_id": X,
-    "dd_version": 1,
+    "dd_version": X,
     "sdi_version": 1,
     "dd_object_type": "Table",
     "dd_object": {
         "name": "t1",
-        "mysql_version_id": 80003,
+        "mysql_version_id": X,
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
@@ -339,14 +321,14 @@ a	b	c	d
 	"object":
 		{
     "mysqld_version_id": X,
-    "dd_version": 1,
+    "dd_version": X,
     "sdi_version": 1,
     "dd_object_type": "Tablespace",
     "dd_object": {
         "name": "test/t1",
         "comment": "",
         "options": "",
-        "se_private_data": "flags=X;id=Y;",
+        "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;",
         "engine": "InnoDB",
         "files": [
             {

@@ -79,7 +79,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_
 --source include/grep_pattern.inc
 
 # The server restart aborts. Count should be 4.
---let $grep_pattern= \[ERROR\] Aborting
+--let $grep_pattern= \[ERROR\] \[[^]]*\] Aborting
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
@@ -132,7 +132,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_
 --source include/grep_pattern.inc
 
 # The server restart aborts. Count should be 4.
---let $grep_pattern= \[ERROR\] Aborting
+--let $grep_pattern= \[ERROR\] \[[^]]*\] Aborting
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
@@ -170,7 +170,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_
 --source include/grep_pattern.inc
 
 # The server restart aborts. Count should be 3.
---let $grep_pattern= \[ERROR\] Aborting
+--let $grep_pattern= \[ERROR\] \[[^]]*\] Aborting
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
@@ -208,7 +208,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console >> $error_log 2>&1 $server_filter_
 --source include/grep_pattern.inc
 
 # The server restart aborts. Count should be 3.
---let $grep_pattern= \[ERROR\] Aborting
+--let $grep_pattern= \[ERROR\] \[[^]]*\] Aborting
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 

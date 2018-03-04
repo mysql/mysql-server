@@ -154,7 +154,7 @@ def	performance_schema	events_statements_current	TIMER_END	7	NULL	YES	bigint	NUL
 def	performance_schema	events_statements_current	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	LOCK_TIME	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	SQL_TEXT	10	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references			NULL
-def	performance_schema	events_statements_current	DIGEST	11	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	events_statements_current	DIGEST	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	DIGEST_TEXT	12	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	CURRENT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	OBJECT_TYPE	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
@@ -186,7 +186,7 @@ def	performance_schema	events_statements_current	NESTING_EVENT_ID	39	NULL	YES	bi
 def	performance_schema	events_statements_current	NESTING_EVENT_TYPE	40	NULL	YES	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('TRANSACTION','STATEMENT','STAGE','WAIT')			select,insert,update,references			NULL
 def	performance_schema	events_statements_current	NESTING_EVENT_LEVEL	41	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	SCHEMA_NAME	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references			NULL
-def	performance_schema	events_statements_histogram_by_digest	DIGEST	2	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	events_statements_histogram_by_digest	DIGEST	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	BUCKET_NUMBER	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	BUCKET_TIMER_LOW	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_histogram_by_digest	BUCKET_TIMER_HIGH	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
@@ -209,7 +209,7 @@ def	performance_schema	events_statements_history	TIMER_END	7	NULL	YES	bigint	NUL
 def	performance_schema	events_statements_history	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	LOCK_TIME	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	SQL_TEXT	10	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references			NULL
-def	performance_schema	events_statements_history	DIGEST	11	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	events_statements_history	DIGEST	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	DIGEST_TEXT	12	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	CURRENT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_history	OBJECT_TYPE	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
@@ -250,7 +250,7 @@ def	performance_schema	events_statements_history_long	TIMER_END	7	NULL	YES	bigin
 def	performance_schema	events_statements_history_long	TIMER_WAIT	8	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	LOCK_TIME	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	SQL_TEXT	10	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references			NULL
-def	performance_schema	events_statements_history_long	DIGEST	11	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	events_statements_history_long	DIGEST	11	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	DIGEST_TEXT	12	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	CURRENT_SCHEMA	13	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_history_long	OBJECT_TYPE	14	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
@@ -309,7 +309,7 @@ def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_SO
 def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_NO_INDEX_USED	26	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_account_by_event_name	SUM_NO_GOOD_INDEX_USED	27	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	SCHEMA_NAME	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references			NULL
-def	performance_schema	events_statements_summary_by_digest	DIGEST	2	NULL	YES	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	events_statements_summary_by_digest	DIGEST	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	DIGEST_TEXT	3	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	COUNT_STAR	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	events_statements_summary_by_digest	SUM_TIMER_WAIT	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
@@ -884,13 +884,14 @@ def	performance_schema	memory_summary_global_by_event_name	HIGH_NUMBER_OF_BYTES_
 def	performance_schema	metadata_locks	OBJECT_TYPE	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	MUL		select,insert,update,references			NULL
 def	performance_schema	metadata_locks	OBJECT_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	metadata_locks	OBJECT_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_TYPE	5	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_DURATION	6	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	LOCK_STATUS	7	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	SOURCE	8	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OWNER_THREAD_ID	9	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
-def	performance_schema	metadata_locks	OWNER_EVENT_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	COLUMN_NAME	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OBJECT_INSTANCE_BEGIN	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_TYPE	6	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_DURATION	7	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	LOCK_STATUS	8	NULL	NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	SOURCE	9	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OWNER_THREAD_ID	10	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
+def	performance_schema	metadata_locks	OWNER_EVENT_ID	11	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	mutex_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)	MUL		select,insert,update,references			NULL
 def	performance_schema	mutex_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	mutex_instances	LOCKED_BY_THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
@@ -902,7 +903,7 @@ def	performance_schema	objects_summary_global_by_type	SUM_TIMER_WAIT	5	NULL	NO	b
 def	performance_schema	objects_summary_global_by_type	MIN_TIMER_WAIT	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	objects_summary_global_by_type	AVG_TIMER_WAIT	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	objects_summary_global_by_type	MAX_TIMER_WAIT	8	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
-def	performance_schema	performance_timers	TIMER_NAME	1	NULL	NO	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK')			select,insert,update,references			NULL
+def	performance_schema	performance_timers	TIMER_NAME	1	NULL	NO	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND')			select,insert,update,references			NULL
 def	performance_schema	performance_timers	TIMER_FREQUENCY	2	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references			NULL
 def	performance_schema	performance_timers	TIMER_RESOLUTION	3	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references			NULL
 def	performance_schema	performance_timers	TIMER_OVERHEAD	4	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(20)			select,insert,update,references			NULL
@@ -1009,6 +1010,8 @@ def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_INT
 def	performance_schema	replication_connection_configuration	CONNECTION_RETRY_COUNT	17	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
 def	performance_schema	replication_connection_configuration	HEARTBEAT_INTERVAL	18	NULL	NO	double	NULL	NULL	10	3	NULL	NULL	NULL	double(10,3) unsigned			select,insert,update,references	Number of seconds after which a heartbeat will be sent .		NULL
 def	performance_schema	replication_connection_configuration	TLS_VERSION	19	NULL	NO	varchar	255	765	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select,insert,update,references			NULL
+def	performance_schema	replication_connection_configuration	PUBLIC_KEY_PATH	20	NULL	NO	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select,insert,update,references			NULL
+def	performance_schema	replication_connection_configuration	GET_PUBLIC_KEY	21	NULL	NO	enum	3	9	NULL	NULL	NULL	utf8	utf8_general_ci	enum('YES','NO')			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	CHANNEL_NAME	1	NULL	NO	char	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	char(64)	PRI		select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	GROUP_NAME	2	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references			NULL
 def	performance_schema	replication_connection_status	SOURCE_UUID	3	NULL	NO	char	36	108	NULL	NULL	NULL	utf8	utf8_bin	char(36)			select,insert,update,references			NULL
@@ -1089,8 +1092,6 @@ def	performance_schema	setup_threads	HISTORY	3	NULL	NO	enum	3	9	NULL	NULL	NULL	u
 def	performance_schema	setup_threads	PROPERTIES	4	NULL	NO	set	14	42	NULL	NULL	NULL	utf8	utf8_general_ci	set('singleton','user')			select,insert,update,references			NULL
 def	performance_schema	setup_threads	VOLATILITY	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references			NULL
 def	performance_schema	setup_threads	DOCUMENTATION	6	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select,insert,update,references			NULL
-def	performance_schema	setup_timers	NAME	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)	PRI		select,insert,update,references			NULL
-def	performance_schema	setup_timers	TIMER_NAME	2	NULL	NO	enum	11	33	NULL	NULL	NULL	utf8	utf8_general_ci	enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK')			select,insert,update,references			NULL
 def	performance_schema	socket_instances	EVENT_NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references			NULL
 def	performance_schema	socket_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
 def	performance_schema	socket_instances	THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
@@ -1348,7 +1349,7 @@ def	performance_schema	variables_info	VARIABLE_SOURCE	2	COMPILED	YES	enum	12	36	
 def	performance_schema	variables_info	VARIABLE_PATH	3	NULL	YES	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references			NULL
 def	performance_schema	variables_info	MIN_VALUE	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
 def	performance_schema	variables_info	MAX_VALUE	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references			NULL
-def	performance_schema	variables_info	SET_TIME	6	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
+def	performance_schema	variables_info	SET_TIME	6	NULL	YES	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp			select,insert,update,references			NULL
 def	performance_schema	variables_info	SET_USER	7	NULL	YES	char	32	96	NULL	NULL	NULL	utf8	utf8_bin	char(32)			select,insert,update,references			NULL
 def	performance_schema	variables_info	SET_HOST	8	NULL	YES	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references			NULL
 select count(*) from information_schema.columns

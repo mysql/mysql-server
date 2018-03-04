@@ -1,29 +1,76 @@
 SET GLOBAL innodb_undo_tablespaces=2;
-SET GLOBAL innodb_rollback_segments=3;
+SET GLOBAL innodb_rollback_segments=1;
+SET GLOBAL innodb_undo_log_truncate=1;
+SET GLOBAL innodb_max_undo_log_size=10485760;
+SET GLOBAL innodb_purge_rseg_truncate_frequency=1;
+SET GLOBAL innodb_purge_stop_now=ON;
+SET GLOBAL innodb_stats_auto_recalc=OFF;
 SHOW VARIABLES LIKE 'innodb_undo_tablespaces';
 Variable_name	Value
 innodb_undo_tablespaces	2
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
-innodb_rollback_segments	3
-create table t1
-(keyc int, c1 char(100), c2 char(100),
+innodb_rollback_segments	1
+SHOW VARIABLES LIKE 'innodb_rollback_segments';
+Variable_name	Value
+innodb_rollback_segments	1
+create table t1(
+keyc int,
+c1 char(255),
+c2 char(255),
+c3 char(255),
+c4 char(255),
+c5 char(255),
+c6 char(255),
 primary key(keyc)) engine = innodb;
 CREATE PROCEDURE populate_t1()
 BEGIN
 DECLARE i INT DEFAULT 1;
-while (i <= 40000) DO
-insert into t1 values (i, 'a', 'b');
+while (i <= 20000) DO
+insert into t1 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
 SET i = i + 1;
 END WHILE;
 END |
 begin;
 call populate_t1();
-delete from t1 where keyc < 20000;
-update t1 set c1 = 'mysql' where  keyc > 20000;
-update t1 set c2 = 'oracle' where  keyc > 20000;
+delete from t1 where keyc < 10000;
+update t1 set c1 = 'mysql' where  keyc > 10000;
+update t1 set c2 = 'mysql' where  keyc > 10000;
+update t1 set c3= 'mysql' where keyc > 10000;
+update t1 set c4= 'mysql' where keyc > 10000;
+update t1 set c5= 'mysql' where keyc > 10000;
+update t1 set c6= 'mysql' where keyc > 10000;
+create table t2 (
+keyc int,
+c1 char(255),
+c2 char(255),
+c3 char(255),
+c4 char(255),
+c5 char(255),
+c6 char(255),
+primary key(keyc)) engine = innodb;
+CREATE PROCEDURE populate_t2()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 20000) DO
+insert into t2 values (i, 'a', 'b', 'c', 'd', 'e', 'f' );
+SET i = i + 1;
+END WHILE;
+END |
+begin;
+call populate_t2();
+delete from t2 where keyc < 10000;
+update t2 set c1 = 'mysql' where  keyc > 10000;
+update t2 set c2 = 'mysql' where  keyc > 10000;
+update t2 set c3= 'mysql' where keyc > 10000;
+update t2 set c4= 'mysql' where keyc > 10000;
+update t2 set c5= 'mysql' where keyc > 10000;
+update t2 set c6= 'mysql' where keyc > 10000;
 commit;
-drop table t1;
+commit;
 drop PROCEDURE populate_t1;
+drop PROCEDURE populate_t2;
+drop table t1, t2;
+SET GLOBAL innodb_purge_run_now=ON;
 SET GLOBAL innodb_fast_shutdown=0;
 # restart

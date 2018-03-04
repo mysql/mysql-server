@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -33,6 +40,7 @@ struct BackupFormat {
     NDB_MAX_LCP_PARTS / NDB_MAX_FILES_PER_LCP;
   static const Uint32 NDB_MAX_LCP_FILES = 2064;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE = 4096;
+  static const Uint32 NDB_LCP_CTL_FILE_SIZE_BIG = 8192;
 
   enum RecordType
   {
@@ -40,7 +48,9 @@ struct BackupFormat {
     WRITE_TYPE             = 1,
     DELETE_BY_ROWID_TYPE   = 2,
     DELETE_BY_PAGEID_TYPE  = 3,
-    END_TYPE               = 4
+    DELETE_BY_ROWID_WRITE_TYPE = 4,
+    NORMAL_DELETE_TYPE     = 5,
+    END_TYPE               = 6
   };
 
   /**
@@ -103,6 +113,30 @@ struct BackupFormat {
     Uint16 numParts;
   };
 
+  struct OldLCPCtlFile
+  {
+    struct FileHeader fileHeader;
+    Uint32 Checksum;
+    Uint32 ValidFlag;
+    Uint32 TableId;
+    Uint32 FragmentId;
+    Uint32 CreateTableVersion;
+    Uint32 CreateGci;
+    Uint32 MaxGciCompleted;
+    Uint32 MaxGciWritten;
+    Uint32 LcpId;
+    Uint32 LocalLcpId;
+    Uint32 MaxPageCount;
+    Uint32 MaxNumberDataFiles;
+    Uint32 LastDataFileNumber;
+    Uint32 MaxPartPairs;
+    Uint32 NumPartPairs;
+    /**
+     * Flexible sized array of partPairs, there are
+     * NumPartPairs in the array here.
+     */
+    struct PartPair partPairs[1];
+  };
   struct LCPCtlFile
   {
     struct FileHeader fileHeader;
@@ -121,6 +155,9 @@ struct BackupFormat {
     Uint32 LastDataFileNumber;
     Uint32 MaxPartPairs;
     Uint32 NumPartPairs;
+    Uint32 RowCountLow;
+    Uint32 RowCountHigh;
+    Uint32 FutureUse[16];
     /**
      * Flexible sized array of partPairs, there are
      * NumPartPairs in the array here.

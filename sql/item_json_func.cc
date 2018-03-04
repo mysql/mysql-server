@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -49,16 +56,17 @@
 #include "sql/sql_time.h"          // field_type_to_timestamp_type
 #include "sql/table.h"
 #include "template_utils.h"        // down_cast
+#include "sql_executor.h"       // Table_function_result
 
 class PT_item_list;
 
 /** Helper routines */
 
 // see the contract for this function in item_json_func.h
-bool ensure_utf8mb4(String *val, String *buf,
+bool ensure_utf8mb4(const String &val, String *buf,
                     const char **resptr, size_t *reslength, bool require_string)
 {
-  const CHARSET_INFO *cs= val->charset();
+  const CHARSET_INFO *cs= val.charset();
 
   if (cs == &my_charset_bin)
   {
@@ -67,8 +75,8 @@ bool ensure_utf8mb4(String *val, String *buf,
     return true;
   }
 
-  const char *s= val->ptr();
-  size_t ss= val->length();
+  const char *s= val.ptr();
+  size_t ss= val.length();
 
   if (my_charset_same(cs, &my_charset_utf8mb4_bin) ||
       my_charset_same(cs, &my_charset_utf8_bin) ||
@@ -82,7 +90,7 @@ bool ensure_utf8mb4(String *val, String *buf,
   else
   { // If not, we convert, possibly with loss (best effort).
     uint dummy_errors;
-    if (buf->copy(val->ptr(), val->length(), val->charset(),
+    if (buf->copy(val.ptr(), val.length(), val.charset(),
                   &my_charset_utf8mb4_bin, &dummy_errors))
     {
       return true;                            /* purecov: inspected */
@@ -110,19 +118,15 @@ bool ensure_utf8mb4(String *val, String *buf,
                            as input
   @param[out] parse_error  set to true if the parser was run and found an error
                            else false
-  @param[in]  handle_numbers_as_double
-                           Whether numbers should be handled as double. If set
-                           to TRUE, all numbers are parsed as DOUBLE
 
   @returns false if the arg parsed as valid JSON, true otherwise
 */
-static bool parse_json(String *res,
-                       uint arg_idx,
-                       const char *func_name,
-                       Json_dom_ptr *dom,
-                       bool require_str_or_json,
-                       bool *parse_error,
-                       bool handle_numbers_as_double= false)
+bool parse_json(const String &res,
+                uint arg_idx,
+                const char *func_name,
+                Json_dom_ptr *dom,
+                bool require_str_or_json,
+                bool *parse_error)
 {
   char buff[MAX_FIELD_WIDTH];
   String utf8_res(buff, sizeof(buff), &my_charset_utf8mb4_bin);
@@ -146,8 +150,7 @@ static bool parse_json(String *res,
 
   const char *parse_err;
   size_t err_offset;
-  *dom= Json_dom::parse(safep, safe_length, &parse_err, &err_offset,
-                        handle_numbers_as_double);
+  *dom= Json_dom::parse(safep, safe_length, &parse_err, &err_offset);
 
   if (*dom == NULL && parse_err != NULL)
   {
@@ -227,7 +230,7 @@ bool get_json_string(Item *arg_item,
     return true;
   }
 
-  if (ensure_utf8mb4(res, utf8_res, safep, safe_length,
+  if (ensure_utf8mb4(*res, utf8_res, safep, safe_length,
                       true))
   {
     return true;
@@ -252,9 +255,6 @@ bool get_json_string(Item *arg_item,
                             as input
   @param[out]    valid      true if a valid JSON value was found (or NULL),
                             else false
-  @param[in]     handle_numbers_as_double
-                            whether numbers should be handled as double. If set
-                            to TRUE, all numbers are parsed as DOUBLE
 
   @returns true iff syntax error *and* dom != null, else false
 */
@@ -264,8 +264,7 @@ static bool json_is_valid(Item **args,
                           const char *func_name,
                           Json_dom_ptr *dom,
                           bool require_str_or_json,
-                          bool *valid,
-                          bool handle_numbers_as_double= false)
+                          bool *valid)
 {
   Item *const arg_item= args[arg_idx];
 
@@ -311,9 +310,9 @@ static bool json_is_valid(Item **args,
       }
 
       bool parse_error= false;
-      const bool failure= parse_json(res, arg_idx, func_name,
+      const bool failure= parse_json(*res, arg_idx, func_name,
                                      dom, require_str_or_json,
-                                     &parse_error, handle_numbers_as_double);
+                                     &parse_error);
       *valid= !failure;
       return parse_error;
     }
@@ -331,37 +330,15 @@ static bool json_is_valid(Item **args,
 }
 
 
-/**
-  Helper method for Item_func_json_* methods. Assumes that the caller
-  has already verified that the path expression is not null. Raises an
-  error if the path expression is syntactically incorrect. Raises an
-  error if the path expression contains wildcard tokens but is not
-  supposed to. Otherwise updates the supplied Json_path object with
-  the parsed path.
-
-  @param[in]  path_expression  A string Item to be interpreted as a path.
-  @param[out] value            Holder for path string
-  @param[in]  forbid_wildcards True if the path shouldn't contain * or **
-  @param[out] json_path        The object that will hold the parsed path
-  @param[out] null_value       Tells if the returned path is NULL
-
-  @returns false on success (valid path or NULL), true on error
-*/
-static bool parse_path(Item * path_expression, String *value,
-                       bool forbid_wildcards, Json_path *json_path,
-                       bool *null_value)
+bool parse_path(String *path_value, bool forbid_wildcards, Json_path *json_path)
 {
-  String *path_value= path_expression->val_str(value);
-  *null_value= (path_value == nullptr);
-  if (*null_value)
-    return false;
+  DBUG_ASSERT(path_value);
 
   const char * path_chars= path_value->ptr();
   size_t path_length= path_value->length();
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  String res(buff, sizeof(buff), &my_charset_utf8mb4_bin);
+  StringBuffer<STRING_BUFFER_USUAL_SIZE> res(&my_charset_utf8mb4_bin);
 
-  if (ensure_utf8mb4(path_value, &res, &path_chars, &path_length, true))
+  if (ensure_utf8mb4(*path_value, &res, &path_chars, &path_length, true))
   {
     return true;
   }
@@ -505,9 +482,10 @@ bool Json_path_cache::parse_and_cache_path(Item ** args, uint arg_idx,
     m_paths[cell.m_index].clear();
   }
 
-  bool null_value;
-  if (parse_path(arg, &m_path_value, forbid_wildcards, &m_paths[cell.m_index],
-                 &null_value))
+  String *path_value= arg->val_str(&m_path_value);
+  bool null_value= (path_value == nullptr);
+  if (!null_value &&
+      parse_path(path_value, forbid_wildcards, &m_paths[cell.m_index]))
   {
     // oops, parsing failed
     cell.m_status= enum_path_status::ERROR;
@@ -1001,8 +979,7 @@ bool get_json_wrapper(Item **args,
                       uint arg_idx,
                       String *str,
                       const char *func_name,
-                      Json_wrapper *wrapper,
-                      bool handle_numbers_as_double)
+                      Json_wrapper *wrapper)
 {
   if (!json_value(args, arg_idx, wrapper))
   {
@@ -1029,8 +1006,7 @@ bool get_json_wrapper(Item **args,
   Json_dom_ptr dom; //@< we'll receive a DOM here from a successful text parse
 
   bool valid;
-  if (json_is_valid(args, arg_idx, str, func_name, &dom, true, &valid,
-                    handle_numbers_as_double))
+  if (json_is_valid(args, arg_idx, str, func_name, &dom, true, &valid))
     return true;
 
   if (!valid)
@@ -1524,7 +1500,7 @@ static bool val_json_func_field_subselect(Item* arg,
         const char *s= res->ptr();
         size_t ss= res->length();
 
-        if (ensure_utf8mb4(res, tmp, &s, &ss, true))
+        if (ensure_utf8mb4(*res, tmp, &s, &ss, true))
         {
           return true;
         }
@@ -2060,33 +2036,29 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const
   return std::equal(args, args + arg_count, item_json->args, cmp);
 }
 
+#ifndef DBUG_OFF
 /**
-  If there is no parent in v, we must have a path that specifified either
+  Is this a path that could possibly return the root node of a JSON document?
+
+  A path that returns the root node must be on one of the following forms:
   - the root ('$'), or
-  - an array cell at index 0 that any non-array element at the top level could
-    have been autowrapped to (since we got a hit), i.e. '$[0]' or
-    $[0][0]...[0]'.
+  - a sequence of array cells at index 0 or `last` that any non-array element
+    at the top level could have been autowrapped to, i.e. '$[0]' or
+    '$[0][0]...[0]'.
 
   @see Json_path_leg::is_autowrap
 
-  @param[in] path the specified path which gave a match
-  @param[in] v    the JSON item matched
-  @return true if v is a top level item
+  @param begin  the beginning of the path
+  @param end    the end of the path (exclusive)
+  @return true if the path may match the root, false otherwise
 */
-static inline
-bool wrapped_top_level_item(const Json_path *path MY_ATTRIBUTE((unused)),
-                            Json_dom *v)
+static bool possible_root_path(const Json_path_iterator &begin,
+                               const Json_path_iterator &end)
 {
-  if (v->parent())
-    return false;
-
-#ifndef DBUG_OFF
-  for (const Json_path_leg *leg : *path)
-    DBUG_ASSERT(leg->is_autowrap());
-#endif
-
-  return true;
+  auto is_autowrap= [](const Json_path_leg *leg) { return leg->is_autowrap(); };
+  return std::all_of(begin, end, is_autowrap);
 }
+#endif // DBUG_OFF
 
 
 bool Item_func_json_array_append::val_json(Json_wrapper *wr)
@@ -2162,13 +2134,14 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr)
           inside an array or object, we need to find the parent DOM to be
           able to replace it in situ.
         */
-        if (wrapped_top_level_item(path, hit))
+        Json_dom *parent= hit->parent();
+        if (parent == nullptr) // root
         {
+          DBUG_ASSERT(possible_root_path(path->begin(), path->end()));
           docw= Json_wrapper(std::move(arr));
         }
         else
         {
-          Json_dom *parent= hit->parent();
           parent->replace_dom_in_container(hit, std::move(arr));
         }
       }
@@ -2299,15 +2272,14 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr)
             array or object, we need to find the parent DOM to be able to
             replace it in situ.
           */
-          if (path->leg_count() == 1) // root
+          Json_dom *parent= hit->parent();
+          if (parent == nullptr) // root
           {
+            DBUG_ASSERT(possible_root_path(path->begin(), path->end() - 1));
             docw= Json_wrapper(std::move(newarr));
           }
           else
           {
-            Json_dom *parent= hit->parent();
-            DBUG_ASSERT(parent);
-
             parent->replace_dom_in_container(hit, std::move(newarr));
           }
         }
@@ -2712,7 +2684,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
               inside an array or object, we need to find the parent DOM to be
               able to replace it in situ.
             */
-            if (m_path.leg_count() == 1) // root
+            Json_dom *parent= hit->parent();
+            if (parent == nullptr) // root
             {
               docw= Json_wrapper(std::move(newarr));
 
@@ -2734,8 +2707,6 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr)
                                         enum_json_diff_operation::REPLACE,
                                         &array_wrapper);
               }
-              Json_dom *parent= hit->parent();
-              DBUG_ASSERT(parent);
               parent->replace_dom_in_container(hit, std::move(newarr));
             }
           }
@@ -3543,7 +3514,7 @@ String *Item_func_json_quote::val_str(String *str)
       return error_str();
     }
 
-    if (ensure_utf8mb4(res, &m_value, &safep, &safep_size, true))
+    if (ensure_utf8mb4(*res, &m_value, &safep, &safep_size, true))
     {
       null_value= true;
       return NULL;
@@ -3637,7 +3608,7 @@ String *Item_func_json_unquote::val_str(String *str)
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
     const char *utf8text;
     size_t utf8len;
-    if (ensure_utf8mb4(res, &buf, &utf8text, &utf8len, true))
+    if (ensure_utf8mb4(*res, &buf, &utf8text, &utf8len, true))
       return error_str();
     String *utf8str= (res->ptr() == utf8text) ? res : &buf;
     DBUG_ASSERT(utf8text == utf8str->ptr());
@@ -3655,7 +3626,7 @@ String *Item_func_json_unquote::val_str(String *str)
 
     Json_dom_ptr dom;
     bool parse_error= false;
-    if (parse_json(utf8str, 0, func_name(), &dom, true, &parse_error))
+    if (parse_json(*utf8str, 0, func_name(), &dom, true, &parse_error))
     {
       return error_str();
     }

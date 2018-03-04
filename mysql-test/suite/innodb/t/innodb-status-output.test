@@ -47,7 +47,7 @@ let SEARCH_PATTERN= SELECT SLEEP.*\nTABLE LOCK.*\nRECORD LOCKS space id;
 --source include/search_pattern_multiline.inc
 --remove_file $SEARCH_FILE
 
---exec echo "restart: --no-console --log-error=$SEARCH_FILE">$_expect_file_name
+--exec echo "restart: --no-console --log-error=$SEARCH_FILE --log-error-verbosity=3 ">$_expect_file_name
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect

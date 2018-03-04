@@ -1,13 +1,20 @@
 /* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -125,8 +132,9 @@
 #include "thr_lock.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#include "../storage/perfschema/pfs_server.h"
+#include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
 
 TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 
@@ -752,7 +760,8 @@ static Sys_var_bool Sys_windowing_use_high_precision(
 static Sys_var_uint Sys_cte_max_recursion_depth(
        "cte_max_recursion_depth", "Abort a recursive common table expression "
        "if it does more than this number of iterations.",
-       SESSION_VAR(cte_max_recursion_depth), CMD_LINE(REQUIRED_ARG),
+       HINT_UPDATEABLE SESSION_VAR(cte_max_recursion_depth),
+       CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, UINT_MAX32), DEFAULT(1000), BLOCK_SIZE(1));
 
 static Sys_var_bool Sys_automatic_sp_privileges(
@@ -779,7 +788,7 @@ static Sys_var_charptr Sys_default_authentication_plugin(
        "default_authentication_plugin", "The default authentication plugin "
        "used by the server to hash the password.",
        READ_ONLY NON_PERSIST GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
-       IN_FS_CHARSET, DEFAULT("mysql_native_password"));
+       IN_FS_CHARSET, DEFAULT("caching_sha2_password"));
 
 static PolyLock_mutex Plock_default_password_lifetime(
                         &LOCK_default_password_lifetime);
@@ -986,19 +995,13 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   if (!var->is_global_persist())
   {
     /*
-      If RBR and open temporary tables, their CREATE TABLE may not be in the
-      binlog, so we can't toggle to SBR in this connection.
-
-      If binlog_format=MIXED, there are open temporary tables, and an unsafe
-      statement is executed, then subsequent statements are logged in row
-      format and hence changes to temporary tables may be lost. So we forbid
-      switching @@SESSION.binlog_format from MIXED to STATEMENT when there are
-      open temp tables and we are logging in row format.
+      If binlog_format='ROW' or 'MIXED' and there are open temporary tables,
+      their CREATE TABLE will not be in the binlog, so we can't toggle to
+      'STATEMENT' in this connection.
     */
     if (thd->temporary_tables &&
         var->save_result.ulonglong_value == BINLOG_FORMAT_STMT &&
-        ((thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
-          thd->is_current_stmt_binlog_format_row()) ||
+        (thd->variables.binlog_format == BINLOG_FORMAT_MIXED ||
          thd->variables.binlog_format == BINLOG_FORMAT_ROW))
     {
       my_error(ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR, MYF(0));
@@ -1821,24 +1824,34 @@ static Sys_var_enum Sys_event_scheduler(
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
 
+static bool expire_logs_update(sys_var*, THD*, enum_var_type)
+{
+  if (expire_logs_days && binlog_expire_logs_seconds)
+  {
+    my_error(ER_EXPIRE_LOGS_DAYS_IGNORED, MYF(0));
+    return true;
+  }
+  return false;
+}
+
 static Sys_var_ulong Sys_expire_logs_days(
        "expire_logs_days",
        "If non-zero, binary logs will be purged after expire_logs_days "
-       "days; or (binlog_expire_logs_seconds + 24 * 60 * 60 * expire_logs_days)"
-       " seconds if binlog_expire_logs_seconds has a non zero value; "
-       "possible purges happen at startup and at binary log rotation",
+       "days; given binlog_expire_logs_seconds is not set; possible purges"
+       " happen at startup and at binary log rotation",
        GLOBAL_VAR(expire_logs_days),
        CMD_LINE(REQUIRED_ARG, OPT_EXPIRE_LOGS_DAYS), VALID_RANGE(0, 99),
        DEFAULT(30), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(0), DEPRECATED("binlog_expire_logs_seconds"));
+       ON_UPDATE(expire_logs_update), DEPRECATED("binlog_expire_logs_seconds"));
 
 static Sys_var_ulong Sys_binlog_expire_logs_seconds(
        "binlog_expire_logs_seconds",
-       "If non-zero, binary logs will be purged after (binlog_expire_logs_seconds + "
-       "24 * 60 * 60 * expire_logs_days) seconds; "
-       "possible purges happen at startup and at binary log rotation",
-       GLOBAL_VAR(binlog_expire_logs_seconds),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(0), BLOCK_SIZE(1));
+       "If non-zero, binary logs will be purged after binlog_expire_logs_seconds"
+       " seconds; given expire_logs_days is not set; possible purges happen at"
+       " startup and at binary log rotation",
+       GLOBAL_VAR(binlog_expire_logs_seconds), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 0xFFFFFFFF), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(expire_logs_update));
 
 static Sys_var_bool Sys_flush(
        "flush", "Flush MyISAM tables to disk between SQL commands",
@@ -2183,52 +2196,9 @@ static Sys_var_charptr Sys_log_error(
        NULL, sys_var::PARSE_EARLY);
 
 
-/*
-  log_error_filter_rules: internal
-  (until components can have their own sysvars)
-*/
-
-static bool fix_log_error_filter_rules(sys_var *self,
-                                       THD *thd MY_ATTRIBUTE((unused)),
-                                       enum_var_type type
-                                         MY_ATTRIBUTE((unused)))
-{
-  int ret= LogVar(self->name).val(opt_log_error_filter_rules)
-                             .group("log_filter")
-                             .update();
-
-#if 0
-  /*
-    This will be enabled in the context of WL#9651:
-    Logging services: log filter (configuration engine)
-  */
-  if (ret < 1)
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_COMPONENT_FILTER_FLABBERGASTED,
-                        ER_THD(thd, ER_COMPONENT_FILTER_FLABBERGASTED),
-                        "draugnet", &opt_log_error_filter_rules[ret]);
-  return (ret != 0);
-#endif
-  return (ret == 0);
-}
-
-static Sys_var_charptr Sys_log_error_filter_rules(
-       "log_error_filter_rules", "Error log filter rules",
-       GLOBAL_VAR(opt_log_error_filter_rules),
-       CMD_LINE(OPT_ARG),
-       IN_SYSTEM_CHARSET,
-       DEFAULT("prio>=3? gag. "
-               "err_code==1408? set_priority 0. "
-               "err_code==1408? add_field log_label:=\"HELO\". "
-               "+source_line? delete_field. "
-               "+err_code? delete_field."),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0),
-       ON_UPDATE(fix_log_error_filter_rules));
-
-
 static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 {
+  // test whether syntax is OK and services exist
   int i;
 
   if (var->save_result.string_value.str == nullptr)
@@ -2238,8 +2208,8 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
                                     true)) < 0)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_VAR,
-                        "Value for %s got confusing at or around %s",
+                        ER_CANT_SET_ERROR_LOG_SERVICE,
+                        ER_THD(thd, ER_CANT_SET_ERROR_LOG_SERVICE),
                         self->name.str,
                         &((char *) var->save_result.string_value.str)[-(i+1)]);
     return true;
@@ -2247,8 +2217,8 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
   else if (strlen(var->save_result.string_value.str) < 1)
   {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_WRONG_VALUE_FOR_VAR,
-                        "Setting an empty %s pipeline disables error logging!",
+                        ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE,
+                        ER_THD(thd, ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE),
                         self->name.str);
   }
 
@@ -2257,10 +2227,24 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var)
 
 
 static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
-                                   THD *thd MY_ATTRIBUTE((unused)),
+                                   THD *thd,
                                    enum_var_type type MY_ATTRIBUTE((unused)))
 {
-  return (log_builtins_error_stack(opt_log_error_services, false) < 0);
+  // syntax is OK and services exist; try to initialize them!
+  int rr= log_builtins_error_stack(opt_log_error_services, false);
+  if (rr < 0)
+  {
+    rr= -(rr + 1);
+    if (((size_t) rr) < strlen(opt_log_error_services))
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_CANT_START_ERROR_LOG_SERVICE,
+                          ER_THD(thd, ER_CANT_START_ERROR_LOG_SERVICE),
+                          self->name.str,
+                          &((char *) opt_log_error_services)[rr]);
+    return true;
+  }
+
+  return false;
 }
 
 static Sys_var_charptr Sys_log_error_services(
@@ -2331,7 +2315,7 @@ static Sys_var_ulong Sys_log_error_verbosity(
        "Messages sent to the client are unaffected by this setting.",
        GLOBAL_VAR(log_error_verbosity),
        CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, 3), DEFAULT(3), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       VALID_RANGE(1, 3), DEFAULT(2), BLOCK_SIZE(1), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(update_log_error_verbosity));
 
 static Sys_var_enum Sys_log_timestamps(
@@ -3160,7 +3144,7 @@ static Sys_var_ulong Sys_optimizer_trace_max_mem_size(
        "optimizer_trace_max_mem_size",
        "Maximum allowed cumulated size of stored optimizer traces",
        SESSION_VAR(optimizer_trace_max_mem_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*16), BLOCK_SIZE(1));
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024*1024), BLOCK_SIZE(1));
 
 #endif
 
@@ -3616,6 +3600,20 @@ static Sys_var_uint Sys_server_id_bits(
        GLOBAL_VAR(opt_server_id_bits), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 32), DEFAULT(32), BLOCK_SIZE(1));
 
+static Sys_var_int32 Sys_regexp_time_limit (
+       "regexp_time_limit",
+       "Timeout for regular expressions matches, in steps of the match "
+       "engine, typically on the order of milliseconds.",
+       GLOBAL_VAR(opt_regexp_time_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, INT32_MAX),
+       DEFAULT(32), BLOCK_SIZE(1));
+
+static Sys_var_int32 Sys_regexp_stack_limit (
+       "regexp_stack_limit",
+       "Stack size limit for regular expressions matches",
+       GLOBAL_VAR(opt_regexp_stack_limit), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, INT32_MAX), DEFAULT(8000000), BLOCK_SIZE(1));
+
 static Sys_var_bool Sys_slave_compressed_protocol(
        "slave_compressed_protocol",
        "Use compression on master/slave protocol",
@@ -3795,7 +3793,8 @@ static Sys_var_bool Sys_slave_preserve_commit_order(
        "slave_preserve_commit_order",
        "Force slave workers to make commits in the same order as on the master. "
        "Disabled by default.",
-       GLOBAL_VAR(opt_slave_preserve_commit_order), CMD_LINE(OPT_ARG),
+       GLOBAL_VAR(opt_slave_preserve_commit_order),
+       CMD_LINE(OPT_ARG, OPT_SLAVE_PRESERVE_COMMIT_ORDER),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
@@ -4169,7 +4168,7 @@ bool Sys_var_gtid_mode::global_update(THD* thd, set_var *var)
   lock_count= 3;
 
   // Generate note in log
-  LogErr(INFORMATION_LEVEL, ER_CHANGED_GTID_MODE,
+  LogErr(SYSTEM_LEVEL, ER_CHANGED_GTID_MODE,
          gtid_mode_names[old_gtid_mode],
          gtid_mode_names[new_gtid_mode]);
 
@@ -4335,7 +4334,7 @@ static void check_sub_modes_of_strict_mode(sql_mode_t &sql_mode, THD *thd)
                                ER_SQL_MODE_MERGED,
                                ER_THD(thd, ER_SQL_MODE_MERGED));
     else
-      LogErr(WARNING_LEVEL, ER_SQL_MODE_MERGED);
+      LogErr(WARNING_LEVEL, ER_SQL_MODE_MERGED_WITH_STRICT_MODE);
   }
 }
 
@@ -5601,7 +5600,8 @@ static Sys_var_set Sys_log_output(
 static Sys_var_bool Sys_log_slave_updates(
        "log_slave_updates", "Tells the slave to log the updates from "
        "the slave thread to the binary log.",
-       READ_ONLY GLOBAL_VAR(opt_log_slave_updates), CMD_LINE(OPT_ARG),
+       READ_ONLY GLOBAL_VAR(opt_log_slave_updates),
+       CMD_LINE(OPT_ARG, OPT_LOG_SLAVE_UPDATES),
        DEFAULT(1));
 
 static Sys_var_charptr Sys_relay_log(
@@ -6130,6 +6130,12 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   */
   thd->lex->autocommit= true;
 
+  /*
+    SET GITD_PURGED command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   char *previous_gtid_executed= NULL, *previous_gtid_purged= NULL,
     *current_gtid_executed= NULL, *current_gtid_purged= NULL;
   gtid_state->get_executed_gtids()->to_string(&previous_gtid_executed);
@@ -6169,9 +6175,9 @@ bool Sys_var_gtid_purged::global_update(THD *thd, set_var *var)
   gtid_state->get_lost_gtids()->to_string(&current_gtid_purged);
 
   // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
-  LogErr(INFORMATION_LEVEL, ER_GTID_PURGED_WAS_CHANGED,
+  LogErr(SYSTEM_LEVEL, ER_GTID_PURGED_WAS_UPDATED,
          previous_gtid_purged, current_gtid_purged);
-  LogErr(INFORMATION_LEVEL, ER_GTID_EXECUTED_WAS_CHANGED,
+  LogErr(SYSTEM_LEVEL, ER_GTID_EXECUTED_WAS_UPDATED,
          previous_gtid_executed, current_gtid_executed);
 
 end:
@@ -6396,17 +6402,33 @@ static Sys_var_bool Sys_persisted_globals_load(
        ON_CHECK(0),
        ON_UPDATE(0));
 
-static bool check_authid_string(sys_var*, THD*, set_var *var)
+static bool sysvar_check_authid_string(sys_var*, THD *thd, set_var *var)
 {
+  /*
+    Since mandatory_roles is similar to a GRANT role statement without a
+    GRANT ADMIN privilege, setting this variable requires both the
+    ROLE_ADMIN and the SYSTEM_VARIABLES_ADMIN.
+  */
+  Security_context *sctx= thd->security_context();
+  DBUG_ASSERT(sctx != 0);
+  if (sctx && !sctx->has_global_grant(STRING_WITH_LEN("ROLE_ADMIN")).first)
+  {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN");
+    /* No privilege access error */
+    return true;
+  }
   if (var->save_result.string_value.str == 0)
   {
     var->save_result.string_value.str= const_cast<char*>("");
     var->save_result.string_value.length= 0;
   }
-  return false;
+  return check_authorization_id_string(var->save_result.string_value.str,
+                                       var->save_result.string_value.length);
 }
 
-static bool sysvar_update_mandatory_roles(sys_var*, THD*, enum_var_type)
+static bool sysvar_update_mandatory_roles(sys_var *, THD *,
+                                          enum_var_type)
 {
   update_mandatory_roles();
   return false;
@@ -6420,7 +6442,7 @@ static Sys_var_lexstring Sys_mandatory_roles(
   "default roles. The granted roles will not be visible in the mysql.role_edges"
   " table.", GLOBAL_VAR(opt_mandatory_roles), CMD_LINE(REQUIRED_ARG),
   IN_SYSTEM_CHARSET, DEFAULT(""), &PLock_sys_mandatory_roles, NOT_IN_BINLOG,
-  ON_CHECK(check_authid_string), ON_UPDATE(sysvar_update_mandatory_roles));
+  ON_CHECK(sysvar_check_authid_string), ON_UPDATE(sysvar_update_mandatory_roles));
 
 static Sys_var_bool Sys_always_activate_granted_roles(
        "activate_all_roles_on_login",
@@ -6559,3 +6581,41 @@ static Sys_var_set Sys_binlog_row_value_options(
        SESSION_VAR(binlog_row_value_options), CMD_LINE(REQUIRED_ARG),
        binlog_row_value_options_names, DEFAULT(0),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_binlog_row_value_options));
+
+static bool check_keyring_access(sys_var*, THD* thd, set_var*)
+{
+  if (!(thd->security_context()->has_global_grant(
+      STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN")).first))
+  {
+    my_error(ER_KEYRING_ACCESS_DENIED_ERROR, MYF(0),
+             "ENCRYPTION_KEY_ADMIN");
+    return true;
+  }
+  return false;
+}
+
+/**
+  This is a mutex used to protect global variable @@keyring_operations.
+*/
+static PolyLock_mutex PLock_keyring_operations(&LOCK_keyring_operations);
+/**
+  This variable provides access to keyring service APIs. When this variable
+  is disabled calls to keyring_key_generate(), keyring_key_store() and
+  keyring_key_remove() will report error until this variable is enabled.
+  This variable is protected under a mutex named PLock_keyring_operations.
+  To access this variable you must first set this mutex.
+
+  @sa PLock_keyring_operations
+*/
+static Sys_var_bool Sys_keyring_operations(
+       "keyring_operations",
+       "This variable provides access to keyring service APIs. When this "
+       "option is disabled calls to keyring_key_generate(), keyring_key_store() "
+       "and keyring_key_remove() will report error until this variable is enabled.",
+       NON_PERSIST GLOBAL_VAR(opt_keyring_operations),
+       NO_CMD_LINE, DEFAULT(true),
+       &PLock_keyring_operations,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_keyring_access),
+       ON_UPDATE(0));
+

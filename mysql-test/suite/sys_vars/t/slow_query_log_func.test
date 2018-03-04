@@ -146,7 +146,7 @@ SET sql_mode = default;
 #==================================================================   Restore
 SET @@global.log_output = @global_log_output;
 SET @global.slow_query_log = @global_slow_query_log;
-
+TRUNCATE TABLE mysql.slow_log;
 ###############################################################################
 # End of the functionality test for slow_query_log                            #
 ###############################################################################

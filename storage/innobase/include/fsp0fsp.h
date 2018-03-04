@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -36,6 +44,10 @@ Created 12/18/1995 Heikki Tuuri
 #include "ut0byte.h"
 
 #include "fsp0types.h"
+
+#ifdef UNIV_HOTBACKUP
+# include "buf0buf.h"
+#endif /* UNIV_HOTBACKUP */
 
 /* @defgroup Tablespace Header Constants (moved from fsp0fsp.c) @{ */
 
@@ -897,6 +909,22 @@ fsp_sdi_write_root_to_page(
 
 #include "fsp0fsp.ic"
 
+/** Reads the server version from the first page of a tablespace.
+@param[in]	page	first page of a tablespace
+@return space server version */
+inline
+uint32
+fsp_header_get_server_version(
+	const page_t*	page);
+
+/** Reads the server space version from the first page of a tablespace.
+@param[in]	page	first page of a tablespace
+@return space server version */
+inline
+uint32
+fsp_header_get_space_version(
+	const page_t*	page);
+
 /** Get the state of an xdes.
 @param[in]	descr	extent descriptor
 @param[in,out]	mtr	mini transaction.
@@ -1004,11 +1032,11 @@ ulint
 fsp_header_get_sdi_offset(
 	const page_size_t&	page_size);
 
-/** Determine if the tablespace contians an SDI.
+/** Determine if the tablespace has SDI.
 @param[in]	space_id	Tablespace id
-@retval		false		if there is no SDI
-@retval		true		if SDI is present */
-bool
+@return DB_SUCCESS if SDI is present else DB_ERROR
+or DB_TABLESPACE_NOT_FOUND */
+dberr_t
 fsp_has_sdi(space_id_t space_id);
 
 #endif

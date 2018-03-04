@@ -3,16 +3,24 @@
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -26,8 +34,10 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0rec.h"
 
 #include <sys/types.h>
+#ifndef UNIV_HOTBACKUP
 
 #include "fts0fts.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "gis0geo.h"
 #include "mach0data.h"
 #include "mtr0log.h"
@@ -847,10 +857,12 @@ rec_convert_dtuple_to_rec_comp(
 		} else {
 			/* DATA_POINT would have a fixed_len */
 			ut_ad(dtype_get_mtype(type) != DATA_POINT);
+#ifndef UNIV_HOTBACKUP
 			ut_ad(len <= dtype_get_len(type)
 			      || DATA_LARGE_MTYPE(dtype_get_mtype(type))
 			      || !strcmp(index->name,
 					 FTS_INDEX_TABLE_IND_NAME));
+#endif /* !UNIV_HOTBACKUP */
 			if (len < 128 || !DATA_BIG_LEN_MTYPE(
 				dtype_get_len(type), dtype_get_mtype(type))) {
 
@@ -1761,7 +1773,6 @@ operator<<(std::ostream& o, const rec_offsets_print& r)
 	return(o);
 }
 
-# ifdef UNIV_DEBUG
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
 @return the value of DB_TRX_ID */
@@ -1771,8 +1782,6 @@ rec_get_trx_id(
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index)	/*!< in: clustered index */
 {
-	const page_t*	page
-		= page_align(rec);
 	ulint		trx_id_col = index->get_sys_col_pos(DATA_TRX_ID);
 	const byte*	trx_id;
 	ulint		len;
@@ -1781,12 +1790,17 @@ rec_get_trx_id(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
-	ut_ad(fil_page_index_page_check(page));
-	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id);
 	ut_ad(index->is_clustered());
 	ut_ad(trx_id_col > 0);
 	ut_ad(trx_id_col != ULINT_UNDEFINED);
+
+#ifdef UNIV_DEBUG
+	const page_t*	page = page_align(rec);
+	if (fil_page_index_page_check(page)) {
+		ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
+		      == index->id);
+	}
+#endif /* UNIV_DEBUG */
 
 	offsets = rec_get_offsets(rec, index, offsets, trx_id_col + 1, &heap);
 
@@ -1800,7 +1814,6 @@ rec_get_trx_id(
 
 	return(trx_read_trx_id(trx_id));
 }
-# endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /** Mark the nth field as externally stored.

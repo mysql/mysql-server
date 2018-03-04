@@ -2,6 +2,7 @@
 ##
 --let $wait_for_unixsocket_status = no_wait
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 call mtr.add_suppression("Plugin mysqlx reported: .Error parsing message of type 17:");
 call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. failed, the socket file path is empty");
 --let $wait_for_unixsocket_status = no_wait
@@ -18,8 +19,8 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket .. faile
 SELECT id,user,command,state FROM information_schema.processlist ORDER BY id;
 -->endsql
 EOF
---replace_regex /localhost:[0-9]*/localhost/ /	[12]	/	0	/ /[0-9]+	root(.+)Sleep/$PROC_1_ID	root\1Sleep/ /[0-9]+	root(.+)Query/$PROC_2_ID	root\1Query/ /Execute/Query/ 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression-ps.tmp 2>&1
+--replace_regex /localhost:[0-9]*/localhost/ /	[12]	/	0	/ /[0-9]+	x_root(.+)Sleep/$PROC_1_ID	x_root\1Sleep/ /[0-9]+	x_root(.+)Query/$PROC_2_ID	x_root\1Query/ /Execute/Query/ 
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression-ps.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-regression-ps.tmp
 
 
@@ -81,7 +82,7 @@ drop table complexq;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
 
 ## MYP-140 - not "in" a database after logging in
@@ -91,7 +92,7 @@ EOF
 select schema();
 -->endsql
 EOF
---exec $MYSQLXTEST -uroot --password='' --schema=test --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --schema=test --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
 
 ## MYP-255 - LIST_CLIENTS,KILL_CLIENTS WORKS WITH PASSWORD_EXPIRED USER WITHOUT SETTING PWD
@@ -151,7 +152,7 @@ INSTALL PLUGIN mysqlx SONAME 'mysqlx.so';
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
 
 ###
@@ -181,9 +182,10 @@ EOF
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-regression.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-regression.tmp
 
 ##cleanup
 
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

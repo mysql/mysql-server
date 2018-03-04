@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -43,7 +50,6 @@
 #include "sql/dd/types/foreign_key.h" // dd::Foreign_key::enum_rule
 #include "sql/enum_query_type.h" // enum_query_type
 #include "sql/handler.h"   // row_type
-#include "sql/json_diff.h"
 #include "sql/key.h"
 #include "sql/key_spec.h"
 #include "sql/mdl.h"       // MDL_wait_for_subgraph
@@ -65,6 +71,11 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
+
+#include "sql/mem_root_array.h"
+
+class Field;
+
 namespace histograms
 {
   class Histogram;
@@ -73,7 +84,6 @@ namespace histograms
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class COND_EQUAL;
-class Field;
 class Field_json;
 /* Structs that defines the TABLE */
 class File_parser;
@@ -81,7 +91,6 @@ class GRANT_TABLE;
 class Index_hint;
 class Item;
 class Item_field;
-class Json_diff;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
@@ -140,6 +149,7 @@ typedef ulonglong nested_join_map;
 #define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
 #define tmp_file_prefix_length 4
 #define TMP_TABLE_KEY_EXTRA 8
+#define PLACEHOLDER_TABLE_ROW_ESTIMATE 2
 
 /**
   Enumerate possible types of a table from re-execution
@@ -296,7 +306,16 @@ typedef struct st_order {
      SELECT a AS foo GROUP BY a: false.
   */
   bool   used_alias;
-  Field  *field;                        /* If tmp-table group */
+  /**
+    When GROUP BY is implemented with a temporary table (i.e. the table takes
+    care to store only unique group rows, table->group != nullptr), each GROUP
+    BY expression is stored in a column of the table, which is
+    'field_in_tmp_table'.
+    Such field may point into table->record[0] (if we only use it to get its
+    value from a tmp table's row), or into 'buff' (if we use it to do index
+    lookup into the tmp table).
+  */
+  Field  *field_in_tmp_table;
   char   *buff;                         /* If tmp-table group */
   table_map used, depend_map;
   bool is_position;  /* An item expresses a position in a ORDER clause */
@@ -572,10 +591,11 @@ typedef struct st_table_field_def
 class Table_check_intact
 {
 protected:
+  bool has_keys;
   virtual void report_error(uint code, const char *fmt, ...)= 0;
 
 public:
-  Table_check_intact() {}
+  Table_check_intact() : has_keys(FALSE) {}
   virtual ~Table_check_intact() {}
 
   /**
@@ -632,6 +652,17 @@ typedef struct Table_share_foreign_key_info
 {
   LEX_CSTRING referenced_table_db;
   LEX_CSTRING referenced_table_name;
+  /**
+    Name of unique key matching FK in parent table, "" if there is no
+    unique key.
+  */
+  LEX_CSTRING unique_constraint_name;
+  dd::Foreign_key::enum_rule update_rule, delete_rule;
+  uint columns;
+  /**
+    Arrays with names of referencing columns of the FK.
+  */
+  LEX_CSTRING *column_name;
 } TABLE_SHARE_FOREIGN_KEY_INFO;
 
 
@@ -1192,7 +1223,6 @@ public:
 */
 using Binary_diff_vector= Mem_root_array<Binary_diff>;
 
-
 /**
   Flags for TABLE::m_status (maximum 8 bits).
   The flags define the state of the row buffer in TABLE::record[0].
@@ -1538,6 +1568,9 @@ private:
 public:
 
   void init(THD *thd, TABLE_LIST *tl);
+  bool init_tmp_table(THD *thd, TABLE_SHARE *share, MEM_ROOT *m_root,
+                      CHARSET_INFO *charset, const char* alias, Field **fld,
+                      uint *blob_fld, bool is_virtual);
   bool fill_item_list(List<Item> *item_list) const;
   void reset_item_list(List<Item> *item_list) const;
   void clear_column_bitmaps(void);
@@ -1846,6 +1879,11 @@ private:
   */
   Partial_update_info *m_partial_update_info;
 
+  /**
+    This flag decides whether or not we should log the drop temporary table
+    command.
+  */
+  bool should_binlog_drop_if_temp_flag;
 public:
   /**
     Does this table have any columns that can be updated using partial update
@@ -2045,6 +2083,20 @@ public:
     to false for all such fields in this table.
   */
   void blobs_need_not_keep_old_value();
+
+  /**
+    Set the variable should_binlog_drop_if_temp_flag, so that
+    the logging of temporary tables can be decided.
+
+    @param should_binlog  the value to set flag should_binlog_drop_if_temp_flag
+  */
+  void set_binlog_drop_if_temp(bool should_binlog);
+
+  /**
+    @return whether should_binlog_drop_if_temp_flag flag is
+            set or not
+  */
+  bool should_binlog_drop_if_temp(void) const;
 };
 
 
@@ -2300,7 +2352,8 @@ public:
   Field_map used_fields;
 };
 
-
+class Item_func;
+class Table_function;
 /*
   Table reference in the FROM clause.
 
@@ -2446,7 +2499,7 @@ struct TABLE_LIST
   bool is_placeholder() const
   {
     return is_view_or_derived() || schema_table || !table ||
-      m_is_recursive_reference;
+      m_is_recursive_reference || is_table_function();
   }
 
   /// Produce a textual identification of this object
@@ -2499,6 +2552,11 @@ struct TABLE_LIST
     return derived != NULL;
   }
 
+  /// Return true if this represents a table function
+  bool is_table_function() const
+  {
+    return table_function != NULL;
+  }
   /**
      @returns true if this is a recursive reference inside the definition of a
      recursive CTE.
@@ -2665,7 +2723,8 @@ struct TABLE_LIST
   /// Set temporary name from underlying temporary table:
   void set_name_temporary()
   {
-    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT((is_view_or_derived()) &&
+                uses_materialization());
     table_name= table->s->table_name.str;
     table_name_length= table->s->table_name.length;
     db= (char *)"";
@@ -2675,7 +2734,8 @@ struct TABLE_LIST
   /// Reset original name for temporary table.
   void reset_name_temporary()
   {
-    DBUG_ASSERT(is_view_or_derived() && uses_materialization());
+    DBUG_ASSERT((is_table_function() || is_view_or_derived()) &&
+                uses_materialization());
     /*
       When printing a query using a view or CTE, we need the table's name and
       the alias; the name has been destroyed if the table was materialized,
@@ -2699,7 +2759,7 @@ struct TABLE_LIST
   bool optimize_derived(THD *thd);
 
   /// Create result table for a materialized derived table/view
-  bool create_derived(THD *thd);
+  bool create_materialized_table(THD *thd);
 
   /// Materialize derived table
   bool materialize_derived(THD *thd);
@@ -2789,6 +2849,9 @@ struct TABLE_LIST
   /// Setup a derived table to use materialization
   bool setup_materialized_derived(THD *thd);
   bool setup_materialized_derived_tmp_table(THD *thd);
+
+  /// Setup a table function to use materialization
+  bool setup_table_function(THD *thd);
 
   bool create_field_translation(THD *thd);
 
@@ -3007,6 +3070,12 @@ public:
     can see this lists can't be merged)
   */
   TABLE_LIST	*correspondent_table;
+
+  /*
+    Holds the function used as the table function
+  */
+  Table_function *table_function;
+
 private:
   /**
      This field is set to non-null for derived tables and views. It points
@@ -3277,7 +3346,7 @@ public:
   { return m_derived_column_names; }
   void set_derived_column_names(const Create_col_name_list *d)
   { m_derived_column_names= d; }
-
+  void propagate_table_maps(table_map map_arg);
 
 private:
   /*
@@ -3761,11 +3830,13 @@ extern LEX_STRING SLOW_LOG_NAME;
 /* information schema */
 extern LEX_STRING INFORMATION_SCHEMA_NAME;
 
-/* mysql schema */
+/* mysql schema name and DD ID */
 extern LEX_STRING MYSQL_SCHEMA_NAME;
+static const uint MYSQL_SCHEMA_DD_ID= 1;
 
-/* mysql tablespace */
+/* mysql tablespace name and DD ID */
 extern LEX_STRING MYSQL_TABLESPACE_NAME;
+static const uint MYSQL_TABLESPACE_DD_ID= 1;
 
 /* replication's tables */
 extern LEX_STRING RLI_INFO_NAME;

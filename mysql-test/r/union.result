@@ -772,7 +772,7 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` varchar(12) CHARACTER SET latin1 DEFAULT NULL
+  `f` varchar(12) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
@@ -783,7 +783,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` varchar(10) CHARACTER SET latin1 DEFAULT NULL
+  `y` varchar(10) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT y from t2 UNION select dt from t2;
@@ -794,7 +794,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` varchar(19) CHARACTER SET latin1 DEFAULT NULL
+  `y` varchar(19) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 SELECT da from t2 UNION select dt from t2;
@@ -905,7 +905,7 @@ select * from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `1` bigint(20) NOT NULL DEFAULT '0'
+  `1` bigint(2) NOT NULL DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 select _latin1"test" union select _latin2"testt" ;

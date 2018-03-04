@@ -1900,3 +1900,35 @@ EXPLAIN SELECT * FROM t1 WHERE col1 < 100;
 EXPLAIN SELECT * FROM t1 WHERE col2 < 100;
 EXPLAIN SELECT * FROM t1 WHERE col3 < 100;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27197709 TABLE ROWS ESTIMATE DURING HISTOGRAM CREATION MAY BE WAY
+--echo #              OFF
+--echo #
+CREATE TABLE t1 (col1 VARCHAR(255));
+
+--echo # Insert 10000 rows into the table t1 with random string data
+SET cte_max_recursion_depth = 10000;
+INSERT INTO t1 (col1)
+WITH RECURSIVE cte (n, val) AS
+(
+  SELECT 1, CONCAT(MD5(RAND()), MD5(RAND()))
+  UNION ALL
+  SELECT n + 1, CONCAT(MD5(RAND()), MD5(RAND())) FROM cte WHERE n < 10000
+)
+SELECT val FROM cte;
+
+--echo # Set the amount of available memory as low as possible, so we are sure
+--echo # that sampling will be used.
+SET histogram_generation_max_mem_size = 1000000;
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1 WITH 2 BUCKETS;
+
+SELECT
+  histogram->>'$."sampling-rate"' < 1.0 AS should_be_true
+FROM
+  INFORMATION_SCHEMA.COLUMN_STATISTICS;
+
+SET cte_max_recursion_depth = DEFAULT;
+SET histogram_generation_max_mem_size = DEFAULT;
+
+DROP TABLE t1;

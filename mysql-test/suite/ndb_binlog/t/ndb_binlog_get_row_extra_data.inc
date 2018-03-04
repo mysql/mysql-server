@@ -10,7 +10,7 @@
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
---exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/mysqld-bin.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
+--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/binlog.000001 > $MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql
 
 create table raw_binlog_rows (txt varchar(1000));
 create table diff_extra_data (txt varchar(1000));

@@ -32,3 +32,5 @@ Could not start backup
 #
 # 8) Should print all
 NDB error code 4008: Receive from NDB failed: Unknown result: Unknown result error
+Warning: using '--ndb' with 'perror' is deprecated and this functionality may not be available in the future versions, please use 'ndb_perror' instead
+Illegal ndb error code: 123456

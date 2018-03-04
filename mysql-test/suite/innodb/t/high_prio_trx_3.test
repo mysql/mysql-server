@@ -12,9 +12,6 @@
 # T3 Rolls back T1
 # Lock -> {T3 granted, T2 waiting}
 
-# Remove this work around after Bug#26629790
---source include/restart_mysqld.inc
-
 --source include/count_sessions.inc
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;

@@ -7,7 +7,7 @@
 --echo #
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot allocate .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot allocate .*");
 call mtr.add_suppression("InnoDB: .* failed to allocate the chunk array");
 call mtr.add_suppression("InnoDB: .* failed to allocate new memory");
 call mtr.add_suppression("InnoDB: .* failed; errno 12");

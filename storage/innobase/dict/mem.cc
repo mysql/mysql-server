@@ -4,16 +4,24 @@ Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -31,7 +39,9 @@ external tools. */
 #include <new>
 
 #include "dict0dict.h"
+#ifndef UNIV_HOTBACKUP
 #include "lock0lock.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "my_inttypes.h"
 
 /****************************************************************//**
@@ -92,6 +102,7 @@ dict_mem_table_free(
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 	ut_d(table->cached = FALSE);
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	if (dict_table_has_fts_index(table)
 	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
@@ -109,10 +120,12 @@ dict_mem_table_free(
 	table->foreign_set.~dict_foreign_set();
 	table->referenced_set.~dict_foreign_set();
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_free(table->name.m_name);
 	table->name.m_name = NULL;
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	/* Clean up virtual index info structures that are registered
 	with virtual columns */
@@ -123,15 +136,18 @@ dict_mem_table_free(
 		UT_DELETE(vcol->v_indexes);
 	}
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 	if (table->s_cols != NULL) {
 		UT_DELETE(table->s_cols);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	if (table->temp_prebuilt != NULL) {
 		ut_ad(table->is_intrinsic());
 		UT_DELETE(table->temp_prebuilt);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	mem_heap_free(table->heap);
 }
@@ -155,17 +171,21 @@ dict_mem_table_create(
 	mem_heap_t*	heap;
 
 	ut_ad(name);
+#ifndef UNIV_HOTBACKUP
 	ut_a(dict_tf2_is_valid(flags, flags2));
 	ut_a(!(flags2 & DICT_TF2_UNUSED_BIT_MASK));
+#endif /* !UNIV_HOTBACKUP */
 
 	heap = mem_heap_create(DICT_HEAP_SIZE);
 
 	table = static_cast<dict_table_t*>(
 		mem_heap_zalloc(heap, sizeof(*table)));
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	lock_table_lock_list_init(&table->locks);
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 	UT_LIST_INIT(table->indexes, &dict_index_t::indexes);
 
@@ -187,6 +207,7 @@ dict_mem_table_create(
 	table->v_cols = static_cast<dict_v_col_t*>(
 		mem_heap_alloc(heap, n_v_cols * sizeof(*table->v_cols)));
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	/* true means that the stats latch will be enabled -
 	dict_table_stats_lock() will not be noop. */
@@ -228,6 +249,7 @@ dict_mem_table_create(
 	new(&table->referenced_set) dict_foreign_set();
 
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 	table->is_dd_table = false;
 
 	return(table);
@@ -261,6 +283,7 @@ dict_mem_index_create(
 	dict_mem_fill_index_struct(index, heap, table_name, index_name,
 				   space, type, n_fields);
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	dict_index_zip_pad_mutex_create_lazy(index);
 
@@ -275,6 +298,7 @@ dict_mem_index_create(
 		index->rtr_track->rtr_active = UT_NEW_NOKEY(rtr_info_active());
 	}
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 	return(index);
 }
@@ -344,10 +368,12 @@ dict_mem_fill_column_struct(
 	column->mtype = (unsigned int) mtype;
 	column->prtype = (unsigned int) prtype;
 	column->len = (unsigned int) col_len;
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	ulint	mbminlen;
 	ulint	mbmaxlen;
         dtype_get_mblen(mtype, prtype, &mbminlen, &mbmaxlen);
 	column->set_mbminmaxlen(mbminlen, mbmaxlen);
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 }

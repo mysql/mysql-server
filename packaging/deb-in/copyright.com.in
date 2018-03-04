@@ -4,61 +4,21 @@ Upstream-Contact: MySQL Release Engineering <mysql-build@oss.oracle.com>
 Source: http://dev.mysql.com/
 
 Files: *
-Copyright: 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+Copyright: 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 License: Commercial
- This is a release of MySQL, a dual-license SQL database server.
- For the avoidance of doubt, this particular copy of the software
- is released under a commercial license and the GNU General Public
- License does not apply. MySQL is brought to you by Oracle.
+ This is a release of MySQL, an SQL database server.
  .
- This distribution may include materials developed by third
- parties. For license and attribution notices for these
- materials, please refer to the documentation that accompanies
- this distribution (see the "Licenses for Third-Party Components"
- appendix) or view the online documentation at
- <http://dev.mysql.com/doc/>.
+ License information can be found in the LICENSE file.
  .
- This software and related documentation are provided under a license
- agreement containing restrictions on use and disclosure and are protected by
- intellectual property laws. Except as expressly permitted in your license
- agreement or allowed by law, you may not use, copy, reproduce, translate,
- broadcast, modify, license, transmit, distribute, exhibit, perform, publish,
- or display any part, in any form, or by any means. Reverse engineering,
- disassembly, or decompilation of this software, unless required by law for
- interoperability, is prohibited.
+ This distribution may include materials developed by third parties.
+ For license and attribution notices for these materials,
+ please refer to the LICENSE file.
  .
- If this software or related documentation is delivered to the U.S.
- Government or anyone licensing it on behalf of the U.S. Government, the
- following notice is applicable:
+ For more information on MySQL, visit 
+ https://docs.oracle.com/cd/E17952_01/mysql-8.0-en/index.html
+ or http://dev.mysql.com/doc/
  .
- U.S. GOVERNMENT RIGHTS Programs, software, databases, and related
- documentation and technical data delivered to U.S. Government customers are
- "commercial computer software" or "commercial technical data" pursuant to
- the applicable Federal Acquisition Regulation and agency-specific
- supplemental regulations. As such, the use, duplication, disclosure,
- modification, and adaptation shall be subject to the restrictions and
- license terms set forth in the applicable Government contract, and, to the
- extent applicable by the terms of the Government contract, the additional
- rights set forth in FAR 52.227-19, Commercial Computer Software License
- (December 2007). Oracle USA, Inc., 500 Oracle Parkway, Redwood City, CA
- 94065.
+ For additional downloads of MySQL, visit
+ https://support.oracle.com/
  .
- This software is developed for general use in a variety of information
- management applications. It is not developed or intended for use in any
- inherently dangerous applications, including applications which may create a
- risk of personal injury. If you use this software in dangerous applications,
- then you shall be responsible to take all appropriate fail-safe, backup,
- redundancy, and other measures to ensure the safe use of this software.
- Oracle Corporation and its affiliates disclaim any liability for any damages
- caused by use of this software in dangerous applications.
- .
- Oracle is a registered trademark of Oracle Corporation and/or its
- affiliates. Other names may be trademarks of their respective owners.
- .
- This software and documentation may provide access to or information on
- content, products, and services from third parties. Oracle Corporation and
- its affiliates are not responsible for and expressly disclaim all warranties
- of any kind with respect to third-party content, products, and services.
- Oracle Corporation and its affiliates will not be responsible for any loss,
- costs, or damages incurred due to your access to or use of third-party
- content, products, or services.
+ MySQL is brought to you by the MySQL team at Oracle.

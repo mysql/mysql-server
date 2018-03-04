@@ -1,13 +1,21 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1004,7 +1012,6 @@ void Dbtc::execNDB_STTOR(Signal* signal)
   Uint16 tstarttype;
 
   jamEntry();
-  tusersblkref = signal->theData[0];
   NodeId nodeId = signal->theData[1];
   tndbstartphase = signal->theData[2];   /* START PHASE      */
   tstarttype = signal->theData[3];       /* START TYPE       */
@@ -1206,6 +1213,186 @@ void Dbtc::execAPI_FAILREQ(Signal* signal)
   handleFailedApiNode(signal, signal->theData[0], (UintR)0);
 }
 
+/**
+ * This function is used when we need to handle API disconnect/node failure
+ * with waiting for a few signals.
+ * In the case of API node failure we need to keep track of how many API
+ * connect records are in the close down phase, we cannot complete the
+ * API node failure handling until all nodes have completed this phase.
+ *
+ * For API disconnect (from receiving TCRELEASEREQ on active API connect)
+ * we need no such counter, we maintain specific states for those two
+ * variants.
+ */
+void
+Dbtc::set_api_fail_state(Uint32 TapiFailedNode, bool apiNodeFailed)
+{
+  if (apiNodeFailed)
+  {
+    jam();
+    capiConnectClosing[TapiFailedNode]++;
+    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_FAILED;
+  }
+  else
+  {
+    jam();
+    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_DISCONNECTED;
+  }
+}
+
+bool Dbtc::handleFailedApiConnection(Signal *signal,
+                                     Uint32 *TloopCount,
+                                     Uint32 TapiFailedNode,
+                                     bool apiNodeFailed)
+{
+  if (apiConnectptr.p->apiFailState == ApiConnectRecord::AFS_API_DISCONNECTED)
+  {
+    jam();
+    /**
+     * We are currently closing down the API connect record after receiving
+     * a TCRELEASEREQ. Now we received an API node failure. We don't need
+     * to restart the close down handling, it is already in progress. But
+     * we need to add to counter and change state such that we are waiting
+     * for API node fail handling to complete instead.
+     *
+     * We cannot come here from TCRELEASEREQ as we will simply send an
+     * immediate CONF when receiving multiple TCRELEASEREQ.
+     */
+    ndbrequire(apiNodeFailed);
+    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    return true;
+  }
+#ifdef VM_TRACE
+  if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
+  {
+    ndbout << "Error in previous API fail handling discovered" << endl
+           << "  apiConnectptr.i = " << apiConnectptr.i << endl
+           << "  apiConnectstate = " << apiConnectptr.p->apiConnectstate 
+           << endl
+           << "  ndbapiBlockref = " << hex
+           << apiConnectptr.p->ndbapiBlockref << endl
+           << "  apiNode = " << refToNode(apiConnectptr.p->ndbapiBlockref) 
+           << endl;
+    if (apiConnectptr.p->lastTcConnect != RNIL)
+    {
+      jam();
+      tcConnectptr.i = apiConnectptr.p->lastTcConnect;
+      ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
+      ndbout << "  tcConnectptr.i = " << tcConnectptr.i << endl
+             << "  tcConnectstate = " << tcConnectptr.p->tcConnectstate 
+             << endl;
+    }
+  }//if
+#endif
+      
+  apiConnectptr.p->returnsignal = RS_NO_RETURN;
+  /***********************************************************************/
+  // The connected node is the failed node.
+  /**********************************************************************/
+  switch(apiConnectptr.p->apiConnectstate) {
+  case CS_DISCONNECTED:
+    /*********************************************************************/
+    // These states do not need any special handling. 
+    // Simply continue with the next.
+    /*********************************************************************/
+    jam();
+    break;
+  case CS_ABORTING:
+    /*********************************************************************/
+    // This could actually mean that the API connection is already 
+    // ready to release if the abortState is IDLE.
+    /*********************************************************************/
+    if (apiConnectptr.p->abortState == AS_IDLE) {
+      jam();
+      releaseApiCon(signal, apiConnectptr.i);
+    } else {
+      jam();
+      set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    }//if
+    break;
+  case CS_WAIT_ABORT_CONF:
+  case CS_WAIT_COMMIT_CONF:
+  case CS_START_COMMITTING:
+  case CS_PREPARE_TO_COMMIT:
+  case CS_COMMITTING:
+  case CS_COMMIT_SENT:
+    /*********************************************************************/
+    // These states indicate that an abort process or commit process is 
+    // already ongoing. We will set a state in the api record indicating 
+    // that the API node has failed.
+    // Also we will increase the number of outstanding api records to 
+    // wait for before we can respond with API_FAILCONF.
+    /*********************************************************************/
+    jam();
+    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    break;
+  case CS_START_SCAN:
+  {
+    /*********************************************************************/
+    // The api record was performing a scan operation. We need to check 
+    // on the scan state. Since completing a scan process might involve
+    // sending several signals we will increase the loop count by 64.
+    /*********************************************************************/
+    jam();
+
+    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+
+    ScanRecordPtr scanPtr;
+    scanPtr.i = apiConnectptr.p->apiScanRec;
+    ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
+    close_scan_req(signal, scanPtr, true);
+
+    (*TloopCount) += 64;
+    break;
+  }
+  case CS_CONNECTED:
+  case CS_REC_COMMITTING:
+  case CS_RECEIVING:
+  case CS_STARTED:
+  case CS_SEND_FIRE_TRIG_REQ:
+  case CS_WAIT_FIRE_TRIG_REQ:
+    /*********************************************************************/
+    // The api record was in the process of performing a transaction but 
+    // had not yet sent all information. 
+    // We need to initiate an ABORT since the API will not provide any 
+    // more information. 
+    // Since the abort can send many signals we will insert a real-time
+    // break after checking this record.
+    /*********************************************************************/
+    jam();
+    set_api_fail_state(TapiFailedNode, apiNodeFailed);
+    abort010Lab(signal);
+    (*TloopCount) = 256;
+    break;
+  case CS_RESTART:
+    jam();
+  case CS_COMPLETING:
+    jam();
+  case CS_COMPLETE_SENT:
+    jam();
+  case CS_WAIT_COMPLETE_CONF:
+    jam();
+  case CS_FAIL_ABORTING:
+    jam();
+  case CS_FAIL_ABORTED:
+    jam();
+  case CS_FAIL_PREPARED:
+    jam();
+  case CS_FAIL_COMMITTING:
+    jam();
+  case CS_FAIL_COMMITTED:
+    /*********************************************************************/
+    // These states are only valid on copy and fail API connections.
+    /*********************************************************************/
+  default:
+    jam();
+    jamLine(apiConnectptr.p->apiConnectstate);
+    return false;
+    break;
+  }//switch
+  return true;
+}
+
 void
 Dbtc::handleFailedApiNode(Signal* signal, 
                           UintR TapiFailedNode, 
@@ -1217,138 +1404,20 @@ Dbtc::handleFailedApiNode(Signal* signal,
   do {
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     const UintR TapiNode = refToNode(apiConnectptr.p->ndbapiBlockref);
-    if (TapiNode == TapiFailedNode) {
-#ifdef VM_TRACE
-      if (apiConnectptr.p->apiFailState != ZFALSE) {
-        ndbout << "Error in previous API fail handling discovered" << endl
-	       << "  apiConnectptr.i = " << apiConnectptr.i << endl
-	       << "  apiConnectstate = " << apiConnectptr.p->apiConnectstate 
-	       << endl
-	       << "  ndbapiBlockref = " << hex
-	       << apiConnectptr.p->ndbapiBlockref << endl
-	       << "  apiNode = " << refToNode(apiConnectptr.p->ndbapiBlockref) 
-	       << endl;
-	if (apiConnectptr.p->lastTcConnect != RNIL){	  
-	  jam();
-	  tcConnectptr.i = apiConnectptr.p->lastTcConnect;
-	  ptrCheckGuard(tcConnectptr, ctcConnectFilesize, tcConnectRecord);
-	  ndbout << "  tcConnectptr.i = " << tcConnectptr.i << endl
-		 << "  tcConnectstate = " << tcConnectptr.p->tcConnectstate 
-		 << endl;
-	}
-      }//if
-#endif
-      
-      apiConnectptr.p->returnsignal = RS_NO_RETURN;
-      /***********************************************************************/
-      // The connected node is the failed node.
-      /**********************************************************************/
-      switch(apiConnectptr.p->apiConnectstate) {
-      case CS_DISCONNECTED:
-        /*********************************************************************/
-        // These states do not need any special handling. 
-        // Simply continue with the next.
-        /*********************************************************************/
-        jam();
-        break;
-      case CS_ABORTING:
-        /*********************************************************************/
-        // This could actually mean that the API connection is already 
-        // ready to release if the abortState is IDLE.
-        /*********************************************************************/
-        if (apiConnectptr.p->abortState == AS_IDLE) {
-          jam();
-          releaseApiCon(signal, apiConnectptr.i);
-        } else {
-          jam();
-          capiConnectClosing[TapiFailedNode]++;
-          apiConnectptr.p->apiFailState = ZTRUE;
-        }//if
-        break;
-      case CS_WAIT_ABORT_CONF:
-      case CS_WAIT_COMMIT_CONF:
-      case CS_START_COMMITTING:
-      case CS_PREPARE_TO_COMMIT:
-      case CS_COMMITTING:
-      case CS_COMMIT_SENT:
-        /*********************************************************************/
-        // These states indicate that an abort process or commit process is 
-        // already ongoing. We will set a state in the api record indicating 
-        // that the API node has failed.
-        // Also we will increase the number of outstanding api records to 
-        // wait for before we can respond with API_FAILCONF.
-        /*********************************************************************/
-        jam();
-        capiConnectClosing[TapiFailedNode]++;
-        apiConnectptr.p->apiFailState = ZTRUE;
-        break;
-      case CS_START_SCAN:
+    if (TapiNode == TapiFailedNode)
+    {
+      bool handled = handleFailedApiConnection(signal,
+                                               &TloopCount,
+                                               TapiFailedNode,
+                                               true);
+      if (!handled)
       {
-        /*********************************************************************/
-        // The api record was performing a scan operation. We need to check 
-        // on the scan state. Since completing a scan process might involve
-        // sending several signals we will increase the loop count by 64.
-        /*********************************************************************/
-        jam();
-
-	apiConnectptr.p->apiFailState = ZTRUE;
-	capiConnectClosing[TapiFailedNode]++;
-
-	ScanRecordPtr scanPtr;
-	scanPtr.i = apiConnectptr.p->apiScanRec;
-	ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
-	close_scan_req(signal, scanPtr, true);
-	
-        TloopCount += 64;
-        break;
-      }
-      case CS_CONNECTED:
-      case CS_REC_COMMITTING:
-      case CS_RECEIVING:
-      case CS_STARTED:
-      case CS_SEND_FIRE_TRIG_REQ:
-      case CS_WAIT_FIRE_TRIG_REQ:
-        /*********************************************************************/
-        // The api record was in the process of performing a transaction but 
-        // had not yet sent all information. 
-        // We need to initiate an ABORT since the API will not provide any 
-        // more information. 
-        // Since the abort can send many signals we will insert a real-time
-        // break after checking this record.
-        /*********************************************************************/
-        jam();
-        apiConnectptr.p->apiFailState = ZTRUE;
-        capiConnectClosing[TapiFailedNode]++;
-        abort010Lab(signal);
-        TloopCount = 256;
-        break;
-      case CS_RESTART:
-        jam();
-      case CS_COMPLETING:
-        jam();
-      case CS_COMPLETE_SENT:
-        jam();
-      case CS_WAIT_COMPLETE_CONF:
-        jam();
-      case CS_FAIL_ABORTING:
-        jam();
-      case CS_FAIL_ABORTED:
-        jam();
-      case CS_FAIL_PREPARED:
-        jam();
-      case CS_FAIL_COMMITTING:
-        jam();
-      case CS_FAIL_COMMITTED:
-        /*********************************************************************/
-        // These states are only valid on copy and fail API connections.
-        /*********************************************************************/
-      default:
-        jam();
-        jamLine(apiConnectptr.p->apiConnectstate);
         systemErrorLab(signal, __LINE__);
-        break;
-      }//switch
-    } else {
+        return;
+      }
+    }
+    else
+    {
       jam();
     }//if
     apiConnectptr.i++;
@@ -1482,21 +1551,25 @@ void Dbtc::handleApiFailState(Signal* signal, UintR TapiConnectptr)
 
   TlocalApiConnectptr.i = TapiConnectptr;
   ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
+  Uint32 apiFailState = TlocalApiConnectptr.p->apiFailState;
   TfailedApiNode = refToNode(TlocalApiConnectptr.p->ndbapiBlockref);
   arrGuard(TfailedApiNode, MAX_NODES);
-  capiConnectClosing[TfailedApiNode]--;
+  TlocalApiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
   releaseApiCon(signal, TapiConnectptr);
-  TlocalApiConnectptr.p->apiFailState = ZFALSE;
-  if (capiConnectClosing[TfailedApiNode] == 0)
+  if (apiFailState == ApiConnectRecord::AFS_API_FAILED)
   {
-    jam();
+    capiConnectClosing[TfailedApiNode]--;
+    if (capiConnectClosing[TfailedApiNode] == 0)
+    {
+      jam();
 
-    /**
-     * Perform block-level cleanups (e.g assembleFragments...)
-     */
-    Callback cb = {safe_cast(&Dbtc::apiFailBlockCleanupCallback),
-                   TfailedApiNode};
-    simBlockNodeFailure(signal, TfailedApiNode, cb);
+      /**
+       * Perform block-level cleanups (e.g assembleFragments...)
+       */
+      Callback cb = {safe_cast(&Dbtc::apiFailBlockCleanupCallback),
+                     TfailedApiNode};
+      simBlockNodeFailure(signal, TfailedApiNode, cb);
+    }
   }//if
 }//Dbtc::handleApiFailState()
 
@@ -1607,7 +1680,8 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
   tapiPointer = signal->theData[0]; /* REQUEST SENDERS CONNECT RECORD POINTER*/
   tapiBlockref = signal->theData[1];/* SENDERS BLOCK REFERENCE*/
   tuserpointer = signal->theData[2];
-  if (tapiPointer >= capiConnectFilesize) {
+  if (tapiPointer >= capiConnectFilesize)
+  {
     jam();
     ndbassert(false);
     signal->theData[0] = tuserpointer;
@@ -1615,40 +1689,58 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
     signal->theData[2] = __LINE__;
     sendSignal(tapiBlockref, GSN_TCRELEASEREF, signal, 3, JBB);
     return;
-  } else {
+  }
+  else
+  {
     jam();
     apiConnectptr.i = tapiPointer;
   }//if
   ptrAss(apiConnectptr, apiConnectRecord);
-  if (apiConnectptr.p->apiConnectstate == CS_DISCONNECTED) {
+  if (apiConnectptr.p->apiConnectstate == CS_DISCONNECTED ||
+      apiConnectptr.p->apiFailState == ApiConnectRecord::AFS_API_DISCONNECTED)
+  {
     jam();
     signal->theData[0] = tuserpointer;
     sendSignal(tapiBlockref, GSN_TCRELEASECONF, signal, 1, JBB);
-  } else {
-    if (tapiBlockref == apiConnectptr.p->ndbapiBlockref) {
-      if (apiConnectptr.p->apiConnectstate == CS_CONNECTED ||
-	  (apiConnectptr.p->apiConnectstate == CS_ABORTING &&
-	   apiConnectptr.p->abortState == AS_IDLE) ||
-	  (apiConnectptr.p->apiConnectstate == CS_STARTED &&
-	   apiConnectptr.p->firstTcConnect == RNIL))
-      {
-        jam();                                   /* JUST REPLY OK */
-	apiConnectptr.p->m_transaction_nodes.clear();
-        releaseApiCon(signal, apiConnectptr.i);
-        signal->theData[0] = tuserpointer;
-        sendSignal(tapiBlockref,
-                   GSN_TCRELEASECONF, signal, 1, JBB);
-      } else {
-        jam();
-        ndbassert(false);
-        signal->theData[0] = tuserpointer;
-        signal->theData[1] = ZINVALID_CONNECTION;
-	signal->theData[2] = __LINE__;
-	signal->theData[3] = apiConnectptr.p->apiConnectstate;
-        sendSignal(tapiBlockref,
-                   GSN_TCRELEASEREF, signal, 4, JBB);
-      }
-    } else {
+  }
+  else
+  {
+    if (tapiBlockref == apiConnectptr.p->ndbapiBlockref)
+    {
+      Uint32 dummy_loop_count = 0;
+      Uint32 dummy_api_node = 0;
+      /**
+       * It isn't ok to receive a signal from a node that we're still
+       * handling the API node failure, this must be some type of bug.
+       * It is ok to receive multiple TCRELEASEREQ on the same connection.
+       * We will handle it according to its state.
+       */
+      ndbrequire(apiConnectptr.p->apiFailState == ApiConnectRecord::AFS_API_OK);
+      bool handled = handleFailedApiConnection(signal,
+                                               &dummy_loop_count,
+                                               dummy_api_node,
+                                               false);
+      ndbrequire(handled);
+      /**
+       * We have taken care of any necessary abort of ongoing statements.
+       * We have ensured that if there is an ongoing transaction that
+       * needs to be concluded that the API is not communicated to. The
+       * transaction will be silently concluded and returned to free list
+       * when concluded.
+       * In most cases it will be immediately returned to
+       * free list.
+       *
+       * NOTE: The NDB API can still get TRANSID_AI from LQHs and TCKEYCONF
+       * from this TC on old Transaction ID's. So it is vital that the
+       * NDB API does validate the signals before processing them.
+       */
+      jam();
+      signal->theData[0] = tuserpointer;
+      sendSignal(tapiBlockref,
+                 GSN_TCRELEASECONF, signal, 1, JBB);
+    }
+    else
+    {
       jam();
       ndbassert(false);
       signal->theData[0] = tuserpointer;
@@ -3746,8 +3838,8 @@ void Dbtc::tckeyreq050Lab(Signal* signal)
   /* TO DIH IN TRAFFIC IT SHOULD BE OK (3% OF THE EXECUTION TIME */
   /* IS SPENT IN DIH AND EVEN LESS IN REPLICATED NDB.            */
   /*-------------------------------------------------------------*/
-  EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                    DiGetNodesReq::SignalLength, 0);
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
   UintR Tdata2 = conf->reqinfo;
   UintR TerrorIndicator = signal->theData[0];
@@ -5789,9 +5881,36 @@ void Dbtc::diverify010Lab(Signal* signal)
        * COMMIT MESSAGE CAN BE SENT TO ALL INVOLVED PARTS.
        *---------------------------------------------------------------------*/
       * (EmulatedJamBuffer**)(signal->theData+2) = jamBuffer();
-      EXECUTE_DIRECT(DBDIH, GSN_DIVERIFYREQ, signal,
-                     2 + sizeof(void*)/sizeof(Uint32), 0);
-      if (signal->theData[3] == 0) {
+      EXECUTE_DIRECT_MT(DBDIH, GSN_DIVERIFYREQ, signal,
+                        2 + sizeof(void*)/sizeof(Uint32), 0);
+      if (clastApiConnectPREPARE_TO_COMMIT != RNIL ||
+          signal->theData[3] != 0)
+      {
+        /* Put transaction last in verification queue */
+        ndbrequire(regApiPtr->nextApiConnect == RNIL);
+        if (clastApiConnectPREPARE_TO_COMMIT != RNIL)
+        {
+          ApiConnectRecord* apiPtr;
+          apiPtr = &apiConnectRecord[clastApiConnectPREPARE_TO_COMMIT];
+          ndbrequire(apiPtr->nextApiConnect == RNIL);
+          apiPtr->nextApiConnect = apiConnectptr.i;
+        }
+        else
+        {
+          ndbassert(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
+          cfirstApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
+        }
+        clastApiConnectPREPARE_TO_COMMIT = apiConnectptr.i;
+        /**
+         * If execDIVERIFYCONF is called below, make it pop a transaction
+         * from verifiction queue.
+         * Note, that even if DBDIH says ok without queue, DBTC can still
+         * have a queue since there can be DIVERIFYCONF still in flight.
+         */
+        signal->theData[0] = RNIL;
+      }
+      if (signal->theData[3] == 0)
+      {
         execDIVERIFYCONF(signal);
       }
       return;
@@ -5853,6 +5972,27 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
   jamEntry();
+  if (TapiConnectptrIndex == RNIL)
+  {
+    /**
+     * DIVERIFYCONF from DBDIH
+     * There should be transactions queue for verification.
+     */
+    if (cfirstApiConnectPREPARE_TO_COMMIT == RNIL)
+    {
+      ndbassert(cfirstApiConnectPREPARE_TO_COMMIT != RNIL);
+      return;
+    }
+    TapiConnectptrIndex = cfirstApiConnectPREPARE_TO_COMMIT;
+  }
+  else
+  {
+    /**
+     * DIVERIFYCONF from DBTC
+     * There should be no transactions queue for verification.
+     */
+    ndbrequire(cfirstApiConnectPREPARE_TO_COMMIT == RNIL);
+  }
   if (ERROR_INSERTED(8017)) {
     CLEAR_ERROR_INSERT_VALUE;
     return;
@@ -5863,6 +6003,16 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   }//if
   ApiConnectRecord * const regApiPtr = 
                             &localApiConnectRecord[TapiConnectptrIndex];
+  if (cfirstApiConnectPREPARE_TO_COMMIT == TapiConnectptrIndex)
+  {
+    /* Pop first transaction in verification queue */
+    cfirstApiConnectPREPARE_TO_COMMIT = regApiPtr->nextApiConnect;
+    if (cfirstApiConnectPREPARE_TO_COMMIT == RNIL)
+    {
+      clastApiConnectPREPARE_TO_COMMIT = RNIL;
+    }
+    regApiPtr->nextApiConnect = RNIL;
+  }
   ConnectionState TapiConnectstate = regApiPtr->apiConnectstate;
   UintR TApifailureNr = regApiPtr->failureNr;
   UintR Tfailure_nr = cfailure_nr;
@@ -6451,9 +6601,12 @@ err8055:
   c_counters.ccommitCount++;
   ptrCheckGuard(copyPtr, TapiConnectFilesize, localApiConnectRecord);
   copyApi(copyPtr, regApiPtr);
-  if (TapiFailState != ZTRUE) {
+  if (TapiFailState == ApiConnectRecord::AFS_API_OK)
+  {
     return copyPtr;
-  } else {
+  }
+  else
+  {
     jam();
     handleApiFailState(signal, regApiPtr.i);
     return copyPtr;
@@ -6512,7 +6665,7 @@ void Dbtc::copyApi(ApiConnectRecordPtr copyPtr, ApiConnectRecordPtr regApiPtr)
   if (tc_testbit(regApiPtr.p->m_flags, ApiConnectRecord::TF_LATE_COMMIT))
   {
     jam();
-    if (unlikely(regApiPtr.p->apiFailState == TRUE))
+    if (unlikely(regApiPtr.p->apiFailState != ApiConnectRecord::AFS_API_OK))
     {
       jam();
       /* API failed during commit, no need to bother with LATE_COMMIT */
@@ -7146,7 +7299,7 @@ Dbtc::sendApiLateCommitSignal(Signal* signal,
   apiConnectptr.p->commitAckMarker = RNIL;
   apiCopy.p->commitAckMarker = RNIL;
   
-  if (apiConnectptr.p->apiFailState == ZTRUE)
+  if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
   {
     jam();
     /**
@@ -11138,8 +11291,8 @@ Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
     CheckNodeGroups::Direct |
     CheckNodeGroups::GetNodeGroupMembers;
   sd->nodeId = node;
-  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
+		    CheckNodeGroups::SignalLength, 0);
   jamEntry();
   
   NdbNodeBitmask mask;
@@ -12847,8 +13000,8 @@ void Dbtc::diFcountReqLab(Signal* signal, ScanRecordPtr scanptr)
   req->schemaTransId = 0;
   req->jamBufferPtr = jamBuffer();
 
-  EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
-                 DihScanTabReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_REQ, signal,
+                    DihScanTabReq::SignalLength, 0);
 
   DihScanTabConf * conf = (DihScanTabConf*)signal->getDataPtr();
   if (conf->senderData == 0)
@@ -12886,7 +13039,8 @@ void Dbtc::execDIH_SCAN_TAB_CONF(Signal* signal,
     jam();
     ScanFragReq::setReorgFlag(scanptr.p->scanRequestInfo, ScanFragReq::REORG_NOT_MOVED);
   }
-  if (regApiPtr->apiFailState == ZTRUE) {
+  if (regApiPtr->apiFailState != ApiConnectRecord::AFS_API_OK)
+  {
     jam();
     releaseScanResources(signal, scanptr, true);
     handleApiFailState(signal, apiConnectptr.i);
@@ -13088,7 +13242,8 @@ void Dbtc::execDIH_SCAN_TAB_REF(Signal* signal, ScanRecordPtr scanptr)
   jamEntry();
   DihScanTabRef * ref = (DihScanTabRef*)signal->getDataPtr();
   const Uint32 errCode = ref->error;
-  if (apiConnectptr.p->apiFailState == ZTRUE) {
+  if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
+  {
     jam();
     releaseScanResources(signal, scanptr, true);
     handleApiFailState(signal, apiConnectptr.i);
@@ -13188,8 +13343,8 @@ void Dbtc::releaseScanResources(Signal* signal,
     rep->scanCookie = scanPtr.p->m_scan_cookie;
     rep->jamBufferPtr = jamBuffer();
 
-    EXECUTE_DIRECT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
-                   DihScanTabCompleteRep::SignalLength, 0);
+    EXECUTE_DIRECT_MT(DBDIH, GSN_DIH_SCAN_TAB_COMPLETE_REP, signal,
+                      DihScanTabCompleteRep::SignalLength, 0);
     jamEntryDebug();
     /* No return code, it will always succeed. */
     scanPtr.p->m_scan_cookie = DihScanTabConf::InvalidCookie;
@@ -13235,8 +13390,8 @@ bool Dbtc::sendDihGetNodeReq(Signal* signal,
     req->distr_key_indicator = tabPtr.p->get_user_defined_partitioning();
   }
 
-  EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                    DiGetNodesReq::SignalLength, 0);
 
   jamEntryDebug();
   /**
@@ -13633,8 +13788,8 @@ void Dbtc::scanError(Signal* signal, ScanRecordPtr scanptr, Uint32 errorCode)
    */
   close_scan_req(signal, scanptr, false);
   
-  const bool apiFail = (apiConnectptr.p->apiFailState == ZTRUE);
-  if(apiFail){
+  if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
+  {
     jam();
     return;
   }
@@ -14111,7 +14266,8 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
     return;
   }
 
-  const bool apiFail = (apiConnectptr.p->apiFailState == ZTRUE);
+  const bool apiFail =
+    (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK);
   
   if(!scanPtr.p->m_close_scan_req){
     jam();
@@ -14599,7 +14755,7 @@ void Dbtc::initApiConnect(Signal* signal)
     jam();
     ptrAss(apiConnectptr, apiConnectRecord);
     apiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
-    apiConnectptr.p->apiFailState = ZFALSE;
+    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
     setApiConTimer(apiConnectptr.i, 0, __LINE__);
     apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
     apiConnectptr.p->cachePtr = RNIL;
@@ -14630,7 +14786,7 @@ void Dbtc::initApiConnect(Signal* signal)
       jam();
       ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
       apiConnectptr.p->apiConnectstate = CS_RESTART;
-      apiConnectptr.p->apiFailState = ZFALSE;
+      apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
       setApiConTimer(apiConnectptr.i, 0, __LINE__);
       apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
       apiConnectptr.p->cachePtr = RNIL;
@@ -14661,7 +14817,7 @@ void Dbtc::initApiConnect(Signal* signal)
     jam();
     ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
     setApiConTimer(apiConnectptr.i, 0, __LINE__);
-    apiConnectptr.p->apiFailState = ZFALSE;
+    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
     apiConnectptr.p->apiConnectstate = CS_RESTART;
     apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
     apiConnectptr.p->cachePtr = RNIL;
@@ -14685,6 +14841,8 @@ void Dbtc::initApiConnect(Signal* signal)
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
   apiConnectptr.p->nextApiConnect = RNIL;
   cfirstfreeApiConnectFail = 2 * tiacTmp;
+  cfirstApiConnectPREPARE_TO_COMMIT = RNIL;
+  clastApiConnectPREPARE_TO_COMMIT = RNIL;
 }//Dbtc::initApiConnect()
 
 void Dbtc::initgcp(Signal* signal) 
@@ -14996,7 +15154,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
   releaseFiredTriggerData(&apiConnectptr.p->theFiredTriggers);
 
   if (tc_testbit(apiConnectptr.p->m_flags, ApiConnectRecord::TF_EXEC_FLAG) ||
-      apiConnectptr.p->apiFailState == ZTRUE)
+      apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
   {
     jam();
     bool ok = false;
@@ -15066,7 +15224,8 @@ void Dbtc::releaseAbortResources(Signal* signal)
   setApiConTimer(apiConnectptr.i, 0, 
 		 100000+c_apiConTimer_line[apiConnectptr.i]);
   time_track_complete_transaction_error(apiConnectptr.p);
-  if (apiConnectptr.p->apiFailState == ZTRUE) {
+  if (apiConnectptr.p->apiFailState != ApiConnectRecord::AFS_API_OK)
+  {
     jam();
     handleApiFailState(signal, apiConnectptr.i);
     return;
@@ -21103,8 +21262,8 @@ Dbtc::executeFullyReplicatedTrigger(Signal* signal,
   diGetNodesReq->get_next_fragid_indicator = 1;
   diGetNodesReq->anyNode = 0;
   diGetNodesReq->jamBufferPtr = jamBuffer();
-  EXECUTE_DIRECT(DBDIH, GSN_DIGETNODESREQ, signal,
-                 DiGetNodesReq::SignalLength, 0);
+  EXECUTE_DIRECT_MT(DBDIH, GSN_DIGETNODESREQ, signal,
+                    DiGetNodesReq::SignalLength, 0);
   DiGetNodesConf * diGetNodesConf =  (DiGetNodesConf *)signal->getDataPtrSend();
   ndbrequire(diGetNodesConf->zero == 0);
   Uint32 fragId = diGetNodesConf->fragId;
@@ -21596,6 +21755,17 @@ Dbtc::time_track_complete_scan_frag_error(
 {
   HostRecordPtr hostPtr;
   /* Scan frag operations are recorded on the DB node */
+  if (!NdbTick_IsValid(scanFragPtr->m_start_ticks))
+  {
+    /**
+     * We can come here after sending CLOSE flag on SCAN_FRAGREQ
+     * while still waiting for SCAN_FRAGCONF, if SCAN_FRAGCONF
+     * arrives before this returns and in addition we send
+     * SCAN_FRAGREF we crash unless we check for this.
+     */
+    jam();
+    return;
+  }
   Uint32 pos =
     time_track_calculate_histogram_position(scanFragPtr->m_start_ticks);
   Uint32 dbNodeId = refToNode(scanFragPtr->lqhBlockref);

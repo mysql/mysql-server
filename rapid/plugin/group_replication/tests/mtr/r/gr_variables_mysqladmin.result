@@ -5,8 +5,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 =====mysqladmin -u root -P MASTER_MYPORT --protocol=TCP check all the GR variable outputs=====
 
-group_replication_allow_local_disjoint_gtids_join
-OFF
 group_replication_allow_local_lower_version_join
 OFF
 group_replication_auto_increment_increment

@@ -1,22 +1,32 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#if defined(HAVE_OPENSSL)
+#define LOG_SUBSYSTEM_TAG  "sha256_password"
+#endif
+
 #include "sql/auth/sql_authentication.h"
 
 #include <string.h>
-#include <fstream>                     // IWYU pragma: keep
 #include <string>                       /* std::string */
 #include <utility>
 #include <vector>                       /* std::vector */
@@ -80,9 +90,12 @@
 
 #if defined(HAVE_OPENSSL)
 #ifndef HAVE_YASSL
+#include <mysql/components/my_service.h>
+
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
+#include <openssl/x509v3.h>
 #else
 #include <openssl/ssl.h>
 #endif /* HAVE_YASSL */
@@ -117,8 +130,65 @@
   before the client and server negotiated any capabilities.
   Therefore the ERR packet will not contain the SQL-state.
 
-  See also
+  After initial handshake, server informs client about the method to be used
+  for authentication (unless it was already established during the handshake)
+  and the authentication exchange continues until server either accepts
+  connection by sending an @ref page_protocol_basic_ok_packet or rejects it
+  with @ref page_protocol_basic_err_packet.
+
+  @startuml
+  (*) --> "Initial Handshake Packet"
+
+  "Initial Handshake Packet" --> "Client Response"
+  "Initial Handshake Packet" --> "SSL Exchange"
+  "SSL Exchange" --> "Client Response"
+
+  "Client Response" --> "Authentication method switch"
+  "Client Response" --> "Authentication exchange continuation"
+  "Client Response" --> [ Insufficient client capabilities] ERR
+
+  "Authentication method switch" --> [ Client does not know requested auth method ] DISCONNECT
+  "Authentication method switch" --> "Authentication exchange continuation"
+
+  "Authentication exchange continuation" --> OK
+  "Authentication exchange continuation" --> ERR
+  @enduml
+
+  @section sect_protocol_connection_phase_initial_handshake Initial Handshake
+
+  @section sect_protocol_connection_phase_fast_path Auth Phase Fast Path
+
+  @section sect_protocol_connection_phase_auth_method_mismatch Authentication Method Mismatch
+
+  @section sect_protocol_connection_phase_com_change_user_auth Authentication After COM_CHANGE_USER Command
+
+  @subpage sect_protocol_connection_phase_packets_protocol_handshake
+
+  @sa group_cs_capabilities_flags
+  @subpage page_protocol_connection_phase_packets
   @subpage page_caching_sha2_authentication_exchanges
+*/
+
+/**
+  @page page_protocol_connection_phase_packets Connection Phase Packets
+
+  @section sect_protocol_connection_phase_packets_protocol_handshake Protocol::Handshake
+
+  Initial Handshake %Packet
+
+  When the client connects to the server the server sends a handshake
+  packet to the client. Depending on the server version and configuration
+  options different variants of the initial packet are sent.
+
+  To permit the server to add support for newer protocols, the first byte
+  defines the protocol version.
+
+  Since 3.21.0 the @ref page_protocol_connection_phase_packets_protocol_handshake_v10
+  is sent.
+
+  @subpage page_protocol_connection_phase_packets_protocol_handshake_v10
+  @subpage page_protocol_connection_phase_packets_protocol_ssl_request
+  @subpage page_protocol_connection_phase_packets_protocol_handshake_response
 */
 
 
@@ -148,6 +218,7 @@ extern bool initialized;
 
 #if defined(HAVE_OPENSSL)
 #define MAX_CIPHER_LENGTH 1024
+#define SHA256_PASSWORD_MAX_PASSWORD_LENGTH MAX_PLAINTEXT_LENGTH
 
 #if !defined(HAVE_YASSL)
 #define DEFAULT_SSL_CLIENT_CERT "client-cert.pem"
@@ -534,7 +605,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_NO_PASSWORD_ERROR,
+    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR_WITHOUT_PASSWORD,
            mpvio->auth_info.user_name,
            mpvio->auth_info.host_or_ip);
   }
@@ -554,7 +625,7 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
       so that the overhead of the general query log is not required to track
       failed connections.
     */
-    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR,
+    LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_ERROR_WITH_PASSWORD,
            mpvio->auth_info.user_name,
            mpvio->auth_info.host_or_ip,
            passwd_used ? ER_DEFAULT(ER_YES) : ER_DEFAULT(ER_NO));
@@ -563,26 +634,79 @@ static void login_failed_error(THD *thd, MPVIO_EXT *mpvio, int passwd_used)
 
 
 /**
-  sends a server handshake initialization packet, the very first packet
-  after the connection was established
+  @page page_protocol_connection_phase_packets_protocol_handshake_v10 Protocol::HandshakeV10
 
-  Packet format:
+  Initial handshake packet for protocol version 10.
 
-    Bytes       Content
-    -----       ----
-    1           protocol version (always 10)
-    n           server version string, \0-terminated
-    4           thread id
-    8           first 8 bytes of the plugin provided data (scramble)
-    1           \0 byte, terminating the first part of a scramble
-    2           server capabilities (two lower bytes)
-    1           server character set
-    2           server status
-    2           server capabilities (two upper bytes)
-    1           length of the scramble
-    10          reserved, always 0
-    n           rest of the plugin provided data (at least 12 bytes)
-    1           \0 byte, terminating the second part of a scramble
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>protocol version</td>
+    <td>Always 10</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "string&lt;NUL&gt;"</td>
+      <td>server version</td>
+      <td>human readable status information</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+    <td>thread id</td>
+    <td>a.k.a. connection id</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[8]"</td>
+    <td>auth-plugin-data-part-1</td>
+    <td>first 8 bytes of the plugin provided data (scramble)</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>filler</td>
+    <td>0x00 byte, terminating the first part of a scramble</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>capability_flags_1</td>
+    <td>The lower 2 bytes of the \ref group_cs_capabilities_flags</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>character_set</td>
+    <td>default server \ref a_protocol_character_set, only the lower 8-bits</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>status_flags</td>
+    <td>\ref SERVER_STATUS_flags_enum</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+    <td>capability_flags_2</td>
+    <td>The upper 2 bytes of the \ref group_cs_capabilities_flags</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>auth_plugin_data_len</td>
+    <td>length of the combined auth_plugin_data (scramble), if auth_plugin_data_len is &gt; 0</td></tr>
+  <tr><td colspan="3">} else {</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+    <td>00</td>
+    <td>constant 0x00</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[10]"</td>
+    <td>reserved</td>
+    <td>reserved. All 0s.</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_le "$length"</td>
+    <td>auth-plugin-data-part-2</td>
+    <td>Rest of the plugin provided data (scramble), $len=MAX(13, length of auth-plugin-data - 8)</td></tr>
+  <tr><td colspan="3">if capabilities @& ::CLIENT_PLUGIN_AUTH {</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_null "NULL"</td>
+    <td>auth_plugin_name</td>
+    <td>name of the auth_method that the auth_plugin_data belongs to</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  If the client supports SSL (\ref group_cs_capabilities_flags @& ::CLIENT_SSL
+  is on and the \ref mysql_ssl_mode of the client is not ::SSL_MODE_DISABLED)
+  a short package called
+  @ref page_protocol_connection_phase_packets_protocol_ssl_request is sent,
+  causing the server to establish an SSL layer and wait for the next package
+  from the client.
+
+  Client then returns
+  @ref page_protocol_connection_phase_packets_protocol_handshake_response
+
+  At any time, at any error, the client will just disconnect.
+
+  @sa send_server_handshake_packet mysql_real_connect
+*/
+
+/**
+  Sends a server @ref page_protocol_connection_phase_packets_protocol_handshake_v10
 
   @retval 0 ok
   @retval 1 error
@@ -2522,7 +2646,7 @@ acl_authenticate(THD *thd, enum_server_command command)
 
       my_error(ER_ACCOUNT_HAS_BEEN_LOCKED, MYF(0),
                mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
-      LogErr(INFORMATION_LEVEL, ER_ACCOUNT_HAS_BEEN_LOCKED,
+      LogErr(INFORMATION_LEVEL, ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED,
              mpvio.acl_user->user, mpvio.auth_info.host_or_ip);
       DBUG_RETURN(1);
     }
@@ -2553,7 +2677,7 @@ acl_authenticate(THD *thd, enum_server_command command)
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
       query_logger.general_log_print(thd, COM_CONNECT,
                                      ER_DEFAULT(ER_MUST_CHANGE_PASSWORD_LOGIN));
-      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_PASSWORD_LOGIN);
+      LogErr(INFORMATION_LEVEL, ER_MUST_CHANGE_EXPIRED_PASSWORD);
 
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
@@ -2734,7 +2858,8 @@ static int set_native_salt(const char* password, unsigned int password_len,
 static int generate_sha256_password(char *outbuf, unsigned int *buflen,
                                     const char *inbuf, unsigned int inbuflen)
 {
-  if (my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > SHA256_PASSWORD_MAX_PASSWORD_LENGTH ||
+      my_validate_password_policy(inbuf, inbuflen))
     return 1;
   if (inbuflen == 0)
   {
@@ -2923,6 +3048,7 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 }
 
 #if defined(HAVE_OPENSSL)
+
 /**
   Interface for querying the MYSQL_PUBLIC_VIO about encryption state.
 
@@ -3068,6 +3194,10 @@ compare_sha256_password_with_hash(const char *hash, unsigned long hash_length,
   char  *user_salt_end;
 
   DBUG_ENTER("compare_sha256_password_with_hash");
+  DBUG_ASSERT(cleartext_length <= SHA256_PASSWORD_MAX_PASSWORD_LENGTH);
+
+  if (cleartext_length > SHA256_PASSWORD_MAX_PASSWORD_LENGTH)
+    DBUG_RETURN(-1);
 
   /*
     Fetch user authentication_string and extract the password salt
@@ -3202,17 +3332,15 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (private_key == NULL || public_key == NULL)
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-        "Authentication requires either RSA keys or SSL encryption");
+      LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL);
       DBUG_RETURN(CR_ERROR);
     }
 
 
     if ((cipher_length= g_sha256_rsa_keys->get_cipher_length()) > MAX_CIPHER_LENGTH)
     {
-      my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-        "RSA key cipher length of %u is too long. Max value is %u.",
-        g_sha256_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
+      LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_RSA_KEY_TOO_LONG,
+                   g_sha256_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
       DBUG_RETURN(CR_ERROR);
     }
 
@@ -3262,6 +3390,10 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
 #endif /* HAVE_YASSL */
   } // if(!my_vio_is_encrypter())
 
+  /* Don't process the password if it is longer than maximum limit */
+  if (pkt_len > SHA256_PASSWORD_MAX_PASSWORD_LENGTH + 1)
+    DBUG_RETURN(CR_ERROR);
+
   /* A password was sent to an account without a password */
   if (info->auth_string_length == 0)
     DBUG_RETURN(CR_ERROR);
@@ -3275,9 +3407,8 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
   if (is_error)
   {
     /* User salt is not correct */
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-                          "Password salt for user '%s' is corrupt.",
-                          info->user_name);
+    LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_SALT_FOR_USER_CORRUPT,
+                 info->user_name);
     DBUG_RETURN(CR_ERROR);
   }
 
@@ -3366,21 +3497,17 @@ public:
   File_IO(const File_IO& src)
     : m_file_name(src.file_name()),
       m_read(src.read_mode()),
-      m_error_state(src.get_error())
+      m_error_state(src.get_error()),
+      m_file(-1)
   {
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
+    file_open();
   }
 
   File_IO & operator=(const File_IO& src)
   {
     m_file_name= src.file_name();
     m_read= src.read_mode();
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
-
+    file_open();
     return *this;
   }
 
@@ -3394,8 +3521,11 @@ public:
   */
   void close()
   {
-    if (m_file.is_open())
-      m_file.close();
+    if (file_is_open())
+    {
+      my_close(m_file, MYF(MY_WME));
+      m_file= -1;
+    }
   }
 
   /*
@@ -3433,17 +3563,43 @@ protected:
   File_IO(const Sql_string_t filename, bool read)
     : m_file_name(filename),
       m_read(read),
-      m_error_state(false)
+      m_error_state(false),
+      m_file(-1)
   {
-    m_file.open(m_file_name.c_str(),
-                m_read ? std::ios::in :
-                         std::ios::out|std::ios::trunc);
+    file_open();
+  }
+
+  /**
+    A constructor to create the class with the right umask mode
+    @param filename name of the file
+    @param mode the create attributes to pass to my_create()
+  */
+  File_IO(const Sql_string_t filename, MY_MODE mode)
+    : m_file_name(filename),
+    m_read(false),
+    m_error_state(false),
+    m_file(-1)
+  {
+    m_file = my_create(m_file_name.c_str(),
+      mode, O_WRONLY, MYF(MY_WME));
+  }
+
+  void file_open()
+  {
+    m_file = my_open(m_file_name.c_str(),
+      m_read ? O_RDONLY : O_WRONLY | O_TRUNC | O_CREAT,
+      MYF(MY_WME));
+  }
+
+  bool file_is_open()
+  {
+    return m_file >= 0;
   }
 private:
   Sql_string_t m_file_name;
   bool m_read;
   bool m_error_state;
-  std::fstream m_file;
+  File m_file;
   /* Only File_creator can create File_IO */
   friend class File_creator;
 };
@@ -3462,15 +3618,18 @@ private:
 File_IO &
 File_IO::operator>>(Sql_string_t &s)
 {
-  DBUG_ASSERT(read_mode() && m_file.is_open());
+  DBUG_ASSERT(read_mode() && file_is_open());
 
-  m_file.seekg(0, std::ios::end);
-  if (resize_no_exception(s, m_file.tellg()) == false)
+  my_off_t off= my_seek(m_file, 0, SEEK_END, MYF(MY_WME));
+  if (off == MY_FILEPOS_ERROR ||
+      resize_no_exception(s, off) == false)
     set_error();
   else
   {
-    m_file.seekg(0, std::ios::beg);
-    m_file.read(&s[0], s.size());
+    if (MY_FILEPOS_ERROR == my_seek(m_file, 0, SEEK_SET, MYF(MY_WME)) ||
+        (size_t) -1 == my_read(m_file, reinterpret_cast<uchar *>(&s[0]),
+                               s.size(), MYF(0)))
+      set_error();
     close();
   }
   return *this;
@@ -3490,12 +3649,14 @@ File_IO::operator>>(Sql_string_t &s)
 File_IO &
 File_IO::operator<<(const Sql_string_t &output_string)
 {
-  DBUG_ASSERT(!read_mode() && m_file.is_open());
+  DBUG_ASSERT(!read_mode() && file_is_open());
 
-  if (!output_string.size())
+  if (!output_string.size() ||
+    MY_FILE_ERROR ==
+    my_write(m_file,
+      reinterpret_cast<const uchar *>(output_string.data()),
+      output_string.length(), MYF(MY_NABP | MY_WME)))
     set_error();
-  else
-    m_file << output_string;
 
   close();
   return *this;
@@ -3526,6 +3687,16 @@ public:
   File_IO * operator()(const Sql_string_t filename, bool read=false)
   {
     File_IO * f= new File_IO(filename, read);
+    m_file_vector.push_back(f);
+    return f;
+  }
+
+  /*
+    Note : Do not free memory.
+  */
+  File_IO * operator()(const Sql_string_t filename, MY_MODE mode)
+  {
+    File_IO * f= new File_IO(filename, mode);
     m_file_vector.push_back(f);
     return f;
   }
@@ -3562,7 +3733,24 @@ public:
   RSA *operator()(void)
   {
     /* generate RSA keys */
-    RSA *rsa= RSA_generate_key(m_key_size, m_exponent, NULL, NULL);
+    RSA *rsa= RSA_new();
+    if (!rsa)
+      return NULL;
+    BIGNUM *e= BN_new();
+    if (!e)
+    {
+      RSA_free(rsa);
+      return NULL;
+    }
+    if (!BN_set_word(e, m_exponent) ||
+        !RSA_generate_key_ex(rsa, m_key_size, e, NULL))
+    {
+      RSA_free(rsa);
+      BN_free(e);
+      return NULL;
+    }
+    BN_free(e);
+
     return rsa; // pass ownership
   }
 
@@ -3662,21 +3850,68 @@ public:
                     EVP_PKEY *ca_pkey= NULL)
   {
     X509 *x509= X509_new();
-    DBUG_ASSERT(cn.length() <= MAX_CN_NAME_LENGTH);
-    ASN1_INTEGER_set(X509_get_serialNumber(x509), serial);
-    X509_gmtime_adj(X509_get_notBefore(x509), notbefore);
-    X509_gmtime_adj(X509_get_notAfter(x509), notafter);
-    /* Set public key */
-    X509_set_pubkey(x509, pkey);
-    X509_NAME *name= X509_get_subject_name(x509);
-    X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
-      (const unsigned char *)cn.c_str(), -1, -1, 0);
+    X509_EXTENSION *ext= 0;
+    X509V3_CTX v3ctx;
+    X509_NAME *name= 0;
 
-    X509_set_issuer_name(x509,
-                         self_sign ? name : X509_get_subject_name(ca_x509));
-    X509_sign(x509, self_sign ? pkey : ca_pkey, EVP_sha256());
+    DBUG_ASSERT(cn.length() <= MAX_CN_NAME_LENGTH);
+    DBUG_ASSERT(serial != 0);
+    DBUG_ASSERT(self_sign || (ca_x509 != NULL && ca_pkey != NULL));
+    if (!x509)
+      goto err;
+
+    /** Set certificate version */
+    if (!X509_set_version(x509, 2))
+      goto err;
+
+    /** Set serial number */
+    if (!ASN1_INTEGER_set(X509_get_serialNumber(x509), serial))
+      goto err;
+
+    /** Set certificate validity */
+    if (!X509_gmtime_adj(X509_get_notBefore(x509), notbefore) ||
+        !X509_gmtime_adj(X509_get_notAfter(x509), notafter))
+      goto err;
+
+    /** Set public key */
+    if (!X509_set_pubkey(x509, pkey))
+      goto err;
+
+    /** Set CN value in subject */
+    name= X509_get_subject_name(x509);
+    if (!name)
+      goto err;
+
+    if (!X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
+                                    (const unsigned char *)cn.c_str(),
+                                    -1, -1, 0))
+      goto err;
+
+    /** Set Issuer */
+    if (!X509_set_issuer_name(x509, self_sign ? name :
+                                      X509_get_subject_name(ca_x509)))
+      goto err;
+
+    /** Add X509v3 extensions */
+    X509V3_set_ctx(&v3ctx, self_sign ? x509 : ca_x509, x509, NULL, NULL, 0);
+
+    /** Add CA:TRUE / CA:FALSE inforamation */
+    if (!(ext= X509V3_EXT_conf_nid(NULL, &v3ctx, NID_basic_constraints,
+                                   self_sign ?(char *)"critical,CA:TRUE" :
+                                              (char *)"critical,CA:FALSE")))
+      goto err;
+    X509_add_ext(x509, ext, -1);
+    X509_EXTENSION_free(ext);
+
+    /** Sign using SHA256 */
+    if (!X509_sign(x509, self_sign ? pkey : ca_pkey, EVP_sha256()))
+      goto err;
 
     return x509;
+err:
+    if (x509)
+      X509_free(x509);
+    return 0;
   }
 };
 
@@ -3838,9 +4073,8 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   File_IO *x509_ca_cert_file_istream= NULL;
   X509_gen x509_gen;
   MY_MODE file_creation_mode= get_file_perm(USER_READ | USER_WRITE);
-  MY_MODE saved_umask= umask(~(file_creation_mode));
 
-  x509_key_file_ostream= filecr(key_filename);
+  x509_key_file_ostream= filecr(key_filename, file_creation_mode);
 
   /* Generate private key for X509 certificate */
   rsa= rsa_gen();
@@ -3869,13 +4103,6 @@ bool create_x509_certificate(RSA_generator_func &rsa_gen,
   if (x509_key_file_ostream->get_error())
   {
     LogErr(ERROR_LEVEL, ER_X509_CANT_WRITE_KEY, key_filename.c_str());
-    ret_val= false;
-    goto end;
-  }
-
-  if (my_chmod(key_filename.c_str(), USER_READ|USER_WRITE, MYF(MY_FAE+MY_WME)))
-  {
-    LogErr(ERROR_LEVEL, ER_X509_CANT_CHMOD_KEY, key_filename.c_str());
     ret_val= false;
     goto end;
   }
@@ -3967,7 +4194,6 @@ end:
   if (ca_x509)
     X509_free(ca_x509);
 
-  umask(saved_umask);
   return ret_val;
 }
 
@@ -4017,7 +4243,7 @@ bool create_RSA_key_pair(RSA_generator_func &rsa_gen,
     goto end;
   }
 
-  priv_key_file_ostream= filecr(priv_key_filename);
+  priv_key_file_ostream= filecr(priv_key_filename, file_creation_mode);
   (*priv_key_file_ostream)<< rsa_priv_key_write(rsa);
 
   DBUG_EXECUTE_IF("key_file_write_error",
@@ -4201,36 +4427,42 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status)
 
 
 /*
-  Check sha256_password_auto_generate_rsa_keys option and generate
-  RSA key pair if required.
+ Generate RSA keys
 
-  RSA key pair is generated iff following conditions are met.
-  1> sha256_password_auto_generate_rsa_keys is set to ON.
-  2> sha256_password_private_key_path or sha256_password_public_key_path
-     are pointing to non-default locations.
-  3> Following files are not present in data directory.
-     a> private_key.pem
-     b> public_key.pem
+ @param [in] auto_generate Variable to control key generation
+ @param [in] priv_key_path Path to store/check private key
+ @param [in] pub_key_path  Path to store/check public key
+ @param [in] message       Message part to be logged
 
-  If above mentioned conditions are satified private_key.pem and
-  public_key.pem files are generated and placed in data directory.
+ @returns status of key generation
+   @retval true  Success
+   @retval false Error generating keys
 */
-static bool do_auto_rsa_keys_generation()
+
+static bool generate_rsa_keys(bool auto_generate,
+                              const char *priv_key_path,
+                              const char *pub_key_path,
+                              const char *message)
 {
-  if (auth_rsa_auto_generate_rsa_keys == true)
+  DBUG_ENTER("generate_rsa_keys");
+  if (auto_generate)
   {
     MY_STAT priv_stat, pub_stat;
-    if (strcmp(auth_rsa_private_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
-        strcmp(auth_rsa_public_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
+    if (strcmp(priv_key_path, AUTH_DEFAULT_RSA_PRIVATE_KEY) ||
+        strcmp(pub_key_path, AUTH_DEFAULT_RSA_PUBLIC_KEY))
     {
-      LogErr(INFORMATION_LEVEL, ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION);
-      return true;
+      LogErr(INFORMATION_LEVEL,
+             ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION,
+             message);
+      DBUG_RETURN(true);
     }
     else if (my_stat(AUTH_DEFAULT_RSA_PRIVATE_KEY, &priv_stat, MYF(0)) ||
              my_stat(AUTH_DEFAULT_RSA_PUBLIC_KEY, &pub_stat, MYF(0)))
     {
-      LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT);
-      return true;
+      LogErr(INFORMATION_LEVEL,
+             ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT,
+             message);
+      DBUG_RETURN(true);
     }
     else
     {
@@ -4241,17 +4473,55 @@ static bool do_auto_rsa_keys_generation()
 
       if (create_RSA_key_pair(rsa_gen, "private_key.pem", "public_key.pem",
                               fcr) == false)
-        return false;
+        DBUG_RETURN(false);
 
-      LogErr(INFORMATION_LEVEL, ER_AUTH_KEYS_SAVED_TO_DATADIR);
-      return true;
+      LogErr(INFORMATION_LEVEL, ER_AUTH_KEYS_SAVED_TO_DATADIR, message);
+      DBUG_RETURN(true);
     }
   }
   else
   {
-    LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_DISABLED);
-    return true;
+    LogErr(INFORMATION_LEVEL, ER_AUTH_KEY_GENERATION_DISABLED,
+           message);
+    DBUG_RETURN(true);
   }
+}
+
+
+/*
+  Generate RSA keypair.
+
+  @returns Status of key generation
+    @retval true Success
+    @retval false Failure
+
+  Check sha256_password_auto_generate_rsa_keys/
+  caching_sha2_password_auto_generate_rsa_keys
+  option and generate RSA key pair if required.
+
+  RSA key pair is generated iff following conditions are met.
+  1> sha256_password_auto_generate_rsa_keys/
+     caching_sha2_password_auto_generate_rsa_keys is set to ON.
+  2> sha256_password_private_key_path/caching_sha2_rsa_private_key_path
+     or sha256_password_public_key_path/caching_sha2_rsa_public_key_path
+     are pointing to non-default locations.
+  3> Following files are not present in data directory.
+     a> private_key.pem
+     b> public_key.pem
+
+  If above mentioned conditions are satified private_key.pem and
+  public_key.pem files are generated and placed in data directory.
+*/
+static bool do_auto_rsa_keys_generation()
+{
+  return (generate_rsa_keys(auth_rsa_auto_generate_rsa_keys,
+                            auth_rsa_private_key_path,
+                            auth_rsa_public_key_path,
+                            "--sha256_password_auto_generate_rsa_keys") &&
+          generate_rsa_keys(caching_sha2_auto_generate_rsa_keys,
+                            caching_sha2_rsa_private_key_path,
+                            caching_sha2_rsa_public_key_path,
+                            "--caching_sha2_password_auto_generate_rsa_keys"));
 }
 #endif /* HAVE_YASSL */
 #endif /* HAVE_OPENSSL */

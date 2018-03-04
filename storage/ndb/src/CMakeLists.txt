@@ -1,19 +1,52 @@
 # Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 INCLUDE(libutils)
+
+# Disable specific types of warnings for current directory
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          "unused-parameter"
+          # Missing falltrough in switch/case/break statements
+          "implicit-fallthrough"
+          # Downgrade -Werror to warning for "may be used uninitialized"
+          # and "is used uninitialized in this function"
+          "error=maybe-uninitialized"
+          "error=uninitialized"
+          # Downgrade placement-new as part of Bug #24822203
+          "error=placement-new")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 ADD_SUBDIRECTORY(common)
 ADD_SUBDIRECTORY(mgmapi)
@@ -36,7 +69,8 @@ ENDIF()
 # Build static ndbclient library
 #
 SET(NDBCLIENT_LIBS
-  mysys dbug strings
+  mysys dbug strings mysys_ssl
+  ${SSL_LIBRARIES} ${ZLIB_LIBRARY}
   ndbapi
   ndbtransport
   ndbtrace
@@ -48,7 +82,9 @@ SET(NDBCLIENT_LIBS
   ndbgeneral
   ndbconf)
 
-MERGE_LIBRARIES(ndbclient_static STATIC ${NDBCLIENT_LIBS} COMPONENT Development)
+MERGE_CONVENIENCE_LIBRARIES(
+  ndbclient_static ${NDBCLIENT_LIBS} COMPONENT Development)
+
 # Build test program to check linking against ndclient_static
 ADD_EXECUTABLE(ndbclient_static_link_test ndbclient_link_test.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_static_link_test ndbclient_static)
@@ -70,31 +106,29 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/libndbclient.ver.in
 
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
+IF(APPLE)
+  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
+    MACOSX_RPATH ON
+  )
+ENDIF()
 
 IF(MSVC)
-# Not yet!
-#  # Add a PREBUILD command which creates a module definition file
-#  # for all the symbols which should be exported from ndbclient_so
-#  # PROBLEM: Fails to get the full path to mysys, strings etc since those
-#  # targets haven't been added yet -> defer this step to build time?
-#  FOREACH (lib ${NDBCLIENT_SO_LIBS})
-#    GET_TARGET_PROPERTY(loc ${lib} LOCATION)
-#    FILE(TO_NATIVE_PATH ${loc} loc)
-#    SET (lib_locations ${lib_locations} ${loc})
-#  ENDFOREACH ()
-#  
-#  SET(_PLATFORM x86)
-#  IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
-#    SET(_PLATFORM  x64)
-#  ENDIF()
-#  ADD_CUSTOM_COMMAND(TARGET ndbclient_so PRE_BUILD
+# All "convenience" libraries are now well-known, we *could* do this:
+#  SET(_PLATFORM  x64)
+#
+#  ADD_CUSTOM_COMMAND(TARGET ndbclient_so PRE_LINK
 #    COMMAND cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
-#                         ${_PLATFORM}  ${lib_locations} > ndbclient_exports.def
+#                         ${_PLATFORM}
+#                         "$<TARGET_FILE:lib1>"
+#                         "$<TARGET_FILE:lib2>"
+#                         ...
+#                         > ndbclient_exports.def
 #    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 #	
 #  # Modify link flags to use the generated module definition file
 #  GET_TARGET_PROPERTY(ndbclient_so_link_flags ndbclient_so LINK_FLAGS)
-#  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES LINK_FLAGS "${ndbclient_link_flags} /DEF:ndbclient_exports.def")
+#  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES LINK_FLAGS
+#                        "${ndbclient_link_flags} /DEF:ndbclient_exports.def")
 ELSE()
   # Turn off cmake's transitive link behaviour so that the shared
   # ndbclient library contains everything except functions from
@@ -124,8 +158,8 @@ ELSE()
       ENDIF()
 
       # Ignore libs where location is known(this means it's built locally)
-      GET_TARGET_PROPERTY(dep_lib_location ${dep_lib} LOCATION)
-      IF(dep_lib_location)
+      LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${dep_lib} FOUNDIT)
+      IF(FOUNDIT GREATER -1)
         # MESSAGE(STATUS "Ignoring ${dep_lib} since location is known")
         SET(ignore_dep_lib 1)
       ENDIF()
@@ -136,9 +170,14 @@ ELSE()
 
     ENDFOREACH()
   ENDFOREACH()
-  MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
-  TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
-    ${NDBCLIENT_SYSTEM_LIBS})
+  IF(NDBCLIENT_SYSTEM_LIBS)
+    LIST(REMOVE_DUPLICATES NDBCLIENT_SYSTEM_LIBS)
+    MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
+    TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
+      ${NDBCLIENT_SYSTEM_LIBS})
+  ELSE()
+    MESSAGE(STATUS "System libs used by ndbclient_so: [none]")
+  ENDIF()
 
   # Prepend any special linker flags(like -m64) for shared library
   GET_TARGET_PROPERTY(ndbclient_so_link_flags ndbclient_so LINK_FLAGS)

@@ -1,38 +1,43 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "ngs/server.h"
+#include "plugin/x/ngs/include/ngs/server.h"
 
 #include <time.h>
 
-#include "mysqlx_version.h"
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs/interface/connection_acceptor_interface.h"
-#include "ngs/interface/server_task_interface.h"
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/scheduler.h"
-#include "ngs/server_acceptors.h"
-#include "ngs/server_client_timeout.h"
-#include "ngs_common/connection_vio.h"
-#include "xpl_log.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/connection_acceptor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_task_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs/server_acceptors.h"
+#include "plugin/x/ngs/include/ngs/server_client_timeout.h"
+#include "plugin/x/ngs/include/ngs/vio_wrapper.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/src/xpl_log.h"
 
 
 using namespace ngs;
@@ -267,7 +272,9 @@ void Server::on_accept(Connection_acceptor_interface &connection_acceptor)
     return;
   }
 
-  Connection_ptr connection(ngs::allocate_shared<ngs::Connection_vio>(ngs::ref(*m_ssl_context), vio));
+  std::unique_ptr<Vio_interface> vio_wrapper(new Vio_wrapper(vio));
+  Connection_ptr connection(ngs::allocate_shared<ngs::Connection_vio>(
+      ngs::ref(*m_ssl_context), std::move(vio_wrapper)));
   ngs::shared_ptr<Client_interface> client(m_delegate->create_client(connection));
 
   if (m_delegate->will_accept_client(*client))
@@ -340,6 +347,10 @@ void Server::add_authentication_mechanism(const std::string &name,
   m_auth_handlers[key] = initiator;
 }
 
+void Server::add_sha256_password_cache(SHA256_password_cache_interface *cache) {
+  m_sha256_password_cache = cache;
+}
+
 Authentication_interface_ptr Server::get_auth_handler(const std::string &name, Session_interface *session)
 {
   Connection_type type = session->client().connection().connection_type();
@@ -351,7 +362,7 @@ Authentication_interface_ptr Server::get_auth_handler(const std::string &name, S
   if (auth_handler == m_auth_handlers.end())
     return Authentication_interface_ptr();
 
-  return auth_handler->second(session);
+  return auth_handler->second(session, m_sha256_password_cache);
 }
 
 void Server::get_authentication_mechanisms(std::vector<std::string> &auth_mech, Client_interface &client)

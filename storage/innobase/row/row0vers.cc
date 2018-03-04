@@ -3,16 +3,24 @@
 Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -40,6 +48,7 @@ Created 2/6/1997 Heikki Tuuri
 #include "row0mysql.h"
 #include "row0row.h"
 #include "row0upd.h"
+#include "row0ext.h"
 #include "row0vers.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -48,24 +57,19 @@ Created 2/6/1997 Heikki Tuuri
 #include "trx0trx.h"
 #include "trx0undo.h"
 
-/** Check whether all non-virtual columns in a virtual index match that of in
-the cluster index
+/** Check whether all non-virtual columns in a index entries match
 @param[in]	index		the secondary index
-@param[in]	row		the cluster index row in dtuple form
-@param[in]	ext		externally stored column prefix or NULL
-@param[in]	ientry		the secondary index entry
-@param[in,out]	heap		heap used to build virtual dtuple
-@param[in,out]	n_non_v_col	number of non-virtual columns in the index
+@param[in]	ientry1		first index entry to compare
+@param[in]	ientry2		second index entry to compare
+@param[in,out]	n_non_v_col		number of non-virtual columns in the index
 @return true if all matches, false otherwise */
 static
 bool
-row_vers_non_vc_match(
-	dict_index_t*		index,
-	const dtuple_t*		row,
-	const row_ext_t*	ext,
-	const dtuple_t*		ientry,
-	mem_heap_t*		heap,
-	ulint*			n_non_v_col);
+row_vers_non_vc_index_entry_match(
+	dict_index_t*			index,
+	const dtuple_t*		ientry1,
+	const dtuple_t*		ientry2,
+	ulint*						n_non_v_col);
 
 /*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
@@ -237,13 +241,22 @@ row_vers_impl_x_locked_low(
 			if (!cur_vrow) {
 				ulint	n_non_v_col = 0;
 
+				/* Build index entry out of row */
+				entry = row_build_index_entry(row, ext, index, heap);
+
+				/* entry may be NULL if a record was inserted in place
+				of a deleted record, and the BLOB pointers of the new
+				record were not initialized yet.  But in that case,
+				prev_version should be NULL. */
+
+				ut_a(entry != NULL);
+
 				/* If the indexed virtual columns has changed,
 				there must be log record to generate vrow.
 				Otherwise, it is not changed, so no need
 				to compare */
-				if (row_vers_non_vc_match(
-					index, row, ext, ientry, heap,
-					&n_non_v_col) == 0) {
+				if (!row_vers_non_vc_index_entry_match(
+					index, ientry, entry, &n_non_v_col)) {
 					if (rec_del != vers_del) {
 						break;
 					}
@@ -412,34 +425,26 @@ row_vers_must_preserve_del_marked(
 	return(!purge_sys->view.changes_visible(trx_id,	name));
 }
 
-/** Check whether all non-virtual columns in a virtual index match that of in
-the cluster index
+/** Check whether all non-virtual columns in a index entries match
 @param[in]	index		the secondary index
-@param[in]	row		the cluster index row in dtuple form
-@param[in]	ext		externally stored column prefix or NULL
-@param[in]	ientry		the secondary index entry
-@param[in,out]	heap		heap used to build virtual dtuple
-@param[in,out]	n_non_v_col	number of non-virtual columns in the index
+@param[in]	ientry1		first index entry to compare
+@param[in]	ientry2		second index entry to compare
+@param[in,out]	n_non_v_col		number of non-virtual columns in the index
 @return true if all matches, false otherwise */
 static
 bool
-row_vers_non_vc_match(
-	dict_index_t*		index,
-	const dtuple_t*		row,
-	const row_ext_t*	ext,
-	const dtuple_t*		ientry,
-	mem_heap_t*		heap,
-	ulint*			n_non_v_col)
+row_vers_non_vc_index_entry_match(
+	dict_index_t*			index,
+	const dtuple_t*		ientry1,
+	const dtuple_t*		ientry2,
+	ulint*						n_non_v_col)
 {
-	const dfield_t* field1;
-	dfield_t*	field2;
-	ulint		n_fields = dtuple_get_n_fields(ientry);
+	ulint		n_fields = dtuple_get_n_fields(ientry1);
 	ulint		ret = true;
 
 	*n_non_v_col = 0;
 
-	/* Build index entry out of row */
-	dtuple_t* nentry = row_build_index_entry(row, ext, index, heap);
+	ut_ad(n_fields == dtuple_get_n_fields(ientry2));
 
 	for (ulint i = 0; i < n_fields; i++) {
 		const dict_field_t*	ind_field = index->get_field(i);
@@ -452,11 +457,10 @@ row_vers_non_vc_match(
 		}
 
 		if (ret) {
-			field1  = dtuple_get_nth_field(ientry, i);
-			field2  = dtuple_get_nth_field(nentry, i);
+			const dfield_t* field1  = dtuple_get_nth_field(ientry1, i);
+			const dfield_t* field2  = dtuple_get_nth_field(ientry2, i);
 
-			if (cmp_dfield_dfield(field1, field2,
-                                              ind_field->is_ascending) != 0) {
+			if (cmp_dfield_dfield(field1, field2, ind_field->is_ascending) != 0) {
 				ret = false;
 			}
 		}
@@ -616,8 +620,7 @@ that of current cluster index record, which is recreated from information
 stored in undo log
 @param[in]	in_purge	called by purge thread
 @param[in]	rec		record in the clustered index
-@param[in]	row		the cluster index row in dtuple form
-@param[in]	ext		externally stored column prefix or NULL
+@param[in]	icentry		the index entry built from a cluster row
 @param[in]	clust_index	cluster index
 @param[in]	clust_offsets	offsets on the cluster record
 @param[in]	index		the secondary index
@@ -633,8 +636,7 @@ bool
 row_vers_vc_matches_cluster(
 	bool		in_purge,
 	const rec_t*	rec,
-	const dtuple_t*	row,
-	row_ext_t*	ext,
+	const dtuple_t* icentry,
 	dict_index_t*	clust_index,
 	ulint*		clust_offsets,
 	dict_index_t*	index,
@@ -659,14 +661,13 @@ row_vers_vc_matches_cluster(
 	dfield_t*	field2;
 	ulint		i;
 
-	tuple_heap = mem_heap_create(1024);
-
 	/* First compare non-virtual columns (primary keys) */
-	if (!row_vers_non_vc_match(index, row, ext, ientry, tuple_heap,
-				   &n_non_v_col)) {
-		mem_heap_free(tuple_heap);
+	if (!row_vers_non_vc_index_entry_match(
+		index, ientry, icentry, &n_non_v_col)) {
 		return(false);
 	}
+
+	tuple_heap = mem_heap_create(1024);
 
 	ut_ad(n_fields > n_non_v_col);
 
@@ -736,6 +737,20 @@ row_vers_vc_matches_cluster(
 				    && !dfield_is_null(field2)
 				    && field2->len > ind_field->prefix_len) {
 					field2->len = ind_field->prefix_len;
+				}
+
+				/* For multi-byte character sets (like utf8mb4)
+				and index on prefix of varchar vcol, we log
+				prefix_len * mbmaxlen bytes but the actual
+				secondaary index record size can be less than
+				that. For comparision, use actual length of
+				secondary index record */
+				uint8_t mbmax_len =
+					DATA_MBMAXLEN(field2->type.mbminmaxlen);
+				if (ind_field->prefix_len != 0
+				    && !dfield_is_null(field2)
+				    && mbmax_len > 1) {
+					field2->len = field1->len;
 				}
 
 				/* The index field mismatch */
@@ -943,7 +958,7 @@ row_vers_old_has_index_entry(
 
 				entry = row_build_index_entry(
 					row, ext, index, heap);
-				if (entry && !dtuple_coll_cmp(ientry, entry)) {
+				if (entry && dtuple_coll_eq(ientry, entry)) {
 
 					mem_heap_free(heap);
 
@@ -963,9 +978,16 @@ row_vers_old_has_index_entry(
 				return(TRUE);
 #endif /* INNODB_DD_VC_SUPPORT */
 			} else {
-				if (row_vers_vc_matches_cluster(
-					also_curr, rec, row, ext, clust_index,
-					clust_offsets, index, ientry, roll_ptr,
+				/* Build index entry out of row */
+				entry = row_build_index_entry(row, ext, index, heap);
+
+				/* If entry == NULL, the record contains unset
+				BLOB pointers. The record may be safely removed,
+				see below for full explanation */
+
+				if (entry && row_vers_vc_matches_cluster(
+					also_curr, rec, entry, clust_index, clust_offsets,
+					index, ientry, roll_ptr,
 					trx_id, NULL, &vrow, mtr)) {
 					mem_heap_free(heap);
 
@@ -1076,7 +1098,8 @@ row_vers_old_has_index_entry(
 			/* The stack of versions is locked by mtr.
 			Thus, it is safe to fetch the prefixes for
 			externally stored columns. */
-			row = row_build(ROW_COPY_POINTERS, clust_index,
+			row = row_build(ROW_COPY_POINTERS,
+					clust_index,
 					prev_version, clust_offsets,
 					NULL, NULL, NULL, &ext, heap);
 

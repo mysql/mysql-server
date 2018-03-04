@@ -3,16 +3,24 @@
 Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -188,7 +196,8 @@ row_purge_remove_clust_if_poss_low(
 		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
 		btr_cur_pessimistic_delete(
 			&err, FALSE, btr_pcur_get_btr_cur(&node->pcur), 0,
-			false, &mtr);
+			false, node->trx_id, node->undo_no, node->rec_type,
+			&mtr);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -388,7 +397,8 @@ row_purge_remove_sec_if_poss_tree(
 		}
 
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   false, &mtr);
+					   false, 0, node->undo_no,
+					   node->rec_type, &mtr);
 		switch (UNIV_EXPECT(err, DB_SUCCESS)) {
 		case DB_SUCCESS:
 			break;
@@ -731,6 +741,7 @@ row_purge_upd_exist_or_extern_func(
 	mem_heap_free(heap);
 
 skip_secondaries:
+
 	/* Free possible externally stored fields */
 	for (ulint i = 0; i < upd_get_n_fields(node->update); i++) {
 
@@ -815,8 +826,11 @@ skip_secondaries:
 			lob::DeleteContext ctx(btr_ctx,
 				field_ref, 0, false);
 
-			lob::Deleter	free_blob(ctx);
-			free_blob.destroy();
+			lob::ref_t  lobref(field_ref);
+
+			lob::purge(&ctx, index, node->modifier_trx_id,
+				   trx_undo_rec_get_undo_no(undo_rec), lobref,
+				   node->rec_type);
 
 			mtr_commit(&mtr);
 		}
@@ -1286,10 +1300,11 @@ row_purge_step(que_thr_t* thr)
 	if (node->recs != nullptr && !node->recs->empty()) {
 		purge_node_t::rec_t	rec;
 
-		rec = node->recs->back();
-		node->recs->pop_back();
+		rec = node->recs->front();
+		node->recs->pop_front();
 
 		node->roll_ptr = rec.roll_ptr;
+		node->modifier_trx_id = rec.modifier_trx_id;
 
 		row_purge(node, rec.undo_rec, thr);
 

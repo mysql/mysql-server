@@ -240,14 +240,28 @@ set names utf8mb4;
 set names utf8mb4;
 
 # This should return TRUE
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select  'вася'  rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select  'вася ' rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select ' вася'  rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select ' вася ' rlike '[[:<:]]вася[[:>:]]';
 
 # This should return FALSE
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select  'васяz' rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
+--echo # Not supported by ICU
+--error ER_REGEXP_ILLEGAL_ARGUMENT
 select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
 
 #

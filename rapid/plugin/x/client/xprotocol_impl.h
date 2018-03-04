@@ -1,20 +1,25 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef X_CLIENT_XPROTOCOL_IMPL_H_
@@ -29,14 +34,14 @@
 #include <utility>
 #include <vector>
 
-#include "mysqlxclient/xargument.h"
-#include "mysqlxclient/xmessage.h"
-#include "mysqlxclient/xprotocol.h"
-#include "xconnection_impl.h"
-#include "xcontext.h"
-#include "xpriority_list.h"
-#include "xprotocol_factory.h"
-#include "xquery_instances.h"
+#include "plugin/x/client/mysqlxclient/xargument.h"
+#include "plugin/x/client/mysqlxclient/xmessage.h"
+#include "plugin/x/client/mysqlxclient/xprotocol.h"
+#include "plugin/x/client/xconnection_impl.h"
+#include "plugin/x/client/xcontext.h"
+#include "plugin/x/client/xpriority_list.h"
+#include "plugin/x/client/xprotocol_factory.h"
+#include "plugin/x/client/xquery_instances.h"
 
 
 namespace xcl {
@@ -231,10 +236,17 @@ class Protocol_impl :
   Message *recv_message_with_header(Server_message_type_id *out_mid,
                                     XError *out_error);
 
+  template <typename Auth_continue_handler>
+  XError authenticate_challenge_response(const std::string &user,
+      const std::string &pass, const std::string &db);
+
   XError authenticate_plain(const std::string &user, const std::string &pass,
                             const std::string &db);
   XError authenticate_mysql41(const std::string &user, const std::string &pass,
                               const std::string &db);
+  XError authenticate_sha256_memory(const std::string &user,
+      const std::string &pass, const std::string &db);
+
   XError perform_close();
 
   /**
@@ -298,6 +310,53 @@ class Protocol_impl :
   std::unique_ptr<Query_instances>   m_query_instances;
   std::shared_ptr<Context>           m_context;
 };
+
+template <typename Auth_continue_handler>
+XError Protocol_impl::authenticate_challenge_response(
+    const std::string &user,
+    const std::string &pass,
+    const std::string &db) {
+  Auth_continue_handler auth_continue_handler(this);
+  XError error;
+
+  {
+    Mysqlx::Session::AuthenticateStart auth;
+
+    auth.set_mech_name(auth_continue_handler.get_name());
+
+    error = send(Mysqlx::ClientMessages::SESS_AUTHENTICATE_START, auth);
+
+    if (error)
+      return error;
+  }
+
+  {
+    std::unique_ptr<Message> message{
+      recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE, &error)};
+
+    if (error)
+      return error;
+
+    Mysqlx::Session::AuthenticateContinue &auth_continue =
+        *static_cast<Mysqlx::Session::AuthenticateContinue *>(
+             message.get());
+
+    error = auth_continue_handler(user, pass, db, auth_continue);
+
+    if (error)
+      return error;
+  }
+
+  {
+    std::unique_ptr<Message> message{
+      recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK, &error)};
+
+    if (error)
+      return error;
+  }
+
+  return {};
+}
 
 }  // namespace xcl
 

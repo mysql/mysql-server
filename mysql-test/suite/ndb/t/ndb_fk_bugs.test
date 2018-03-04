@@ -672,7 +672,7 @@ drop table t2, t1;
 #
 # failed create table pollutes dict cache
 #
-create table t1_parent (pk1 char(255) primary key) engine = ndb;
+create table t1_parent (pk1 char(255) primary key) charset=latin1, engine = ndb;
 
 --error 1296
 create table t1 (
@@ -688,7 +688,7 @@ create table t1 (
   c5 char(255) column_format fixed, c4 char(255) column_format fixed, c3 char(255) column_format fixed, c2 char(255) column_format fixed, c1 char(255) column_format fixed,
   primary key using hash(c1)
   ,foreign key(c1) references t1_parent(pk1)
-) engine=ndb;
+) charset=latin1, engine=ndb;
 
 # Fails here with "Table 'test.t1' doesn't exist"
 create table t1(a int primary key) engine = ndb;
@@ -817,20 +817,20 @@ create table t2 (
   a int, primary key using hash (a)
 ) engine = ndb;
 
-alter table t2 add constraint fkname foreign key (a) references t1 (a);
+alter table t2 add constraint fkname2 foreign key (a) references t1 (a);
 
 create table t3 (
   a int, primary key using hash (a)
 ) engine = ndb;
 
-alter table t3 add constraint fkname foreign key (a) references t2 (a);
+alter table t3 add constraint fkname3 foreign key (a) references t2 (a);
 
 --error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2 algorithm=inplace, drop foreign key nosuchfk;
 
-alter table t2 algorithm=inplace, drop foreign key fkname;
+alter table t2 algorithm=inplace, drop foreign key fkname2;
 
-alter table t3 algorithm=inplace, drop foreign key fkname;
+alter table t3 algorithm=inplace, drop foreign key fkname3;
 
 drop table t1, t2, t3;
 
@@ -842,20 +842,20 @@ create table t2 (
   a int, primary key using hash (a)
 ) engine = ndb;
 
-alter table t2 add constraint fkname foreign key (a) references t1 (a);
+alter table t2 add constraint fkname2 foreign key (a) references t1 (a);
 
 create table t3 (
   a int, primary key using hash (a)
 ) engine = ndb;
 
-alter table t3 add constraint fkname foreign key (a) references t2 (a);
+alter table t3 add constraint fkname3 foreign key (a) references t2 (a);
 
 --error ER_CANT_DROP_FIELD_OR_KEY
 alter table t2 algorithm=copy, drop foreign key nosuchfk;
 
-alter table t2 algorithm=copy, drop foreign key fkname;
+alter table t2 algorithm=copy, drop foreign key fkname2;
 
-alter table t3 algorithm=copy, drop foreign key fkname;
+alter table t3 algorithm=copy, drop foreign key fkname3;
 
 drop table t1, t2, t3;
 
@@ -867,13 +867,13 @@ create table t3 (a int primary key) engine=ndb;
 create table t4 (a int primary key) engine=ndb;
 
 alter table t2
-  add constraint foreign key myfk (a) references t1 (a);
+  add constraint foreign key myfk2 (a) references t1 (a);
 alter table t4
-  add constraint foreign key myfk (a) references t3 (a);
+  add constraint foreign key myfk4 (a) references t3 (a);
 
 --error ER_CANNOT_ADD_FOREIGN
 alter table t4
-  add constraint foreign key `11/22/myfk` (a) references t3 (a);
+  add constraint foreign key `11/22/myfk4` (a) references t3 (a);
 show warnings;
 
 --echo # run backup

@@ -33,8 +33,8 @@ disconnect con1;
 connection default;
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
-ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat' ENGINE NDB;
-DROP TABLESPACE ts ENGINE NDB;
+ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts;
 DROP LOGFILE GROUP lg ENGINE NDB;
 #################################################################
 # Test DDL statement 2: RENAME TABLE.
@@ -72,8 +72,8 @@ disconnect con1;
 connection default;
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
-ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat' ENGINE NDB;
-DROP TABLESPACE ts ENGINE NDB;
+ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts;
 DROP LOGFILE GROUP lg ENGINE NDB;
 #################################################################
 # Test DDL statement 4: DROP TABLE.
@@ -107,8 +107,8 @@ connection con1;
 disconnect con1;
 connection default;
 SET DEBUG_SYNC= 'RESET';
-ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat' ENGINE NDB;
-DROP TABLESPACE ts ENGINE NDB;
+ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts;
 DROP LOGFILE GROUP lg ENGINE NDB;
 #################################################################
 # Test DDL statement 5: ALTER TABLE, but now use the default
@@ -150,8 +150,8 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a1`)
 ) /*!50100 TABLESPACE `ts` */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 DROP TABLE t1;
-ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat' ENGINE NDB;
-DROP TABLESPACE ts ENGINE NDB;
+ALTER TABLESPACE ts DROP DATAFILE 'datafile.dat';
+DROP TABLESPACE ts;
 DROP LOGFILE GROUP lg ENGINE NDB;
 # Bug#21376265 - ENHANCEMENT: ACQUIRE MDL LOCKS ON ALL TABLESPACE
 #                REFERRED BY A STATEMENT
@@ -253,8 +253,8 @@ SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 DROP TABLE t3;
 DROP TABLE t4;
-ALTER TABLESPACE ts1 DROP DATAFILE 'datafile1.dat' ENGINE NDB;
-ALTER TABLESPACE ts2 DROP DATAFILE 'datafile2.dat' ENGINE NDB;
-DROP TABLESPACE ts1 ENGINE NDB;
-DROP TABLESPACE ts2 ENGINE NDB;
+ALTER TABLESPACE ts1 DROP DATAFILE 'datafile1.dat';
+ALTER TABLESPACE ts2 DROP DATAFILE 'datafile2.dat';
+DROP TABLESPACE ts1;
+DROP TABLESPACE ts2;
 DROP LOGFILE GROUP lg1 ENGINE NDB;

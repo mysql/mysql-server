@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -40,12 +48,11 @@ typedef	byte	flst_base_node_t;
 typedef	byte	flst_node_t;
 
 /* The physical size of a list base node in bytes */
-#define	FLST_BASE_NODE_SIZE	(4 + 2 * FIL_ADDR_SIZE)
+constexpr ulint FLST_BASE_NODE_SIZE = 4 + 2 * FIL_ADDR_SIZE;
 
 /* The physical size of a list node in bytes */
-#define	FLST_NODE_SIZE		(2 * FIL_ADDR_SIZE)
+constexpr ulint FLST_NODE_SIZE = 2 * FIL_ADDR_SIZE;
 
-#if !defined UNIV_HOTBACKUP
 /** Initializes a list base node.
 @param[in]	base	pointer to base node
 @param[in]	mtr	mini-transaction handle */
@@ -157,17 +164,40 @@ flst_validate(
 	const flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	mtr_t*			mtr1);	/*!< in: mtr */
 
+/** Inserts a node after another in a list.
+@param[in]	base	pointer to base node of list
+@param[in]	node1	node to insert after
+@param[in]	node2	node to add
+@param[in]	mtr	mini-transaction handle. */
+void
+flst_insert_after(
+	flst_base_node_t*	base,
+	flst_node_t*		node1,
+	flst_node_t*		node2,
+	mtr_t*			mtr);
+
+/** Inserts a node before another in a list.
+@param[in]	base	pointer to base node of list
+@param[in]	node2	node to insert
+@param[in]	node3	node to insert before
+@param[in]	mtr	mini-transaction handle. */
+void
+flst_insert_before(
+	flst_base_node_t*	base,
+	flst_node_t*		node2,
+	flst_node_t*		node3,
+	mtr_t*			mtr);
+
 #include "fut0lst.ic"
 
-#endif /* !UNIV_HOTBACKUP */
-
-#ifdef UNIV_DEBUG
 /** In-memory representation of flst_base_node_t */
 struct flst_bnode_t
 {
 	ulint		len;
 	fil_addr_t	first;
 	fil_addr_t	last;
+
+	flst_bnode_t() : len(0) {}
 
 	flst_bnode_t(const flst_base_node_t* base, mtr_t* mtr)
 		:
@@ -183,6 +213,13 @@ struct flst_bnode_t
 		last	= flst_get_last(base, mtr);
 	}
 
+	void reset()
+	{
+		len = 0;
+		first = fil_addr_null;
+		last = fil_addr_null;
+	}
+
 	std::ostream& print(std::ostream& out) const
 	{
 		out << "[flst_base_node_t: len=" << len << ", first="
@@ -196,5 +233,5 @@ std::ostream& operator<<(std::ostream& out, const flst_bnode_t& obj)
 {
 	return(obj.print(out));
 }
-#endif /* UNIV_DEBUG */
-#endif
+
+#endif /* fut0lst_h */

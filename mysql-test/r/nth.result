@@ -666,23 +666,23 @@ SELECT dt, NTH_VALUE(dt, 3) OVER w1 nth,
 CAST(NTH_VALUE(ge, 3) OVER w1 AS JSON) ge
 FROM test WHERE `pk` > 3 WINDOW w1 AS ();
 dt	nth	ge
-2001-01-18 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2009-11-24 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2001-11-22 21:41:15	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-NULL	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-0000-00-00 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2003-05-13 18:03:04	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2008-04-15 09:44:20	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2009-07-15 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2007-04-27 13:53:37	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-0000-00-00 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2000-02-02 02:15:28	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2004-06-06 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-NULL	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2002-06-21 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2007-03-23 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2006-10-06 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
-2008-07-07 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6, 6]}
+2001-01-18 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2009-11-24 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2001-11-22 21:41:15	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+NULL	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+0000-00-00 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2003-05-13 18:03:04	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2008-04-15 09:44:20	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2009-07-15 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2007-04-27 13:53:37	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+0000-00-00 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2000-02-02 02:15:28	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2004-06-06 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+NULL	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2002-06-21 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2007-03-23 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2006-10-06 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
+2008-07-07 00:00:00	2001-11-22 21:41:15	{"type": "Point", "coordinates": [6.0, 6.0]}
 SELECT dt, NTH_VALUE(CAST(dt AS TIME), 3) OVER w1
 FROM test WHERE `pk` > 3 WINDOW w1 AS ();
 dt	NTH_VALUE(CAST(dt AS TIME), 3) OVER w1
@@ -736,3 +736,37 @@ rn	plus_fv	plus_lv
 2	2.0000	3.0000
 3	2.0000	3.0000
 DROP TABLE t;
+#
+# Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+#               FALSE IN ITEM::VAL_JSON
+#
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+(NTH_VALUE(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+,1)OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+(NTH_VALUE(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+,1)OVER())),'9236-05-27',0xe2a7d4))^(0x1109))
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '| !*c>*{/'
+Warning	1292	Truncated incorrect INTEGER value: '9236-05-27'
+SELECT ((NTH_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1));
+((NTH_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1))
+NULL
+SELECT ((NTH_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'),1)OVER())<=(1));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_merge_patch; a JSON string or JSON type is required.
+SELECT ((QUOTE(JSON_KEYS(NTH_VALUE(JSON_KEYS(EXP(-15676),ABS('d0')),
+162)OVER())))>=(CONNECTION_ID()));
+((QUOTE(JSON_KEYS(NTH_VALUE(JSON_KEYS(EXP(-15676),ABS('d0')),
+162)OVER())))>=(CONNECTION_ID()))
+0
+SELECT ((QUOTE(JSON_KEYS(NTH_VALUE(JSON_KEYS(EXP(-15676),ABS('d0')),
+1)OVER())))>=(CONNECTION_ID()));
+ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.
+SELECT JSON_LENGTH(NTH_VALUE(JSON_OBJECTAGG('key2','*B'),172)OVER());
+JSON_LENGTH(NTH_VALUE(JSON_OBJECTAGG('key2','*B'),172)OVER())
+NULL
+SELECT JSON_LENGTH(NTH_VALUE(JSON_OBJECTAGG('key2','*B'),1)OVER());
+JSON_LENGTH(NTH_VALUE(JSON_OBJECTAGG('key2','*B'),1)OVER())
+1
+# End of test for Bug#26740557

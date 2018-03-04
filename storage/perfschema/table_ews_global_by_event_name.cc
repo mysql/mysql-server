@@ -1,13 +1,20 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -24,14 +31,14 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_timer.h"
-#include "pfs_visitor.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_ews_global_by_event_name::m_table_lock;
 
@@ -116,6 +123,8 @@ table_ews_global_by_event_name::get_row_count(void)
 table_ews_global_by_event_name::table_ews_global_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  // For all cases except IDLE
+  m_normalizer = time_normalizer::get_wait();
 }
 
 void
@@ -474,7 +483,6 @@ table_ews_global_by_event_name::make_mutex_row(PFS_mutex_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_mutex_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -487,7 +495,6 @@ table_ews_global_by_event_name::make_rwlock_row(PFS_rwlock_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_rwlock_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -500,7 +507,6 @@ table_ews_global_by_event_name::make_cond_row(PFS_cond_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_cond_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -513,7 +519,6 @@ table_ews_global_by_event_name::make_file_row(PFS_file_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_file_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -526,7 +531,6 @@ table_ews_global_by_event_name::make_table_io_row(PFS_instr_class *klass)
   PFS_table_io_wait_visitor visitor;
   PFS_object_iterator::visit_all_tables(&visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -539,7 +543,6 @@ table_ews_global_by_event_name::make_table_lock_row(PFS_instr_class *klass)
   PFS_table_lock_wait_visitor visitor;
   PFS_object_iterator::visit_all_tables(&visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -552,7 +555,6 @@ table_ews_global_by_event_name::make_socket_row(PFS_socket_class *klass)
   PFS_instance_wait_visitor visitor;
   PFS_instance_iterator::visit_socket_instances(klass, &visitor);
 
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }
@@ -569,8 +571,9 @@ table_ews_global_by_event_name::make_idle_row(PFS_instr_class *klass)
                                         true,  /* threads */
                                         false, /* THDs */
                                         &visitor);
-  get_normalizer(klass);
-  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+
+  time_normalizer *normalizer = time_normalizer::get_idle();
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
   return 0;
 }
 
@@ -586,7 +589,6 @@ table_ews_global_by_event_name::make_metadata_row(PFS_instr_class *klass)
                                         true,  /* threads */
                                         false, /* THDs */
                                         &visitor);
-  get_normalizer(klass);
   m_row.m_stat.set(m_normalizer, &visitor.m_stat);
   return 0;
 }

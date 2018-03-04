@@ -1,0 +1,15 @@
+--source setup.inc
+
+# Test ALTER TABLE inplace with rename
+# - This will be done as a "simple rename"
+#   ie. an ALTER TABLE which only renames the table. This is a special
+#   case in mysql_alter_table() and will not ask the inplace alter table
+#   API if it's supported
+#
+let $query =
+ALTER TABLE tx
+  algorithm=inplace,
+  RENAME TO ty;
+--source alter_rename.inc
+
+--source cleanup.inc

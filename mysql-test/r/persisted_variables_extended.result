@@ -33,20 +33,20 @@ SET @@persist.event_scheduler=DEFAULT;
 SET PERSIST slave_compressed_protocol=DEFAULT;
 { "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "slave_compressed_protocol": "OFF" } }# Setting DEFAULT value for variable with PERSIT,
 SET PERSIST read_only=DEFAULT, PERSIST innodb_fast_shutdown=DEFAULT;
-{ "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "innodb_fast_shutdown": "1" , "read_only": "OFF" , "slave_compressed_protocol": "OFF" } }SET PERSIST read_only=DEFAULT;
+{ "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "slave_compressed_protocol": "OFF" , "read_only": "OFF" , "innodb_fast_shutdown": "1" } }SET PERSIST read_only=DEFAULT;
 SET PERSIST innodb_fast_shutdown=DEFAULT;
-{ "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "innodb_fast_shutdown": "1" , "read_only": "OFF" , "slave_compressed_protocol": "OFF" } }# Setting multiple variables value as PERSIST.
+{ "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "slave_compressed_protocol": "OFF" , "read_only": "OFF" , "innodb_fast_shutdown": "1" } }# Setting multiple variables value as PERSIST.
 SET PERSIST innodb_checksum_algorithm=strict_crc32,
 PERSIST innodb_default_row_format=COMPACT,
 PERSIST sql_mode=NO_KEY_OPTIONS,PERSIST innodb_fast_shutdown=0;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET PERSIST innodb_flush_log_at_trx_commit=0,join_buffer_size=262144;
-{ "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "innodb_checksum_algorithm": "strict_crc32" , "innodb_default_row_format": "compact" , "innodb_fast_shutdown": "0" , "innodb_flush_log_at_trx_commit": "0" , "join_buffer_size": "262144" , "read_only": "OFF" , "slave_compressed_protocol": "OFF" , "sql_mode": "NO_KEY_OPTIONS" } }# SET PERSIST invalid case for multiple variable set.
+{ "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "slave_compressed_protocol": "OFF" , "read_only": "OFF" , "innodb_checksum_algorithm": "strict_crc32" , "innodb_default_row_format": "compact" , "sql_mode": "NO_KEY_OPTIONS" , "innodb_fast_shutdown": "0" , "innodb_flush_log_at_trx_commit": "0" , "join_buffer_size": "262144" } }# SET PERSIST invalid case for multiple variable set.
 SET PERSIST innodb_thread_concurrency=32, PERSIST innodb_write_io_threads=32,
 PERSIST innodb_read_io_threads=invalid_val;
 ERROR HY000: Variable 'innodb_write_io_threads' is a read only variable
-{ "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "innodb_checksum_algorithm": "strict_crc32" , "innodb_default_row_format": "compact" , "innodb_fast_shutdown": "0" , "innodb_flush_log_at_trx_commit": "0" , "join_buffer_size": "262144" , "read_only": "OFF" , "slave_compressed_protocol": "OFF" , "sql_mode": "NO_KEY_OPTIONS" } }# Restart server with --no-defaults.
+{ "mysql_server": {"auto_increment_increment": "1" , "event_scheduler": "ON" , "slave_compressed_protocol": "OFF" , "read_only": "OFF" , "innodb_checksum_algorithm": "strict_crc32" , "innodb_default_row_format": "compact" , "sql_mode": "NO_KEY_OPTIONS" , "innodb_fast_shutdown": "0" , "innodb_flush_log_at_trx_commit": "0" , "join_buffer_size": "262144" } }# Restart server with --no-defaults.
 SELECT @@global.innodb_fast_shutdown;
 @@global.innodb_fast_shutdown
 1
@@ -233,7 +233,7 @@ SET PERSIST log_output =       'FILE,TABLE';
 SET PERSIST general_log=       'ON';
 SET PERSIST innodb_io_capacity=225;
 SET PERSIST innodb_flush_sync=DEFAULT;
-{ "mysql_server": {"auto_increment_increment": "1" , "autocommit": "OFF" , "block_encryption_mode": "aes-128-ecb" , "event_scheduler": "ON" , "ft_boolean_syntax": "+ -><()~*:\"\"&|" , "general_log": "ON" , "innodb_checksum_algorithm": "strict_crc32" , "innodb_default_row_format": "compact" , "innodb_fast_shutdown": "0" , "innodb_flush_log_at_trx_commit": "0" , "innodb_flush_sync": "ON" , "innodb_io_capacity": "225" , "innodb_max_dirty_pages_pct": "80.990000" , "join_buffer_size": "262144" , "log_bin_trust_function_creators": "ON" , "log_error_services": "log_filter_internal; log_sink_internal" , "log_output": "FILE,TABLE" , "max_connections": "500" , "read_only": "OFF" , "slave_compressed_protocol": "OFF" , "slow_query_log": "OFF" , "sql_mode": "NO_KEY_OPTIONS" } }SELECT VARIABLE_NAME, VARIABLE_SOURCE
+{ "mysql_server": {"sql_mode": "NO_KEY_OPTIONS" , "read_only": "OFF" , "autocommit": "OFF" , "slow_query_log": "OFF" , "event_scheduler": "ON" , "max_connections": "500" , "join_buffer_size": "262144" , "ft_boolean_syntax": "+ -><()~*:\"\"&|" , "log_error_services": "log_filter_internal; log_sink_internal" , "innodb_fast_shutdown": "0" , "block_encryption_mode": "aes-128-ecb" , "auto_increment_increment": "1" , "innodb_checksum_algorithm": "strict_crc32" , "innodb_default_row_format": "compact" , "slave_compressed_protocol": "OFF" , "innodb_max_dirty_pages_pct": "80.990000" , "innodb_flush_log_at_trx_commit": "0" , "log_bin_trust_function_creators": "ON" , "log_output": "FILE,TABLE" , "general_log": "ON" , "innodb_io_capacity": "225" , "innodb_flush_sync": "ON" } }SELECT VARIABLE_NAME, VARIABLE_SOURCE
 FROM performance_schema.variables_info
 WHERE VARIABLE_NAME IN('innodb_io_capacity','innodb_flush_sync');
 VARIABLE_NAME	VARIABLE_SOURCE
@@ -266,7 +266,7 @@ PERSIST sql_mode=DEFAULT,PERSIST innodb_flush_log_at_trx_commit=DEFAULT,
 PERSIST max_connections=default, PERSIST join_buffer_size=default,
 PERSIST innodb_flush_sync=DEFAULT,PERSIST innodb_io_capacity=DEFAULT,
 PERSIST log_bin_trust_function_creators=DEFAULT, PERSIST autocommit=DEFAULT;
-{ "mysql_server": {"auto_increment_increment": "1" , "autocommit": "ON" , "block_encryption_mode": "aes-128-ecb" , "event_scheduler": "ON" , "ft_boolean_syntax": "+ -><()~*:\"\"&|" , "general_log": "OFF" , "innodb_checksum_algorithm": "crc32" , "innodb_default_row_format": "dynamic" , "innodb_fast_shutdown": "1" , "innodb_flush_log_at_trx_commit": "1" , "innodb_flush_sync": "ON" , "innodb_io_capacity": "200" , "innodb_max_dirty_pages_pct": "90.000000" , "join_buffer_size": "262144" , "log_bin_trust_function_creators": "OFF" , "log_error_services": "log_filter_internal; log_sink_internal" , "log_output": "FILE" , "max_connections": "151" , "read_only": "OFF" , "slave_compressed_protocol": "OFF" , "slow_query_log": "OFF" , "sql_mode": "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION" } }WL#9720 - SET PERSIST to capture user, host and timestamp
+{ "mysql_server": {"read_only": "OFF" , "slow_query_log": "OFF" , "event_scheduler": "ON" , "auto_increment_increment": "1" , "slave_compressed_protocol": "OFF" , "log_output": "FILE" , "general_log": "OFF" , "block_encryption_mode": "aes-128-ecb" , "ft_boolean_syntax": "+ -><()~*:\"\"&|" , "innodb_checksum_algorithm": "crc32" , "log_error_services": "log_filter_internal; log_sink_internal" , "innodb_max_dirty_pages_pct": "90.000000" , "innodb_fast_shutdown": "1" , "innodb_default_row_format": "dynamic" , "sql_mode": "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION" , "innodb_flush_log_at_trx_commit": "1" , "max_connections": "151" , "join_buffer_size": "262144" , "innodb_flush_sync": "ON" , "innodb_io_capacity": "200" , "log_bin_trust_function_creators": "OFF" , "autocommit": "ON" } }WL#9720 - SET PERSIST to capture user, host and timestamp
 show create table performance_schema.variables_info;
 Table	Create Table
 variables_info	CREATE TABLE `variables_info` (
@@ -275,7 +275,7 @@ variables_info	CREATE TABLE `variables_info` (
   `VARIABLE_PATH` varchar(1024) DEFAULT NULL,
   `MIN_VALUE` varchar(64) DEFAULT NULL,
   `MAX_VALUE` varchar(64) DEFAULT NULL,
-  `SET_TIME` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `SET_TIME` timestamp NULL DEFAULT NULL,
   `SET_USER` char(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `SET_HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
@@ -366,6 +366,32 @@ SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_a
 # Cleanup
 # Restart server with all defaults
 # restart
+#
+# BUG#26085774: SERVER CRASHES WHEN STARTED USING CORRUPTED MYSQLD-AUTO.CNF
+#
+# this is the wrong format with event_scheduler value not being string
+# server should fail to start
+# on windows even though server fails to start return code is 0, thus expecting error to be 0 or 1
+# this is the wrong format with binlog_gtid_simple_recovery value not being string
+# server should fail to start
+# this is the wrong format with no ',' between key/value pair
+# server should fail to start
+# this is the wrong format with wrong static variables group name
+# server should fail to start
+# this is the wrong format with group name
+# server should fail to start
+# start server with all defaults
+# restart
+#
+# Bug#26100122: SERVER CRASHES WHEN SET PERSIST CALLS WITH A LONG STATEMENT
+#
+set @a=repeat('A',2000);
+SET PERSIST init_connect=@a;;
+set @b=repeat('A',24000);
+SET PERSIST init_connect=@b;;
+# Cleanup
+SET GLOBAL init_connect=default;
+RESET PERSIST;
 SELECT 'END OF TEST';
 END OF TEST
 END OF TEST

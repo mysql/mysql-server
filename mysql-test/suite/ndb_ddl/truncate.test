@@ -25,5 +25,42 @@ while ($counter <= $num_tables)
 
 --source verify_mysql_dd.inc
 
+#
+# Show that TRUNCATE may give the table a new table id in NDB
+#
+
+# Save table id of t5
+let $table_id_5 = `SELECT id FROM ndbinfo.dict_obj_info
+                     WHERE fq_name='ndb_ddl_test/def/t5'`;
+
+# Save table id of t3
+let $table_id_3 = `SELECT id FROM ndbinfo.dict_obj_info
+                     WHERE fq_name='ndb_ddl_test/def/t3'`;
+
+# Check  assumption that t3 has lower table id than t5
+if ($table_id_3 >= $table_id_5)
+{
+  echo table_id_3: $table_id_3;
+  echo table_id_5: $table_id_5;
+  die Test assumes that t3 has lower table id than t5;
+}
+
+# Open a free tableid slot that will be used by t5 when truncated
+DROP TABLE ndb_ddl_test.t3;
+
+TRUNCATE ndb_ddl_test.t5;
+
+# Save table id of t5
+let $new_table_id_5 = `SELECT id FROM ndbinfo.dict_obj_info
+                         WHERE fq_name='ndb_ddl_test/def/t5'`;
+
+# Check that t5 changed id
+if ($new_table_id_5 == $table_id_5)
+{
+  die Table t5 didnt get the new (lower) table id;
+}
+
+--source verify_mysql_dd.inc
+
 --source cleanup.inc
 

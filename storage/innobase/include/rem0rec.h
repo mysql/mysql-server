@@ -3,16 +3,24 @@
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -878,6 +886,7 @@ private:
 	/** Assignment operator */
 	rec_printer& operator=(const rec_printer& other);
 };
+# endif /* UNIV_DEBUG */
 
 /************************************************************//**
 Reads the DB_TRX_ID of a clustered index record.
@@ -888,17 +897,16 @@ rec_get_trx_id(
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index)	/*!< in: clustered index */
 	MY_ATTRIBUTE((warn_unused_result));
-# endif /* UNIV_DEBUG */
 #endif /* UNIV_HOTBACKUP */
 
 /* Maximum lengths for the data in a physical record if the offsets
 are given in one byte (resp. two byte) format. */
-#define REC_1BYTE_OFFS_LIMIT	0x7FUL
-#define REC_2BYTE_OFFS_LIMIT	0x7FFFUL
+constexpr ulint REC_1BYTE_OFFS_LIMIT = 0x7FUL;
+constexpr ulint REC_2BYTE_OFFS_LIMIT = 0x7FFFUL;
 
 /* The data size of record must be smaller than this because we reserve
 two upmost bits in a two byte offset for special purposes */
-#define REC_MAX_DATA_SIZE	16384
+constexpr ulint REC_MAX_DATA_SIZE = 16384;
 
 #include "rem0rec.ic"
 

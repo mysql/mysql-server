@@ -6020,6 +6020,111 @@ SET DEBUG_SYNC= 'RESET';
 --echo # Switching to back to default at end of test case
 --connection default
 
+--echo #
+--echo # Bug#26739438 DEADLOCK ON GET_LOCK(..., 0)
+--echo #
+--echo # Run GET_LOCK(...,0) from two connections to which would previously
+--echo # cause deadlock
+
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (0), (1);
+
+--echo # Starting con0
+connect (con0,localhost,root,,test,,);
+SELECT i FROM t1 WHERE i = 0 AND GET_LOCK(i, 0);
+
+--echo # Starting con1
+connect (con1,localhost,root,,test,,);
+SELECT i FROM t1 WHERE i = 1 AND GET_LOCK(i, 0);
+
+--echo # Send query which will do a 0-wait on i=0 while holding lock on i=1
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL wait0 WAIT_FOR go0';
+--send SELECT i FROM t1 WHERE GET_LOCK(i, 0) AND i = 0
+
+--echo # Switch to con0. Send query which will do a 0-wait on i=1 while
+--echo # holding lock on i=0
+connection con0;
+SET DEBUG_SYNC='mdl_acquire_lock_wait SIGNAL wait1 WAIT_FOR go1';
+--send SELECT i FROM t1 WHERE GET_LOCK(i, 0) AND i = 1
+
+--echo # Switch to default connection and wait until both con0 and con1
+--echo # are ready to check for deadlocks 
+connection default;
+SET DEBUG_SYNC='now WAIT_FOR wait0';
+SET DEBUG_SYNC='now WAIT_FOR wait1';
+
+--echo # Tell both connections to proceed
+SET DEBUG_SYNC='now SIGNAL go0';
+SET DEBUG_SYNC='now SIGNAL go1';
+
+--echo # Wait for con0
+connection con0;
+--reap
+
+--echo # Wait for con1 (should not deadlock)
+connection con1;
+--reap
+
+connection default;
+disconnect con0;
+disconnect con1;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26770836 SLAVE HANGS - WAITING FOR TABLE METADATA LOCKS
+--echo # Check that ALTER TABLE will not release MDL locks that were
+--echo # acquired during view metadata update, until end of statement.
+--echo #
+
+SET DEBUG_SYNC= 'RESET';
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (g1 INT, g2 INT);
+CREATE VIEW v1 AS SELECT f2 FROM t1, t2;
+
+connect (con1,localhost,root,,);
+connection con1;
+SET DEBUG_SYNC= 'after_updating_view_metadata SIGNAL
+                 after_view_update WAIT_FOR continue_alter';
+
+--echo # Run ALTER TABLE until after the view metadata is updated.
+--send ALTER TABLE t1 DROP COLUMN f2
+
+connect (con2,localhost,root,,);
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR after_view_update';
+
+--echo # Run REPAIR which tries to acquire MDL X on t2, and expect it to wait.
+--send REPAIR TABLE t2;
+
+connection default;
+--echo # The wait_condition makes sure that the lock on table t2 is
+--echo # held by ALTER TABLE after updating view metadata. Wait condition
+--echo # fails if run without the fix.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table metadata lock" and
+        info = "REPAIR TABLE t2";
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC= 'now SIGNAL continue_alter';
+
+connection con1;
+--reap
+
+connection con2;
+--reap
+
+--echo # cleanup
+connection default;
+
+disconnect con2;
+disconnect con1;
+
+DROP VIEW v1;
+DROP TABLE t1;
+DROP TABLE t2;
+
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc

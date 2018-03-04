@@ -2,13 +2,20 @@
    Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,7 +31,7 @@
 #include <NdbOut.hpp>
 #include <NdbImport.hpp>
 #include "NdbImportUtil.hpp"
-#include <my_regex.h>
+#include "extra/regex/my_regex.h"
 // STL
 #include <algorithm>
 
@@ -53,8 +60,12 @@ public:
   typedef NdbImportUtil::Row Row;
   typedef NdbImportUtil::Blob Blob;
   typedef NdbImportUtil::RowList RowList;
+  typedef NdbImportUtil::RowCtl RowCtl;
+  typedef NdbImportUtil::Range Range;
+  typedef NdbImportUtil::RangeList RangeList;
   typedef NdbImportUtil::RowMap RowMap;
   typedef NdbImportUtil::Buf Buf;
+  typedef NdbImportUtil::Stats Stats;
 
   NdbImportCsv(NdbImportUtil& util);
   ~NdbImportCsv();
@@ -121,8 +132,8 @@ public:
     Data* pop_front() {
       return static_cast<Data*>(List::pop_front());
     }
-    void push_back(DataList& list2) {
-      List::push_back(list2);
+    void push_back_from(DataList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -160,8 +171,8 @@ public:
     Field* pop_front() {
       return static_cast<Field*>(List::pop_front());
     }
-    void push_back(FieldList& list2) {
-      List::push_back(list2);
+    void push_back_from(FieldList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -198,8 +209,8 @@ public:
     Line* pop_front() {
       return static_cast<Line*>(List::pop_front());
     }
-    void push_back(LineList& list2) {
-      List::push_back(list2);
+    void push_back_from(LineList& src) {
+      List::push_back_from(src);
     }
     uint cnt() const {
       return m_cnt;
@@ -272,10 +283,11 @@ public:
           Buf& buf,
           RowList& rows_out,
           RowList& rows_reject,
-          RowMap& rowmap_in);
+          RowMap& rowmap_in,
+          Stats& stats);
     ~Input();
     void do_init();
-    void do_resume(RowMap::Range range_in);
+    void do_resume(Range range_in);
     void do_parse();
     void do_eval();
     void do_send(uint& curr, uint& left);
@@ -298,7 +310,7 @@ public:
       return m_util.has_error(m_error);
     }
     LineList m_line_list;
-    RowList m_rows_in;
+    RowList m_rows;     // lines eval'd to rows
     Parse* m_parse;
     Eval* m_eval;
     uint64 m_startpos;
@@ -345,6 +357,8 @@ public:
 
   // eval
 
+  // not used anymore due to extremely bad my_regex performance
+  // remove later or convert to C++ <regex> if it proves useful
   struct Regex {
     Regex(NdbImportUtil& util, const char* pattern, uint nsub);
     ~Regex();
@@ -368,13 +382,6 @@ public:
     NdbImportCsv& m_csv;
     NdbImportUtil& m_util;
     Error& m_error;     // team level
-    // regex
-    Regex* m_regex_decimal;
-    Regex* m_regex_decimalunsigned;
-    Regex* m_regex_year;
-    Regex* m_regex_date;
-    Regex* m_regex_time2;
-    Regex* m_regex_datetime2;
   };
 
   // output

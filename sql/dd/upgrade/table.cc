@@ -1,17 +1,24 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/upgrade/table.h"
 
@@ -56,6 +63,7 @@
 #include "sql/dd/types/foreign_key.h"         // dd::Foreign_key
 #include "sql/dd/types/table.h"               // dd::Table
 #include "sql/dd/upgrade/global.h"
+#include "sql/dd/upgrade/upgrade.h"
 #include "sql/field.h"
 #include "sql/handler.h"                      // legacy_db_type
 #include "sql/key.h"
@@ -95,7 +103,7 @@ class Table;
 }  // namespace dd
 
 namespace dd {
-namespace upgrade {
+namespace upgrade_57 {
 
 /*
   Custom version of standard offsetof() macro which can be used to get
@@ -352,7 +360,7 @@ bool Trigger_loader::load_triggers(THD *thd,
       DBUG_RETURN(true);
     }
 
-    LogErr(WARNING_LEVEL, ER_TRG_NO_CREATION_CTX, db_name, table_name);
+    LogErr(WARNING_LEVEL, ER_TRG_CREATION_CTX_NOT_SET, db_name, table_name);
 
 
     /*
@@ -562,7 +570,7 @@ bool Handle_old_incorrect_sql_modes_hook::process_unknown_string(
     const char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
-    LogErr(WARNING_LEVEL, ER_OLD_FILE_FORMAT, m_path, "TRIGGER");
+    LogErr(WARNING_LEVEL, ER_FILE_HAS_OLD_FORMAT, m_path, "TRIGGER");
     if (get_file_options_ulllist(ptr, end, unknown_key, base,
                                  &sql_modes_parameters, mem_root))
     {
@@ -633,6 +641,7 @@ class Table_upgrade_guard
   handler *m_handler;
   bool m_is_table_open;
   LEX *m_lex_saved;
+  Item *m_free_list_saved;
 public:
 
   void update_mem_root(MEM_ROOT *mem_root)
@@ -661,6 +670,15 @@ public:
   {
     m_sql_mode= m_thd->variables.sql_mode;
     m_thd->variables.sql_mode= m_sql_mode;
+
+    /*
+      During table upgrade, allocation for the Item objects could happen in the
+      mem_root set for this scope. Hence saving current free_list state. Item
+      objects stored in THD::free_list during table upgrade are deallocated in
+      the destructor of the class.
+    */
+    m_free_list_saved= thd->free_list;
+    m_thd->free_list= nullptr;
   }
 
   ~Table_upgrade_guard()
@@ -671,6 +689,10 @@ public:
     // Free item list for partitions
     if (m_table->s->m_part_info)
       free_items(m_table->s->m_part_info->item_free_list);
+
+    // Free items allocated during table upgrade and restore old free list.
+    m_thd->free_items();
+    m_thd->free_list= m_free_list_saved;
 
     // Restore thread lex
     if (m_lex_saved != nullptr)
@@ -955,15 +977,27 @@ static bool fix_view_cols_and_deps(THD *thd, TABLE_LIST *view_ref,
   */
   if (error)
   {
+    error= false;
     /*
       Do not print warning if view belongs to sys schema. Sys schema views will
       get fixed when mysql_upgrade is executed.
     */
     if (db_name != "sys")
-      LogErr(WARNING_LEVEL, ER_DD_CANT_RESOLVE_VIEW,
-             db_name.c_str(), view_name.c_str());
+    {
+      if (Bootstrap_error_handler::abort_on_error)
+      {
+        // Exit the upgrade process by reporting an error.
+        LogErr(ERROR_LEVEL, ER_DD_UPGRADE_VIEW_COLUMN_NAME_TOO_LONG,
+               db_name.c_str(), view_name.c_str());
+        error= true;
+      }
+      else
+      {
+         LogErr(WARNING_LEVEL, ER_DD_CANT_RESOLVE_VIEW,
+                db_name.c_str(), view_name.c_str());
+      }
+    }
     update_view_status(thd, db_name.c_str(), view_name.c_str(), false, true);
-    error= false;
   }
 
   // Restore variables
@@ -1043,7 +1077,7 @@ static bool migrate_view_to_dd(THD *thd,
   {
     // Print warning only once in the error log.
     if (!is_fix_view_cols_and_deps)
-      LogErr(WARNING_LEVEL, ER_VIEW_NO_CREATION_CTX,
+      LogErr(WARNING_LEVEL, ER_VIEW_CREATION_CTX_NOT_SET,
              db_name.c_str(), view_name.c_str());
     invalid_ctx= true;
   }
@@ -1518,6 +1552,7 @@ static bool fix_fk_parent_key_names(THD *thd,
                                                  table_name.c_str(),
                                                  hton,
                                                  table_def,
+                                                 nullptr,
                                                  false) || // Don't invalidate
                                                            // TDC we don't have
                                                            // proper MDL.
@@ -1565,7 +1600,8 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (was_truncated)
   {
-    LogErr(ERROR_LEVEL, ER_IDENT_CAUSES_TOO_LONG_PATH, sizeof(path) - 1, path);
+    LogErr(ERROR_LEVEL, ER_TABLE_NAME_CAUSES_TOO_LONG_PATH,
+           sizeof(path) - 1, path);
     return true;
   }
 
@@ -1618,6 +1654,7 @@ static bool migrate_table_to_dd(THD *thd,
   }
 
   // Object to handle cleanup.
+  LEX lex;
   Table_upgrade_guard table_guard(thd, table, &table->mem_root);
 
   // Dont upgrade tables, we are fixing dependency for views.
@@ -1688,7 +1725,12 @@ static bool migrate_table_to_dd(THD *thd,
 
   if (error)
   {
-    LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_UPGRADE, table_name.c_str());
+    if (error == HA_ADMIN_NEEDS_DUMP_UPGRADE)
+      LogErr(ERROR_LEVEL, ER_TABLE_NEEDS_DUMP_UPGRADE, schema_name.c_str(),
+             table_name.c_str());
+    else
+      LogErr(ERROR_LEVEL, ER_TABLE_UPGRADE_REQUIRED, table_name.c_str());
+
     return true;
   }
 
@@ -1773,7 +1815,6 @@ static bool migrate_table_to_dd(THD *thd,
   // open_table_from_share and partition expression parsing needs a
   // valid SELECT_LEX to parse generated columns
   LEX *lex_saved= thd->lex;
-  LEX lex;
   thd->lex= &lex;
   lex_start(thd);
   table_guard.update_lex(lex_saved);
@@ -1841,12 +1882,15 @@ static bool migrate_table_to_dd(THD *thd,
     asserts that Field objects in TABLE_SHARE doesn't have
     expressions assigned.
   */
+  Bootstrap_error_handler bootstrap_error_handler;
+  bootstrap_error_handler.set_log_error(false);
   if (fix_generated_columns_for_upgrade(thd, table, alter_info.create_list))
   {
-    LogErr(ERROR_LEVEL,
-           ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD);
+    LogErr(ERROR_LEVEL, ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD,
+           schema_name.c_str(), table_name.c_str());
     return true;
   }
+  bootstrap_error_handler.set_log_error(true);
 
   FOREIGN_KEY *fk_key_info_buffer= NULL;
   uint fk_number= 0;

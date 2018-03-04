@@ -1,20 +1,25 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef _NGS_SERVER_H_
@@ -26,18 +31,19 @@
 #include <vector>
 
 #include "my_inttypes.h"
-#include "ngs_common/bind.h"
-#include "ngs_common/chrono.h"
-#include "ngs_common/connection_vio.h"
-#include "ngs/client_list.h"
-#include "ngs/interface/authentication_interface.h"
-#include "ngs/interface/server_delegate.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/protocol_encoder_interface.h"
-#include "ngs/protocol_encoder.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/thread.h"
-#include "socket_events.h"
+#include "plugin/x/ngs/include/ngs/client_list.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_delegate.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs/socket_events.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/chrono.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
 
 namespace ngs
@@ -92,6 +98,7 @@ public:
   void add_authentication_mechanism(const std::string &name,
                                     Authentication_interface::Create initiator,
                                     const bool allowed_only_with_secure_connection);
+  void add_sha256_password_cache(SHA256_password_cache_interface *cache);
 
   void add_timer(const std::size_t delay_ms, ngs::function<bool ()> callback);
 
@@ -143,6 +150,7 @@ private:
   bool m_timer_running;
   bool m_skip_name_resolve;
   uint32 m_errors_while_accepting;
+  SHA256_password_cache_interface *m_sha256_password_cache;
 
   ngs::shared_ptr<Server_acceptors> m_acceptors;
   ngs::shared_ptr<Scheduler_dynamic> m_accept_scheduler;

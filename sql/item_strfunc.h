@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -41,6 +48,7 @@
 #include "sql/my_decimal.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_const.h"
+#include "sql/sql_digest.h"  // DIGEST_HASH_TO_STRING[_LENGTH]
 #include "sql/table.h"
 #include "sql_string.h"
 
@@ -226,6 +234,51 @@ public:
   const char *func_name() const override { return "to_base64"; }
 };
 
+
+class Item_func_statement_digest final : public Item_str_ascii_func
+{
+public:
+  Item_func_statement_digest(const POS &pos, Item *query_string)
+    : Item_str_ascii_func(pos, query_string)
+  {}
+
+  const char *func_name() const override { return "statement_digest"; }
+  bool check_gcol_func_processor(uchar *) override { return true; }
+
+  bool resolve_type(THD *) override
+  {
+    set_data_type_string(DIGEST_HASH_TO_STRING_LENGTH, default_charset());
+    return false;
+  }
+
+  String *val_str_ascii(String *) override;
+};
+
+
+class Item_func_statement_digest_text final : public Item_str_func
+{
+public:
+  Item_func_statement_digest_text(const POS &pos, Item *query_string)
+    : Item_str_func(pos, query_string)
+  {}
+
+  const char *func_name() const override { return "statement_digest_text"; }
+
+  /**
+    The type is always LONGTEXT, just like the digest_text columns in
+    Performance Schema
+  */
+  bool resolve_type(THD *) override
+  {
+    set_data_type_string(MAX_BLOB_WIDTH, args[0]->collation);
+    return false;
+  }
+
+  bool check_gcol_func_processor(uchar *) override { return true; }
+  String *val_str(String *) override;
+};
+
+
 class Item_func_from_base64 final :public Item_str_func
 {
   String tmp_value;
@@ -315,15 +368,17 @@ class Item_func_concat_ws :public Item_str_func
 public:
   Item_func_concat_ws(List<Item> &list)
     : Item_str_func(list)
-  {}
+  {
+    null_on_null= false;
+  }
   Item_func_concat_ws(const POS &pos, PT_item_list *opt_list)
     : Item_str_func(pos, opt_list)
-  {}
-
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "concat_ws"; }
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_reverse :public Item_str_func
@@ -590,6 +645,7 @@ public:
   String *val_str_ascii(String *str) override;
   bool resolve_type(THD *thd) override;
   const char *func_name() const override { return "password"; }
+  bool is_deprecated() const override { return true; }
 };
 
 
@@ -1028,6 +1084,7 @@ public:
   }
   bool resolve_type(THD *) override
   {
+    // Determine binary string length from max length of argument in bytes
     set_data_type_string(args[0]->max_length, &my_charset_bin);
     return false;
   }
@@ -1086,8 +1143,7 @@ public:
   String *val_str(String *) override;
   bool resolve_type(THD *) override
   {
-    uint32 max_result_length= args[0]->max_length * 2U +
-                              2U * collation.collation->mbmaxlen;
+    uint32 max_result_length= args[0]->max_char_length() + 2U;
     set_data_type_string(std::min<uint32>(max_result_length, MAX_BLOB_WIDTH),
                          args[0]->collation);
     return false;
@@ -1178,7 +1234,10 @@ public:
 class Item_func_charset final : public Item_str_func
 {
 public:
-  Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  Item_func_charset(const POS &pos, Item *a) :Item_str_func(pos, a)
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   const char *func_name() const override { return "charset"; }
   bool resolve_type(THD *) override
@@ -1187,13 +1246,15 @@ public:
      maybe_null= false;
      return false;
   };
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_collation :public Item_str_func
 {
 public:
-  Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+  Item_func_collation(const POS &pos, Item *a) :Item_str_func(pos, a)
+  {
+    null_on_null= false;
+  }
   String *val_str(String *) override;
   const char *func_name() const override { return "collation"; }
   bool resolve_type(THD *) override
@@ -1202,7 +1263,6 @@ public:
      maybe_null= false;
      return false;
   };
-  table_map not_null_tables() const override { return 0; }
 };
 
 class Item_func_weight_string final : public Item_str_func
@@ -1339,6 +1399,7 @@ public:
     :Item_str_func(pos, a, b, c)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     /*
@@ -1346,8 +1407,9 @@ public:
       per privileges is 11 chars.
       So, setting max approximate to 200.
     */
-    set_data_type_string(14*11, default_charset());
+    set_data_type_string(14*11, system_charset_info);
     maybe_null= true;
+    null_on_null= false;
 
     return false;
   }
@@ -1364,12 +1426,14 @@ public:
     :Item_str_func(pos, a, b)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= false;
+    null_on_null= false;
 
     return false;
   }
@@ -1387,12 +1451,14 @@ public:
     :Item_str_func(pos, list)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
+    null_on_null= false;
 
     return false;
   }
@@ -1410,12 +1476,14 @@ public:
     :Item_str_func(pos, a, b)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     /* maximum string length of the property value is expected
     to be less than 256 characters. */
     max_length= 256;
     maybe_null= false;
+    null_on_null= false;
 
     return false;
   }
@@ -1432,12 +1500,14 @@ public:
     :Item_str_func(pos, a, b)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     /* maximum string length of the property value is expected
     to be less than 256 characters. */
     max_length= 256;
     maybe_null= false;
+    null_on_null= false;
 
     return false;
   }
@@ -1454,12 +1524,14 @@ public:
     :Item_str_func(pos, a)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
+    null_on_null= false;
 
     return false;
   }
@@ -1479,12 +1551,14 @@ public:
     :Item_str_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
+    null_on_null= false;
 
     return false;
   }
@@ -1502,12 +1576,14 @@ public:
     :Item_str_func(pos, a, b, c, d)
   {}
 
+  enum Functype functype() const override { return DD_INTERNAL_FUNC; }
   bool resolve_type(THD *) override
   {
     // maximum string length of all options is expected
     // to be less than 256 characters.
-    set_data_type_string(256, default_charset());
+    set_data_type_string(256, system_charset_info);
     maybe_null= 1;
+    null_on_null= false;
 
     return false;
   }

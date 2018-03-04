@@ -3,16 +3,24 @@
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -43,9 +51,9 @@ Created 5/11/1994 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 # include "trx0trx.h"
+# include "sql/log.h"
 #endif /* !UNIV_HOTBACKUP */
 
-#include "sql/log.h"
 
 #ifdef _WIN32
 using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
@@ -76,8 +84,14 @@ ut_win_init_time()
 		return false;
 	}
 	DWORD error = GetLastError();
-	sql_print_error(
-		"LoadLibrary(\"kernel32.dll\") failed: GetLastError returns %lu", error);
+#ifndef UNIV_HOTBACKUP
+	log_errlog(ERROR_LEVEL, ER_WIN_LOAD_LIBRARY_FAILED, "kernel32.dll",
+		error);
+#else /* !UNIV_HOTBACKUP */
+	fprintf(stderr,
+		"LoadLibrary(\"kernel32.dll\") failed:"
+		" GetLastError returns %lu", error);
+#endif /* !UNIV_HOTBACKUP */
 	return(true);
 }
 
@@ -135,7 +149,6 @@ ut_time(void)
 	return(time(NULL));
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************//**
 Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
@@ -215,7 +228,6 @@ ut_time_ms(void)
 
 	return((ulint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************//**
 Returns the difference of two times in seconds.
@@ -230,12 +242,11 @@ ut_difftime(
 }
 
 #ifdef UNIV_HOTBACKUP
-/**********************************************************//**
-Sprintfs a timestamp to a buffer with no spaces and with ':' characters
-replaced by '_'. */
+/** Sprintfs a timestamp to a buffer with no spaces and with ':' characters
+replaced by '_'.
+@param[in]	buf	buffer where to sprintf */
 void
-ut_sprintf_timestamp_without_extra_chars(
-/*=====================================*/
+meb_sprintf_timestamp_without_extra_chars(
 	char*	buf) /*!< in: buffer where to sprintf */
 {
 #ifdef _WIN32
@@ -265,37 +276,6 @@ ut_sprintf_timestamp_without_extra_chars(
 		cal_tm_ptr->tm_hour,
 		cal_tm_ptr->tm_min,
 		cal_tm_ptr->tm_sec);
-#endif
-}
-
-/**********************************************************//**
-Returns current year, month, day. */
-void
-ut_get_year_month_day(
-/*==================*/
-	ulint*	year,	/*!< out: current year */
-	ulint*	month,	/*!< out: month */
-	ulint*	day)	/*!< out: day */
-{
-#ifdef _WIN32
-	SYSTEMTIME cal_tm;
-
-	GetLocalTime(&cal_tm);
-
-	*year = (ulint) cal_tm.wYear;
-	*month = (ulint) cal_tm.wMonth;
-	*day = (ulint) cal_tm.wDay;
-#else
-	struct tm* cal_tm_ptr;
-	time_t	   tm;
-
-	struct tm  cal_tm;
-	time(&tm);
-	localtime_r(&tm, &cal_tm);
-	cal_tm_ptr = &cal_tm;
-	*year = (ulint) cal_tm_ptr->tm_year + 1900;
-	*month = (ulint) cal_tm_ptr->tm_mon + 1;
-	*day = (ulint) cal_tm_ptr->tm_mday;
 #endif
 }
 
@@ -519,6 +499,7 @@ ut_strerr(
 	case DB_OUT_OF_MEMORY:
 		return("Cannot allocate memory");
 	case DB_OUT_OF_FILE_SPACE:
+	case DB_OUT_OF_DISK_SPACE:
 		return("Out of disk space");
 	case DB_LOCK_WAIT:
 		return("Lock wait");
@@ -715,42 +696,49 @@ ut_basename_noext(
 
 #endif /* UNIV_PFS_MEMORY */
 
+#ifndef UNIV_HOTBACKUP
 namespace ib {
 
 info::~info()
 {
-	sql_print_information("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+		m_oss.str().c_str());
 }
 
 warn::~warn()
 {
-	sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 }
 
 error::~error()
 {
-	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 }
 
 fatal::~fatal()
 {
-	sql_print_error("[FATAL] InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_FATAL_MSG,
+		m_oss.str().c_str());
 	ut_error;
 }
 
 error_or_warn::~error_or_warn()
 {
 	if (m_error) {
-		sql_print_error("InnoDB: %s", m_oss.str().c_str());
+		log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+			m_oss.str().c_str());
 	} else {
-		sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+		log_errlog(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
+			m_oss.str().c_str());
 	}
 }
 
 fatal_or_error::~fatal_or_error()
 {
-	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+	log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
 	ut_a(!m_fatal);
 }
 
 } // namespace ib
+
+#endif /* !UNIV_HOTBACKUP */

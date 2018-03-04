@@ -1,0 +1,208 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+drop database if exists mysqltest1;
+create database mysqltest1;
+use mysqltest1;
+create table t1 (a int);
+insert into t1 values(9);
+select * from mysqltest1.t1;
+a
+9
+include/sync_slave_sql_with_master.inc
+show databases like 'mysqltest1';
+Database (mysqltest1)
+mysqltest1
+select * from test.t1;
+a
+9
+drop table t1;
+drop database mysqltest1;
+include/sync_slave_sql_with_master.inc
+drop database if exists rewrite;
+create database rewrite;
+use test;
+create table t1 (a date, b date, c date not null, d date);
+load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',';
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'd' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'b' at row 2
+Warning	1264	Out of range value for column 'c' at row 2
+Warning	1265	Data truncated for column 'd' at row 2
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+include/sync_slave_sql_with_master.inc
+select * from rewrite.t1;
+a	b	c	d
+0000-00-00	NULL	0000-00-00	0000-00-00
+0000-00-00	0000-00-00	0000-00-00	0000-00-00
+2003-03-03	2003-03-03	2003-03-03	NULL
+2003-03-03	2003-03-03	2003-03-03	NULL
+truncate table t1;
+load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'd' at row 1
+Warning	1264	Out of range value for column 'b' at row 2
+Warning	1264	Out of range value for column 'c' at row 2
+Warning	1265	Data truncated for column 'd' at row 2
+include/sync_slave_sql_with_master.inc
+select * from rewrite.t1;
+a	b	c	d
+NULL	NULL	0000-00-00	0000-00-00
+NULL	0000-00-00	0000-00-00	0000-00-00
+NULL	2003-03-03	2003-03-03	NULL
+drop table t1;
+create table t1 (a text, b text);
+load data infile '../../std_data/loaddata2.dat' ignore into table t1 fields terminated by ',' enclosed by '''';
+Warnings:
+Warning	1261	Row 3 doesn't contain data for all columns
+include/sync_slave_sql_with_master.inc
+select concat('|',a,'|'), concat('|',b,'|') from rewrite.t1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field A|	|Field B|
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+drop table t1;
+create table t1 (a int, b char(10)) CHARACTER SET latin1;
+load data infile '../../std_data/loaddata3.dat' ignore into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+Warnings:
+Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
+Warning	1262	Row 3 was truncated; it contained more data than there were input columns
+Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 5
+Warning	1262	Row 5 was truncated; it contained more data than there were input columns
+include/sync_slave_sql_with_master.inc
+select * from rewrite.t1;
+a	b
+1	row 1
+2	row 2
+0	1234567890
+3	row 3
+0	1234567890
+truncate table t1;
+load data infile '../../std_data/loaddata4.dat' ignore into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+Warnings:
+Warning	1366	Incorrect integer value: '
+' for column 'a' at row 4
+Warning	1261	Row 4 doesn't contain data for all columns
+include/sync_slave_sql_with_master.inc
+select * from rewrite.t1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+0	
+set sql_log_bin= 0;
+drop database rewrite;
+set sql_log_bin= 1;
+set sql_log_bin= 0;
+drop table t1;
+set sql_log_bin= 1;
+
+****
+**** Bug #46861 Auto-closing of temporary tables broken by replicate-rewrite-db
+****
+
+****
+**** Preparing the environment
+****
+SET sql_log_bin= 0;
+CREATE DATABASE database_master_temp_01;
+CREATE DATABASE database_master_temp_02;
+CREATE DATABASE database_master_temp_03;
+SET sql_log_bin= 1;
+SET sql_log_bin= 0;
+CREATE DATABASE database_slave_temp_01;
+CREATE DATABASE database_slave_temp_02;
+CREATE DATABASE database_slave_temp_03;
+SET sql_log_bin= 1;
+
+****
+**** Creating temporary tables on different databases with different connections
+****
+**** con_temp_01 --> creates
+****                  t_01_01_temp on database_master_temp_01
+****
+**** con_temp_02 --> creates
+****                  t_01_01_temp on database_master_temp_01
+****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
+****
+**** con_temp_03 --> creates
+****                  t_01_01_temp on database_master_temp_01
+****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
+****                  t_03_01_temp, t_03_02_temp, t_03_03_temp on database_master_temp_03
+****
+
+con_temp_01
+
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+
+con_temp_02
+
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+USE database_master_temp_02;
+CREATE TEMPORARY TABLE t_02_01_temp(a int);
+INSERT INTO t_02_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_02_02_temp(a int);
+INSERT INTO t_02_02_temp VALUES(1);
+
+con_temp_03
+
+USE database_master_temp_01;
+CREATE TEMPORARY TABLE t_01_01_temp(a int);
+INSERT INTO t_01_01_temp VALUES(1);
+USE database_master_temp_02;
+CREATE TEMPORARY TABLE t_02_01_temp(a int);
+INSERT INTO t_02_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_02_02_temp(a int);
+INSERT INTO t_02_02_temp VALUES(1);
+USE database_master_temp_03;
+CREATE TEMPORARY TABLE t_03_01_temp(a int);
+INSERT INTO t_03_01_temp VALUES(1);
+CREATE TEMPORARY TABLE t_03_02_temp(a int);
+INSERT INTO t_03_02_temp VALUES(1);
+CREATE TEMPORARY TABLE t_03_03_temp(a int);
+INSERT INTO t_03_03_temp VALUES(1);
+
+**** Dropping the connections
+**** To be sure that the DROP statements have been logged, we make
+**** sure that the number of open temporary tables at slave becomes
+**** zero. If not,the test will time out.
+
+include/sync_slave_sql_with_master.inc
+show status like 'Slave_open_temp_tables';
+Variable_name	Value
+Slave_open_temp_tables	10
+flush logs;
+
+**** Wait until number of open temporary tables at slave becomes zero
+
+
+**** Check if every drop temporary table command is prepended with "use"
+
+include/assert.inc [The number of drop temporary table events in binlog should be 6]
+****
+**** Cleaning up the test case
+****
+SET sql_log_bin= 0;
+DROP DATABASE database_master_temp_01;
+DROP DATABASE database_master_temp_02;
+DROP DATABASE database_master_temp_03;
+SET sql_log_bin= 1;
+SET sql_log_bin= 0;
+DROP DATABASE database_slave_temp_01;
+DROP DATABASE database_slave_temp_02;
+DROP DATABASE database_slave_temp_03;
+SET sql_log_bin= 1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

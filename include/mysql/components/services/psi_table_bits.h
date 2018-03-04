@@ -1,25 +1,27 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef COMPONENTS_SERVICES_PSI_TABLE_BITS_H
 #define COMPONENTS_SERVICES_PSI_TABLE_BITS_H
-
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
 
 /**
   @file
@@ -67,7 +69,7 @@ typedef enum PSI_table_io_operation PSI_table_io_operation;
 struct PSI_table_locker_state
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current io operation. */
   enum PSI_table_io_operation m_io_operation;
   /** Current table handle. */
@@ -77,9 +79,9 @@ struct PSI_table_locker_state
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
   /**
@@ -87,7 +89,7 @@ struct PSI_table_locker_state
     For table io, the table io index.
     For table lock, the lock type.
   */
-  uint m_index;
+  unsigned int m_index;
 };
 typedef struct PSI_table_locker_state PSI_table_locker_state;
 
@@ -191,9 +193,9 @@ typedef struct PSI_table_locker *(*start_table_io_wait_v1_t)(
   struct PSI_table_locker_state *state,
   struct PSI_table *table,
   enum PSI_table_io_operation op,
-  uint index,
+  unsigned int index,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 
 /**
   Record a table instrumentation io wait end event.
@@ -201,7 +203,7 @@ typedef struct PSI_table_locker *(*start_table_io_wait_v1_t)(
   @param numrows the number of rows involved in io
 */
 typedef void (*end_table_io_wait_v1_t)(struct PSI_table_locker *locker,
-                                       ulonglong numrows);
+                                       unsigned long long numrows);
 
 /**
   Record a table instrumentation lock wait start event.
@@ -216,9 +218,9 @@ typedef struct PSI_table_locker *(*start_table_lock_wait_v1_t)(
   struct PSI_table_locker_state *state,
   struct PSI_table *table,
   enum PSI_table_lock_operation op,
-  ulong flags,
+  unsigned long flags,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 
 /**
   Record a table instrumentation lock wait end event.
@@ -233,7 +235,5 @@ typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
 typedef void (*unlock_table_v1_t)(struct PSI_table *table);
 
 /** @} (end of group psi_abi_table) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_TABLE_BITS_H */

@@ -5,7 +5,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server2]
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*This member has more executed transactions *.*");
 call mtr.add_suppression(".*The member contains transactions not present *.*");
 SET SESSION sql_log_bin= 1;
 #
@@ -35,39 +34,24 @@ Matching lines are:
 DATE_TIME [ERROR] Plugin group_replication reported: 'The member contains transactions not present in the group. The member will now exit the group.'
 Occurrences of 'The member contains transactions not present in the group. The member will now exit the group.' in the input file: 1
 #
-# Test the basics for group_replication_allow_local_disjoint_gtids_join
-#
-include/assert.inc [The default value of allow_local_disjoint_gtids_join should be 0/OFF]
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= NULL;
-ERROR 42000: Variable 'group_replication_allow_local_disjoint_gtids_join' can't be set to the value of 'NULL'
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= "a";
-ERROR 42000: Variable 'group_replication_allow_local_disjoint_gtids_join' can't be set to the value of 'a'
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1.2;
-ERROR 42000: Incorrect argument type to variable 'group_replication_allow_local_disjoint_gtids_join'
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
-include/assert.inc [The value of allow_local_disjoint_gtids_join should now be 1/ON]
-#
-# Test that server 2 can now join
+# Test that server 2 can now join after extra data is removed.
 #
 [connection server1]
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server2]
+DROP TABLE t2;
+RESET MASTER;
 include/start_group_replication.inc
 #
 # Verify all is fine
 #
 [connection server1]
 INSERT INTO t1 VALUES (2);
-include/sync_slave_sql_with_master.inc
+include/rpl_sync.inc
+[connection server2]
 include/assert.inc ['There are two values in table t1']
 #
 # Cleaning up
 #
-[connection server1]
-include/stop_group_replication.inc
-include/start_group_replication.inc
-[connection server2]
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 0;
 DROP TABLE t1;
-DROP TABLE t2;
 include/group_replication_end.inc

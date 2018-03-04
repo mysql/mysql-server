@@ -371,7 +371,7 @@ least(cast('01-01-01' as date), '01-01-02')
 2001-01-01
 select greatest(cast('01-01-01' as date), '01-01-02');
 greatest(cast('01-01-01' as date), '01-01-02')
-01-01-02
+2001-01-02
 select least(cast('01-01-01' as date), '01-01-02') + 0;
 least(cast('01-01-01' as date), '01-01-02') + 0
 20010101
@@ -964,5 +964,5 @@ LEAST( col_datetime_1_not_null , col_datetime_2_not_null ) )
 AS c1 FROM t1 ORDER BY c1;
 c1
 0000-00-00 00:00:00
-2005-06-05
+2005-06-05 00:00:00
 DROP TABLE t1;

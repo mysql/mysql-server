@@ -4,16 +4,24 @@ Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -25,21 +33,20 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #ifndef UNIV_HOTBACKUP
-#include <mysql_com.h>
+# include <mysql_com.h>
 
-#include "ha_prototypes.h"
+# include "ha_prototypes.h"
+
+# include "data0type.h"
 #endif /* !UNIV_HOTBACKUP */
-
-#include "data0type.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
-#include "fts0priv.h"
-#include "mach0data.h"
-#include "my_dbug.h"
-#include "rem0rec.h"
-#include "ut0crc32.h"
-
 #ifndef UNIV_HOTBACKUP
+# include "fts0priv.h"
+# include "mach0data.h"
+# include "my_dbug.h"
+# include "rem0rec.h"
+# include "ut0crc32.h"
 # include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 
@@ -82,9 +89,14 @@ operator<<(
 	std::ostream&		s,
 	const table_name_t&	table_name)
 {
+#ifndef UNIV_HOTBACKUP
 	return(s << ut_get_name(NULL, table_name.m_name));
+#else /* !UNIV_HOTBACKUP */
+	return(s << table_name.m_name);
+#endif /* !UNIV_HOTBACKUP */
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Adds a virtual column definition to a table.
 @param[in,out]	table		table
 @param[in,out]	heap		temporary memory heap, or NULL. It is
@@ -237,11 +249,20 @@ dict_mem_table_col_rename_low(
 		char*	col_names;
 
 		if (to_len > from_len) {
+			ulint table_size_before_rename_col
+				= mem_heap_get_size(table->heap);
 			col_names = static_cast<char*>(
 				mem_heap_alloc(
 					table->heap,
 					full_len + to_len - from_len));
-
+			ulint table_size_after_rename_col
+				= mem_heap_get_size(table->heap);
+			if (table_size_before_rename_col
+				!= table_size_after_rename_col) {
+				dict_sys->size +=
+					table_size_after_rename_col
+						- table_size_before_rename_col;
+			}
 			memcpy(col_names, t_col_names, prefix_len);
 		} else {
 			col_names = const_cast<char*>(t_col_names);
@@ -377,7 +398,6 @@ dict_mem_table_col_rename(
 				      to, s, is_virtual);
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Creates and initializes a foreign constraint memory object.
 @return own: foreign constraint struct */
@@ -634,8 +654,6 @@ dict_mem_table_free_foreign_vcol_set(
 	}
 }
 
-#endif /* !UNIV_HOTBACKUP */
-
 /** Check whether index can be used by transaction
 @param[in] trx		transaction*/
 bool dict_index_t::is_usable(const trx_t* trx) const
@@ -656,6 +674,7 @@ bool dict_index_t::is_usable(const trx_t* trx) const
 			|| !MVCC::is_view_active(trx->read_view)
 			|| trx->read_view->changes_visible(trx_id, table->name));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Gets pointer to the nth column in an index.
 @param[in] pos	position of the field
@@ -741,6 +760,7 @@ dict_mem_index_free(
 	ut_ad(index);
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
+#ifndef UNIV_HOTBACKUP
 	dict_index_zip_pad_mutex_destroy(index);
 
 	if (dict_index_is_spatial(index)) {
@@ -758,11 +778,13 @@ dict_mem_index_free(
 		mutex_destroy(&index->rtr_track->rtr_active_mutex);
 		UT_DELETE(index->rtr_track->rtr_active);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	index->rtr_srs.reset();
 
 	mem_heap_free(index->heap);
 }
+#ifndef UNIV_HOTBACKUP
 
 /** Create a temporary tablename like "#sql-ibtid-inc" where
   tid = the Table ID
@@ -851,6 +873,7 @@ dict_foreign_set_validate(
 	return(dict_foreign_set_validate(table.foreign_set)
 	       && dict_foreign_set_validate(table.referenced_set));
 }
+#endif /* !UNIV_HOTBACKUP */
 
 std::ostream&
 operator<< (std::ostream& out, const dict_foreign_t& foreign)

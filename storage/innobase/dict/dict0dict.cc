@@ -4,16 +4,24 @@ Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -32,17 +40,29 @@ Created 1/8/1996 Heikki Tuuri
 #include <algorithm>
 #include <string>
 
-#include "current_thd.h"
+#ifndef UNIV_HOTBACKUP
+# include "current_thd.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "dict0dict.h"
 #include "fil0fil.h"
-#include "fts0fts.h"
+#ifndef UNIV_HOTBACKUP
+# include "fts0fts.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "ha_prototypes.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#ifndef UNIV_HOTBACKUP
 #include "mysqld.h"			// system_charset_info
-#include "que0types.h"
-#include "row0sel.h"
+# include "que0types.h"
+# include "row0sel.h"
 #include "clone0api.h"
+#endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_HOTBACKUP
+# define dict_lru_validate(x)		(true)
+# define dict_lru_find_table(x)		(true)
+# define dict_non_lru_find_table(x)	(true)
+#endif /* UNIV_HOTBACKUP */
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 dict_index_t*	dict_ind_redundant;
@@ -52,7 +72,6 @@ dict_index_t*	dict_ind_redundant;
 extern uint	ibuf_debug;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
-#ifndef UNIV_HOTBACKUP
 #include <algorithm>
 #include <vector>
 
@@ -63,37 +82,54 @@ extern uint	ibuf_debug;
 #include "data0type.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
-#include "dict0dd.h"
+#ifndef UNIV_HOTBACKUP
+# include "dict0dd.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "dict0mem.h"
 #include "dict0priv.h"
-#include "dict0stats.h"
+#ifndef UNIV_HOTBACKUP
+# include "dict0stats.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "fsp0sysspace.h"
-#include "fts0fts.h"
-#include "fts0types.h"
-#include "lock0lock.h"
+#ifndef UNIV_HOTBACKUP
+# include "fts0fts.h"
+# include "fts0types.h"
+# include "lock0lock.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "mach0data.h"
 #include "mem0mem.h"
 #include "os0once.h"
 #include "page0page.h"
 #include "page0zip.h"
-#include "pars0pars.h"
-#include "pars0sym.h"
-#include "que0que.h"
+#ifndef UNIV_HOTBACKUP
+# include "pars0pars.h"
+# include "pars0sym.h"
+# include "que0que.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "rem0cmp.h"
 #include "row0ins.h"
 #include "row0log.h"
-#include "row0merge.h"
-#include "row0mysql.h"
+#ifndef UNIV_HOTBACKUP
+# include "row0merge.h"
+# include "row0mysql.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "row0upd.h"
-#include "srv0mon.h"
-#include "srv0start.h"
-#include "sync0sync.h"
-#include "trx0undo.h"
-#include "ut0new.h"
+#ifndef UNIV_HOTBACKUP
+# include "srv0mon.h"
+# include "srv0start.h"
+# include "sync0sync.h"
+# include "trx0undo.h"
+# include "ut0new.h"
 #include "ha_innodb.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /** the dictionary system */
 dict_sys_t*	dict_sys	= NULL;
+
+/** The set of SE private IDs of DD tables. Used to tell whether a table is
+a DD table. Since the DD tables can be rebuilt with new SE private IDs,
+this set replaces checks based on ranges of IDs. */
+std::set<dd::Object_id> dict_sys_t::s_dd_table_ids = {};
 
 /** The name of the data dictionary tablespace. */
 const char*	dict_sys_t::s_dd_space_name = "mysql";
@@ -137,6 +173,7 @@ ulong	zip_pad_max = 50;
 #define DICT_POOL_PER_TABLE_HASH 512	/*!< buffer pool max size per table
 					hash table fixed size in bytes */
 
+#ifndef UNIV_HOTBACKUP
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
@@ -271,6 +308,7 @@ dict_remove_db_name(
 
 	return(s + 1);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
 Get the database name length in a table name.
@@ -289,6 +327,7 @@ dict_get_db_name_len(
 	return(s - name);
 }
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Reserves the dictionary system mutex for MySQL. */
 void
@@ -519,6 +558,7 @@ dict_table_try_drop_aborted_and_mutex_exit(
 		mutex_exit(&dict_sys->mutex);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
 Decrements the count of open handles to a table. */
@@ -531,15 +571,20 @@ dict_table_close(
 					indexes after an aborted online
 					index creation */
 {
+	ibool	drop_aborted;
 	if (!dict_locked && !table->is_intrinsic()) {
 		mutex_enter(&dict_sys->mutex);
 	}
 
 	ut_ad(mutex_own(&dict_sys->mutex) || table->is_intrinsic());
 	ut_a(table->get_ref_count() > 0);
-
+	drop_aborted = try_drop
+		&& table->drop_aborted
+		&& table->get_ref_count() == 1
+		&& table->first_index();
 	table->release();
 
+#ifndef UNIV_HOTBACKUP
 	/* Intrinsic table is not added to dictionary cache so skip other
 	cache specific actions. */
 	if (table->is_intrinsic()) {
@@ -572,12 +617,6 @@ dict_table_close(
 
 	if (!dict_locked) {
 		table_id_t	table_id	= table->id;
-		ibool		drop_aborted;
-
-		drop_aborted = try_drop
-			&& table->drop_aborted
-			&& table->get_ref_count() == 1
-			&& table->first_index();
 
 		mutex_exit(&dict_sys->mutex);
 
@@ -585,9 +624,10 @@ dict_table_close(
 			dict_table_try_drop_aborted(NULL, table_id, 0);
 		}
 	}
-}
 #endif /* !UNIV_HOTBACKUP */
+}
 
+#ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Closes the only open handle to a table and drops a table while assuring
 that dict_sys->mutex is held the whole time.  This assures that the table
@@ -751,7 +791,6 @@ dict_table_get_nth_v_col_mysql(
 	return(dict_table_get_nth_v_col(table, i));
 }
 
-#ifndef UNIV_HOTBACKUP
 /** Allocate and init the autoinc latch of a given table.
 This function must not be called concurrently on the same table object.
 @param[in,out]	table_void	table whose autoinc latch to create */
@@ -1072,6 +1111,7 @@ dict_table_col_in_clustered_key(
 
 	return(FALSE);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
 Inits the data dictionary module. */
@@ -1100,14 +1140,17 @@ dict_init(void)
 	rw_lock_create(dict_operation_lock_key,
 		       dict_operation_lock, SYNC_DICT_OPERATION);
 
+#ifndef UNIV_HOTBACKUP
 	if (!srv_read_only_mode) {
 		dict_foreign_err_file = os_file_create_tmpfile(NULL);
 		ut_a(dict_foreign_err_file);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	mutex_create(LATCH_ID_DICT_FOREIGN_ERR, &dict_foreign_err_mutex);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Move to the most recently used segment of the LRU list. */
 void
@@ -1504,6 +1547,7 @@ dict_table_move_from_lru_to_non_lru(
 
 	table->can_be_evicted = FALSE;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Move a table to the LRU end from the non LRU list.
 @param[in]	table	InnoDB table object */
@@ -1546,6 +1590,7 @@ dict_table_find_index_on_id(
 	return(NULL);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Look up an index.
 @param[in]	id	index identifier
 @return index or NULL if not found */
@@ -1634,14 +1679,20 @@ dict_table_rename_in_cache(
 	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
 			dict_table_t*, table2, ut_ad(table2->cached),
 			(ut_strcmp(table2->name.m_name, new_name) == 0));
+
 	DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
 		if (table2 == NULL) {
 			table2 = (dict_table_t*) -1;
 		} );
-	if (table2) {
-		ib::error() << "Cannot rename table '" << old_name
+
+	if (table2 != nullptr) {
+
+		ib::error()
+			<< "Cannot rename table '" << old_name
 			<< "' to '" << new_name << "' since the"
-			" dictionary cache already contains '" << new_name << "'.";
+			" dictionary cache already contains '"
+			<< new_name << "'.";
+
 		return(DB_ERROR);
 	}
 
@@ -1657,22 +1708,28 @@ dict_table_rename_in_cache(
 		/* Make sure the data_dir_path is set. */
 		dd_get_and_save_data_dir_path<dd::Table>(table, NULL, true);
 
-		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			ut_a(table->data_dir_path);
+		std::string	path = dict_table_get_datadir(table);
 
-			filepath = fil_make_filepath(
-				table->data_dir_path, table->name.m_name,
-				IBD, true);
-		} else {
-			filepath = fil_make_filepath(
-				NULL, table->name.m_name, IBD, false);
-		}
+		filepath = Fil_path::make(path, table->name.m_name, IBD, true);
 
 		if (filepath == NULL) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
-		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
+		err = fil_delete_tablespace(
+                        table->space, BUF_REMOVE_ALL_NO_WRITE);
+
+                ut_a(err == DB_SUCCESS
+		     || err == DB_TABLESPACE_NOT_FOUND
+		     || err == DB_IO_ERROR);
+
+		if (err == DB_IO_ERROR) {
+
+			ib::info()
+				<< "IO error while deleting: " << table->space
+				<< " during rename of '" << old_name << "' to"
+				<< " '" << new_name << "'";
+		}
 
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &ftype)
@@ -1692,11 +1749,14 @@ dict_table_rename_in_cache(
 		ut_ad(!table->is_temporary());
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			new_path = os_file_make_new_pathname(
-				old_path, new_name);
+			std::string	new_ibd;
+
+			new_ibd = Fil_path::make_new_ibd(old_path, new_name);
+
+			new_path = mem_strdup(new_ibd.c_str());
+
 		} else {
-			new_path = fil_make_filepath(
-				NULL, new_name, IBD, false);
+			new_path = Fil_path::make_ibd_from_table_name(new_name);
 		}
 
 		/* New filepath must not exist. */
@@ -1714,7 +1774,8 @@ dict_table_rename_in_cache(
 		dd_filename_to_spacename(new_name, &new_tablespace_name);
 
 		bool	success = fil_rename_tablespace(
-			table->space, old_path, new_tablespace_name.c_str(), new_path);
+			table->space, old_path, new_tablespace_name.c_str(),
+			new_path);
 
 		clone_mark_active();
 
@@ -2170,8 +2231,9 @@ dict_partitioned_table_remove_from_cache(
 
 			if ((strncmp(name, prev_table->name.m_name, name_len)
 			     == 0)
-			    && (strncmp(prev_table->name.m_name + name_len,
-					part_sep, strlen(part_sep)) == 0)) {
+			    && strncmp(prev_table->name.m_name + name_len,
+					PART_SEPARATOR,
+					PART_SEPARATOR_LEN) == 0) {
 
 				btr_drop_ahi_for_table(prev_table);
 				dict_table_remove_from_cache(prev_table);
@@ -5566,6 +5628,7 @@ dict_print_info_on_foreign_keys(
 
 	mutex_exit(&dict_sys->mutex);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Inits the structure for persisting dynamic metadata */
 void
@@ -5579,8 +5642,12 @@ dict_persist_init(void)
 	rw_lock_create(dict_persist_checkpoint_key, &dict_persist->lock,
 		       SYNC_PERSIST_CHECKPOINT);
 
+#ifndef UNIV_HOTBACKUP
 	UT_LIST_INIT(dict_persist->dirty_dict_tables,
 		     &dict_table_t::dirty_dict_tables);
+#endif /* !UNIV_HOTBACKUP */
+
+	dict_persist->num_dirty_tables = 0;
 
 	dict_persist->persisters = UT_NEW_NOKEY(Persisters());
 	dict_persist->persisters->add(PM_INDEX_CORRUPTED);
@@ -5593,7 +5660,9 @@ dict_persist_close(void)
 {
 	UT_DELETE(dict_persist->persisters);
 
+#ifndef UNIV_HOTBACKUP
 	UT_DELETE(dict_persist->table_buffer);
+#endif /* !UNIV_HOTBACKUP */
 
 	mutex_free(&dict_persist->mutex);
 
@@ -5602,6 +5671,7 @@ dict_persist_close(void)
 	ut_free(dict_persist);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Initialize the dynamic metadata according to the table object
 @param[in]	table		table object
 @param[in,out]	metadata	metadata to be initialized */
@@ -5631,6 +5701,7 @@ dict_init_dynamic_metadata(
 
 	/* Will initialize other metadata here */
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Apply the persistent dynamic metadata read from redo logs or
 DDTableBuffer to corresponding table during recovery.
@@ -5714,6 +5785,7 @@ dict_table_apply_dynamic_metadata(
 	return(get_dirty);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Read persistent dynamic metadata stored in a buffer
 @param[in]	buffer		buffer to read
 @param[in]	size		size of data in buffer
@@ -5804,6 +5876,7 @@ dict_table_load_dynamic_metadata(
 
 	UT_DELETE(readmeta);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Mark the dirty_status of a table as METADATA_DIRTY, and add it to the
 dirty_dict_tables list if necessary.
@@ -5826,6 +5899,7 @@ dict_table_mark_dirty(
 		/* Fall through */
 	case METADATA_BUFFERED:
 		table->dirty_status = METADATA_DIRTY;
+		++dict_persist->num_dirty_tables;
 	}
 
 	ut_ad(table->in_dirty_dict_tables_list);
@@ -5873,6 +5947,7 @@ dict_set_corrupted(
 					PM_INDEX_CORRUPTED);
 			ut_ad(persister != NULL);
 
+#ifndef UNIV_HOTBACKUP
 			mtr_t		mtr;
 
 			mtr.start();
@@ -5884,6 +5959,7 @@ dict_set_corrupted(
 			in most cases the corrupted bit would be
 			persisted in redo log */
 			log_write_up_to(mtr.commit_lsn(), true);
+#endif /* !UNIV_HOTBACKUP */
 
 			dict_table_mark_dirty(table);
 		}
@@ -5898,6 +5974,7 @@ dict_set_corrupted(
 	rw_lock_s_unlock(&dict_persist->lock);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Write the dirty persistent dynamic metadata for a table to
 DD TABLE BUFFER table. This is the low level function to write back.
 @param[in,out]	table	table to write */
@@ -5926,6 +6003,8 @@ dict_table_persist_to_dd_table_buffer_low(
 	ut_a(error == DB_SUCCESS);
 
 	table->dirty_status = METADATA_BUFFERED;
+	ut_ad(dict_persist->num_dirty_tables > 0);
+	--dict_persist->num_dirty_tables;
 }
 
 /** Write back the dirty persistent dynamic metadata of the table
@@ -5999,8 +6078,55 @@ dict_persist_to_dd_table_buffer(void)
 		table = next;
 	}
 
+	ut_ad(dict_persist->num_dirty_tables == 0);
+
 	mutex_exit(&dict_persist->mutex);
 	return(persisted);
+}
+
+/** Calcualte the redo log margin for current tables which have some changed
+dynamic metadata in memory and have not been written back to
+mysql.innodb_dynamic_metadata
+@return the rough redo log margin for current dynamic metadata changes */
+uint64_t
+dict_persist_log_margin()
+{
+	/* Below variables basically considers only the AUTO_INCREMENT counter
+	and a small margin for corrupted indexes. */
+
+	/* Every table will generate less than 80 bytes without
+	considering page split */
+	static constexpr uint32_t	log_margin_per_table_no_split = 80;
+
+	/* Every table metadata log may roughly consume such many bytes. */
+	static constexpr uint32_t	record_size_per_table = 50;
+
+	/* How many tables may generate one page split */
+	static const uint32_t		tables_per_split =
+		(univ_page_size.physical() - PAGE_NEW_SUPREMUM_END)
+		/ record_size_per_table / 2;
+
+	/* Every page split needs at most this log margin, if not root split. */
+	static const uint32_t		log_margin_per_split_no_root = 500;
+
+	/* Extra marge for root split, we always leave this margin,
+	since we don't know exactly it will split root or not */
+	static const uint32_t		log_margin_per_split_root =
+		univ_page_size.physical() * 1.5;
+
+	/* Read without holding the dict_persist_t::mutex */
+	uint32_t	num_dirty_tables = dict_persist->num_dirty_tables;
+	uint32_t	total_splits = 0;
+	uint32_t	num_tables = num_dirty_tables;
+
+	while (num_tables > 0) {
+		total_splits += num_tables / tables_per_split + 1;
+		num_tables = num_tables / tables_per_split;
+	}
+
+	return(num_dirty_tables * log_margin_per_table_no_split
+	       + total_splits * log_margin_per_split_no_root
+	       + (num_dirty_tables == 0 ? 0 : log_margin_per_split_root));
 }
 
 #ifdef UNIV_DEBUG
@@ -6042,7 +6168,6 @@ dict_set_merge_threshold_all_debug(
 	mutex_exit(&dict_sys->mutex);
 }
 #endif /* UNIV_DEBUG */
-#endif /* !UNIV_HOTBACKUP */
 
 /**********************************************************************//**
 Inits dict_ind_redundant. */
@@ -6066,7 +6191,6 @@ dict_ind_init(void)
 	dict_ind_redundant->cached = TRUE;
 }
 
-#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Frees dict_ind_redundant. */
 static
@@ -6569,7 +6693,10 @@ dict_foreign_qualify_index(
 
 		col_name = col_names
 			? col_names[col_no]
-			: table->get_col_name(col_no);
+			: (field->col->is_virtual()
+			   ? dict_table_get_v_col_name_mysql(table, col_no)
+			   : table->get_col_name(col_no)
+			  );
 
 		if (0 != innobase_strcasecmp(columns[i], col_name)) {
 			return(false);
@@ -6812,7 +6939,6 @@ dict_tf_to_row_format_string(
 	ut_error;
 	return(0);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Determine the extent size (in pages) for the given table
 @param[in]	table	the table whose extent size is being
@@ -7193,7 +7319,7 @@ DDTableBuffer::replace(
 			flags, btr_pcur_get_btr_cur(&pcur),
 			&cur_offsets, &m_dynamic_heap,
 			m_dynamic_heap, &big_rec, update,
-			0, NULL, 0, &mtr);
+			0, NULL, 0, 0, &mtr);
 		ut_a(error == DB_SUCCESS);
 		/* We don't have big rec in this table */
 		ut_ad(!big_rec);
@@ -7229,11 +7355,11 @@ DDTableBuffer::remove(
 	if (!page_rec_is_infimum(btr_pcur_get_rec(&pcur))
 	    && btr_pcur_get_low_match(&pcur) == m_index->n_uniq) {
 
-	DEBUG_SYNC_C("delete_metadata_before");
+		DEBUG_SYNC_C("delete_metadata_before");
 
 		btr_cur_pessimistic_delete(
 			&error, false, btr_pcur_get_btr_cur(&pcur),
-			BTR_CREATE_FLAG, false, &mtr);
+			BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
 		ut_ad(error == DB_SUCCESS);
 	}
 
@@ -7307,6 +7433,7 @@ DDTableBuffer::get(
 
 	return(metadata);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic metadata of table
 @param[in]	id		table id
@@ -7551,6 +7678,7 @@ AutoIncPersister::read(
 	return(consumed);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Write redo logs for autoinc counter that is to be inserted or to
 update the existing one, if the counter is bigger than current one.
 This function should be called only once at most per mtr, and work with
@@ -7618,6 +7746,7 @@ AutoIncLogMtr::commit()
 		rw_lock_s_unlock(&dict_persist->lock);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Destructor */
 Persisters::~Persisters()
@@ -7693,6 +7822,7 @@ Persisters::remove(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Serialize the metadata to a buffer
 @param[in]	metadata	metadata to serialize
 @param[out]	buffer		buffer to store the serialized metadata
@@ -7829,10 +7959,6 @@ dict_table_change_id_sys_tables()
 	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
 		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
-		/* It's possible the SYS_VIRTUAL is not exist. */
-		if (system_table == nullptr && i == 8) {
-			continue;
-		}
 		ut_a(system_table != nullptr);
 		ut_ad(dict_sys_table_id[i] == system_table->id);
 
@@ -7844,6 +7970,8 @@ dict_table_change_id_sys_tables()
 		dict_table_change_id_in_cache(system_table, new_table_id);
 
 		dict_sys_table_id[i] = system_table->id;
+
+		dict_table_prevent_eviction(system_table);
 	}
 }
 
@@ -7916,10 +8044,6 @@ dict_sys_table_id_build()
 	for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
 		dict_table_t*	system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
-		/* It's possible the SYS_VIRTUAL is not exist. */
-		if (system_table == nullptr && i == 8) {
-			continue;
-		}
 		ut_a(system_table != nullptr);
 		dict_sys_table_id[i] = system_table->id;
 	}
@@ -8058,3 +8182,20 @@ dd_sdi_acquire_shared_mdl(
 
 	return(DB_SUCCESS);
 }
+
+/** Get the tablespace data directory if set, otherwise empty string.
+@return the data directory */
+std::string
+dict_table_get_datadir(const dict_table_t* table)
+{
+	std::string	path;
+
+	if (DICT_TF_HAS_DATA_DIR(table->flags)
+		&& table->data_dir_path != nullptr) {
+
+		path.assign(table->data_dir_path);
+	}
+
+	return(path);
+}
+#endif /* !UNIV_HOTBACKUP */

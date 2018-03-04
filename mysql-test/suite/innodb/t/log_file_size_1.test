@@ -59,7 +59,7 @@ SELECT id,LEFT(bfield,20) FROM t1;
 
 # restart with different redo log size
 # set log size from 2*4M to 5*4M
---exec echo "restart: --innodb-log-file-size=4M --innodb_log_files_in_group=5 --log-error=$MYSQLTEST_VARDIR/log/case1.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --innodb-log-file-size=4M --innodb_log_files_in_group=5 --log-error=$MYSQLTEST_VARDIR/log/case1.err --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -134,7 +134,7 @@ SELECT id,LEFT(bfield,20) FROM t1;
 # restart with different redo log size
 --source include/shutdown_mysqld.inc
 # set log size from 3*6M to 2*4M
---exec echo "restart: --innodb-log-file-size=4M --innodb_log_files_in_group=2 --log-error=$MYSQLTEST_VARDIR/log/case2.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --innodb-log-file-size=4M --innodb_log_files_in_group=2 --log-error=$MYSQLTEST_VARDIR/log/case2.err --log-error-verbosity=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect

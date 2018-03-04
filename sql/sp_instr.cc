@@ -1,13 +1,20 @@
 /* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -290,6 +297,31 @@ static bool subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
 ///////////////////////////////////////////////////////////////////////////
 
 
+class SP_instr_error_handler : public Internal_error_handler
+{
+public:
+  virtual bool handle_condition(THD *thd,
+                                uint sql_errno,
+                                const char*,
+                                Sql_condition::enum_severity_level*,
+                                const char*)
+  {
+    /*
+      Check if the "table exists" error or warning reported for the
+      CREATE TABLE ... SELECT statement.
+    */
+    if (thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
+        thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0 &&
+        sql_errno == ER_TABLE_EXISTS_ERROR)
+      cts_table_exists_error= true;
+
+    return false;
+  }
+
+  bool cts_table_exists_error= false;
+};
+
+
 bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
                                            uint *nextp,
                                            bool open_tables)
@@ -360,7 +392,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
       thd->session_tracker.changed_any())
     thd->lex->safe_to_cache_query= 0;
 
-  bool open_table_success= true;
+  SP_instr_error_handler sp_instr_error_handler;
+  thd->push_internal_handler(&sp_instr_error_handler);
+
   /* Open tables if needed. */
 
   if (!error)
@@ -392,8 +426,6 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 
       if (!error)
         error= open_and_lock_tables(thd, m_lex->query_tables, 0);
-
-      open_table_success= !error;
 
       if (!error)
       {
@@ -440,6 +472,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     }
   }
 
+  // Pop SP_instr_error_handler error handler.
+  thd->pop_internal_handler();
+
   if (m_lex->query_tables_own_last)
   {
     /*
@@ -467,44 +502,46 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
     When entering this function, state is STMT_INITIALIZED_FOR_SP if this is
     the first execution, otherwise it is STMT_EXECUTED.
 
-    When an error occurs during opening tables, no execution takes place and
-    no state change will take place.
-
     When a re-prepare error is raised, the next execution will re-prepare the
     statement. To make sure that items are created in the statement mem_root,
     change state to STMT_INITIALIZED_FOR_SP.
 
-    In other cases, the state should become (or remain) STMT_EXECUTED.
-    See Query_arena->state definition for explanation.
+    When a "table exists" error occur for CREATE TABLE ... SELECT change state
+    to STMT_INITIALIZED_FOR_SP, as if statement must be reprepared.
 
-    Some special handling of CREATE TABLE .... SELECT in an SP is required. The
-    state is always set to STMT_INITIALIZED_FOR_SP in such a case.
+      Why is this necessary? A useful pointer would be to note how
+      PREPARE/EXECUTE uses functions like select_like_stmt_test to implement
+      CREATE TABLE .... SELECT. The SELECT part of the DDL is resolved first.
+      Then there is an attempt to create the table. So in the execution phase,
+      if "table exists" error occurs or flush table preceeds the execute, the
+      item tree of the select is re-created and followed by an attempt to create
+      the table.
 
-    Why is this necessary? A useful pointer would be to note how
-    PREPARE/EXECUTE uses functions like select_like_stmt_test to implement
-    CREATE TABLE .... SELECT. The SELECT part of the DDL is resolved first.
-    Then there is an attempt to create the table. So in the execution phase,
-    if "table exists" error occurs or flush table preceeds the execute, the
-    item tree of the select is re-created and followed by an attempt to create
-    the table.
+      But SP uses mysql_execute_command (which is used by the conventional
+      execute) after doing a parse. This creates a problem for SP since it
+      tries to preserve the item tree from the previous execution.
 
-    But SP uses mysql_execute_command (which is used by the conventional
-    execute) after doing a parse. This creates a problem for SP since it
-    tries to preserve the item tree from the previous execution.
+    When execution of the statement was started (completed), change state to
+    STMT_EXECUTED.
+
+    When an error occurs before statement execution starts (m_exec_started is
+    false at this stage of execution), state is not changed.
+    (STMT_INITIALIZED_FOR_SP means the statement was never prepared,
+    STMT_EXECUTED means the statement has been prepared and executed before,
+    but some error occurred during table open or execution).
   */
-  if (open_table_success)
-  {
-    bool reprepare_error=
-      error && thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
-    bool is_create_table_select=
-      thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-      thd->lex->select_lex && thd->lex->select_lex->item_list.elements > 0;
+  bool reprepare_error=
+    error && thd->is_error() &&
+    thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
 
-    if (reprepare_error || is_create_table_select)
-      thd->stmt_arena->state= Query_arena::STMT_INITIALIZED_FOR_SP;
-    else
-      thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
-  }
+  // Unless there is an error, execution must have started (and completed)
+  DBUG_ASSERT(error || m_lex->is_exec_started());
+
+  if (reprepare_error ||
+      sp_instr_error_handler.cts_table_exists_error)
+    thd->stmt_arena->state= Query_arena::STMT_INITIALIZED_FOR_SP;
+  else if (m_lex->is_exec_started())
+    thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
   /*
     Merge here with the saved parent's values

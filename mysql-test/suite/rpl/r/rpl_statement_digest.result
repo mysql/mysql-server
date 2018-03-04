@@ -1,0 +1,27 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+# test for statement_digest()
+CREATE TABLE test.t1 (a VARCHAR(1000));
+INSERT INTO test.t1 SELECT statement_digest("SELECT * FROM foo");
+# test for statement_digest_text()
+CREATE TABLE test.t2 (a VARCHAR(1000));
+INSERT INTO test.t2 SELECT statement_digest_text("SELECT * FROM foo");
+include/sync_slave_sql_with_master.inc
+[connection master]
+include/diff_tables.inc [master:test.t1,slave:test.t1]
+include/diff_tables.inc [master:test.t2,slave:test.t2]
+SELECT * FROM test.t1;
+a
+fc86ab9f4e4275ef861733844e3b2710313376a3a632204f99eecf8ce0855f4d
+SELECT * FROM test.t2;
+a
+SELECT * FROM `foo` 
+# Clean up
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

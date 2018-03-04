@@ -1608,16 +1608,24 @@ ST_CONTAINS(g,g2)
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-ERROR SR001: There's no spatial reference system with SRID 100.
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-ERROR SR001: There's no spatial reference system with SRID 20000.
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-ERROR SR001: There's no spatial reference system with SRID 123456.
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-ERROR SR001: There's no spatial reference system with SRID 1048575.
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-ERROR SR001: There's no spatial reference system with SRID 4294967295.
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
+0
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
+0
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
+0
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
+0
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -1630,16 +1638,24 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0));
 ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0))
 0
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100));
-ERROR SR001: There's no spatial reference system with SRID 100.
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000));
-ERROR SR001: There's no spatial reference system with SRID 20000.
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456));
-ERROR SR001: There's no spatial reference system with SRID 123456.
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575));
-ERROR SR001: There's no spatial reference system with SRID 1048575.
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295));
-ERROR SR001: There's no spatial reference system with SRID 4294967295.
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
+0
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
+0
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145))
+0
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326))
+0
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135));
+ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135))
+0
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024));
@@ -1654,8 +1670,10 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #====================================================================================
 SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function st_contains given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR SR001: There's no spatial reference system with SRID 1048576.
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_contains given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT ST_CONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function st_contains given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT ST_CONTAINS(NULL,ST_GEOMFROMTEXT(@star_top));
 ST_CONTAINS(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1712,8 +1730,10 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 #====================================================================================
 SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326));
 ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326));
-ERROR SR001: There's no spatial reference system with SRID 1048576.
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 4145 and 4326, which should have been identical.
+SELECT MBRCONTAINS(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326));
+ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT MBRCONTAINS(NULL,ST_GEOMFROMTEXT(@star_top));
 MBRCONTAINS(NULL,ST_GEOMFROMTEXT(@star_top))
 NULL
@@ -1916,32 +1936,6 @@ ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 )
 1
-# Undefined SRS (should fail)
-SELECT ST_CONTAINS(
-ST_GEOMFROMTEXT('POINT(0 0)', 8000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 8000000)
-);
-ERROR SR001: There's no spatial reference system with SRID 8000000.
-SELECT MBRCONTAINS(
-ST_GEOMFROMTEXT('POINT(0 0)', 8000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 8000000)
-);
-ERROR SR001: There's no spatial reference system with SRID 8000000.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (8000001, 1, 'TEST8000001', 'Foo', 8000001, 'FOOBAR', '');
-SELECT ST_CONTAINS(
-ST_GEOMFROMTEXT('POINT(0 0)', 8000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 8000001)
-);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 8000001.
-SELECT MBRCONTAINS(
-ST_GEOMFROMTEXT('POINT(0 0)', 8000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 8000001)
-);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 8000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 8000001;
 #
 # WL#10827 Ellipsoidal R-tree support functions
 #
@@ -1964,8 +1958,8 @@ SELECT MBRContains(ST_SRID(ST_GeomFromText('POINT(181 0)'), 4326), @pt);
 ERROR 22S02: Longitude 181.000000 is out of range in function mbrcontains. It must be within (-180.000000, 180.000000].
 CREATE TABLE t1 (
 id INT,
-c GEOMETRY NOT NULL,
-g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL,
+c GEOMETRY NOT NULL SRID 0,
+g GEOMETRY AS (ST_SRID(c, 4326)) STORED NOT NULL SRID 4326,
 SPATIAL INDEX c_idx (c),
 SPATIAL INDEX g_idx (g)
 );
@@ -2023,7 +2017,6 @@ id	ST_AsText(g)
 2	POINT(2 2)
 3	POINT(3 3)
 4	POINT(4 4)
-5	POINT(5.00001 5)
 # Cartesian MBRContains
 SELECT id, ST_AsText(c)
 FROM t1 IGNORE INDEX(c_idx)
@@ -2099,3 +2092,17 @@ id	ST_AsText(g)
 3	POINT(3 3)
 4	POINT(4 4)
 DROP TABLE t1;
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO MBRCONTAINS(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.
+DO ST_CONTAINS(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

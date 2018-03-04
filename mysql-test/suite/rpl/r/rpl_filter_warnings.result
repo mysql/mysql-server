@@ -16,8 +16,8 @@ DROP TABLE t2;
 include/sync_slave_sql_with_master.inc
 SET @@GLOBAL.DEBUG= '$debug_saved';
 Matching lines are:
-DATE_TIME [Note] Slave SQL for channel '': Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: 1237
-DATE_TIME [Note] Error log throttle: 3 time(s) Error_code: 1237 "Slave SQL thread ignored the query because of replicate-*-table rules" got suppressed.
-DATE_TIME [Note] Slave SQL for channel '': Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: 1237
+DATE_TIME [Note] [MY-001237] Slave SQL for channel '': Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: 1237
+DATE_TIME [Note] [MY-001237] Error log throttle: 3 time(s) Error_code: 1237 "Slave SQL thread ignored the query because of replicate-*-table rules" got suppressed.
+DATE_TIME [Note] [MY-001237] Slave SQL for channel '': Could not execute Query event. Detailed error: Slave SQL thread ignored the query because of replicate-*-table rules; Error log throttle is enabled. This error will not be displayed for next 60 secs. It will be suppressed, Error_code: 1237
 Occurrences of 'Slave SQL thread ignored the query because of replicate' in the input file: 3
 include/rpl_end.inc

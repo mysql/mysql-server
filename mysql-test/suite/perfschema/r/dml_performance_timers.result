@@ -4,7 +4,6 @@ CYCLE	<frequency>	<resolution>	<overhead>
 NANOSECOND	<frequency>	<resolution>	<overhead>
 MICROSECOND	<frequency>	<resolution>	<overhead>
 MILLISECOND	<frequency>	<resolution>	<overhead>
-TICK	<frequency>	<resolution>	<overhead>
 select * from performance_schema.performance_timers
 where timer_name='CYCLE';
 TIMER_NAME	TIMER_FREQUENCY	TIMER_RESOLUTION	TIMER_OVERHEAD

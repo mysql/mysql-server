@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,15 +23,17 @@
 #ifndef MYSQL_KEYRING_H
 #define MYSQL_KEYRING_H
 
-#include <my_rnd.h>
 #include <memory>
 
-#include "keyring_memory.h"
-#include "keys_container.h"
+#include "my_rnd.h"
 #include "mysql/plugin.h"
+#include "plugin/keyring/common/keyring_memory.h"
+#include "plugin/keyring/common/keys_container.h"
+#include "plugin/keyring/common/keys_iterator.h"
 #include "sql/mysqld.h"
 
 using keyring::IKeys_container;
+using keyring::Keys_iterator;
 using keyring::IKeyring_io;
 using keyring::ILogger;
 using keyring::IKey;
@@ -59,6 +68,10 @@ bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,
                      void **key, size_t *key_len);
 bool mysql_key_store(std::unique_ptr<IKey> key_to_store);
 bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove);
+
+bool mysql_keyring_iterator_init(Keys_iterator *);
+void mysql_keyring_iterator_deinit(Keys_iterator *);
+bool mysql_keyring_iterator_get_key(Keys_iterator *, char *key_id, char *user_id);
 
 bool check_key_for_writing(IKey* key, std::string error_for);
 
@@ -115,5 +128,46 @@ bool mysql_key_remove(const char *key_id, const char *user_id,
   }
 }
 
+template <typename T>
+bool mysql_key_iterator_init(Keys_iterator *key_iterator, const char *plugin_name)
+{
+  try
+  {
+    return mysql_keyring_iterator_init(key_iterator);
+  }
+  catch (...)
+  {
+    log_operation_error("iterator init", plugin_name);
+    return true;
+  }
+}
+
+template <typename T>
+void mysql_key_iterator_deinit(Keys_iterator *key_iterator, const char *plugin_name)
+{
+  try
+  {
+    mysql_keyring_iterator_deinit(key_iterator);
+  }
+  catch (...)
+  {
+    log_operation_error("iterator deinit", plugin_name);
+  }
+}
+
+template <typename T>
+bool mysql_key_iterator_get_key(Keys_iterator *key_iterator, char *key_id, char *user_id,
+                                const char *plugin_name)
+{
+  try
+  {
+    return mysql_keyring_iterator_get_key(key_iterator, key_id, user_id);
+  }
+  catch (...)
+  {
+    log_operation_error("iterator get_key", plugin_name);
+    return true;
+  }
+}
 
 #endif //MYSQL_KEYRING_H

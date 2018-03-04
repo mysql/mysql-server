@@ -1,0 +1,108 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+drop database if exists mysqltest1;
+create database mysqltest1;
+use mysqltest1;
+create table t1 (a int);
+insert into t1 values(9);
+select * from mysqltest1.t1;
+a
+9
+include/sync_slave_sql_with_master.inc
+show databases like 'mysqltest1';
+Database (mysqltest1)
+mysqltest1
+select * from test.t1;
+a
+9
+drop table t1;
+drop database mysqltest1;
+include/sync_slave_sql_with_master.inc
+drop database if exists rewrite;
+create database rewrite;
+use test;
+create table t1 (a date, b date, c date not null, d date);
+load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',';
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'd' at row 1
+Warning	1264	Out of range value for column 'a' at row 2
+Warning	1264	Out of range value for column 'b' at row 2
+Warning	1264	Out of range value for column 'c' at row 2
+Warning	1265	Data truncated for column 'd' at row 2
+load data infile '../../std_data/loaddata1.dat' into table t1 fields terminated by ',' IGNORE 2 LINES;
+include/sync_slave_sql_with_master.inc
+select * from rewrite.t1;
+a	b	c	d
+0000-00-00	NULL	0000-00-00	0000-00-00
+0000-00-00	0000-00-00	0000-00-00	0000-00-00
+2003-03-03	2003-03-03	2003-03-03	NULL
+2003-03-03	2003-03-03	2003-03-03	NULL
+truncate table t1;
+load data infile '../../std_data/loaddata1.dat' ignore into table t1 fields terminated by ',' LINES STARTING BY ',' (b,c,d);
+Warnings:
+Warning	1265	Data truncated for column 'c' at row 1
+Warning	1265	Data truncated for column 'd' at row 1
+Warning	1264	Out of range value for column 'b' at row 2
+Warning	1264	Out of range value for column 'c' at row 2
+Warning	1265	Data truncated for column 'd' at row 2
+include/sync_slave_sql_with_master.inc
+select * from rewrite.t1;
+a	b	c	d
+NULL	NULL	0000-00-00	0000-00-00
+NULL	0000-00-00	0000-00-00	0000-00-00
+NULL	2003-03-03	2003-03-03	NULL
+drop table t1;
+create table t1 (a text, b text);
+load data infile '../../std_data/loaddata2.dat' ignore into table t1 fields terminated by ',' enclosed by '''';
+Warnings:
+Warning	1261	Row 3 doesn't contain data for all columns
+include/sync_slave_sql_with_master.inc
+select concat('|',a,'|'), concat('|',b,'|') from rewrite.t1;
+concat('|',a,'|')	concat('|',b,'|')
+|Field A|	|Field B|
+|Field 1|	|Field 2' 
+Field 3,'Field 4|
+|Field 5' ,'Field 6|	NULL
+|Field 6|	| 'Field 7'|
+drop table t1;
+create table t1 (a int, b char(10)) CHARACTER SET latin1;
+load data infile '../../std_data/loaddata3.dat' ignore into table t1 fields terminated by '' enclosed by '' ignore 1 lines;
+Warnings:
+Warning	1366	Incorrect integer value: 'error      ' for column 'a' at row 3
+Warning	1262	Row 3 was truncated; it contained more data than there were input columns
+Warning	1366	Incorrect integer value: 'wrong end  ' for column 'a' at row 5
+Warning	1262	Row 5 was truncated; it contained more data than there were input columns
+include/sync_slave_sql_with_master.inc
+select * from rewrite.t1;
+a	b
+1	row 1
+2	row 2
+0	1234567890
+3	row 3
+0	1234567890
+truncate table t1;
+load data infile '../../std_data/loaddata4.dat' ignore into table t1 fields terminated by '' enclosed by '' lines terminated by '' ignore 1 lines;
+Warnings:
+Warning	1366	Incorrect integer value: '
+' for column 'a' at row 4
+Warning	1261	Row 4 doesn't contain data for all columns
+include/sync_slave_sql_with_master.inc
+select * from rewrite.t1;
+a	b
+1	row 1
+2	row 2
+3	row 3
+0	
+set sql_log_bin= 0;
+drop database rewrite;
+set sql_log_bin= 1;
+set sql_log_bin= 0;
+drop table t1;
+set sql_log_bin= 1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

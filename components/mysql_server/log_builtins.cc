@@ -1,17 +1,24 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   NB  This module has an unusual amount of failsafes, OOM checks, and
@@ -20,12 +27,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
       someone's going out of their way to break to API)". :)
 */
 
-#include <mysql/components/services/log_service.h>
-#include <mysql/components/services/log_shared.h>   // data types
-
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h" // internal structs
                               // connection_events_loop_aborted()
+#include <mysql/components/services/log_service.h>
+#include <mysql/components/services/log_shared.h>   // data types
+
 #include "registry.h"         // mysql_registry_imp
 #include "server_component.h"
 #include "sql/current_thd.h"  // current_thd
@@ -42,11 +49,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "my_sys.h"
 #include "mysql/service_my_snprintf.h"
 
+extern CHARSET_INFO       my_charset_utf16le_bin;  // used in Windows EventLog
+static HANDLE             hEventLog= NULL;         // global
 #define MSG_DEFAULT       0xC0000064L
-extern CHARSET_INFO       my_charset_utf16le_bin;
-static HANDLE             hEventLog= NULL;                  // global
 #endif
 
+extern log_filter_ruleset *log_filter_builtin_rules; // what it says on the tin
 
 extern "C"
 {
@@ -281,6 +289,51 @@ static const log_item_wellknown_key log_item_wellknown_keys[] =
 static uint log_item_wellknown_keys_count=
   (sizeof(log_item_wellknown_keys)/sizeof(log_item_wellknown_key));
 
+/*
+  string helpers
+*/
+
+/**
+  Compare two NUL-terminated byte strings
+
+  Note that when comparing without length limit, the long string
+  is greater if they're equal up to the length of the shorter
+  string, but the shorter string will be considered greater if
+  its "value" up to that point is greater:
+
+  compare 'abc','abcd':      -100  (longer wins if otherwise same)
+  compare 'abca','abcd':       -3  (higher value wins)
+  compare 'abcaaaaa','abcd':   -3  (higher value wins)
+
+  @param  a                 the first string
+  @param  b                 the second string
+  @param  len               compare at most this many characters --
+                            0 for no limit
+  @param  case_insensitive  ignore upper/lower case in comparison
+
+  @retval -1                a < b
+  @retval  0                a == b
+  @retval  1                a > b
+*/
+int log_string_compare(const char *a, const char *b, size_t len,
+                       bool case_insensitive)
+{
+  if (a == nullptr)                   /* purecov: begin inspected */
+    return (b == nullptr) ? 0 : -1;
+  else if (b == nullptr)
+    return 1;                         /* purecov: end */
+  else if (len < 1) // no length limit for comparison
+  {
+    return case_insensitive
+           ? native_strcasecmp(a, b)
+           : strcmp(a, b);
+  }
+
+  return case_insensitive
+         ? native_strncasecmp(a, b, len)
+         : strncmp(a, b, len);
+}
+
 
 /*
   log item helpers
@@ -334,6 +387,20 @@ bool log_item_numeric_class(log_item_class c)
 
 
 /**
+  Get an integer value from a log-item of float or integer type.
+
+  @param      li   log item to get the value from
+  @param[out] i    longlong to store  the value in
+*/
+void log_item_get_int(log_item *li, longlong *i) /* purecov: begin inspected */
+{
+  if (li->item_class == LOG_FLOAT)
+    *i= (longlong) li->data.data_float;
+  else
+    *i= (longlong) li->data.data_integer;
+}                                                /* purecov: end */
+
+/**
   Get a float value from a log-item of float or integer type.
 
   @param       li      log item to get the value from
@@ -369,21 +436,21 @@ void log_item_get_string(log_item *li, char **str, size_t *len)
 /**
   See whether a string is a wellknown field name.
 
-  @param k       potential key starts here
-  @param l       length of the string to examine
+  @param key     potential key starts here
+  @param len     length of the string to examine
 
   @retval        LOG_ITEM_TYPE_RESERVED:  reserved, but not "wellknown" key
   @retval        LOG_ITEM_TYPE_NOT_FOUND: key not found
   @retval        >0:                      index in array of wellknowns
 */
-int log_item_wellknown_by_name(const char *k, size_t l)
+int log_item_wellknown_by_name(const char *key, size_t len)
 {
   uint c;
   // optimize and safeify lookup
   for (c= 0; (c < log_item_wellknown_keys_count); c++)
   {
-    if ((log_item_wellknown_keys[c].name_len == l) &&
-        (0 == native_strncasecmp(log_item_wellknown_keys[c].name, k, l)))
+    if ((log_item_wellknown_keys[c].name_len == len) &&
+        (0 == native_strncasecmp(log_item_wellknown_keys[c].name, key, len)))
     {
       if (log_item_generic_type(log_item_wellknown_keys[c].item_type) ||
           (log_item_wellknown_keys[c].item_type == LOG_ITEM_END))
@@ -589,7 +656,7 @@ bool log_line_full(log_line *ll)
 
   @retval         the number of items set
 */
-inline bool log_line_item_count(log_line *ll)
+int log_line_item_count(log_line *ll)
 {
   return ll->count;
 }
@@ -666,7 +733,57 @@ void log_line_item_remove(log_line *ll, int elem)
 
 
 /**
-  Find the (index of the) first key/value pair of the given type
+  Find the (index of the) last key/value pair of the given name
+  in the log line.
+
+  @param         ll   log line
+  @param         key  the key to look for
+
+  @retval        -1:  none found
+  @retval        -2:  invalid search-key given
+  @retval        -3:  no log_line given
+  @retval        >=0: index of the key/value pair in the log line
+*/
+int log_line_index_by_name(log_line *ll, const char *key)
+{
+  uint32 count= ll->count;
+
+  if (ll == nullptr)                             /* purecov: begin inspected */
+    return -3;
+  else if ((key == nullptr) || (key[0] == '\0'))
+    return -2;                                   /* purecov: end */
+
+  /*
+    As later items overwrite earlier ones, return the rightmost match!
+  */
+  while (count > 0)
+  {
+    if (0 == strcmp(ll->item[--count].key, key))
+      return count;
+  }
+
+  return -1;
+}
+
+
+/**
+  Find the last item matching the given key in the log line.
+
+  @param         ll   log line
+  @param         key  the key to look for
+
+  @retval        nullptr    item not found
+  @retval        otherwise  pointer to the item (not a copy thereof!)
+*/
+log_item *log_line_item_by_name(log_line *ll, const char *key)
+{
+  int i= log_line_index_by_name(ll, key);
+  return (i < 0) ? nullptr : &ll->item[i];
+}
+
+
+/**
+  Find the (index of the) last key/value pair of the given type
   in the log line.
 
   @param         ll   log line
@@ -693,7 +810,7 @@ int log_line_index_by_type(log_line *ll, log_item_type t)
 
 
 /**
-  Find the (index of the) first key/value pair of the given type
+  Find the (index of the) last key/value pair of the given type
   in the log line. This variant accepts a reference item and looks
   for an item that is of the same type (for wellknown types), or
   one that is of a generic type, and with the same key name (for
@@ -1050,17 +1167,27 @@ bool log_item_set_cstring(log_item_data *lid, const char *s)
   @param   prio       the severity/prio in question
 
   @return             a label corresponding to that priority.
-  @retval  "ERROR"    for prio of ERROR_LEVEL or higher
+  @retval  "System"   for prio of SYSTEM_LEVEL
+  @retval  "Error"    for prio of ERROR_LEVEL
   @retval  "Warning"  for prio of WARNING_LEVEL
-  @retval  "Note"     otherwise
+  @retval  "Note"     for prio of INFORMATION_LEVEL
 */
 const char *log_label_from_prio(int prio)
 {
-  return ((prio <= ERROR_LEVEL)
-          ? "ERROR"
-          : (prio == WARNING_LEVEL)
-            ? "Warning"
-            : "Note");
+  switch (prio)
+  {
+  case SYSTEM_LEVEL:
+    return "System";
+  case ERROR_LEVEL:
+    return "Error";
+  case WARNING_LEVEL:
+    return "Warning";
+  case INFORMATION_LEVEL:
+    return "Note";
+  default:
+    DBUG_ASSERT(false);
+    return "";
+  }
 }
 
 
@@ -1084,7 +1211,8 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
   size_t              msg_len=       0,
                       ts_len=        0,
                       label_len=     0;
-  enum loglevel       level=         ERROR_LEVEL;
+  enum loglevel       prio=          ERROR_LEVEL;
+  unsigned int        errcode=       0;
   log_item_type       item_type=     LOG_ITEM_END;
   log_item_type_mask  out_types=     0;
   const char         *iso_timestamp= "";
@@ -1103,8 +1231,11 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
 
       switch (item_type)
       {
+      case LOG_ITEM_SQL_ERRCODE:
+        errcode= (unsigned int) ll->item[c].data.data_integer;
+        break;
       case LOG_ITEM_LOG_PRIO:
-        level= (enum loglevel) ll->item[c].data.data_integer;
+        prio=  (enum loglevel) ll->item[c].data.data_integer;
         break;
       case LOG_ITEM_LOG_MESSAGE:
         msg=           ll->item[c].data.data_string.str;
@@ -1133,50 +1264,59 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll)
            "This is almost certainly a bug!";
       msg_len= strlen(msg);
 
-      level= ERROR_LEVEL;               // force severity
-      out_types&= ~LOG_ITEM_LOG_LABEL;  // regenerate label
+      prio= ERROR_LEVEL;                // force severity
+      out_types&= ~(LOG_ITEM_LOG_LABEL); // regenerate label
       out_types|= LOG_ITEM_LOG_MESSAGE; // we added a message
     }
 
     {
-      char          buff[LOG_BUFF_MAX];
+      char          buff_line[LOG_BUFF_MAX];
       size_t        len;
 
       if (!(out_types & LOG_ITEM_LOG_LABEL))
       {
-        label= log_label_from_prio(level);
+        label= (prio == ERROR_LEVEL) ? "ERROR" : log_label_from_prio(prio);
         label_len= strlen(label);
       }
 
       if (!(out_types & LOG_ITEM_LOG_TIMESTAMP))
       {
-        char             local_time_buff[iso8601_size];
+        char             buff_local_time[iso8601_size];
 
-        make_iso8601_timestamp(local_time_buff, my_micro_time(),
+        make_iso8601_timestamp(buff_local_time, my_micro_time(),
                                opt_log_timestamps);
-        iso_timestamp= local_time_buff;
-        ts_len=        strlen(local_time_buff);
+        iso_timestamp= buff_local_time;
+        ts_len=        strlen(buff_local_time);
       }
 
-      len= snprintf(buff, sizeof(buff), "%.*s %u [%.*s] %.*s",
+      /*
+        WL#11009 adds "error identifier" as a field in square brackets
+        that directly precedes the error message. As a result, new
+        tools can check for the presence of this field by testing
+        whether the first character of the presumed message field is '['.
+        Older tools will just consider this identifier part of the
+        message; this should therefore not affect log aggregation.
+        Tools reacting to the contents of the message may wish to
+        use the new field instead as it's simpler to parse.
+        While for the time being, this field contains a numerical
+        value, the rules are like so:
+
+          '[' [ <namespace> ':' ] <identifier> ']'
+
+        That is, an error identifier may be namespaced by a
+        subsystem/component name and a ':'; the identifier
+        itself should be considered opaque; in particular, it
+        may be non-numerical: [ <alpha> | <digit> | '_' | '.' ]
+      */
+      len= snprintf(buff_line, sizeof(buff_line),
+                    "%.*s %u [%.*s] [MY-%06u] %.*s",
                     (int) ts_len,    iso_timestamp,
                     thread_id,
                     (int) label_len, label,
+                    errcode,
                     (int) msg_len,   msg);
 
-#if 0
-      /*
-        We should not have newlines in traditional (non-structured) logs.
-        We may enforce this later.
-      */
-      for (c= 0; c < len; c++)
-      {
-        if (buff[c] == '\n')
-          buff[c]= ' ';
-      }
-#endif
-
-      log_write_errstream(buff, len);
+      log_write_errstream(buff_line, len);
 
       return out_fields;  // returning number of processed items
     }
@@ -1199,11 +1339,12 @@ typedef int (*broadcast_callback_wrapper) (my_h_service service, log_line *ll);
   @param   wrapper  a wrapper calling an individual service of a given type
   @param   ll       log-line data for the service to operate on
   @param   stop_on_fail
-                    if false, broadcast to all matching services.
+                    if false, broadcast to all matching services.  ("update")
                     if true,  stop broadcasting after one matching
-                              service returns > 0
+                              service returns > 0  ("check" mode)
 
-  @retval           number of services that were called and didn't fail
+  @retval           "check"  mode: number of services that voted "deny"
+  @retval           "update" mode: number of services that successfully updated
 */
 static int log_broadcast(const char *mask,
                          broadcast_callback_wrapper wrapper,
@@ -1260,7 +1401,7 @@ static int log_broadcast(const char *mask,
             // variable checking fails as soon as one service says it does
             if (stop_on_fail)
             {
-              if (result > 0)
+              if (result != 0)
               {
                 imp_mysql_server_registry.release(service);
                 count++;
@@ -1272,7 +1413,7 @@ static int log_broadcast(const char *mask,
               (which they really shouldn't, they had time to complain
               during the check phase).
             */
-            else if (result >= 0)
+            else if (result > 0)
             {
               count++;
             }
@@ -1482,6 +1623,21 @@ int log_line_submit(log_line *ll)
       }
     }
 
+    /* normalize source line if needed */
+    DBUG_EXECUTE_IF("log_error_normalize", {
+        if (ll->seen & LOG_ITEM_SRC_LINE)
+        {
+          int n= log_line_index_by_type(ll, LOG_ITEM_SRC_LINE);
+
+          if (n >= 0)
+          {
+            ll->item[n]= ll->item[ll->count - 1];
+            ll->count--;
+            ll->seen &= ~LOG_ITEM_SRC_LINE;
+          }
+        }
+      });
+
     mysql_rwlock_rdlock(&THR_LOCK_log_stack);
 
     /*
@@ -1512,7 +1668,7 @@ int log_line_submit(log_line *ll)
             ls->run(lsi->instance, ll);
         }
         else if (sce->type == LOG_SERVICE_BUILTIN_TYPE_FILTER)
-          log_builtins_filter_run(lsi->instance, ll);
+          log_builtins_filter_run(log_filter_builtin_rules, ll);
         else if (sce->type == LOG_SERVICE_BUILTIN_TYPE_SINK)
           log_sink_trad(lsi->instance, ll);
 
@@ -1945,7 +2101,7 @@ int log_builtins_error_stack(const char *conf, bool check_only)
         sce->multi_open= log_service_multi_open_capable(service);
         break;
       case LOG_SERVICE_BUILTIN_TYPE_FILTER:
-        sce->multi_open= true;
+        sce->multi_open= false;
         break;
       case LOG_SERVICE_BUILTIN_TYPE_SINK:
         sce->multi_open= false;
@@ -1990,6 +2146,11 @@ int log_builtins_error_stack(const char *conf, bool check_only)
         }
 
         lsi= lsi_new;
+      }
+      else
+      {
+        rr= (int) -(start - conf + 1);
+        goto done;
       }
     }
 
@@ -2806,7 +2967,7 @@ DEFINE_METHOD(longlong,     log_builtins_imp::errcode_by_errsymbol,
   @param   prio       the severity/prio in question
 
   @return             a label corresponding to that priority.
-  @retval  "ERROR"    for prio of ERROR_LEVEL or higher
+  @retval  "Error"    for prio of ERROR_LEVEL or higher
   @retval  "Warning"  for prio of WARNING_LEVEL
   @retval  "Note"     otherwise
 */
@@ -3087,6 +3248,15 @@ DEFINE_METHOD(char *,  log_builtins_string_imp::find_last,
 /**
   Compare two NUL-terminated byte strings
 
+  Note that when comparing without length limit, the long string
+  is greater if they're equal up to the length of the shorter
+  string, but the shorter string will be considered greater if
+  its "value" up to that point is greater:
+
+  compare 'abc','abcd':      -100  (longer wins if otherwise same)
+  compare 'abca','abcd':       -3  (higher value wins)
+  compare 'abcaaaaa','abcd':   -3  (higher value wins)
+
   @param  a                 the first string
   @param  b                 the second string
   @param  len               compare at most this many characters --
@@ -3103,20 +3273,7 @@ DEFINE_METHOD(int,     log_builtins_string_imp::compare,
                                                     size_t len,
                                                     bool case_insensitive))
 {
-  if (a == nullptr)
-    return (b == nullptr) ? 0 : -1;
-  else if (b == nullptr)
-    return 1;
-  else if (len < 1)
-  {
-    return case_insensitive
-           ? native_strcasecmp(a, b)
-           : strcmp(a, b);
-  }
-
-  return case_insensitive
-         ? native_strncasecmp(a, b, len)
-         : strncmp(a, b, len);
+  return log_string_compare(a, b, len, case_insensitive);
 }
 
 
@@ -3169,6 +3326,27 @@ DEFINE_METHOD(size_t, log_builtins_string_imp::substitute, (char *to,
 DEFINE_METHOD(bool, log_builtins_tmp_imp::connection_loop_aborted, (void))
 {
   return connection_events_loop_aborted();
+}
+
+DEFINE_METHOD(size_t, log_builtins_tmp_imp::notify_client,
+              (void *thd, uint severity, uint code,
+               char *to, size_t n, const char *format, ...))
+{
+  size_t  ret= 0;
+
+  if ((to != nullptr) && (n > 0))
+  {
+    va_list ap;
+
+    va_start(ap, format);
+    ret= my_vsnprintf(to, n, format, ap);
+    va_end(ap);
+
+    push_warning((THD *) thd, (Sql_condition::enum_severity_level) severity,
+                 code, to);
+  }
+
+  return ret;
 }
 
 
@@ -3331,17 +3509,30 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::write, (enum loglevel level,
                                                          const char *msg))
 {
   int      ret= 0;
-  int      _level;
   mysql_mutex_lock(&THR_LOCK_log_syseventlog);
 
 #ifdef _WIN32
+  int      _level= EVENTLOG_INFORMATION_TYPE;
   wchar_t  buff[MAX_SYSLOG_MESSAGE_SIZE];
   wchar_t *u16buf= NULL;
   size_t   nchars;
   uint     dummy_errors;
 
-  _level= (level == INFORMATION_LEVEL) ? EVENTLOG_INFORMATION_TYPE :
-    (level == WARNING_LEVEL) ? EVENTLOG_WARNING_TYPE : EVENTLOG_ERROR_TYPE;
+  switch (level)
+  {
+  case INFORMATION_LEVEL:
+  case SYSTEM_LEVEL:
+    _level= EVENTLOG_INFORMATION_TYPE;
+    break;
+  case WARNING_LEVEL:
+    _level= EVENTLOG_WARNING_TYPE;
+    break;
+  case ERROR_LEVEL:
+    _level= EVENTLOG_ERROR_TYPE;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
 
   if (hEventLog)
   {
@@ -3360,9 +3551,23 @@ DEFINE_METHOD(int, log_builtins_syseventlog_imp::write, (enum loglevel level,
   }
 
 #else
+  int      _level= LOG_INFO;
 
-  _level= (level == INFORMATION_LEVEL) ? LOG_INFO :
-    (level == WARNING_LEVEL) ? LOG_WARNING : LOG_ERR;
+  switch (level)
+  {
+  case INFORMATION_LEVEL:
+  case SYSTEM_LEVEL:
+    _level= LOG_INFO;
+    break;
+  case WARNING_LEVEL:
+    _level= LOG_WARNING;
+    break;
+  case ERROR_LEVEL:
+    _level= LOG_ERR;
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
 
   syslog(_level, "%s", msg);
 
@@ -3427,6 +3632,7 @@ LogVar::LogVar(LEX_CSTRING &s)
 */
 int LogVar::check()
 {
+  int      rr;
   log_line ll;
 
   ll.count=   1;
@@ -3435,7 +3641,11 @@ int LogVar::check()
   log_line_item_set_with_key(&ll, LOG_ITEM_GEN_INTEGER, LOG_VAR_KEY_CHECK,
                              LOG_ITEM_FREE_NONE)->data_integer= 1;
 
-  return log_broadcast("log_service", log_service_var_one, &ll, true) != 0;
+  rr= log_broadcast("log_service", log_service_var_one, &ll, true);
+
+  log_line_item_free_all(&ll);
+
+  return rr != 0; // if any services complained, signal true for "deny"
 }
 
 
@@ -3447,6 +3657,7 @@ int LogVar::check()
 */
 int LogVar::update()
 {
+  int            rr;
   log_line       ll;
 
   ll.count=   1;
@@ -3455,8 +3666,11 @@ int LogVar::update()
   log_line_item_set_with_key(&ll, LOG_ITEM_GEN_INTEGER, LOG_VAR_KEY_CHECK,
                              LOG_ITEM_FREE_NONE)->data_integer= 0;
 
-  return log_broadcast("log_service", log_service_var_one,
-                       &ll, false) < 1;
+  rr= log_broadcast("log_service", log_service_var_one, &ll, false);
+
+  log_line_item_free_all(&ll);
+
+  return rr < 1; // if no services updated successfully, signal true for error
 }
 
 

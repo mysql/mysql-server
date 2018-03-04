@@ -1,12 +1,19 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -183,11 +190,10 @@ bool resourcegroups::Sql_cmd_create_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -320,11 +326,10 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -454,11 +459,10 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+  if (!sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -648,12 +652,11 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd)
   DBUG_ENTER("resourcegroups::Sql_cmd_set_resource_group::execute");
 
   Security_context *sctx= thd->security_context();
-  if (!(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
+  if (!(sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first ||
         sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_USER")).first))
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER");
+             "RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER");
     DBUG_RETURN(true);
   }
 
@@ -666,11 +669,10 @@ bool resourcegroups::Sql_cmd_set_resource_group::execute(THD *thd)
     DBUG_RETURN(true);
 
   if ((resource_group->type() == Type::SYSTEM_RESOURCE_GROUP) &&
-      !(sctx->check_access(SUPER_ACL) ||
-        sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first))
+      !sctx->has_global_grant(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN")).first)
   {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SUPER OR RESOURCE_GROUP_ADMIN");
+             "RESOURCE_GROUP_ADMIN");
     DBUG_RETURN(true);
   }
 

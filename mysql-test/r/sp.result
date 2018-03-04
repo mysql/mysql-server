@@ -31,12 +31,12 @@ select * from t1;
 id	data
 bar	666
 delete from t1;
-drop procedure if exists empty|
-create procedure empty()
+drop procedure if exists `empty`|
+create procedure `empty`()
 begin
 end|
-call empty()|
-drop procedure empty|
+call `empty`()|
+drop procedure `empty`|
 drop procedure if exists scope|
 create procedure scope(a int, b float)
 begin

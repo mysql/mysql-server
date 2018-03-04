@@ -1,0 +1,30 @@
+
+--disable_warnings
+drop table if exists gis;
+--enable_warnings
+
+CREATE TABLE gis (
+  g POLYGON SRID 4326 NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE SPATIAL INDEX g_idx ON gis(g);
+
+begin;
+
+INSERT INTO gis VALUES (
+  ST_GeomFromText(
+    'POLYGON((-165 -46,161 -70,-108 72,-165 -46))',
+    4326,
+    'axis-order=long-lat'
+  )
+);
+
+select OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME, COLUMN_NAME,
+  LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+  from performance_schema.metadata_locks
+  where OBJECT_TYPE = 'SRID';
+
+commit;
+
+drop table gis;
+

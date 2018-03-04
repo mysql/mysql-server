@@ -2,17 +2,24 @@
    Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifndef SEMISYNC_MASTER_H
@@ -24,7 +31,7 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_psi_config.h"
-#include "semisync.h"
+#include "plugin/semisync/semisync.h"
 
 extern PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
 
@@ -412,7 +419,9 @@ struct AckInfo
 {
   int server_id;
   char binlog_name[FN_REFLEN];
-  unsigned long long binlog_pos;
+  unsigned long long binlog_pos = 0;
+
+  AckInfo() { clear(); }
 
   void clear() { binlog_name[0]= '\0'; }
   bool empty() const { return binlog_name[0] == '\0'; }
@@ -557,7 +566,8 @@ private:
       {
         m_ack_array[i].update(log_file_name, log_file_pos);
         if (trace_level_ & kTraceDetail)
-          sql_print_information("Update an exsiting ack in slot %u", i);
+          LogErr(INFORMATION_LEVEL, ER_SEMISYNC_UPDATE_EXISTING_SLAVE_ACK,
+                 i);
         break;
       }
     }
@@ -595,11 +605,12 @@ private:
 class ReplSemiSyncMaster
   :public ReplSemiSyncBase {
  private:
-  ActiveTranx    *active_tranxs_;  /* active transaction list: the list will
+  ActiveTranx    *active_tranxs_= nullptr;
+                                   /* active transaction list: the list will
                                       be cleared when semi-sync switches off. */
 
   /* True when initObject has been called */
-  bool init_done_;
+  bool init_done_= false;
 
   /* Mutex that protects the following state variables and the active
    * transaction list.
@@ -609,16 +620,16 @@ class ReplSemiSyncMaster
   mysql_mutex_t LOCK_binlog_;
 
   /* This is set to true when reply_file_name_ contains meaningful data. */
-  bool            reply_file_name_inited_;
+  bool            reply_file_name_inited_ = false;
 
   /* The binlog name up to which we have received replies from any slaves. */
   char            reply_file_name_[FN_REFLEN];
 
   /* The position in that file up to which we have the reply from any slaves. */
-  my_off_t        reply_file_pos_;
+  my_off_t        reply_file_pos_ = 0;
 
   /* This is set to true when we know the 'smallest' wait position. */
-  bool            wait_file_name_inited_;
+  bool            wait_file_name_inited_ = false;
 
   /* NULL, or the 'smallest' filename that a transaction is waiting for
    * slave replies.
@@ -629,7 +640,7 @@ class ReplSemiSyncMaster
    * can proceed and send an 'ok' to the client when the master has got the
    * reply from the slave indicating that it already got the binlog events.
    */
-  my_off_t        wait_file_pos_;
+  my_off_t        wait_file_pos_ = 0;
 
   /* This is set to true when we know the 'largest' transaction commit
    * position in the binlog file.
@@ -638,19 +649,19 @@ class ReplSemiSyncMaster
    * switch off.  Binlog-dump thread can use the three fields to detect when
    * slaves catch up on replication so that semi-sync can switch on again.
    */
-  bool            commit_file_name_inited_;
+  bool            commit_file_name_inited_ = false;
 
   /* The 'largest' binlog filename that a commit transaction is seeing.       */
   char            commit_file_name_[FN_REFLEN];
 
   /* The 'largest' position in that file that a commit transaction is seeing. */
-  my_off_t        commit_file_pos_;
+  my_off_t        commit_file_pos_ = 0;
 
   /* All global variables which can be set by parameters. */
-  volatile bool            master_enabled_;      /* semi-sync is enabled on the master */
-  unsigned long           wait_timeout_;      /* timeout period(ms) during tranx wait */
+  volatile bool           master_enabled_ = false; /* semi-sync is enabled on the master */
+  unsigned long           wait_timeout_ = 0;      /* timeout period(ms) during tranx wait */
 
-  bool            state_;                    /* whether semi-sync is switched */
+  bool            state_ = 0;                  /* whether semi-sync is switched */
 
   AckContainer ack_container_;
 

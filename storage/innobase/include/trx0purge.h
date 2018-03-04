@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -35,6 +43,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "fil0fil.h"
 #include "read0types.h"
+#ifdef UNIV_HOTBACKUP
+# include "trx0sys.h"
+#endif  /* UNIV_HOTBACKUP */
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
@@ -138,6 +149,9 @@ struct purge_iter_t {
 	space_id_t	undo_rseg_space;
 					/*!< Last undo record resided in this
 					space id. */
+	trx_id_t	modifier_trx_id;
+					/*!< the transaction that created the
+					undo log record. Modifier trx id.*/
 };
 
 /* Namespace to hold all the related functions and variables needed
@@ -255,7 +269,9 @@ namespace undo {
 		char* space_name()
 		{
 			if (m_space_name == nullptr) {
+#ifndef UNIV_HOTBACKUP
 				m_space_name = make_space_name(m_id);
+#endif /* !UNIV_HOTBACKUP */
 			}
 
 			return(m_space_name);
@@ -671,6 +687,7 @@ struct trx_purge_t{
 					purge query: this trx is not in the
 					trx list of the trx system and it
 					never ends */
+#ifndef UNIV_HOTBACKUP
 	rw_lock_t	latch;		/*!< The latch protecting the purge
 					view. A purge operation must acquire an
 					x-latch here for the instant at which
@@ -678,6 +695,7 @@ struct trx_purge_t{
 					log operation can prevent this by
 					obtaining an s-latch here. It also
 					protects state and running */
+#endif  /* !UNIV_HOTBACKUP */
 	os_event_t	event;		/*!< State signal event */
 	ulint		n_stop;		/*!< Counter to track number stops */
 	volatile bool	running;	/*!< true, if purge is active,

@@ -4,16 +4,24 @@ Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -30,6 +38,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "univ.i"
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/column.h"
+#ifdef UNIV_HOTBACKUP
+# include "sql/dd/types/spatial_reference_system.h"
+#endif /* UNIV_HOTBACKUP */
 #include "dict0types.h"
 #include "data0type.h"
 #include "mem0mem.h"
@@ -39,17 +50,21 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "lock0types.h"
 # include "que0types.h"
-# include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
+#include "sync0rw.h"
 #include "ut0mem.h"
 #include "ut0rnd.h"
 #include "ut0byte.h"
 #include "hash0hash.h"
 #include "trx0types.h"
-#include "fts0fts.h"
+#ifndef UNIV_HOTBACKUP
+# include "fts0fts.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "buf0buf.h"
 #include "gis0type.h"
-#include "os0once.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0once.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "ut0new.h"
 #include "dict/mem.h"
 
@@ -298,7 +313,7 @@ result in recursive cascading calls. This defines the maximum number of
 such cascading deletes/updates allowed. When exceeded, the delete from
 parent table will fail, and user has to drop excessive foreign constraint
 before proceeds. */
-#define FK_MAX_CASCADE_DEL		255
+#define FK_MAX_CASCADE_DEL		15
 
 /** Adds a virtual column definition to a table.
 @param[in,out]	table		table
@@ -540,7 +555,6 @@ struct dict_col_t{
 					3072 (REC_VERSION_56_MAX_INDEX_COL_LEN)
 					bytes. */
 
-#ifndef UNIV_HOTBACKUP
 	/** Returns the minimum size of the column.
 	@return minimum size */
 	ulint get_min_size() const
@@ -599,8 +613,6 @@ struct dict_col_t{
 
 		mbminmaxlen = DATA_MBMINMAXLEN(mbminlen, mbmaxlen);
 	}
-
-#endif /* !UNIV_HOTBACKUP*/
 
 	/** Returns the size of a fixed size column, 0 if not a fixed size column.
 	@param[in] comp		nonzero=ROW_FORMAT=COMPACT
@@ -825,9 +837,11 @@ struct zip_pad_info_t {
 				current round */
 	ulint		n_rounds;/*!< number of currently successful
 				rounds */
+#ifndef UNIV_HOTBACKUP
 	volatile os_once::state_t
 			mutex_created;
 				/*!< Creation state of mutex member */
+#endif /* !UNIV_HOTBACKUP */
 };
 
 /** If key is fixed length key then cache the record offsets on first
@@ -935,7 +949,6 @@ struct dict_index_t{
 	id_name_t	name;	/*!< index name */
 	const char*	table_name;/*!< table name */
 	dict_table_t*	table;	/*!< back pointer to table */
-#ifndef UNIV_HOTBACKUP
 	unsigned	space:32;
 				/*!< space where the index tree is placed */
 	unsigned	page:32;/*!< index tree root page number */
@@ -944,7 +957,6 @@ struct dict_index_t{
 				data size drops below this limit in percent,
 				merging it to a neighbor is tried */
 # define DICT_INDEX_MERGE_THRESHOLD_DEFAULT 50
-#endif /* !UNIV_HOTBACKUP */
 	unsigned	type:DICT_IT_BITS;
 				/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
 				DICT_IBUF, DICT_CORRUPT) */
@@ -1009,6 +1021,7 @@ struct dict_index_t{
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
+#ifndef UNIV_HOTBACKUP
 	st_mysql_ftparser*
 			parser;	/*!< fulltext parser plugin */
 	bool		is_ngram;
@@ -1017,11 +1030,12 @@ struct dict_index_t{
 				/*!< whether it has a newly added virtual
 				column in ALTER */
 	bool		hidden; /*!< if the index is an hidden index */
-#ifndef UNIV_HOTBACKUP
+#endif /* !UNIV_HOTBACKUP */
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
 	btr_search_t*	search_info;
 				/*!< info used in optimistic searches */
+#ifndef UNIV_HOTBACKUP
 	row_log_t*	online_log;
 				/*!< the log of modifications
 				during online index creation;
@@ -1053,6 +1067,7 @@ struct dict_index_t{
 	ulint		stat_index_size;
 				/*!< approximate index size in
 				database pages */
+#endif /* !UNIV_HOTBACKUP */
 	ulint		stat_n_leaf_pages;
 				/*!< approximate number of leaf pages in the
 				index tree */
@@ -1150,8 +1165,6 @@ struct dict_index_t{
 
 		return(size);
 	}
-
-#endif /* !UNIV_HOTBACKUP */
 
 	/** Check whether index can be used by transaction
 	@param[in] trx		transaction*/
@@ -1451,8 +1464,8 @@ struct dict_foreign_set_free {
 a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 /* @{ */
 #define DICT_FOREIGN_ON_DELETE_CASCADE	1	/*!< ON DELETE CASCADE */
-#define DICT_FOREIGN_ON_DELETE_SET_NULL	2	/*!< ON UPDATE SET NULL */
-#define DICT_FOREIGN_ON_UPDATE_CASCADE	4	/*!< ON DELETE CASCADE */
+#define DICT_FOREIGN_ON_DELETE_SET_NULL	2	/*!< ON DELETE SET NULL */
+#define DICT_FOREIGN_ON_UPDATE_CASCADE	4	/*!< ON UPDATE CASCADE */
 #define DICT_FOREIGN_ON_UPDATE_SET_NULL	8	/*!< ON UPDATE SET NULL */
 #define DICT_FOREIGN_ON_DELETE_NO_ACTION 16	/*!< ON DELETE NO ACTION */
 #define DICT_FOREIGN_ON_UPDATE_NO_ACTION 32	/*!< ON UPDATE NO ACTION */
@@ -1476,12 +1489,14 @@ operator<<(
 	std::ostream&		s,
 	const table_name_t&	table_name);
 
+#ifndef UNIV_HOTBACKUP
 /** List of locks that different transactions have acquired on a table. This
 list has a list node that is embedded in a nested union/structure. We have to
 generate a specific template for it. */
 
 typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
 	table_lock_list_t;
+#endif /* !UNIV_HOTBACKUP */
 
 /** mysql template structure defined in row0mysql.cc */
 struct mysql_row_templ_t;
@@ -1538,9 +1553,11 @@ enum table_dirty_status {
 	METADATA_CLEAN
 };
 
+#ifndef UNIV_HOTBACKUP
 /** A vector to collect prebuilt from different readers working on the same
 temp table */
 typedef	std::vector<row_prebuilt_t*>		temp_prebuilt_vec;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
@@ -1686,7 +1703,6 @@ struct dict_table_t {
 	/** Virtual column names */
 	const char*				v_col_names;
 
-#ifndef UNIV_HOTBACKUP
 	/** Hash chain node. */
 	hash_node_t				name_hash;
 
@@ -1715,9 +1731,11 @@ struct dict_table_t {
 	/** table dirty_status, which is protected by dict_persist->mutex */
 	table_dirty_status			dirty_status;
 
+#ifndef UNIV_HOTBACKUP
 	/** Node of the dirty table list of tables, which is protected
 	by dict_persist->mutex */
 	UT_LIST_NODE_T(dict_table_t)		dirty_dict_tables;
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 	/** This field is used to mark if a table is in the
@@ -1762,6 +1780,7 @@ struct dict_table_t {
 	Initialized in dict_table_add_to_cache(). */
 	unsigned				big_rows:1;
 
+#ifndef UNIV_HOTBACKUP
 	/** Statistics for query optimization. @{ */
 
 	/** Creation state of 'stats_latch'. */
@@ -1867,6 +1886,7 @@ struct dict_table_t {
 	byte					stats_bg_flag;
 
 	/* @} */
+#endif /* !UNIV_HOTBACKUP */
 
 	/** AUTOINC related members. @{ */
 
@@ -1884,10 +1904,12 @@ struct dict_table_t {
 	without a need to allocate space from the lock heap of the trx:
 	otherwise the lock heap would grow rapidly if we do a large insert
 	from a select. */
+#ifndef UNIV_HOTBACKUP
 	lock_t*					autoinc_lock;
 
 	/** Creation state of autoinc_mutex member */
 	volatile os_once::state_t		autoinc_mutex_created;
+#endif /* !UNIV_HOTBACKUP */
 
 	/** Mutex protecting the autoincrement counter. */
 	ib_mutex_t*				autoinc_mutex;
@@ -1935,8 +1957,10 @@ struct dict_table_t {
 
 	/* @} */
 
+#ifndef UNIV_HOTBACKUP
 	/** FTS specific state variables. */
 	fts_t*					fts;
+#endif /* !UNIV_HOTBACKUP */
 
 	/** Quiescing states, protected by the dict_index_t::lock. ie. we can
 	only change the state if we acquire all the latches (dict_index_t::lock)
@@ -1957,8 +1981,10 @@ private:
 	ulint					n_ref_count;
 
 public:
+#ifndef UNIV_HOTBACKUP
 	/** List of locks on the table. Protected by lock_sys->mutex. */
 	table_lock_list_t			locks;
+#endif /* !UNIV_HOTBACKUP */
 
 	/** Timestamp of the last modification of this table. */
 	time_t					update_time;
@@ -1974,7 +2000,6 @@ public:
 	but just need a increased counter to track consistent view while
 	proceeding SELECT as part of UPDATE. */
 	ib_uint64_t				sess_trx_id;
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 	/** Value of 'magic_n'. */
@@ -1999,8 +2024,10 @@ public:
 	/** refresh/reload FK info */
 	bool					refresh_fk;
 
+#ifndef UNIV_HOTBACKUP
 	/** multiple cursors can be active on this temporary table */
 	temp_prebuilt_vec*			temp_prebuilt;
+#endif /* !UNIV_HOTBACKUP */
 
 	/** TRUE only for dictionary tables like mysql/tables,
 	mysql/columns, mysql/tablespaces, etc. This flag is used
@@ -2524,6 +2551,7 @@ private:
 	persisters_t	m_persisters;
 };
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Initialise the table lock list. */
 void
@@ -2608,6 +2636,7 @@ dict_index_zip_pad_mutex_destroy(
 		UT_DELETE(index->zip_pad.mutex);
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Release the zip_pad_mutex of a given index.
 @param[in,out]	index	index whose zip_pad_mutex is to be released */
@@ -2616,7 +2645,9 @@ void
 dict_index_zip_pad_unlock(
 	dict_index_t*	index)
 {
+#ifndef UNIV_HOTBACKUP
 	mutex_exit(index->zip_pad.mutex);
+#endif /* !UNIV_HOTBACKUP */
 }
 
 #ifdef UNIV_DEBUG

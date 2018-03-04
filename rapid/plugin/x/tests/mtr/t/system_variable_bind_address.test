@@ -1,8 +1,6 @@
 ## Test configuration
 ##
---let $dont_load_plugin = 1
---let $wait_for_unixsocket_status = no_wait
---let $wait_for_tcpsocket_status = no_wait
+--let $dont_load_mysqlx_plugin = 1
 --source include/xplugin_preamble.inc
 
 ## Test body

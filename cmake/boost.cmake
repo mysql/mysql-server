@@ -1,19 +1,26 @@
 # Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# We want boost 1.64.0 in order to build our boost/geometry code.
+# We want boost 1.65.0 in order to build our boost/geometry code.
 # The boost tarball is fairly big, and takes several minutes
 # to download. So we recommend downloading/unpacking it
 # only once, in a place visible from any bzr sandbox.
@@ -31,10 +38,10 @@
 # we assume that the correct version (see below)
 # is installed on the compile host in the standard location.
 
-SET(BOOST_PACKAGE_NAME "boost_1_64_0")
+SET(BOOST_PACKAGE_NAME "boost_1_65_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL
-  "https://sourceforge.net/projects/boost/files/boost/1.64.0/${BOOST_TARBALL}"
+  "http://dl.bintray.com/boostorg/release/1.65.0/source/${BOOST_TARBALL}"
   )
 
 SET(OLD_PACKAGE_NAMES
@@ -47,6 +54,7 @@ SET(OLD_PACKAGE_NAMES
   "boost_1_61_0"
   "boost_1_62_0"
   "boost_1_63_0"
+  "boost_1_64_0"
 )
 
 MACRO(RESET_BOOST_VARIABLES)
@@ -254,7 +262,7 @@ ENDIF()
 # //  BOOST_VERSION % 100 is the patch level
 # //  BOOST_VERSION / 100 % 1000 is the minor version
 # //  BOOST_VERSION / 100000 is the major version
-# #define BOOST_VERSION 106400
+# #define BOOST_VERSION 106500
 FILE(STRINGS "${BOOST_INCLUDE_DIR}/boost/version.hpp"
   BOOST_VERSION_NUMBER
   REGEX "^#define[\t ]+BOOST_VERSION[\t ][0-9]+.*"
@@ -272,9 +280,9 @@ IF(NOT BOOST_MAJOR_VERSION EQUAL 10)
   COULD_NOT_FIND_BOOST()
 ENDIF()
 
-IF(NOT BOOST_MINOR_VERSION EQUAL 64)
+IF(NOT BOOST_MINOR_VERSION EQUAL 65)
   MESSAGE(WARNING "Boost minor version found is ${BOOST_MINOR_VERSION} "
-    "we need 64"
+    "we need 65"
     )
   COULD_NOT_FIND_BOOST()
 ENDIF()
@@ -282,7 +290,7 @@ ENDIF()
 MESSAGE(STATUS "BOOST_INCLUDE_DIR ${BOOST_INCLUDE_DIR}")
 
 # We have a limited set of patches/bugfixes here:
-SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_64_0/patches")
+SET(BOOST_PATCHES_DIR "${CMAKE_SOURCE_DIR}/include/boost_1_65_0/patches")
 
 # Bug in sqrt(NaN) on 32bit platforms
 IF(SIZEOF_VOIDP EQUAL 4)

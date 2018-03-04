@@ -12,10 +12,10 @@ echo '##'
 ####################################################################
 SELECT COUNT(@@GLOBAL.table_open_cache)
 1 Expected
-SELECT IF(@@open_files_limit < 5000, 2000, @@GLOBAL.table_open_cache);
-IF(@@open_files_limit < 5000, 2000, @@GLOBAL.table_open_cache)
-2000
-2000 Expected
+SELECT IF(@@open_files_limit < 5000, 4000, @@GLOBAL.table_open_cache);
+IF(@@open_files_limit < 5000, 4000, @@GLOBAL.table_open_cache)
+4000
+4000 Expected
 '#---------------------WL6372_VAR_5_02----------------------#'
 # Restart server with table_open_cache 1
 SELECT @@GLOBAL.table_open_cache;
@@ -25,8 +25,8 @@ SELECT @@GLOBAL.table_open_cache;
 SET @@GLOBAL.table_open_cache=DEFAULT;
 SELECT @@GLOBAL.table_open_cache;
 @@GLOBAL.table_open_cache
-2000
-2000 Expected
+4000
+4000 Expected
 '#---------------------WL6372_VAR_5_03----------------------#'
 SET @@local.table_open_cache=1;
 ERROR HY000: Variable 'table_open_cache' is a GLOBAL variable and should be set with SET GLOBAL
@@ -38,8 +38,8 @@ SET @@GLOBAL.table_open_cache=1;
 SET @@GLOBAL.table_open_cache=DEFAULT;
 SELECT @@GLOBAL.table_open_cache;
 @@GLOBAL.table_open_cache
-2000
-2000 Expected
+4000
+4000 Expected
 '#---------------------WL6372_VAR_5_04----------------------#'
 SELECT @@GLOBAL.table_open_cache = VARIABLE_VALUE
 FROM performance_schema.global_variables

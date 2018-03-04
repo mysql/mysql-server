@@ -2594,3 +2594,83 @@ ANALYZE TABLE t1, t2;
 --eval $query
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #26727773: OPTIMIZER CHOSES COMPOSITE INDEX FOR REF OVER RANGE
+--echo #
+
+CREATE TABLE transactions (
+ app_trans_id INT DEFAULT NULL,
+ id INT NOT NULL,
+ tbl INT NOT NULL DEFAULT 1,
+ created TIMESTAMP NOT NULL DEFAULT '2017-01-01 01:01:01',
+ trans_type INT NOT NULL,
+ description BLOB,
+ source_lvl1 INT DEFAULT NULL,
+ source_lvl2 INT DEFAULT NULL,
+ KEY tbl_id_idx (tbl,id),
+ KEY created_idx (created),
+ KEY trans_type_created_idx (trans_type,created),
+ KEY app_trans_id_idx (app_trans_id)
+) ENGINE=INNODB ;
+
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1), (1000), (2000), (3000), (4000), (5000), (6000),
+       (7000), (8000), (9000);
+
+DELIMITER $;
+CREATE PROCEDURE p()
+BEGIN
+
+SET @x = 1;
+REPEAT
+
+INSERT IGNORE INTO transactions(id,trans_type, description)
+  SELECT c1 + @x, @x , 'abcd'
+  FROM t1;
+
+SET @x =  @x + 1;
+
+UNTIL @x > 300 END REPEAT;
+END $
+DELIMITER ;$
+
+CALL p();
+SELECT count(*) FROM transactions;
+
+#The qualifying row.
+INSERT IGNORE INTO transactions(id,trans_type, description, created)
+  SELECT 3, 3 , 'abcd', '2018-01-01 01:01:01'
+  FROM dual;
+
+let query1=
+SELECT '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2,
+       COUNT(DISTINCT(app_trans_id))
+FROM transactions
+WHERE created > '2017-10-23 01:01:01' AND tbl = 1 AND trans_type in (3)
+GROUP BY '2017-10-23 01:01:01', HOUR(created), source_lvl1, source_lvl2;
+
+
+#UPDATE stats to produce a ref-access plan on 'trans_type_created_idx'
+--disable_query_log
+ALTER TABLE transactions STATS_PERSISTENT=1, STATS_AUTO_RECALC=0;
+
+UPDATE mysql.innodb_index_stats
+SET stat_value=3001
+WHERE index_name ='trans_type_created_idx' AND TABLE_name='transactions';
+
+UPDATE mysql.innodb_table_stats SET n_rows=3001 WHERE TABLE_name='transactions';
+
+FLUSH TABLE transactions;
+--enable_query_log
+
+eval EXPLAIN $query1;
+
+SET optimizer_trace="enabled=on";
+eval $query1;
+SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SELECT @trace RLIKE "range_uses_more_keyparts";
+SET optimizer_trace="enabled=off";
+
+DROP PROCEDURE p;
+DROP TABLE t1, transactions;

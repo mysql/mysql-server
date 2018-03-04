@@ -57,19 +57,19 @@ argument NOT LIKE '%Prepare%';
 TRIM(LEADING '\t' FROM MID(argument,LOCATE('Query',argument)+5))
 CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>'
 CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ------ from table ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE '%AS %' AND command_type NOT LIKE 'Prepare';
 argument
 CREATE USER 'test_user1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE SSL PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+ALTER USER 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' REQUIRE X509 WITH MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2 MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4 PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>'
 CREATE USER 'test_user2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+ALTER USER 'test_user4'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ------ done ------
 ------ rewrite ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','character set %');
@@ -88,7 +88,7 @@ GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1
 GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1
 GRANT SELECT,USAGE ON test.* TO test_user3@localhost
 GRANT USAGE ON test.* TO test_user3@localhost WITH GRANT OPTION
-GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+GRANT SELECT, ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN ON *.* TO 'test_user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>'
 ------ done ------ see log_tables.test for more proof! :)
 SELECT COUNT(*)>=1 FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%AS %');
 COUNT(*)>=1

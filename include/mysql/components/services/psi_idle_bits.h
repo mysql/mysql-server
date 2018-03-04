@@ -1,25 +1,27 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef COMPONENTS_SERVICES_PSI_IDLE_BITS_H
 #define COMPONENTS_SERVICES_PSI_IDLE_BITS_H
-
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
 
 /**
   @file
@@ -49,13 +51,13 @@ typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_idle_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
 };
@@ -69,7 +71,7 @@ typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
   @return an idle locker, or NULL
 */
 typedef struct PSI_idle_locker *(*start_idle_wait_v1_t)(
-  struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
+  struct PSI_idle_locker_state_v1 *state, const char *src_file, unsigned int src_line);
 
 /**
   Record an idle instrumentation wait end event.
@@ -80,7 +82,5 @@ typedef void (*end_idle_wait_v1_t)(struct PSI_idle_locker *locker);
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state;
 
 /** @} (end of group psi_abi_idle) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_IDLE_BITS_H */

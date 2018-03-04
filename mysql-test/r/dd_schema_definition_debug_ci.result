@@ -1,6 +1,640 @@
 use mysql;
 SET GLOBAL debug= '+d,skip_dd_table_access_check';
 #
+# List the CREATE TABLE statements for the DD tables.
+# Hide the AUTO INCREMENT counter, which is not
+# deterministic when running mtr.
+SHOW CREATE TABLE catalogs;
+Table	Create Table
+catalogs	CREATE TABLE `catalogs` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE character_sets;
+Table	Create Table
+character_sets	CREATE TABLE `character_sets` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `default_collation_id` bigint(20) unsigned NOT NULL,
+  `comment` varchar(2048) CHARACTER SET utf8 NOT NULL,
+  `mb_max_length` int(10) unsigned NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`),
+  KEY `default_collation_id` (`default_collation_id`),
+  CONSTRAINT `character_sets_ibfk_1` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE collations;
+Table	Create Table
+collations	CREATE TABLE `collations` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `character_set_id` bigint(20) unsigned NOT NULL,
+  `is_compiled` tinyint(1) NOT NULL,
+  `sort_length` int(10) unsigned NOT NULL,
+  `pad_attribute` varchar(9) COLLATE utf8_bin NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`),
+  KEY `character_set_id` (`character_set_id`),
+  CONSTRAINT `collations_ibfk_1` FOREIGN KEY (`character_set_id`) REFERENCES `character_sets` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE column_statistics;
+Table	Create Table
+column_statistics	CREATE TABLE `column_statistics` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `catalog_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(255) COLLATE utf8_bin NOT NULL,
+  `schema_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `table_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `column_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `histogram` json NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
+  UNIQUE KEY `catalog_id_2` (`catalog_id`,`schema_name`,`table_name`,`column_name`),
+  CONSTRAINT `column_statistics_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE column_type_elements;
+Table	Create Table
+column_type_elements	CREATE TABLE `column_type_elements` (
+  `column_id` bigint(20) unsigned NOT NULL,
+  `element_index` int(10) unsigned NOT NULL,
+  `name` varbinary(1020) NOT NULL,
+  PRIMARY KEY (`column_id`,`element_index`),
+  CONSTRAINT `column_type_elements_ibfk_1` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE columns;
+Table	Create Table
+columns	CREATE TABLE `columns` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `table_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `ordinal_position` int(10) unsigned NOT NULL,
+  `type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8_bin NOT NULL,
+  `is_nullable` tinyint(1) NOT NULL,
+  `is_zerofill` tinyint(1) DEFAULT NULL,
+  `is_unsigned` tinyint(1) DEFAULT NULL,
+  `char_length` int(10) unsigned DEFAULT NULL,
+  `numeric_precision` int(10) unsigned DEFAULT NULL,
+  `numeric_scale` int(10) unsigned DEFAULT NULL,
+  `datetime_precision` int(10) unsigned DEFAULT NULL,
+  `collation_id` bigint(20) unsigned DEFAULT NULL,
+  `has_no_default` tinyint(1) DEFAULT NULL,
+  `default_value` blob,
+  `default_value_utf8` text COLLATE utf8_bin,
+  `default_option` blob,
+  `update_option` varchar(32) COLLATE utf8_bin DEFAULT NULL,
+  `is_auto_increment` tinyint(1) DEFAULT NULL,
+  `is_virtual` tinyint(1) DEFAULT NULL,
+  `generation_expression` longblob,
+  `generation_expression_utf8` longtext COLLATE utf8_bin,
+  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
+  `hidden` tinyint(1) NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  `se_private_data` mediumtext COLLATE utf8_bin,
+  `column_key` enum('','PRI','UNI','MUL') COLLATE utf8_bin NOT NULL,
+  `column_type_utf8` mediumtext COLLATE utf8_bin NOT NULL,
+  `srs_id` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `table_id` (`table_id`,`name`),
+  UNIQUE KEY `table_id_2` (`table_id`,`ordinal_position`),
+  KEY `collation_id` (`collation_id`),
+  KEY `srs_id` (`srs_id`),
+  CONSTRAINT `columns_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
+  CONSTRAINT `columns_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `columns_ibfk_3` FOREIGN KEY (`srs_id`) REFERENCES `st_spatial_reference_systems` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE dd_properties;
+Table	Create Table
+dd_properties	CREATE TABLE `dd_properties` (
+  `properties` mediumtext COLLATE utf8_bin
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE events;
+Table	Create Table
+events	CREATE TABLE `events` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `schema_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `definer` varchar(93) COLLATE utf8_bin NOT NULL,
+  `time_zone` varchar(64) COLLATE utf8_bin NOT NULL,
+  `definition` longblob NOT NULL,
+  `definition_utf8` longtext COLLATE utf8_bin NOT NULL,
+  `execute_at` datetime DEFAULT NULL,
+  `interval_value` int(11) DEFAULT NULL,
+  `interval_field` enum('YEAR','QUARTER','MONTH','DAY','HOUR','MINUTE','WEEK','SECOND','MICROSECOND','YEAR_MONTH','DAY_HOUR','DAY_MINUTE','DAY_SECOND','HOUR_MINUTE','HOUR_SECOND','MINUTE_SECOND','DAY_MICROSECOND','HOUR_MICROSECOND','MINUTE_MICROSECOND','SECOND_MICROSECOND') COLLATE utf8_bin DEFAULT NULL,
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8_bin NOT NULL,
+  `starts` datetime DEFAULT NULL,
+  `ends` datetime DEFAULT NULL,
+  `status` enum('ENABLED','DISABLED','SLAVESIDE_DISABLED') COLLATE utf8_bin NOT NULL,
+  `on_completion` enum('DROP','PRESERVE') COLLATE utf8_bin NOT NULL,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `last_executed` datetime DEFAULT NULL,
+  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
+  `originator` int(10) unsigned NOT NULL,
+  `client_collation_id` bigint(20) unsigned NOT NULL,
+  `connection_collation_id` bigint(20) unsigned NOT NULL,
+  `schema_collation_id` bigint(20) unsigned NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `schema_id` (`schema_id`,`name`),
+  KEY `client_collation_id` (`client_collation_id`),
+  KEY `connection_collation_id` (`connection_collation_id`),
+  KEY `schema_collation_id` (`schema_collation_id`),
+  CONSTRAINT `events_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`),
+  CONSTRAINT `events_ibfk_2` FOREIGN KEY (`client_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `events_ibfk_3` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `events_ibfk_4` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE foreign_key_column_usage;
+Table	Create Table
+foreign_key_column_usage	CREATE TABLE `foreign_key_column_usage` (
+  `foreign_key_id` bigint(20) unsigned NOT NULL,
+  `ordinal_position` int(10) unsigned NOT NULL,
+  `column_id` bigint(20) unsigned NOT NULL,
+  `referenced_column_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  PRIMARY KEY (`foreign_key_id`,`ordinal_position`),
+  UNIQUE KEY `foreign_key_id` (`foreign_key_id`,`column_id`,`referenced_column_name`),
+  KEY `column_id` (`column_id`),
+  CONSTRAINT `foreign_key_column_usage_ibfk_1` FOREIGN KEY (`foreign_key_id`) REFERENCES `foreign_keys` (`id`),
+  CONSTRAINT `foreign_key_column_usage_ibfk_2` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE foreign_keys;
+Table	Create Table
+foreign_keys	CREATE TABLE `foreign_keys` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `schema_id` bigint(20) unsigned NOT NULL,
+  `table_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `unique_constraint_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci DEFAULT NULL,
+  `match_option` enum('NONE','PARTIAL','FULL') COLLATE utf8_bin NOT NULL,
+  `update_rule` enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT') COLLATE utf8_bin NOT NULL,
+  `delete_rule` enum('NO ACTION','RESTRICT','CASCADE','SET NULL','SET DEFAULT') COLLATE utf8_bin NOT NULL,
+  `referenced_table_catalog` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `referenced_table_schema` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `referenced_table_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `schema_id` (`schema_id`,`name`),
+  UNIQUE KEY `table_id` (`table_id`,`name`),
+  KEY `referenced_table_catalog` (`referenced_table_catalog`,`referenced_table_schema`,`referenced_table_name`),
+  CONSTRAINT `foreign_keys_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE index_column_usage;
+Table	Create Table
+index_column_usage	CREATE TABLE `index_column_usage` (
+  `index_id` bigint(20) unsigned NOT NULL,
+  `ordinal_position` int(10) unsigned NOT NULL,
+  `column_id` bigint(20) unsigned NOT NULL,
+  `length` int(10) unsigned DEFAULT NULL,
+  `order` enum('UNDEF','ASC','DESC') COLLATE utf8_bin NOT NULL,
+  `hidden` tinyint(1) NOT NULL,
+  UNIQUE KEY `index_id` (`index_id`,`ordinal_position`),
+  UNIQUE KEY `index_id_2` (`index_id`,`column_id`,`hidden`),
+  KEY `column_id` (`column_id`),
+  CONSTRAINT `index_column_usage_ibfk_1` FOREIGN KEY (`index_id`) REFERENCES `indexes` (`id`),
+  CONSTRAINT `index_column_usage_ibfk_2` FOREIGN KEY (`column_id`) REFERENCES `columns` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE index_partitions;
+Table	Create Table
+index_partitions	CREATE TABLE `index_partitions` (
+  `partition_id` bigint(20) unsigned NOT NULL,
+  `index_id` bigint(20) unsigned NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  `se_private_data` mediumtext COLLATE utf8_bin,
+  `tablespace_id` bigint(20) unsigned DEFAULT NULL,
+  PRIMARY KEY (`partition_id`,`index_id`),
+  KEY `index_id` (`index_id`),
+  KEY `tablespace_id` (`tablespace_id`),
+  CONSTRAINT `index_partitions_ibfk_1` FOREIGN KEY (`partition_id`) REFERENCES `table_partitions` (`id`),
+  CONSTRAINT `index_partitions_ibfk_2` FOREIGN KEY (`index_id`) REFERENCES `indexes` (`id`),
+  CONSTRAINT `index_partitions_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE index_stats;
+Table	Create Table
+index_stats	CREATE TABLE `index_stats` (
+  `schema_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `column_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `cardinality` bigint(20) unsigned DEFAULT NULL,
+  `cached_time` timestamp NOT NULL,
+  UNIQUE KEY `schema_name` (`schema_name`,`table_name`,`index_name`,`column_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE indexes;
+Table	Create Table
+indexes	CREATE TABLE `indexes` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `table_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `type` enum('PRIMARY','UNIQUE','MULTIPLE','FULLTEXT','SPATIAL') COLLATE utf8_bin NOT NULL,
+  `algorithm` enum('SE_SPECIFIC','BTREE','RTREE','HASH','FULLTEXT') COLLATE utf8_bin NOT NULL,
+  `is_algorithm_explicit` tinyint(1) NOT NULL,
+  `is_visible` tinyint(1) NOT NULL,
+  `is_generated` tinyint(1) NOT NULL,
+  `hidden` tinyint(1) NOT NULL,
+  `ordinal_position` int(10) unsigned NOT NULL,
+  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  `se_private_data` mediumtext COLLATE utf8_bin,
+  `tablespace_id` bigint(20) unsigned DEFAULT NULL,
+  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `table_id` (`table_id`,`name`),
+  KEY `tablespace_id` (`tablespace_id`),
+  CONSTRAINT `indexes_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
+  CONSTRAINT `indexes_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE innodb_ddl_log;
+Table	Create Table
+innodb_ddl_log	CREATE TABLE `innodb_ddl_log` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `thread_id` bigint(20) unsigned NOT NULL,
+  `type` int(10) unsigned NOT NULL,
+  `space_id` int(10) unsigned DEFAULT NULL,
+  `page_no` int(10) unsigned DEFAULT NULL,
+  `index_id` bigint(20) unsigned DEFAULT NULL,
+  `table_id` bigint(20) unsigned DEFAULT NULL,
+  `old_file_path` varchar(512) COLLATE utf8_bin DEFAULT NULL,
+  `new_file_path` varchar(512) COLLATE utf8_bin DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `thread_id` (`thread_id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE innodb_dynamic_metadata;
+Table	Create Table
+innodb_dynamic_metadata	CREATE TABLE `innodb_dynamic_metadata` (
+  `table_id` bigint(20) unsigned NOT NULL,
+  `version` bigint(20) unsigned NOT NULL,
+  `metadata` blob NOT NULL,
+  PRIMARY KEY (`table_id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE innodb_index_stats;
+Table	Create Table
+innodb_index_stats	CREATE TABLE `innodb_index_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `index_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `stat_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `stat_value` bigint(20) unsigned NOT NULL,
+  `sample_size` bigint(20) unsigned DEFAULT NULL,
+  `stat_description` varchar(1024) COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`,`index_name`,`stat_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE innodb_table_stats;
+Table	Create Table
+innodb_table_stats	CREATE TABLE `innodb_table_stats` (
+  `database_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(199) COLLATE utf8_bin NOT NULL,
+  `last_update` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `n_rows` bigint(20) unsigned NOT NULL,
+  `clustered_index_size` bigint(20) unsigned NOT NULL,
+  `sum_of_other_index_sizes` bigint(20) unsigned NOT NULL,
+  PRIMARY KEY (`database_name`,`table_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE parameter_type_elements;
+Table	Create Table
+parameter_type_elements	CREATE TABLE `parameter_type_elements` (
+  `parameter_id` bigint(20) unsigned NOT NULL,
+  `element_index` int(10) unsigned NOT NULL,
+  `name` varbinary(1020) NOT NULL,
+  PRIMARY KEY (`parameter_id`,`element_index`),
+  CONSTRAINT `parameter_type_elements_ibfk_1` FOREIGN KEY (`parameter_id`) REFERENCES `parameters` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE parameters;
+Table	Create Table
+parameters	CREATE TABLE `parameters` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `routine_id` bigint(20) unsigned NOT NULL,
+  `ordinal_position` int(10) unsigned NOT NULL,
+  `mode` enum('IN','OUT','INOUT') COLLATE utf8_bin DEFAULT NULL,
+  `name` varchar(64) CHARACTER SET utf8 DEFAULT NULL,
+  `data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8_bin NOT NULL,
+  `data_type_utf8` mediumtext COLLATE utf8_bin NOT NULL,
+  `is_zerofill` tinyint(1) DEFAULT NULL,
+  `is_unsigned` tinyint(1) DEFAULT NULL,
+  `char_length` int(10) unsigned DEFAULT NULL,
+  `numeric_precision` int(10) unsigned DEFAULT NULL,
+  `numeric_scale` int(10) unsigned DEFAULT NULL,
+  `datetime_precision` int(10) unsigned DEFAULT NULL,
+  `collation_id` bigint(20) unsigned DEFAULT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `routine_id` (`routine_id`,`ordinal_position`),
+  KEY `collation_id` (`collation_id`),
+  CONSTRAINT `parameters_ibfk_1` FOREIGN KEY (`routine_id`) REFERENCES `routines` (`id`),
+  CONSTRAINT `parameters_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE resource_groups;
+Table	Create Table
+resource_groups	CREATE TABLE `resource_groups` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `resource_group_name` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `resource_group_type` enum('SYSTEM','USER') COLLATE utf8_bin NOT NULL,
+  `resource_group_enabled` tinyint(1) NOT NULL,
+  `cpu_id_mask` varchar(1024) COLLATE utf8_bin NOT NULL,
+  `thread_priority` int(11) NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `resource_group_name` (`resource_group_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE routines;
+Table	Create Table
+routines	CREATE TABLE `routines` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `schema_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `type` enum('FUNCTION','PROCEDURE') COLLATE utf8_bin NOT NULL,
+  `result_data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_NULL','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON') COLLATE utf8_bin DEFAULT NULL,
+  `result_data_type_utf8` mediumtext COLLATE utf8_bin NOT NULL,
+  `result_is_zerofill` tinyint(1) DEFAULT NULL,
+  `result_is_unsigned` tinyint(1) DEFAULT NULL,
+  `result_char_length` int(10) unsigned DEFAULT NULL,
+  `result_numeric_precision` int(10) unsigned DEFAULT NULL,
+  `result_numeric_scale` int(10) unsigned DEFAULT NULL,
+  `result_datetime_precision` int(10) unsigned DEFAULT NULL,
+  `result_collation_id` bigint(20) unsigned DEFAULT NULL,
+  `definition` longblob,
+  `definition_utf8` longtext COLLATE utf8_bin,
+  `parameter_str` blob,
+  `is_deterministic` tinyint(1) NOT NULL,
+  `sql_data_access` enum('CONTAINS SQL','NO SQL','READS SQL DATA','MODIFIES SQL DATA') COLLATE utf8_bin NOT NULL,
+  `security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8_bin NOT NULL,
+  `definer` varchar(93) COLLATE utf8_bin NOT NULL,
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH','TIME_TRUNCATE_FRACTIONAL') COLLATE utf8_bin NOT NULL,
+  `client_collation_id` bigint(20) unsigned NOT NULL,
+  `connection_collation_id` bigint(20) unsigned NOT NULL,
+  `schema_collation_id` bigint(20) unsigned NOT NULL,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `comment` text COLLATE utf8_bin NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `schema_id` (`schema_id`,`type`,`name`),
+  KEY `result_collation_id` (`result_collation_id`),
+  KEY `client_collation_id` (`client_collation_id`),
+  KEY `connection_collation_id` (`connection_collation_id`),
+  KEY `schema_collation_id` (`schema_collation_id`),
+  CONSTRAINT `routines_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`),
+  CONSTRAINT `routines_ibfk_2` FOREIGN KEY (`result_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `routines_ibfk_3` FOREIGN KEY (`client_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `routines_ibfk_4` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `routines_ibfk_5` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE schemata;
+Table	Create Table
+schemata	CREATE TABLE `schemata` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `catalog_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `default_collation_id` bigint(20) unsigned NOT NULL,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
+  KEY `default_collation_id` (`default_collation_id`),
+  CONSTRAINT `schemata_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`),
+  CONSTRAINT `schemata_ibfk_2` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE st_spatial_reference_systems;
+Table	Create Table
+st_spatial_reference_systems	CREATE TABLE `st_spatial_reference_systems` (
+  `id` int(10) unsigned NOT NULL,
+  `catalog_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(80) CHARACTER SET utf8 NOT NULL,
+  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `organization` varchar(256) CHARACTER SET utf8 DEFAULT NULL,
+  `organization_coordsys_id` int(10) unsigned DEFAULT NULL,
+  `definition` varchar(4096) COLLATE utf8_bin NOT NULL,
+  `description` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `SRS_NAME` (`catalog_id`,`name`),
+  UNIQUE KEY `ORGANIZATION_AND_ID` (`catalog_id`,`organization`,`organization_coordsys_id`),
+  CONSTRAINT `st_spatial_reference_systems_ibfk_1` FOREIGN KEY (`catalog_id`) REFERENCES `catalogs` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE table_partition_values;
+Table	Create Table
+table_partition_values	CREATE TABLE `table_partition_values` (
+  `partition_id` bigint(20) unsigned NOT NULL,
+  `list_num` tinyint(3) unsigned NOT NULL,
+  `column_num` tinyint(3) unsigned NOT NULL,
+  `value_utf8` text COLLATE utf8_bin,
+  `max_value` tinyint(1) NOT NULL,
+  PRIMARY KEY (`partition_id`,`list_num`,`column_num`),
+  CONSTRAINT `table_partition_values_ibfk_1` FOREIGN KEY (`partition_id`) REFERENCES `table_partitions` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE table_partitions;
+Table	Create Table
+table_partitions	CREATE TABLE `table_partitions` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `table_id` bigint(20) unsigned NOT NULL,
+  `parent_partition_id` bigint(20) unsigned DEFAULT NULL,
+  `number` smallint(5) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `description_utf8` text COLLATE utf8_bin,
+  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  `se_private_data` mediumtext COLLATE utf8_bin,
+  `se_private_id` bigint(20) unsigned DEFAULT NULL,
+  `tablespace_id` bigint(20) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `table_id` (`table_id`,`name`),
+  UNIQUE KEY `table_id_2` (`table_id`,`parent_partition_id`,`number`),
+  UNIQUE KEY `engine` (`engine`,`se_private_id`),
+  KEY `engine_2` (`engine`),
+  KEY `tablespace_id` (`tablespace_id`),
+  CONSTRAINT `table_partitions_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
+  CONSTRAINT `table_partitions_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE table_stats;
+Table	Create Table
+table_stats	CREATE TABLE `table_stats` (
+  `schema_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_name` varchar(64) COLLATE utf8_bin NOT NULL,
+  `table_rows` bigint(20) unsigned DEFAULT NULL,
+  `avg_row_length` bigint(20) unsigned DEFAULT NULL,
+  `data_length` bigint(20) unsigned DEFAULT NULL,
+  `max_data_length` bigint(20) unsigned DEFAULT NULL,
+  `index_length` bigint(20) unsigned DEFAULT NULL,
+  `data_free` bigint(20) unsigned DEFAULT NULL,
+  `auto_increment` bigint(20) unsigned DEFAULT NULL,
+  `checksum` bigint(20) unsigned DEFAULT NULL,
+  `update_time` timestamp NULL DEFAULT NULL,
+  `check_time` timestamp NULL DEFAULT NULL,
+  `cached_time` timestamp NOT NULL,
+  PRIMARY KEY (`schema_name`,`table_name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE tables;
+Table	Create Table
+tables	CREATE TABLE `tables` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `schema_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `type` enum('BASE TABLE','VIEW','SYSTEM VIEW') COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `mysql_version_id` int(10) unsigned NOT NULL,
+  `row_format` enum('Fixed','Dynamic','Compressed','Redundant','Compact','Paged') COLLATE utf8_bin DEFAULT NULL,
+  `collation_id` bigint(20) unsigned DEFAULT NULL,
+  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
+  `hidden` enum('Visible','System','SE','DDL') COLLATE utf8_bin NOT NULL,
+  `options` mediumblob,
+  `se_private_data` mediumtext COLLATE utf8_bin,
+  `se_private_id` bigint(20) unsigned DEFAULT NULL,
+  `tablespace_id` bigint(20) unsigned DEFAULT NULL,
+  `partition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55','RANGE','LIST','RANGE_COLUMNS','LIST_COLUMNS','AUTO') COLLATE utf8_bin DEFAULT NULL,
+  `partition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `partition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `default_partitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
+  `subpartition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55') COLLATE utf8_bin DEFAULT NULL,
+  `subpartition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `subpartition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
+  `default_subpartitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
+  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `view_definition` longblob,
+  `view_definition_utf8` longtext COLLATE utf8_bin,
+  `view_check_option` enum('NONE','LOCAL','CASCADED') COLLATE utf8_bin DEFAULT NULL,
+  `view_is_updatable` enum('NO','YES') COLLATE utf8_bin DEFAULT NULL,
+  `view_algorithm` enum('UNDEFINED','TEMPTABLE','MERGE') COLLATE utf8_bin DEFAULT NULL,
+  `view_security_type` enum('DEFAULT','INVOKER','DEFINER') COLLATE utf8_bin DEFAULT NULL,
+  `view_definer` varchar(93) COLLATE utf8_bin DEFAULT NULL,
+  `view_client_collation_id` bigint(20) unsigned DEFAULT NULL,
+  `view_connection_collation_id` bigint(20) unsigned DEFAULT NULL,
+  `view_column_names` longtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `schema_id` (`schema_id`,`name`),
+  UNIQUE KEY `engine` (`engine`,`se_private_id`),
+  KEY `engine_2` (`engine`),
+  KEY `collation_id` (`collation_id`),
+  KEY `tablespace_id` (`tablespace_id`),
+  CONSTRAINT `tables_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`),
+  CONSTRAINT `tables_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `tables_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE tablespace_files;
+Table	Create Table
+tablespace_files	CREATE TABLE `tablespace_files` (
+  `tablespace_id` bigint(20) unsigned NOT NULL,
+  `ordinal_position` int(10) unsigned NOT NULL,
+  `file_name` varchar(512) COLLATE utf8_bin NOT NULL,
+  `se_private_data` mediumtext COLLATE utf8_bin,
+  UNIQUE KEY `tablespace_id` (`tablespace_id`,`ordinal_position`),
+  UNIQUE KEY `file_name` (`file_name`),
+  CONSTRAINT `tablespace_files_ibfk_1` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE tablespaces;
+Table	Create Table
+tablespaces	CREATE TABLE `tablespaces` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(259) COLLATE utf8_bin NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  `se_private_data` mediumtext COLLATE utf8_bin,
+  `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE triggers;
+Table	Create Table
+triggers	CREATE TABLE `triggers` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `schema_id` bigint(20) unsigned NOT NULL,
+  `name` varchar(64) CHARACTER SET utf8 NOT NULL,
+  `event_type` enum('INSERT','UPDATE','DELETE') COLLATE utf8_bin NOT NULL,
+  `table_id` bigint(20) unsigned NOT NULL,
+  `action_timing` enum('BEFORE','AFTER') COLLATE utf8_bin NOT NULL,
+  `action_order` int(10) unsigned NOT NULL,
+  `action_statement` longblob NOT NULL,
+  `action_statement_utf8` longtext COLLATE utf8_bin NOT NULL,
+  `created` timestamp(2) NOT NULL DEFAULT CURRENT_TIMESTAMP(2) ON UPDATE CURRENT_TIMESTAMP(2),
+  `last_altered` timestamp(2) NOT NULL DEFAULT CURRENT_TIMESTAMP(2),
+  `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB','NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') COLLATE utf8_bin NOT NULL,
+  `definer` varchar(93) COLLATE utf8_bin NOT NULL,
+  `client_collation_id` bigint(20) unsigned NOT NULL,
+  `connection_collation_id` bigint(20) unsigned NOT NULL,
+  `schema_collation_id` bigint(20) unsigned NOT NULL,
+  `options` mediumtext COLLATE utf8_bin,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `schema_id` (`schema_id`,`name`),
+  UNIQUE KEY `table_id` (`table_id`,`event_type`,`action_timing`,`action_order`),
+  KEY `client_collation_id` (`client_collation_id`),
+  KEY `connection_collation_id` (`connection_collation_id`),
+  KEY `schema_collation_id` (`schema_collation_id`),
+  CONSTRAINT `triggers_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`),
+  CONSTRAINT `triggers_ibfk_2` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
+  CONSTRAINT `triggers_ibfk_3` FOREIGN KEY (`client_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `triggers_ibfk_4` FOREIGN KEY (`connection_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `triggers_ibfk_5` FOREIGN KEY (`schema_collation_id`) REFERENCES `collations` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE view_routine_usage;
+Table	Create Table
+view_routine_usage	CREATE TABLE `view_routine_usage` (
+  `view_id` bigint(20) unsigned NOT NULL,
+  `routine_catalog` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `routine_schema` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `routine_name` varchar(64) CHARACTER SET utf8 NOT NULL,
+  PRIMARY KEY (`view_id`,`routine_catalog`,`routine_schema`,`routine_name`),
+  KEY `routine_catalog` (`routine_catalog`,`routine_schema`,`routine_name`),
+  CONSTRAINT `view_routine_usage_ibfk_1` FOREIGN KEY (`view_id`) REFERENCES `tables` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE view_table_usage;
+Table	Create Table
+view_table_usage	CREATE TABLE `view_table_usage` (
+  `view_id` bigint(20) unsigned NOT NULL,
+  `table_catalog` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `table_schema` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  `table_name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
+  PRIMARY KEY (`view_id`,`table_catalog`,`table_schema`,`table_name`),
+  KEY `table_catalog` (`table_catalog`,`table_schema`,`table_name`),
+  CONSTRAINT `view_table_usage_ibfk_1` FOREIGN KEY (`view_id`) REFERENCES `tables` (`id`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
+SELECT id = 1 FROM tables WHERE name LIKE 'dd_properties';
+id = 1
+1
+SELECT se_private_id = 1 FROM tables WHERE name LIKE 'dd_properties';
+se_private_id = 1
+1
+SELECT id = 1 FROM indexes WHERE table_id = (SELECT id FROM tables WHERE name LIKE 'dd_properties');
+id = 1
+1
+SELECT id = 2 FROM tables WHERE name LIKE 'innodb_dynamic_metadata';
+id = 2
+1
+SELECT se_private_id = 2 FROM tables WHERE name LIKE 'innodb_dynamic_metadata';
+se_private_id = 2
+1
+SELECT id = 2 FROM indexes WHERE table_id = (SELECT id FROM tables WHERE name LIKE 'innodb_dynamic_metadata');
+id = 2
+1
+SELECT id = 1 FROM schemata WHERE name LIKE 'mysql';
+id = 1
+1
+SELECT id = 1 FROM tablespaces WHERE name LIKE 'mysql';
+id = 1
+1
+SELECT SUBSTRING_INDEX(
+SUBSTRING(se_private_data,
+LOCATE('id', se_private_data),
+30),
+';', 1) = 'id=4294967294'
+  FROM tablespaces WHERE name LIKE 'mysql';
+SUBSTRING_INDEX(
+SUBSTRING(se_private_data,
+LOCATE('id', se_private_data),
+30),
+';', 1) = 'id=4294967294'
+1
+#
 # Subset of definitions from tables, not including
 # timestamps, partitioning, view definitions and
 # default values
@@ -10,50 +644,74 @@ options, se_private_data, se_private_id, tablespace_id
 FROM tables
 WHERE id IN (SELECT id FROM tables
 WHERE schema_id= 1
-AND name IN ('innodb_table_stats',
-'innodb_index_stats',
+AND name IN ('catalogs',
 'character_sets',
 'collations',
-'tablespaces',
-'tablespace_files',
-'catalogs',
-'schemata',
-'tables',
-'view_table_usage',
-'columns',
 'column_statistics',
-'indexes',
-'index_column_usage',
 'column_type_elements',
-'foreign_keys',
+'columns',
+'dd_properties',
+'events',
 'foreign_key_column_usage',
-'table_partitions',
-'table_partition_values',
+'foreign_keys',
+'index_column_usage',
 'index_partitions',
-'dd_properties'))
+'index_stats',
+'indexes',
+'innodb_ddl_log',
+'innodb_dynamic_metadata',
+'innodb_index_stats',
+'innodb_table_stats',
+'parameter_type_elements',
+'parameters',
+'resource_groups',
+'routines',
+'schemata',
+'st_spatial_reference_systems',
+'table_partition_values',
+'table_partitions',
+'table_stats',
+'tables',
+'tablespace_files',
+'tablespaces',
+'triggers',
+'view_routine_usage',
+'view_table_usage'))
 ORDER BY id;
 id	name	type	engine	collation_id	comment	hidden	options	se_private_data	se_private_id	tablespace_id
-1	dd_properties	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	1	1
-3	collations	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	3	1
-4	tablespaces	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	4	1
-5	tablespace_files	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	5	1
-6	catalogs	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	6	1
-7	column_statistics	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	7	1
-8	schemata	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	8	1
-10	tables	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	10	1
-11	view_table_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	11	1
-13	columns	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	13	1
-14	indexes	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	14	1
-15	index_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	15	1
-16	column_type_elements	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	16	1
-17	foreign_keys	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	17	1
-18	foreign_key_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	18	1
-19	table_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	19	1
-20	table_partition_values	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	20	1
-21	index_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	21	1
-30	innodb_table_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	30	1
-31	innodb_index_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	31	1
-34	character_sets	BASE TABLE	InnoDB	83		System	avg_row_length=0;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=255;version=2;	2	1
+1	dd_properties	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	1	1
+2	innodb_dynamic_metadata	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	2	1
+3	innodb_table_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	3	1
+4	innodb_index_stats	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	4	1
+5	innodb_ddl_log	BASE TABLE	InnoDB	83		Visible	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	5	1
+6	catalogs	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	6	1
+7	character_sets	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	7	1
+8	collations	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	8	1
+9	column_statistics	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	9	1
+10	column_type_elements	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	10	1
+11	columns	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	11	1
+12	events	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	12	1
+13	foreign_key_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	13	1
+14	foreign_keys	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	14	1
+15	index_column_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	15	1
+16	index_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	16	1
+17	index_stats	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	17	1
+18	indexes	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	18	1
+19	parameter_type_elements	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	19	1
+20	parameters	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	20	1
+21	resource_groups	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	21	1
+22	routines	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	22	1
+23	schemata	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	23	1
+24	st_spatial_reference_systems	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	24	1
+25	table_partition_values	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	25	1
+26	table_partitions	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	26	1
+27	table_stats	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	27	1
+28	tables	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	28	1
+29	tablespace_files	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	29	1
+30	tablespaces	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	30	1
+31	triggers	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	autoinc=0;version=0;	31	1
+32	view_routine_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	32	1
+33	view_table_usage	BASE TABLE	InnoDB	83		System	avg_row_length=0;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	NULL	33	1
 #
 # Subset of definitions from columns, not including
 # default_values.
@@ -64,692 +722,1154 @@ update_option, is_auto_increment, comment, hidden, options,
 se_private_data FROM columns
 WHERE table_id IN (SELECT id FROM tables
 WHERE schema_id= 1
-AND name IN ('innodb_table_stats',
-'innodb_index_stats',
+AND name IN ('catalogs',
 'character_sets',
 'collations',
-'tablespaces',
-'tablespace_files',
-'catalogs',
-'schemata',
-'tables',
-'view_table_usage',
-'columns',
 'column_statistics',
-'indexes',
-'index_column_usage',
 'column_type_elements',
-'foreign_keys',
+'columns',
+'dd_properties',
+'events',
 'foreign_key_column_usage',
-'table_partitions',
-'table_partition_values',
+'foreign_keys',
+'index_column_usage',
 'index_partitions',
-'dd_properties'))
+'index_stats',
+'indexes',
+'innodb_ddl_log',
+'innodb_dynamic_metadata',
+'innodb_index_stats',
+'innodb_table_stats',
+'parameter_type_elements',
+'parameters',
+'resource_groups',
+'routines',
+'schemata',
+'st_spatial_reference_systems',
+'table_partition_values',
+'table_partitions',
+'table_stats',
+'tables',
+'tablespace_files',
+'tablespaces',
+'triggers',
+'view_routine_usage',
+'view_table_usage'))
 ORDER BY id;
 id	table_id	name	ordinal_position	type	is_nullable	is_zerofill	is_unsigned	char_length	numeric_precision	numeric_scale	datetime_precision	collation_id	default_option	update_option	is_auto_increment	comment	hidden	options	se_private_data
-1	1	properties	1	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-2	1	DB_ROW_ID	2	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-3	1	DB_TRX_ID	3	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-4	1	DB_ROLL_PTR	4	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-12	3	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-13	3	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	NULL
-14	3	character_set_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-15	3	is_compiled	4	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-16	3	sort_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-17	3	pad_attribute	6	MYSQL_TYPE_VARCHAR	0	0	0	27	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-18	3	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-19	3	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-20	4	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-21	4	name	2	MYSQL_TYPE_VARCHAR	0	0	0	777	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-22	4	options	3	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-23	4	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-24	4	comment	5	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-25	4	engine	6	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-26	4	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-27	4	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-28	5	tablespace_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-29	5	ordinal_position	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-30	5	file_name	3	MYSQL_TYPE_VARCHAR	0	0	0	1536	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-31	5	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-32	5	DB_TRX_ID	5	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-33	5	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-34	6	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-35	6	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-36	6	created	3	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	NULL
-37	6	last_altered	4	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	NULL
-38	6	DB_TRX_ID	5	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-39	6	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-40	7	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-41	7	catalog_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-42	7	name	3	MYSQL_TYPE_VARCHAR	0	0	0	765	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-43	7	schema_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-44	7	table_name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-45	7	column_name	6	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-46	7	histogram	7	MYSQL_TYPE_JSON	0	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
-47	7	DB_TRX_ID	8	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-48	7	DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-49	8	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-50	8	catalog_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-51	8	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-52	8	default_collation_id	4	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-53	8	created	5	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	NULL
-54	8	last_altered	6	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	NULL
-55	8	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-56	8	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-68	10	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-69	10	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-70	10	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-71	10	type	4	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
-72	10	engine	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	NULL
-73	10	mysql_version_id	6	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-74	10	row_format	7	MYSQL_TYPE_ENUM	1	0	0	30	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=6;	NULL
-75	10	collation_id	8	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-76	10	comment	9	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-77	10	hidden	10	MYSQL_TYPE_ENUM	0	0	0	21	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=4;	NULL
-78	10	options	11	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
-79	10	se_private_data	12	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-80	10	se_private_id	13	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-81	10	tablespace_id	14	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-82	10	partition_type	15	MYSQL_TYPE_ENUM	1	0	0	39	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=11;	NULL
-83	10	partition_expression	16	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-84	10	partition_expression_utf8	17	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-85	10	default_partitioning	18	MYSQL_TYPE_ENUM	1	0	0	18	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
-86	10	subpartition_type	19	MYSQL_TYPE_ENUM	1	0	0	39	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=6;	NULL
-87	10	subpartition_expression	20	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-88	10	subpartition_expression_utf8	21	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-89	10	default_subpartitioning	22	MYSQL_TYPE_ENUM	1	0	0	18	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
-90	10	created	23	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	NULL
-91	10	last_altered	24	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	NULL
-92	10	view_definition	25	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
-93	10	view_definition_utf8	26	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-94	10	view_check_option	27	MYSQL_TYPE_ENUM	1	0	0	24	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
-95	10	view_is_updatable	28	MYSQL_TYPE_ENUM	1	0	0	9	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=2;	NULL
-96	10	view_algorithm	29	MYSQL_TYPE_ENUM	1	0	0	27	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
-97	10	view_security_type	30	MYSQL_TYPE_ENUM	1	0	0	21	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
-98	10	view_definer	31	MYSQL_TYPE_VARCHAR	1	0	0	279	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-99	10	view_client_collation_id	32	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-100	10	view_connection_collation_id	33	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-101	10	view_column_names	34	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-102	10	DB_TRX_ID	35	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-103	10	DB_ROLL_PTR	36	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-104	11	view_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-105	11	table_catalog	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-106	11	table_schema	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-107	11	table_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-108	11	DB_TRX_ID	5	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-109	11	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-116	13	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-117	13	table_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-118	13	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-119	13	ordinal_position	4	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-120	13	type	5	MYSQL_TYPE_ENUM	0	0	0	66	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=31;	NULL
-121	13	is_nullable	6	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-122	13	is_zerofill	7	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-123	13	is_unsigned	8	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-124	13	char_length	9	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-125	13	numeric_precision	10	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-126	13	numeric_scale	11	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-127	13	datetime_precision	12	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-128	13	collation_id	13	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-129	13	has_no_default	14	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-130	13	default_value	15	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
-131	13	default_value_utf8	16	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-132	13	default_option	17	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
-133	13	update_option	18	MYSQL_TYPE_VARCHAR	1	0	0	96	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-134	13	is_auto_increment	19	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-135	13	is_virtual	20	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-136	13	generation_expression	21	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
-137	13	generation_expression_utf8	22	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-138	13	comment	23	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-139	13	hidden	24	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-140	13	options	25	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-141	13	se_private_data	26	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-142	13	column_key	27	MYSQL_TYPE_ENUM	0	0	0	9	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=4;	NULL
-143	13	column_type_utf8	28	MYSQL_TYPE_MEDIUM_BLOB	0	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-144	13	srs_id	29	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-145	13	DB_TRX_ID	30	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-146	13	DB_ROLL_PTR	31	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-147	14	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-148	14	table_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-149	14	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-150	14	type	4	MYSQL_TYPE_ENUM	0	0	0	24	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	NULL
-151	14	algorithm	5	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	NULL
-152	14	is_algorithm_explicit	6	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-153	14	is_visible	7	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-154	14	is_generated	8	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-155	14	hidden	9	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-156	14	ordinal_position	10	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-157	14	comment	11	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-158	14	options	12	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-159	14	se_private_data	13	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-160	14	tablespace_id	14	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-161	14	engine	15	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-162	14	DB_TRX_ID	16	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-163	14	DB_ROLL_PTR	17	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-164	15	index_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-165	15	ordinal_position	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-166	15	column_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-167	15	length	4	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-168	15	order	5	MYSQL_TYPE_ENUM	0	0	0	15	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
-169	15	hidden	6	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-170	15	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-171	15	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-172	16	column_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-173	16	element_index	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-174	16	name	3	MYSQL_TYPE_VARCHAR	0	0	0	1020	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	NULL
-175	16	DB_TRX_ID	4	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-176	16	DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-177	17	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-178	17	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-179	17	table_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-180	17	name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	NULL
-181	17	unique_constraint_name	5	MYSQL_TYPE_VARCHAR	1	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-182	17	match_option	6	MYSQL_TYPE_ENUM	0	0	0	21	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	NULL
-183	17	update_rule	7	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	NULL
-184	17	delete_rule	8	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	NULL
-185	17	referenced_table_catalog	9	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-186	17	referenced_table_schema	10	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-187	17	referenced_table_name	11	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-188	17	DB_TRX_ID	12	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-189	17	DB_ROLL_PTR	13	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-190	18	foreign_key_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-191	18	ordinal_position	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-192	18	column_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-193	18	referenced_column_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-194	18	DB_TRX_ID	5	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-195	18	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-196	19	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	NULL
-197	19	table_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-198	19	parent_partition_id	3	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-199	19	number	4	MYSQL_TYPE_SHORT	0	0	1	5	5	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-200	19	name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	NULL
-201	19	description_utf8	6	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-202	19	engine	7	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-203	19	comment	8	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-204	19	options	9	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-205	19	se_private_data	10	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-206	19	se_private_id	11	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-207	19	tablespace_id	12	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-208	19	DB_TRX_ID	13	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-209	19	DB_ROLL_PTR	14	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-210	20	partition_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-211	20	list_num	2	MYSQL_TYPE_TINY	0	0	1	3	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-212	20	column_num	3	MYSQL_TYPE_TINY	0	0	1	3	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-213	20	value_utf8	4	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-214	20	max_value	5	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-215	20	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-216	20	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-217	21	partition_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-218	21	index_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-219	21	options	3	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-220	21	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-221	21	tablespace_id	5	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-222	21	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-223	21	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-349	30	database_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-350	30	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	597	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-351	30	last_update	3	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	NULL
-352	30	n_rows	4	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-353	30	clustered_index_size	5	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-354	30	sum_of_other_index_sizes	6	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-355	30	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-356	30	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-357	31	database_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-358	31	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	597	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-359	31	index_name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-360	31	last_update	4	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	NULL
-361	31	stat_name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-362	31	stat_value	6	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-363	31	sample_size	7	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-364	31	stat_description	8	MYSQL_TYPE_VARCHAR	0	0	0	3072	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	NULL
-365	31	DB_TRX_ID	9	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-366	31	DB_ROLL_PTR	10	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	NULL
-383	34	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	1		0	interval_count=0;	table_id=2;
-384	34	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=2;
-385	34	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=2;
-386	34	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=2;
-387	34	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	8	NULL	NULL	0		0	interval_count=0;	table_id=2;
-388	34	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=2;
-389	34	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=2;
+1	1	properties	1	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=1;
+2	1	DB_ROW_ID	2	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=1;
+3	1	DB_TRX_ID	3	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=1;
+4	1	DB_ROLL_PTR	4	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=1;
+5	2	table_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=2;
+6	2	version	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=2;
+7	2	metadata	3	MYSQL_TYPE_BLOB	0	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=2;
+8	2	DB_TRX_ID	4	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=2;
+9	2	DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=2;
+10	3	database_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=3;
+11	3	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	597	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=3;
+12	3	last_update	3	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	table_id=3;
+13	3	n_rows	4	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=3;
+14	3	clustered_index_size	5	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=3;
+15	3	sum_of_other_index_sizes	6	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=3;
+16	3	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=3;
+17	3	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=3;
+18	4	database_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=4;
+19	4	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	597	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=4;
+20	4	index_name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=4;
+21	4	last_update	4	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	table_id=4;
+22	4	stat_name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=4;
+23	4	stat_value	6	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=4;
+24	4	sample_size	7	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=4;
+25	4	stat_description	8	MYSQL_TYPE_VARCHAR	0	0	0	3072	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=4;
+26	4	DB_TRX_ID	9	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=4;
+27	4	DB_ROLL_PTR	10	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=4;
+28	5	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=5;
+29	5	thread_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=5;
+30	5	type	3	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=5;
+31	5	space_id	4	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=5;
+32	5	page_no	5	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=5;
+33	5	index_id	6	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=5;
+34	5	table_id	7	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=5;
+35	5	old_file_path	8	MYSQL_TYPE_VARCHAR	1	0	0	1536	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=5;
+36	5	new_file_path	9	MYSQL_TYPE_VARCHAR	1	0	0	1536	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=5;
+37	5	DB_TRX_ID	10	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=5;
+38	5	DB_ROLL_PTR	11	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=5;
+39	6	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=6;
+40	6	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=6;
+41	6	created	3	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	table_id=6;
+42	6	last_altered	4	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	table_id=6;
+43	6	options	5	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=6;
+44	6	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=6;
+45	6	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=6;
+46	7	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=7;
+47	7	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=7;
+48	7	default_collation_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=7;
+49	7	comment	4	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=7;
+50	7	mb_max_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=7;
+51	7	options	6	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=7;
+52	7	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=7;
+53	7	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=7;
+54	8	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=8;
+55	8	name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=8;
+56	8	character_set_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=8;
+57	8	is_compiled	4	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=8;
+58	8	sort_length	5	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=8;
+59	8	pad_attribute	6	MYSQL_TYPE_VARCHAR	0	0	0	27	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=8;
+60	8	options	7	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=8;
+61	8	DB_TRX_ID	8	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=8;
+62	8	DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=8;
+63	9	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=9;
+64	9	catalog_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=9;
+65	9	name	3	MYSQL_TYPE_VARCHAR	0	0	0	765	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=9;
+66	9	schema_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=9;
+67	9	table_name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=9;
+68	9	column_name	6	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=9;
+69	9	histogram	7	MYSQL_TYPE_JSON	0	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=9;
+70	9	options	8	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=9;
+71	9	DB_TRX_ID	9	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=9;
+72	9	DB_ROLL_PTR	10	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=9;
+73	10	column_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=10;
+74	10	element_index	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=10;
+75	10	name	3	MYSQL_TYPE_VARCHAR	0	0	0	1020	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=10;
+76	10	DB_TRX_ID	4	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=10;
+77	10	DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=10;
+78	11	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=11;
+79	11	table_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+80	11	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=11;
+81	11	ordinal_position	4	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+82	11	type	5	MYSQL_TYPE_ENUM	0	0	0	66	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=31;	table_id=11;
+83	11	is_nullable	6	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+84	11	is_zerofill	7	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+85	11	is_unsigned	8	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+86	11	char_length	9	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+87	11	numeric_precision	10	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+88	11	numeric_scale	11	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+89	11	datetime_precision	12	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+90	11	collation_id	13	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+91	11	has_no_default	14	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+92	11	default_value	15	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=11;
+93	11	default_value_utf8	16	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+94	11	default_option	17	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=11;
+95	11	update_option	18	MYSQL_TYPE_VARCHAR	1	0	0	96	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+96	11	is_auto_increment	19	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+97	11	is_virtual	20	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+98	11	generation_expression	21	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=11;
+99	11	generation_expression_utf8	22	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+100	11	comment	23	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+101	11	hidden	24	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+102	11	options	25	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+103	11	se_private_data	26	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+104	11	column_key	27	MYSQL_TYPE_ENUM	0	0	0	9	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=4;	table_id=11;
+105	11	column_type_utf8	28	MYSQL_TYPE_MEDIUM_BLOB	0	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+106	11	srs_id	29	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=11;
+107	11	DB_TRX_ID	30	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=11;
+108	11	DB_ROLL_PTR	31	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=11;
+109	12	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=12;
+110	12	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+111	12	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=12;
+112	12	definer	4	MYSQL_TYPE_VARCHAR	0	0	0	279	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+113	12	time_zone	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+114	12	definition	6	MYSQL_TYPE_LONG_BLOB	0	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=12;
+115	12	definition_utf8	7	MYSQL_TYPE_LONG_BLOB	0	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+116	12	execute_at	8	MYSQL_TYPE_DATETIME2	1	0	0	19	0	NULL	0	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
+117	12	interval_value	9	MYSQL_TYPE_LONG	1	0	0	11	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+118	12	interval_field	10	MYSQL_TYPE_ENUM	1	0	0	54	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=20;	table_id=12;
+119	12	sql_mode	11	MYSQL_TYPE_SET	0	0	0	1509	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=33;	table_id=12;
+120	12	starts	12	MYSQL_TYPE_DATETIME2	1	0	0	19	0	NULL	0	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
+121	12	ends	13	MYSQL_TYPE_DATETIME2	1	0	0	19	0	NULL	0	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
+122	12	status	14	MYSQL_TYPE_ENUM	0	0	0	54	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=12;
+123	12	on_completion	15	MYSQL_TYPE_ENUM	0	0	0	24	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=2;	table_id=12;
+124	12	created	16	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	table_id=12;
+125	12	last_altered	17	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	table_id=12;
+126	12	last_executed	18	MYSQL_TYPE_DATETIME2	1	0	0	19	0	NULL	0	8	NULL	NULL	0		0	interval_count=0;	table_id=12;
+127	12	comment	19	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+128	12	originator	20	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+129	12	client_collation_id	21	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+130	12	connection_collation_id	22	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+131	12	schema_collation_id	23	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+132	12	options	24	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=12;
+133	12	DB_TRX_ID	25	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=12;
+134	12	DB_ROLL_PTR	26	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=12;
+135	13	foreign_key_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=13;
+136	13	ordinal_position	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=13;
+137	13	column_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=13;
+138	13	referenced_column_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=13;
+139	13	DB_TRX_ID	5	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=13;
+140	13	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=13;
+141	14	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=14;
+142	14	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=14;
+143	14	table_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=14;
+144	14	name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=14;
+145	14	unique_constraint_name	5	MYSQL_TYPE_VARCHAR	1	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=14;
+146	14	match_option	6	MYSQL_TYPE_ENUM	0	0	0	21	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=14;
+147	14	update_rule	7	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	table_id=14;
+148	14	delete_rule	8	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	table_id=14;
+149	14	referenced_table_catalog	9	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=14;
+150	14	referenced_table_schema	10	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=14;
+151	14	referenced_table_name	11	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=14;
+152	14	options	12	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=14;
+153	14	DB_TRX_ID	13	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=14;
+154	14	DB_ROLL_PTR	14	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=14;
+155	15	index_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=15;
+156	15	ordinal_position	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=15;
+157	15	column_id	3	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=15;
+158	15	length	4	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=15;
+159	15	order	5	MYSQL_TYPE_ENUM	0	0	0	15	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=15;
+160	15	hidden	6	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=15;
+161	15	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=15;
+162	15	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=15;
+163	16	partition_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=16;
+164	16	index_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=16;
+165	16	options	3	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=16;
+166	16	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=16;
+167	16	tablespace_id	5	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=16;
+168	16	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=16;
+169	16	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=16;
+170	17	schema_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=17;
+171	17	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=17;
+172	17	index_name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=17;
+173	17	column_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=17;
+174	17	cardinality	5	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=17;
+175	17	cached_time	6	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	NULL	NULL	0		0	interval_count=0;	table_id=17;
+176	17	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=17;
+177	17	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=17;
+178	18	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=18;
+179	18	table_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+180	18	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=18;
+181	18	type	4	MYSQL_TYPE_ENUM	0	0	0	24	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	table_id=18;
+182	18	algorithm	5	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=5;	table_id=18;
+183	18	is_algorithm_explicit	6	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+184	18	is_visible	7	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+185	18	is_generated	8	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+186	18	hidden	9	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+187	18	ordinal_position	10	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+188	18	comment	11	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+189	18	options	12	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+190	18	se_private_data	13	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+191	18	tablespace_id	14	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+192	18	engine	15	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=18;
+193	18	DB_TRX_ID	16	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=18;
+194	18	DB_ROLL_PTR	17	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=18;
+195	19	parameter_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=19;
+196	19	element_index	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=19;
+197	19	name	3	MYSQL_TYPE_VARCHAR	0	0	0	1020	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=19;
+198	19	DB_TRX_ID	4	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=19;
+199	19	DB_ROLL_PTR	5	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=19;
+200	20	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=20;
+201	20	routine_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+202	20	ordinal_position	3	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+203	20	mode	4	MYSQL_TYPE_ENUM	1	0	0	15	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=20;
+204	20	name	5	MYSQL_TYPE_VARCHAR	1	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=20;
+205	20	data_type	6	MYSQL_TYPE_ENUM	0	0	0	66	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=31;	table_id=20;
+206	20	data_type_utf8	7	MYSQL_TYPE_MEDIUM_BLOB	0	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+207	20	is_zerofill	8	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+208	20	is_unsigned	9	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+209	20	char_length	10	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+210	20	numeric_precision	11	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+211	20	numeric_scale	12	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+212	20	datetime_precision	13	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+213	20	collation_id	14	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+214	20	options	15	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=20;
+215	20	DB_TRX_ID	16	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=20;
+216	20	DB_ROLL_PTR	17	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=20;
+217	21	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=21;
+218	21	resource_group_name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=21;
+219	21	resource_group_type	3	MYSQL_TYPE_ENUM	0	0	0	18	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=2;	table_id=21;
+220	21	resource_group_enabled	4	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=21;
+221	21	cpu_id_mask	5	MYSQL_TYPE_VARCHAR	0	0	0	3072	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=21;
+222	21	thread_priority	6	MYSQL_TYPE_LONG	0	0	0	11	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=21;
+223	21	options	7	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=21;
+224	21	DB_TRX_ID	8	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=21;
+225	21	DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=21;
+226	22	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=22;
+227	22	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+228	22	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=22;
+229	22	type	4	MYSQL_TYPE_ENUM	0	0	0	27	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=2;	table_id=22;
+230	22	result_data_type	5	MYSQL_TYPE_ENUM	1	0	0	66	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=31;	table_id=22;
+231	22	result_data_type_utf8	6	MYSQL_TYPE_MEDIUM_BLOB	0	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+232	22	result_is_zerofill	7	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+233	22	result_is_unsigned	8	MYSQL_TYPE_TINY	1	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+234	22	result_char_length	9	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+235	22	result_numeric_precision	10	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+236	22	result_numeric_scale	11	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+237	22	result_datetime_precision	12	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+238	22	result_collation_id	13	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+239	22	definition	14	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=22;
+240	22	definition_utf8	15	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+241	22	parameter_str	16	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=22;
+242	22	is_deterministic	17	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+243	22	sql_data_access	18	MYSQL_TYPE_ENUM	0	0	0	51	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=4;	table_id=22;
+244	22	security_type	19	MYSQL_TYPE_ENUM	0	0	0	21	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=22;
+245	22	definer	20	MYSQL_TYPE_VARCHAR	0	0	0	279	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+246	22	sql_mode	21	MYSQL_TYPE_SET	0	0	0	1509	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=33;	table_id=22;
+247	22	client_collation_id	22	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+248	22	connection_collation_id	23	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+249	22	schema_collation_id	24	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+250	22	created	25	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	table_id=22;
+251	22	last_altered	26	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	table_id=22;
+252	22	comment	27	MYSQL_TYPE_BLOB	0	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+253	22	options	28	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=22;
+254	22	DB_TRX_ID	29	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=22;
+255	22	DB_ROLL_PTR	30	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=22;
+256	23	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=23;
+257	23	catalog_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=23;
+258	23	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=23;
+259	23	default_collation_id	4	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=23;
+260	23	created	5	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	table_id=23;
+261	23	last_altered	6	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	table_id=23;
+262	23	options	7	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=23;
+263	23	DB_TRX_ID	8	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=23;
+264	23	DB_ROLL_PTR	9	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=23;
+265	24	id	1	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=24;
+266	24	catalog_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=24;
+267	24	name	3	MYSQL_TYPE_VARCHAR	0	0	0	240	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=24;
+268	24	last_altered	4	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	table_id=24;
+269	24	created	5	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	table_id=24;
+270	24	organization	6	MYSQL_TYPE_VARCHAR	1	0	0	768	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=24;
+271	24	organization_coordsys_id	7	MYSQL_TYPE_LONG	1	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=24;
+272	24	definition	8	MYSQL_TYPE_VARCHAR	0	0	0	12288	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=24;
+273	24	description	9	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=24;
+274	24	options	10	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=24;
+275	24	DB_TRX_ID	11	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=24;
+276	24	DB_ROLL_PTR	12	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=24;
+277	25	partition_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=25;
+278	25	list_num	2	MYSQL_TYPE_TINY	0	0	1	3	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=25;
+279	25	column_num	3	MYSQL_TYPE_TINY	0	0	1	3	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=25;
+280	25	value_utf8	4	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=25;
+281	25	max_value	5	MYSQL_TYPE_TINY	0	0	0	1	3	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=25;
+282	25	DB_TRX_ID	6	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=25;
+283	25	DB_ROLL_PTR	7	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=25;
+284	26	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=26;
+285	26	table_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+286	26	parent_partition_id	3	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+287	26	number	4	MYSQL_TYPE_SHORT	0	0	1	5	5	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+288	26	name	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=26;
+289	26	description_utf8	6	MYSQL_TYPE_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+290	26	engine	7	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+291	26	comment	8	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+292	26	options	9	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+293	26	se_private_data	10	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+294	26	se_private_id	11	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+295	26	tablespace_id	12	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=26;
+296	26	DB_TRX_ID	13	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=26;
+297	26	DB_ROLL_PTR	14	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=26;
+298	27	schema_name	1	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+299	27	table_name	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+300	27	table_rows	3	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+301	27	avg_row_length	4	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+302	27	data_length	5	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+303	27	max_data_length	6	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+304	27	index_length	7	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+305	27	data_free	8	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+306	27	auto_increment	9	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+307	27	checksum	10	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=27;
+308	27	update_time	11	MYSQL_TYPE_TIMESTAMP2	1	0	0	19	0	NULL	0	8	NULL	NULL	0		0	interval_count=0;	table_id=27;
+309	27	check_time	12	MYSQL_TYPE_TIMESTAMP2	1	0	0	19	0	NULL	0	8	NULL	NULL	0		0	interval_count=0;	table_id=27;
+310	27	cached_time	13	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	NULL	NULL	0		0	interval_count=0;	table_id=27;
+311	27	DB_TRX_ID	14	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=27;
+312	27	DB_ROLL_PTR	15	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=27;
+313	28	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=28;
+314	28	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+315	28	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=28;
+316	28	type	4	MYSQL_TYPE_ENUM	0	0	0	33	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=28;
+317	28	engine	5	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=28;
+318	28	mysql_version_id	6	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+319	28	row_format	7	MYSQL_TYPE_ENUM	1	0	0	30	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=6;	table_id=28;
+320	28	collation_id	8	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+321	28	comment	9	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+322	28	hidden	10	MYSQL_TYPE_ENUM	0	0	0	21	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=4;	table_id=28;
+323	28	options	11	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=28;
+324	28	se_private_data	12	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+325	28	se_private_id	13	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+326	28	tablespace_id	14	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+327	28	partition_type	15	MYSQL_TYPE_ENUM	1	0	0	39	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=11;	table_id=28;
+328	28	partition_expression	16	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+329	28	partition_expression_utf8	17	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+330	28	default_partitioning	18	MYSQL_TYPE_ENUM	1	0	0	18	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=28;
+331	28	subpartition_type	19	MYSQL_TYPE_ENUM	1	0	0	39	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=6;	table_id=28;
+332	28	subpartition_expression	20	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+333	28	subpartition_expression_utf8	21	MYSQL_TYPE_VARCHAR	1	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+334	28	default_subpartitioning	22	MYSQL_TYPE_ENUM	1	0	0	18	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=28;
+335	28	created	23	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	CURRENT_TIMESTAMP	0		0	interval_count=0;	table_id=28;
+336	28	last_altered	24	MYSQL_TYPE_TIMESTAMP2	0	0	0	19	0	NULL	0	8	CURRENT_TIMESTAMP	NULL	0		0	interval_count=0;	table_id=28;
+337	28	view_definition	25	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=28;
+338	28	view_definition_utf8	26	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+339	28	view_check_option	27	MYSQL_TYPE_ENUM	1	0	0	24	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=28;
+340	28	view_is_updatable	28	MYSQL_TYPE_ENUM	1	0	0	9	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=2;	table_id=28;
+341	28	view_algorithm	29	MYSQL_TYPE_ENUM	1	0	0	27	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=28;
+342	28	view_security_type	30	MYSQL_TYPE_ENUM	1	0	0	21	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=28;
+343	28	view_definer	31	MYSQL_TYPE_VARCHAR	1	0	0	279	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+344	28	view_client_collation_id	32	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+345	28	view_connection_collation_id	33	MYSQL_TYPE_LONGLONG	1	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+346	28	view_column_names	34	MYSQL_TYPE_LONG_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=28;
+347	28	DB_TRX_ID	35	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=28;
+348	28	DB_ROLL_PTR	36	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=28;
+349	29	tablespace_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=29;
+350	29	ordinal_position	2	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=29;
+351	29	file_name	3	MYSQL_TYPE_VARCHAR	0	0	0	1536	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=29;
+352	29	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=29;
+353	29	DB_TRX_ID	5	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=29;
+354	29	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=29;
+355	30	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=30;
+356	30	name	2	MYSQL_TYPE_VARCHAR	0	0	0	777	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=30;
+357	30	options	3	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=30;
+358	30	se_private_data	4	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=30;
+359	30	comment	5	MYSQL_TYPE_VARCHAR	0	0	0	6144	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=30;
+360	30	engine	6	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=30;
+361	30	DB_TRX_ID	7	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=30;
+362	30	DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=30;
+363	31	id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	1		0	interval_count=0;	table_id=31;
+364	31	schema_id	2	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+365	31	name	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=31;
+366	31	event_type	4	MYSQL_TYPE_ENUM	0	0	0	18	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=3;	table_id=31;
+367	31	table_id	5	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+368	31	action_timing	6	MYSQL_TYPE_ENUM	0	0	0	18	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=2;	table_id=31;
+369	31	action_order	7	MYSQL_TYPE_LONG	0	0	1	10	10	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+370	31	action_statement	8	MYSQL_TYPE_LONG_BLOB	0	0	0	8	0	NULL	NULL	63	NULL	NULL	0		0	interval_count=0;	table_id=31;
+371	31	action_statement_utf8	9	MYSQL_TYPE_LONG_BLOB	0	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+372	31	created	10	MYSQL_TYPE_TIMESTAMP2	0	0	0	22	0	NULL	2	8	CURRENT_TIMESTAMP(2)	CURRENT_TIMESTAMP(2)	0		0	interval_count=0;	table_id=31;
+373	31	last_altered	11	MYSQL_TYPE_TIMESTAMP2	0	0	0	22	0	NULL	2	8	CURRENT_TIMESTAMP(2)	NULL	0		0	interval_count=0;	table_id=31;
+374	31	sql_mode	12	MYSQL_TYPE_SET	0	0	0	1434	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=32;	table_id=31;
+375	31	definer	13	MYSQL_TYPE_VARCHAR	0	0	0	279	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+376	31	client_collation_id	14	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+377	31	connection_collation_id	15	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+378	31	schema_collation_id	16	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+379	31	options	17	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	8	0	NULL	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=31;
+380	31	DB_TRX_ID	18	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=31;
+381	31	DB_ROLL_PTR	19	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=31;
+382	32	view_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=32;
+383	32	routine_catalog	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=32;
+384	32	routine_schema	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=32;
+385	32	routine_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	33	NULL	NULL	0		0	interval_count=0;	table_id=32;
+386	32	DB_TRX_ID	5	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=32;
+387	32	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=32;
+388	33	view_id	1	MYSQL_TYPE_LONGLONG	0	0	1	20	20	0	NULL	83	NULL	NULL	0		0	interval_count=0;	table_id=33;
+389	33	table_catalog	2	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=33;
+390	33	table_schema	3	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=33;
+391	33	table_name	4	MYSQL_TYPE_VARCHAR	0	0	0	192	0	NULL	NULL	76	NULL	NULL	0		0	interval_count=0;	table_id=33;
+392	33	DB_TRX_ID	5	MYSQL_TYPE_INT24	0	0	0	6	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=33;
+393	33	DB_ROLL_PTR	6	MYSQL_TYPE_LONGLONG	0	0	0	7	0	NULL	NULL	63	NULL	NULL	0		1	NULL	table_id=33;
 #
 # Definitions from indexes
 SELECT * FROM indexes
 WHERE table_id IN (SELECT id FROM tables
 WHERE schema_id= 1
-AND name IN ('innodb_table_stats',
-'innodb_index_stats',
+AND name IN ('catalogs',
 'character_sets',
 'collations',
-'tablespaces',
-'tablespace_files',
-'catalogs',
-'schemata',
-'tables',
-'view_table_usage',
-'columns',
 'column_statistics',
-'indexes',
-'index_column_usage',
 'column_type_elements',
-'foreign_keys',
+'columns',
+'dd_properties',
+'events',
 'foreign_key_column_usage',
-'table_partitions',
-'table_partition_values',
+'foreign_keys',
+'index_column_usage',
 'index_partitions',
-'dd_properties'))
+'index_stats',
+'indexes',
+'innodb_ddl_log',
+'innodb_dynamic_metadata',
+'innodb_index_stats',
+'innodb_table_stats',
+'parameter_type_elements',
+'parameters',
+'resource_groups',
+'routines',
+'schemata',
+'st_spatial_reference_systems',
+'table_partition_values',
+'table_partitions',
+'table_stats',
+'tables',
+'tablespace_files',
+'tablespaces',
+'triggers',
+'view_routine_usage',
+'view_table_usage'))
 ORDER BY id;
 id	table_id	name	type	algorithm	is_algorithm_explicit	is_visible	is_generated	hidden	ordinal_position	comment	options	se_private_data	tablespace_id	engine
-1	1	PRIMARY	UNIQUE	BTREE	0	1	0	1	1		NULL	id=1;root=4;trx_id=0;	1	InnoDB
-5	3	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=5;root=8;trx_id=0;	1	InnoDB
-6	3	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=6;root=9;trx_id=0;	1	InnoDB
-7	3	character_set_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=7;root=10;trx_id=0;	1	InnoDB
-8	4	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=8;root=11;trx_id=0;	1	InnoDB
-9	4	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=9;root=12;trx_id=0;	1	InnoDB
-10	5	tablespace_id	UNIQUE	BTREE	0	1	0	0	1		flags=0;	id=10;root=13;trx_id=0;	1	InnoDB
-11	5	file_name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=11;root=14;trx_id=0;	1	InnoDB
-12	6	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=12;root=15;trx_id=0;	1	InnoDB
-13	6	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=13;root=16;trx_id=0;	1	InnoDB
-14	7	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=14;root=17;trx_id=0;	1	InnoDB
-15	7	catalog_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=15;root=18;trx_id=0;	1	InnoDB
-16	7	catalog_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=16;root=19;trx_id=0;	1	InnoDB
-17	8	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=17;root=20;trx_id=0;	1	InnoDB
-18	8	catalog_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=18;root=21;trx_id=0;	1	InnoDB
-19	8	default_collation_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=19;root=22;trx_id=0;	1	InnoDB
-22	10	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=22;root=25;trx_id=0;	1	InnoDB
-23	10	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=23;root=26;trx_id=0;	1	InnoDB
-24	10	engine	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=24;root=27;trx_id=0;	1	InnoDB
-25	10	engine_2	MULTIPLE	BTREE	0	1	0	0	4		flags=32;	id=25;root=28;trx_id=0;	1	InnoDB
-26	10	collation_id	MULTIPLE	BTREE	0	1	1	0	5		flags=0;	id=26;root=29;trx_id=0;	1	InnoDB
-27	10	tablespace_id	MULTIPLE	BTREE	0	1	1	0	6		flags=0;	id=27;root=30;trx_id=0;	1	InnoDB
-28	11	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=28;root=31;trx_id=0;	1	InnoDB
-29	11	table_catalog	MULTIPLE	BTREE	0	1	0	0	2		flags=32;	id=29;root=32;trx_id=0;	1	InnoDB
-32	13	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=32;root=35;trx_id=0;	1	InnoDB
-33	13	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=33;root=36;trx_id=0;	1	InnoDB
-34	13	table_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=34;root=37;trx_id=0;	1	InnoDB
-35	13	collation_id	MULTIPLE	BTREE	0	1	1	0	4		flags=0;	id=35;root=38;trx_id=0;	1	InnoDB
-36	13	srs_id	MULTIPLE	BTREE	0	1	1	0	5		flags=0;	id=36;root=39;trx_id=0;	1	InnoDB
-37	14	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=37;root=40;trx_id=0;	1	InnoDB
-38	14	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=38;root=41;trx_id=0;	1	InnoDB
-39	14	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=39;root=42;trx_id=0;	1	InnoDB
-40	15	index_id	UNIQUE	BTREE	0	1	0	0	1		flags=0;	id=40;root=43;trx_id=0;	1	InnoDB
-41	15	index_id_2	UNIQUE	BTREE	0	1	0	0	2		flags=0;	id=41;root=44;trx_id=0;	1	InnoDB
-42	15	f2	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=42;root=45;trx_id=0;	1	InnoDB
-43	16	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=43;root=47;trx_id=0;	1	InnoDB
-44	17	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=44;root=48;trx_id=0;	1	InnoDB
-45	17	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=45;root=49;trx_id=0;	1	InnoDB
-46	17	table_id	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=46;root=50;trx_id=0;	1	InnoDB
-47	17	referenced_table_catalog	MULTIPLE	BTREE	0	1	0	0	4		flags=32;	id=47;root=51;trx_id=0;	1	InnoDB
-48	18	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=48;root=52;trx_id=0;	1	InnoDB
-49	18	foreign_key_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=49;root=53;trx_id=0;	1	InnoDB
-50	18	column_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=50;root=54;trx_id=0;	1	InnoDB
-51	19	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=51;root=55;trx_id=0;	1	InnoDB
-52	19	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=52;root=56;trx_id=0;	1	InnoDB
-53	19	table_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=53;root=57;trx_id=0;	1	InnoDB
-54	19	engine	UNIQUE	BTREE	0	1	0	0	4		flags=32;	id=54;root=58;trx_id=0;	1	InnoDB
-55	19	engine_2	MULTIPLE	BTREE	0	1	0	0	5		flags=32;	id=55;root=59;trx_id=0;	1	InnoDB
-56	19	tablespace_id	MULTIPLE	BTREE	0	1	1	0	6		flags=0;	id=56;root=60;trx_id=0;	1	InnoDB
-57	20	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=57;root=61;trx_id=0;	1	InnoDB
-58	21	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=58;root=62;trx_id=0;	1	InnoDB
-59	21	index_id	MULTIPLE	BTREE	0	1	1	0	2		flags=0;	id=59;root=63;trx_id=0;	1	InnoDB
-60	21	tablespace_id	MULTIPLE	BTREE	0	1	1	0	3		flags=0;	id=60;root=64;trx_id=0;	1	InnoDB
-86	30	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=86;root=91;trx_id=0;	1	InnoDB
-87	31	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=87;root=92;trx_id=0;	1	InnoDB
-91	34	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=2;root=5;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
-92	34	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=3;root=6;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
-93	34	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=4;root=7;space_id=4294967294;table_id=2;trx_id=769;	1	InnoDB
+1	1	PRIMARY	UNIQUE	BTREE	0	1	0	1	1		NULL	id=1;root=4;space_id=4294967294;table_id=1;trx_id=0;	1	InnoDB
+2	2	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=2;root=5;space_id=4294967294;table_id=2;trx_id=0;	1	InnoDB
+3	3	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=3;root=6;space_id=4294967294;table_id=3;trx_id=0;	1	InnoDB
+4	4	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=4;root=7;space_id=4294967294;table_id=4;trx_id=0;	1	InnoDB
+5	5	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=5;root=8;space_id=4294967294;table_id=5;trx_id=0;	1	InnoDB
+6	5	thread_id	MULTIPLE	BTREE	0	1	0	0	2		flags=0;	id=6;root=9;space_id=4294967294;table_id=5;trx_id=0;	1	InnoDB
+7	6	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=7;root=10;space_id=4294967294;table_id=6;trx_id=0;	1	InnoDB
+8	6	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=8;root=11;space_id=4294967294;table_id=6;trx_id=0;	1	InnoDB
+9	7	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=9;root=12;space_id=4294967294;table_id=7;trx_id=0;	1	InnoDB
+10	7	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=10;root=13;space_id=4294967294;table_id=7;trx_id=0;	1	InnoDB
+11	7	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=11;root=14;space_id=4294967294;table_id=7;trx_id=0;	1	InnoDB
+12	8	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=12;root=15;space_id=4294967294;table_id=8;trx_id=0;	1	InnoDB
+13	8	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=13;root=16;space_id=4294967294;table_id=8;trx_id=0;	1	InnoDB
+14	8	character_set_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=14;root=17;space_id=4294967294;table_id=8;trx_id=0;	1	InnoDB
+15	9	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=15;root=18;space_id=4294967294;table_id=9;trx_id=0;	1	InnoDB
+16	9	catalog_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=16;root=19;space_id=4294967294;table_id=9;trx_id=0;	1	InnoDB
+17	9	catalog_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=17;root=20;space_id=4294967294;table_id=9;trx_id=0;	1	InnoDB
+18	10	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=18;root=21;space_id=4294967294;table_id=10;trx_id=0;	1	InnoDB
+19	11	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=19;root=22;space_id=4294967294;table_id=11;trx_id=0;	1	InnoDB
+20	11	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=20;root=23;space_id=4294967294;table_id=11;trx_id=0;	1	InnoDB
+21	11	table_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=21;root=24;space_id=4294967294;table_id=11;trx_id=0;	1	InnoDB
+22	11	collation_id	MULTIPLE	BTREE	0	1	0	0	4		flags=0;	id=22;root=25;space_id=4294967294;table_id=11;trx_id=0;	1	InnoDB
+23	11	srs_id	MULTIPLE	BTREE	0	1	0	0	5		flags=0;	id=23;root=26;space_id=4294967294;table_id=11;trx_id=0;	1	InnoDB
+24	12	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=24;root=27;space_id=4294967294;table_id=12;trx_id=0;	1	InnoDB
+25	12	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=25;root=28;space_id=4294967294;table_id=12;trx_id=0;	1	InnoDB
+26	12	client_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=26;root=29;space_id=4294967294;table_id=12;trx_id=0;	1	InnoDB
+27	12	connection_collation_id	MULTIPLE	BTREE	0	1	0	0	4		flags=0;	id=27;root=30;space_id=4294967294;table_id=12;trx_id=0;	1	InnoDB
+28	12	schema_collation_id	MULTIPLE	BTREE	0	1	0	0	5		flags=0;	id=28;root=31;space_id=4294967294;table_id=12;trx_id=0;	1	InnoDB
+29	13	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=29;root=32;space_id=4294967294;table_id=13;trx_id=0;	1	InnoDB
+30	13	foreign_key_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=30;root=33;space_id=4294967294;table_id=13;trx_id=0;	1	InnoDB
+31	13	column_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=31;root=34;space_id=4294967294;table_id=13;trx_id=0;	1	InnoDB
+32	14	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=32;root=35;space_id=4294967294;table_id=14;trx_id=0;	1	InnoDB
+33	14	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=33;root=36;space_id=4294967294;table_id=14;trx_id=0;	1	InnoDB
+34	14	table_id	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=34;root=37;space_id=4294967294;table_id=14;trx_id=0;	1	InnoDB
+35	14	referenced_table_catalog	MULTIPLE	BTREE	0	1	0	0	4		flags=32;	id=35;root=38;space_id=4294967294;table_id=14;trx_id=0;	1	InnoDB
+36	15	index_id	UNIQUE	BTREE	0	1	0	0	1		flags=0;	id=36;root=39;space_id=4294967294;table_id=15;trx_id=0;	1	InnoDB
+37	15	index_id_2	UNIQUE	BTREE	0	1	0	0	2		flags=0;	id=37;root=40;space_id=4294967294;table_id=15;trx_id=0;	1	InnoDB
+38	15	column_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=38;root=41;space_id=4294967294;table_id=15;trx_id=0;	1	InnoDB
+39	16	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=39;root=42;space_id=4294967294;table_id=16;trx_id=0;	1	InnoDB
+40	16	index_id	MULTIPLE	BTREE	0	1	0	0	2		flags=0;	id=40;root=43;space_id=4294967294;table_id=16;trx_id=0;	1	InnoDB
+41	16	tablespace_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=41;root=44;space_id=4294967294;table_id=16;trx_id=0;	1	InnoDB
+42	17	schema_name	UNIQUE	BTREE	0	1	0	0	1		flags=32;	id=42;root=45;space_id=4294967294;table_id=17;trx_id=0;	1	InnoDB
+43	18	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=43;root=47;space_id=4294967294;table_id=18;trx_id=0;	1	InnoDB
+44	18	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=44;root=48;space_id=4294967294;table_id=18;trx_id=0;	1	InnoDB
+45	18	tablespace_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=45;root=49;space_id=4294967294;table_id=18;trx_id=0;	1	InnoDB
+46	19	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=46;root=50;space_id=4294967294;table_id=19;trx_id=0;	1	InnoDB
+47	20	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=47;root=51;space_id=4294967294;table_id=20;trx_id=0;	1	InnoDB
+48	20	routine_id	UNIQUE	BTREE	0	1	0	0	2		flags=0;	id=48;root=52;space_id=4294967294;table_id=20;trx_id=0;	1	InnoDB
+49	20	collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=49;root=53;space_id=4294967294;table_id=20;trx_id=0;	1	InnoDB
+50	21	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=50;root=54;space_id=4294967294;table_id=21;trx_id=0;	1	InnoDB
+51	21	resource_group_name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=51;root=55;space_id=4294967294;table_id=21;trx_id=0;	1	InnoDB
+52	22	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=52;root=56;space_id=4294967294;table_id=22;trx_id=0;	1	InnoDB
+53	22	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=53;root=57;space_id=4294967294;table_id=22;trx_id=0;	1	InnoDB
+54	22	result_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=54;root=58;space_id=4294967294;table_id=22;trx_id=0;	1	InnoDB
+55	22	client_collation_id	MULTIPLE	BTREE	0	1	0	0	4		flags=0;	id=55;root=59;space_id=4294967294;table_id=22;trx_id=0;	1	InnoDB
+56	22	connection_collation_id	MULTIPLE	BTREE	0	1	0	0	5		flags=0;	id=56;root=60;space_id=4294967294;table_id=22;trx_id=0;	1	InnoDB
+57	22	schema_collation_id	MULTIPLE	BTREE	0	1	0	0	6		flags=0;	id=57;root=61;space_id=4294967294;table_id=22;trx_id=0;	1	InnoDB
+58	23	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=58;root=62;space_id=4294967294;table_id=23;trx_id=0;	1	InnoDB
+59	23	catalog_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=59;root=63;space_id=4294967294;table_id=23;trx_id=0;	1	InnoDB
+60	23	default_collation_id	MULTIPLE	BTREE	0	1	0	0	3		flags=0;	id=60;root=64;space_id=4294967294;table_id=23;trx_id=0;	1	InnoDB
+61	24	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=61;root=65;space_id=4294967294;table_id=24;trx_id=0;	1	InnoDB
+62	24	SRS_NAME	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=62;root=66;space_id=4294967294;table_id=24;trx_id=0;	1	InnoDB
+63	24	ORGANIZATION_AND_ID	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=63;root=67;space_id=4294967294;table_id=24;trx_id=0;	1	InnoDB
+64	25	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=64;root=68;space_id=4294967294;table_id=25;trx_id=0;	1	InnoDB
+65	26	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=65;root=69;space_id=4294967294;table_id=26;trx_id=0;	1	InnoDB
+66	26	table_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=66;root=70;space_id=4294967294;table_id=26;trx_id=0;	1	InnoDB
+67	26	table_id_2	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=67;root=71;space_id=4294967294;table_id=26;trx_id=0;	1	InnoDB
+68	26	engine	UNIQUE	BTREE	0	1	0	0	4		flags=32;	id=68;root=72;space_id=4294967294;table_id=26;trx_id=0;	1	InnoDB
+69	26	engine_2	MULTIPLE	BTREE	0	1	0	0	5		flags=32;	id=69;root=73;space_id=4294967294;table_id=26;trx_id=0;	1	InnoDB
+70	26	tablespace_id	MULTIPLE	BTREE	0	1	0	0	6		flags=0;	id=70;root=74;space_id=4294967294;table_id=26;trx_id=0;	1	InnoDB
+71	27	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=71;root=75;space_id=4294967294;table_id=27;trx_id=0;	1	InnoDB
+72	28	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=72;root=76;space_id=4294967294;table_id=28;trx_id=0;	1	InnoDB
+73	28	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=73;root=77;space_id=4294967294;table_id=28;trx_id=0;	1	InnoDB
+74	28	engine	UNIQUE	BTREE	0	1	0	0	3		flags=32;	id=74;root=78;space_id=4294967294;table_id=28;trx_id=0;	1	InnoDB
+75	28	engine_2	MULTIPLE	BTREE	0	1	0	0	4		flags=32;	id=75;root=79;space_id=4294967294;table_id=28;trx_id=0;	1	InnoDB
+76	28	collation_id	MULTIPLE	BTREE	0	1	0	0	5		flags=0;	id=76;root=80;space_id=4294967294;table_id=28;trx_id=0;	1	InnoDB
+77	28	tablespace_id	MULTIPLE	BTREE	0	1	0	0	6		flags=0;	id=77;root=81;space_id=4294967294;table_id=28;trx_id=0;	1	InnoDB
+78	29	tablespace_id	UNIQUE	BTREE	0	1	0	0	1		flags=0;	id=78;root=82;space_id=4294967294;table_id=29;trx_id=0;	1	InnoDB
+79	29	file_name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=79;root=83;space_id=4294967294;table_id=29;trx_id=0;	1	InnoDB
+80	30	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=80;root=84;space_id=4294967294;table_id=30;trx_id=0;	1	InnoDB
+81	30	name	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=81;root=85;space_id=4294967294;table_id=30;trx_id=0;	1	InnoDB
+82	31	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=0;	id=82;root=86;space_id=4294967294;table_id=31;trx_id=0;	1	InnoDB
+83	31	schema_id	UNIQUE	BTREE	0	1	0	0	2		flags=32;	id=83;root=87;space_id=4294967294;table_id=31;trx_id=0;	1	InnoDB
+84	31	table_id	UNIQUE	BTREE	0	1	0	0	3		flags=0;	id=84;root=88;space_id=4294967294;table_id=31;trx_id=0;	1	InnoDB
+85	31	client_collation_id	MULTIPLE	BTREE	0	1	0	0	4		flags=0;	id=85;root=90;space_id=4294967294;table_id=31;trx_id=0;	1	InnoDB
+86	31	connection_collation_id	MULTIPLE	BTREE	0	1	0	0	5		flags=0;	id=86;root=91;space_id=4294967294;table_id=31;trx_id=0;	1	InnoDB
+87	31	schema_collation_id	MULTIPLE	BTREE	0	1	0	0	6		flags=0;	id=87;root=92;space_id=4294967294;table_id=31;trx_id=0;	1	InnoDB
+88	32	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=88;root=93;space_id=4294967294;table_id=32;trx_id=0;	1	InnoDB
+89	32	routine_catalog	MULTIPLE	BTREE	0	1	0	0	2		flags=32;	id=89;root=94;space_id=4294967294;table_id=32;trx_id=0;	1	InnoDB
+90	33	PRIMARY	PRIMARY	BTREE	0	1	0	0	1		flags=32;	id=90;root=95;space_id=4294967294;table_id=33;trx_id=0;	1	InnoDB
+91	33	table_catalog	MULTIPLE	BTREE	0	1	0	0	2		flags=32;	id=91;root=96;space_id=4294967294;table_id=33;trx_id=0;	1	InnoDB
 #
 # Definitions from index_column_usage
 SELECT * FROM index_column_usage
 WHERE index_id IN (SELECT id FROM indexes
 WHERE table_id IN (SELECT id FROM tables
 WHERE schema_id= 1
-AND name IN ('innodb_table_stats',
-'innodb_index_stats',
+AND name IN ('catalogs',
 'character_sets',
 'collations',
-'tablespaces',
-'tablespace_files',
-'catalogs',
-'schemata',
-'tables',
-'view_table_usage',
-'columns',
 'column_statistics',
-'indexes',
-'index_column_usage',
 'column_type_elements',
-'foreign_keys',
+'columns',
+'dd_properties',
+'events',
 'foreign_key_column_usage',
-'table_partitions',
-'table_partition_values',
+'foreign_keys',
+'index_column_usage',
 'index_partitions',
-'dd_properties')))
+'index_stats',
+'indexes',
+'innodb_ddl_log',
+'innodb_dynamic_metadata',
+'innodb_index_stats',
+'innodb_table_stats',
+'parameter_type_elements',
+'parameters',
+'resource_groups',
+'routines',
+'schemata',
+'st_spatial_reference_systems',
+'table_partition_values',
+'table_partitions',
+'table_stats',
+'tables',
+'tablespace_files',
+'tablespaces',
+'triggers',
+'view_routine_usage',
+'view_table_usage')))
 ORDER BY index_id, column_id;
 index_id	ordinal_position	column_id	length	order	hidden
 1	4	1	NULL	ASC	1
 1	1	2	NULL	ASC	1
 1	2	3	NULL	ASC	1
 1	3	4	NULL	ASC	1
-5	1	12	8	ASC	0
-5	4	13	NULL	ASC	1
-5	5	14	NULL	ASC	1
-5	6	15	NULL	ASC	1
-5	7	16	NULL	ASC	1
-5	8	17	NULL	ASC	1
-5	2	18	NULL	ASC	1
-5	3	19	NULL	ASC	1
-6	2	12	NULL	ASC	1
-6	1	13	192	ASC	0
-7	2	12	NULL	ASC	1
-7	1	14	8	ASC	0
-8	1	20	8	ASC	0
-8	4	21	NULL	ASC	1
-8	5	22	NULL	ASC	1
-8	6	23	NULL	ASC	1
-8	7	24	NULL	ASC	1
-8	8	25	NULL	ASC	1
-8	2	26	NULL	ASC	1
-8	3	27	NULL	ASC	1
-9	2	20	NULL	ASC	1
-9	1	21	777	ASC	0
-10	1	28	8	ASC	0
-10	2	29	4	ASC	0
-10	5	30	NULL	ASC	1
-10	6	31	NULL	ASC	1
-10	3	32	NULL	ASC	1
-10	4	33	NULL	ASC	1
-11	2	28	NULL	ASC	1
-11	3	29	NULL	ASC	1
-11	1	30	1536	ASC	0
-12	1	34	8	ASC	0
-12	4	35	NULL	ASC	1
-12	5	36	NULL	ASC	1
-12	6	37	NULL	ASC	1
-12	2	38	NULL	ASC	1
-12	3	39	NULL	ASC	1
-13	2	34	NULL	ASC	1
-13	1	35	192	ASC	0
-14	1	40	8	ASC	0
-14	4	41	NULL	ASC	1
-14	5	42	NULL	ASC	1
-14	6	43	NULL	ASC	1
-14	7	44	NULL	ASC	1
-14	8	45	NULL	ASC	1
-14	9	46	NULL	ASC	1
-14	2	47	NULL	ASC	1
-14	3	48	NULL	ASC	1
-15	3	40	NULL	ASC	1
-15	1	41	8	ASC	0
-15	2	42	765	ASC	0
-16	5	40	NULL	ASC	1
-16	1	41	8	ASC	0
-16	2	43	192	ASC	0
-16	3	44	192	ASC	0
-16	4	45	192	ASC	0
-17	1	49	8	ASC	0
-17	4	50	NULL	ASC	1
-17	5	51	NULL	ASC	1
-17	6	52	NULL	ASC	1
-17	7	53	NULL	ASC	1
-17	8	54	NULL	ASC	1
-17	2	55	NULL	ASC	1
-17	3	56	NULL	ASC	1
-18	3	49	NULL	ASC	1
-18	1	50	8	ASC	0
-18	2	51	192	ASC	0
-19	2	49	NULL	ASC	1
-19	1	52	8	ASC	0
-22	1	68	8	ASC	0
-22	4	69	NULL	ASC	1
-22	5	70	NULL	ASC	1
-22	6	71	NULL	ASC	1
-22	7	72	NULL	ASC	1
-22	8	73	NULL	ASC	1
-22	9	74	NULL	ASC	1
-22	10	75	NULL	ASC	1
-22	11	76	NULL	ASC	1
-22	12	77	NULL	ASC	1
-22	13	78	NULL	ASC	1
-22	14	79	NULL	ASC	1
-22	15	80	NULL	ASC	1
-22	16	81	NULL	ASC	1
-22	17	82	NULL	ASC	1
-22	18	83	NULL	ASC	1
-22	19	84	NULL	ASC	1
-22	20	85	NULL	ASC	1
-22	21	86	NULL	ASC	1
-22	22	87	NULL	ASC	1
-22	23	88	NULL	ASC	1
-22	24	89	NULL	ASC	1
-22	25	90	NULL	ASC	1
-22	26	91	NULL	ASC	1
-22	27	92	NULL	ASC	1
-22	28	93	NULL	ASC	1
-22	29	94	NULL	ASC	1
-22	30	95	NULL	ASC	1
-22	31	96	NULL	ASC	1
-22	32	97	NULL	ASC	1
-22	33	98	NULL	ASC	1
-22	34	99	NULL	ASC	1
-22	35	100	NULL	ASC	1
-22	36	101	NULL	ASC	1
-22	2	102	NULL	ASC	1
-22	3	103	NULL	ASC	1
-23	3	68	NULL	ASC	1
-23	1	69	8	ASC	0
-23	2	70	192	ASC	0
-24	3	68	NULL	ASC	1
-24	1	72	192	ASC	0
-24	2	80	8	ASC	0
-25	2	68	NULL	ASC	1
-25	1	72	192	ASC	0
-26	2	68	NULL	ASC	1
-26	1	75	8	ASC	0
-27	2	68	NULL	ASC	1
-27	1	81	8	ASC	0
-28	1	104	8	ASC	0
-28	2	105	192	ASC	0
-28	3	106	192	ASC	0
-28	4	107	192	ASC	0
-28	5	108	NULL	ASC	1
-28	6	109	NULL	ASC	1
-29	4	104	NULL	ASC	1
-29	1	105	192	ASC	0
-29	2	106	192	ASC	0
-29	3	107	192	ASC	0
-32	1	116	8	ASC	0
-32	4	117	NULL	ASC	1
-32	5	118	NULL	ASC	1
-32	6	119	NULL	ASC	1
-32	7	120	NULL	ASC	1
-32	8	121	NULL	ASC	1
-32	9	122	NULL	ASC	1
-32	10	123	NULL	ASC	1
-32	11	124	NULL	ASC	1
-32	12	125	NULL	ASC	1
-32	13	126	NULL	ASC	1
-32	14	127	NULL	ASC	1
-32	15	128	NULL	ASC	1
-32	16	129	NULL	ASC	1
-32	17	130	NULL	ASC	1
-32	18	131	NULL	ASC	1
-32	19	132	NULL	ASC	1
-32	20	133	NULL	ASC	1
-32	21	134	NULL	ASC	1
-32	22	135	NULL	ASC	1
-32	23	136	NULL	ASC	1
-32	24	137	NULL	ASC	1
-32	25	138	NULL	ASC	1
-32	26	139	NULL	ASC	1
-32	27	140	NULL	ASC	1
-32	28	141	NULL	ASC	1
-32	29	142	NULL	ASC	1
-32	30	143	NULL	ASC	1
-32	31	144	NULL	ASC	1
-32	2	145	NULL	ASC	1
-32	3	146	NULL	ASC	1
-33	3	116	NULL	ASC	1
-33	1	117	8	ASC	0
-33	2	118	192	ASC	0
-34	3	116	NULL	ASC	1
-34	1	117	8	ASC	0
-34	2	119	4	ASC	0
-35	2	116	NULL	ASC	1
-35	1	128	8	ASC	0
-36	2	116	NULL	ASC	1
-36	1	144	4	ASC	0
-37	1	147	8	ASC	0
-37	4	148	NULL	ASC	1
-37	5	149	NULL	ASC	1
-37	6	150	NULL	ASC	1
-37	7	151	NULL	ASC	1
-37	8	152	NULL	ASC	1
-37	9	153	NULL	ASC	1
-37	10	154	NULL	ASC	1
-37	11	155	NULL	ASC	1
-37	12	156	NULL	ASC	1
-37	13	157	NULL	ASC	1
-37	14	158	NULL	ASC	1
-37	15	159	NULL	ASC	1
-37	16	160	NULL	ASC	1
-37	17	161	NULL	ASC	1
-37	2	162	NULL	ASC	1
-37	3	163	NULL	ASC	1
-38	3	147	NULL	ASC	1
-38	1	148	8	ASC	0
-38	2	149	192	ASC	0
-39	2	147	NULL	ASC	1
-39	1	160	8	ASC	0
+2	1	5	8	ASC	0
+2	4	6	NULL	ASC	1
+2	5	7	NULL	ASC	1
+2	2	8	NULL	ASC	1
+2	3	9	NULL	ASC	1
+3	1	10	192	ASC	0
+3	2	11	597	ASC	0
+3	5	12	NULL	ASC	1
+3	6	13	NULL	ASC	1
+3	7	14	NULL	ASC	1
+3	8	15	NULL	ASC	1
+3	3	16	NULL	ASC	1
+3	4	17	NULL	ASC	1
+4	1	18	192	ASC	0
+4	2	19	597	ASC	0
+4	3	20	192	ASC	0
+4	7	21	NULL	ASC	1
+4	4	22	192	ASC	0
+4	8	23	NULL	ASC	1
+4	9	24	NULL	ASC	1
+4	10	25	NULL	ASC	1
+4	5	26	NULL	ASC	1
+4	6	27	NULL	ASC	1
+5	1	28	8	ASC	0
+5	4	29	NULL	ASC	1
+5	5	30	NULL	ASC	1
+5	6	31	NULL	ASC	1
+5	7	32	NULL	ASC	1
+5	8	33	NULL	ASC	1
+5	9	34	NULL	ASC	1
+5	10	35	NULL	ASC	1
+5	11	36	NULL	ASC	1
+5	2	37	NULL	ASC	1
+5	3	38	NULL	ASC	1
+6	2	28	NULL	ASC	1
+6	1	29	8	ASC	0
+7	1	39	8	ASC	0
+7	4	40	NULL	ASC	1
+7	5	41	NULL	ASC	1
+7	6	42	NULL	ASC	1
+7	7	43	NULL	ASC	1
+7	2	44	NULL	ASC	1
+7	3	45	NULL	ASC	1
+8	2	39	NULL	ASC	1
+8	1	40	192	ASC	0
+9	1	46	8	ASC	0
+9	4	47	NULL	ASC	1
+9	5	48	NULL	ASC	1
+9	6	49	NULL	ASC	1
+9	7	50	NULL	ASC	1
+9	8	51	NULL	ASC	1
+9	2	52	NULL	ASC	1
+9	3	53	NULL	ASC	1
+10	2	46	NULL	ASC	1
+10	1	47	192	ASC	0
+11	2	46	NULL	ASC	1
+11	1	48	8	ASC	0
+12	1	54	8	ASC	0
+12	4	55	NULL	ASC	1
+12	5	56	NULL	ASC	1
+12	6	57	NULL	ASC	1
+12	7	58	NULL	ASC	1
+12	8	59	NULL	ASC	1
+12	9	60	NULL	ASC	1
+12	2	61	NULL	ASC	1
+12	3	62	NULL	ASC	1
+13	2	54	NULL	ASC	1
+13	1	55	192	ASC	0
+14	2	54	NULL	ASC	1
+14	1	56	8	ASC	0
+15	1	63	8	ASC	0
+15	4	64	NULL	ASC	1
+15	5	65	NULL	ASC	1
+15	6	66	NULL	ASC	1
+15	7	67	NULL	ASC	1
+15	8	68	NULL	ASC	1
+15	9	69	NULL	ASC	1
+15	10	70	NULL	ASC	1
+15	2	71	NULL	ASC	1
+15	3	72	NULL	ASC	1
+16	3	63	NULL	ASC	1
+16	1	64	8	ASC	0
+16	2	65	765	ASC	0
+17	5	63	NULL	ASC	1
+17	1	64	8	ASC	0
+17	2	66	192	ASC	0
+17	3	67	192	ASC	0
+17	4	68	192	ASC	0
+18	1	73	8	ASC	0
+18	2	74	4	ASC	0
+18	5	75	NULL	ASC	1
+18	3	76	NULL	ASC	1
+18	4	77	NULL	ASC	1
+19	1	78	8	ASC	0
+19	4	79	NULL	ASC	1
+19	5	80	NULL	ASC	1
+19	6	81	NULL	ASC	1
+19	7	82	NULL	ASC	1
+19	8	83	NULL	ASC	1
+19	9	84	NULL	ASC	1
+19	10	85	NULL	ASC	1
+19	11	86	NULL	ASC	1
+19	12	87	NULL	ASC	1
+19	13	88	NULL	ASC	1
+19	14	89	NULL	ASC	1
+19	15	90	NULL	ASC	1
+19	16	91	NULL	ASC	1
+19	17	92	NULL	ASC	1
+19	18	93	NULL	ASC	1
+19	19	94	NULL	ASC	1
+19	20	95	NULL	ASC	1
+19	21	96	NULL	ASC	1
+19	22	97	NULL	ASC	1
+19	23	98	NULL	ASC	1
+19	24	99	NULL	ASC	1
+19	25	100	NULL	ASC	1
+19	26	101	NULL	ASC	1
+19	27	102	NULL	ASC	1
+19	28	103	NULL	ASC	1
+19	29	104	NULL	ASC	1
+19	30	105	NULL	ASC	1
+19	31	106	NULL	ASC	1
+19	2	107	NULL	ASC	1
+19	3	108	NULL	ASC	1
+20	3	78	NULL	ASC	1
+20	1	79	8	ASC	0
+20	2	80	192	ASC	0
+21	3	78	NULL	ASC	1
+21	1	79	8	ASC	0
+21	2	81	4	ASC	0
+22	2	78	NULL	ASC	1
+22	1	90	8	ASC	0
+23	2	78	NULL	ASC	1
+23	1	106	4	ASC	0
+24	1	109	8	ASC	0
+24	4	110	NULL	ASC	1
+24	5	111	NULL	ASC	1
+24	6	112	NULL	ASC	1
+24	7	113	NULL	ASC	1
+24	8	114	NULL	ASC	1
+24	9	115	NULL	ASC	1
+24	10	116	NULL	ASC	1
+24	11	117	NULL	ASC	1
+24	12	118	NULL	ASC	1
+24	13	119	NULL	ASC	1
+24	14	120	NULL	ASC	1
+24	15	121	NULL	ASC	1
+24	16	122	NULL	ASC	1
+24	17	123	NULL	ASC	1
+24	18	124	NULL	ASC	1
+24	19	125	NULL	ASC	1
+24	20	126	NULL	ASC	1
+24	21	127	NULL	ASC	1
+24	22	128	NULL	ASC	1
+24	23	129	NULL	ASC	1
+24	24	130	NULL	ASC	1
+24	25	131	NULL	ASC	1
+24	26	132	NULL	ASC	1
+24	2	133	NULL	ASC	1
+24	3	134	NULL	ASC	1
+25	3	109	NULL	ASC	1
+25	1	110	8	ASC	0
+25	2	111	192	ASC	0
+26	2	109	NULL	ASC	1
+26	1	129	8	ASC	0
+27	2	109	NULL	ASC	1
+27	1	130	8	ASC	0
+28	2	109	NULL	ASC	1
+28	1	131	8	ASC	0
+29	1	135	8	ASC	0
+29	2	136	4	ASC	0
+29	5	137	NULL	ASC	1
+29	6	138	NULL	ASC	1
+29	3	139	NULL	ASC	1
+29	4	140	NULL	ASC	1
+30	1	135	8	ASC	0
+30	4	136	NULL	ASC	1
+30	2	137	8	ASC	0
+30	3	138	192	ASC	0
+31	2	135	NULL	ASC	1
+31	3	136	NULL	ASC	1
+31	1	137	8	ASC	0
+32	1	141	8	ASC	0
+32	4	142	NULL	ASC	1
+32	5	143	NULL	ASC	1
+32	6	144	NULL	ASC	1
+32	7	145	NULL	ASC	1
+32	8	146	NULL	ASC	1
+32	9	147	NULL	ASC	1
+32	10	148	NULL	ASC	1
+32	11	149	NULL	ASC	1
+32	12	150	NULL	ASC	1
+32	13	151	NULL	ASC	1
+32	14	152	NULL	ASC	1
+32	2	153	NULL	ASC	1
+32	3	154	NULL	ASC	1
+33	3	141	NULL	ASC	1
+33	1	142	8	ASC	0
+33	2	144	192	ASC	0
+34	3	141	NULL	ASC	1
+34	1	143	8	ASC	0
+34	2	144	192	ASC	0
+35	4	141	NULL	ASC	1
+35	1	149	192	ASC	0
+35	2	150	192	ASC	0
+35	3	151	192	ASC	0
+36	1	155	8	ASC	0
+36	2	156	4	ASC	0
+36	5	157	NULL	ASC	1
+36	6	158	NULL	ASC	1
+36	7	159	NULL	ASC	1
+36	8	160	NULL	ASC	1
+36	3	161	NULL	ASC	1
+36	4	162	NULL	ASC	1
+37	1	155	8	ASC	0
+37	4	156	NULL	ASC	1
+37	2	157	8	ASC	0
+37	3	160	1	ASC	0
+38	2	155	NULL	ASC	1
+38	3	156	NULL	ASC	1
+38	1	157	8	ASC	0
+39	1	163	8	ASC	0
+39	2	164	8	ASC	0
+39	5	165	NULL	ASC	1
+39	6	166	NULL	ASC	1
+39	7	167	NULL	ASC	1
+39	3	168	NULL	ASC	1
+39	4	169	NULL	ASC	1
+40	2	163	NULL	ASC	1
 40	1	164	8	ASC	0
-40	2	165	4	ASC	0
-40	5	166	NULL	ASC	1
-40	6	167	NULL	ASC	1
-40	7	168	NULL	ASC	1
-40	8	169	NULL	ASC	1
-40	3	170	NULL	ASC	1
-40	4	171	NULL	ASC	1
-41	1	164	8	ASC	0
-41	4	165	NULL	ASC	1
-41	2	166	8	ASC	0
-41	3	169	1	ASC	0
-42	2	164	NULL	ASC	1
-42	3	165	NULL	ASC	1
-42	1	166	8	ASC	0
-43	1	172	8	ASC	0
-43	2	173	4	ASC	0
-43	5	174	NULL	ASC	1
-43	3	175	NULL	ASC	1
-43	4	176	NULL	ASC	1
-44	1	177	8	ASC	0
-44	4	178	NULL	ASC	1
-44	5	179	NULL	ASC	1
-44	6	180	NULL	ASC	1
-44	7	181	NULL	ASC	1
-44	8	182	NULL	ASC	1
-44	9	183	NULL	ASC	1
-44	10	184	NULL	ASC	1
-44	11	185	NULL	ASC	1
-44	12	186	NULL	ASC	1
-44	13	187	NULL	ASC	1
-44	2	188	NULL	ASC	1
-44	3	189	NULL	ASC	1
-45	3	177	NULL	ASC	1
-45	1	178	8	ASC	0
-45	2	180	192	ASC	0
-46	3	177	NULL	ASC	1
-46	1	179	8	ASC	0
-46	2	180	192	ASC	0
-47	4	177	NULL	ASC	1
-47	1	185	192	ASC	0
-47	2	186	192	ASC	0
-47	3	187	192	ASC	0
-48	1	190	8	ASC	0
-48	2	191	4	ASC	0
-48	5	192	NULL	ASC	1
-48	6	193	NULL	ASC	1
-48	3	194	NULL	ASC	1
-48	4	195	NULL	ASC	1
-49	1	190	8	ASC	0
-49	4	191	NULL	ASC	1
-49	2	192	8	ASC	0
-49	3	193	192	ASC	0
-50	2	190	NULL	ASC	1
-50	3	191	NULL	ASC	1
-50	1	192	8	ASC	0
-51	1	196	8	ASC	0
-51	4	197	NULL	ASC	1
-51	5	198	NULL	ASC	1
-51	6	199	NULL	ASC	1
-51	7	200	NULL	ASC	1
-51	8	201	NULL	ASC	1
-51	9	202	NULL	ASC	1
-51	10	203	NULL	ASC	1
-51	11	204	NULL	ASC	1
-51	12	205	NULL	ASC	1
-51	13	206	NULL	ASC	1
-51	14	207	NULL	ASC	1
-51	2	208	NULL	ASC	1
-51	3	209	NULL	ASC	1
-52	3	196	NULL	ASC	1
-52	1	197	8	ASC	0
-52	2	200	192	ASC	0
-53	4	196	NULL	ASC	1
-53	1	197	8	ASC	0
-53	2	198	8	ASC	0
-53	3	199	2	ASC	0
-54	3	196	NULL	ASC	1
-54	1	202	192	ASC	0
-54	2	206	8	ASC	0
-55	2	196	NULL	ASC	1
-55	1	202	192	ASC	0
-56	2	196	NULL	ASC	1
-56	1	207	8	ASC	0
-57	1	210	8	ASC	0
-57	2	211	1	ASC	0
-57	3	212	1	ASC	0
-57	6	213	NULL	ASC	1
-57	7	214	NULL	ASC	1
-57	4	215	NULL	ASC	1
-57	5	216	NULL	ASC	1
-58	1	217	8	ASC	0
-58	2	218	8	ASC	0
-58	5	219	NULL	ASC	1
-58	6	220	NULL	ASC	1
-58	7	221	NULL	ASC	1
-58	3	222	NULL	ASC	1
-58	4	223	NULL	ASC	1
-59	2	217	NULL	ASC	1
-59	1	218	8	ASC	0
-60	2	217	NULL	ASC	1
-60	3	218	NULL	ASC	1
-60	1	221	8	ASC	0
-86	1	349	192	ASC	0
-86	2	350	597	ASC	0
-86	5	351	NULL	ASC	1
-86	6	352	NULL	ASC	1
-86	7	353	NULL	ASC	1
-86	8	354	NULL	ASC	1
-86	3	355	NULL	ASC	1
-86	4	356	NULL	ASC	1
-87	1	357	192	ASC	0
-87	2	358	597	ASC	0
-87	3	359	192	ASC	0
-87	7	360	NULL	ASC	1
-87	4	361	192	ASC	0
-87	8	362	NULL	ASC	1
-87	9	363	NULL	ASC	1
-87	10	364	NULL	ASC	1
-87	5	365	NULL	ASC	1
-87	6	366	NULL	ASC	1
-91	1	383	8	ASC	0
-91	4	384	NULL	ASC	1
-91	5	385	NULL	ASC	1
-91	6	386	NULL	ASC	1
-91	7	387	NULL	ASC	1
-91	2	388	NULL	ASC	1
-91	3	389	NULL	ASC	1
-92	2	383	NULL	ASC	1
-92	1	384	192	ASC	0
-93	2	383	NULL	ASC	1
-93	1	385	8	ASC	0
+41	2	163	NULL	ASC	1
+41	3	164	NULL	ASC	1
+41	1	167	8	ASC	0
+42	1	170	192	ASC	0
+42	2	171	192	ASC	0
+42	3	172	192	ASC	0
+42	4	173	192	ASC	0
+42	7	174	NULL	ASC	1
+42	8	175	NULL	ASC	1
+42	5	176	NULL	ASC	1
+42	6	177	NULL	ASC	1
+43	1	178	8	ASC	0
+43	4	179	NULL	ASC	1
+43	5	180	NULL	ASC	1
+43	6	181	NULL	ASC	1
+43	7	182	NULL	ASC	1
+43	8	183	NULL	ASC	1
+43	9	184	NULL	ASC	1
+43	10	185	NULL	ASC	1
+43	11	186	NULL	ASC	1
+43	12	187	NULL	ASC	1
+43	13	188	NULL	ASC	1
+43	14	189	NULL	ASC	1
+43	15	190	NULL	ASC	1
+43	16	191	NULL	ASC	1
+43	17	192	NULL	ASC	1
+43	2	193	NULL	ASC	1
+43	3	194	NULL	ASC	1
+44	3	178	NULL	ASC	1
+44	1	179	8	ASC	0
+44	2	180	192	ASC	0
+45	2	178	NULL	ASC	1
+45	1	191	8	ASC	0
+46	1	195	8	ASC	0
+46	2	196	4	ASC	0
+46	5	197	NULL	ASC	1
+46	3	198	NULL	ASC	1
+46	4	199	NULL	ASC	1
+47	1	200	8	ASC	0
+47	4	201	NULL	ASC	1
+47	5	202	NULL	ASC	1
+47	6	203	NULL	ASC	1
+47	7	204	NULL	ASC	1
+47	8	205	NULL	ASC	1
+47	9	206	NULL	ASC	1
+47	10	207	NULL	ASC	1
+47	11	208	NULL	ASC	1
+47	12	209	NULL	ASC	1
+47	13	210	NULL	ASC	1
+47	14	211	NULL	ASC	1
+47	15	212	NULL	ASC	1
+47	16	213	NULL	ASC	1
+47	17	214	NULL	ASC	1
+47	2	215	NULL	ASC	1
+47	3	216	NULL	ASC	1
+48	3	200	NULL	ASC	1
+48	1	201	8	ASC	0
+48	2	202	4	ASC	0
+49	2	200	NULL	ASC	1
+49	1	213	8	ASC	0
+50	1	217	8	ASC	0
+50	4	218	NULL	ASC	1
+50	5	219	NULL	ASC	1
+50	6	220	NULL	ASC	1
+50	7	221	NULL	ASC	1
+50	8	222	NULL	ASC	1
+50	9	223	NULL	ASC	1
+50	2	224	NULL	ASC	1
+50	3	225	NULL	ASC	1
+51	2	217	NULL	ASC	1
+51	1	218	192	ASC	0
+52	1	226	8	ASC	0
+52	4	227	NULL	ASC	1
+52	5	228	NULL	ASC	1
+52	6	229	NULL	ASC	1
+52	7	230	NULL	ASC	1
+52	8	231	NULL	ASC	1
+52	9	232	NULL	ASC	1
+52	10	233	NULL	ASC	1
+52	11	234	NULL	ASC	1
+52	12	235	NULL	ASC	1
+52	13	236	NULL	ASC	1
+52	14	237	NULL	ASC	1
+52	15	238	NULL	ASC	1
+52	16	239	NULL	ASC	1
+52	17	240	NULL	ASC	1
+52	18	241	NULL	ASC	1
+52	19	242	NULL	ASC	1
+52	20	243	NULL	ASC	1
+52	21	244	NULL	ASC	1
+52	22	245	NULL	ASC	1
+52	23	246	NULL	ASC	1
+52	24	247	NULL	ASC	1
+52	25	248	NULL	ASC	1
+52	26	249	NULL	ASC	1
+52	27	250	NULL	ASC	1
+52	28	251	NULL	ASC	1
+52	29	252	NULL	ASC	1
+52	30	253	NULL	ASC	1
+52	2	254	NULL	ASC	1
+52	3	255	NULL	ASC	1
+53	4	226	NULL	ASC	1
+53	1	227	8	ASC	0
+53	3	228	192	ASC	0
+53	2	229	1	ASC	0
+54	2	226	NULL	ASC	1
+54	1	238	8	ASC	0
+55	2	226	NULL	ASC	1
+55	1	247	8	ASC	0
+56	2	226	NULL	ASC	1
+56	1	248	8	ASC	0
+57	2	226	NULL	ASC	1
+57	1	249	8	ASC	0
+58	1	256	8	ASC	0
+58	4	257	NULL	ASC	1
+58	5	258	NULL	ASC	1
+58	6	259	NULL	ASC	1
+58	7	260	NULL	ASC	1
+58	8	261	NULL	ASC	1
+58	9	262	NULL	ASC	1
+58	2	263	NULL	ASC	1
+58	3	264	NULL	ASC	1
+59	3	256	NULL	ASC	1
+59	1	257	8	ASC	0
+59	2	258	192	ASC	0
+60	2	256	NULL	ASC	1
+60	1	259	8	ASC	0
+61	1	265	4	ASC	0
+61	4	266	NULL	ASC	1
+61	5	267	NULL	ASC	1
+61	6	268	NULL	ASC	1
+61	7	269	NULL	ASC	1
+61	8	270	NULL	ASC	1
+61	9	271	NULL	ASC	1
+61	10	272	NULL	ASC	1
+61	11	273	NULL	ASC	1
+61	12	274	NULL	ASC	1
+61	2	275	NULL	ASC	1
+61	3	276	NULL	ASC	1
+62	3	265	NULL	ASC	1
+62	1	266	8	ASC	0
+62	2	267	240	ASC	0
+63	4	265	NULL	ASC	1
+63	1	266	8	ASC	0
+63	2	270	768	ASC	0
+63	3	271	4	ASC	0
+64	1	277	8	ASC	0
+64	2	278	1	ASC	0
+64	3	279	1	ASC	0
+64	6	280	NULL	ASC	1
+64	7	281	NULL	ASC	1
+64	4	282	NULL	ASC	1
+64	5	283	NULL	ASC	1
+65	1	284	8	ASC	0
+65	4	285	NULL	ASC	1
+65	5	286	NULL	ASC	1
+65	6	287	NULL	ASC	1
+65	7	288	NULL	ASC	1
+65	8	289	NULL	ASC	1
+65	9	290	NULL	ASC	1
+65	10	291	NULL	ASC	1
+65	11	292	NULL	ASC	1
+65	12	293	NULL	ASC	1
+65	13	294	NULL	ASC	1
+65	14	295	NULL	ASC	1
+65	2	296	NULL	ASC	1
+65	3	297	NULL	ASC	1
+66	3	284	NULL	ASC	1
+66	1	285	8	ASC	0
+66	2	288	192	ASC	0
+67	4	284	NULL	ASC	1
+67	1	285	8	ASC	0
+67	2	286	8	ASC	0
+67	3	287	2	ASC	0
+68	3	284	NULL	ASC	1
+68	1	290	192	ASC	0
+68	2	294	8	ASC	0
+69	2	284	NULL	ASC	1
+69	1	290	192	ASC	0
+70	2	284	NULL	ASC	1
+70	1	295	8	ASC	0
+71	1	298	192	ASC	0
+71	2	299	192	ASC	0
+71	5	300	NULL	ASC	1
+71	6	301	NULL	ASC	1
+71	7	302	NULL	ASC	1
+71	8	303	NULL	ASC	1
+71	9	304	NULL	ASC	1
+71	10	305	NULL	ASC	1
+71	11	306	NULL	ASC	1
+71	12	307	NULL	ASC	1
+71	13	308	NULL	ASC	1
+71	14	309	NULL	ASC	1
+71	15	310	NULL	ASC	1
+71	3	311	NULL	ASC	1
+71	4	312	NULL	ASC	1
+72	1	313	8	ASC	0
+72	4	314	NULL	ASC	1
+72	5	315	NULL	ASC	1
+72	6	316	NULL	ASC	1
+72	7	317	NULL	ASC	1
+72	8	318	NULL	ASC	1
+72	9	319	NULL	ASC	1
+72	10	320	NULL	ASC	1
+72	11	321	NULL	ASC	1
+72	12	322	NULL	ASC	1
+72	13	323	NULL	ASC	1
+72	14	324	NULL	ASC	1
+72	15	325	NULL	ASC	1
+72	16	326	NULL	ASC	1
+72	17	327	NULL	ASC	1
+72	18	328	NULL	ASC	1
+72	19	329	NULL	ASC	1
+72	20	330	NULL	ASC	1
+72	21	331	NULL	ASC	1
+72	22	332	NULL	ASC	1
+72	23	333	NULL	ASC	1
+72	24	334	NULL	ASC	1
+72	25	335	NULL	ASC	1
+72	26	336	NULL	ASC	1
+72	27	337	NULL	ASC	1
+72	28	338	NULL	ASC	1
+72	29	339	NULL	ASC	1
+72	30	340	NULL	ASC	1
+72	31	341	NULL	ASC	1
+72	32	342	NULL	ASC	1
+72	33	343	NULL	ASC	1
+72	34	344	NULL	ASC	1
+72	35	345	NULL	ASC	1
+72	36	346	NULL	ASC	1
+72	2	347	NULL	ASC	1
+72	3	348	NULL	ASC	1
+73	3	313	NULL	ASC	1
+73	1	314	8	ASC	0
+73	2	315	192	ASC	0
+74	3	313	NULL	ASC	1
+74	1	317	192	ASC	0
+74	2	325	8	ASC	0
+75	2	313	NULL	ASC	1
+75	1	317	192	ASC	0
+76	2	313	NULL	ASC	1
+76	1	320	8	ASC	0
+77	2	313	NULL	ASC	1
+77	1	326	8	ASC	0
+78	1	349	8	ASC	0
+78	2	350	4	ASC	0
+78	5	351	NULL	ASC	1
+78	6	352	NULL	ASC	1
+78	3	353	NULL	ASC	1
+78	4	354	NULL	ASC	1
+79	2	349	NULL	ASC	1
+79	3	350	NULL	ASC	1
+79	1	351	1536	ASC	0
+80	1	355	8	ASC	0
+80	4	356	NULL	ASC	1
+80	5	357	NULL	ASC	1
+80	6	358	NULL	ASC	1
+80	7	359	NULL	ASC	1
+80	8	360	NULL	ASC	1
+80	2	361	NULL	ASC	1
+80	3	362	NULL	ASC	1
+81	2	355	NULL	ASC	1
+81	1	356	777	ASC	0
+82	1	363	8	ASC	0
+82	4	364	NULL	ASC	1
+82	5	365	NULL	ASC	1
+82	6	366	NULL	ASC	1
+82	7	367	NULL	ASC	1
+82	8	368	NULL	ASC	1
+82	9	369	NULL	ASC	1
+82	10	370	NULL	ASC	1
+82	11	371	NULL	ASC	1
+82	12	372	NULL	ASC	1
+82	13	373	NULL	ASC	1
+82	14	374	NULL	ASC	1
+82	15	375	NULL	ASC	1
+82	16	376	NULL	ASC	1
+82	17	377	NULL	ASC	1
+82	18	378	NULL	ASC	1
+82	19	379	NULL	ASC	1
+82	2	380	NULL	ASC	1
+82	3	381	NULL	ASC	1
+83	3	363	NULL	ASC	1
+83	1	364	8	ASC	0
+83	2	365	192	ASC	0
+84	5	363	NULL	ASC	1
+84	2	366	1	ASC	0
+84	1	367	8	ASC	0
+84	3	368	1	ASC	0
+84	4	369	4	ASC	0
+85	2	363	NULL	ASC	1
+85	1	376	8	ASC	0
+86	2	363	NULL	ASC	1
+86	1	377	8	ASC	0
+87	2	363	NULL	ASC	1
+87	1	378	8	ASC	0
+88	1	382	8	ASC	0
+88	2	383	192	ASC	0
+88	3	384	192	ASC	0
+88	4	385	192	ASC	0
+88	5	386	NULL	ASC	1
+88	6	387	NULL	ASC	1
+89	4	382	NULL	ASC	1
+89	1	383	192	ASC	0
+89	2	384	192	ASC	0
+89	3	385	192	ASC	0
+90	1	388	8	ASC	0
+90	2	389	192	ASC	0
+90	3	390	192	ASC	0
+90	4	391	192	ASC	0
+90	5	392	NULL	ASC	1
+90	6	393	NULL	ASC	1
+91	4	388	NULL	ASC	1
+91	1	389	192	ASC	0
+91	2	390	192	ASC	0
+91	3	391	192	ASC	0
 SET GLOBAL debug= '-d,skip_dd_table_access_check';

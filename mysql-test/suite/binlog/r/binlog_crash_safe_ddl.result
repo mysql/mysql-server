@@ -2,16 +2,16 @@ include/gtid_utils.inc
 CREATE TABLE t_1 (a int);
 include/gtid_step_reset.inc
 FLUSH LOGS;
-*** Crash right after 'CREATE USER user1'  has been prepared in the engine before being logged ***
+*** Crash right after 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''  has been prepared in the engine before being logged ***
 SET @@SESSION.debug="+d,crash_commit_before_log";
-CREATE USER user1;
+CREATE USER user1 IDENTIFIED WITH 'mysql_native_password';
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOGS;
-*** Crash right after 'CREATE USER user1' has been binary-logged before committed in the engine ***
+*** Crash right after 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password'' has been binary-logged before committed in the engine ***
 SET @@SESSION.debug="+d,crash_commit_after_log";
-CREATE USER user1;
+CREATE USER user1 IDENTIFIED WITH 'mysql_native_password';
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -396,16 +396,16 @@ ERROR HY000: Lost connection to MySQL server during query
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
-*** Crash right after 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so''  has been prepared in the engine before being logged ***
+*** Crash right after 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB''  has been prepared in the engine before being logged ***
 SET @@SESSION.debug="+d,crash_commit_before_log";
-CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
+CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB';
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOGS;
-*** Crash right after 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so'' has been binary-logged before committed in the engine ***
+*** Crash right after 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB'' has been binary-logged before committed in the engine ***
 SET @@SESSION.debug="+d,crash_commit_after_log";
-CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
+CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB';
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/gtid_step_assert.inc [count=1, only_count=0]
@@ -421,6 +421,171 @@ FLUSH LOGS;
 *** Crash right after 'DROP FUNCTION metaphon;' has been binary-logged before committed in the engine ***
 SET @@SESSION.debug="+d,crash_commit_after_log";
 DROP FUNCTION metaphon;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'CREATE TABLE test.t1(a int)'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+CREATE TABLE test.t1(a int);
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'CREATE TABLE test.t1(a int)' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+CREATE TABLE test.t1(a int);
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+ALTER TABLE test.t1 ADD COLUMN t1_new_col varchar(100);;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+ALTER TABLE test.t1 ADD index new_t1_idx(t1_new_col);;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t1 RENAME TO test.t2'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+ALTER TABLE test.t1 RENAME TO test.t2;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t1 RENAME TO test.t2' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+ALTER TABLE test.t1 RENAME TO test.t2;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t2 DROP COLUMN a;'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+ALTER TABLE test.t2 DROP COLUMN a;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t2 DROP COLUMN a;' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+ALTER TABLE test.t2 DROP COLUMN a;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'TRUNCATE TABLE test.t2'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+TRUNCATE TABLE test.t2;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'TRUNCATE TABLE test.t2' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+TRUNCATE TABLE test.t2;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+ALTER TABLE test.t2 ADD fulltext index full_t2_idx(t1_new_col);;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t2 DROP index full_t2_idx;'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+ALTER TABLE test.t2 DROP index full_t2_idx;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'ALTER TABLE test.t2 DROP index full_t2_idx;' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+ALTER TABLE test.t2 DROP index full_t2_idx;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'DROP TABLE test.t2'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+DROP TABLE test.t2;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'DROP TABLE test.t2' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+DROP TABLE test.t2;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd''  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd'' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+CREATE TABLESPACE ts ADD DATAFILE 'ts_0.ibd';
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=1, only_count=0]
+include/gtid_step_reset.inc
+FLUSH LOGS;
+*** Crash right after 'DROP TABLESPACE ts'  has been prepared in the engine before being logged ***
+SET @@SESSION.debug="+d,crash_commit_before_log";
+DROP TABLESPACE ts;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+include/gtid_step_assert.inc [count=0, only_count=0]
+FLUSH LOGS;
+*** Crash right after 'DROP TABLESPACE ts' has been binary-logged before committed in the engine ***
+SET @@SESSION.debug="+d,crash_commit_after_log";
+DROP TABLESPACE ts;
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/gtid_step_assert.inc [count=1, only_count=0]

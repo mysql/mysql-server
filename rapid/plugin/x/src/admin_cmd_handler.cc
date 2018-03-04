@@ -1,32 +1,38 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "admin_cmd_handler.h"
+#include "plugin/x/src/admin_cmd_handler.h"
 
 #include <algorithm>
 
-#include "admin_cmd_index.h"
-#include "query_string_builder.h"
-#include "sql_data_result.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_server.h"
+#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+#include "plugin/x/src/admin_cmd_index.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_data_result.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_server.h"
 
 namespace xpl {
 
@@ -185,14 +191,17 @@ ngs::Error_code Admin_command_handler::list_clients(
 
   auto &proto = m_session->proto();
 
-  proto.send_column_metadata("", "", "", "", "client_id", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::UINT, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "user", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "host", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "sql_session", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::UINT, 0, 0, 0);
+  ngs::Column_info_builder column[4]{
+    {Mysqlx::Resultset::ColumnMetaData::UINT, "client_id"},
+    {Mysqlx::Resultset::ColumnMetaData::BYTES, "user"},
+    {Mysqlx::Resultset::ColumnMetaData::BYTES, "host"},
+    {Mysqlx::Resultset::ColumnMetaData::UINT, "sql_session"}
+  };
+
+  proto.send_column_metadata(&column[0].get());
+  proto.send_column_metadata(&column[1].get());
+  proto.send_column_metadata(&column[2].get());
+  proto.send_column_metadata(&column[3].get());
 
   for (std::vector<Client_data_>::const_iterator it = clients.begin();
        it != clients.end(); ++it) {
@@ -467,10 +476,13 @@ ngs::Error_code Admin_command_handler::list_notices(
   // notice | enabled
   // <name> | <1/0>
   auto &proto = m_session->proto();
-  proto.send_column_metadata("", "", "", "", "notice", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::BYTES, 0, 0, 0);
-  proto.send_column_metadata("", "", "", "", "enabled", "", 0,
-                             Mysqlx::Resultset::ColumnMetaData::SINT, 0, 0, 0);
+  ngs::Column_info_builder column[2] {
+    { Mysqlx::Resultset::ColumnMetaData::BYTES, "notice" },
+    { Mysqlx::Resultset::ColumnMetaData::SINT, "enabled" }
+  };
+
+  proto.send_column_metadata(&column[0].get());
+  proto.send_column_metadata(&column[1].get());
 
   add_notice_row(&proto, "warnings",
                  m_session->options().get_send_warnings() ? 1 : 0);
@@ -514,21 +526,22 @@ T get_system_variable(ngs::Sql_session_interface *da,
   }
 }
 
-#define JSON_EXTRACT_REGEX(member)                                \
-  "json_extract\\\\(`doc`,(_[[:alnum:]]+)?\\\\\\\\''\\\\$" member \
-  "\\\\\\\\''\\\\)"
+#define DOC_ID_REGEX R"(\\$\\._id)"
+
+#define JSON_EXTRACT_REGEX(member) \
+  R"(json_extract\\(`doc`,(_[[:alnum:]]+)?\\\\'')" member R"(\\\\''\\))"
+
 #define COUNT_WHEN(expresion) \
   "COUNT(CASE WHEN (" expresion ") THEN 1 ELSE NULL END)"
 
 const char *const COUNT_DOC =
     COUNT_WHEN("column_name = 'doc' AND data_type = 'json'");
 const char *const COUNT_ID = COUNT_WHEN(
-    "column_name = '_id' AND generation_expression "
-    "RLIKE '^json_unquote\\\\(" JSON_EXTRACT_REGEX("\\\\._id") "\\\\)$'");
+    R"(column_name = '_id' AND generation_expression RLIKE '^json_unquote\\()"
+    JSON_EXTRACT_REGEX(DOC_ID_REGEX) R"(\\)$')");
 const char *const COUNT_GEN = COUNT_WHEN(
-    "column_name != '_id' AND column_name != 'doc' "
-    "AND generation_expression RLIKE '" JSON_EXTRACT_REGEX(
-        "(\\\\.[[:alnum:]_]+)+") "'");
+    "column_name != '_id' AND column_name != 'doc' AND "
+    "generation_expression RLIKE '" JSON_EXTRACT_REGEX(DOC_MEMBER_REGEX) "'");
 }  // namespace
 
 /* Stmt: list_objects
@@ -626,9 +639,9 @@ bool is_collection(ngs::Sql_session_interface *da, const std::string &schema,
     result.query(qb.get());
     if (result.size() != 1) {
       log_debug(
-          "Unable to recognize '%s' as a collection; query result size: %lu",
+          "Unable to recognize '%s' as a collection; query result size: %llu",
           std::string(schema.empty() ? name : schema + "." + name).c_str(),
-          static_cast<uint64_t>(result.size()));
+          static_cast<unsigned long long>(result.size()));
       return false;
     }
     long cnt = 0, doc = 0, id = 0, gen = 0;

@@ -1,15 +1,2 @@
-# Problem with alter to other engine, the DD is not updated on
-# participants
-alter_other_engine: Need WL#9185 MySQL Cluster support for new DD
-
-# Problem with .sdi files being written to data directory
-alter_rename_simple: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-alter_partition_mgm: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-rename_single: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-alter_allow_copying: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-alter_rename_copying: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-alter_max_rows: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-truncate: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-alter_partition_reorganize: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-alter_rename_inplace_force: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
-alter_rename_inplace_implicit: Bug #26414104 FAILURE OF NDB_DDL TESTS THAT INCLUDE VERIFY_MYSQL_DD.INC
+# Problem with alter table while MDL lock is held on other mysqld
+alter_open_trans: Need WL#10164 Schema dist prepare phase

@@ -492,7 +492,7 @@ t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SET @@global.innodb_file_per_table = ON;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
@@ -507,7 +507,7 @@ t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # Restart to get DATA DIRECTORY read from the engine (InnoDB dictionary)
 # restart
 ALTER TABLE t1 COALESCE PARTITION 1;
@@ -714,7 +714,7 @@ t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SET @@global.innodb_file_per_table = OFF;
 SHOW CREATE TABLE t_file_per_table_on;
 Table	Create Table
@@ -729,7 +729,7 @@ t_file_per_table_off	CREATE TABLE `t_file_per_table_off` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t_file_per_table_on;
 DROP TABLE t_file_per_table_off;
 CREATE TABLE t0 (col1 INT, col2 INT, col3 INT) ENGINE = InnoDB

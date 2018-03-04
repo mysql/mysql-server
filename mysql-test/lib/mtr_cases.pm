@@ -1,18 +1,25 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2017 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is a library file used by the Perl version of mysql-test-run,
 # and is part of the translation of the Bourne shell script with the
@@ -988,11 +995,20 @@ sub collect_one_test_case {
     # should fail by default
     $tinfo->{result_file}= $result_file;
   }
-  else {
-    # No .result file exist
-    # Remember the path  where it should be
-    # saved in case of --record
-    $tinfo->{record_file}= $result_file;
+  else
+  {
+    # Result file doesn't exist
+    if ($::opt_check_testcases and !$::opt_record)
+    {
+      # Set 'no_result_file' flag if check-testcases is enabled.
+      $tinfo->{'no_result_file'}= $result_file;
+    }
+    else
+    {
+      # No .result file exist, remember the path where it should
+      # be saved in case of --record.
+      $tinfo->{record_file}= $result_file;
+    }
   }
 
   # ----------------------------------------------------------------------
@@ -1110,6 +1126,13 @@ sub collect_one_test_case {
 
   tags_from_test_file($tinfo,"$testdir/${tname}.test");
 
+  # Disable the result file check for NDB tests not having its
+  # corresponding result file.
+  if ($tinfo->{'ndb_test'} and $tinfo->{'ndb_no_result_file_test'})
+  {
+    delete $tinfo->{'no_result_file'} if $tinfo->{'no_result_file'};
+  }
+
   if ( defined $default_storage_engine )
   {
     # Different default engine is used
@@ -1119,13 +1142,13 @@ sub collect_one_test_case {
 
     $tinfo->{'mysiam_test'}= 1
       if ( $default_storage_engine =~ /^mysiam/i );
-
   }
 
-  if ( ! $tinfo->{'not_parallel'} and $::opt_run_non_parallel_tests )
+  # Skip non-parallel tests if 'non-parallel-test' option is disabled
+  if ($tinfo->{'not_parallel'} and !$::opt_non_parallel_test)
   {
     $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test needs 'include/not_parallel.inc' include file when 'run-non-parallel-tests' option is set";
+    $tinfo->{'comment'}= "Test needs 'non-parallel-test' option";
     return $tinfo;
   }
 
@@ -1363,6 +1386,10 @@ my @tags=
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_multi_ndb.inc", "ndb_test", 1],
+
+ # Any test sourcing the below inc file is considered to be an NDB
+ # test not having its corresponding result file.
+ ["include/ndb_no_result_file.inc", "ndb_no_result_file_test", 1],
 
  # The tests with below four .inc files are considered to be rpl tests.
  ["include/rpl_init.inc", "rpl_test", 1],

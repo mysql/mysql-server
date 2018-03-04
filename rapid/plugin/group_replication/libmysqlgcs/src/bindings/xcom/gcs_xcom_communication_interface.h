@@ -1,13 +1,20 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,19 +23,18 @@
 #ifndef GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED
 #define GCS_XCOM_COMMUNICATION_INTERFACE_INCLUDED
 
-#include "mysql/gcs/gcs_communication_interface.h"
-
-#include "gcs_message_stages.h"
-#include "gcs_xcom_statistics_interface.h"
-#include "gcs_xcom_utils.h"
-#include "gcs_xcom_group_member_information.h"
-#include "gcs_xcom_interface.h"
-#include "gcs_internal_message.h"
-#include "gcs_xcom_state_exchange.h"
-
-#include <map>
 #include <cstdlib>
+#include <map>
 #include <vector>
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_internal_message.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_state_exchange.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_statistics_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
 
 /**
   @interface Gcs_xcom_communication_interface

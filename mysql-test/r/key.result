@@ -737,9 +737,9 @@ drop tables tm, ti, th;
 # 2) For SPATIAL and FULLTEXT keys we always use special key
 #    algorithms and there is no way to specify it explicitly.
 #
-create table tm (pk int primary key, p point not null, spatial index (p))
+create table tm (pk int primary key, p point not null SRID 0, spatial index (p))
 charset utf8mb4 engine=myisam;
-create table ti (pk int primary key, p point not null, spatial index (p))
+create table ti (pk int primary key, p point not null SRID 0, spatial index (p))
 charset utf8mb4 engine=innodb;
 create table th (pk int primary key, p point not null, spatial index (p))
 charset utf8mb4 engine=heap;
@@ -752,7 +752,7 @@ show create table tm;
 Table	Create Table
 tm	CREATE TABLE `tm` (
   `pk` int(11) NOT NULL,
-  `p` point NOT NULL,
+  `p` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
@@ -760,7 +760,7 @@ show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
   `pk` int(11) NOT NULL,
-  `p` point NOT NULL,
+  `p` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -776,14 +776,14 @@ tm	SPATIAL
 #
 # Same applies when keys are added by ALTER TABLE
 #
-alter table tm add column q point not null, add spatial index (q);
-alter table ti add column q point not null, add spatial index (q);
+alter table tm add column q point not null SRID 0, add spatial index (q);
+alter table ti add column q point not null SRID 0, add spatial index (q);
 show create table tm;
 Table	Create Table
 tm	CREATE TABLE `tm` (
   `pk` int(11) NOT NULL,
-  `p` point NOT NULL,
-  `q` point NOT NULL,
+  `p` point NOT NULL /*!80003 SRID 0 */,
+  `q` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`),
   SPATIAL KEY `q` (`q`)
@@ -792,8 +792,8 @@ show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
   `pk` int(11) NOT NULL,
-  `p` point NOT NULL,
-  `q` point NOT NULL,
+  `p` point NOT NULL /*!80003 SRID 0 */,
+  `q` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`),
   SPATIAL KEY `q` (`q`)

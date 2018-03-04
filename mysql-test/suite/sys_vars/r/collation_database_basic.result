@@ -1780,6 +1780,10 @@ res_with_true
 big5_chinese_ci
 SET @@collation_database = ON;
 ERROR HY000: Unknown collation: 'ON'
+SET @@collation_database = repeat('e', 256);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@collation_database = repeat('e', 1024);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_016_11-------------------------#'
 SET @@global.collation_database = latin7_binary;
 ERROR HY000: Unknown collation: 'latin7_binary'
@@ -1800,6 +1804,10 @@ Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SET @@global.collation_database = ON;
 ERROR HY000: Unknown collation: 'ON'
+SET @@global.collation_database = repeat('e', 256);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
+SET @@global.collation_database = repeat('e', 1024);
+ERROR HY000: Unknown collation: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'
 '#--------------------FN_DYNVARS_016_12-------------------------#'
 SELECT @@global.collation_database =
 (SELECT VARIABLE_VALUE FROM performance_schema.global_variables

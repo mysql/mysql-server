@@ -33,7 +33,7 @@ SET GTID_NEXT= AUTOMATIC;
 # Verify insert doesn't gets executed as table
 # doesn't have a primary key.
 [connection server1]
-include/wait_for_slave_sql_error_and_restart.inc [errno=4535 FOR CHANNEL 'ch2_1']
+include/wait_for_slave_sql_error_and_restart.inc [errno=3635 FOR CHANNEL 'ch2_1']
 Pattern found.
 Occurrences of '.* \[ERROR\].*The table in transaction aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:1 does not comply with the requirements by an external plugin.*' in the input file: 1
 
@@ -49,7 +49,7 @@ SET GTID_NEXT= AUTOMATIC;
 # Verify insert doesn't gets executed as table
 # doesn't have the innodb storage engine.
 [connection server1]
-include/wait_for_slave_sql_error_and_restart.inc [errno=4535 FOR CHANNEL 'ch2_1']
+include/wait_for_slave_sql_error_and_restart.inc [errno=3635 FOR CHANNEL 'ch2_1']
 Pattern found.
 Pattern found.
 Occurrences of '.* \[ERROR\].*The table in transaction aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:2 does not comply with the requirements by an external plugin.*' in the input file: 1
@@ -68,7 +68,7 @@ SET GTID_NEXT= AUTOMATIC;
 # Verify insert doesn't gets executed as table
 # has a foreign key with CASCADE clause.
 [connection server1]
-include/wait_for_slave_sql_error_and_restart.inc [errno=4535 FOR CHANNEL 'ch2_1']
+include/wait_for_slave_sql_error_and_restart.inc [errno=3635 FOR CHANNEL 'ch2_1']
 Pattern found.
 Occurrences of '.* \[ERROR\].*The table in transaction aaaaaaaa-aaaa-aaaa-aaaa-bbbbbbbbbbbb:3 does not comply with the requirements by an external plugin.*' in the input file: 1
 

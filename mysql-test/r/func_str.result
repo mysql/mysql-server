@@ -296,7 +296,7 @@ LEAST(NULL,'HARRY','HARRIOT',NULL,'HAROLD')	GREATEST(NULL,'HARRY','HARRIOT',NULL
 NULL	NULL
 select least(1,2,3) | greatest(16,32,8), least(5,4)*1,greatest(-1.0,1.0)*1,least(3,2,1)*1.0,greatest(1,1.1,1.0),least("10",9),greatest("A","B","0");
 least(1,2,3) | greatest(16,32,8)	least(5,4)*1	greatest(-1.0,1.0)*1	least(3,2,1)*1.0	greatest(1,1.1,1.0)	least("10",9)	greatest("A","B","0")
-33	4	1.0	1.0	1.1	9	B
+33	4	1.0	1.0	1.1	10	B
 select quote('\'\"\\test');
 quote('\'\"\\test')
 '\'"\\test'
@@ -737,7 +737,7 @@ t1	CREATE TABLE `t1` (
   `trim(BOTH _latin2' ' FROM _latin2' a ')` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `repeat(_latin2'a',10)` varchar(10) CHARACTER SET latin2 DEFAULT NULL,
   `reverse(_latin2'ab')` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
-  `quote(_latin2'ab')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
+  `quote(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
   `soundex(_latin2'ab')` varchar(4) CHARACTER SET latin2 DEFAULT NULL,
   `substring(_latin2'ab',1)` varchar(2) CHARACTER SET latin2 DEFAULT NULL,
   `insert(_latin2'abcd',2,3,_latin2'ef')` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
@@ -4479,9 +4479,7 @@ do concat('a',concat_ws('a', 0x2859, 'a' ,
 trim(period_add('a',1) from (1&''))
 )
 );
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: 'a'
+ERROR HY000: Incorrect arguments to period_add
 #
 # End of 5.6 tests
 #
@@ -4968,3 +4966,38 @@ Warning	1301	Result of export_set() was larger than max_allowed_packet (2048) - 
 disconnect con1;
 connection default;
 set global max_allowed_packet=@max_allowed_packet;
+#
+# Bug#26524721 ASSERTION MAYBE_NULL FAILED IN ITEM_FUNC_CONCAT::VAL_STR
+#
+CREATE TABLE t(x VARCHAR(10) NOT NULL);
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
+COUNT(*)	CONCAT(x, 'x')
+0	NULL
+DROP TABLE t;
+SET default_storage_engine=InnoDB;
+# Bug#26049942 create table .. as select .. quote() give wrong length
+SET NAMES latin1;
+CREATE TABLE t1 AS SELECT quote('a');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `quote('a')` varchar(3) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET NAMES utf8;
+CREATE TABLE t2 AS SELECT quote('a');
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `quote('a')` varchar(3) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET NAMES utf8mb4;
+CREATE TABLE t3 AS SELECT quote('a');
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `quote('a')` varchar(3) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET NAMES DEFAULT;
+DROP TABLE t1, t2, t3;

@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -588,7 +596,6 @@ mach_u64_parse_compressed(
 
 	return(val);
 }
-#ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Reads a double. It is stored in a little-endian format.
 @return double read */
@@ -687,6 +694,7 @@ mach_float_write(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Reads a ulint stored in the little-endian format.
 @return unsigned long int */
@@ -781,6 +789,7 @@ mach_write_to_2_little_endian(
 
 	*dest = (byte)(n & 0xFFUL);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /*********************************************************//**
 Convert integral type from storage byte order (big endian) to
@@ -822,6 +831,7 @@ mach_read_int_type(
 
 	return(ret);
 }
+#ifndef UNIV_HOTBACKUP
 /*********************************************************//**
 Swap byte ordering. */
 UNIV_INLINE
@@ -900,6 +910,7 @@ mach_write_ulonglong(
 		*dest ^=  0x80;
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Read 1 to 4 bytes from a file page buffered in the buffer pool.
 @param[in]	ptr	pointer where to read
@@ -926,4 +937,3 @@ mach_read_ulint(
 	return(0);
 }
 
-#endif /* !UNIV_HOTBACKUP */

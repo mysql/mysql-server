@@ -1,0 +1,48 @@
+#
+# Tests that the same token buffer size is applied in STATEMENT_DIGEST()
+# as in performance_schema.
+#
+#
+# Just making sure that these digests are equal, otherwise this test
+# won't test what we want it to.
+#
+SELECT statement_digest( 'SELECT 1' ) = statement_digest( 'SELECT 1 FROM DUAL' );
+statement_digest( 'SELECT 1' ) = statement_digest( 'SELECT 1 FROM DUAL' )
+1
+SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL;
+statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL
+0
+SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT 	YES
+SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL;
+statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL
+0
+SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
+AS digest_is_correct
+FROM performance_schema.events_statements_history
+WHERE sql_text = convert( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" USING utf8 )
+UNION
+SELECT statement_digest_text( "SELECT statement_digest( 'SELECT 1 FROM DUAL' ) IS NULL" ), 'YES'
+FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
+digest_text	digest_is_correct
+SELECT 	YES
+#
+# Test of the data type.
+#
+CREATE TABLE t1 AS SELECT statement_digest_text( 'select 1, 2, 3' ) AS digest;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `digest` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;
+SELECT statement_digest_text( 'SELECT 1' );
+statement_digest_text( 'SELECT 1' )
+SELECT 

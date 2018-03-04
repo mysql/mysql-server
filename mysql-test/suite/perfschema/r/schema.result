@@ -91,7 +91,6 @@ setup_consumers
 setup_instruments
 setup_objects
 setup_threads
-setup_timers
 socket_instances
 socket_summary_by_event_name
 socket_summary_by_instance
@@ -249,7 +248,7 @@ events_statements_current	CREATE TABLE `events_statements_current` (
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `LOCK_TIME` bigint(20) unsigned NOT NULL,
   `SQL_TEXT` longtext,
-  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST` varchar(64) DEFAULT NULL,
   `DIGEST_TEXT` longtext,
   `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
@@ -295,7 +294,7 @@ events_statements_history	CREATE TABLE `events_statements_history` (
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `LOCK_TIME` bigint(20) unsigned NOT NULL,
   `SQL_TEXT` longtext,
-  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST` varchar(64) DEFAULT NULL,
   `DIGEST_TEXT` longtext,
   `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
@@ -341,7 +340,7 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
   `LOCK_TIME` bigint(20) unsigned NOT NULL,
   `SQL_TEXT` longtext,
-  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST` varchar(64) DEFAULT NULL,
   `DIGEST_TEXT` longtext,
   `CURRENT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_TYPE` varchar(64) DEFAULT NULL,
@@ -377,7 +376,7 @@ show create table events_statements_summary_by_digest;
 Table	Create Table
 events_statements_summary_by_digest	CREATE TABLE `events_statements_summary_by_digest` (
   `SCHEMA_NAME` varchar(64) DEFAULT NULL,
-  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST` varchar(64) DEFAULT NULL,
   `DIGEST_TEXT` longtext,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -999,6 +998,7 @@ metadata_locks	CREATE TABLE `metadata_locks` (
   `OBJECT_TYPE` varchar(64) NOT NULL,
   `OBJECT_SCHEMA` varchar(64) DEFAULT NULL,
   `OBJECT_NAME` varchar(64) DEFAULT NULL,
+  `COLUMN_NAME` varchar(64) DEFAULT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
   `LOCK_TYPE` varchar(32) NOT NULL,
   `LOCK_DURATION` varchar(32) NOT NULL,
@@ -1007,7 +1007,7 @@ metadata_locks	CREATE TABLE `metadata_locks` (
   `OWNER_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
   `OWNER_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   PRIMARY KEY (`OBJECT_INSTANCE_BEGIN`),
-  KEY `OBJECT_TYPE` (`OBJECT_TYPE`,`OBJECT_SCHEMA`,`OBJECT_NAME`),
+  KEY `OBJECT_TYPE` (`OBJECT_TYPE`,`OBJECT_SCHEMA`,`OBJECT_NAME`,`COLUMN_NAME`),
   KEY `OWNER_THREAD_ID` (`OWNER_THREAD_ID`,`OWNER_EVENT_ID`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table file_instances;
@@ -1148,7 +1148,7 @@ objects_summary_global_by_type	CREATE TABLE `objects_summary_global_by_type` (
 show create table performance_timers;
 Table	Create Table
 performance_timers	CREATE TABLE `performance_timers` (
-  `TIMER_NAME` enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK') NOT NULL,
+  `TIMER_NAME` enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND') NOT NULL,
   `TIMER_FREQUENCY` bigint(20) DEFAULT NULL,
   `TIMER_RESOLUTION` bigint(20) DEFAULT NULL,
   `TIMER_OVERHEAD` bigint(20) DEFAULT NULL
@@ -1245,13 +1245,6 @@ setup_objects	CREATE TABLE `setup_objects` (
   `ENABLED` enum('YES','NO') NOT NULL DEFAULT 'YES',
   `TIMED` enum('YES','NO') NOT NULL DEFAULT 'YES',
   UNIQUE KEY `OBJECT` (`OBJECT_TYPE`,`OBJECT_SCHEMA`,`OBJECT_NAME`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
-show create table setup_timers;
-Table	Create Table
-setup_timers	CREATE TABLE `setup_timers` (
-  `NAME` varchar(64) NOT NULL,
-  `TIMER_NAME` enum('CYCLE','NANOSECOND','MICROSECOND','MILLISECOND','TICK') NOT NULL,
-  PRIMARY KEY (`NAME`)
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table socket_instances;
 Table	Create Table

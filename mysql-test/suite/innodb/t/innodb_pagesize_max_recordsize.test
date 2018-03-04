@@ -201,7 +201,7 @@ let NEW_CMD = $MYSQLD --no-defaults --innodb_dedicated_server=OFF $KEYRING_PLUGI
 
 # Search for particular warning during server startup
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN= \[Warning\] InnoDB: innodb-page-size has been changed from the default value 16384 to 32768;
+let SEARCH_PATTERN= \[Warning\] \[[^]]*\] InnoDB: innodb-page-size has been changed from the default value 16384 to 32768;
 --source include/search_pattern.inc
 
 # Restart the datadir with same page size 32k and check , server should be started
@@ -270,8 +270,8 @@ DROP TABLE tab5;
 --source include/restart_mysqld.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot add field.*");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot add field.*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot add field.*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot add field.*");
 --enable_query_log
 --remove_file $BOOTSTRAP_SQL
 # Remove residue files and data folder of page size 32K

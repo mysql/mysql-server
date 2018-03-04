@@ -3,16 +3,24 @@
 Copyright (c) 2009, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -25,8 +33,6 @@ Code used for calculating and manipulating table statistics.
 
 Created Jan 06, 2010 Vasil Dimov
 *******************************************************/
-
-#ifndef UNIV_HOTBACKUP
 
 #include <mysql_com.h>
 #include <algorithm>
@@ -3618,18 +3624,45 @@ dict_stats_evict_tablespaces()
 {
 	ut_ad(srv_is_upgrade_mode);
 
-	space_id_t	space_id_index_stats = fil_space_get_id_by_name(INDEX_STATS_NAME);
-	space_id_t	space_id_table_stats = fil_space_get_id_by_name(TABLE_STATS_NAME);
+	space_id_t	space_id_index_stats =
+                fil_space_get_id_by_name(INDEX_STATS_NAME);
+
+	space_id_t	space_id_table_stats =
+                fil_space_get_id_by_name(TABLE_STATS_NAME);
+
 	trx_t*		trx = trx_allocate_for_background();
 
 	trx_start_internal(trx);
 
 	if (space_id_index_stats != SPACE_UNKNOWN) {
-		fil_close_tablespace(trx, space_id_index_stats);
+
+                dberr_t err;
+
+		err = fil_close_tablespace(trx, space_id_index_stats);
+
+                if (err != DB_SUCCESS) {
+
+			ib::info()
+				<< "dict_stats_evict_tablespace: "
+				<< " fil_close_tablespace("
+				<< space_id_index_stats << ") failed! "
+				<< ut_strerr(err);
+		}
 	}
 
 	if (space_id_table_stats != SPACE_UNKNOWN) {
-		fil_close_tablespace(trx, space_id_table_stats);
+                dberr_t err;
+
+		err = fil_close_tablespace(trx, space_id_table_stats);
+
+                if (err != DB_SUCCESS) {
+
+			ib::info()
+				<< "dict_stats_evict_tablespace: "
+				<< " fil_close_tablespace("
+				<< space_id_index_stats << ") failed! "
+				<< ut_strerr(err);
+		}
 	}
 
 	trx_commit_for_mysql(trx);
@@ -4015,5 +4048,3 @@ test_dict_stats_all()
 
 #endif /* UNIV_ENABLE_UNIT_TEST_DICT_STATS */
 /* @} */
-
-#endif /* UNIV_HOTBACKUP */

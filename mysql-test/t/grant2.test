@@ -3,6 +3,7 @@
 let $date_to_restore_root=`SELECT password_last_changed from mysql.user where user='root'`;
 let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where user='mysql.sys'`;
 let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
+let $date_to_restore_inf_schema_user=`SELECT password_last_changed from mysql.user where user='mysql.infoschema'`;
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -1048,6 +1049,7 @@ DROP USER mysqltest_u5@localhost;
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_root'
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_sys' WHERE USER= 'mysql.sys'
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_session_user' WHERE USER= 'mysql.session'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_inf_schema_user' WHERE USER= 'mysql.infoschema'
 --enable_query_log
 --echo # mysql.user table restored to original values.
 

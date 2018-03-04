@@ -13,7 +13,7 @@ GRANT REPLICATION SLAVE ON *.* TO rpluser_with_length_32_123456789@127.0.0.1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE MASTER TO master_user='rpluser_with_length_32_123456789',
-master_password='rpl';
+master_password='rpl', get_master_public_key = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -45,7 +45,7 @@ CREATE USER rpluser_plain@127.0.0.1 IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO rpluser_plain@127.0.0.1;
 [on slave]
 include/stop_slave.inc
-CHANGE MASTER TO master_user='rpluser_plain', master_password='rpl';
+CHANGE MASTER TO master_user='rpluser_plain', master_password='rpl', get_master_public_key = 1;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -64,7 +64,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/rpl_reset.inc
-# Replication Tests related to WL#9591
+# Replication Tests related to WL#9591 and WL#11057
 # Check if replication takes place when slave user
 # created with caching_sha2_pasword
 [on master]
@@ -75,8 +75,8 @@ GRANT all ON *.* TO u1_caching_sha2_password@127.0.0.1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 # Set the user created with authentication plugin caching_sha2_password
-# as replication slave user
-CHANGE MASTER TO master_user='u1_caching_sha2_password', master_password='pwd', master_ssl=1;
+# as replication slave user and get RSA public key from master
+CHANGE MASTER TO master_user='u1_caching_sha2_password', master_password='pwd', master_ssl=0, get_master_public_key = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -110,17 +110,61 @@ USER()	CURRENT_USER()
 u2@localhost	u2@%
 [on master]
 FLUSH PRIVILEGES;
+# Ensure that affect of FLUSH PRIVILEGE is propagated and cache from slave is also cleaned
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
+[on slave]
+include/sync_slave_sql_with_master.inc
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
+[on slave]
+include/stop_slave.inc
+# Set the user created with authentication plugin caching_sha2_password
+# as replication slave user and get RSA public key from master
+CHANGE MASTER TO master_user='u1_caching_sha2_password', master_password='pwd', master_public_key_path='MYSQL_TEST_DIR/std_data/rsa_public_key.pem', get_master_public_key = 0;;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+# Do replication with the user created with
+# authentication plugin caching_sha2_password
+[on master]
+CREATE USER u3 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd_u3';
+# Below steps ensures that password is not cached initially and
+# After successful login, it is cached. Hence same login statement
+# with which login was denied earlier is allowed now
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+USER()	CURRENT_USER()
+u3@localhost	u3@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+USER()	CURRENT_USER()
+u3@localhost	u3@%
+[on slave]
+include/sync_slave_sql_with_master.inc
+# On slave it is ensured that password cached on master is not replicated
+# and after successful login on slave, it is cached
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+USER()	CURRENT_USER()
+u3@localhost	u3@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+USER()	CURRENT_USER()
+u3@localhost	u3@%
+[on master]
+FLUSH PRIVILEGES;
 # Ensure that affect of FLUSH PRIVILEGE is prpoagated and cache from slave is also cleaned
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
+[on slave]
+include/sync_slave_sql_with_master.inc
 mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error: Authentication requires secure connection.
 [on slave]
 include/stop_slave.inc
 ==== Cleanup (Note that slave IO thread is not running) ====
-include/stop_slave_sql.inc
-Warnings:
-Note	3084	Replication thread(s) for channel '' are already stopped.
 CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -129,5 +173,5 @@ include/rpl_reset.inc
 [on master]
 DROP TABLE t1;
 DROP USER u1_caching_sha2_password@127.0.0.1;
-DROP USER u2;
+DROP USER u2, u3;
 include/rpl_end.inc

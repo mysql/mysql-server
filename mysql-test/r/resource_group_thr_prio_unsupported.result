@@ -17,10 +17,10 @@ ERROR HY000: Invalid VCPU range 3-1
 # 5.1 Thread priority ignored warning.
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=-5;
 Warnings:
-Warning	4561	Attribute thread_priority is ignored (using default value).
+Warning	3659	Attribute thread_priority is ignored (using default value).
 SHOW WARNINGS;
 Level	Code	Message
-Warning	4561	Attribute thread_priority is ignored (using default value).
+Warning	3659	Attribute thread_priority is ignored (using default value).
 # 6. Create a valid user resource group.
 SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME="user_resource";
 RESOURCE_GROUP_NAME	RESOURCE_GROUP_TYPE	RESOURCE_GROUP_ENABLED	VCPU_IDS	THREAD_PRIORITY
@@ -35,11 +35,11 @@ DROP RESOURCE GROUP user_resource;
 # 8. Privilege Error - user with default privileges can't create resource group.
 CREATE USER u1;
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 # 9. Privilege Error  - user with  RESOURCE_GROUP_USER privilege can't create resource group.
 GRANT RESOURCE_GROUP_USER ON *.* TO u1;
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP USER u1;
 # 10. Length of resource group name is greater than maximum allowed limit of identifier names.
 CREATE RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff TYPE=USER;
@@ -51,7 +51,7 @@ ERROR HY000: Resource Group 'user_resource' does not exist.
 # 2. Alter with a invalid CPU ID
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
 Warnings:
-Warning	4561	Attribute thread_priority is ignored (using default value).
+Warning	3659	Attribute thread_priority is ignored (using default value).
 ALTER RESOURCE GROUP user_resource VCPU=MAX_CPU_NUM;
 ERROR HY000: Invalid cpu id MAX_CPU_NUM
 # 3. Alter with invalid CPU range.
@@ -61,7 +61,7 @@ ERROR HY000: Invalid VCPU range 3-1
 # 5. Alter with invalid thread priority for a user resource group.
 ALTER RESOURCE GROUP user_resource THREAD_PRIORITY=-5;
 Warnings:
-Warning	4561	Attribute thread_priority is ignored (using default value).
+Warning	3659	Attribute thread_priority is ignored (using default value).
 # 6. DISABLE and ENABLE the resource group.
 ALTER RESOURCE GROUP user_resource DISABLE;
 SELECT * FROM INFORMATION_SCHEMA.RESOURCE_GROUPS WHERE RESOURCE_GROUP_NAME="user_resource";
@@ -83,11 +83,11 @@ COUNT(*) = 0
 # 8. Privilege Error - user with default privileges can't alter resource group.
 CREATE USER u1;
 ALTER RESOURCE GROUP user_resource VCPU=0 THREAD_PRIORITY=5;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 # 9. Privilege Error  - user with  RESOURCE_GROUP_USER privilege can't alter resource group.
 GRANT RESOURCE_GROUP_USER ON *.* TO u1;
 ALTER RESOURCE GROUP user_resource  VCPU=0 THREAD_PRIORITY=5;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP USER u1;
 # 10. Length of resource group name is greater than maximum allowed limit of identifier names.
 ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff TYPE=USER;
@@ -117,7 +117,7 @@ DROP RESOURCE GROUP user_resource;
 # 3. Test FORCE option of resource group.
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=7;
 Warnings:
-Warning	4561	Attribute thread_priority is ignored (using default value).
+Warning	3659	Attribute thread_priority is ignored (using default value).
 SET RESOURCE GROUP user_resource;
 DROP RESOURCE GROUP user_resource;
 ERROR HY000: Resource group user_resource is busy.
@@ -133,7 +133,7 @@ CREATE USER u1;
 GRANT RESOURCE_GROUP_USER ON *.* TO u1;
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3;
 DROP RESOURCE GROUP user_resource;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP RESOURCE GROUP user_resource;
 DROP USER u1;
 # 10. Length of resource group name is greater than maximum allowed limit of identifier names.
@@ -150,7 +150,7 @@ ERROR HY000: Resource Group 'user_resource' does not exist.
 # 2. SET current session to a resource group.
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=7;
 Warnings:
-Warning	4561	Attribute thread_priority is ignored (using default value).
+Warning	3659	Attribute thread_priority is ignored (using default value).
 SET RESOURCE GROUP user_resource;
 SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE RESOURCE_GROUP="user_resource";
 COUNT(*) = 1
@@ -161,7 +161,7 @@ ERROR HY000: Unable to bind resource group user_resource with thread id (pfs_sys
 # 4. Assign a system thread to system resource group.
 CREATE RESOURCE GROUP system_resource TYPE=SYSTEM VCPU=0-2 THREAD_PRIORITY=-1;
 Warnings:
-Warning	4561	Attribute thread_priority is ignored (using default value).
+Warning	3659	Attribute thread_priority is ignored (using default value).
 SET RESOURCE GROUP system_resource FOR pfs_system_thread_id;;
 SELECT THREAD_ID, NAME, RESOURCE_GROUP FROM performance_schema.threads WHERE THREAD_ID=pfs_system_thread_id;;
 THREAD_ID	NAME	RESOURCE_GROUP
@@ -174,11 +174,11 @@ COUNT(*) = 2
 # 6. Privilege Tests
 CREATE USER u1;
 SET RESOURCE GROUP user_resource;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER privilege(s) for this operation
 GRANT RESOURCE_GROUP_USER ON *.* TO u1;
 SET RESOURCE GROUP user_resource;
 SET RESOURCE GROUP system_resource;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP USER u1;
 # 7. SET RESOURCE GROUP on invalid thread id will give warning.
 SET RESOURCE GROUP user_resource FOR 77777;
@@ -200,14 +200,14 @@ SELECT /*+ RESOURCE_GROUP(rg) */ 1;
 1
 1
 Warnings:
-Warning	4553	Resource Group 'rg' does not exist.
+Warning	3651	Resource Group 'rg' does not exist.
 # 2. Using system resource group in hint for a non-privilege user should give warning
 CREATE USER u1;
 SELECT /*+ RESOURCE_GROUP(system_resource) */ 1;
 1
 1
 Warnings:
-Warning	4563	Unable to bind resource group system_resource with thread id ID.(System resource group can't be bound with a session thread).
+Warning	3661	Unable to bind resource group system_resource with thread id ID.(System resource group can't be bound with a session thread).
 DROP USER u1;
 # 3. Length of resource group name is greater than maximum allowed limit of identifier names.
 #    length shall be truncated in this case and warning output to user.

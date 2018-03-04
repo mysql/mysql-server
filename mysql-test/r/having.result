@@ -765,6 +765,7 @@ t	r
 SELECT * FROM series, seq_calls;
 val	c
 0	7
+UPDATE series set val=0;
 SELECT DISTINCT t1.t, next_seq_value() r  FROM t1, t1 P
 WHERE P.t = t1.t HAVING r = 1 ORDER BY t1.u;
 t	r
@@ -778,6 +779,7 @@ PREPARE STMT FROM 'SELECT t, next_seq_value() r FROM t1 FORCE INDEX(t)
 SELECT * FROM series, seq_calls;
 val	c
 0	17
+UPDATE series set val=0;
 EXECUTE stmt;
 t	r
 11	1
@@ -786,6 +788,7 @@ t	r
 SELECT * FROM series, seq_calls;
 val	c
 1	24
+UPDATE series set val=1;
 EXECUTE stmt;
 t	r
 10	1
@@ -801,6 +804,7 @@ test.t1	analyze	status	OK
 SELECT * FROM series, seq_calls;
 val	c
 0	31
+UPDATE series set val=0;
 SELECT next_seq_value() r, MIN(u) FROM t1 GROUP BY t HAVING r = 1;
 r	MIN(u)
 1	11
@@ -897,3 +901,27 @@ SELECT c1 FROM t1 WHERE EXISTS(SELECT * FROM t2 HAVING c2>0);
 c1
 1
 DROP TABLE t1, t2;
+#
+# BUG#26781725 INCORRECT RESULTS FOR QUERY(MAX FUNC+HAVING CLAUSE) WHEN USED INSIDE VIEW
+#
+CREATE TABLE CC (
+pk int(11) NOT NULL AUTO_INCREMENT,
+col_varchar_key varchar(1) NOT NULL,
+col_varchar varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key)
+);
+INSERT INTO CC VALUES
+(10,'v','v'),(18,'a','a'),(19,'v','v'),(20,'u','u'),(21,'s','s'),(22,'y','y'),
+(23,'z','z'),(28,'y','y');
+SELECT MAX(col_varchar_key) AS field1 FROM CC AS alias1
+HAVING field1 <> 5;
+field1
+z
+CREATE OR REPLACE VIEW v1 AS SELECT MAX(col_varchar_key) AS field1 FROM CC AS alias1
+HAVING field1 <> 5;
+SELECT * FROM v1;
+field1
+z
+DROP TABLE CC;
+DROP VIEW v1;

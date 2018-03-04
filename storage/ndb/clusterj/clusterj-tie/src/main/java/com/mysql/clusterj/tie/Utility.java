@@ -1,14 +1,21 @@
 /*
- *  Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
+ *  it under the terms of the GNU General Public License, version 2.0,
+ *  as published by the Free Software Foundation.
+ *
+ *  This program is also distributed with certain software (including
+ *  but not limited to OpenSSL) that is licensed under separate terms,
+ *  as designated in a particular file or component or in included license
+ *  documentation.  The authors of MySQL hereby grant you an additional
+ *  permission to link the program and your derivative works with the
+ *  separately licensed software that they have included with MySQL.
  *
  *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ *  GNU General Public License, version 2.0, for more details.
  *
  *  You should have received a copy of the GNU General Public License
  *  along with this program; if not, write to the Free Software
@@ -81,6 +88,7 @@ public class Utility {
     static final int ooooffoo = 0x0000ff00;
     static final int ooffoooo = 0x00ff0000;
     static final int ooffffff = 0x00ffffff;
+    static final int ffoooooo = 0xff000000;
 
     static final char[] SPACE_PAD = new char[255];
     static {
@@ -104,6 +112,10 @@ public class Utility {
     }
 
     static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+
+    static int MAX_MEDIUMINT_VALUE = (int)(Math.pow(2, 23) - 1);
+    static int MAX_MEDIUMUNSIGNED_VALUE = (int)(Math.pow(2, 24) - 1);
+    static int MIN_MEDIUMINT_VALUE = (int) (- Math.pow(2, 23));
 
     /** Scratch buffer pool used for decimal conversions; 65 digits of precision, sign, decimal, null terminator */
     static final FixedByteBufferPoolImpl decimalByteBufferPool = new FixedByteBufferPoolImpl(68, "Decimal Pool");
@@ -311,8 +323,10 @@ public class Utility {
                 case Timestamp:
                     return ndbRecAttr.int32_value();
                 case Date:
+                case Mediumunsigned:
                     return ndbRecAttr.u_medium_value();
                 case Time:
+                case Mediumint:
                     return ndbRecAttr.medium_value();
                 default:
                     throw new ClusterJUserException(
@@ -321,6 +335,7 @@ public class Utility {
         }
 
         public int getInt(Column storeColumn, int value) {
+            int result = 0;
             switch (storeColumn.getType()) {
                 case Bit:
                 case Int:
@@ -332,6 +347,21 @@ public class Utility {
                 case Time:
                     // the signed value is stored in the top 3 bytes
                     return value >> 8;
+                case Mediumint:
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyax00 and the result is aaaxyyzz
+                    result |= (value & ffoooooo) >>> 24;
+                    result |= (value & ooffoooo) >>> 8;
+                    // the ax byte is signed, so shift left 16 and arithmetic shift right 8
+                    result |= ((value & ooooffoo) << 16) >> 8;
+                    return result;
+                case Mediumunsigned:
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyxx00 and the result is 00xxyyzz
+                    result |= (value & ffoooooo) >>> 24;
+                    result |= (value & ooffoooo) >>> 8;
+                    result |= (value & ooooffoo) << 8;
+                    return result;
                 default:
                     throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
@@ -343,6 +373,10 @@ public class Utility {
                 case Bit:
                     long rawValue = ndbRecAttr.int64_value();
                     return (rawValue >>> 32) | (rawValue << 32);
+                case Mediumint:
+                    return ndbRecAttr.medium_value();
+                case Mediumunsigned:
+                    return ndbRecAttr.u_medium_value();
                 case Bigint:
                 case Bigunsigned:
                     return ndbRecAttr.int64_value();
@@ -360,11 +394,37 @@ public class Utility {
             }
         }
 
+        /** Put the higher order three bytes of the input value into the result as long value.
+         * Also preserve the sign of the MSB while shifting
+         * @param byteBuffer the byte buffer
+         * @param value the input value
+         */
+        public long get3ByteLong(long value) {
+            // the three high order bytes are the little endian representation
+            // the original is zzyyxx0000000000 and the result is 0000000000xxyyzz
+            long result = 0L;
+            result |= (value & ffoooooooooooooo) >>> 56;
+            result |= (value & ooffoooooooooooo) >>> 40;
+            // the xx byte is signed, so shift left 16 and arithmetic shift right 40
+            result |= ((value & ooooffoooooooooo) << 16) >> 40;
+            return result;
+        }
+
         public long getLong(Column storeColumn, long value) {
             switch (storeColumn.getType()) {
                 case Bit:
                     // the data is stored as two int values
                     return (value >>> 32) | (value << 32);
+                case Mediumint:
+                    return get3ByteLong(value);
+                case Mediumunsigned:
+                    // the three high order bytes are the little endian representation
+                    // the original is zzyyxx0000000000 and the result is 0000000000xxyyzz
+                    long result = 0L;
+                    result |= (value & ffoooooooooooooo) >>> 56;
+                    result |= (value & ooffoooooooooooo) >>> 40;
+                    result |= (value & ooooffoooooooooo) >>> 24;
+                    return result;
                 case Bigint:
                 case Bigunsigned:
                     return value;
@@ -373,22 +433,10 @@ public class Utility {
                 case Timestamp:
                     return (value >> 32) * 1000L;
                 case Date:
-                    // the three high order bytes are the little endian representation
-                    // the original is zzyyxx0000000000 and the result is 0000000000xxyyzz
-                    long packedDate = 0L;
-                    packedDate |= (value & ffoooooooooooooo) >>> 56;
-                    packedDate |= (value & ooffoooooooooooo) >>> 40;
-                    // the xx byte is signed, so shift left 16 and arithmetic shift right 40
-                    packedDate |= ((value & ooooffoooooooooo) << 16) >> 40;
+                    long packedDate = get3ByteLong(value);
                     return unpackDate((int)packedDate);
                 case Time:
-                    // the three high order bytes are the little endian representation
-                    // the original is zzyyxx0000000000 and the result is 0000000000xxyyzz
-                    long packedTime = 0L;
-                    packedTime |= (value & ffoooooooooooooo) >>> 56;
-                    packedTime |= (value & ooffoooooooooooo) >>> 40;
-                    // the xx byte is signed, so shift left 16 and arithmetic shift right 40
-                    packedTime |= ((value & ooooffoooooooooo) << 16) >> 40;
+                    long packedTime = get3ByteLong(value);
                     return unpackTime((int)packedTime);
                 case Datetime2:
                     return unpackDatetime2(storeColumn.getPrecision(), value);
@@ -510,6 +558,24 @@ public class Utility {
                     result.putInt(value);
                     result.flip();
                     return;
+                case Mediumint:
+                    if (value > MAX_MEDIUMINT_VALUE || value < MIN_MEDIUMINT_VALUE){
+                        throw new ClusterJUserException(local.message(
+                                "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    result.order(ByteOrder.LITTLE_ENDIAN);
+                    put3byteInt(result, value);
+                    result.flip();
+                    return;
+                case Mediumunsigned:
+                    if (value > MAX_MEDIUMUNSIGNED_VALUE || value < 0){
+                        throw new ClusterJUserException(local.message(
+                                "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    result.order(ByteOrder.LITTLE_ENDIAN);
+                    put3byteInt(result, value);
+                    result.flip();
+                    return;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
@@ -517,10 +583,33 @@ public class Utility {
         }
 
         public int convertIntValueForStorage(Column storeColumn, int value) {
+            int result = 0;
             switch (storeColumn.getType()) {
                 case Bit:
                 case Int:
                     return value;
+                case Mediumint:
+                    if (value > MAX_MEDIUMINT_VALUE || value < MIN_MEDIUMINT_VALUE){
+                        throw new ClusterJUserException(local.message(
+                                "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    // the high order bytes are the little endian representation
+                    // the the original is 00xxyyzz and the result is zzyyxx00
+                    result |= (value & ooooooff) << 24;
+                    result |= (value & ooooffoo) << 8;
+                    result |= (value & ooffoooo) >> 8;
+                    return result;
+                case Mediumunsigned:
+                    if (value > MAX_MEDIUMUNSIGNED_VALUE || value < 0){
+                        throw new ClusterJUserException(local.message(
+                                "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    // the high order bytes are the little endian representation
+                    // the original is 00xxyyzz and the result is zzyyxx00
+                    result |= (value & ooooooff) << 24;
+                    result |= (value & ooooffoo) << 8;
+                    result |= (value & ooffoooo) >> 8;
+                    return result;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
@@ -543,6 +632,24 @@ public class Utility {
                     result.order(ByteOrder.BIG_ENDIAN);
                     result.putInt((int)((value)));
                     result.putInt((int)((value >>> 32)));
+                    result.flip();
+                    return result;
+                case Mediumint:
+                    if (value > MAX_MEDIUMINT_VALUE || value < MIN_MEDIUMINT_VALUE){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    result.order(ByteOrder.LITTLE_ENDIAN);
+                    put3byteInt(result, (int)value);
+                    result.flip();
+                    return result;
+                case Mediumunsigned:
+                    if (value > MAX_MEDIUMUNSIGNED_VALUE || value < 0){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    result.order(ByteOrder.LITTLE_ENDIAN);
+                    put3byteInt(result, (int)value);
                     result.flip();
                     return result;
                 case Bigint:
@@ -592,6 +699,20 @@ public class Utility {
             }
         }
 
+        /** Put the low order three bytes of the input value into the long as a medium_value.
+         * The format for medium value is always little-endian even on big-endian architectures.
+         * @param value the input value
+         */
+        public long put3byteLong(long value) {
+            // the high order bytes are the little endian representation
+            // the original is 0000000000xxyyzz and the result is zzyyxx0000000000
+            long result = 0L;
+            result |= (value & ooooooff) << 56;
+            result |= (value & ooooffoo) << 40;
+            result |= (value & ooffoooo) << 24;
+            return result;
+        }
+
         public long convertLongValueForStorage(Column storeColumn, long value) {
             long result = 0L;
             switch (storeColumn.getType()) {
@@ -603,24 +724,26 @@ public class Utility {
                 case Bigint:
                 case Bigunsigned:
                     return value;
+                case Mediumint:
+                    if (value > MAX_MEDIUMINT_VALUE || value < MIN_MEDIUMINT_VALUE){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    return put3byteLong(value);
+                case Mediumunsigned:
+                    if (value > MAX_MEDIUMUNSIGNED_VALUE || value < 0){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    return put3byteLong(value);
                 case Date:
-                    // the high order bytes are the little endian representation
-                    // the original is 0000000000xxyyzz and the result is zzyyxx0000000000
                     long packDate = packDate(value);
-                    result |= (packDate & ooooooff) << 56;
-                    result |= (packDate & ooooffoo) << 40;
-                    result |= (packDate & ooffoooo) << 24;
-                    return result;
+                    return put3byteLong(packDate);
                 case Datetime:
                     return packDatetime(value);
                 case Time:
-                    // the high order bytes are the little endian representation
-                    // the original is 0000000000xxyyzz and the result is zzyyxx0000000000
                     long packTime = packTime(value);
-                    result |= (packTime & ooooooff) << 56;
-                    result |= (packTime & ooooffoo) << 40;
-                    result |= (packTime & ooffoooo) << 24;
-                    return result;
+                    return put3byteLong(packTime);
                 case Timestamp:
                     // timestamp is an int so put the value into the high bytes
                     // the original is 00000000tttttttt and the result is tttttttt00000000
@@ -734,8 +857,10 @@ public class Utility {
                 case Timestamp:
                     return ndbRecAttr.int32_value();
                 case Date:
+                case Mediumunsigned:
                     return ndbRecAttr.u_medium_value();
                 case Time:
+                case Mediumint:
                     return ndbRecAttr.medium_value();
                 default:
                     throw new ClusterJUserException(
@@ -750,8 +875,10 @@ public class Utility {
                 case Timestamp:
                     return value;
                 case Date:
+                case Mediumunsigned:
                     return value & ooffffff;
                 case Time:
+                case Mediumint:
                     // propagate the sign bit from 3 byte medium_int
                     return (value << 8) >> 8;
                 default:
@@ -766,6 +893,10 @@ public class Utility {
                 case Bigunsigned:
                 case Bit:
                     return ndbRecAttr.int64_value();
+                case Mediumint:
+                    return ndbRecAttr.medium_value();
+                case Mediumunsigned:
+                    return ndbRecAttr.u_medium_value();
                 case Datetime:
                     return unpackDatetime(ndbRecAttr.int64_value());
                 case Timestamp:
@@ -784,6 +915,8 @@ public class Utility {
             switch (storeColumn.getType()) {
                 case Bigint:
                 case Bigunsigned:
+                case Mediumint:
+                case Mediumunsigned:
                 case Bit:
                     return value;
                 case Datetime:
@@ -897,6 +1030,24 @@ public class Utility {
                     result.putInt(value);
                     result.flip();
                     return;
+                case Mediumint:
+                    if (value > MAX_MEDIUMINT_VALUE || value < MIN_MEDIUMINT_VALUE){
+                        throw new ClusterJUserException(local.message(
+                                "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    result.order(ByteOrder.LITTLE_ENDIAN);
+                    put3byteInt(result, value);
+                    result.flip();
+                    return;
+                case Mediumunsigned:
+                    if (value > MAX_MEDIUMUNSIGNED_VALUE || value < 0){
+                        throw new ClusterJUserException(local.message(
+                                "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    result.order(ByteOrder.LITTLE_ENDIAN);
+                    put3byteInt(result, value);
+                    result.flip();
+                    return;
                 default:
                     throw new ClusterJUserException(local.message(
                             "ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
@@ -907,6 +1058,18 @@ public class Utility {
             switch (storeColumn.getType()) {
                 case Bit:
                 case Int:
+                    return value;
+                case Mediumint:
+                    if (value > MAX_MEDIUMINT_VALUE || value < MIN_MEDIUMINT_VALUE){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    return value;
+                case Mediumunsigned:
+                    if (value > MAX_MEDIUMUNSIGNED_VALUE || value < 0){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
                     return value;
                 default:
                     throw new ClusterJUserException(local.message(
@@ -930,6 +1093,24 @@ public class Utility {
                 case Bigunsigned:
                     result.order(ByteOrder.LITTLE_ENDIAN);
                     result.putLong(value);
+                    result.flip();
+                    return result;
+                case Mediumint:
+                    if (value > MAX_MEDIUMINT_VALUE || value < MIN_MEDIUMINT_VALUE){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    result.order(ByteOrder.LITTLE_ENDIAN);
+                    put3byteInt(result, (int)value);
+                    result.flip();
+                    return result;
+                case Mediumunsigned:
+                    if (value > MAX_MEDIUMUNSIGNED_VALUE || value < 0){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    result.order(ByteOrder.LITTLE_ENDIAN);
+                    put3byteInt(result, (int)value);
                     result.flip();
                     return result;
                 case Datetime:
@@ -978,6 +1159,18 @@ public class Utility {
                 case Bit:
                 case Bigint:
                 case Bigunsigned:
+                    return value;
+                case Mediumint:
+                    if (value > MAX_MEDIUMINT_VALUE || value < MIN_MEDIUMINT_VALUE){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
+                    return value;
+                case Mediumunsigned:
+                    if (value > MAX_MEDIUMUNSIGNED_VALUE || value < 0){
+                        throw new ClusterJUserException(local.message(
+                            "ERR_Bounds", value, storeColumn.getName(), storeColumn.getType()));
+                    }
                     return value;
                 case Datetime:
                     return packDatetime(value);
@@ -1035,6 +1228,8 @@ public class Utility {
                 case Bigint:
                 case Bigunsigned:
                 case Bit:
+                case Mediumint:
+                case Mediumunsigned:
                     return fromStorage;
                 case Datetime:
                     return unpackDatetime(fromStorage);

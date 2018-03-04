@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -85,7 +92,6 @@ using std::unique_ptr;
   The following is used to initialise Table_ident with a internal
   table name
 */
-char internal_table_name[2]= "";
 char empty_c_string[1]= {0};    /* used for not defined db */
 
 LEX_STRING EMPTY_STR= { (char *) "", 0 };
@@ -364,6 +370,7 @@ THD::THD(bool enable_plugins)
    fill_variables_recursion_level(0),
    ha_data(PSI_NOT_INSTRUMENTED, ha_data.initial_capacity),
    binlog_row_event_extra_data(NULL),
+   skip_readonly_check(false),
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
@@ -857,6 +864,9 @@ void THD::init(void)
   owned_gtid.clear();
   owned_sid.clear();
   owned_gtid.dbug_print(NULL, "set owned_gtid (clear) in THD::init");
+
+  // This will clear the writeset session history.
+  rpl_thd_ctx.dependency_tracker_ctx().set_last_session_sequence_number(0);
 }
 
 
@@ -1191,7 +1201,7 @@ void THD::awake(THD::killed_state state_to_set)
     While exiting kill immune mode, awake() is called again with the killed
     state saved in THD::kill_immunizer object.
   */
-  if (kill_immunizer)
+  if (kill_immunizer && kill_immunizer->is_active())
   {
     kill_immunizer->save_killed_state(state_to_set);
     DBUG_VOID_RETURN;
@@ -1214,8 +1224,10 @@ void THD::awake(THD::killed_state state_to_set)
 
   if (state_to_set != THD::KILL_QUERY && state_to_set != THD::KILL_TIMEOUT)
   {
-    if (this != current_thd)
+    if (this != current_thd || kill_immunizer)
     {
+      DBUG_ASSERT(!kill_immunizer || !kill_immunizer->is_active());
+
       /*
         Before sending a signal, let's close the socket of the thread
         that is being killed ("this", which is not the current thread).
@@ -1837,7 +1849,7 @@ void Query_arena::free_items()
 }
 
 
-void Query_arena::set_query_arena(Query_arena *set)
+void Query_arena::set_query_arena(const Query_arena *set)
 {
   mem_root=  set->mem_root;
   free_list= set->free_list;

@@ -1,17 +1,24 @@
 /* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/sql_view.h"
 
@@ -813,6 +820,90 @@ err:
 }
 
 
+/*
+  Check if view is updatable.
+
+  @param  thd       Thread Handle.
+  @param  view      View description.
+
+  @retval true      View is updatable.
+  @retval false     Otherwise.
+*/
+
+bool is_updatable_view(THD *thd, TABLE_LIST *view)
+{
+  bool updatable_view= false;
+  LEX *lex= thd->lex;
+
+  /*
+    A view can be merged if it is technically possible and if the user didn't
+    ask that we create a temporary table instead.
+  */
+  bool can_be_merged=
+    lex->unit->is_mergeable() && view->algorithm != VIEW_ALGORITHM_TEMPTABLE;
+
+  if (!dd::get_dictionary()->is_system_view_name(view->db, view->table_name) &&
+      (updatable_view= can_be_merged))
+  {
+    /// @see SELECT_LEX::merge_derived()
+    bool updatable= false;
+    bool outer_joined= false;
+    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
+         tbl;
+         tbl= tbl->next_local)
+    {
+      updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
+                     tbl->schema_table);
+      outer_joined|= tbl->is_inner_table_of_outer_join();
+    }
+    updatable&= !outer_joined;
+
+    if (updatable)
+    {
+      // check that at least one column in view is updatable.
+      bool view_has_updatable_column= false;
+      List_iterator_fast<Item> it(lex->select_lex->item_list);
+      Item *item;
+      while ((item= it++))
+      {
+	Item_field *item_field= item->field_for_view_update();
+	if (item_field && !item_field->table_ref->schema_table)
+	{
+	  view_has_updatable_column= true;
+	  break;
+	}
+      }
+      updatable&= view_has_updatable_column;
+    }
+
+    if (!updatable)
+      updatable_view= false;
+  }
+
+  /*
+    Check that table of main select do not used in subqueries.
+
+    This test can catch only very simple cases of such non-updateable views,
+    all other will be detected before updating commands execution.
+    (it is more optimisation then real check)
+
+    NOTE: this skip cases of using table via VIEWs, joined VIEWs, VIEWs with
+    UNION
+  */
+  if (updatable_view &&
+      !lex->select_lex->master_unit()->is_union() &&
+      !(lex->select_lex->table_list.first)->next_local &&
+      find_table_in_global_list(lex->query_tables->next_global,
+				lex->query_tables->db,
+				lex->query_tables->table_name))
+  {
+    updatable_view= false;
+  }
+
+  return updatable_view;
+}
+
+
 /**
   Register view by writing its definition to the data-dictionary.
 
@@ -924,43 +1015,7 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   view->view_suid= lex->create_view_suid;
   view->with_check= lex->create_view_check;
 
-  if (!dd::get_dictionary()->is_system_view_name(view->db, view->table_name) &&
-      (view->updatable_view= can_be_merged))
-  {
-    /// @see SELECT_LEX::merge_derived()
-    bool updatable= false;
-    bool outer_joined= false;
-    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
-         tbl;
-         tbl= tbl->next_local)
-    {
-      updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
-                     tbl->schema_table);
-      outer_joined|= tbl->is_inner_table_of_outer_join();
-    }
-    updatable&= !outer_joined;
-
-    if (updatable)
-    {
-      // check that at least one column in view is updatable.
-      bool view_has_updatable_column= false;
-      List_iterator_fast<Item> it(lex->select_lex->item_list);
-      Item *item;
-      while ((item= it++))
-      {
-	Item_field *item_field= item->field_for_view_update();
-	if (item_field && !item_field->table_ref->schema_table)
-	{
-	  view_has_updatable_column= true;
-	  break;
-	}
-      }
-      updatable&= view_has_updatable_column;
-    }
-
-    if (!updatable)
-      view->updatable_view= 0;
-  }
+  view->updatable_view= is_updatable_view(thd, view);
 
   /* init timestamp */
   if (!view->timestamp.str)
@@ -1038,26 +1093,6 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
-  }
-
-  /*
-    Check that table of main select do not used in subqueries.
-
-    This test can catch only very simple cases of such non-updateable views,
-    all other will be detected before updating commands execution.
-    (it is more optimisation then real check)
-
-    NOTE: this skip cases of using table via VIEWs, joined VIEWs, VIEWs with
-    UNION
-  */
-  if (view->updatable_view &&
-      !lex->select_lex->master_unit()->is_union() &&
-      !(lex->select_lex->table_list.first)->next_local &&
-      find_table_in_global_list(lex->query_tables->next_global,
-				lex->query_tables->db,
-				lex->query_tables->table_name))
-  {
-    view->updatable_view= 0;
   }
 
   if (view->with_check != VIEW_CHECK_NONE &&
@@ -1356,7 +1391,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   view_lex->unit->explain_marker= CTX_DERIVED;
 
   // Needed for correct units markup for EXPLAIN
-  view_lex->describe= old_lex->describe;
+  view_lex->explain_format= old_lex->explain_format;
 
   if (thd->m_digest != NULL)
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
@@ -1464,7 +1499,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
                            false, UINT_MAX, true))
       view_ref->view_no_explain= true;
 
-    if (old_lex->describe && is_explainable_query(old_lex->sql_command))
+    if (old_lex->is_explain() && is_explainable_query(old_lex->sql_command))
     {
       // EXPLAIN statement should be allowed on views created in
       // information_schema

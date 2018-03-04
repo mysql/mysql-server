@@ -1627,7 +1627,7 @@ SHOW VARIABLES LIKE 'sql_mode';
 
 # When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] You need to use --log-bin to make --binlog-format work.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] You need to use --log-bin to make --binlog-format work.");
 --enable_query_log
 
 --echo ---- Init ----
@@ -1677,9 +1677,11 @@ SET @@session.log_slave_updates= true;
 SET @@global.log_slave_updates= true;
 #
 --echo #
+--replace_result $HOST_NAME hostname
 SHOW VARIABLES like 'relay_log';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@session.relay_log;
+--replace_result $HOST_NAME hostname
 SELECT @@global.relay_log;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SET @@session.relay_log= 'x';

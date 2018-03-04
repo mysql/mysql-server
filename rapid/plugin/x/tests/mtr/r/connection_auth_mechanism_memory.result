@@ -1,0 +1,604 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+CREATE USER xuser_native@'localhost'
+IDENTIFIED WITH 'mysql_native_password' BY 'native';
+CREATE USER xuser_sha256@'localhost'
+IDENTIFIED WITH 'sha256_password' BY 'sha256';
+CREATE USER xuser_cache2@'localhost'
+IDENTIFIED WITH 'caching_sha2_password' BY 'cache2';
+GRANT ALL ON *.* TO xuser_native@localhost;
+GRANT ALL ON *.* TO xuser_sha256@localhost;
+GRANT ALL ON *.* TO xuser_cache2@localhost;
+
+#######################################################################
+## 1. Memory mechanism fails
+##
+## when:
+## * The cache is empty
+## * The the mysqlx_cache_cleaner plugin is not installed
+##   then the cache is not filled with data.
+##
+## Requirements: F1
+#
+#######################################################################
+# Cache is empty, the sha256_memory request must fail
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+# Plain auth work as expected, anyway it doesnt fill the cache
+-- Expecting success with parameters: REQUIRED	plain	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+# Recheck that the cache is empty after plain auth, the sha256_memory request must fail:
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+## 2. Memory mechanism ok after filling the cache, fails after flush
+##
+## when:
+## * The cache is empty, the memory request is going to fail
+## * plain auth is going to fill the cache (mysqlx_cache_cleaner installed)
+## * The cache is filled, the memory auth request is going to be successful
+## * FLUSH PRIVILEGES is going to clear the cache,
+##   the memory auth request is going to be successful
+##
+## Requirements: F2, F4, F5, CI6
+#
+
+#######################################################################
+# Install the mysqlx_cache_cleaner plugin (activate the cache)
+install plugin mysqlx_cache_cleaner soname "MYSQLXPLUGIN";
+
+#######################################################################
+# Cache is empty, the sha256_memory request must fail
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+# Plain auth work as expected and it fill the cache
+-- Expecting success with parameters: REQUIRED	plain	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+# Plain filled the cache, thus auth-mech sha256_memory must be successful
+-- Expecting success with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	memory	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	memory	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+# Cache is cleared by FLUSH SQL, thus auth-mech sha256_memory must fail
+FLUSH PRIVILEGES;
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+## 3. Memory mechanism fails after uninstall plugin
+##
+## when:
+##  * plain auth is going to fill the cache
+##  * uninstall plugin mysqlx_cache_cleaner, disables the cache
+##
+## Requirements: F1
+#
+
+#######################################################################
+# Plain auth work as expected and it fill the cache
+-- Expecting success with parameters: REQUIRED	plain	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	plain	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+# Plain filled the cache, thus auth-mech sha256_memory must be successful
+-- Expecting success with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	OFF
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	memory	xuser_native	native
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_native	mysql_native_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	memory	xuser_sha256	sha256
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_sha256	sha256_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+-- Expecting success with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+active session is now 'sess0'
+RUN SELECT user, plugin FROM mysql.user WHERE user = REPLACE(USER(), '@localhost', '')
+user	plugin
+xuser_cache2	caching_sha2_password
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_active'
+Variable_name	Value
+Mysqlx_ssl_active	ON
+0 rows affected
+closing session sess0
+Mysqlx.Ok {
+  msg: "bye!"
+}
+switched to session default
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+#######################################################################
+# Uninstall plugin, the memory login  should be disabled
+UNINSTALL PLUGIN mysqlx_cache_cleaner;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+-- Expecting failure with parameters: DISABLED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+-- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
+--
+connecting...
+Got expected error: Invalid user or password (code 1045)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP USER xuser_native@'localhost';
+DROP USER xuser_sha256@'localhost';
+DROP USER xuser_cache2@'localhost';
+UNINSTALL PLUGIN mysqlx;

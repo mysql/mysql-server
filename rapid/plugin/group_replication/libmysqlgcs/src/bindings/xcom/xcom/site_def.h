@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,7 +23,8 @@
 #ifndef SITE_DEF_H
 #define SITE_DEF_H
 
-#include "site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_struct.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,6 +72,22 @@ static inline bool_t node_no_exists(node_no n, site_def const *site) {
 
 static inline bool_t is_local_node(node_no n, site_def const *site) {
   return node_no_exists(n, site) && n == get_nodeno(site);
+}
+
+/**
+  Finds pointer to server given site and node number.
+  @param[in]     s    Pointer to site definition
+  @param[in]     i    Node number
+
+  @return
+    @retval Pointer to server if success
+    @retval 0 if failure
+*/
+static inline server *get_server(site_def const *s, node_no i) {
+  if (s && i != VOID_NODE_NO && i < s->nodes.node_list_len)
+    return s->servers[i];
+  else
+    return 0;
 }
 
 #ifdef __cplusplus

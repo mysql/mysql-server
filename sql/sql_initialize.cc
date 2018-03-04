@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,10 +27,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "../scripts/sql_commands_help_data.h"
-#include "../scripts/sql_commands_sys_schema.h"
-#include "../scripts/sql_commands_system_data.h"
-#include "../scripts/sql_commands_system_tables.h"
 #include "components/mysql_server/log_builtins_filter_imp.h" // verbosity
 #include "m_ctype.h"
 #include "my_dir.h"
@@ -35,6 +38,10 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scripts/sql_commands_help_data.h"
+#include "scripts/sql_commands_sys_schema.h"
+#include "scripts/sql_commands_system_data.h"
+#include "scripts/sql_commands_system_tables.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
@@ -77,6 +84,16 @@ static const char *session_service_initialization_data[] =
   NULL
 };
 
+static const char *information_schema_owner_initialization_data[] =
+{
+  "CREATE USER 'mysql.infoschema'@localhost IDENTIFIED "
+    "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
+    "ACCOUNT LOCK;\n",
+  "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.infoschema'@localhost;\n",
+  "GRANT SELECT ON *.* TO 'mysql.infoschema'@localhost;\n",
+  nullptr
+};
+
 static const char** cmds[]=
 {
   initialization_cmds,
@@ -85,6 +102,7 @@ static const char** cmds[]=
   mysql_system_data,
   fill_help_tables,
   session_service_initialization_data,
+  information_schema_owner_initialization_data,
   mysql_sys_schema,
   NULL
 };
@@ -98,6 +116,7 @@ static const char *cmd_descs[]=
   "Filling in the system tables, part 2",
   "Filling in the mysql.help table",
   "Creating user for internal session service",
+  "Creating user to be owner of views in information_schema",
   "Creating the sys schema",
   NULL
 };
@@ -178,7 +197,8 @@ void Compiled_in_command_iterator::begin(void)
   cmds_ofs= cmd_ofs= 0;
 
   is_active= true;
-  sql_print_information("%s", cmd_descs[cmds_ofs]);
+  LogErr(INFORMATION_LEVEL, ER_SERVER_INIT_COMPILED_IN_COMMANDS,
+         cmd_descs[cmds_ofs]);
   if (opt_initialize_insecure)
   {
     strcpy(insert_user_buffer, INSERT_USER_CMD_INSECURE);
@@ -223,7 +243,8 @@ int Compiled_in_command_iterator::next(std::string &query, int *read_error,
   {
     cmds_ofs++;
     if (cmds[cmds_ofs] != NULL)
-      sql_print_information("%s", cmd_descs[cmds_ofs]);
+      LogErr(INFORMATION_LEVEL, ER_SERVER_INIT_COMPILED_IN_COMMANDS,
+             cmd_descs[cmds_ofs]);
     cmd_ofs= 0;
   }
 

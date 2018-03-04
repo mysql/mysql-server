@@ -4,17 +4,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* This file includes all reserved words and functions */
@@ -186,11 +193,13 @@ static const SYMBOL symbols[] = {
   { SYM("DEFAULT",                  DEFAULT_SYM)},
   { SYM("DEFAULT_AUTH",             DEFAULT_AUTH_SYM)},
   { SYM("DEFINER",                  DEFINER_SYM)},
+  { SYM("DEFINITION",               DEFINITION_SYM)},
   { SYM("DELAYED",                  DELAYED_SYM)},
   { SYM("DELAY_KEY_WRITE",          DELAY_KEY_WRITE_SYM)},
   { SYM("DENSE_RANK",               DENSE_RANK_SYM)},
   { SYM("DESC",                     DESC)},
   { SYM("DESCRIBE",                 DESCRIBE)},
+  { SYM("DESCRIPTION",              DESCRIPTION_SYM)},
   { SYM("DETERMINISTIC",            DETERMINISTIC_SYM)},
   { SYM("DIAGNOSTICS",              DIAGNOSTICS_SYM)},
   { SYM("DIRECTORY",                DIRECTORY_SYM)},
@@ -210,6 +219,7 @@ static const SYMBOL symbols[] = {
   { SYM("EACH",                     EACH_SYM)},
   { SYM("ELSE",                     ELSE)},
   { SYM("ELSEIF",                   ELSEIF_SYM)},
+  { SYM("EMPTY",                    EMPTY_SYM)},
   { SYM("ENABLE",                   ENABLE_SYM)},
   { SYM("ENCLOSED",                 ENCLOSED)},
   { SYM("END",                      END)},
@@ -267,6 +277,7 @@ static const SYMBOL symbols[] = {
   { SYM("GEOMETRY",                 GEOMETRY_SYM)},
   { SYM("GEOMETRYCOLLECTION",       GEOMETRYCOLLECTION_SYM)},
   { SYM("GET_FORMAT",               GET_FORMAT)},
+  { SYM("GET_MASTER_PUBLIC_KEY",    GET_MASTER_PUBLIC_KEY_SYM)},
   { SYM("GET",                      GET_SYM)},
   { SYM("GENERATED",                GENERATED)},
   { SYM("GLOBAL",                   GLOBAL_SYM)},
@@ -326,6 +337,7 @@ static const SYMBOL symbols[] = {
   { SYM("INVOKER",                  INVOKER_SYM)},
   { SYM("JOIN",                     JOIN_SYM)},
   { SYM("JSON",                     JSON_SYM)},
+  { SYM("JSON_TABLE",               JSON_TABLE_SYM)},
   { SYM("KEY",                      KEY_SYM)},
   { SYM("KEYS",                     KEYS)},
   { SYM("KEY_BLOCK_SIZE",           KEY_BLOCK_SIZE)},
@@ -371,6 +383,7 @@ static const SYMBOL symbols[] = {
   { SYM("MASTER_LOG_POS",           MASTER_LOG_POS_SYM)},
   { SYM("MASTER_PASSWORD",          MASTER_PASSWORD_SYM)},
   { SYM("MASTER_PORT",              MASTER_PORT_SYM)},
+  { SYM("MASTER_PUBLIC_KEY_PATH",   MASTER_PUBLIC_KEY_PATH_SYM)},
   { SYM("MASTER_RETRY_COUNT",       MASTER_RETRY_COUNT_SYM)},
   { SYM("MASTER_SERVER_ID",         MASTER_SERVER_ID_SYM)},
   { SYM("MASTER_SSL",               MASTER_SSL_SYM)},
@@ -424,6 +437,7 @@ static const SYMBOL symbols[] = {
   { SYM("NDB",                      NDBCLUSTER_SYM)},
   { SYM("NDBCLUSTER",               NDBCLUSTER_SYM)},
   { SYM("NCHAR",                    NCHAR_SYM)},
+  { SYM("NESTED",                   NESTED_SYM)},
   { SYM("NEVER",                    NEVER_SYM)},
   { SYM("NEW",                      NEW_SYM)},
   { SYM("NEXT",                     NEXT_SYM)},
@@ -453,14 +467,17 @@ static const SYMBOL symbols[] = {
   { SYM("OPTION",                   OPTION)},
   { SYM("OPTIONALLY",               OPTIONALLY)},
   { SYM("OR",                       OR_SYM)},
+  { SYM("ORGANIZATION",             ORGANIZATION_SYM)},
   { SYM("OTHERS",                   OTHERS_SYM)},
   { SYM("ORDER",                    ORDER_SYM)},
+  { SYM("ORDINALITY",               ORDINALITY_SYM)},
   { SYM("OUT",                      OUT_SYM)},
   { SYM("OUTER",                    OUTER)},
   { SYM("OUTFILE",                  OUTFILE)},
   { SYM("OVER",                     OVER_SYM)},
   { SYM("OWNER",                    OWNER_SYM)},
   { SYM("PACK_KEYS",                PACK_KEYS_SYM)},
+  { SYM("PATH",                     PATH_SYM)},
   { SYM("PARSER",                   PARSER_SYM)},
   { SYM("PAGE",                     PAGE_SYM)},
   { SYM("PARTIAL",                  PARTIAL)},
@@ -508,6 +525,7 @@ static const SYMBOL symbols[] = {
   { SYM("RECURSIVE",                RECURSIVE_SYM)},
   { SYM("REDO_BUFFER_SIZE",         REDO_BUFFER_SIZE_SYM)},
   { SYM("REDUNDANT",                REDUNDANT_SYM)},
+  { SYM("REFERENCE",                REFERENCE_SYM)},
   { SYM("REFERENCES",               REFERENCES)},
   { SYM("REGEXP",                   REGEXP)},
   { SYM("RELAY",                    RELAY)},
@@ -537,6 +555,7 @@ static const SYMBOL symbols[] = {
   { SYM("RESPECT",                  RESPECT_SYM)},
   { SYM("RESIGNAL",                 RESIGNAL_SYM)},
   { SYM("RESOURCE",                 RESOURCE_SYM)},
+  { SYM("RESTART",                  RESTART_SYM)},
   { SYM("RESTORE",                  RESTORE_SYM)},
   { SYM("RESTRICT",                 RESTRICT)},
   { SYM("RESUME",                   RESUME_SYM)},

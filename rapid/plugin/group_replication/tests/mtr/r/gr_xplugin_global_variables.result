@@ -23,7 +23,6 @@ Mysqlx.Ok {
 }
 ok
 include/gr_wait_for_member_state.inc
-include/assert.inc [group_replication_allow_local_disjoint_gtids_join is OFF]
 include/assert.inc [group_replication_allow_local_lower_version_join is OFF]
 include/assert.inc [group_replication_auto_increment_increment is 7]
 include/assert.inc [group_replication_components_stop_timeout is 31536000]
@@ -40,7 +39,6 @@ include/assert.inc [group_replication_recovery_retry_count is 10]
 include/assert.inc [group_replication_start_on_boot is OFF]
 include/assert.inc [group_replication_single_primary_mode is OFF]
 include/stop_group_replication.inc
-SET @group_replication_allow_local_disjoint_gtids_join_save= @@GLOBAL.group_replication_allow_local_disjoint_gtids_join;
 SET @group_replication_allow_local_lower_version_join_save= @@GLOBAL.group_replication_allow_local_lower_version_join;
 SET @group_replication_auto_increment_increment_save= @@GLOBAL.group_replication_auto_increment_increment;
 SET @group_replication_components_stop_timeout_save= @@GLOBAL.group_replication_components_stop_timeout;
@@ -69,9 +67,8 @@ SET @group_replication_recovery_use_ssl_save= @@GLOBAL.group_replication_recover
 SET @group_replication_single_primary_mode_save= @@GLOBAL.group_replication_single_primary_mode;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET @group_replication_start_on_boot_save= @@GLOBAL.group_replication_start_on_boot;
-RUN SET GLOBAL group_replication_allow_local_disjoint_gtids_join= ON
-
-0 rows affected
+SET @group_replication_recovery_public_key_path_save= @@GLOBAL.group_replication_recovery_public_key_path;
+SET @group_replication_recovery_get_public_key_save= @@GLOBAL.group_replication_recovery_get_public_key;
 RUN SET GLOBAL group_replication_allow_local_lower_version_join= ON
 
 0 rows affected
@@ -165,12 +162,17 @@ RUN SET GLOBAL group_replication_ssl_mode= "VERIFY_CA"
 RUN SET GLOBAL group_replication_start_on_boot= ON
 
 0 rows affected
+RUN SET GLOBAL group_replication_recovery_get_public_key= ON
+
+0 rows affected
+RUN SET GLOBAL group_replication_recovery_public_key_path= 'MYSQL_TEST_DIR/std_data/rsa_public_key.pem'
+
+0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 START GROUP_REPLICATION;
-include/assert.inc [group_replication_allow_local_disjoint_gtids_join is ON]
 include/assert.inc [group_replication_allow_local_lower_version_join is ON]
 include/assert.inc [group_replication_auto_increment_increment is 5]
 include/assert.inc [group_replication_components_stop_timeout is 10]
@@ -200,6 +202,8 @@ include/assert.inc [group_replication_recovery_use_ssl is ON]
 include/assert.inc [group_replication_single_primary_mode is ON]
 include/assert.inc [group_replication_start_on_boot is ON]
 include/assert.inc [group_replication_ssl_mode is VERIFY_CA]
+include/assert.inc [group_replication_recovery_public_key_path is MYSQL_TEST_DIR/std_data/rsa_public_key.pem]
+include/assert.inc [group_replication_recovery_get_public_key is ON]
 Stopping GR on server 1
 RUN STOP GROUP_REPLICATION;
 
@@ -210,7 +214,6 @@ Mysqlx.Ok {
 ok
 include/gr_wait_for_member_state.inc
 include/assert_and_disable_read_only.inc
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= @group_replication_allow_local_disjoint_gtids_join_save;
 SET GLOBAL group_replication_allow_local_lower_version_join= @group_replication_allow_local_lower_version_join_save;
 SET GLOBAL group_replication_auto_increment_increment= @group_replication_auto_increment_increment_save;
 SET GLOBAL group_replication_components_stop_timeout= @group_replication_components_stop_timeout_save;
@@ -240,6 +243,8 @@ SET GLOBAL group_replication_single_primary_mode= @group_replication_single_prim
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET GLOBAL group_replication_start_on_boot= @group_replication_start_on_boot_save;
 SET GLOBAL group_replication_enforce_update_everywhere_checks= @group_replication_enforce_update_everywhere_checks_save;
+SET GLOBAL group_replication_recovery_public_key_path= @group_replication_recovery_public_key_path_save;
+SET GLOBAL group_replication_recovery_get_public_key= @group_replication_recovery_get_public_key_save;
 RUN SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-eeee-aaaa-aaaa-aaaaaaaaaaaa'
 
 0 rows affected

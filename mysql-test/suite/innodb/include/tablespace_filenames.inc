@@ -82,5 +82,5 @@ DROP TABLESPACE ibport_s15;
 DROP TABLESPACE ibport_s16;
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number [0-9]* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number [0-9]* in a file operation");
 --enable_query_log

@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__SDI_INCLUDED
 #define DD__SDI_INCLUDED
@@ -37,6 +44,8 @@ class Tablespace;
 class View;
 
 typedef String_type Sdi_type;
+
+static constexpr std::uint64_t sdi_version= 1;
 
 /**
   @defgroup serialize_api (De)serialize api functions.
@@ -176,24 +185,6 @@ inline bool store(THD *thd MY_ATTRIBUTE((unused)),
 
 
 /**
-  Stores the SDI for a Schema.
-
-  Serializes the schema object, and then forwards to SE through handlerton
-  api, or falls back to storing the sdi string in an .SDI file in the
-  default case.
-
-  @param thd    Thread handle.
-  @param s      Schema object.
-
-  @return error status
-    @retval false on success
-    @retval true otherwise
-*/
-
-bool store(THD *thd, const Schema *s);
-
-
-/**
   Stores the SDI for a table.
 
   Serializes the table, and then forwards to SE through handlerton
@@ -249,24 +240,6 @@ inline bool drop(THD *thd MY_ATTRIBUTE((unused)),
 
 
 /**
-  Remove SDI for a schema.
-
-  Forwards to SE through handlerton api, which will remove from
-  tablespace, or falls back to deleting the .SDI file in the default
-  case.
-
-  @param thd
-  @param s      Schema object.
-
-  @return error status
-    @retval false on success
-    @retval true otherwise
-*/
-
-bool drop(THD *thd, const Schema *s);
-
-
-/**
   Remove SDI for a table.
 
   Forwards to SE through handlerton api, which will remove from
@@ -304,27 +277,6 @@ inline bool drop_after_update(THD *thd MY_ATTRIBUTE((unused)),
 {
   return false;
 }
-
-
-/**
-  Schema cleanup hook. When Dictionary_client issues a store which is
-  performed as an update in the DD a new schema SDI file will be
-  stored. If the update modifies the name of the schema it is
-  necessary to remove the old SDI file after the new one has been
-  written successfully. If the file names are the same the file is
-  updated in place, potentially leaving it corrupted if something goes
-  wrong.
-
-  @param thd
-  @param old_s old Schema object
-  @param new_s new Schema object
-
-  @return error status
-    @retval false on success
-    @retval true otherwise
-*/
-
-bool drop_after_update(THD *thd, const Schema *old_s, const Schema *new_s);
 
 
 /**

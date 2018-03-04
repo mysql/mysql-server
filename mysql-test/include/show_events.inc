@@ -38,7 +38,8 @@ if ($binlog_file)
   {
     if ($is_relay_log)
     {
-      --let $_binlog_file= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1)
+      --source include/rpl_get_end_of_relay_log.inc
+      --let $_binlog_file= $relay_log_file
     }
     if (!$is_relay_log)
     {
@@ -143,7 +144,7 @@ if ($mask_anonymous_gtid_events)
 # To mask random password generated with create/alter user
 if ($mask_user_password_events)
 {
- --let $script= $script s{'caching_sha2_password' AS '.*' REQUIRE?}{'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE}g;
+ --let $script= $script s{'caching_sha2_password' AS '(.*)'}{'caching_sha2_password' AS '<non-deterministic-password-hash>'}g;
  --let $script= $script s{SET PASSWORD FOR .*}{SET PASSWORD FOR '<some_user>'='<non-deterministic-password-hash>'};
  }
 if (!$keep_ddl_xid)

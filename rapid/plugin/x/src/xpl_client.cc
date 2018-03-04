@@ -1,48 +1,56 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "xpl_client.h"
+#include "plugin/x/src/xpl_client.h"
 
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "cap_handles_expired_passwords.h"
 // needed for ip_to_hostname(), should probably be turned into a service
-#include "hostname.h"
 #include "my_inttypes.h"
-#include "mysql_show_variable_wrapper.h"
-#include "mysql_variables.h"
-#include "mysqlx_version.h"
-#include "ngs/capabilities/configurator.h"
-#include "ngs/capabilities/handler_readonly_value.h"
-#include "ngs/thread.h"
-#include "ngs_common/string_formatter.h"
-#include "xpl_server.h"
-#include "xpl_session.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/ngs/include/ngs_common/string_formatter.h"
+#include "plugin/x/src/cap_handles_expired_passwords.h"
+#include "plugin/x/src/mysql_show_variable_wrapper.h"
+#include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/xpl_session.h"
+#include "sql/hostname.h"
+
 
 namespace xpl {
 
 Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server,
-               Client_id client_id, Protocol_monitor *pmon)
-    : ngs::Client(connection, server, client_id, *pmon),
+               Client_id client_id, ngs::Protocol_monitor_interface *pmon,
+               const Global_timeouts &timeouts)
+    : ngs::Client(connection, server, client_id, *pmon, timeouts),
       m_protocol_monitor(pmon) {
-  if (m_protocol_monitor) m_protocol_monitor->init(this);
+  if (m_protocol_monitor)
+    static_cast<Protocol_monitor*>(m_protocol_monitor)->init(this);
 }
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
@@ -70,6 +78,30 @@ ngs::Capabilities_configurator *Client::capabilities_configurator() {
 
   return caps;
 }
+
+void Client::set_is_interactive(const bool flag)  {
+  m_is_interactive = flag;
+
+  if (nullptr == m_session.get())
+    return;
+
+  auto thd = m_session->get_thd();
+
+  if (nullptr == thd)
+    return;
+
+  if (!m_session->data_context().attach()) {
+    auto global_timeouts = get_global_timeouts();
+
+    m_wait_timeout = m_is_interactive ?
+        global_timeouts.interactive_timeout :
+        global_timeouts.wait_timeout;
+    set_session_wait_timeout(thd, m_wait_timeout);
+
+    m_session->data_context().detach();
+  }
+}
+
 
 ngs::shared_ptr<xpl::Session> Client::get_session() {
   return ngs::static_pointer_cast<xpl::Session>(session());
@@ -113,7 +145,7 @@ void Client::on_auth_timeout() {
 bool Client::is_handler_thd(THD *thd) {
   ngs::shared_ptr<ngs::Session_interface> session = this->session();
 
-  return thd && session && (session->is_handled_by(thd));
+  return thd && session && (session->get_thd() == thd);
 }
 
 void Client::get_status_ssl_cipher_list(st_mysql_show_var *var) {

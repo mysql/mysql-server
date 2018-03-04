@@ -68,6 +68,7 @@ libtest_session_in_thd                  plugin_output_directory TEST_SESSION_IN_
 libtest_x_sessions_init                 plugin_output_directory TEST_X_SESSIONS_INIT
 libtest_x_sessions_deinit               plugin_output_directory TEST_X_SESSIONS_DEINIT
 libtest_session_detach                  plugin_output_directory TEST_SESSION_DETACH
+libtest_session_attach                  plugin_output_directory TEST_SESSION_ATTACH
 libtest_session_info                    plugin_output_directory TEST_SESSION_INFO
 # Test SQL API
 libtest_sql_complex                     plugin_output_directory TEST_SQL_COMPLEX
@@ -119,3 +120,6 @@ component_pfs_example    component_output_directory  PFS_EXAMPLE
 
 # Test system_variable_source service
 component_test_system_variable_source component_output_directory TEST_SYSTEM_VARIABLE_SOURCE
+
+# password validation component
+component_validate_password     component_output_directory  VALIDATE_PASSWORD_COMPONENT

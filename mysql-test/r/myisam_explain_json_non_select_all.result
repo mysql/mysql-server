@@ -6070,11 +6070,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` > 0)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_rnd	1
 Handler_read_rnd_next	8
 Handler_write	2
@@ -6232,11 +6232,11 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t11`.`a` AS `a`,`test`.`t12`.`a` AS `b` from `test`.`t1` join `test`.`t1` `t11` join `test`.`t1` `t12` where (`test`.`t11`.`a` = `test`.`t1`.`a`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_rnd_next	9
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	3
+Handler_read_key	1
 Handler_read_rnd	2
 Handler_read_rnd_next	18
 Handler_update	1
@@ -6328,13 +6328,13 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	1
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_next	3
 
 DROP TABLE t1;
@@ -6410,7 +6410,8 @@ EXPLAIN
             "data_read_per_join": "64"
           } /* cost_info */,
           "used_columns": [
-            "a"
+            "a",
+            "b"
           ] /* used_columns */
         } /* table */
       }
@@ -6485,12 +6486,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	9
+Handler_read_key	7
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
-Handler_read_key	9
+Handler_read_key	7
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -6567,7 +6568,8 @@ EXPLAIN
             "data_read_per_join": "64"
           } /* cost_info */,
           "used_columns": [
-            "a"
+            "a",
+            "b"
           ] /* used_columns */
         } /* table */
       }
@@ -6642,12 +6644,12 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t1`.`a` AS `a`,(`test`.`t1`.`b` + 1) AS `c` from `test`.`t2` join `test`.`t1` where (`test`.`t1`.`a` = `test`.`t2`.`x`)
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
-Handler_read_key	9
+Handler_read_key	7
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
-Handler_read_key	9
+Handler_read_key	7
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -6695,7 +6697,7 @@ Note	1003	/* select#1 */ select NULL AS `NULL`
 Variable_name	Value
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	1
 Handler_write	1
 
 DROP TABLE t1;
@@ -6744,7 +6746,7 @@ Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	2
 Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;

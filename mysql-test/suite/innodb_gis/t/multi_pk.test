@@ -6,7 +6,7 @@
 --source include/not_valgrind.inc
 
 # Create table with R-tree index.
-create table t1 (c1 int, c2 varchar(255), c3 geometry not null, primary key(c1, c2), spatial index (c3))engine=innodb charset latin1;
+create table t1 (c1 int, c2 varchar(255), c3 geometry not null SRID 0, primary key(c1, c2), spatial index (c3))engine=innodb charset latin1;
 
 # Insert enough values to let R-tree split.
 delimiter |;

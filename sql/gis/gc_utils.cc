@@ -1,33 +1,40 @@
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
-// This program is free software; you can redistribute it and/or modify it under
-// the terms of the GNU General Public License as published by the Free Software
-// Foundation; version 2 of the License.
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
 //
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-// details.
+// This program is also distributed with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have included with MySQL.
 //
-// You should have received a copy of the GNU General Public License along with
-// this program; if not, write to the Free Software Foundation, 51 Franklin
-// Street, Suite 500, Boston, MA 02110-1335 USA.
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 /// @file
 ///
 /// This file implements utility functions for working with geometrycollections.
 
-#include "gc_utils.h"
+#include "sql/gis/gc_utils.h"
 
 #include <boost/geometry.hpp>  // boost::geometry::difference
 
-#include "difference_functor.h"
-#include "geometries.h"
-#include "geometries_cs.h"
-#include "geometries_traits.h"
-#include "my_dbug.h"         // DBUG_ASSERT
+#include "my_dbug.h"  // DBUG_ASSERT
+#include "sql/gis/difference_functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/union_functor.h"
 #include "template_utils.h"  // down_cast
-#include "union_functor.h"
 
 namespace bg = boost::geometry;
 
@@ -126,11 +133,7 @@ void typed_gc_union(double semi_major, double semi_minor,
   }
 
   std::unique_ptr<MLs> linestrings(new MLs());
-  for (auto &ls : *down_cast<MLs *>(mls->get())) {
-    linestrings.reset(down_cast<MLs *>(union_(linestrings.get(), &ls)));
-  }
-  linestrings.reset(
-      down_cast<MLs *>(difference(linestrings.get(), polygons.get())));
+  linestrings.reset(down_cast<MLs *>(difference(mls->get(), polygons.get())));
 
   std::unique_ptr<MPt> points(down_cast<MPt *>(
       difference(down_cast<MPt *>(mpt->get()), linestrings.get())));

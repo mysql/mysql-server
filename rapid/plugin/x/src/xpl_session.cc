@@ -1,34 +1,39 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "xpl_session.h"
+#include "plugin/x/src/xpl_session.h"
 
-#include "crud_cmd_handler.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "ngs/interface/client_interface.h"
-#include "ngs/ngs_error.h"
-#include "ngs/scheduler.h"
-#include "notices.h"
-#include "sql_data_context.h"
-#include "xpl_dispatcher.h"
-#include "xpl_log.h"
-#include "xpl_server.h"
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/crud_cmd_handler.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/xpl_dispatcher.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_server.h"
 
 
 xpl::Session::Session(ngs::Client_interface &client, ngs::Protocol_encoder_interface *proto, const Session_id session_id)
@@ -43,6 +48,9 @@ xpl::Session::~Session()
 {
   if (m_was_authenticated)
     --Global_status_variables::instance().m_sessions_count;
+
+  if (m_failed_auth_count > 0 && !m_was_authenticated)
+    ++Global_status_variables::instance().m_rejected_sessions_count;
 
   m_sql.deinit();
 }
@@ -128,8 +136,6 @@ void xpl::Session::on_auth_failure(const ngs::Authentication_interface::Response
   }
   else
     ngs::Session::on_auth_failure(response);
-
-  ++Global_status_variables::instance().m_rejected_sessions_count;
 }
 
 
@@ -139,9 +145,8 @@ void xpl::Session::mark_as_tls_session()
 }
 
 
-bool xpl::Session::is_handled_by(const void *handler) const
-{
-  return m_sql.get_thd() == handler;
+THD* xpl::Session::get_thd() const {
+  return m_sql.get_thd();
 }
 
 

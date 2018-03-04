@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -307,6 +314,10 @@ public:
     void *m= alloc(sizeof(T));
     return m == NULL ? NULL : new (m) T;
   }
+  template<typename T> T *memdup_typed(const T *mem)
+  {
+    return static_cast<T *>(memdup_root(mem_root, mem, sizeof(T)));
+  }
   inline char *mem_strdup(const char *str)
   { return strdup_root(mem_root,str); }
   inline char *strmake(const char *str, size_t size) const
@@ -314,7 +325,12 @@ public:
   inline void *memdup(const void *str, size_t size)
   { return memdup_root(mem_root,str,size); }
 
-  void set_query_arena(Query_arena *set);
+  /**
+    Copies memory-managing members from `set`. No references are kept to it.
+
+    @param set A Query_arena from which members are copied.
+  */
+  void set_query_arena(const Query_arena *set);
 
   void free_items();
   /* Close the active state associated with execution of this statement */
@@ -705,6 +721,9 @@ public:
                                 MYSQL_LOCK *lock,
                                 size_t reopen_count);
   bool reopen_tables(THD *thd);
+  void rename_locked_table(TABLE_LIST *old_table_list,
+                           const char *new_db, const char *new_table_name,
+                           MDL_ticket *target_mdl_ticket);
 };
 
 
@@ -1074,7 +1093,7 @@ public:
     avoid crashes in following functions:
       explain_single_table_modification
       explain_query
-      mysql_explain_other
+      Sql_cmd_explain_other_thread::execute
     When doing EXPLAIN CONNECTION:
       all explain code assumes that this mutex is already taken.
     When doing ordinary EXPLAIN:
@@ -1504,6 +1523,11 @@ public:
   struct st_thd_timer_info *timer_cache;
 
 private:
+  /*
+    Indicates that the command which is under execution should ignore the
+    'read_only' and 'super_read_only' options.
+  */
+  bool skip_readonly_check;
   /**
     Indicate if the current statement should be discarded
     instead of written to the binlog.
@@ -1566,6 +1590,22 @@ private:
   NET     net;                          // client connection descriptor
   String  packet;                       // dynamic buffer for network I/O
 public:
+  void set_skip_readonly_check()
+  {
+    skip_readonly_check= true;
+  }
+
+  bool is_cmd_skip_readonly()
+  {
+    return skip_readonly_check;
+  }
+
+  void reset_skip_readonly_check()
+  {
+    if (skip_readonly_check)
+      skip_readonly_check= false;
+  }
+
   void issue_unsafe_warnings();
 
   uint get_binlog_table_maps() const {
@@ -2614,7 +2654,7 @@ public:
     DBUG_VOID_RETURN;
   }
 
-  virtual int is_killed() { return killed; }
+  virtual int is_killed() const final { return killed; }
   virtual THD* get_thd() { return this; }
 
   /**
@@ -3101,14 +3141,15 @@ public:
   { return m_attachable_trx != NULL && m_attachable_trx->is_read_only(); }
 
   /**
-    @return true if there is an active rw attachable transaction.
+    @return true if there is an active attachable transaction.
   */
-  bool is_attachable_rw_transaction_active() const;
+  bool is_attachable_transaction_active() const
+  { return m_attachable_trx != NULL; }
 
   /**
     @return true if there is an active rw attachable transaction.
   */
-  bool is_attachable_rw_i_s_transaction_active() const;
+  bool is_attachable_rw_transaction_active() const;
 
 public:
   /*
@@ -3156,30 +3197,15 @@ public:
   inline void reset_current_stmt_binlog_format_row()
   {
     DBUG_ENTER("reset_current_stmt_binlog_format_row");
-    /*
-      If there are temporary tables, don't reset back to
-      statement-based. Indeed it could be that:
-      CREATE TEMPORARY TABLE t SELECT UUID(); # row-based
-      # and row-based does not store updates to temp tables
-      # in the binlog.
-      INSERT INTO u SELECT * FROM t; # stmt-based
-      and then the INSERT will fail as data inserted into t was not logged.
-      So we continue with row-based until the temp table is dropped.
-      If we are in a stored function or trigger, we mustn't reset in the
-      middle of its execution (as the binary logging way of a stored function
-      or trigger is decided when it starts executing, depending for example on
-      the caller (for a stored function: if caller is SELECT or
-      INSERT/UPDATE/DELETE...).
-    */
     DBUG_PRINT("debug",
-               ("temporary_tables: %d, in_sub_stmt: %d, system_thread: %s",
-                temporary_tables != NULL, in_sub_stmt != 0,
+               ("in_sub_stmt: %d, system_thread: %s",
+                in_sub_stmt != 0,
                 show_system_thread(system_thread)));
     if (in_sub_stmt == 0)
     {
       if (variables.binlog_format == BINLOG_FORMAT_ROW)
         set_current_stmt_binlog_format_row();
-      else if (temporary_tables == NULL)
+      else
         clear_current_stmt_binlog_format_row();
     }
     DBUG_VOID_RETURN;

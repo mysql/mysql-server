@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -56,7 +64,7 @@ rollback */
 static const ulint TRX_ROLL_TRUNC_THRESHOLD = 1;
 
 /** true if trx_rollback_or_clean_all_recovered() thread is active */
-bool			trx_rollback_or_clean_is_active;
+bool                    trx_rollback_or_clean_is_active;
 
 /** In crash recovery, the current trx to be rolled back; NULL otherwise */
 static const trx_t*	trx_roll_crash_recv_trx	= NULL;
@@ -819,11 +827,11 @@ void
 trx_recovery_rollback_thread()
 {
 #ifdef UNIV_PFS_THREAD
-	THD*	thd = create_thd(false, true, true,
-				 trx_recovery_rollback_thread_key.m_value);
+	THD*	thd = create_thd(
+		false, true, true, trx_recovery_rollback_thread_key.m_value);
 #else
 	THD*	thd = create_thd(false, true, true, 0);
-#endif
+#endif /* UNIV_PFS_THREAD */
 
 	my_thread_init();
 
@@ -831,7 +839,7 @@ trx_recovery_rollback_thread()
 
 	trx_rollback_or_clean_recovered(TRUE);
 
-	trx_rollback_or_clean_is_active = false;
+        trx_rollback_or_clean_is_active = false;
 
 	destroy_thd(thd);
 

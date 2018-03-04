@@ -1,20 +1,28 @@
 /*
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; version 2 of
-   the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+
+#include "sql/partitioning/partition_handler.h"
 
 #include <fcntl.h>
 #include <limits.h>
@@ -42,7 +50,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "partition_handler.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/derror.h"
 #include "sql/discrete_interval.h"
@@ -1421,12 +1428,9 @@ int Partition_helper::check_misplaced_rows(uint read_part_id, bool repair)
               ignore || result == HA_ADMIN_CORRUPT)
           {
             /* Log this error, so the DBA can notice it and fix it! */
-            sql_print_error("Table '%-192s' failed to move/insert a row"
-                            " from part %d into part %d:\n%s",
-                            m_table->s->table_name.str,
-                            read_part_id,
-                            correct_part_id,
-                            str.c_ptr_safe());
+            LogErr(ERROR_LEVEL, ER_WRITE_ROW_TO_PARTITION_FAILED,
+                   m_table->s->table_name.str, read_part_id,
+                   correct_part_id, str.c_ptr_safe());
           }
           print_admin_msg(thd, MI_MAX_MSG_BUF, "error",
                           m_table->s->db.str, m_table->alias,
@@ -1568,7 +1572,7 @@ bool Partition_helper::print_admin_msg(THD* thd,
 
   if (!thd->get_protocol()->connection_alive())
   {
-    sql_print_error("%s", msgbuf);
+    LogErr(ERROR_LEVEL, ER_PARTITION_HANDLER_ADMIN_MSG, msgbuf);
     goto err;
   }
 
@@ -2717,17 +2721,17 @@ int Partition_helper::handle_unordered_next(uchar *buf, bool is_next_same)
     partition_read_range is_next_same are always local constants
   */
 
-  if (m_index_scan_type == PARTITION_READ_RANGE)
+  if(is_next_same)
+  {
+    error= index_next_same_in_part(m_part_spec.start_part,
+				   buf,
+                                   m_start_key.key,
+                                   m_start_key.length);
+  }
+  else if (m_index_scan_type == PARTITION_READ_RANGE)
   {
     DBUG_ASSERT(buf == m_table->record[0]);
     error= read_range_next_in_part(m_part_spec.start_part, NULL);
-  }
-  else if (is_next_same)
-  {
-    error= index_next_same_in_part(m_part_spec.start_part,
-                                   buf,
-                                   m_start_key.key,
-                                   m_start_key.length);
   }
   else
   {

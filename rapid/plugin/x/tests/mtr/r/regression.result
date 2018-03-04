@@ -8,14 +8,14 @@ Bug #21472634
 RUN show processlist;
 Id	User	Host	db	Command		State	Info
 4	event_scheduler	localhost	null	Daemon	Waiting on empty queue	null
-$PROC_1_ID	root	localhost	test	Sleep		null
-$PROC_2_ID	root	localhost	null	Query	null	PLUGIN: show processlist
+7	root	localhost	test	Sleep		null
+$PROC_2_ID	x_root	localhost	null	Query	null	PLUGIN: show processlist
 0 rows affected
 RUN SELECT id,user,command,state FROM information_schema.processlist ORDER BY id
 id	user	command	state
 4	event_scheduler	Daemon	Waiting on empty queue
-$PROC_1_ID	root	Sleep	
-$PROC_2_ID	root	Query	executing
+7	root	Sleep	
+$PROC_2_ID	x_root	Query	executing
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

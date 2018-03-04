@@ -1,12 +1,12 @@
 ## This is test file for verification of enaling warning,password_expired,generated_insert_id,rows_affected,produced_message notices and their functionality
 
 --source include/xplugin_preamble.inc
-
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --let $xtest_result= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
 --write_file $xtest_result
--->import assert_status_variable.macro
+-->import assert_variable.macro
 -->quiet
 -->echo check with password function which is deprecated
 -->stmtsql select 1/0,1/0,password('test'),password('')
@@ -566,7 +566,7 @@ EOF
 
 --let $xtest_warnings= $MYSQL_TMP_DIR/stmtexecute_proc_warnings_mysqlx.tmp
 --write_file $xtest_warnings
--->import assert_status_variable.macro
+-->import assert_variable.macro
 -->quiet
 -->echo checking warnings with procedure execution
 -->sql
@@ -723,7 +723,7 @@ EOF
 
 --let $xtest_enable_notice= $MYSQL_TMP_DIR/enable_notice_mysqlx.tmp
 --write_file $xtest_enable_notice
--->import assert_status_variable.macro
+-->import assert_variable.macro
 -->quiet
 -->echo Try enable warnings
 -->stmtadmin enable_notices	{"notice":"warnings"}
@@ -753,7 +753,7 @@ EOF
 
 --let $xtest_multiple_notices= $MYSQL_TMP_DIR/enable_multiple_notices_mysqlx.tmp
 --write_file $xtest_multiple_notices
--->import assert_status_variable.macro
+-->import assert_variable.macro
 -->quiet
 -->echo Enable multiple notices both read-only and read-write with single StmtExecute,expect success
 -->stmtadmin enable_notices	{"notice":["warnings","account_expired","generated_insert_id","rows_affected","produced_message"]}
@@ -770,7 +770,7 @@ EOF
 
 --let $xtest_stats= $MYSQL_TMP_DIR/stats_notices_mysqlx.tmp
 --write_file $xtest_stats
--->import assert_status_variable.macro
+-->import assert_variable.macro
 -->quiet
 
 -->echo check with password function which is deprecated
@@ -818,7 +818,7 @@ EOF
 
 --let $xtest_stats_noti= $MYSQL_TMP_DIR/stats_noti_mysqlx.tmp
 --write_file $xtest_stats_noti
--->import assert_status_variable.macro
+-->import assert_variable.macro
 -->quiet
 -->stmtsql select 1/0,1/0,password('test'),password('')
 -->recvresult
@@ -840,7 +840,7 @@ EOF
 
 --let $xtest_stats_noti_no_err= $MYSQL_TMP_DIR/stats_noti_no_err_mysqlx.tmp
 --write_file $xtest_stats_noti_no_err
--->import assert_status_variable.macro
+-->import assert_variable.macro
 -->quiet
 -->stmtsql select 1/0,1/0,password('test'),password('')
 -->recvresult
@@ -857,28 +857,28 @@ EOF
 
 
 --let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_result $MACROS 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_result $MACROS 2>&1
 
 ##change result file once Bug#21611216 is fixed
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_warnings $MACROS 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_warnings $MACROS 2>&1
 
 ##try enable read-only notices
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_enable_notice $MACROS 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_enable_notice $MACROS 2>&1
 
 ##try enable read-only notices with normal user
 create user xplugin@localhost identified by 'xplugin';
 --exec $MYSQLXTEST -uxplugin --password='xplugin' --file=$xtest_enable_notice $MACROS 2>&1
 
 ## Enable multiple notices both read-only and read-write with single StmtExecute,expect success
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_multiple_notices $MACROS 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_multiple_notices $MACROS 2>&1
 
 ## checking notices related stats
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats $MACROS 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_stats $MACROS 2>&1
 
 ##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT
 let $restart_parameters = restart: ;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_stats_noti_no_err $MACROS 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_stats_noti_no_err $MACROS 2>&1
 
 ##verify MYSQLX_NOTICE_OTHER_SENT,MYSQLX_NOTICE_WARNING_SENT with unprivileged user
 let $restart_parameters = restart: ;
@@ -895,6 +895,7 @@ create user noti@localhost identified by 'noti';
 --remove_file $xtest_stats_noti_no_err
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 drop user noti@localhost;
 drop user xplugin@localhost;
 uninstall plugin mysqlx;

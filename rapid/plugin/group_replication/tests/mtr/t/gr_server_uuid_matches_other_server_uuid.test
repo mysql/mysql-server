@@ -1,0 +1,98 @@
+################################################################################
+# Validate that Group Replication does allow serves with the same server_uuid on
+# a group. The second server that tries to join with the same server_uuid will
+# not be allowed to join.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. Bootstrap a group on server1, forcing server1 uuid to
+#    "cccccccc-cccc-cccc-cccc-cccccccccccc".
+# 2. Try to join a second member to the group with the same
+#    server uuid as server1. The join must fail.
+# 3. Assert that group membership is reported properly on
+#    both servers.
+# 4. Clean up.
+################################################################################
+
+--source include/have_debug.inc
+--source ../inc/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source ../inc/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Bootstrap a group on server1, forcing server1 uuid to
+--echo #    "cccccccc-cccc-cccc-cccc-cccccccccccc".
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_member_uuid';
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+SET GLOBAL group_replication_bootstrap_group= 1;
+--source include/start_group_replication_command.inc
+--source ../inc/gr_clear_bootstrap_group.inc
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE channel_name="group_replication_applier" AND member_id="cccccccc-cccc-cccc-cccc-cccccccccccc" AND member_state="ONLINE"
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Try to join a second member to the group with the same
+--echo #    server uuid as server1. The join must fail.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There is already a member with server_uuid cccccccc-cccc-cccc-cccc-cccccccccccc. The member will now exit the group.");
+SET SESSION sql_log_bin= 1;
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,group_replication_force_member_uuid';
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+
+--echo
+--echo ############################################################
+--echo # 3. Assert that group membership is reported properly on
+--echo #    both servers.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $assert_text= Member2 only reports one member
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members] = 1
+--source include/assert.inc
+
+--let $server2_port= `SELECT @@GLOBAL.port`
+--let $assert_text= Member2 is reported as OFFLINE
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE channel_name="group_replication_applier" AND member_id="cccccccc-cccc-cccc-cccc-cccccccccccc" AND member_state="OFFLINE" AND member_port=$server2_port] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $assert_text= Member1 only reports one member
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members] = 1
+--source include/assert.inc
+
+--let $server1_port= `SELECT @@GLOBAL.port`
+--let $assert_text= Member1 is reported as ONLINE
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE channel_name="group_replication_applier" AND member_id="cccccccc-cccc-cccc-cccc-cccccccccccc" AND member_state="ONLINE" AND member_port=$server1_port] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+SET @@GLOBAL.DEBUG= @debug_save;
+
+--source ../inc/group_replication_end.inc

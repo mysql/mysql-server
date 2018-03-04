@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -216,6 +224,8 @@ enum latch_level_t {
 
 	SYNC_ANY_LATCH,
 
+	SYNC_FIL_SHARD,
+
 	SYNC_DOUBLEWRITE,
 
 	SYNC_PAGE_ARCH_OPER,
@@ -335,7 +345,7 @@ enum latch_id_t {
 	LATCH_ID_CACHE_LAST_READ,
 	LATCH_ID_DICT_FOREIGN_ERR,
 	LATCH_ID_DICT_SYS,
-	LATCH_ID_FIL_SYSTEM,
+	LATCH_ID_FIL_SHARD,
 	LATCH_ID_FLUSH_LIST,
 	LATCH_ID_FTS_BG_THREADS,
 	LATCH_ID_FTS_DELETE,
@@ -999,6 +1009,7 @@ sync_latch_get_pfs_key(latch_id_t id)
 }
 #endif /* UNIV_PFS_MUTEX */
 
+#ifndef UNIV_HOTBACKUP
 /** String representation of the filename and line number where the
 latch was created
 @param[in]	id		Latch ID
@@ -1019,6 +1030,7 @@ sync_latch_get_name(latch_level_t level);
 @return the basename */
 const char*
 sync_basename(const char* filename);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Register a latch, called when it is created
 @param[in]	ptr		Latch instance that was created

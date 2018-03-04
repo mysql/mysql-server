@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 ###################################################
 # Step 1                                          #
 ###################################################
-CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 TEXT);
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 LONGTEXT);
 Generating 200 transactions on master
 DROP TABLE t1;
 ###################################################

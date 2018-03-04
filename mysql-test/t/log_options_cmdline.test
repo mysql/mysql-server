@@ -47,10 +47,10 @@ INSERT INTO t1 SELECT FOUND_ROWS();
 connect(con2,localhost,unknown_user,,*NO-ONE*);
 
 
-# 1.3 Set log_error_verbosity= 7 (reset to default - 3) 
-#------------------------------------------------------
+# 1.3 Set log_error_verbosity= 3
+#-------------------------------
 --let LOG_FILE3= $MYSQLTEST_VARDIR/tmp/test3.err
---let restart_parameters="restart: --log-error=$LOG_FILE3 --log-error-verbosity=7 --binlog-format=statement"
+--let restart_parameters="restart: --log-error=$LOG_FILE3 --log-error-verbosity=3 --binlog-format=statement"
 --replace_result $LOG_FILE3 LOG_FILE3
 --source include/restart_mysqld.inc
 
@@ -69,8 +69,9 @@ DROP TABLE t1;
 # 2 - Tests to check error log verbosity during initialization     #
 ##================================================================##
 
-# 2.1. Invalid verbosity with --initialize(reverts to default - 2)
-#------------------------------------------------------------------
+# 2.1. Invalid verbosity with --initialize(reverts to
+#      minimum - 1)
+#-----------------------------------------------------
 --let LOG_FILE4 = $MYSQLTEST_VARDIR/tmp/bootstrap1.err
 --let CMD1= $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE4 --log-error-verbosity=-1 2>&1
 --exec $CMD1
@@ -90,10 +91,11 @@ DROP TABLE t1;
 --exec $CMD2
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
-# 2.4. Set verbosity to 3 explicitly with --initialize
+# 2.4. Set verbosity to 7 with --initialize (adjusted
+#      to 3)
 #-----------------------------------------------------
 --let LOG_FILE7 = $MYSQLTEST_VARDIR/tmp/bootstrap4.err
---let CMD4 = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE7 --log-error-verbosity=3 2>&1
+--let CMD4 = $MYSQLD --no-defaults --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE7 --log-error-verbosity=7 2>&1
 --exec $CMD4
 --force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
 
@@ -103,13 +105,32 @@ DROP TABLE t1;
 
 # 3.1. Test giving an empty lc-messages-dir and verify that the
 #      server makes use of builtin english messages when the
-#      language files(errmsg.sys) are not found
+#      language files (errmsg.sys) are not found
 #--------------------------------------------------------------
 --let LOG_FILE8 = $MYSQLTEST_VARDIR/tmp/wl9344.err
 --let $MSG_DIR = $MYSQLTEST_VARDIR/tmp/empty_lcmsgsdir
 --mkdir $MSG_DIR
---let restart_parameters="restart: --log-error=$LOG_FILE8 --lc-messages-dir=$MSG_DIR"
+--let restart_parameters="restart: --log-error=$LOG_FILE8 --lc-messages-dir=$MSG_DIR --log-error-verbosity=3"
 --replace_result $LOG_FILE8 LOG_FILE8 $MSG_DIR MSG_DIR
+--source include/restart_mysqld.inc
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con4,localhost,unknown_user,,*NO-ONE*);
+--rmdir $MSG_DIR
+
+
+# Related:
+#
+# Bug#26576922: SERVER DOESN'T ALWAYS FALL BACK TO DEFAULT ERROR MESSAGES
+#
+#      Test giving an empty lc-messages and verify that the
+#      server makes use of builtin english messages when the
+#      language files (errmsg.sys) are not found
+#--------------------------------------------------------------
+--let LOG_FILE8B = $MYSQLTEST_VARDIR/tmp/bug26576922.err
+--mkdir $MSG_DIR
+--let restart_parameters="restart: --log-error=$LOG_FILE8B --lc-messages=invalid_arg1 --lc-time-names=invalid_arg2"
+--replace_result $LOG_FILE8B LOG_FILE8B $MSG_DIR MSG_DIR
 --source include/restart_mysqld.inc
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
@@ -122,12 +143,10 @@ connect(con4,localhost,unknown_user,,*NO-ONE*);
 ##================================================================##
 
 # 4.1 Provide invalid value 'abcd' to --log-error-services
-# -------------------------------------------------------------
-# In case the server aborts,
-# --exec $MYSQLD ... 
-# Below check can be used in case the server doesn't abort/resets to default
+# --------------------------------------------------------
+# Below check is to see that the server doesn't abort
 --let LOG_FILE9= $MYSQLTEST_VARDIR/tmp/test9.err
---let restart_parameters="restart: --log-error=$LOG_FILE9 --log-error-services=abcd "
+--let restart_parameters="restart: --log-error=$LOG_FILE9 --log-error-verbosity=3 --log-error-services=abcd "
 --replace_result $LOG_FILE9 LOG_FILE9
 --source include/restart_mysqld.inc
 SELECT @@GLOBAL.LOG_ERROR_SERVICES;
@@ -137,18 +156,25 @@ SELECT @@GLOBAL.LOG_ERROR_SERVICES;
 # value from start-up on SELECT (which it shouldn't):
 SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
 
+# Verify that log_error_services is reset to default with a message
+# in the error log
+--let SEARCH_FILE= $LOG_FILE9
+--let SEARCH_PATTERN= \[Note\].*Cannot set services "abcd" requested in --log-error-services, using defaults
+--source include/search_pattern.inc
 
 # 4.2 Provide 'log_sink_json' to --log-error-services without
 #     installing the json writer component
-#--------------------------------------------------------------
-# In case the server aborts,
-# --exec $MYSQLD ...
-# Below check can be used in case the server doesn't abort/resets to default
+#-------------------------------------------------------------
+# Below check is to see that the server doesn't abort and that
+# log_error_services is reset to default
 --let LOG_FILE10= $MYSQLTEST_VARDIR/tmp/test10.err
---let restart_parameters="restart: --log-error=$LOG_FILE10 --log-error-services=log_sink_json "
+--let restart_parameters="restart: --log-error=$LOG_FILE10 --log-error-verbosity=3 --log-error-services=log_sink_json "
 --replace_result $LOG_FILE10 LOG_FILE10
 --source include/restart_mysqld.inc
 
+--let SEARCH_FILE= $LOG_FILE10
+--let SEARCH_PATTERN= \[Note\].*Cannot set services "log_sink_json" requested in --log-error-services, using defaults
+--source include/search_pattern.inc
 
 # 4.3 Install the json writer component and provide its service
 #     to --log-error-services
@@ -158,7 +184,7 @@ INSTALL COMPONENT "file://component_log_sink_json";
 --let LOG_FILE11= $MYSQLTEST_VARDIR/tmp/test11.err
 --let LOG_FILE11j= $MYSQLTEST_VARDIR/tmp/test11.err.00.json
 --let $log_services="log_filter_internal;log_sink_internal;log_sink_json"
---let restart_parameters="restart: --no-console --log-error=$LOG_FILE11 --log-error-services=$log_services "
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE11 --log-error-services=$log_services --log-error-verbosity=3"
 --replace_result $LOG_FILE11 LOG_FILE11
 --source include/restart_mysqld.inc
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
@@ -167,6 +193,120 @@ connect(con5,localhost,unknown_user,,*NO-ONE*);
 
 SET GLOBAL log_error_services= default;
 UNINSTALL COMPONENT "file://component_log_sink_json";
+
+##================================================================##
+# 5 - WL#9323: Logging services: log filter (configuration engine) #
+##================================================================##
+
+# 5.1 Check that option --dragnet.log_error_filter_rules does
+#     not exist when the component isn't unloaded
+# ------------------------------------------------------------
+--let LOG_FILE12 = $MYSQLTEST_VARDIR/tmp/test12.err
+--let CMD12 = $MYSQLD --no-defaults --lc-messages-dir=$MYSQL_SHAREDIR --innodb_dedicated_server=OFF --initialize-insecure --basedir=$MYSQLD_BASEDIR --datadir=$MYSQLTEST_VARDIR/tmp/new_datadir --log-error=$LOG_FILE12 --dragnet.log_error_filter_rules=a 2>&1
+# mysqld aborts if the option is used without loading the component
+--error 1
+--exec $CMD12
+--force-rmdir $MYSQLTEST_VARDIR/tmp/new_datadir
+
+--let SEARCH_FILE= $LOG_FILE12
+--let SEARCH_PATTERN= \[ERROR\].*unknown variable 'dragnet.log_error_filter_rules=a'
+--source include/search_pattern.inc
+
+# 5.2 a) Pass --dragnet.log-error-filter-rules through command
+#        line
+#     b) Set dragnet.log_error_filter_rules to include a throttle
+#     for number of times ER_ACCESS_DENIED_ERROR appears in the
+#     error log and exceed the throttle limit
+# -------------------------------------------------------------
+
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+--let $log_services="log_filter_internal;log_filter_dragnet;log_sink_internal"
+--let LOG_FILE13= $MYSQLTEST_VARDIR/tmp/test13.err
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE13 --log-error-services=$log_services --dragnet.log-error-filter-rules="
+--replace_result $LOG_FILE13 LOG_FILE13
+--source include/restart_mysqld.inc
+
+# Validate parameters passed through command line
+SELECT @@log_error_services;
+SELECT @@dragnet.log_error_filter_rules;
+
+SET @saved_log_error_verbosity= @@global.log_error_verbosity;
+
+# Enable logging NOTE's to test throttling
+SET GLOBAL log_error_verbosity= 3;
+
+# Throttle 'Access denied' messages in error log to three
+# entries per hour
+SET GLOBAL dragnet.log_error_filter_rules="IF err_code==ER_ACCESS_DENIED_ERROR_WITH_PASSWORD THEN throttle 3/3600.";
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con6,localhost,unknown_user,,*NO-ONE*);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con6,localhost,unknown_user,,*NO-ONE*);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con6,localhost,unknown_user,,*NO-ONE*);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con6,localhost,unknown_user,,*NO-ONE*);
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(con6,localhost,unknown_user,,*NO-ONE*);
+
+SET GLOBAL log_error_verbosity= @saved_log_error_verbosity;
+
+# 5.3 Check that SET PERSIST retains error log filter rules
+# ---------------------------------------------------------
+SET PERSIST dragnet.log_error_filter_rules= "IF prio>INFORMATION THEN drop.";
+
+--let LOG_FILE14= $MYSQLTEST_VARDIR/tmp/test14.err
+--let $log_services="log_filter_internal;log_filter_dragnet;log_sink_internal"
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE14 --log-error-services=$log_services "
+
+--replace_result $LOG_FILE14 LOG_FILE14
+--source include/restart_mysqld.inc
+
+# Verify value of the persisted variable
+SELECT @@global.dragnet.log_error_filter_rules;
+
+RESET PERSIST `dragnet.log_error_filter_rules`;
+
+# Cleanup
+SET GLOBAL log_error_services= default;
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+
+--let $MYSQLD_DATADIR= `select @@datadir`
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+
+
+# 6 Verify that we use default settings if an invalid rule-set
+#   is passed at start-up
+# ---------------------------------------------------------
+
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+
+# Invalid filter config given in mysqld command line
+--let LOG_FILE15= $MYSQLTEST_VARDIR/tmp/test15.err
+--let restart_parameters="restart: --no-console --log-error=$LOG_FILE15 --dragnet.log_error_filter_rules=invalid"
+
+--replace_result $LOG_FILE15 LOG_FILE15
+--source include/restart_mysqld.inc
+
+# Component will use default value due to the wrong configuration
+
+SELECT @@global.dragnet.log_error_filter_rules;
+# SET @@global.dragnet.log_error_filter_rules= DEFAULT;
+# SELECT @@global.dragnet.log_error_filter_rules;
+
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+
+
 
 ##===============================================================##
 #           Validate error logs for the above cases               #
@@ -184,9 +324,9 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    # option '--log-error-verbosity' is processed. Hence, they
    # need to be ignored during verbosity checks.
    my @ignore_patterns=
-   ("\\[Warning\\] Changed limits",
-    "\\[Note\\] Running in sandbox",
-    "\\[Note\\] Basedir set to");
+   ("\\[Warning\\] \\[[^]]*\\] Changed limits",
+    "\\[Note\\] \\[[^]]*\\] Running in sandbox",
+    "\\[Note\\] \\[[^]]*\\] Basedir set to");
 
    my $ignore_regex= "(". join('|', @ignore_patterns). ")";
    # --------
@@ -238,8 +378,7 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    if($result_note) {
    print "[ FAIL ] Error log contains NOTE's even with --log-error-verbosity=2\n";
    }
-   elsif (!$result_warning)
-   {
+   elsif (!$result_warning) {
    print "[ FAIL ] Error log does not WARNING's with --log-error-verbosity=2\n";
    }
    else {
@@ -257,12 +396,11 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    while (<FILE>) {
      my $line = $_;
      if ($line =~ /\[Note\]/) {
-         $result_note=1;
+       $result_note=1;
        }
-     if ($line =~ /\[Warning\]/) {
-         $result_warning=1;
+     elsif ($line =~ /\[Warning\]/) {
+       $result_warning=1;
        }
-
      }
    close(FILE);
    if($result_note and $result_warning) {
@@ -277,6 +415,7 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    # --------
    $file= $ENV{'LOG_FILE4'} or die("log file4 not set");
    $result=0;
+   my $verbosity_adjust_message_logged= 0;
 
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
@@ -287,14 +426,29 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
        print;
        $result=1;
        }
+     elsif ($line =~ /\[Warning\]/) {
+       if ( $line =~ /option 'log_error_verbosity': value -1 adjusted to 1/) {
+         $verbosity_adjust_message_logged=1;
+         }
+       else {
+         $result=1;
+         print;
+         }
+       }
      }
    close(FILE);
+
    if($result) {
-   print "[ FAIL ] Error log contains NOTE's even with default verbosity(2) during initialization\n";
-   }
+     print "[ FAIL ] Error log contains NOTE's and/or WARNING's with --log-error-verbosity=-1 during initialization\n";
+     }
    else {
-   print "[ PASS ] Error log does not contain NOTE's with default verbosity(2)  during initialization\n";
-   }
+     if ($verbosity_adjust_message_logged) {
+       print "[ PASS ] Error log does not contain NOTE's or WARNING's with --log-error-verbosity=-1 (adjusted to 1) during initialization\n";
+       }
+     else {
+       print "[ FAIL ] Error log does not contain a warning that log_error_verbosity is adjusted to 1 from -1";
+       }
+     }
 
    # --------
    # TEST 2.2
@@ -308,17 +462,17 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
      next if $line =~ /$ignore_regex/;
 
      if ($line =~ /\[Note\]/ or $line =~ /\[Warning\]/) {
-         print;
-         $result=1;
+       print;
+       $result=1;
        }
      }
    close(FILE);
    if($result) {
-   print "[ FAIL ] Error log contains WARNING's/NOTE's even with --log-error-verbosity=1  during initialization\n";
-   }
+     print "[ FAIL ] Error log contains WARNING's/NOTE's even with --log-error-verbosity=1  during initialization\n";
+     }
    else {
-   print "[ PASS ] Error log does not contain WARNING's/NOTE's with --log-error-verbosity=1  during initialization\n";
-   }
+     print "[ PASS ] Error log does not contain WARNING's/NOTE's with --log-error-verbosity=1  during initialization\n";
+     }
 
    # --------
    # TEST 2.3
@@ -339,32 +493,41 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    close(FILE);
 
    if($result) {
-   print "[ FAIL ] Error log contains NOTE's even with --log-error-verbosity=2  during initialization\n";
-   }
+     print "[ FAIL ] Error log contains NOTE's even with --log-error-verbosity=2  during initialization\n";
+     }
    else {
-   print "[ PASS ] Error log does not contain NOTE's with --log-error-verbosity=2  during initialization\n";
-   }
+     print "[ PASS ] Error log does not contain NOTE's with --log-error-verbosity=2  during initialization\n";
+     }
 
    # --------
    # TEST 2.4
    # --------
    $file= $ENV{'LOG_FILE7'} or die("log file7 not set");
    $result=1;
-
+   $verbosity_adjust_message_logged= 0;
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
      if ($line =~ /\[Note\]/) {
-         $result=0;
+       $result=0;
+       }
+     if ($line =~ /\[Warning\].*'log_error_verbosity': unsigned value 7 adjusted to 3/) {
+       $verbosity_adjust_message_logged= 1;
        }
      }
    close(FILE);
+
    if($result) {
-   print "[ FAIL ] Error log does not include NOTE's with --log-error-verbosity=3 during initialization\n";
-   }
+     print "[ FAIL ] Error log does not include NOTE's with --log-error-verbosity=7 (adjusted to 3) during initialization.\n";
+     }
    else {
-   print "[ PASS ] Error log contains NOTE's with --log-error-verbosity=3 during initialization\n";
-   }
+     if ($verbosity_adjust_message_logged) {
+       print "[ PASS ] Error log contains NOTE's with --log-error-verbosity=7 (adjusted to 3) during initialization.\n";
+       }
+     else {
+       print "[ FAIL ] Error log does not contain a warning that log_error_verbosity is adjusted to 3 from 7\n";
+       }
+     }
 
    # --------
    # TEST 3.1
@@ -375,27 +538,17 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
-     if ($line =~ /\[Note\] Access denied for user \'unknown_user\'/) {
+     if ($line =~ /\[Note\] \[[^]]*\] Access denied for user \'unknown_user\'/) {
          $result=1;
        }
      }
    close(FILE);
    if($result) {
-   print "[ PASS ] Error log contains a NOTE with compiled-in message 'Access denied' when lc_messages_dir does not contain error messages\n";
-   }
+     print "[ PASS ] Error log contains a NOTE with compiled-in message 'Access denied' when lc_messages_dir does not contain error messages\n";
+     }
    else {
-   print "[ FAIL ] Error log does not contain a NOTE with compiled-in message 'Access denied'  when lc_messages_dir does not contain error messages\n";
-   }
-
-   # --------
-   # TEST 4.1
-   # --------
-   # To be re-visited in case the server doesn't abort
-
-   # --------
-   # TEST 4.2
-   # --------
-   # To be re-visited in case the server doesn't abort
+     print "[ FAIL ] Error log does not contain a NOTE with compiled-in message 'Access denied'  when lc_messages_dir does not contain error messages\n";
+     }
 
    # --------
    # TEST 4.3
@@ -426,6 +579,33 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
      }
    }
 
+   # --------
+   # TEST 5.1
+   # --------
+   my $file= $ENV{'LOG_FILE13'} or die("log file13 not set");
+   my $result=0;
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /\[Note\] \[[^]]*\] Access denied for user \'unknown_user\'/) {
+         $result= $result + 1;
+       }
+     }
+   close(FILE);
+   if ($result == 3) {
+     print "[ PASS ] Error log messages throttled at three for 'Access denied' messages\n";
+   }
+   else
+   {
+     if ($result > 3) {
+       print "[ FAIL ] Error log has $result 'Access denied' messages despite being throttled at 3\n";
+     }
+     else {
+       print "[ FAIL ] Error log does not contain expected number of 'Access denied' messages\n";
+     }
+   }
+
 EOF
 
 # Cleanup
@@ -437,10 +617,15 @@ EOF
 --remove_file $LOG_FILE5
 --remove_file $LOG_FILE7
 --remove_file $LOG_FILE8
+--remove_file $LOG_FILE8B
 --remove_file $LOG_FILE9
 --remove_file $LOG_FILE10
 --remove_file $LOG_FILE11
 --remove_file $LOG_FILE11j
+--remove_file $LOG_FILE12
+--remove_file $LOG_FILE13
+--remove_file $LOG_FILE14
+--remove_file $LOG_FILE15
 
 # Restart server after this test since it enables binary 
 # logging and may affect further tests

@@ -211,7 +211,7 @@ create table t1 as select concat(exp(2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(log(2)),1));
@@ -221,7 +221,7 @@ create table t1 as select concat(log(2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(log2(2)),1));
@@ -231,7 +231,7 @@ create table t1 as select concat(log2(2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(log10(2)),1));
@@ -241,7 +241,7 @@ create table t1 as select concat(log10(2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(sqrt(2)),1));
@@ -251,7 +251,7 @@ create table t1 as select concat(sqrt(2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(pow(2,2)),1));
@@ -261,7 +261,7 @@ create table t1 as select concat(pow(2,2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(acos(0.5)),1));
@@ -271,7 +271,7 @@ create table t1 as select concat(acos(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(asin(0.5)),1));
@@ -281,7 +281,7 @@ create table t1 as select concat(asin(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(atan(0.5)),1));
@@ -291,7 +291,7 @@ create table t1 as select concat(atan(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(cos(0.5)),1));
@@ -301,7 +301,7 @@ create table t1 as select concat(cos(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(sin(0.5)),1));
@@ -311,7 +311,7 @@ create table t1 as select concat(sin(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(left(concat(tan(0.5)),1));
@@ -321,7 +321,7 @@ create table t1 as select concat(tan(0.5)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(degrees(0)));
@@ -331,7 +331,7 @@ create table t1 as select concat(degrees(0)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(radians(0)));
@@ -341,7 +341,7 @@ create table t1 as select concat(radians(0)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ceiling(0.5)));
@@ -388,7 +388,7 @@ create table t1 as select concat(rand()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(length('a')));
@@ -600,7 +600,7 @@ create table t1 as select concat(least(1,2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(2) DEFAULT NULL
+  `c1` varbinary(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(greatest(1,2)));
@@ -610,7 +610,7 @@ create table t1 as select concat(greatest(1,2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(2) DEFAULT NULL
+  `c1` varbinary(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(case when 11 then 22 else 33 end));
@@ -861,7 +861,7 @@ hex(c1)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL,
+  `c1` varbinary(22) DEFAULT NULL,
   `c2` double DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
@@ -876,7 +876,7 @@ hex(c1)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL,
+  `c1` varbinary(22) DEFAULT NULL,
   `c2` double DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
@@ -1041,7 +1041,7 @@ create table t2 as select concat(match (a) against ('a')) as a from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varbinary(23) DEFAULT NULL
+  `a` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1, t2;
 select hex(ifnull(1,'a'));
@@ -1071,7 +1071,7 @@ create table t1 as select concat(ifnull(1.1,1.1)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(4) DEFAULT NULL
+  `c1` varbinary(5) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(if(1,'b',1));
@@ -1176,7 +1176,7 @@ create table t1 as select concat(ST_IsSimple(ST_GeomFromText('Point(1 1)'))) as 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(21) DEFAULT NULL
+  `c1` varbinary(1) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ST_IsClosed(ST_GeomFromText('LineString(1 1,2 2)'))));
@@ -1201,7 +1201,7 @@ create table t1 as select concat(ST_X(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ST_Y(ST_GeomFromText('Point(1 2)'))));
@@ -1211,7 +1211,7 @@ create table t1 as select concat(ST_X(ST_GeomFromText('Point(1 2)'))) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ST_Length(ST_GeomFromText('LineString(1 2,2 2)'))));
@@ -1221,7 +1221,7 @@ create table t1 as select concat(ST_Length(ST_GeomFromText('LineString(1 2, 2 2)
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ST_Area(ST_GeomFromText('Polygon((0 0,1 0,1 1,0 1,0 0))'))));
@@ -1231,7 +1231,7 @@ create table t1 as select concat(ST_Area(ST_GeomFromText('Polygon((0 0,1 0,1 1,0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varbinary(23) DEFAULT NULL
+  `c1` varbinary(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select hex(concat(ST_GeometryType(ST_GeomFromText('Point(1 2)'))));

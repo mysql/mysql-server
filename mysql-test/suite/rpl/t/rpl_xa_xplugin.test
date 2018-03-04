@@ -1,7 +1,7 @@
 ##############################################################################
 # This test checks the basic functionality of replication with Xplugin setup.
 #
-# NOTE : All queries will run through mysqlx plugin using mysqlxtest.
+# NOTE : All queries will run through mysqlx plugin using MYSQLXTEST --ssl-mode=REQUIRED.
 #
 # Steps involved in this test :
 # 0. This test requires 2 servers.
@@ -37,14 +37,14 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 
 --write_file $MYSQL_TMP_DIR/start_slave.tmp
 -->sql
-CHANGE MASTER TO MASTER_HOST= 'localhost', MASTER_USER= 'root';
+CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_USER= 'root';
 START SLAVE;
 -->endsql
 EOF
 
 # Starting the slave through mysqlx
 --echo Starting the slave server
---exec $MYSQLXTEST -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/start_slave.tmp 2>&1
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/start_slave.tmp 2>&1
 
 # Temp file for performing ddl and dml on master
 
@@ -68,7 +68,7 @@ DELETE FROM T1 WHERE C2 = 0;
 EOF
 
 --disable_result_log
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT --file=$MYSQL_TMP_DIR/ddl_dml_on_master.tmp 2>&1
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$MASTER_X_MYPORT --file=$MYSQL_TMP_DIR/ddl_dml_on_master.tmp 2>&1
 --enable_result_log
 
 # Wait Until slave is in sync with master
@@ -93,7 +93,7 @@ UPDATE T2 SET C1 = 'ABC' WHERE C1 ='XYZ';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/ddl_dml_on_slave.tmp 2>&1
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/ddl_dml_on_slave.tmp 2>&1
 
 # Asserts for values on each table.
 
@@ -106,7 +106,7 @@ EOF
 -->wait_for 23	SELECT C2 FROM test.T2 WHERE C1="ABC"
 EOF
 
---exec $MYSQLXTEST -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/assert.tmp 2>&1
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/assert.tmp 2>&1
 
 
 # Temp for drop table on slave.
@@ -118,7 +118,7 @@ DROP TABLE T2;
 EOF
 
 # Deleting second table on slave.
---exec $MYSQLXTEST -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/delete_tables_slave.tmp 2>&1
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/delete_tables_slave.tmp 2>&1
 
 # Temp for drop table.
 --write_file $MYSQL_TMP_DIR/delete_tables.tmp
@@ -130,7 +130,7 @@ EOF
 
 --source include/rpl_connection_master.inc
 # Deleting table
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$MASTER_X_MYPORT --file=$MYSQL_TMP_DIR/delete_tables.tmp 2>&1
 
 --source include/sync_slave_sql_with_master.inc
 
@@ -142,7 +142,7 @@ EOF
 
 # Stopping slave
 --echo Stopping slave
---exec $MYSQLXTEST -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/stop_slave.tmp 2>&1
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -u root --port=$SLAVE_X_MYPORT --file=$MYSQL_TMP_DIR/stop_slave.tmp 2>&1
 
 
 # Uninstall mysqlx on all servers

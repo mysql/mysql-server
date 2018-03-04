@@ -26,13 +26,13 @@ insert into parent values (1,2,3);
 
 alter table child add constraint fkname foreign key (c,a) references parent(a,b) on delete restrict on update restrict;
 
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (2,1,2);
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (1,1,1);
---error 0
+
 insert into child values (2,1,1);
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete from parent;
 
 delete from child;
@@ -40,13 +40,13 @@ alter table child drop foreign key fkname;
 
 alter table child add constraint fkname foreign key (b,a) references parent(a,b) on delete restrict on update restrict;
 
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (1,2,2);
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (2,3,1);
---error 0
+
 insert into child values (2,1,1);
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete from parent;
 
 delete from child;
@@ -54,13 +54,13 @@ alter table child drop foreign key fkname;
 
 alter table child add constraint fkname foreign key (c,b) references parent(a,b) on delete restrict on update restrict;
 
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (1,2,2);
---error 1452
+--error ER_NO_REFERENCED_ROW_2
 insert into child values (2,3,1);
---error 0
+
 insert into child values (2,2,1);
---error 1451
+--error ER_ROW_IS_REFERENCED_2
 delete from parent;
 
 drop table child, parent;

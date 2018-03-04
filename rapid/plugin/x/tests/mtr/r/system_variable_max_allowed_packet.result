@@ -26,7 +26,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 45
-  fractional_digits: 31
   length: 2440012
   flags: 16
 }

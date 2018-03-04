@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,48 +23,38 @@
 #ifndef MY_XP_COND_INCLUDED
 #define MY_XP_COND_INCLUDED
 
-#include "mysql/gcs/xplatform/my_xp_mutex.h"
-#include "mysql/gcs/xplatform/my_xp_util.h"
-
-#include <time.h>
-#include <errno.h>
-#include <stdlib.h>
-
-#ifdef _WIN32
-typedef CONDITION_VARIABLE native_cond_t;
-#else
-#include <pthread.h>
-#include <stdio.h>
-
-typedef pthread_cond_t native_cond_t;
-#endif
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_mutex.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/xplatform/my_xp_util.h"
+#include "mysql/psi/mysql_cond.h"
 
 /**
   @class My_xp_cond
 
-  Abstract class used to wrap condition for various platforms.
+  Abstract class used to wrap condition for various implementations.
 
   A typical use case of cond is:
 
   @code{.cpp}
 
-  My_xp_cond cond= new My_xp_cond_impl();
-  cond->init();
+  My_xp_cond *cond= new My_xp_cond_impl();
+  cond->init(cond_PSI_key);
 
   cond->signal();
 
   @endcode
- */
+*/
 class My_xp_cond
 {
 public:
   /**
     Initialize cond.
 
+    @param key cond instrumentation key
+
     @return success status
   */
 
-  virtual int init()= 0;
+  virtual int init(PSI_cond_key key)= 0;
 
 
   /**
@@ -77,7 +74,7 @@ public:
     @return success status
   */
 
-  virtual int timed_wait(native_mutex_t *mutex,
+  virtual int timed_wait(mysql_mutex_t *mutex,
                          const struct timespec *abstime)= 0;
 
 
@@ -88,7 +85,7 @@ public:
     @return success status
   */
 
-  virtual int wait(native_mutex_t *mutex)= 0;
+  virtual int wait(mysql_mutex_t *mutex)= 0;
 
 
   /**
@@ -115,53 +112,33 @@ public:
     @return native cond
   */
 
-  virtual native_cond_t *get_native_cond()= 0;
+  virtual mysql_cond_t *get_native_cond()= 0;
 
   virtual ~My_xp_cond() {}
 };
 
-#ifdef _WIN32
-class My_xp_cond_win : public My_xp_cond
+#ifndef XCOM_STANDALONE
+class My_xp_cond_server : public My_xp_cond
 {
-private:
-  static DWORD get_milliseconds(const struct timespec *abstime);
-  /*
-    Disabling the copy constructor and assignment operator.
-  */
-  My_xp_cond_win(My_xp_cond_win const&);
-  My_xp_cond_win& operator=(My_xp_cond_win const&);
 public:
-  explicit My_xp_cond_win();
-  virtual ~My_xp_cond_win();
-#else
-class My_xp_cond_pthread : public My_xp_cond
-{
-private:
-  /*
-    Disabling the copy constructor and assignment operator.
-  */
-  My_xp_cond_pthread(My_xp_cond_pthread const&);
-  My_xp_cond_pthread& operator=(My_xp_cond_pthread const&);
-public:
-  explicit My_xp_cond_pthread();
-  virtual ~My_xp_cond_pthread();
-#endif
-  int init();
+  explicit My_xp_cond_server();
+  virtual ~My_xp_cond_server();
+
+  int init(PSI_cond_key key);
   int destroy();
-  int timed_wait(native_mutex_t *mutex, const struct timespec *abstime);
-  int wait(native_mutex_t *mutex);
+  int timed_wait(mysql_mutex_t *mutex, const struct timespec *abstime);
+  int wait(mysql_mutex_t *mutex);
   int signal();
   int broadcast();
-  native_cond_t *get_native_cond();
+  mysql_cond_t *get_native_cond();
 
 protected:
-  native_cond_t *m_cond;
+  mysql_cond_t *m_cond;
 };
+#endif
 
-#ifdef _WIN32
-class My_xp_cond_impl : public My_xp_cond_win
-#else
-class My_xp_cond_impl : public My_xp_cond_pthread
+#ifndef XCOM_STANDALONE
+class My_xp_cond_impl : public My_xp_cond_server
 #endif
 {
 public:

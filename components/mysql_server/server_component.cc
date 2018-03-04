@@ -1,19 +1,25 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_sys.h>                         // my_error
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/mysql_cond_service.h>
@@ -26,12 +32,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 #include "component_status_var_service.h"
 #include "component_sys_var_service.h"
 #include "system_variable_source_imp.h"
+#include "security_context_imp.h"
 #include "dynamic_loader.h"
 #include "dynamic_loader_path_filter.h"
 #include "dynamic_loader_scheme_file.h"
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"
 #include "my_inttypes.h"
+#include "my_sys.h"                         // my_error
 #include "mysql_backup_lock.h"
 #include "mysql_string_service.h"
 #include "mysqld_error.h"
@@ -218,11 +226,18 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins)
 END_SERVICE_IMPLEMENTATION()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter)
-  log_builtins_filter_imp::filter_run,
-  log_builtins_filter_imp::filter_ruleset_get,
+  log_builtins_filter_imp::filter_ruleset_new,
+  log_builtins_filter_imp::filter_ruleset_lock,
+  log_builtins_filter_imp::filter_ruleset_unlock,
   log_builtins_filter_imp::filter_ruleset_drop,
-  log_builtins_filter_imp::filter_ruleset_release,
-  log_builtins_filter_imp::filter_rule_init
+  log_builtins_filter_imp::filter_ruleset_free,
+  log_builtins_filter_imp::filter_ruleset_move,
+  log_builtins_filter_imp::filter_rule_init,
+  log_builtins_filter_imp::filter_run
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_filter_debug)
+  log_builtins_filter_debug_imp::filter_debug_ruleset_get
 END_SERVICE_IMPLEMENTATION()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_string)
@@ -241,7 +256,8 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_string)
 END_SERVICE_IMPLEMENTATION()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_tmp)
-  log_builtins_tmp_imp::connection_loop_aborted
+  log_builtins_tmp_imp::connection_loop_aborted,
+  log_builtins_tmp_imp::notify_client
 END_SERVICE_IMPLEMENTATION()
 
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, log_builtins_syseventlog)
@@ -283,6 +299,27 @@ BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_backup_lock)
   mysql_release_backup_lock
 END_SERVICE_IMPLEMENTATION()
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_security_context)
+  mysql_security_context_imp::get,
+  mysql_security_context_imp::set
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_security_context_factory)
+  mysql_security_context_imp::create,
+  mysql_security_context_imp::destroy,
+  mysql_security_context_imp::copy
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server,
+                             mysql_account_database_security_context_lookup)
+  mysql_security_context_imp::lookup
+END_SERVICE_IMPLEMENTATION()
+
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_security_context_options)
+  mysql_security_context_imp::get,
+  mysql_security_context_imp::set
+END_SERVICE_IMPLEMENTATION()
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, registry)
   PROVIDES_SERVICE(mysql_server, registry_registration)
@@ -307,6 +344,7 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, mysql_string_ctype)
   PROVIDES_SERVICE(mysql_server, log_builtins)
   PROVIDES_SERVICE(mysql_server, log_builtins_filter)
+  PROVIDES_SERVICE(mysql_server, log_builtins_filter_debug)
   PROVIDES_SERVICE(mysql_server, log_builtins_string)
   PROVIDES_SERVICE(mysql_server, log_builtins_tmp)
   PROVIDES_SERVICE(mysql_server, log_builtins_syseventlog)
@@ -320,6 +358,10 @@ BEGIN_COMPONENT_PROVIDES(mysql_server)
   PROVIDES_SERVICE(mysql_server, status_variable_registration)
   PROVIDES_SERVICE(mysql_server, system_variable_source)
   PROVIDES_SERVICE(mysql_server, mysql_backup_lock)
+  PROVIDES_SERVICE(mysql_server, mysql_thd_security_context)
+  PROVIDES_SERVICE(mysql_server, mysql_security_context_factory)
+  PROVIDES_SERVICE(mysql_server, mysql_account_database_security_context_lookup)
+  PROVIDES_SERVICE(mysql_server, mysql_security_context_options)
 END_COMPONENT_PROVIDES()
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server)

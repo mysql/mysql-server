@@ -1,9 +1,9 @@
 SET GLOBAL innodb_redo_log_encrypt = ON;
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
 ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
-ERROR HY000: Can't find master key from keyring, please check keyring plugin is loaded.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
 # restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring_log1 --general-log --log-output=FILE --general_log_file=MYSQL_TMP_DIR/keyring_query_log --plugin-dir=KEYRING_PLUGIN_PATH 
 SET GLOBAL innodb_redo_log_encrypt = ON;
 SHOW CREATE TABLE t1;

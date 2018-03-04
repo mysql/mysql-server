@@ -36,8 +36,7 @@ ENGINE=NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE 8M 
-ENGINE=NDB;
+INITIAL_SIZE 8M;
 
 CREATE TABLE t1
   (c1 INT NOT NULL PRIMARY KEY, 
@@ -208,8 +207,7 @@ ENGINE=NDB;
 
 ALTER TABLESPACE ts2
 ADD DATAFILE 'datafile04.dat'
-INITIAL_SIZE 18M
-ENGINE=NDB;
+INITIAL_SIZE 18M;
 
 let engine_type=NDBCLUSTER;
 let table_space=ts2;
@@ -257,24 +255,20 @@ DROP TABLE IF EXISTS tpcb.history;
 DROP DATABASE tpcb;
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile.dat';
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile02.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile02.dat';
 
-DROP TABLESPACE ts1 ENGINE=NDB;
-
-ALTER TABLESPACE ts2
-DROP DATAFILE 'datafile03.dat'
-ENGINE=NDB;
+DROP TABLESPACE ts1;
 
 ALTER TABLESPACE ts2
-DROP DATAFILE 'datafile04.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile03.dat';
 
-DROP TABLESPACE ts2 ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile04.dat';
+
+DROP TABLESPACE ts2;
 
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 
@@ -328,7 +322,7 @@ while ($j)
 --echo ***** Finsh the slave sync process *******
 --disable_query_log
 # 1. 2. 3.
---source include/ndb_setup_slave.inc
+--source suite/ndb_rpl/ndb_setup_slave.inc
 --enable_query_log
 
 # 4.
@@ -379,24 +373,20 @@ DROP TABLE tpcb.history;
 DROP DATABASE tpcb;
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile.dat';
 
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile02.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile02.dat';
 
-DROP TABLESPACE ts1 ENGINE=NDB;
-
-ALTER TABLESPACE ts2
-DROP DATAFILE 'datafile03.dat'
-ENGINE=NDB;
+DROP TABLESPACE ts1;
 
 ALTER TABLESPACE ts2
-DROP DATAFILE 'datafile04.dat'
-ENGINE=NDB;
+DROP DATAFILE 'datafile03.dat';
 
-DROP TABLESPACE ts2 ENGINE=NDB;
+ALTER TABLESPACE ts2
+DROP DATAFILE 'datafile04.dat';
+
+DROP TABLESPACE ts2;
 
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 

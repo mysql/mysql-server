@@ -37,7 +37,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2
 /*!50100 PARTITION BY RANGE ((`a` % 7))
 (PARTITION p1 VALUES LESS THAN (2) TABLESPACE = `innodb_system` ENGINE = InnoDB,
  PARTITION p3 VALUES LESS THAN (5) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
@@ -45,3 +45,45 @@ t1	CREATE TABLE `t1` (
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+#
+# This checks after ALTER TABLE ... COPY which changes the row format,
+# it should still work
+#
+SET @orig_innodb_file_per_table= @@innodb_file_per_table;
+SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
+CREATE TABLE t1 (a INT NOT NULL, c VARCHAR(186), INDEX(c(99))) ENGINE = InnoDB ROW_FORMAT = COMPRESSED KEY_BLOCK_SIZE = 16 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
+SET GLOBAL innodb_file_per_table = 0;
+SET SESSION innodb_strict_mode = 0;
+ALTER TABLE t1 PARTITION BY LINEAR KEY(c) PARTITIONS 3;
+Warnings:
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
+Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	1478	InnoDB: ignoring KEY_BLOCK_SIZE=16.
+Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
+SET GLOBAL innodb_file_per_table = @orig_innodb_file_per_table;
+SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `c` varchar(186) DEFAULT NULL,
+  KEY `c` (`c`(99))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16
+/*!50100 PARTITION BY LINEAR KEY (c)
+PARTITIONS 3 */
+SELECT * FROM t1;
+a	c
+DROP TABLE t1;

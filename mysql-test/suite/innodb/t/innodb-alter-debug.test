@@ -5,9 +5,6 @@
 
 SET NAMES utf8;
 
-# Disabled until SQL-layer code properly supports renaming of columns in FKs
-# i.e. until bug #26659110 is fixed.
---disable_parsing
 CREATE TABLE ① (
  c1 INT PRIMARY KEY, c2 INT DEFAULT 1, ct TEXT, INDEX(c2))
 ENGINE = InnoDB;
@@ -31,7 +28,6 @@ SET DEBUG = '-d,ib_rename_column_error';
 SHOW CREATE TABLE t1ć;
 
 DROP TABLE t1ć, ①;
---enable_parsing
 
 --echo #
 --echo # Bug #21364096	THE BOGUS DUPLICATE KEY ERROR IN ONLINE DDL

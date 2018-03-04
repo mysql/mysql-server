@@ -2,6 +2,7 @@
 ## Invalid admin command
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/admin_bogus.tmp
 Mysqlx.Sql.StmtExecute {
@@ -26,8 +27,9 @@ Mysqlx.Sql.StmtExecute {
 drop schema if exists xtest;
 -->endsql
 EOF
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/admin_bogus.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_bogus.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/admin_bogus.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

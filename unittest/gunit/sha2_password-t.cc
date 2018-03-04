@@ -1,25 +1,34 @@
-/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_config.h"
+
 #include <gtest/gtest.h>
+
 #include "crypt_genhash_impl.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/auth/i_sha2_password.h"
 #include "sql/auth/sha2_password_common.h"
-#include "test_utils.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace sha2_password_unittest
 {
@@ -744,19 +753,35 @@ namespace sha2_password_unittest
     ASSERT_TRUE(caching_sha2_password.get_cache_count() == 2);
     caching_sha2_password.clear_cache();
     ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
+  }
 
-    /* ToDo : Remove this
-    char digest_buffer_temp[CRYPT_MAX_PASSWORD_SIZE+1];
-    my_crypt_genhash(digest_buffer_temp, CRYPT_MAX_PASSWORD_SIZE,
-                     (const char *)plaintext_buffer_zaphod,
-                     strlen((const char*)plaintext_buffer_zaphod),
-                     (const char*)salt_buffer_zaphod, 0, 0);
+  TEST_F(SHA256_digestTest, Caching_sha2_password_authenticate_sanity)
+  {
+    Caching_sha2_password caching_sha2_password(0);
+    std::string serialized_string;
+    std::string plaintext;
 
-    printf("%s\n", digest_buffer_temp);
-    printf("%s\n", digest_buffer_temp+3+SALT_LENGTH+1);
-    for (unsigned int i = 3 + SALT_LENGTH + 1; i < CRYPT_MAX_PASSWORD_SIZE; ++i)
-       printf("0x%02x, ", (unsigned char)digest_buffer_temp[i]);
-    printf("\n");
-    */
+    std::string auth_id_arthur("'arthur'@'dent.com'");
+    const char empty_plaintext_buffer_arthur[]= "";
+    const char nonempty_plaintext_buffer_arthur[]= "HahaH0hO1234#$@#%";
+    const char invalid_plaintext_buffer_arthur[]= "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    plaintext.assign(empty_plaintext_buffer_arthur);
+    ASSERT_TRUE(caching_sha2_password.authenticate(auth_id_arthur,
+                                                   serialized_string,
+                                                   plaintext) == false);
+    ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
+
+    plaintext.assign(nonempty_plaintext_buffer_arthur);
+    ASSERT_TRUE(caching_sha2_password.authenticate(auth_id_arthur,
+                                                   serialized_string,
+                                                   plaintext) == true);
+    ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
+
+    plaintext.assign(invalid_plaintext_buffer_arthur);
+    ASSERT_TRUE(caching_sha2_password.authenticate(auth_id_arthur,
+                                                   serialized_string,
+                                                   plaintext) == true);
+    ASSERT_TRUE(caching_sha2_password.get_cache_count() == 0);
   }
 } // sha2_password_unittest

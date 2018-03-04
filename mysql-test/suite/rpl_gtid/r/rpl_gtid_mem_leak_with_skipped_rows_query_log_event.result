@@ -1,0 +1,50 @@
+#
+# Step 1) Create a basic master-slave topology.
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Step 2) On master and slave, Set binlog_rows_query_log_events=on
+#
+SET @master_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
+SET @@session.binlog_rows_query_log_events=ON;
+[connection slave]
+SET @slave_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
+SET @@session.binlog_rows_query_log_events=ON;
+[connection master]
+#
+# Step 3) Create a sample table on master.
+#
+CREATE TABLE t1(i INT);
+#
+# Step 4) Switch to slave and change the slave gtid_next to master_uuid
+#         and execute two empty transactions so that the next two events
+#         from master are skipped on slave.
+#
+include/sync_slave_sql_with_master.inc
+SET GTID_NEXT='MASTER_UUID:2';
+BEGIN;
+COMMIT;
+SET GTID_NEXT='MASTER_UUID:3';
+BEGIN;
+COMMIT;
+SET GTID_NEXT=AUTOMATIC;
+#
+# Step 5) Connect to master, insert two rows and wait till slave is in
+#         sync with master.
+#
+[connection master]
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+include/sync_slave_sql_with_master.inc
+#
+# Step 6) Cleanup
+#
+SET @@session.binlog_rows_query_log_events= @slave_binlog_rows_query_log_events;
+[connection master]
+SET @@session.binlog_rows_query_log_events= @master_binlog_rows_query_log_events;
+DROP TABLE t1;
+include/rpl_end.inc

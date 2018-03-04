@@ -1,0 +1,9 @@
+SET NAMES utf8;
+SELECT regexp_like( 'abc\n123\n456\nxyz\n', '(?m)^\\d+\\R\\d+$' );
+regexp_like( 'abc\n123\n456\nxyz\n', '(?m)^\\d+\\R\\d+$' )
+1
+SELECT regexp_like( 'a\nb', '(*CR)a.b' );
+ERROR HY000: Syntax error in regular expression on line 1, character 2.
+SELECT regexp_like( 'a\nb', 'a\\vb' );
+regexp_like( 'a\nb', 'a\\vb' )
+1

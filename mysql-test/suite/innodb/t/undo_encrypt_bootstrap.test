@@ -1,10 +1,10 @@
 --source include/big_test.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Can't set undo log tablespace to be encrypted.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Can't set undo log tablespace to be encrypted.");
 # See Bug #25446984: INNODB.UNDO_ENCRYPT_BOOTSTRAP HAS OCCASIONAL FAILURES ON PB2
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Can't rotate encryption on undo tablespace number");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Can't rotate encryption on undo tablespace number");
 --enable_query_log
 
 let $MYSQLD_BASEDIR= `select @@basedir`;
@@ -98,7 +98,9 @@ INSERT INTO tab1 VALUES (300,REPEAT('a',5)),(400,REPEAT('b',5));
 COMMIT;
 SELECT * FROM tab1;
 
+--disable_warnings
 UNINSTALL PLUGIN keyring_file;
+--enable_warnings
 # Cleanup
 DROP TABLE tab1;
 

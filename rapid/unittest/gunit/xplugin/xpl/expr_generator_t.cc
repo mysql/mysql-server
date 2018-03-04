@@ -1,23 +1,30 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
 #include <cstddef>
 
-#include "expr_generator.h"
-#include "mysqlx_pb_wrapper.h"
+#include "plugin/x/src/expr_generator.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {
@@ -259,20 +266,6 @@ TEST(xpl_expr_generator, column_identifier_no_column) {
   ColumnIdentifier ident2(Document_path{"member"}, EMPTY, "table", EMPTY);
   ASSERT_EQ("JSON_EXTRACT(`table`.doc,'$.member')",
             generate_expression(ident2, EMPTY_SCHEMA, DM_DOCUMENT));
-}
-
-TEST(xpl_expr_generator, function_call) {
-  EXPECT_EQ("schema.func()",
-            generate_expression(FunctionCall("func"), "schema", DM_TABLE));
-  EXPECT_EQ(
-      "schema.func(FALSE,5)",
-      generate_expression(FunctionCall("func", false, 5), "schema", DM_TABLE));
-  EXPECT_EQ("concat(FALSE,5)",
-            generate_expression(FunctionCall("concat", false, 5), "schema",
-                                DM_TABLE));
-  EXPECT_EQ("CONCAT(FALSE,5)",
-            generate_expression(FunctionCall("CONCAT", false, 5), "schema",
-                                DM_TABLE));
 }
 
 TEST(xpl_expr_generator, interval_expression) {
@@ -1078,6 +1071,57 @@ TEST(xpl_expr_generator, any_array) {
       generate_expression(Any(Any::Array{"name", 42}), EMPTY_SCHEMA, DM_TABLE),
       Expression_generator::Error);
 }
+
+struct Param_function_call {
+  std::string expect;
+  FunctionCall func;
+  std::string schema;
+};
+
+class Function_call_test
+    : public testing::TestWithParam<Param_function_call> {};
+
+TEST_P(Function_call_test, function_call) {
+  const Param_function_call &param = GetParam();
+  EXPECT_STREQ(param.expect.c_str(),
+               generate_expression(param.func, param.schema, DM_TABLE).c_str());
+}
+
+Param_function_call function_call_param[] = {
+    {"func()", FunctionCall("func"), EMPTY_SCHEMA},
+    {"schema.func()", FunctionCall("func"), "schema"},
+    {"schema.func(FALSE,5)", FunctionCall("func", false, 5), "schema"},
+    {"concat(FALSE,5)", FunctionCall("concat", false, 5), "schema"},
+    {"CONCAT(FALSE,5)", FunctionCall("CONCAT", false, 5), "schema"},
+    {"CONCAT(FALSE,5)", FunctionCall("CONCAT", false, 5), EMPTY_SCHEMA},
+    {"ASCII('string')", FunctionCall("ASCII", "string"), EMPTY_SCHEMA},
+    {"ASCII(`column`)", FunctionCall("ASCII", ColumnIdentifier("column")),
+     EMPTY_SCHEMA},
+    {"ASCII(JSON_UNQUOTE(JSON_EXTRACT(doc,'$.path')))",
+     FunctionCall("ASCII", ColumnIdentifier(Document_path{"path"})),
+     EMPTY_SCHEMA},
+    {"ABS(42)", FunctionCall("ABS", 42), EMPTY_SCHEMA},
+    {"ABS(`column`)", FunctionCall("ABS", ColumnIdentifier("column")),
+     EMPTY_SCHEMA},
+    {"ABS(JSON_UNQUOTE(JSON_EXTRACT(doc,'$.path')))",
+     FunctionCall("ABS", ColumnIdentifier(Document_path{"path"})),
+     EMPTY_SCHEMA},
+    {"JSON_TYPE(42)", FunctionCall("JSON_TYPE", 42), EMPTY_SCHEMA},
+    {"JSON_TYPE(`column`)",
+     FunctionCall("JSON_TYPE", ColumnIdentifier("column")), EMPTY_SCHEMA},
+    {"JSON_TYPE(JSON_EXTRACT(doc,'$.path'))",
+     FunctionCall("JSON_TYPE", ColumnIdentifier(Document_path{"path"})),
+     EMPTY_SCHEMA},
+    {"JSON_KEYS('{\\\"a\\\":42}')", FunctionCall("JSON_KEYS", "{\"a\":42}"),
+     EMPTY_SCHEMA},
+    {"JSON_KEYS(`column`)",
+     FunctionCall("JSON_KEYS", ColumnIdentifier("column")), EMPTY_SCHEMA},
+    {"JSON_KEYS(JSON_EXTRACT(doc,'$.path'))",
+     FunctionCall("JSON_KEYS", ColumnIdentifier(Document_path{"path"})),
+     EMPTY_SCHEMA}};
+
+INSTANTIATE_TEST_CASE_P(xpl_expr_generator_function_call, Function_call_test,
+                        testing::ValuesIn(function_call_param));
 
 }  // namespace test
 }  // namespace xpl

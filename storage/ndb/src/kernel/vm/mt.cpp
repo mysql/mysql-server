@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <ndb_global.h>
 
@@ -50,6 +57,20 @@
 #include <EventLogger.hpp>
 
 extern EventLogger * g_eventLogger;
+
+/**
+ * Two new manual(recompile) error-injections in mt.cpp :
+ *
+ *     NDB_BAD_SEND : Causes send buffer code to mess with a byte in a send buffer
+ *     NDB_LUMPY_SEND : Causes transporters to be given small, oddly aligned and
+ *                      sized IOVECs to send, testing ability of new and existing
+ *                      code to handle this.
+ *
+ *   These are useful for testing the correctness of the new code, and
+ *   the resulting behaviour / debugging output.
+ */
+//#define NDB_BAD_SEND
+//#define NDB_LUMPY_SEND
 
 /**
  * Number indicating that the node has no current sender thread.
@@ -1655,6 +1676,7 @@ public:
  * is non-NULL, then we're using send threads, otherwise if NULL, there
  * are no send threads.
  */
+static char* g_send_threads_mem = NULL;
 static thr_send_threads *g_send_threads = NULL;
 
 extern "C"
@@ -4084,6 +4106,14 @@ pack_sb_pages(thread_local_pool<thr_send_page>* pool,
       curr->m_next = next->m_next;
 
       pool->release_local(save);
+
+#ifdef NDB_BAD_SEND
+      if ((curr->m_bytes % 40) == 24)
+      {
+        /* Oops */
+        curr->m_data[curr->m_start + 21] = 'F';
+      }
+#endif
     }
     else
     {
@@ -4131,6 +4161,8 @@ trp_callback::get_bytes_to_send_iovec(NodeId node,
 
     if (sb->m_buffer.m_first_page != NULL)
     {
+      // If first page is not NULL, the last page also can't be NULL
+      require(sb->m_buffer.m_last_page != NULL);
       if (sb->m_sending.m_first_page == NULL)
       {
         sb->m_sending = sb->m_buffer;
@@ -4161,6 +4193,44 @@ fill_iovec:
   Uint32 pos = 0;
   thr_send_page * p = sb->m_sending.m_first_page;
   sb->m_bytes_sent = 0;
+
+#ifdef NDB_LUMPY_SEND
+  /* Drip feed transporter a few bytes at a time to send */
+  do
+  {
+    Uint32 offset = 0;
+    while ((offset < p->m_bytes) && (pos < max))
+    {
+      /* 0 -+1-> 1 -+6-> (7)3 -+11-> (18)2 -+10-> 0 */
+      Uint32 lumpSz = 1;
+      switch (offset % 4)
+      {
+      case 0 : lumpSz = 1; break;
+      case 1 : lumpSz = 6; break;
+      case 2 : lumpSz = 10; break;
+      case 3 : lumpSz = 11; break;
+      }
+      const Uint32 remain = p->m_bytes - offset;
+      lumpSz = (remain < lumpSz)?
+        remain :
+        lumpSz;
+
+      dst[pos].iov_base = p->m_data + p->m_start + offset;
+      dst[pos].iov_len = lumpSz;
+      pos ++;
+      offset+= lumpSz;
+    }
+    if (pos == max)
+    {
+      return pos;
+    }
+    assert(offset == p->m_bytes);
+    p = p->m_next;
+  } while (p != NULL);
+
+  return pos;
+#endif
+
 
   do {
     dst[pos].iov_len = p->m_bytes;
@@ -7590,7 +7660,16 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
 
   if (globalData.ndbMtSendThreads)
   {
-    g_send_threads = new thr_send_threads();
+    /**
+     * new operator do not ensure alignment for overaligned data types.
+     * As for g_thr_repository, overallocate memory and construct the
+     * thr_send_threads object within at aligned address.
+     */
+    g_send_threads_mem = new char[sizeof(thr_send_threads) + NDB_CL];
+    const int aligned_offs = NDB_CL_PADSZ((UintPtr)g_send_threads_mem);
+    char* cache_aligned_mem = &g_send_threads_mem[aligned_offs];
+    require((((UintPtr)cache_aligned_mem) % NDB_CL) == 0);
+    g_send_threads = new (cache_aligned_mem) thr_send_threads();
   }
 
   /**
@@ -7670,8 +7749,10 @@ ThreadConfig::ipControlLoop(NdbThread* pThis)
   /* Delete send threads, includes waiting for threads to shutdown */
   if (g_send_threads)
   {
-    delete g_send_threads;
+    g_send_threads->~thr_send_threads();
     g_send_threads = NULL;
+    delete[] g_send_threads_mem;
+    g_send_threads_mem = NULL;
   }
   globalEmulatorData.theConfiguration->removeThread(pThis);
 }

@@ -1013,3 +1013,28 @@ SELECT 1 FROM t WHERE rtrim(a & NULL);
 SELECT (SELECT a & NULL from t);
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#26704312 REEXECUTE PREPARED STATEMENT CRASH IN
+--echo # JSON_ARRAY::INSERT_ALIAS
+--echo #
+PREPARE s FROM 'do json_array(1, database(), bit_or(@c:=0xe9))';
+EXECUTE s;
+EXECUTE s;
+DEALLOCATE PREPARE s;
+
+--echo #
+--echo # Bug#23529977 ASAN: HEAP-USE-AFTER-FREE IN MY_CONVERT ON SECOND EXECUTION
+--echo #
+SET @s:="do field('1',monthname(now()),bit_and(export_set(1,'',1,0x29,186)))";
+PREPARE s FROM @s;
+EXECUTE s;
+EXECUTE s;
+DEALLOCATE PREPARE s;
+
+SET @s1:='do length(concat(1,bit_xor(aes_encrypt(1,1,1))));';
+PREPARE s FROM @s;
+EXECUTE s;
+EXECUTE s;
+DEALLOCATE PREPARE s;
+

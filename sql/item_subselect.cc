@@ -1,17 +1,24 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -760,6 +767,29 @@ bool Item_subselect::walk_body(Item_processor processor, enum_walk walk,
         if ((*order->item)->walk(processor, walk, arg))
           return true;
       }
+
+      // walk windows' ORDER BY and PARTITION BY clauses.
+      List_iterator<Window> liw(lex->m_windows);
+      for (Window *w= liw++; w != nullptr; w= liw++)
+      {
+        /*
+          We use first_order_by() instead of order() because if a window
+          references another window and they thus share the same ORDER BY,
+          we want to walk that clause only once here
+          (Same for partition as well)".
+        */
+        for (auto it: {w->first_partition_by(), w->first_order_by() })
+        {
+          if (it != nullptr)
+          {
+            for (ORDER *o= it; o != nullptr; o= o->next)
+            {
+              if ((*o->item)->walk(processor, walk, arg))
+                return true;
+            }
+          }
+        }
+      }
     }
   }
 
@@ -1344,7 +1374,7 @@ Item_singlerow_subselect::select_transformer(SELECT_LEX *select)
   {
 
     have_to_be_excluded= 1;
-    if (thd->lex->describe)
+    if (thd->lex->is_explain())
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
@@ -2113,8 +2143,8 @@ Item_in_subselect::single_value_transformer(SELECT_LEX *select,
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.
     */
-    Item_direct_ref *const left=
-      new Item_direct_ref(&select->context, (Item**)optimizer->get_cache(),
+    Item_ref *const left=
+      new Item_ref(&select->context, (Item**)optimizer->get_cache(),
 			 (char *)"<no matter>", (char *)in_left_expr_name);
     if (left == NULL)
       DBUG_RETURN(RES_ERROR);
@@ -2207,14 +2237,47 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
       select->group_list.elements || select->m_windows.elements > 0)
   {
     bool tmp;
+    Item_ref_null_helper *ref_null=
+      new Item_ref_null_helper(&select->context, this,
+                               &select->base_ref_items[0],
+                               (char *)"<ref>", this->full_name());
     Item_bool_func *item=
-      func->create(m_injected_left_expr,
-                   new Item_ref_null_helper(&select->context,
-                                            this,
-                                            &select->base_ref_items[0],
-                                            (char *)"<ref>",
-                                            this->full_name()));
+      func->create(m_injected_left_expr, ref_null);
     item->set_created_by_in2exists();
+
+    /*
+      Assume that the expression in the SELECT list, is a function of a group
+      aggregate which is aggregated in an outer query, for example
+      SELECT ... FROM t1 WHERE t1.b IN (SELECT <expr of SUM(t1.a)> FROM t2). We
+      are changing it to
+      SELECT ... FROM t1 WHERE t1.b IN (SELECT <expr of SUM(t1.a)> FROM t2
+                                        HAVING t1.b=ref-to-<expr of SUM(t1.a)>).
+      SUM is an "inner sum func", its fix_fields() has added it to
+      inner_sum_func_list of the outer query; the outer query will do
+      split_sum_func on it which will add SUM as a hidden item and replace it
+      in 'expr' with a pointer to an Item_ref.
+      If 'expr' is a function which has SUM as one of its arguments, the
+      SELECT list and HAVING access 'expr' through two different pointers, but
+      there's only one 'expr' Item, which accesses SUM through one pointer, so
+      there's a single ref_by pointer to remember, we use ref_by[0].
+      But if 'expr' is directly the SUM, with no Item in between, then there
+      are two places where 'expr' should be replaced: the iterator in the
+      SELECT list, and the 'ref-to-expr' in HAVING above. So we have to
+      document those 2 places in ref_by[0] and ref_by[1].
+    */
+    Item *selected= select->base_ref_items[0];
+    if (selected->type() == SUM_FUNC_ITEM)
+    {
+      Item_sum *selected_sum= static_cast<Item_sum *>(selected);
+      if (!selected_sum->ref_by[0])
+        selected_sum->ref_by[0]= ref_null->ref;
+      else
+      {
+        // Slot 0 already occupied, use 1.
+        DBUG_ASSERT(!selected_sum->ref_by[1]);
+        selected_sum->ref_by[1]= ref_null->ref;
+      }
+    }
     if (!abort_on_null && left_expr->maybe_null)
     {
       /* 
@@ -2394,7 +2457,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(SELECT_LEX *select,
          */
 	substitution= func->create(left_expr->substitutional_item(), orig_item);
 	have_to_be_excluded= 1;
-	if (thd->lex->describe)
+	if (thd->lex->is_explain())
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER_THD(thd, ER_SELECT_REDUCED), select->select_number);
@@ -2628,7 +2691,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       if (item_i->check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
       Item_ref *const left=
-        new Item_direct_ref(&select->context,
+        new Item_ref(&select->context,
                             (*optimizer->get_cache())->addr(i),
                             (char *)"<no matter>", (char *)in_left_expr_name);
       if (left == NULL)
@@ -2640,7 +2703,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
       Item_bool_func *item=
         new Item_func_eq(left,
                          new
-                         Item_direct_ref(&select->context,
+                         Item_ref(&select->context,
                                          pitem_i,
                                          (char *)"<no matter>",
                                          (char *)"<list ref>")
@@ -2659,7 +2722,7 @@ Item_in_subselect::row_value_in_to_exists_transformer(SELECT_LEX *select)
         having_col_item->set_created_by_in2exists();
         Item_bool_func *item_isnull= new
           Item_func_isnull(new
-                           Item_direct_ref(&select->context,
+                           Item_ref(&select->context,
                                            pitem_i,
                                            (char *)"<no matter>",
                                            (char *)"<list ref>")
@@ -3619,10 +3682,17 @@ bool subselect_indexsubquery_engine::exec()
   if (tl && tl->uses_materialization() && !table->materialized)
   {
     THD *const thd= table->in_use;
-    bool err= tl->create_derived(thd);
+    bool err= tl->create_materialized_table(thd);
     if (!err)
-      err= tl->materialize_derived(thd);
-    err|= tl->cleanup_derived();
+    {
+      if (tl->is_table_function())
+        err= tl->table_function->fill_result_table();
+      else
+      {
+        err= tl->materialize_derived(thd);
+        err|= tl->cleanup_derived();
+      }
+    }
     if (err)
       DBUG_RETURN(true);            /* purecov: inspected */
   }
@@ -3987,6 +4057,10 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 
   DBUG_ENTER("subselect_hash_sj_engine::setup");
 
+  DBUG_EXECUTE_IF("hash_semijoin_fail_in_setup",
+                  { my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    DBUG_RETURN(true); });
+
   /* 1. Create/initialize materialization related objects. */
 
   /*
@@ -4195,15 +4269,19 @@ void subselect_hash_sj_engine::cleanup()
 {
   DBUG_ENTER("subselect_hash_sj_engine::cleanup");
   is_materialized= false;
-  result->cleanup(); /* Resets the temp table as well. */
+  if (result != nullptr)
+    result->cleanup(); /* Resets the temp table as well. */
   THD * const thd= item->unit->thd;
   DEBUG_SYNC(thd, "before_index_end_in_subselect");
-  TABLE *const table= tab->table();
-  if (table->file->inited)
-    table->file->ha_index_end();  // Close the scan over the index
-  free_tmp_table(thd, table);
-  // Note that tab->qep_cleanup() is not called
-  tab= NULL;
+  if (tab != nullptr)
+  {
+    TABLE *const table= tab->table();
+    if (table->file->inited)
+      table->file->ha_index_end();  // Close the scan over the index
+    free_tmp_table(thd, table);
+    // Note that tab->qep_cleanup() is not called
+    tab= nullptr;
+  }
   materialize_engine->cleanup();
   DBUG_VOID_RETURN;
 }

@@ -253,29 +253,6 @@ SHOW SESSION STATUS LIKE 'Last_query_cost';
 DROP TABLE t1;
 
 
-# End of 5.0 tests
-
-#
-# Ensure that SHOW STATUS only changes global status variables
-#
-
-connect (con1,localhost,root,,);
-let $rnd_next = `show global status like 'handler_read_rnd_next'`;
-let $tmp_table = `show global status like 'Created_tmp_tables'`;
-show status like 'com_show_status';
-show status like 'hand%write%';
-show status like '%tmp%';
-show status like 'hand%write%';
-show status like '%tmp%';
-show status like 'com_show_status';
-let $rnd_next2 = `show global status like 'handler_read_rnd_next'`;
-let $tmp_table2 = `show global status like 'Created_tmp_tables'`;
---disable_query_log
-eval select substring_index('$rnd_next2',0x9,-1)-substring_index('$rnd_next',0x9,-1) as rnd_diff, substring_index('$tmp_table2',0x9,-1)-substring_index('$tmp_table',0x9,-1) as tmp_table_diff;
---enable_query_log
-disconnect con1;
-connection default;
-
 #
 # Bug#30252 Com_create_function is not incremented.
 #

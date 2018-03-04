@@ -2,13 +2,20 @@
    Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2813,14 +2820,8 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
 
-  uint arg_count= args != NULL ? args->elements : 0;
-
-  if (arg_count != params)
-  {
-    my_error(ER_SP_WRONG_NO_OF_ARGS, MYF(0), "PROCEDURE",
-             m_qname.str, params, arg_count);
-    DBUG_RETURN(true);
-  }
+  // Argument count has been validated in prepare function.
+  DBUG_ASSERT((args != NULL ? args->elements : 0) == params);
 
   if (!parent_sp_runtime_ctx)
   {
@@ -3119,6 +3120,17 @@ bool sp_head::restore_lex(THD *thd)
     procedures) to multiset of tables used by this routine.
   */
   merge_table_list(thd, sublex->query_tables, sublex);
+
+  /* Update m_sptabs_sorted to be in sync with m_sptabs. */
+  m_sptabs_sorted.clear();
+  for (auto &key_and_value : m_sptabs)
+  {
+    m_sptabs_sorted.push_back(key_and_value.second);
+  }
+  std::sort(m_sptabs_sorted.begin(), m_sptabs_sorted.end(),
+            [](const SP_TABLE *a, const SP_TABLE *b) {
+              return to_string(a->qname) < to_string(b->qname);
+            });
 
   if (!sublex->sp_lex_in_use)
   {
@@ -3474,9 +3486,8 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
   */
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  for (const auto &key_and_value : m_sptabs)
+  for (SP_TABLE *stab : m_sptabs_sorted)
   {
-    SP_TABLE *stab= key_and_value.second;
     if (stab->temp || stab->lock_type == TL_IGNORE)
       continue;
 

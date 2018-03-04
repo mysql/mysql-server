@@ -98,6 +98,9 @@ while ($_rpl_server)
     --enable_warnings
   }
 
+  --error 0, ER_SLAVE_CHANNEL_DOES_NOT_EXIST
+  RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
+
   --enable_query_log
 
   --dec $_rpl_server

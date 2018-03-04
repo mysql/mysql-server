@@ -5,12 +5,13 @@
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.
-# Remove innodb log files due to an existing bug
 # Create a bootstrap file in temp location
 MYSQL_TMP_DIR/bootstrap.log
 # Copy mismatch .frms to test_mismatch dir
+# Copy pre 5.0 decimal files to test dir
 # Starting the DB server will fail since the data dir contains
 # tables with non native partitioning.
+Pattern "Table upgrade required for `test`.`41_decimal`. Please dump/reload table to fix it!" found
 Pattern "Error in creating TABLE_SHARE from p4_hash.frm file." found
 Pattern "Error in fixing SE data for test_mismatch.t1_col_name" found
 Pattern "Error in fixing SE data for test_mismatch.t2_col_type" found
@@ -31,11 +32,16 @@ Pattern "Table mismatch_frms/t1_col_name is not found in InnoDB dictionary" foun
 # Copy the remote tablespace & DB zip files from suite location to working location.
 # Check that the file exists in the working folder.
 # Unzip the zip file.
-# Remove innodb log files due to an existing bug
+#
+# BUG#26743291 : VIEW WITH EXPLICIT COLUMN NAME > 64 IS MARKED
+#                INVALID WHEN UPGRADED TO 8.0.
 # Starting the DB server will fail since the data dir contains
 # a table and a stored program with a too long enum literals.
 Pattern "Error in Creating DD entry for test.t_long_enum" found
 Pattern "Error in creating stored program 'test.p_long_enum'" found
+Pattern "Error in processing generated columns for table test.t_gcol_dep" found
+Pattern "No database selected" not found
+Pattern "Incorrect column name 'a123456789012345678901234567890123456789012345678901234567890123456789'" found
 # Remove copied files
 # Restart the server with default options.
 # restart

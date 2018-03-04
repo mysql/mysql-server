@@ -1246,7 +1246,7 @@ INSERT INTO t VALUES (14, 0, "ss");
 ALTER TABLE t ADD c INT GENERATED ALWAYS AS (a/b) VIRTUAL;
 CREATE INDEX idx ON t(c);
 ERROR 22012: Division by 0
-CALL mtr.add_suppression("\\[Warning\\] InnoDB: Compute virtual column values failed");
+CALL mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Compute virtual column values failed");
 DROP TABLE t;
 #
 # Bug#21770798 OPTIMIZER DOES NOT USE INDEX FOR GENERATED EXPRESSIONS
@@ -1527,6 +1527,99 @@ SELECT * FROM t1 STRAIGHT_JOIN t2 ON b WHERE (b AND b) = 1;
 a1	a2	b
 0	NULL	1
 DROP TABLE t1, t2;
+#
+# Bug#24345509: WRONG RESULTS WHEN GCOL INDEX IS USED
+#
+CREATE TABLE t1 (
+pk INT PRIMARY KEY AUTO_INCREMENT,
+i INT,
+vc VARCHAR(7),
+gc1 VARCHAR(14) GENERATED ALWAYS AS (concat(vc, vc)) VIRTUAL NOT NULL,
+gc2 VARCHAR(14) GENERATED ALWAYS AS (concat(gc1, 'x')) VIRTUAL NOT NULL,
+KEY gc2_key (gc2),
+KEY gc2_key_prefix (gc2(5))
+);
+INSERT INTO t1 (i, vc) VALUES
+(7, 'xcek'), (3, 'ceksat'), (3, 'eksate'), (3, 'ksatef'), (6, 's');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT i FROM t1 WHERE gc2 <= 'ksatefksatefx';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc2_key,gc2_key_prefix	gc2_key	58	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (`test`.`t1`.`gc2` <= 'ksatefksatefx')
+SELECT i FROM t1 WHERE gc2 <= 'ksatefksatefx';
+i
+3
+3
+3
+EXPLAIN SELECT i FROM t1 FORCE INDEX (gc2_key_prefix)
+WHERE gc2 <= 'ksatefksatefx';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc2_key_prefix	gc2_key_prefix	22	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` FORCE INDEX (`gc2_key_prefix`) where (`test`.`t1`.`gc2` <= 'ksatefksatefx')
+SELECT i FROM t1 FORCE INDEX (gc2_key_prefix)
+WHERE gc2 <= 'ksatefksatefx';
+i
+3
+3
+3
+EXPLAIN SELECT COUNT(*) FROM t1 WHERE gc2 <= 'ksatefksatefx';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc2_key,gc2_key_prefix	gc2_key	58	NULL	3	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`gc2` <= 'ksatefksatefx')
+SELECT COUNT(*) FROM t1 WHERE gc2 <= 'ksatefksatefx';
+COUNT(*)
+3
+EXPLAIN SELECT COUNT(*) FROM t1 FORCE INDEX (gc2_key_prefix)
+WHERE gc2 <= 'ksatefksatefx';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	gc2_key_prefix	gc2_key_prefix	22	NULL	3	100.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` FORCE INDEX (`gc2_key_prefix`) where (`test`.`t1`.`gc2` <= 'ksatefksatefx')
+SELECT COUNT(*) FROM t1 FORCE INDEX (gc2_key_prefix)
+WHERE gc2 <= 'ksatefksatefx';
+COUNT(*)
+3
+CREATE TABLE t2 (
+i INT NOT NULL,
+gc INT GENERATED ALWAYS AS (i) VIRTUAL NOT NULL,
+KEY (gc)
+);
+INSERT INTO t2 (i) VALUES (-1), (0), (1), (2);
+BEGIN;
+SELECT i FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+i
+-1
+SELECT gc FROM t2 FORCE INDEX (gc) WHERE gc <= -1;
+gc
+-1
+COMMIT;
+DROP TABLE t1, t2;
+#
+# Bug#27010089: ASSERTION FAILURE:
+# ROW0SEL.CC:2846:TEMPL->MYSQL_COL_LEN == LEN
+#
+CREATE TABLE t (
+pk INTEGER AUTO_INCREMENT PRIMARY KEY,
+col_int_key INTEGER GENERATED ALWAYS AS (1) VIRTUAL,
+col_varchar VARCHAR(7) ,
+col_varchar_key VARCHAR(14) GENERATED ALWAYS AS ('abc') VIRTUAL,
+KEY (col_varchar_key(5), col_int_key),
+KEY (col_int_key, col_varchar_key));
+INSERT INTO t VALUES (), ();
+SELECT 1 FROM t AS alias1
+WHERE EXISTS
+(SELECT SQ2_alias1.col_int_key AS SQ2_field1
+FROM t AS SQ2_alias1 JOIN t AS SQ2_alias2
+ON (SQ2_alias2.col_varchar_key = SQ2_alias1.col_varchar_key)
+WHERE SQ2_alias1.col_varchar <> alias1.col_varchar AND
+SQ2_alias1.col_int_key >= SQ2_alias2.pk);
+1
+DROP TABLE t;
 #
 #
 # BUG#21365158 WL8149:ASSERTION `!TABLE || (!TABLE->WRITE_SET 

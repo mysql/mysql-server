@@ -3,16 +3,24 @@
 Copyright (c) 2011, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -2345,7 +2353,7 @@ fts_create_one_index_table(
 	dict_mem_table_add_col(new_table, heap, "word",
 			       charset == &my_charset_latin1
 			       ? DATA_VARCHAR : DATA_VARMYSQL,
-			       field->col->prtype | DATA_NOT_NULL,
+			       field->col->prtype,
 			       FTS_INDEX_WORD_LEN);
 
 	dict_mem_table_add_col(new_table, heap, "first_doc_id", DATA_INT,
@@ -3875,6 +3883,7 @@ static
 void
 fts_fetch_doc_from_rec(
 /*===================*/
+	trx_t*		trx,		/*!< in: current transaction */
 	fts_get_doc_t*  get_doc,	/*!< in: FTS index's get_doc struct */
 	dict_index_t*	clust_index,	/*!< in: cluster index */
 	btr_pcur_t*	pcur,		/*!< in: cursor whose position
@@ -3920,6 +3929,7 @@ fts_fetch_doc_from_rec(
 		if (rec_offs_nth_extern(offsets, clust_pos)) {
 			doc->text.f_str =
 				lob::btr_rec_copy_externally_stored_field(
+					clust_index,
 					clust_rec, offsets,
 					dict_table_page_size(table),
 					clust_pos, &doc->text.f_len,
@@ -4218,7 +4228,8 @@ fts_add_doc_by_id(
 			fts_doc_init(&doc);
 
 			fts_fetch_doc_from_rec(
-				get_doc, clust_index, doc_pcur, offsets, &doc);
+				ftt->fts_trx->trx, get_doc, clust_index,
+				doc_pcur, offsets, &doc);
 
 			if (doc.found) {
 				ibool	success MY_ATTRIBUTE((unused));
@@ -5241,10 +5252,18 @@ fts_add_token(
 		t_str.f_str = static_cast<byte*>(
 			mem_heap_alloc(heap, t_str.f_len));
 
+		/* For binary collations, a case sensitive search is
+		performed. Hence don't convert to lower case. */
+		if (my_binary_compare(result_doc->charset)) {
+		memcpy(t_str.f_str, str.f_str, str.f_len);
+			t_str.f_str[str.f_len]= 0;
+			newlen= str.f_len;
+		} else {
 		newlen = innobase_fts_casedn_str(
-			result_doc->charset,
-			reinterpret_cast<char*>(str.f_str), str.f_len,
-			reinterpret_cast<char*>(t_str.f_str), t_str.f_len);
+				result_doc->charset, (char*) str.f_str, str.f_len,
+				(char*) t_str.f_str, t_str.f_len);
+		}
+
 
 		t_str.f_len = newlen;
 		t_str.f_str[newlen] = 0;
@@ -6991,7 +7010,10 @@ fts_init_recover_doc(
 		if (dfield_is_ext(dfield)) {
 			dict_table_t*	table = cache->sync->table;
 
+			/** When a nullptr is passed for trx, it means we will
+			fetch the latest LOB (and no MVCC will be done). */
 			doc.text.f_str = lob::btr_copy_externally_stored_field(
+				get_doc->index_cache->index,
 				&doc.text.f_len,
 				static_cast<byte*>(dfield_get_data(dfield)),
 				dict_table_page_size(table), len, false,
@@ -7123,57 +7145,75 @@ func_exit:
 }
 
 /** Rename old FTS common and aux tables with the new table_id
-@param[in]	fts_table	fts table object
-@param[in]	new_suffix	suffix name in 8.0 format
+@param[in]	old_name	old name of FTS AUX table
+@param[in]	new_name	new name of FTS AUX table
 @return new fts table if success, else nullptr on failure */
 static
 dict_table_t*
-fts_upgrade_rename_table(fts_table_t fts_table, const char* new_suffix)
+fts_upgrade_rename_aux_table_low(const char* old_name, const char* new_name)
 {
-	char	old_table_name[MAX_FULL_NAME_LEN];
-
-	/* We are creating upgraded table with DICT_MAX_DD_TABLES
-	offset, remove this offset to get original fts aux table names. */
-	table_id_t	original_table_id = fts_table.table_id;
-
-	fts_table.table_id = fts_table.table_id - DICT_MAX_DD_TABLES;
-
-	fts_get_table_name_5_7(&fts_table, old_table_name);
-
-	DBUG_EXECUTE_IF("dd_upgrade",
-		ib::info() << "Old fts table name is "
-			<< old_table_name;
-	);
-
-	char	new_table_name[MAX_FULL_NAME_LEN];
-	fts_table.table_id = original_table_id;
-	fts_table.suffix = new_suffix;
-	fts_get_table_name(&fts_table, new_table_name);
-
-	DBUG_EXECUTE_IF("dd_upgrade",
-		ib::info() << "New fts table name is "
-			<< new_table_name;
-	);
-
 	mutex_enter(&dict_sys->mutex);
 
-	dict_table_t*	old_aux_table = dict_table_open_on_name(old_table_name,
+	dict_table_t*	old_aux_table = dict_table_open_on_name(old_name,
 		true, false, DICT_ERR_IGNORE_NONE);
 
 	ut_ad(old_aux_table != NULL);
 	dict_table_close(old_aux_table, true, false);
-	dberr_t	err = dict_table_rename_in_cache(old_aux_table, new_table_name, false);
+	dberr_t	err = dict_table_rename_in_cache(old_aux_table, new_name, false);
 	if (err != DB_SUCCESS) {
 		mutex_exit(&dict_sys->mutex);
 		return(nullptr);
 	}
 
-	dict_table_t*	new_aux_table = dict_table_open_on_name(new_table_name,
+	dict_table_t*	new_aux_table = dict_table_open_on_name(new_name,
 		true, false, DICT_ERR_IGNORE_NONE);
 	ut_ad(new_aux_table != NULL);
 	mutex_exit(&dict_sys->mutex);
 
 	return(new_aux_table);
+}
+
+/** Rename old FTS common and aux tables with the new table_id
+@param[in]	old_name	old name of FTS AUX table
+@param[in]	new_name	new name of FTS AUX table
+@param[in]	rollback	if true, do the rename back
+				else mark original AUX tables
+				evictable */
+static
+void
+fts_upgrade_rename_aux_table(
+	const char*	old_name,
+	const char*	new_name,
+	bool		rollback)
+{
+	dict_table_t*	new_table = nullptr;
+
+	if (rollback) {
+		new_table = fts_upgrade_rename_aux_table_low(
+			old_name, new_name);
+
+	} else {
+		new_table = dict_table_open_on_name(
+			old_name, false, false, DICT_ERR_IGNORE_NONE);
+	}
+
+	if (new_table == nullptr) {
+		return;
+	}
+
+	mutex_enter(&dict_sys->mutex);
+	dict_table_allow_eviction(new_table);
+	dict_table_close(new_table, true, false);
+	mutex_exit(&dict_sys->mutex);
+}
+
+/** During upgrade, tables are moved by DICT_MAX_DD_TABLES
+offset, remove this offset to get 5.7 fts aux table names
+@param[in]	table_id	8.0 table id */
+inline
+table_id_t
+fts_upgrade_get_5_7_table_id(table_id_t table_id) {
+	return(table_id - DICT_MAX_DD_TABLES);
 }
 
 /** Upgrade FTS AUX Tables. The FTS common and aux tables are
@@ -7186,24 +7226,52 @@ dberr_t
 fts_upgrade_aux_tables(
 	dict_table_t*	table)
 {
-	fts_table_t	fts_table;
+	fts_table_t	fts_old_table;
 
 	ut_ad(srv_is_upgrade_mode);
 
-	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+	FTS_INIT_FTS_TABLE(&fts_old_table, NULL, FTS_COMMON_TABLE, table);
+	fts_table_t fts_new_table = fts_old_table;
+
+	fts_old_table.table_id = fts_upgrade_get_5_7_table_id(
+		fts_old_table.table_id);
 
 	/* Rename common auxiliary tables */
 	for (ulint i = 0; fts_common_tables_5_7[i] != NULL; ++i) {
 
-		fts_table.suffix = fts_common_tables_5_7[i];
+		fts_old_table.suffix = fts_common_tables_5_7[i];
 
-		bool	is_config = fts_table.suffix == FTS_SUFFIX_CONFIG_5_7;
+		bool	is_config =
+			fts_old_table.suffix == FTS_SUFFIX_CONFIG_5_7;
+		char	old_name[MAX_FULL_NAME_LEN];
+		char	new_name[MAX_FULL_NAME_LEN];
 
-		dict_table_t*	new_table = fts_upgrade_rename_table(fts_table, fts_common_tables[i]);
+
+		fts_get_table_name_5_7(&fts_old_table, old_name);
+
+		DBUG_EXECUTE_IF("dd_upgrade",
+			ib::info() << "Old fts table name is "
+				<< old_name;
+		);
+
+		fts_new_table.suffix = fts_common_tables[i];
+		fts_get_table_name(&fts_new_table, new_name);
+
+		DBUG_EXECUTE_IF("dd_upgrade",
+			ib::info() << "New fts table name is "
+				<< new_name;
+		);
+
+		dict_table_t*	new_table = fts_upgrade_rename_aux_table_low(
+			old_name, new_name);
 
 		if (new_table == nullptr) {
 			return(DB_ERROR);
 		}
+
+		mutex_enter(&dict_sys->mutex);
+		dict_table_prevent_eviction(new_table);
+		mutex_exit(&dict_sys->mutex);
 
 		if (!dd_create_fts_common_table(table, new_table, is_config)) {
 			dict_table_close(new_table, false, false);
@@ -7222,20 +7290,42 @@ fts_upgrade_aux_tables(
 		index = static_cast<dict_index_t*>(
 			ib_vector_getp(fts->indexes, i));
 
-		FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
+		FTS_INIT_INDEX_TABLE(&fts_old_table, NULL, FTS_INDEX_TABLE,
+				     index);
+		fts_new_table = fts_old_table;
+
+		fts_old_table.table_id = fts_upgrade_get_5_7_table_id(
+			fts_old_table.table_id);
 
 		for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
 
-			fts_table.suffix = fts_get_suffix_5_7(j);
-			dict_table_t*	new_table = fts_upgrade_rename_table(fts_table, fts_get_suffix(j));
+			fts_old_table.suffix = fts_get_suffix_5_7(j);
+
+			char	old_name[MAX_FULL_NAME_LEN];
+			char	new_name[MAX_FULL_NAME_LEN];
+
+			fts_get_table_name_5_7(&fts_old_table, old_name);
+
+			fts_new_table.suffix = fts_get_suffix(j);
+			fts_get_table_name(&fts_new_table, new_name);
+
+			dict_table_t*	new_table =
+				fts_upgrade_rename_aux_table_low(
+					old_name, new_name);
 
 			if (new_table == nullptr) {
 				return(DB_ERROR);
 			}
 
-			CHARSET_INFO*	charset = fts_get_charset(index->get_field(0)->col->prtype);
+			mutex_enter(&dict_sys->mutex);
+			dict_table_prevent_eviction(new_table);
+			mutex_exit(&dict_sys->mutex);
 
-			if(!dd_create_fts_index_table(table, new_table, charset)) {
+			CHARSET_INFO*	charset = fts_get_charset(
+				index->get_field(0)->col->prtype);
+
+			if(!dd_create_fts_index_table(
+					table, new_table, charset)) {
 				dict_table_close(new_table, false, false);
 				return(DB_FAIL);
 			}
@@ -7243,5 +7333,79 @@ fts_upgrade_aux_tables(
 		}
 	}
 
+	return(DB_SUCCESS);
+}
+
+/** Rename FTS AUX tablespace name from 8.0 format to 5.7 format.
+This will be done on upgrade failure
+@param[in]	table		parent table
+@param[in]	rollback	rollback the rename from 8.0 to 5.7
+				if true, rename to 5.7 format
+				if false, mark the table as evictable
+@return DB_SUCCESS on success, DB_ERROR on error */
+dberr_t
+fts_upgrade_rename(
+	const dict_table_t*	table,
+	bool			rollback)
+{
+	fts_table_t	fts_old_table;
+
+	ut_ad(srv_is_upgrade_mode);
+
+	FTS_INIT_FTS_TABLE(&fts_old_table, NULL, FTS_COMMON_TABLE, table);
+
+	fts_table_t fts_new_table = fts_old_table;
+
+	fts_new_table.table_id = fts_upgrade_get_5_7_table_id(
+		fts_new_table.table_id);
+
+	/* Rename common auxiliary tables */
+	for (ulint i = 0; fts_common_tables[i] != NULL; ++i) {
+
+		fts_old_table.suffix = fts_common_tables[i];
+
+		char	old_name[MAX_FULL_NAME_LEN];
+		char	new_name[MAX_FULL_NAME_LEN];
+
+		fts_get_table_name(&fts_old_table, old_name);
+
+		fts_new_table.suffix = fts_common_tables_5_7[i];
+		fts_get_table_name_5_7(&fts_new_table, new_name);
+
+		fts_upgrade_rename_aux_table(old_name, new_name, rollback);
+	}
+
+	fts_t*	fts = table->fts;
+
+	/* Rename index specific auxiliary tables */
+	for (ulint i = 0; fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+	     ++i) {
+		dict_index_t*	index;
+
+		index = static_cast<dict_index_t*>(
+			ib_vector_getp(fts->indexes, i));
+
+		FTS_INIT_INDEX_TABLE(&fts_old_table, NULL, FTS_INDEX_TABLE,
+				     index);
+		fts_new_table = fts_old_table;
+
+		fts_new_table.table_id = fts_upgrade_get_5_7_table_id(
+			fts_new_table.table_id);
+
+		for (ulint j = 0; j < FTS_NUM_AUX_INDEX; ++j) {
+
+			fts_old_table.suffix = fts_get_suffix(j);
+
+			char	old_name[MAX_FULL_NAME_LEN];
+			char	new_name[MAX_FULL_NAME_LEN];
+
+			fts_get_table_name(&fts_old_table, old_name);
+
+			fts_new_table.suffix = fts_get_suffix_5_7(j);
+			fts_get_table_name_5_7(&fts_new_table, new_name);
+
+			fts_upgrade_rename_aux_table(old_name, new_name, rollback);
+		}
+	}
 	return(DB_SUCCESS);
 }

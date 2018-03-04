@@ -1,0 +1,143 @@
+## Inserting with upsert
+
+## Preamble
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+## Test starts here
+
+--write_file $MYSQL_TMP_DIR/crud_insert_upsert_with_not_null.xpl
+## Test data
+-->quiet
+-->import crud_insert.macro
+-->import crud_find.macro
+
+-->varlet %DOC1_FOOBARCOM_FOO% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "email": "foo@bar.com", "name":"foo"}' content_type:2}}
+-->varlet %DOC2_BLABARCOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "2", "email": "bla@bar.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC2_FOOORACOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "2", "email": "foo@ora.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC2_FOO%           type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "2", "name":"foo"}' content_type:2}}
+-->varlet %DOC3_NULL_BLA%      type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "3", "email": null, "name":"bla"}' content_type:2}}
+-->varlet %DOC3_BLA%           type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "3", "name":"bla"}' content_type:2}}
+-->varlet %DOC3_FOOORACOM_FOO% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "3", "email": "foo@ora.com", "name":"foo"}' content_type:2}}
+-->varlet %DOC1_FOOORACOM_FOO% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "email": "foo@ora.com", "name":"foo"}' content_type:2}}
+-->varlet %DOC1_FOOBARCOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "email": "foo@bar.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC3_FOOBARCOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "3", "email": "foo@bar.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC1_BLA%           type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "name":"bla"}' content_type:2}}
+-->varlet %DOC1_NULL_BLA%      type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "name":"bla", "email": null}' content_type:2}}
+-->varlet %DOC1_BLABARCOM_FOO% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "1", "email": "bla@bar.com", "name":"foo"}' content_type:2}}
+-->varlet %DOC4_BLABLACOM_BLA% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "4", "email": "bla@bla.com", "name":"bla"}' content_type:2}}
+-->varlet %DOC4_FOO%           type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id": "4", "name":"foo"}' content_type:2}}
+
+
+-->title =Data model: TABLE
+
+-->sql
+CREATE TABLE xtest.xtable (doc JSON);
+-->endsql
+-->title -Insert two docs
+-->callmacro Insert_two	TABLE	xtable	%DOC1_FOOBARCOM_FOO%	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
+-->callmacro Show	xtable
+-->title -Upsert one doc
+-->callmacro Upsert_one	TABLE	xtable	%DOC3_FOOORACOM_FOO%	ER_X_BAD_INSERT_DATA
+
+
+
+-->title =Data model: DOCUMENT
+
+-->macro Setup %NAME%
+-->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":true}}
+-->recvresult
+-->callmacro Insert_two	DOCUMENT	%NAME%	%DOC1_FOOBARCOM_FOO%	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
+-->callmacro Show	%NAME%
+-->endmacro
+
+-->macro Setup_without_data %NAME%
+-->stmtadmin create_collection	{"schema":"xtest","name":"%NAME%"}
+-->recvresult
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"%NAME%", "name":"secondary", "unique":true, "constraint":{"member":"$.email", "type":"TEXT(20)","required":true}}
+-->recvresult
+-->endmacro
+
+
+-->macro Setup_drop_id %NAME%
+-->callmacro Setup	%NAME%
+-->stmtsql ALTER TABLE xtest.%NAME% DROP COLUMN `_id`;
+-->recvresult
+-->endmacro
+
+
+-->title -Test0 - No matches
+-->callmacro Setup	col0
+-->callmacro Upsert_one	DOCUMENT	col0	%DOC3_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col0
+
+-->title -Test1 - Match on _id
+-->callmacro Setup	col1
+-->callmacro Upsert_one	DOCUMENT	col1	%DOC1_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col1
+
+-->title -Test2 - Match on secondary key only
+-->callmacro Setup	col2
+-->callmacro Upsert_one	DOCUMENT	col2	%DOC3_FOOBARCOM_BLA%	ER_X_BAD_UPSERT_DATA
+-->callmacro Show	col2
+
+-->title -Test3 - Match on _id only, missing secondary index
+-->callmacro Setup	col3
+-->callmacro Upsert_one	DOCUMENT	col3	%DOC1_BLA%	ER_X_DOC_ID_MISSING
+-->callmacro Show	col3
+
+-->title -Test4 - Match on _id and secondary, but from different rows
+-->callmacro Setup	col4
+-->callmacro Upsert_one	DOCUMENT	col4	%DOC1_BLABARCOM_FOO%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	col4
+
+-->title -Test5 - Match on _id and secondary key (other field value updated)
+-->callmacro Setup	col5
+-->callmacro Upsert_one	DOCUMENT	col5	%DOC1_FOOBARCOM_BLA%	ER_SUCCESS
+-->callmacro Show	col5
+
+#BUG#27198820
+#-->title -Test6 - New unique document, with null on secondary key
+#-->callmacro Setup	col6
+#-->callmacro Upsert_one	DOCUMENT	col5	%DOC3_NULL_BLA%	ER_X_DOC_ID_MISSING
+#-->callmacro Show	col5
+
+-->title -Test7 - New unique document, with missing field on secondary key
+-->callmacro Setup	col7
+-->callmacro Upsert_one	DOCUMENT	col7	%DOC3_BLA%	ER_X_DOC_ID_MISSING
+-->callmacro Show	col7
+
+#BUG#27198820
+#-->title -Test8 - Match on _id only, null at secondary index
+#-->callmacro Setup	col8
+#-->callmacro Upsert_one	DOCUMENT	col8	%DOC1_NULL_BLA%	ER_X_DOC_ID_MISSING
+#-->callmacro Show	col8
+
+-->title -Test8 - Match on _id only, missing  field at secondary index
+-->callmacro Setup	col8
+-->callmacro Upsert_one	DOCUMENT	col8	%DOC1_BLA%	ER_X_DOC_ID_MISSING
+-->callmacro Show	col8
+
+-->title -Test9 - Match on _id and null value at secondary index
+-->callmacro Setup_without_data	col9
+-->callmacro Insert_one	DOCUMENT	col9	%DOC1_FOOBARCOM_FOO%	ER_SUCCESS
+-->callmacro Insert_one	DOCUMENT	col9	%DOC2_BLABARCOM_BLA%	ER_SUCCESS
+-->callmacro Insert_one	DOCUMENT	col9	%DOC3_FOOORACOM_FOO%	ER_SUCCESS
+-->callmacro Show	col9
+-->callmacro Upsert_one	DOCUMENT	col9	%DOC2_FOOORACOM_BLA%	ER_X_DOC_ID_DUPLICATE
+-->callmacro Show	col9
+
+EOF
+
+CREATE SCHEMA xtest;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/crud_insert_upsert_with_not_null.xpl 2>&1;
+
+## Cleanup
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc
+DROP SCHEMA IF EXISTS xtest;
+UNINSTALL PLUGIN mysqlx;

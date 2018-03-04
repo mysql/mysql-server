@@ -1,5 +1,6 @@
 --echo Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 --write_file $MYSQL_TMP_DIR/mysqlx-client-timeout.tmp
 # Expect CR_X_READ_TIMEOUT
@@ -14,7 +15,7 @@ EOF
 --echo ## Trigger read timeout and then try to execute SQL
 
 exec $MYSQLXTEST 
-	-u root
+	-u x_root
 	--password=''
 	-h127.0.0.1
 	--timeout=2000
@@ -25,4 +26,5 @@ exec $MYSQLXTEST
 --echo ## Cleanup
 --remove_file $MYSQL_TMP_DIR/mysqlx-client-timeout.tmp
 
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

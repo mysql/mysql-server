@@ -1,3 +1,30 @@
+# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# Without limiting anything contained in the foregoing, this file,
+# which is part of C Driver for MySQL (Connector/C), is also subject to the
+# Universal FOSS Exception, version 1.0, a copy of which can be found at
+# http://oss.oracle.com/licenses/universal-foss-exception.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
 languages czech=cze latin2, danish=dan latin1, dutch=nla latin1, english=eng latin1, estonian=est latin7, french=fre latin1, german=ger latin1, greek=greek greek, hungarian=hun latin2, italian=ita latin1, japanese=jpn ujis, korean=kor euckr, norwegian-ny=norwegian-ny latin1, norwegian=nor latin1, polish=pol latin2, portuguese=por latin1, romanian=rum latin2, russian=rus koi8r, serbian=serbian cp1250, slovak=slo latin2, spanish=spa latin1, swedish=swe latin1, ukrainian=ukr koi8u, bulgarian=bgn cp1251;
 
 default-language eng
@@ -6611,7 +6638,7 @@ OBSOLETE_ER_NO_SUCH_PARTITION__UNUSED
   nor "Partition '%-.64s' doesn't exist"
   norwegian-ny "Partition '%-.64s' doesn't exist"
   pol "Partition '%-.64s' doesn't exist"
-  por "Particion '%-.64s' n�o existe"
+  por "Particion '%-.64s' n?o existe"
   rum "Partition '%-.64s' nu exista"
   serbian "Partition '%-.64s' ne postoji"
   slo "Partition '%-.64s' doesn't exist"
@@ -7062,6 +7089,9 @@ ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
 
 ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
   eng "Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been committed on master but are not included in GTID_EXECUTED."
+
+ER_MISSING_KEY
+  eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."
 #
 #  End of 5.6 error messages.
 #
@@ -7639,7 +7669,7 @@ ER_INVALID_ENCRYPTION_OPTION
   eng "Invalid encryption option."
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
-  eng "Can't find master key from keyring, please check keyring plugin is loaded."
+  eng "Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
 
 ER_CAPACITY_EXCEEDED_IN_PARSER
   eng "Parser bailed out for this query."
@@ -7682,6 +7712,18 @@ ER_KEYRING_AWS_UDF_AWS_KMS_ERROR
 
 ER_BINLOG_UNSAFE_XA
   eng "Statement is unsafe because it is being used inside a XA transaction. Concurrent XA transactions may deadlock on slaves when replicated using statements."
+
+ER_UDF_ERROR
+  eng "%s UDF failed; %s"
+
+ER_KEYRING_MIGRATION_FAILURE
+  eng "Can not perform keyring migration : %s"
+
+ER_KEYRING_ACCESS_DENIED_ERROR 42000
+  eng "Access denied; you need %-.128s privileges for this operation"
+
+ER_KEYRING_MIGRATION_STATUS
+  eng "Keyring migration %s."
 
 #
 #  End of 5.7 error messages.
@@ -7747,7 +7789,7 @@ ER_SRS_PROJ_PARAMETER_MISSING SR003
   eng "The spatial reference system definition for SRID %u does not specify the mandatory %s (EPSG %u) projection parameter."
 
 ER_WARN_SRS_NOT_FOUND 01000
-  eng "There's no spatial reference system with SRID %u. Calculations in function %s will be done in SRID 0."
+  eng "There's no spatial reference system with SRID %u."
 
 ER_SRS_NOT_CARTESIAN 22S00
   eng "Function %s is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID %u, which is not Cartesian."
@@ -8002,7 +8044,7 @@ ER_WINDOW_EXPLAIN_JSON
 ER_WINDOW_FUNCTION_IGNORES_FRAME
   eng "Window function '%s' ignores the frame clause of window '%s' and aggregates over the whole partition"
 
-ER_WINDOW_SE_NOT_ACCEPTABLE
+ER_WL9236_NOW_UNUSED
   eng "Windowing requires @@internal_tmp_mem_storage_engine=TempTable."
 
 ER_INVALID_NO_OF_ARGS
@@ -8057,7 +8099,7 @@ ER_LATITUDE_OUT_OF_RANGE 22S03
   eng "Latitude %f is out of range in function %.192s. It must be within [%f, %f]."
 
 ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS 22S00
-  eng "%.192s(%.40s, %.40s) has not been implemented for geographic spatial reference systems."
+  eng "%.192s(%.80s) has not been implemented for geographic spatial reference systems."
 
 ER_ILLEGAL_PRIVILEGE_LEVEL
   eng "Illegal privilege level specified for %s"
@@ -8065,15 +8107,334 @@ ER_ILLEGAL_PRIVILEGE_LEVEL
 ER_NO_SYSTEM_VIEW_ACCESS
   eng "Access to system view INFORMATION_SCHEMA.'%.64s' is rejected."
 
+ER_COMPONENT_FILTER_FLABBERGASTED
+  eng "The log-filter component \"%s\" got confused at \"%s\" ..."
+  ger "Der Logfilter \"%s\" wunderte sich ueber \"%s\" ..."
+
+ER_PART_EXPR_TOO_LONG
+  eng "Partitioning expression is too long."
+
+ER_UDF_DROP_DYNAMICALLY_REGISTERED
+  eng "DROP FUNCTION can't drop a dynamically registered user defined function"
+
+ER_UNABLE_TO_STORE_COLUMN_STATISTICS
+  eng "Unable to store column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+
+ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS
+  eng "Unable to update column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+
+ER_UNABLE_TO_DROP_COLUMN_STATISTICS
+  eng "Unable to remove column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+
+ER_UNABLE_TO_BUILD_HISTOGRAM
+  eng "Unable to build histogram statistics for column '%.64s' in table '%.64s'.'%.64s'"
+
+ER_MANDATORY_ROLE
+  eng "The role %s is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles."
+
+ER_MISSING_TABLESPACE_FILE
+  eng "Tablespace '%.192s' does not have a file named '%.192s'"
+
+ER_PERSIST_ONLY_ACCESS_DENIED_ERROR 42000
+  eng "Access denied; you need %-.128s privileges for this operation"
+
+ER_CMD_NEED_SUPER
+  eng "You need the SUPER privilege for command '%-.192s'"
+
+ER_PATH_IN_DATADIR
+  eng "Path is within the current data directory '%-.192s'"
+
+ER_DDL_IN_PROGRESS
+  eng "Concurrent DDL is performed during the operation. Please try again."
+
+ER_TOO_MANY_CONCURRENT_CLONES
+  eng "Too many concurrent clone operations. Maximum allowed - %d."
+
+ER_APPLIER_LOG_EVENT_VALIDATION_ERROR
+  eng "The table in transaction %s does not comply with the requirements by an external plugin."
+
+ER_CTE_MAX_RECURSION_DEPTH
+  eng "Recursive query aborted after %u iterations. Try increasing @@cte_max_recursion_depth to a larger value."
+
+ER_NOT_HINT_UPDATABLE_VARIABLE
+  eng "Variable %s cannot be set using SET_VAR hint."
+
+ER_CREDENTIALS_CONTRADICT_TO_HISTORY
+  eng "Cannot use these credentials for '%.*s@%.*s' because they contradict the password history policy"
+
+ER_WARNING_PASSWORD_HISTORY_CLAUSES_VOID
+  eng "Non-zero password history clauses ignored for user '%s'@'%s' as its authentication plugin %s does not support password history"
+
+ER_CLIENT_DOES_NOT_SUPPORT
+  eng "The client doesn't support %s"
+
+ER_I_S_SKIPPED_TABLESPACE
+  eng "Tablespace '%s' was skipped since its definition is being modified by concurrent DDL statement"
+
+ER_TABLESPACE_ENGINE_MISMATCH
+  eng "Engine '%.192s' does not match stored engine '%.192s' for tablespace '%.192s'"
+
+ER_WRONG_SRID_FOR_COLUMN
+  eng "The SRID of the geometry does not match the SRID of the column '%.64s'. The SRID of the geometry is %lu, but the SRID of the column is %lu. Consider changing the SRID of the geometry or the SRID property of the column."
+
+ER_CANNOT_ALTER_SRID_DUE_TO_INDEX
+  eng "The SRID specification on the column '%.64s' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification."
+
+ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be ignored and updates will be written in full format to binary log."
+
+ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED
+  eng "When %.192s, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log."
+
+ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%%."
+
+ER_COULD_NOT_APPLY_JSON_DIFF
+  eng "Could not apply JSON diff in table %.*s, column %s."
+
+ER_CORRUPTED_JSON_DIFF
+  eng "Corrupted JSON diff for table %.*s, column %s."
+
+ER_RESOURCE_GROUP_EXISTS
+  eng "Resource Group '%-.192s' exists"
+
+ER_RESOURCE_GROUP_NOT_EXISTS
+  eng "Resource Group '%-.192s' does not exist."
+
+ER_INVALID_VCPU_ID
+  eng "Invalid cpu id %u"
+
+ER_INVALID_VCPU_RANGE
+  eng "Invalid VCPU range %u-%u"
+
+ER_INVALID_THREAD_PRIORITY
+  eng "Invalid thread priority value %d for %s resource group %s. Allowed range is [%d, %d]."
+
+ER_DISALLOWED_OPERATION
+  eng "%s operation is disallowed on %s "
+
+ER_RESOURCE_GROUP_BUSY
+  eng "Resource group %s is busy."
+
+ER_RESOURCE_GROUP_DISABLED
+  eng "Resource group %s is disabled."
+
+ER_FEATURE_UNSUPPORTED
+  eng "Feature %s is unsupported (%s)."
+
+ER_ATTRIBUTE_IGNORED
+  eng "Attribute %s is ignored (%s)."
+
+ER_INVALID_THREAD_ID
+  eng "Invalid thread id (%llu)."
+
+ER_RESOURCE_GROUP_BIND_FAILED
+  eng "Unable to bind resource group %s with thread id (%llu).(%s)."
+
+ER_INVALID_USE_OF_FORCE_OPTION
+  eng "Option FORCE invalid as DISABLE option is not specified."
+
+ER_GROUP_REPLICATION_COMMAND_FAILURE
+  eng "The %s command encountered a failure. %s"
+
+ER_SDI_OPERATION_FAILED
+  eng "Failed to %s SDI '%.192s.%.192s' in tablespace '%.192s'."
+
+ER_MISSING_JSON_TABLE_VALUE 22035
+  eng "Missing value for JSON_TABLE column '%.192s'"
+
+ER_WRONG_JSON_TABLE_VALUE 2203F
+  eng "Can't store an array or an object in the scalar JSON_TABLE column '%.192s'"
+
+ER_TF_MUST_HAVE_ALIAS 42000
+        eng "Every table function must have an alias"
+
+ER_TF_FORBIDDEN_JOIN_TYPE
+  eng "INNER or LEFT JOIN must be used for '%.192s' table function's LATERAL reference"
+
+ER_JT_VALUE_OUT_OF_RANGE 22003
+  eng "Value is out of range for JSON_TABLE's column '%.192s'"
+
+ER_JT_MAX_NESTED_PATH 42000
+  eng "More than supported %u NESTED PATHs were found in JSON_TABLE '%.192s'"
+
+ER_PASSWORD_EXPIRATION_NOT_SUPPORTED_BY_AUTH_METHOD
+  eng "The selected authentication method %.*s does not support password expiration"
+  bg "Избрания метод за удостоверяване %.*s не поддържа изтичане на пароли"
+
+ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL
+  eng "Invalid GeoJSON data provided to function %s: Member 'crs' must be specified in the top level object."
+
+ER_BAD_NULL_ERROR_NOT_IGNORED 23000
+  eng "Column '%-.192s' cannot be null"
+
+WARN_USELESS_SPATIAL_INDEX
+  eng "The spatial index on column '%.64s' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column."
+
+ER_DISK_FULL_NOWAIT
+  eng "Create table/tablespace '%-.192s' failed, as disk is full"
+
+ER_PARSE_ERROR_IN_DIGEST_FN
+  eng "Could not parse argument to digest function: \"%s\"."
+
+ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN
+  eng "Could not parse argument to digest function."
+
+ER_SCHEMA_DIR_EXISTS
+  eng "Schema directory '%.192s' already exists. This must be resolved manually (e.g. by moving the schema directory to another location)."
+
+ER_SCHEMA_DIR_MISSING
+  eng "Schema directory '%.192s' does not exist"
+
+ER_SCHEMA_DIR_CREATE_FAILED
+  eng "Failed to create schema directory '%.192s' (errno: %d - %s)"
+
+ER_SCHEMA_DIR_UNKNOWN
+  eng "Schema '%.192s' does not exist, but schema directory '%.192s' was found. This must be resolved manually (e.g. by moving the schema directory to another location)."
+
+ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326 22S00
+  eng "Function %.192s is only defined for SRID 0 and SRID 4326."
+
+ER_EXPIRE_LOGS_DAYS_IGNORED
+  eng "The option expire_logs_days and binlog_expire_logs_seconds cannot be used together. Please use binlog_expire_logs_seconds to set the expire time (expire_logs_days is deprecated)"
+
+#
+# Regular expression errors. None of these should take any arguments.
+# We strive to keep this list in the same order as in UErrorCode
+# common/unicode/utypes.h.
+#
+
+ER_REGEXP_STRING_NOT_TERMINATED
+  eng "An output string could not be zero-terminated because the length exceeds the buffer capacity."
+
+ER_REGEXP_BUFFER_OVERFLOW
+  eng "The result string is larger than the result buffer."
+
+ER_REGEXP_ILLEGAL_ARGUMENT
+  eng "Illegal argument to a regular expression."
+
+ER_REGEXP_INDEX_OUTOFBOUNDS_ERROR
+  eng "Index out of bounds in regular expression search."
+
+ER_REGEXP_INTERNAL_ERROR
+  eng "Internal error in the regular expression library."
+
+ER_REGEXP_RULE_SYNTAX
+  eng "Syntax error in regular expression on line %u, character %u."
+
+ER_REGEXP_BAD_ESCAPE_SEQUENCE
+  eng "Unrecognized escape sequence in regular expression."
+
+ER_REGEXP_UNIMPLEMENTED
+  eng "The regular expression contains a feature that is not implemented in this library version."
+
+ER_REGEXP_MISMATCHED_PAREN
+  eng "Mismatched parenthesis in regular expression."
+
+ER_REGEXP_BAD_INTERVAL
+  eng "Incorrect description of a {min,max} interval."
+
+ER_REGEXP_MAX_LT_MIN
+  eng "The maximum is less than the minumum in a {min,max} interval."
+
+ER_REGEXP_INVALID_BACK_REF
+  eng "Invalid back-reference in regular expression."
+
+ER_REGEXP_LOOK_BEHIND_LIMIT
+  eng "The look-behind assertion exceeds the limit in regular expression."
+
+ER_REGEXP_MISSING_CLOSE_BRACKET
+  eng "The regular expression contains an unclosed bracket expression."
+
+ER_REGEXP_INVALID_RANGE
+  eng "The regular expression contains an [x-y] character range where x comes after y."
+
+ER_REGEXP_STACK_OVERFLOW
+  eng "Overflow in the regular expression backtrack stack."
+
+ER_REGEXP_TIME_OUT
+  eng "Timeout exceeded in regular expression match."
+
+ER_REGEXP_PATTERN_TOO_BIG
+  eng "The regular expression pattern exceeds limits on size or complexity."
+
+ER_CANT_SET_ERROR_LOG_SERVICE
+  eng "Value for %s got confusing at or around \"%s\". Syntax may be wrong, component may not be INSTALLed, or a component that does not support instances may be listed more than once."
+
+ER_EMPTY_PIPELINE_FOR_ERROR_LOG_SERVICE
+  eng "Setting an empty %s pipeline disables error logging!"
+
+# could use verbatim, but we want an error-code
+ER_COMPONENT_FILTER_DIAGNOSTICS
+  eng "filter %s: %s"
+
+ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS 22S00
+  eng "%.192s(%.80s) has not been implemented for Cartesian spatial reference systems."
+
+ER_NOT_IMPLEMENTED_FOR_PROJECTED_SRS 22S00
+  eng "%.192s(%.80s) has not been implemented for projected spatial reference systems."
+
+ER_NONPOSITIVE_RADIUS 22003
+  eng "Invalid radius provided to function %s: Radius must be greater than zero."
+
+ER_RESTART_SERVER_FAILED
+  eng "Restart server failed (%s)."
+
+ER_SRS_MISSING_MANDATORY_ATTRIBUTE SR006
+  eng "Missing mandatory attribute %s."
+
+ER_SRS_MULTIPLE_ATTRIBUTE_DEFINITIONS SR006
+  eng "Multiple definitions of attribute %s."
+
+ER_SRS_NAME_CANT_BE_EMPTY_OR_WHITESPACE SR006
+  eng "The spatial reference system name can't be an empty string or start or end with whitespace."
+
+ER_SRS_ORGANIZATION_CANT_BE_EMPTY_OR_WHITESPACE SR006
+  eng "The organization name can't be an empty string or start or end with whitespace."
+
+ER_SRS_ID_ALREADY_EXISTS SR004
+  eng "There is already a spatial reference system with SRID %u."
+
+ER_WARN_SRS_ID_ALREADY_EXISTS 01S00
+  eng "There is already a spatial reference system with SRID %u."
+
+ER_CANT_MODIFY_SRID_0 SR000
+  eng "SRID 0 is not modifiable."
+
+ER_WARN_RESERVED_SRID_RANGE 01S01
+  eng "The SRID range [%u, %u] has been reserved for system use. SRSs in this range may be added, modified or removed without warning during upgrade."
+
+ER_CANT_MODIFY_SRS_USED_BY_COLUMN SR005
+  eng "Can't modify SRID %u. There is at least one column depending on it."
+
+ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE SR006
+  eng "Invalid character in attribute %s."
+
+ER_SRS_ATTRIBUTE_STRING_TOO_LONG SR006
+  eng "Attribute %s is too long. The maximum length is %u characters."
+
+#
+#  End of 8.0 error messages.
+#
+
+#
+# Start of 8.0 Server error messages
+#
+# Error codes used for the server error logging (using logging
+# APIs LogErr/LogEvent/...) should be added to this section.
+# Error codes used for client errors should *not* be added to this section
+# Please add them to the client error messages section.
+# Please note, if the same error message is required for the client and server
+# error logging then add separate error codes for each in their respective
+# sections.
+#
+start-error-number 10000
+
 ER_PARSER_TRACE XX999
   eng "Parser saw: %s"
 
 ER_BOOTSTRAP_CANT_THREAD
   eng "Can't create thread to handle bootstrap (errno: %d)"
-
-ER_COMPONENT_FILTER_FLABBERGASTED
-  eng "The log-filter component \"%s\" got confused at \"%s\" ..."
-  ger "Der Logfilter \"%s\" wunderte sich ueber \"%s\" ..."
 
 ER_TRIGGER_INVALID_VALUE
   eng "Trigger for table '%s'.'%s': invalid %s value (%s)."
@@ -8084,20 +8445,44 @@ ER_OPT_WRONG_TREE
 ER_DD_FAILSAFE
   eng "Error: Invalid %s"
 
-ER_DD_INIT_UPGRADE_FAILED
-  eng "Error in initializing dictionary, upgrade will do a cleanup and exit"
-
 ER_DD_NO_WRITES_NO_REPOPULATION
   eng "Skip re-populating collations and character sets tables in %s%sread-only mode."
 
 ER_DD_VERSION_FOUND
-  eng "Found data dictionary with version %d"
+  eng "Using data dictionary with version '%d'."
 
 ER_DD_VERSION_INSTALLED
   eng "Installed data dictionary with version %d"
 
 ER_DD_VERSION_UNSUPPORTED
-  eng "Data Dictionary version %d not supported"
+  eng "Data Dictionary version '%d' not supported."
+
+ER_LOG_SYSLOG_FACILITY_FAIL
+  eng "Failed to set syslog facility to \"%s\", setting to \"%s\" (%d) instead."
+
+ER_LOG_SYSLOG_CANNOT_OPEN
+  eng "Cannot open %s; check privileges, or start server with --log_syslog=0"
+
+ER_LOG_SLOW_CANNOT_OPEN
+  eng " either restart the query logging by using \"SET GLOBAL SLOW_QUERY_LOG=ON\" or"
+
+ER_LOG_GENERAL_CANNOT_OPEN
+  eng " either restart the query logging by using \"SET GLOBAL GENERAL_LOG=ON\" or"
+
+ER_LOG_CANNOT_WRITE
+  eng "Failed to write to %s: %s"
+
+ER_RPL_ZOMBIE_ENCOUNTERED
+  eng "While initializing dump thread for slave with %s <%s>, found a zombie dump thread with the same %s. Master is killing the zombie dump thread(%u)."
+
+ER_RPL_GTID_TABLE_CANNOT_OPEN
+  eng "Gtid table is not ready to be used. Table '%s.%s' cannot be opened."
+
+ER_SYSTEM_SCHEMA_NOT_FOUND
+  eng "System schema directory does not exist."
+
+ER_DD_INIT_UPGRADE_FAILED
+  eng "Error in initializing dictionary, upgrade will do a cleanup and exit"
 
 ER_VIEW_UNKNOWN_CHARSET_OR_COLLATION
   eng "View '%s'.'%s': unknown charset name and/or collation name (client: '%s'; connection: '%s')."
@@ -8137,33 +8522,6 @@ ER_DD_CANT_GET_OBJECT_KEY
 
 ER_DD_CANT_CREATE_OBJECT_KEY
   eng "Error: Unable to create object key"
-
-ER_LOG_SYSLOG_FACILITY_FAIL
-  eng "Failed to set syslog facility to \"%s\", setting to \"%s\" (%d) instead."
-
-ER_LOG_SYSLOG_CANNOT_OPEN
-  eng "Cannot open %s; check privileges, or start server with --log_syslog=0"
-
-ER_LOG_FILE_CANNOT_OPEN
-  eng "Could not use %s for logging (error %d - %s). Turning logging off for the server process. To turn it on again: fix the cause, then%s restart the MySQL server."
-
-ER_LOG_SLOW_CANNOT_OPEN
-  eng " either restart the query logging by using \"SET GLOBAL SLOW_QUERY_LOG=ON\" or"
-
-ER_LOG_GENERAL_CANNOT_OPEN
-  eng " either restart the query logging by using \"SET GLOBAL GENERAL_LOG=ON\" or"
-
-ER_LOG_CANNOT_WRITE
-  eng "Failed to write to %s: %s"
-
-ER_RPL_ZOMBIE_ENCOUNTERED
-  eng "While initializing dump thread for slave with %s <%s>, found a zombie dump thread with the same %s. Master is killing the zombie dump thread(%u)."
-
-ER_RPL_GTID_TABLE_CANNOT_OPEN
-  eng "Gtid table is not ready to be used. Table '%s.%s' cannot be opened."
-
-ER_SYSTEM_SCHEMA_NOT_FOUND
-  eng "System schema directory does not exist."
 
 ER_CANT_CREATE_HANDLE_MGR_THREAD
   eng "Can't create handle_manager thread (errno= %d)"
@@ -8216,11 +8574,11 @@ ER_EVENT_EXECUTION_FAILED
 ER_CANT_INIT_SCHEDULER_THREAD
   eng "Event Scheduler: Cannot initialize the scheduler thread"
 
-ER_CANT_CREATE_SCHEDULER_THREAD
-  eng "Event scheduler: Failed to start scheduler, Can not create thread for event scheduler (errno=%d)"
-
 ER_SCHEDULER_STOPPED
   eng "Event Scheduler: Stopped"
+
+ER_CANT_CREATE_SCHEDULER_THREAD
+  eng "Event scheduler: Failed to start scheduler, Can not create thread for event scheduler (errno=%d)"
 
 ER_SCHEDULER_WAITING
   eng "Event Scheduler: Waiting for the scheduler thread to reply"
@@ -8997,16 +9355,16 @@ ER_AUTH_CERT_GENERATION_DISABLED
   eng "Skipping generation of SSL certificates as --auto_generate_certs is set to OFF."
 
 ER_AUTH_RSA_CONF_PREVENTS_KEY_GENERATION
-  eng "Skipping generation of RSA key pair as options related to RSA keys are specified."
+  eng "Skipping generation of RSA key pair through %s as options related to RSA keys are specified."
 
 ER_AUTH_KEY_GENERATION_SKIPPED_PAIR_PRESENT
-  eng "Skipping generation of RSA key pair as key files are present in data directory."
+  eng "Skipping generation of RSA key pair through %s as key files are present in data directory."
 
 ER_AUTH_KEYS_SAVED_TO_DATADIR
-  eng "Auto generated RSA key files are placed in data directory."
+  eng "Auto generated RSA key files through %s are placed in data directory."
 
 ER_AUTH_KEY_GENERATION_DISABLED
-  eng "Skipping generation of RSA key pair as --sha256_password_auto_generate_rsa_keys is set to OFF."
+  eng "Skipping generation of RSA key pair as %s is set to OFF."
 
 ER_AUTHCACHE_PROXIES_PRIV_SKIPPED_NEEDS_RESOLVE
   eng "'proxies_priv' entry '%s@%s %s@%s' ignored in --skip-name-resolve mode."
@@ -10368,7 +10726,7 @@ ER_CANT_LOCK_TABLESPACE
   eng "Unable to acquire lock on tablespace name %s"
 
 ER_CANT_UPGRADE_GENERATED_COLUMNS_TO_DD
-  eng "Error in processing generated columns"
+  eng "Error in processing generated columns for table %s.%s"
 
 ER_DD_ERROR_CREATING_ENTRY
   eng "Error in Creating DD entry for %s.%s"
@@ -10733,7 +11091,6 @@ ER_INNODB_PK_ONLY_IN_MYSQL
 ER_INNODB_CLUSTERED_INDEX_PRIVATE
   eng "Table %s key_used_on_scan is %lu even though there is no primary key inside InnoDB."
 
-
 ER_INNODB_PARTITION_TABLE_LOWERCASED
   eng "Partition table %s opened after converting to lower case. The table may have been moved from a case in-sensitive file system. Please recreate table in the current file system"
 
@@ -10767,143 +11124,1109 @@ ER_NDB_SLAVE_PARALLEL_WORKERS
 ER_NDB_DISTRIBUTING_ERR
   eng "NDB %s: distributing %s err: %u"
 
-ER_PART_EXPR_TOO_LONG
-  eng "Partitioning expression is too long."
+ER_RPL_SLAVE_INSECURE_CHANGE_MASTER
+  eng "Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information."
 
-ER_UDF_DROP_DYNAMICALLY_REGISTERED
-  eng "DROP FUNCTION can't drop a dynamically registered user defined function"
+ER_RPL_SLAVE_FLUSH_RELAY_LOGS_NOT_ALLOWED
+  eng "FLUSH RELAY LOGS cannot be performed on channel '%-.192s'."
 
-ER_UNABLE_TO_STORE_COLUMN_STATISTICS
-  eng "Unable to store column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+ER_RPL_SLAVE_INCORRECT_CHANNEL
+  eng "Slave channel '%s' does not exist."
 
-ER_UNABLE_TO_UPDATE_COLUMN_STATISTICS
-  eng "Unable to update column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+ER_FAILED_TO_FIND_DL_ENTRY
+  eng "Can't find symbol '%-.128s' in library."
 
-ER_UNABLE_TO_DROP_COLUMN_STATISTICS
-  eng "Unable to remove column statistics for column '%.64s' in table '%.64s'.'%.64s'"
+ER_FAILED_TO_OPEN_SHARED_LIBRARY
+  eng "Can't open shared library '%-.192s' (errno: %d %-.128s)."
 
-ER_UNABLE_TO_BUILD_HISTOGRAM
-  eng "Unable to build histogram statistics for column '%.64s' in table '%.64s'.'%.64s'"
+ER_THREAD_PRIORITY_IGNORED
+  eng "Thread priority attribute setting in Resource Group SQL shall be ignored due to unsupported platform or insufficient privilege."
 
-ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
-  eng "Waiting until I/O thread for channel '%s' finish writing to disk before stopping. Free some disk space or use 'KILL' to abort I/O thread operation. Notice that aborting the I/O thread while rotating the relay log might corrupt the relay logs, requiring a server restart to fix it."
+ER_BINLOG_CACHE_SIZE_TOO_LARGE
+  eng "Option binlog_cache_size (%lu) is greater than max_binlog_cache_size (%lu); setting binlog_cache_size equal to max_binlog_cache_size."
 
-ER_MANDATORY_ROLE
-  eng "The role %s is a mandatory role and can't be revoked or dropped. The restriction can be lifted by excluding the role identifier from the global variable mandatory_roles."
+ER_BINLOG_STMT_CACHE_SIZE_TOO_LARGE
+  eng "Option binlog_stmt_cache_size (%lu) is greater than max_binlog_stmt_cache_size (%lu); setting binlog_stmt_cache_size equal to max_binlog_stmt_cache_size."
 
-ER_MISSING_TABLESPACE_FILE
-  eng "Tablespace '%.192s' does not have a file named '%.192s'"
+ER_FAILED_TO_GENERATE_UNIQUE_LOGFILE  
+  eng "Can't generate a unique log-filename %-.200s.(1-999)."
 
-ER_PERSIST_ONLY_ACCESS_DENIED_ERROR 42000
-  eng "Access denied; you need %-.128s privileges for this operation"
+ER_FAILED_TO_READ_FILE
+  eng "Error reading file '%-.200s' (errno: %d - %s)"
 
-ER_CMD_NEED_SUPER
-  eng "You need the SUPER privilege for command '%-.192s'"
+ER_FAILED_TO_WRITE_TO_FILE 
+  eng "Error writing file '%-.200s' (errno: %d - %s)"
 
-ER_PATH_IN_DATADIR
-  eng "Path is within the current data directory '%-.192s'"
+ER_BINLOG_UNSAFE_MESSAGE_AND_STATEMENT
+  eng "%s Statement: %s"
 
-ER_DDL_IN_PROGRESS
-  eng "Concurrent DDL is performed during the operation. Please try again."
+ER_FORCE_CLOSE_THREAD
+  eng "%s: Forcing close of thread %ld  user: '%-.48s'."
 
-ER_TOO_MANY_CONCURRENT_CLONES
-  eng "Too many concurrent clone operations. Maximum allowed - %d."
-
-ER_SDI_OPERATION_FAILED
-  eng "Failed to %s SDI '%.192s.%.192s' in tablespace '%.192s'."
-
-ER_APPLIER_LOG_EVENT_VALIDATION_ERROR
-  eng "The table in transaction %s does not comply with the requirements by an external plugin."
-
-ER_CTE_MAX_RECURSION_DEPTH
-  eng "Recursive query aborted after %u iterations. Try increasing @@cte_max_recursion_depth to a larger value."
-
-ER_NOT_HINT_UPDATABLE_VARIABLE
-  eng "Variable %s cannot be set using SET_VAR hint."
-
-ER_CREDENTIALS_CONTRADICT_TO_HISTORY
-  eng "Cannot use these credentials for '%.*s@%.*s' because they contradict the password history policy"
-
-ER_WARNING_PASSWORD_HISTORY_CLAUSES_VOID
-  eng "Non-zero password history clauses ignored for user '%s'@'%s' as its authentication plugin %s does not support password history"
-
-ER_CLIENT_DOES_NOT_SUPPORT
-  eng "The client doesn't support %s"
-
-ER_I_S_SKIPPED_TABLESPACE
-  eng "Tablespace '%s' was skipped since its definition is being modified by concurrent DDL statement"
-
-ER_TABLESPACE_ENGINE_MISMATCH
-  eng "Engine '%.192s' does not match stored engine '%.192s' for tablespace '%.192s'"
-
+ER_SERVER_SHUTDOWN_COMPLETE  
+  eng "%s: Shutdown complete."
 
 ER_RPL_CANT_HAVE_SAME_BASENAME
-  eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s') and %s (default '%s') options to ensure they do not conflict"
+  eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s' if --log-bin option is not used, default '%s' if --log-bin option is used without argument) and %s (default '%s') options to ensure they do not conflict."
+
+ER_RPL_GTID_MODE_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
+  eng "GTID_MODE = ON requires ENFORCE_GTID_CONSISTENCY = ON."
 
 ER_WARN_NO_SERVERID_SPECIFIED
   eng "You have not provided a mandatory server-id. Servers in a replication topology must have unique server-ids. Please refer to the proper server start-up parameters documentation."
 
+ER_ABORTING_USER_CONNECTION
+  eng "Aborted connection %u to db: '%-.192s' user: '%-.48s' host: '%-.64s' (%-.64s)."
 
-ER_WRONG_SRID_FOR_COLUMN
-  eng "The SRID of the geometry does not match the SRID of the column '%.64s'. The SRID of the geometry is %lu, but the SRID of the column is %lu. Consider changing the SRID of the geometry or the SRID property of the column."
+ER_SQL_MODE_MERGED_WITH_STRICT_MODE
+  eng "'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release."
 
-ER_CANNOT_ALTER_SRID_DUE_TO_INDEX
-  eng "The SRID specification on the column '%.64s' cannot be changed because there is a spatial index on the column. Please remove the spatial index before altering the SRID specification."
+ER_GTID_PURGED_WAS_UPDATED
+  eng "@@GLOBAL.GTID_PURGED was changed from '%s' to '%s'."
 
-ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED
-  eng "When %.192s, the option binlog_row_value_options=%.192s will be ignored and updates will be written in full format to binary log."
+ER_GTID_EXECUTED_WAS_UPDATED
+  eng "@@GLOBAL.GTID_EXECUTED was changed from '%s' to '%s'."
 
-ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED
-  eng "When %.192s, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log."
+ER_DEPRECATE_MSG_WITH_REPLACEMENT
+  eng "'%s' is deprecated and will be removed in a future release. Please use %s instead."
 
-ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES
-  eng "When %.192s, the option binlog_row_value_options=%.192s will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%%."
+ER_TRG_CREATION_CTX_NOT_SET
+  eng "Triggers for table `%-.64s`.`%-.64s` have no creation context"
 
-ER_COULD_NOT_APPLY_JSON_DIFF
-  eng "Could not apply JSON diff in table %.*s, column %s."
+ER_FILE_HAS_OLD_FORMAT
+  eng "'%-.192s' has an old format, you should re-create the '%s' object(s)"
 
-ER_CORRUPTED_JSON_DIFF
-  eng "Corrupted JSON diff for table %.*s, column %s."
+ER_VIEW_CREATION_CTX_NOT_SET
+  eng "View `%-.64s`.`%-.64s` has no creation context"
 
-ER_RESOURCE_GROUP_EXISTS
-  eng "Resource Group '%-.192s' exists"
+ER_TABLE_NAME_CAUSES_TOO_LONG_PATH
+  eng "Long database name and identifier for object resulted in path length exceeding %d characters. Path: '%s'."
 
-ER_RESOURCE_GROUP_NOT_EXISTS
-  eng "Resource Group '%-.192s' does not exist."
+ER_TABLE_UPGRADE_REQUIRED
+  eng "Table upgrade required. Please do \"REPAIR TABLE `%-.64s`\" or dump/reload to fix it!"
 
-ER_INVALID_VCPU_ID
-  eng "Invalid cpu id %u"
+ER_GET_ERRNO_FROM_STORAGE_ENGINE
+  eng "Got error %d - '%-.192s' from storage engine."
 
-ER_INVALID_VCPU_RANGE
-  eng "Invalid VCPU range %u-%u"
+ER_ACCESS_DENIED_ERROR_WITHOUT_PASSWORD
+  eng "Access denied for user '%-.48s'@'%-.64s'"
 
-ER_INVALID_THREAD_PRIORITY
-  eng "Invalid thread priority value %d for %s resource group %s. Allowed range is [%d, %d]."
+ER_ACCESS_DENIED_ERROR_WITH_PASSWORD
+  eng "Access denied for user '%-.48s'@'%-.64s' (using password: %s)"
 
-ER_DISALLOWED_OPERATION
-  eng "%s operation is disallowed on %s "
+ER_ACCESS_DENIED_FOR_USER_ACCOUNT_LOCKED
+  eng "Access denied for user '%-.48s'@'%-.64s'. Account is locked."
 
-ER_RESOURCE_GROUP_BUSY
-  eng "Resource group %s is busy."
+ER_MUST_CHANGE_EXPIRED_PASSWORD
+  eng "Your password has expired. To log in you must change it using a client that supports expired passwords."
 
-ER_RESOURCE_GROUP_DISABLED
-  eng "Resource group %s is disabled."
+ER_SYSTEM_TABLES_NOT_SUPPORTED_BY_STORAGE_ENGINE
+  eng "Storage engine '%s' does not support system tables. [%s.%s]."
 
-ER_FEATURE_UNSUPPORTED
-  eng "Feature %s is unsupported (%s)."
+ER_FILESORT_TERMINATED
+  eng "Sort aborted"
 
-ER_ATTRIBUTE_IGNORED
-  eng "Attribute %s is ignored (%s)."
+ER_SERVER_STARTUP_MSG
+  eng "%s: ready for connections. Version: '%s'  socket: '%s'  port: %d  %s."
 
-ER_INVALID_THREAD_ID
-  eng "Invalid thread id (%llu)."
+ER_FAILED_TO_FIND_LOCALE_NAME
+  eng "Unknown locale: '%-.64s'."
 
-ER_RESOURCE_GROUP_BIND_FAILED
-  eng "Unable to bind resource group %s with thread id (%llu).(%s)."
+ER_FAILED_TO_FIND_COLLATION_NAME
+  eng "Unknown collation: '%-.64s'."
 
-ER_INVALID_USE_OF_FORCE_OPTION
-  eng "Option FORCE invalid as DISABLE option is not specified."
+ER_SERVER_OUT_OF_RESOURCES
+  eng "Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space"
+
+ER_SERVER_OUTOFMEMORY
+  eng "Out of memory; restart server and try again (needed %d bytes)"
+
+ER_INVALID_COLLATION_FOR_CHARSET
+  eng "COLLATION '%s' is not valid for CHARACTER SET '%s'"
+
+ER_CANT_START_ERROR_LOG_SERVICE
+  eng "Failed to set %s at or around \"%s\" -- service is valid, but can not be initialized; please check its configuration and make sure it can read its input(s) and write to its output(s)."
+
+ER_CREATING_NEW_UUID_FIRST_START
+  eng "Generating a new UUID: %s."
+
+ER_FAILED_TO_GET_ABSOLUTE_PATH
+  eng "Failed to get absolute path of program executable %s"
+
+ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP
+  eng "Failed to bootstrap performace schema components infrastructure."
+
+ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_SHUTDOWN
+  eng "Failed to deinit performance schema components infrastructure."
+
+ER_DUP_FD_OPEN_FAILED
+  eng "Could not open duplicate fd for %s: %s."
+
+ER_SYSTEM_VIEW_INIT_FAILED
+  eng "System views initialization failed."
+
+ER_RESOURCE_GROUP_POST_INIT_FAILED
+  eng "Resource group post initialization failed."
+
+ER_RESOURCE_GROUP_SUBSYSTEM_INIT_FAILED
+  eng "Resource Group subsystem initialization failed."
+
+ER_FAILED_START_MYSQLD_DAEMON
+  eng "Failed to start mysqld daemon. Check mysqld error log."
+
+ER_CANNOT_CHANGE_TO_ROOT_DIR
+  eng "Cannot change to root directory: %s."
+
+ER_PERSISTENT_PRIVILEGES_BOOTSTRAP
+  eng "Failed to bootstrap persistent privileges."
+
+ER_BASEDIR_SET_TO
+  eng "Basedir set to %s."
+
+ER_RPL_FILTER_ADD_WILD_DO_TABLE_FAILED
+  eng "Could not add wild do table rule '%s'!"
+
+ER_RPL_FILTER_ADD_WILD_IGNORE_TABLE_FAILED
+  eng "Could not add wild ignore table rule '%s'!"
+
+ER_PRIVILEGE_SYSTEM_INIT_FAILED
+  eng "The privilege system failed to initialize correctly. If you have upgraded your server, make sure you're executing mysql_upgrade to correct the issue."
+
+ER_CANNOT_SET_LOG_ERROR_SERVICES
+  eng "Cannot set services \"%s\" requested in --log-error-services, using defaults."
+
+ER_PERFSCHEMA_TABLES_INIT_FAILED
+  eng "Performance schema tables initialization failed."
+
+ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY_TRACKING
+  eng "The transaction_write_set_extraction must be set to %s when binlog_transaction_dependency_tracking is %s."
+
+ER_INVALID_REPLICATION_TIMESTAMPS
+  eng "Invalid replication timestamps: original commit timestamp is more recent than the immediate commit timestamp. This may be an issue if delayed replication is active. Make sure that servers have their clocks set to the correct time. No further message will be emitted until after timestamps become valid again."
+
+ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL
+  eng "The replication timestamps have returned to normal values."
+
+ER_BINLOG_FILE_OPEN_FAILED
+  eng "%s."
+
+ER_BINLOG_EVENT_WRITE_TO_STMT_CACHE_FAILED
+  eng "Failed to write an incident event into stmt_cache."
+
+ER_SLAVE_RELAY_LOG_TRUNCATE_INFO
+  eng "Relaylog file %s size was %llu, but was truncated at %llu."
+
+ER_SLAVE_RELAY_LOG_PURGE_FAILED
+  eng "Unable to purge relay log files. %s:%s."
+
+ER_RPL_SLAVE_FILTER_CREATE_FAILED
+  eng "Slave: failed in creating filter for channel '%s'."
+
+ER_RPL_SLAVE_GLOBAL_FILTERS_COPY_FAILED
+  eng "Slave: failed in copying the global filters to its own per-channel filters on configuration for channel '%s'."
+
+ER_RPL_SLAVE_RESET_FILTER_OPTIONS
+  eng "There are per-channel replication filter(s) configured for channel '%.192s' which does not exist. The filter(s) have been discarded."
+
+ER_MISSING_GRANT_SYSTEM_TABLE
+  eng "Missing system table mysql.global_grants; please run mysql_upgrade to create it."
+
+ER_MISSING_ACL_SYSTEM_TABLE
+  eng "ACL table mysql.%.*s missing. Some operations may fail."
+
+ER_ANONYMOUS_AUTH_ID_NOT_ALLOWED_IN_MANDATORY_ROLES
+  eng "Can't set mandatory_role %s@%s: Anonymous authorization IDs are not allowed as roles."
+
+ER_UNKNOWN_AUTH_ID_IN_MANDATORY_ROLE
+  eng "Can't set mandatory_role: There's no such authorization ID %s@%s."
+
+ER_WRITE_ROW_TO_PARTITION_FAILED
+  eng "Table '%-192s' failed to move/insert a row from part %d into part %d: %s."
+
+ER_RESOURCE_GROUP_METADATA_UPDATE_SKIPPED
+  eng "Skipped updating resource group metadata in InnoDB read only mode."
+
+ER_FAILED_TO_PERSIST_RESOURCE_GROUP_METADATA
+  eng "Failed to persist resource group %s to Data Dictionary."
+
+ER_FAILED_TO_DESERIALIZE_RESOURCE_GROUP
+  eng "Failed to deserialize resource group %s."
+
+ER_FAILED_TO_UPDATE_RESOURCE_GROUP
+  eng "Update of resource group %s failed."
+
+ER_RESOURCE_GROUP_VALIDATION_FAILED
+  eng "Validation of resource group %s failed. Resource group is disabled."
+
+ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP
+  eng "Unable to allocate memory for Resource Group %s."
+
+ER_FAILED_TO_ALLOCATE_MEMORY_FOR_RESOURCE_GROUP_HASH
+  eng "Failed to allocate memory for resource group hash."
+
+ER_FAILED_TO_ADD_RESOURCE_GROUP_TO_MAP
+  eng "Failed to add resource group %s to resource group map."
+
+ER_RESOURCE_GROUP_IS_DISABLED
+  eng "Resource group feature is disabled. (Server is compiled with DISABLE_PSI_THREAD)."
+
+ER_FAILED_TO_APPLY_RESOURCE_GROUP_CONTROLLER
+  eng "Unable to apply resource group controller %s."
+
+ER_FAILED_TO_ACQUIRE_LOCK_ON_RESOURCE_GROUP
+  eng "Unable to acquire lock on the resource group %s. Hint to switch resource group shall be ignored."
+
+ER_PFS_NOTIFICATION_FUNCTION_REGISTER_FAILED
+  eng "PFS %s notification function registration failed."
+
+ER_RES_GRP_SET_THR_AFFINITY_FAILED
+  eng "Unable to bind thread id %llu to cpu id %u (error code %d - %-.192s)."
+
+ER_RES_GRP_SET_THR_AFFINITY_TO_CPUS_FAILED
+  eng "Unable to bind thread id %llu to cpu ids (error code %d - %-.192s)."
+
+ER_RES_GRP_THD_UNBIND_FROM_CPU_FAILED
+  eng "Unbind thread id %llu failed. (error code %d - %-.192s)."
+
+ER_RES_GRP_SET_THREAD_PRIORITY_FAILED
+  eng "Setting thread priority %d to thread id %llu failed. (error code %d - %-.192s)."
+
+ER_RES_GRP_FAILED_TO_DETERMINE_NICE_CAPABILITY
+  eng "Unable to determine CAP_SYS_NICE capability."
+
+ER_RES_GRP_FAILED_TO_GET_THREAD_HANDLE
+  eng "%s failed: Failed to get handle for thread %llu."
+
+ER_RES_GRP_GET_THREAD_PRIO_NOT_SUPPORTED
+  eng "Retrieval of thread priority unsupported on %s."
+
+ER_RES_GRP_FAILED_DETERMINE_CPU_COUNT
+  eng "Unable to determine the number of CPUs."
+
+ER_RES_GRP_FEATURE_NOT_AVAILABLE
+  eng "Resource group feature shall not be available. Incompatible thread handling option."
+
+ER_RES_GRP_INVALID_THREAD_PRIORITY
+  eng "Invalid thread priority %d for a %s resource group. Allowed range is [%d, %d]."
+
+ER_RES_GRP_SOLARIS_PROCESSOR_BIND_TO_CPUID_FAILED
+  eng "bind_to_cpu failed: processor_bind for cpuid %u failed (error code %d - %-.192s)."
+
+ER_RES_GRP_SOLARIS_PROCESSOR_BIND_TO_THREAD_FAILED
+  eng "bind_to_cpu failed: processor_bind for thread %%llx with cpu id %u (error code %d - %-.192s)."
+
+ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED
+  eng "%s failed: processor_affinity failed (error code %d - %-.192s)."
+
+ER_DD_UPGRADE_RENAME_IDX_STATS_FILE_FAILED
+  eng "Error in renaming mysql_index_stats.ibd."
+
+ER_DD_UPGRADE_DD_OPEN_FAILED
+  eng "Error in opening data directory %s."
+
+ER_DD_UPGRADE_FAILED_TO_FETCH_TABLESPACES
+  eng "Error in fetching list of tablespaces."
+
+ER_DD_UPGRADE_FAILED_TO_ACQUIRE_TABLESPACE
+  eng "Error in acquiring Tablespace for SDI insertion %s."
+
+ER_DD_UPGRADE_FAILED_TO_RESOLVE_TABLESPACE_ENGINE
+  eng "Error in resolving Engine name for tablespace %s with engine %s."
+
+ER_FAILED_TO_CREATE_SDI_FOR_TABLESPACE
+  eng "Error in creating SDI for %s tablespace."
+
+ER_FAILED_TO_STORE_SDI_FOR_TABLESPACE
+  eng "Error in storing SDI for %s tablespace."
+
+ER_DD_UPGRADE_FAILED_TO_FETCH_TABLES
+  eng "Error in fetching list of tables."
+
+ER_DD_UPGRADE_DD_POPULATED
+  eng "Finished populating Data Dictionary tables with data."
+
+ER_DD_UPGRADE_INFO_FILE_OPEN_FAILED
+  eng "Could not open the upgrade info file '%s' in the MySQL servers datadir, errno: %d."
+
+ER_DD_UPGRADE_INFO_FILE_CLOSE_FAILED
+  eng "Could not close the upgrade info file '%s' in the MySQL servers datadir, errno: %d."
+
+ER_DD_UPGRADE_TABLESPACE_MIGRATION_FAILED
+  eng "Got error %d from SE while migrating tablespaces."
+
+ER_DD_UPGRADE_FAILED_TO_CREATE_TABLE_STATS
+  eng "Error in creating TABLE statistics entry. Fix statistics data by using ANALYZE command."
+
+ER_DD_UPGRADE_TABLE_STATS_MIGRATE_COMPLETED
+  eng "Finished migrating TABLE statistics data."
+
+ER_DD_UPGRADE_FAILED_TO_CREATE_INDEX_STATS
+  eng "Error in creating Index statistics entry. Fix statistics data by using ANALYZE command."
+
+ER_DD_UPGRADE_INDEX_STATS_MIGRATE_COMPLETED
+  eng "Finished migrating INDEX statistics data."
+
+ER_DD_UPGRADE_FAILED_FIND_VALID_DATA_DIR
+  eng "Failed to find valid data directory."
+
+ER_DD_UPGRADE_START
+  eng "Starting upgrade on data directory."
+
+ER_DD_UPGRADE_FAILED_INIT_DD_SE
+  eng "Failed to initialize DD Storage Engine."
+
+ER_DD_UPGRADE_FOUND_PARTIALLY_UPGRADED_DD_ABORT
+  eng "Found partially upgraded DD. Aborting upgrade and deleting all DD tables. Start the upgrade process again."
+
+ER_DD_UPGRADE_FOUND_PARTIALLY_UPGRADED_DD_CONTINUE
+  eng "Found partially upgraded DD. Upgrade will continue and start the server."
+
+ER_DD_UPGRADE_SE_LOGS_FAILED
+  eng "Error in upgrading engine logs."
+
+ER_DD_UPGRADE_SDI_INFO_UPDATE_FAILED
+  eng "Error in updating SDI information."
+
+ER_SKIP_UPDATING_METADATA_IN_SE_RO_MODE
+  eng "Skip updating %s metadata in InnoDB read-only mode."
+
+ER_CREATED_SYSTEM_WITH_VERSION
+  eng "Created system views with I_S version %d."
+
+ER_UNKNOWN_ERROR_DETECTED_IN_SE
+  eng "Unknown error detected %d in handler."
+
+ER_READ_LOG_EVENT_FAILED
+  eng "Error in Log_event::read_log_event(): '%s', data_len: %lu, event_type: %d."
+
+ER_ROW_DATA_TOO_BIG_TO_WRITE_IN_BINLOG
+  eng "The row data is greater than 4GB, which is too big to write to the binary log."
+
+ER_FAILED_TO_CONSTRUCT_DROP_EVENT_QUERY
+  eng "Unable to construct DROP EVENT SQL query string."
+
+ER_FAILED_TO_BINLOG_DROP_EVENT
+  eng "Unable to binlog drop event %s.%s."
+
+ER_FAILED_TO_START_SLAVE_THREAD
+  eng "Failed to start slave threads for channel '%s'."
+
+ER_RPL_IO_THREAD_KILLED
+  eng "%s%s."
+
+ER_SLAVE_RECONNECT_FAILED
+  eng "Failed registering on master, reconnecting to try again, log '%s' at position %s. %s."
+
+ER_SLAVE_KILLED_AFTER_RECONNECT
+  eng "Slave I/O thread killed during or after reconnect."
+
+ER_SLAVE_NOT_STARTED_ON_SOME_CHANNELS
+  eng "Some of the channels are not created/initialized properly. Check for additional messages above. You will not be able to start replication on those channels until the issue is resolved and the server restarted."
+
+ER_FAILED_TO_ADD_RPL_FILTER
+  eng "Failed to add a replication filter into filter map for channel '%.192s'."
+
+ER_PER_CHANNEL_RPL_FILTER_CONF_FOR_GRP_RPL
+  eng "There are per-channel replication filter(s) configured for group replication channel '%.192s' which is disallowed. The filter(s) have been discarded."
+
+ER_RPL_FILTERS_NOT_ATTACHED_TO_CHANNEL
+  eng "There are per-channel replication filter(s) configured for channel '%.192s' which does not exist. The filter(s) have been discarded."
+
+ER_FAILED_TO_BUILD_DO_AND_IGNORE_TABLE_HASHES
+  eng "An error occurred while building do_table and ignore_table rules to hashes for per-channel filter."
+
+ER_CLONE_PLUGIN_NOT_LOADED
+  eng "Clone plugin not loaded."
+
+ER_CLONE_HANDLER_EXISTS
+  eng "Clone Handler exists."
+
+ER_FAILED_TO_CREATE_CLONE_HANDLER
+  eng "Could not create Clone Handler."
+
+ER_CYCLE_TIMER_IS_NOT_AVAILABLE
+  eng "The CYCLE timer is not available. WAIT events in the performance_schema will not be timed."
+
+ER_NANOSECOND_TIMER_IS_NOT_AVAILABLE
+  eng "The NANOSECOND timer is not available. IDLE/STAGE/STATEMENT/TRANSACTION events in the performance_schema will not be timed."
+
+ER_MICROSECOND_TIMER_IS_NOT_AVAILABLE
+  eng "The MICROSECOND timer is not available. IDLE/STAGE/STATEMENT/TRANSACTION events in the performance_schema will not be timed."
+
+ER_PFS_MALLOC_ARRAY_OVERFLOW
+  eng "Failed to allocate memory for %zu chunks each of size %zu for buffer '%s' due to overflow."
+
+ER_PFS_MALLOC_ARRAY_OOM
+  eng "Failed to allocate %zu bytes for buffer '%s' due to out-of-memory."
+
+ER_INNODB_FAILED_TO_FIND_IDX_WITH_KEY_NO
+  eng "InnoDB could not find index %s key no %u for table %s through its index translation table."
+
+ER_INNODB_FAILED_TO_FIND_IDX
+  eng "Cannot find index %s in InnoDB index translation table."
+
+ER_INNODB_FAILED_TO_FIND_IDX_FROM_DICT_CACHE
+  eng "InnoDB could not find key no %u with name %s from dict cache for table %s."
+
+ER_INNODB_ACTIVE_INDEX_CHANGE_FAILED
+  eng "InnoDB: change_active_index(%u) failed."
+
+ER_INNODB_DIFF_IN_REF_LEN
+  eng "Stored ref len is %lu, but table ref len is %lu."
+
+ER_WRONG_TYPE_FOR_COLUMN_PREFIX_IDX_FLD
+  eng "MySQL is trying to create a column prefix index field, on an inappropriate data type. Table name %s, column name %s."
+
+ER_INNODB_CANNOT_CREATE_TABLE
+  eng "Cannot create table %s."
+
+ER_INNODB_INTERNAL_INDEX
+  eng "Found index %s in InnoDB index list but not its MySQL index number. It could be an InnoDB internal index."
+
+ER_INNODB_IDX_CNT_MORE_THAN_DEFINED_IN_MYSQL
+  eng "InnoDB: Table %s contains %lu indexes inside InnoDB, which is different from the number of indexes %u defined in MySQL."
+
+ER_INNODB_IDX_CNT_FEWER_THAN_DEFINED_IN_MYSQL
+  eng "Table %s contains fewer indexes inside InnoDB than are defined in the MySQL. Have you mixed up with data dictionary from different installation?"
+
+ER_INNODB_IDX_COLUMN_CNT_DIFF
+  eng "Index %s of %s has %lu columns unique inside InnoDB, but MySQL is asking statistics for %lu columns. Have you mixed data dictionary from different installation?"
+
+ER_INNODB_USE_MONITOR_GROUP_NAME
+  eng "Monitor counter '%s' cannot be turned on/off individually. Please use its module name to turn on/off the counters in the module as a group."
+
+ER_INNODB_MONITOR_DEFAULT_VALUE_NOT_DEFINED
+  eng "Default value is not defined for this set option. Please specify correct counter or module name."
+
+ER_INNODB_MONITOR_IS_ENABLED
+  eng "InnoDB: Monitor %s is already enabled."
+
+ER_INNODB_INVALID_MONITOR_COUNTER_NAME
+  eng "Invalid monitor counter : %s."
+
+ER_WIN_LOAD_LIBRARY_FAILED
+  eng "LoadLibrary(\"%s\") failed: GetLastError returns %lu."
+
+ER_PARTITION_HANDLER_ADMIN_MSG
+  eng "%s."
+
+ER_RPL_RLI_INIT_INFO_MSG
+  eng "%s."
+
+ER_DD_UPGRADE_TABLE_INTACT_ERROR
+  eng "%s."
+
+ER_SERVER_INIT_COMPILED_IN_COMMANDS
+  eng "%s."
+
+ER_MYISAM_CHECK_METHOD_ERROR
+  eng "%s."
+
+ER_MYISAM_CRASHED_ERROR
+  eng "%s."
+
+ER_WAITPID_FAILED
+  eng "Unable to wait for process %lld."
+
+ER_FAILED_TO_FIND_MYSQLD_STATUS
+  eng "Unable to determine if daemon is running: %s (rc=%d)."
+
+ER_INNODB_ERROR_LOGGER_MSG
+  eng "InnoDB: %s"
+
+ER_INNODB_ERROR_LOGGER_FATAL_MSG
+  eng "[FATAL] InnoDB: %s"
+
+ER_DEPRECATED_SYNTAX_WITH_REPLACEMENT
+  eng "The syntax '%s' is deprecated and will be removed in a future release. Please use %s instead."
+
+ER_DEPRECATED_SYNTAX_NO_REPLACEMENT
+  eng "The syntax '%s' is deprecated and will be removed in a future release."
+
+ER_DEPRECATE_MSG_NO_REPLACEMENT
+  eng "%s is deprecated and will be removed in a future release."
+
+ER_LOG_PRINTF_MSG
+  eng "%s"
+
+ER_BINLOG_LOGGING_NOT_POSSIBLE
+  eng "Binary logging not possible. Message: %s."
+
+ER_FAILED_TO_SET_PERSISTED_OPTIONS
+  eng "Failed to set persisted options."
+
+ER_COMPONENTS_FAILED_TO_ACQUIRE_SERVICE_IMPLEMENTATION
+  eng "Cannot acquire specified service implementation: '%.192s'."
+
+ER_RES_GRP_INVALID_VCPU_RANGE
+  eng "Invalid VCPU range %u-%u."
+
+ER_RES_GRP_INVALID_VCPU_ID
+  eng "Invalid cpu id %u."
+
+ER_ERROR_DURING_FLUSH_LOG_COMMIT_PHASE
+  eng "Got error %d during FLUSH_LOGS."
+
+ER_DROP_DATABASE_FAILED_RMDIR_MANUALLY
+  eng "Problem while dropping database. Can't remove database directory (%s). Please remove it manually."
+
+ER_BINLOG_EXPIRAY_LOG_DAYS_AND_SECS_USED_TOGETHER
+  eng "The option expire_logs_days cannot be used together with option binlog_expire_logs_seconds. Therefore, value of expire_logs_days is ignored."
+
+ER_BINLOG_MALFORMED_OR_OLD_RELAY_LOG
+  eng "malformed or very old relay log which does not have FormatDescriptor."
+
+ER_DD_UPGRADE_VIEW_COLUMN_NAME_TOO_LONG
+  eng "Upgrade of view '%s.%s' failed. Re-create the view with the explicit column name lesser than 64 characters."
+
+ER_TABLE_NEEDS_DUMP_UPGRADE
+  eng "Table upgrade required for `%-.64s`.`%-.64s`. Please dump/reload table to fix it!"
+
+ER_DD_UPGRADE_FAILED_TO_UPDATE_VER_NO_IN_TABLESPACE
+  eng "Error in updating version number in %s tablespace."
+
+ER_KEYRING_MIGRATION_FAILED
+  eng "Keyring migration failed."
+
+ER_KEYRING_MIGRATION_SUCCESSFUL
+  eng "Keyring migration successful."
+
+ER_RESTART_RECEIVED_INFO
+  eng "Received RESTART from user %s.  Restarting mysqld (Version: %s)."
+
+ER_LCTN_CHANGED
+  eng "Different lower_case_table_names settings for server ('%u') and data dictionary ('%u')."
+
+ER_DD_INITIALIZE
+  eng "Data dictionary initializing version '%u'."
+
+ER_DD_RESTART
+  eng "Data dictionary restarting version '%u'."
+
+ER_DD_UPGRADE
+  eng "Data dictionary upgrading from version '%u' to '%u'."
+
+ER_DD_UPGRADE_OFF
+  eng "Data dictionary upgrade prohibited by the command line option '--no_dd_upgrade'."
+
+ER_DD_UPGRADE_VERSION_NOT_SUPPORTED
+  eng "Upgrading the data dictionary from dictionary version '%u' is not supported."
+
+ER_DD_UPGRADE_SCHEMA_UNAVAILABLE
+  eng "Upgrading the data dictionary failed, temporary schema name '%-.192s' not available."
+
+ER_DD_MINOR_DOWNGRADE
+  eng "Data dictionary minor downgrade from version '%u' to '%u'."
+
+ER_DD_MINOR_DOWNGRADE_VERSION_NOT_SUPPORTED
+  eng "Minor downgrade of the Data dictionary from dictionary version '%u' is not supported."
+
+ER_DD_NO_VERSION_FOUND
+  eng "No data dictionary version number found."
+
+ER_THREAD_POOL_NOT_SUPPORTED_ON_PLATFORM
+  eng "Thread pool not supported, requires a minimum of %s."
+
+ER_THREAD_POOL_SIZE_TOO_LOW
+  eng "thread_pool_size=0 means thread pool disabled, Allowed range of thread_pool_size is %d-%d."
+
+ER_THREAD_POOL_SIZE_TOO_HIGH
+  eng "thread_pool_size=%lu is too high, %d is maximum, thread pool is disabled. Allowed range of thread_pool_size is %d-%d."
+
+ER_THREAD_POOL_ALGORITHM_INVALID
+  eng "thread_pool_algorithm can be set to 0 and 1, 0 indicates the default low concurrency algorithm, 1 means a high concurrency algorithm."
+
+ER_THREAD_POOL_INVALID_STALL_LIMIT
+  eng "thread_pool_stall_limit can be %d at minimum and %d at maximum, smaller values would render the thread pool fairly useless and higher values could make it possible to have undetected deadlock issues in the MySQL Server."
+
+ER_THREAD_POOL_INVALID_PRIO_KICKUP_TIMER
+  eng "Invalid value of thread_pool_prio_kickup_timer specified. Value of thread_pool_prio_kickup_timer should be in range 0-4294967294."
+
+ER_THREAD_POOL_MAX_UNUSED_THREADS_INVALID
+  eng "thread_pool_max_unused_threads cannot be set higher than %d."
+
+ER_THREAD_POOL_CON_HANDLER_INIT_FAILED
+  eng "Failed to instantiate the connection handler object."
+
+ER_THREAD_POOL_INIT_FAILED
+  eng "Failed to initialize thread pool plugin."
+
+ER_THREAD_POOL_PLUGIN_STARTED
+  eng "Thread pool plugin started successfully with parameters: thread_pool_size = %lu, thread_pool_algorithm = %s, thread_pool_stall_limit = %u, thread_pool_prio_kickup_timer = %u, thread_pool_max_unused_threads = %u, thread_pool_high_priority_connection = %d."
+
+ER_THREAD_POOL_CANNOT_SET_THREAD_SPECIFIC_DATA
+  eng "Can't setup connection teardown thread-specific data."
+
+ER_THREAD_POOL_FAILED_TO_CREATE_CONNECT_HANDLER_THD
+  eng "Creation of connect handler thread failed."
+
+ER_THREAD_POOL_FAILED_TO_CREATE_THD_AND_AUTH_CONN
+  eng "Failed to create thd and authenticate connection."
+
+ER_THREAD_POOL_FAILED_PROCESS_CONNECT_EVENT
+  eng "Failed to process connection event."
+
+ER_THREAD_POOL_FAILED_TO_CREATE_POOL
+  eng "Can't create pool thread (error %d, errno: %d)."
+
+ER_THREAD_POOL_RATE_LIMITED_ERROR_MSGS
+  eng "%.*s."
+
+ER_TRHEAD_POOL_LOW_LEVEL_INIT_FAILED
+  eng "tp_group_low_level_init() failed."
+
+ER_THREAD_POOL_LOW_LEVEL_REARM_FAILED
+  eng "Rearm failed even after 30 seconds, can't continue without notify socket."
+
+ER_THREAD_POOL_BUFFER_TOO_SMALL
+  eng "%s: %s buffer is too small"
+
+ER_MECAB_NOT_SUPPORTED
+  eng "Mecab v%s is not supported, the lowest version supported is v%s."
+
+ER_MECAB_NOT_VERIFIED
+  eng "Mecab v%s is not verified, the highest version supported is v%s."
+
+ER_MECAB_CREATING_MODEL
+  eng "Mecab: Trying createModel(%s)."
+
+ER_MECAB_FAILED_TO_CREATE_MODEL
+  eng "Mecab: createModel() failed: %s."
+
+ER_MECAB_FAILED_TO_CREATE_TRIGGER
+  eng "Mecab: createTagger() failed: %s."
+
+ER_MECAB_UNSUPPORTED_CHARSET
+  eng "Mecab: Unsupported dictionary charset %s."
+
+ER_MECAB_CHARSET_LOADED
+  eng "Mecab: Loaded dictionary charset is %s."
+
+ER_MECAB_PARSE_FAILED
+  eng "Mecab: parse() failed: %s."
+
+ER_MECAB_OOM_WHILE_PARSING_TEXT
+  eng "Mecab: parse() failed: out of memory."
+
+ER_MECAB_CREATE_LATTICE_FAILED
+  eng "Mecab: createLattice() failed: %s."
+
+ER_SEMISYNC_TRACE_ENTER_FUNC
+  eng "---> %s enter."
+
+ER_SEMISYNC_TRACE_EXIT_WITH_INT_EXIT_CODE
+  eng "<--- %s exit (%d)."
+
+ER_SEMISYNC_TRACE_EXIT_WITH_BOOL_EXIT_CODE
+  eng "<--- %s exit (%s)."
+
+ER_SEMISYNC_TRACE_EXIT
+  eng "<--- %s exit."
+
+ER_SEMISYNC_RPL_INIT_FOR_TRX
+  eng "Semi-sync replication initialized for transactions."
+
+ER_SEMISYNC_FAILED_TO_ALLOCATE_TRX_NODE
+  eng "%s: transaction node allocation failed for: (%s, %lu)."
+
+ER_SEMISYNC_BINLOG_WRITE_OUT_OF_ORDER
+  eng "%s: binlog write out-of-order, tail (%s, %lu), new node (%s, %lu)."
+
+ER_SEMISYNC_INSERT_LOG_INFO_IN_ENTRY
+  eng "%s: insert (%s, %lu) in entry(%u)."
+
+ER_SEMISYNC_PROBE_LOG_INFO_IN_ENTRY
+  eng "%s: probe (%s, %lu) in entry(%u)."
+
+ER_SEMISYNC_CLEARED_ALL_ACTIVE_TRANSACTION_NODES
+  eng "%s: cleared all nodes."
+
+ER_SEMISYNC_CLEARED_ACTIVE_TRANSACTION_TILL_POS
+  eng "%s: cleared %d nodes back until pos (%s, %lu)."
+
+ER_SEMISYNC_REPLY_MAGIC_NO_ERROR
+  eng "Read semi-sync reply magic number error."
+
+ER_SEMISYNC_REPLY_PKT_LENGTH_TOO_SMALL
+  eng "Read semi-sync reply length error: packet is too small."
+
+ER_SEMISYNC_REPLY_BINLOG_FILE_TOO_LARGE
+  eng "Read semi-sync reply binlog file length too large."
+
+ER_SEMISYNC_SERVER_REPLY
+  eng "%s: Got reply(%s, %lu) from server %u."
+
+ER_SEMISYNC_FUNCTION_CALLED_TWICE
+  eng "%s called twice."
+
+ER_SEMISYNC_RPL_ENABLED_ON_MASTER
+  eng "Semi-sync replication enabled on the master."
+
+ER_SEMISYNC_MASTER_OOM
+  eng "Cannot allocate memory to enable semi-sync on the master."
+
+ER_SEMISYNC_DISABLED_ON_MASTER
+  eng "Semi-sync replication disabled on the master."
+
+ER_SEMISYNC_FORCED_SHUTDOWN
+  eng "SEMISYNC: Forced shutdown. Some updates might not be replicated."
+
+ER_SEMISYNC_MASTER_GOT_REPLY_AT_POS
+  eng "%s: Got reply at (%s, %lu)."
+
+ER_SEMISYNC_MASTER_SIGNAL_ALL_WAITING_THREADS
+  eng "%s: signal all waiting threads."
+
+ER_SEMISYNC_MASTER_TRX_WAIT_POS
+  eng "%s: wait pos (%s, %lu), repl(%d)."
+
+ER_SEMISYNC_BINLOG_REPLY_IS_AHEAD
+  eng "%s: Binlog reply is ahead (%s, %lu)."
+
+ER_SEMISYNC_MOVE_BACK_WAIT_POS
+  eng "%s: move back wait position (%s, %lu)."
+
+ER_SEMISYNC_INIT_WAIT_POS
+  eng "%s: init wait position (%s, %lu)."
+
+ER_SEMISYNC_WAIT_TIME_FOR_BINLOG_SENT
+  eng "%s: wait %lu ms for binlog sent (%s, %lu)."
+
+ER_SEMISYNC_WAIT_FOR_BINLOG_TIMEDOUT
+  eng "Timeout waiting for reply of binlog (file: %s, pos: %lu), semi-sync up to file %s, position %lu."
+
+ER_SEMISYNC_WAIT_TIME_ASSESSMENT_FOR_COMMIT_TRX_FAILED
+  eng "Assessment of waiting time for commitTrx failed at wait position (%s, %lu)."
+
+ER_SEMISYNC_RPL_SWITCHED_OFF
+  eng "Semi-sync replication switched OFF."
+
+ER_SEMISYNC_RPL_SWITCHED_ON
+  eng "Semi-sync replication switched ON at (%s, %lu)."
+
+ER_SEMISYNC_NO_SPACE_IN_THE_PKT
+  eng "No enough space in the packet for semi-sync extra header, semi-sync replication disabled."
+
+ER_SEMISYNC_SYNC_HEADER_UPDATE_INFO
+  eng "%s: server(%d), (%s, %lu) sync(%d), repl(%d)."
+
+ER_SEMISYNC_FAILED_TO_INSERT_TRX_NODE
+  eng "Semi-sync failed to insert tranx_node for binlog file: %s, position: %lu."
+
+ER_SEMISYNC_TRX_SKIPPED_AT_POS
+  eng "%s: Transaction skipped at (%s, %lu)."
+
+ER_SEMISYNC_MASTER_FAILED_ON_NET_FLUSH
+  eng "Semi-sync master failed on net_flush() before waiting for slave reply."
+
+ER_SEMISYNC_RECEIVED_ACK_IS_SMALLER
+  eng "The received ack is smaller than m_greatest_ack."
+
+ER_SEMISYNC_ADD_ACK_TO_SLOT
+  eng "Add the ack into slot %u."
+
+ER_SEMISYNC_UPDATE_EXISTING_SLAVE_ACK
+  eng "Update an exsiting ack in slot %u."
+
+ER_SEMISYNC_FAILED_TO_START_ACK_RECEIVER_THD
+  eng "Failed to start semi-sync ACK receiver thread,  could not create thread(errno:%d)."
+
+ER_SEMISYNC_STARTING_ACK_RECEIVER_THD
+  eng "Starting ack receiver thread."
+
+ER_SEMISYNC_FAILED_TO_WAIT_ON_DUMP_SOCKET
+  eng "Failed to wait on semi-sync dump sockets, error: errno=%d."
+
+ER_SEMISYNC_STOPPING_ACK_RECEIVER_THREAD
+  eng "Stopping ack receiver thread."
+
+ER_SEMISYNC_FAILED_REGISTER_SLAVE_TO_RECEIVER
+  eng "Failed to register slave to semi-sync ACK receiver thread."
+
+ER_SEMISYNC_START_BINLOG_DUMP_TO_SLAVE
+  eng "Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)."
+
+ER_SEMISYNC_STOP_BINLOG_DUMP_TO_SLAVE
+  eng "Stop %s binlog_dump to slave (server_id: %d)."
+
+ER_SEMISYNC_UNREGISTER_TRX_OBSERVER_FAILED
+  eng "unregister_trans_observer failed."
+
+ER_SEMISYNC_UNREGISTER_BINLOG_STORAGE_OBSERVER_FAILED
+  eng "unregister_binlog_storage_observer failed."
+
+ER_SEMISYNC_UNREGISTER_BINLOG_TRANSMIT_OBSERVER_FAILED
+  eng "unregister_binlog_transmit_observer failed."
+
+ER_SEMISYNC_UNREGISTERED_REPLICATOR
+  eng "unregister_replicator OK."
+
+ER_SEMISYNC_SOCKET_FD_TOO_LARGE
+  eng "Semisync slave socket fd is %u. select() cannot handle if the socket fd is bigger than %u (FD_SETSIZE)."
+
+ER_SEMISYNC_SLAVE_REPLY
+  eng "%s: reply - %d."
+
+ER_SEMISYNC_MISSING_MAGIC_NO_FOR_SEMISYNC_PKT
+  eng "Missing magic number for semi-sync packet, packet len: %lu."
+
+ER_SEMISYNC_SLAVE_START
+  eng "Slave I/O thread: Start %s replication to master '%s@%s:%d' in log '%s' at position %lu."
+
+ER_SEMISYNC_SLAVE_REPLY_WITH_BINLOG_INFO
+  eng "%s: reply (%s, %lu)."
+
+ER_SEMISYNC_SLAVE_NET_FLUSH_REPLY_FAILED
+  eng "Semi-sync slave net_flush() reply failed."
+
+ER_SEMISYNC_SLAVE_SEND_REPLY_FAILED
+  eng "Semi-sync slave send reply failed: %s (%d)."
+
+ER_SEMISYNC_EXECUTION_FAILED_ON_MASTER
+  eng "Execution failed on master: %s; error %d"
+
+ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER
+  eng "Master server does not support semi-sync, fallback to asynchronous replication"
+
+ER_SEMISYNC_SLAVE_SET_FAILED
+  eng "Set 'rpl_semi_sync_slave=1' on master failed"
+
+ER_SEMISYNC_FAILED_TO_STOP_ACK_RECEIVER_THD
+  eng "Failed to stop ack receiver thread on my_thread_join, errno(%d)."
+
+ER_FIREWALL_FAILED_TO_READ_FIREWALL_TABLES
+  eng "Failed to read the firewall tables"
+
+ER_FIREWALL_FAILED_TO_REG_DYNAMIC_PRIVILEGES
+  eng "Failed to register dynamic privileges"
+
+ER_FIREWALL_RECORDING_STMT_WAS_TRUNCATED
+  eng "Statement was truncated and not recorded: %s"
+
+ER_FIREWALL_RECORDING_STMT_WITHOUT_TEXT
+  eng "Statement with no text was not recorded"
+
+ER_FIREWALL_SUSPICIOUS_STMT
+  eng "SUSPICIOUS STATEMENT from '%s'. Reason: %s Statement: %s"
+
+ER_FIREWALL_ACCESS_DENIED
+  eng "ACCESS DENIED for '%s'. Reason: %s Statement: %s"
+
+ER_FIREWALL_SKIPPED_UNKNOWN_USER_MODE
+  eng "Skipped unknown user mode '%s'"
+
+ER_FIREWALL_RELOADING_CACHE
+  eng "Reloading cache from disk"
+
+ER_FIREWALL_RESET_FOR_USER
+  eng "FIREWALL RESET for '%s'"
+
+ER_FIREWALL_STATUS_FLUSHED
+  eng "Counters are reset to zero"
+
+ER_KEYRING_LOGGER_ERROR_MSG
+  eng "%s"
+
+ER_AUDIT_LOG_FILTER_IS_NOT_INSTALLED
+  eng "Audit Log plugin supports a filtering, which has not been installed yet. Audit Log plugin will run in the legacy mode, which will be disabled in the next release."
+
+ER_AUDIT_LOG_SWITCHING_TO_INCLUDE_LIST
+  eng "Previously exclude list is used, now we start using include list, exclude list is set to NULL."
+
+ER_AUDIT_LOG_CANNOT_SET_LOG_POLICY_WITH_OTHER_POLICIES
+  eng "Cannot set audit_log_policy simultaneously with either audit_log_connection_policy or  audit_log_statement_policy, setting audit_log_connection_policy and audit_log_statement_policy based on audit_log_policy."
+
+ER_AUDIT_LOG_ONLY_INCLUDE_LIST_USED
+  eng "Both include and exclude lists provided, include list is preferred, exclude list is set to NULL."
+
+ER_AUDIT_LOG_INDEX_MAP_CANNOT_ACCESS_DIR
+  eng "Could not access '%s' directory."
+
+ER_AUDIT_LOG_WRITER_RENAME_FILE_FAILED
+  eng "Could not rename file from '%s' to '%s'."
+
+ER_AUDIT_LOG_WRITER_DEST_FILE_ALREADY_EXISTS
+  eng "File '%s' should not exist. It may be incomplete. The server crashed."
+
+ER_AUDIT_LOG_WRITER_RENAME_FILE_FAILED_REMOVE_FILE_MANUALLY
+  eng "Could not rename file from '%s' to '%s'. Remove the file manually."
+
+ER_AUDIT_LOG_WRITER_INCOMPLETE_FILE_RENAMED
+  eng "Incomplete file renamed from '%s' to '%s'."
+
+ER_AUDIT_LOG_WRITER_FAILED_TO_WRITE_TO_FILE
+  eng "Error writing file \'%-.200s\' (errno: %d - %s)."
+
+ER_AUDIT_LOG_EC_WRITER_FAILED_TO_INIT_ENCRYPTION
+  eng "Could not initialize audit log file encryption."
+
+ER_AUDIT_LOG_EC_WRITER_FAILED_TO_INIT_COMPRESSION
+  eng "Could not initialize audit log file compression."
+
+ER_AUDIT_LOG_EC_WRITER_FAILED_TO_CREATE_FILE
+  eng "Could not create '%s' file for audit logging."
+
+ER_AUDIT_LOG_RENAME_LOG_FILE_BEFORE_FLUSH
+  eng "Audit log file (%s) must be manually renamed before audit_log_flush is set to true."
+
+ER_AUDIT_LOG_FILTER_RESULT_MSG
+  eng "%s"
+
+ER_AUDIT_LOG_JSON_READER_FAILED_TO_PARSE
+  eng "Error parsing JSON event. Event not accessible."
+
+ER_AUDIT_LOG_JSON_READER_BUF_TOO_SMALL
+  eng "Buffer is too small to hold JSON event. Number of events skipped: %zu."
+
+ER_AUDIT_LOG_JSON_READER_FAILED_TO_OPEN_FILE
+  eng "Could not open JSON file for reading. Reading next file if exists."
+
+ER_AUDIT_LOG_JSON_READER_FILE_PARSING_ERROR
+  eng "JSON file parsing error. Reading next file if exists"
+
+ER_AUDIT_LOG_FILTER_INVALID_COLUMN_COUNT
+  eng "Invalid column count in the '%s.%s' table."
+
+ER_AUDIT_LOG_FILTER_INVALID_COLUMN_DEFINITION
+  eng "Invalid column definition of the '%s.%s' table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_STORE_TABLE_FLDS
+  eng "Could not store field of the %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_UPDATE_TABLE
+  eng "Could not update %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_INSERT_INTO_TABLE
+  eng "Could not insert into %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_DELETE_FROM_TABLE
+  eng "Could not delete from %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_INIT_TABLE_FOR_READ
+  eng "Could not initialize %s table for reading."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_READ_TABLE
+  eng "Could not read %s table."
+
+ER_AUDIT_LOG_FILTER_FAILED_TO_CLOSE_TABLE_AFTER_READING
+  eng "Could not close %s table reading."
+
+ER_AUDIT_LOG_FILTER_USER_AND_HOST_CANNOT_BE_EMPTY
+  eng "Both user and host columns of %s table cannot be empty."
+
+ER_AUDIT_LOG_FILTER_FLD_FILTERNAME_CANNOT_BE_EMPTY
+  eng "Filtername column of %s table cannot be empty."
+
+ER_VALIDATE_PWD_DICT_FILE_NOT_SPECIFIED
+  eng "Dictionary file not specified"
+
+ER_VALIDATE_PWD_DICT_FILE_NOT_LOADED
+  eng "Dictionary file not loaded"
+
+ER_VALIDATE_PWD_DICT_FILE_TOO_BIG
+  eng "Dictionary file size exceeded MAX_DICTIONARY_FILE_LENGTH, not loaded"
+
+ER_VALIDATE_PWD_FAILED_TO_READ_DICT_FILE
+  eng "Exception while reading the dictionary file"
+
+ER_VALIDATE_PWD_FAILED_TO_GET_FLD_FROM_SECURITY_CTX
+  eng "Can't retrieve the %s from the security context"
+
+ER_VALIDATE_PWD_FAILED_TO_GET_SECURITY_CTX
+  eng "Can't retrieve the security context"
+
+ER_VALIDATE_PWD_LENGTH_CHANGED
+  eng "Effective value of validate_password_length is changed. New value is %d"
+
+ER_REWRITER_QUERY_ERROR_MSG
+  eng "%s"
+
+ER_REWRITER_QUERY_FAILED
+  eng "Rewritten query failed to parse:%s"
+
+ER_XPLUGIN_STARTUP_FAILED
+  eng "Startup failed with error \"%s\""
+
+ER_XPLUGIN_SERVER_EXITING
+  eng "Exiting"
+
+ER_XPLUGIN_SERVER_EXITED
+  eng "Exit done"
+
+ER_XPLUGIN_USING_SSL_CONF_FROM_SERVER
+  eng "Using SSL configuration from MySQL Server"
+
+ER_XPLUGIN_USING_SSL_CONF_FROM_MYSQLX
+  eng "Using SSL configuration from Mysqlx Plugin"
+
+ER_XPLUGIN_FAILED_TO_USE_SSL_CONF
+  eng "Neither MySQL Server nor Mysqlx Plugin has valid SSL configuration"
+
+ER_XPLUGIN_USING_SSL_FOR_TLS_CONNECTION
+  eng "Using %s for TLS connections"
+
+ER_XPLUGIN_REFERENCE_TO_SECURE_CONN_WITH_XPLUGIN
+  eng "For more information, please see the Using Secure Connections with X Plugin section in the MySQL documentation"
+
+ER_XPLUGIN_ERROR_MSG
+  eng "%s"
+
+ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING
+  eng "Failed to parse stored authentication string for %s. Please check if mysql.user table not corrupted"
+
+ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH
+  eng "Error in generating multi-round hash for %s. Plugin can not perform authentication without it. This may be a transient problem"
+
+ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL
+  eng "Authentication requires either RSA keys or SSL encryption"
+
+ER_SHA_PWD_RSA_KEY_TOO_LONG
+  eng "RSA key cipher length of %u is too long. Max value is %u"
+
+ER_PLUGIN_COMMON_FAILED_TO_OPEN_FILTER_TABLES
+  eng "Failed to open the %s filter tables"
+
+ER_PLUGIN_COMMON_FAILED_TO_OPEN_TABLE
+  eng "Failed to open '%s.%s' %s table"
+
+ER_AUTH_LDAP_ERROR_LOGGER_ERROR_MSG
+  eng "%s"
+
+ER_CONN_CONTROL_ERROR_MSG
+  eng "%s"
+
+ER_GRP_RPL_ERROR_MSG
+  eng "%s"
+
+ER_SHA_PWD_SALT_FOR_USER_CORRUPT
+  eng "Password salt for user '%s' is corrupt"
+
+ER_SYS_VAR_COMPONENT_OOM
+  eng "Out of memory for component system variable '%s'."
+
+ER_SYS_VAR_COMPONENT_VARIABLE_SET_READ_ONLY
+  eng "variable %s of component %s was forced to be read-only: string variable without update_func and PLUGIN_VAR_MEMALLOC flag."
+
+ER_SYS_VAR_COMPONENT_UNKNOWN_VARIABLE_TYPE
+  eng "Unknown variable type code 0x%x in component '%s'."
+
+ER_SYS_VAR_COMPONENT_FAILED_TO_PARSE_VARIABLE_OPTIONS
+  eng "Parsing options for variable '%s' failed."
+
+ER_SYS_VAR_COMPONENT_FAILED_TO_MAKE_VARIABLE_PERSISTENT
+  eng "Setting persistent options for component variable '%s' failed."
+
+ER_COMPONENT_FILTER_CONFUSED
+  eng "The log-filter component \"%s\" got confused at \"%s\" (state: %s) ..."
+
+ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
+  eng "Waiting until I/O thread for channel '%s' finish writing to disk before stopping. Free some disk space or use 'KILL' to abort I/O thread operation. Notice that aborting the I/O thread while rotating the relay log might corrupt the relay logs, requiring a server restart to fix it."
+
+ER_LOG_FILE_CANNOT_OPEN
+  eng "Could not use %s for logging (error %d - %s). Turning logging off for the server process. To turn it on again: fix the cause, then%s restart the MySQL server."
 
 #
-#  End of 8.0 error messages.
+# End of 8.0 Server error messages.
+# (Please read comments from the header of this section before adding error
+#  message here)
 #

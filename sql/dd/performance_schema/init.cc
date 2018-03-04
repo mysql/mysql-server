@@ -1,17 +1,24 @@
-/* Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/init.h"
 
@@ -36,7 +43,6 @@
 #include "sql/dd/impl/dictionary_impl.h"   // dd::Dictionary_impl
 #include "sql/dd/impl/system_registry.h"   // dd::System_tables
 #include "sql/dd/impl/tables/dd_properties.h" // dd::tables::UNKNOWN_P_S_VERSION
-#include "sql/dd/impl/types/plugin_table_impl.h" // dd::Plugin_table_impl
 #include "sql/dd/properties.h"             // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"
@@ -105,9 +111,13 @@ bool check_perf_schema_has_correct_version(THD *thd)
   // Stop if P_S version is same.
   uint actual_version= d->get_actual_P_S_version(thd);
 
+#ifndef DBUG_OFF
+  // Unknown version of the current server PS schema. It is used for tests.
+  const uint UNKNOWN_P_S_VERSION= -1;
+#endif
   // Testing to make sure we update plugins when version changes.
   DBUG_EXECUTE_IF("test_p_s_metadata_version",
-                  { actual_version= dd::tables::UNKNOWN_P_S_VERSION; });
+                  { actual_version= UNKNOWN_P_S_VERSION; });
 
   return d->get_target_P_S_version() == actual_version;
 }
@@ -164,8 +174,8 @@ bool create_pfs_tables(THD *thd)
 
     const Object_table_definition *table_def= nullptr;
     if (exists ||
-        (table_def= (*it)->entity()->table_definition(thd)) == nullptr ||
-        execute_query(thd, table_def->build_ddl_create_table()))
+        (table_def= (*it)->entity()->target_table_definition()) == nullptr ||
+        execute_query(thd, table_def->get_ddl()))
     {
       ret= true;
       break;
@@ -253,13 +263,10 @@ void add_pfs_definition(const Plugin_table *table)
                       return;
                   });
 
-  Plugin_table_impl *plugin_table= new (std::nothrow) Plugin_table_impl(
+  Object_table_impl *plugin_table= new (std::nothrow) Object_table_impl(
+    table->get_schema_name(),
     table->get_name(),
-    table->get_table_definition(),
-    table->get_table_options(),
-    Dictionary_impl::get_target_dd_version(),
-    table->get_tablespace_name());
-
+    table->get_ddl());
   System_tables::instance()->add(PERFORMANCE_SCHEMA_DB_NAME.str,
                                  table->get_name(),
                                  System_tables::Types::PFS,
@@ -293,6 +300,10 @@ bool initialize_pfs(THD *thd)
       check_perf_schema_has_correct_version(thd))
     return false;
 
+  /*
+    Stop server restart if P_S version is changed and the server is
+    started with DDSE in read-only mode.
+  */
   if (check_if_server_ddse_readonly(thd, PERFORMANCE_SCHEMA_DB_NAME.str))
     return true;
 

@@ -2070,7 +2070,8 @@ EXPLAIN
             "data_read_per_join": "440"
           },
           "used_columns": [
-            "a"
+            "a",
+            "b"
           ]
         }
       }

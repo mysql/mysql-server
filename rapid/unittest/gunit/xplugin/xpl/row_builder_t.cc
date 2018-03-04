@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include <gtest/gtest.h>
@@ -22,14 +29,14 @@
 #include <string>
 
 #include "decimal.h"
-#include "mysqlxclient/xdatetime.h"
-#include "mysqlxclient/xdecimal.h"
-#include "mysqlxclient/xrow.h"
-#include "ngs/protocol/buffer.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "protobuf_message.h"
+#include "plugin/x/client/mysqlxclient/xdatetime.h"
+#include "plugin/x/client/mysqlxclient/xdecimal.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
+#include "plugin/x/ngs/include/ngs/protocol/buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
 
 namespace xpl {
@@ -420,7 +427,8 @@ TEST(row_builder, date_field) {
 
   buffer = row->mutable_field(idx++);
   xcl::DateTime xtime;
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  bool has_time = false;
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time.year, xtime.year());
   ASSERT_EQ(time.month, xtime.month());
   ASSERT_EQ(time.day, xtime.day());
@@ -521,7 +529,8 @@ TEST(row_builder, datetime_field) {
 
   buffer = row->mutable_field(idx++);
   xcl::DateTime xtime;
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  bool has_time = true;
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time.year, xtime.year());
   ASSERT_EQ(time.month, xtime.month());
   ASSERT_EQ(time.day, xtime.day());
@@ -531,7 +540,7 @@ TEST(row_builder, datetime_field) {
   ASSERT_EQ(time.second_part, xtime.useconds());
 
   buffer = row->mutable_field(idx++);
-  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime));
+  ASSERT_TRUE(xcl::row_decoder::buffer_to_datetime(*buffer, &xtime, has_time));
   ASSERT_EQ(time2.year, xtime.year());
   ASSERT_EQ(time2.month, xtime.month());
   ASSERT_EQ(time2.day, xtime.day());

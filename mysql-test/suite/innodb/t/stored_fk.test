@@ -9,11 +9,9 @@ create table t1(f1 int primary key);
 create table t2(f1 int not null, f2 int as (f1) virtual,
 		foreign key(f1) references t1(f1) on update cascade)engine=innodb;
 
-# TODO: NewDD: Bug 25339192 - SERVER SHOULD DISALLOW FOREIGN KEYS ON
-# BASE COLUMN OF STORED COLUMN 
-#--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
-#--error ER_ERROR_ON_RENAME
-#alter table t2 add column f3 int as (f1) stored, add column f4 int as (f1) virtual;
+--replace_regex  /Error on rename of '.*' to '.*'/Error on rename of 'OLD_FILE_NAME' to 'NEW_FILE_NAME'/
+--error ER_CANNOT_ADD_FOREIGN
+alter table t2 add column f3 int as (f1) stored, add column f4 int as (f1) virtual;
 drop table t2, t1;
 
 --echo # adding foreign key constraint for base columns during alter copy.
@@ -39,3 +37,68 @@ create table t2(f1 int not null,
 alter table t2 add column f2 int as (f1) stored, algorithm=inplace;
 drop table t2, t1;
 set foreign_key_checks = 1;
+
+--echo #
+--echo # BUG#26731689 FK ON TABLE WITH GENERATED COLS: ASSERTION POS < N_DEF
+--echo #
+
+SET @foreign_key_checks_saved = @@foreign_key_checks;
+SET foreign_key_checks=0;
+
+--disable_warnings
+DROP TABLE IF EXISTS s,t;
+--enable_warnings
+
+CREATE TABLE s (a INT, b INT GENERATED ALWAYS AS (0) STORED,  c INT,
+		d INT GENERATED ALWAYS AS (0) VIRTUAL, e INT) ENGINE=innodb;
+
+CREATE TABLE t (a INT) ENGINE=innodb;
+
+# This would fail. No corresponding index
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (e) REFERENCES t(a) ON UPDATE SET null;
+
+ALTER  TABLE t ADD PRIMARY KEY(a);
+
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (e) REFERENCES t(a) ON UPDATE SET null;
+
+DROP TABLE s,t;
+
+CREATE TABLE s (a INT GENERATED ALWAYS AS (0) VIRTUAL,
+		b INT GENERATED ALWAYS AS (0) STORED,  c INT) ENGINE=innodb;
+
+CREATE TABLE t (a INT) ENGINE=innodb;
+
+# This would fail. No corresponding index
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (c) REFERENCES t(a) ON UPDATE SET null;
+
+ALTER  TABLE t ADD PRIMARY KEY(a);
+
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (c) REFERENCES t(a) ON UPDATE SET null;
+
+DROP TABLE s,t;
+
+CREATE TABLE s (a INT,  b INT GENERATED ALWAYS AS (0) STORED) ENGINE=innodb;
+
+CREATE TABLE t (a INT PRIMARY KEY) ENGINE=innodb;
+
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
+
+DROP TABLE s,t;
+
+CREATE TABLE s (a INT, b INT) ENGINE=innodb;
+
+CREATE TABLE t (a INT) ENGINE=innodb;
+
+# This would fail. No corresponding index
+--error ER_FK_NO_INDEX_PARENT
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
+
+ALTER  TABLE t ADD PRIMARY KEY(a);
+
+ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
+
+DROP TABLE s,t;
+
+SET @@foreign_key_checks = @foreign_key_checks_saved;

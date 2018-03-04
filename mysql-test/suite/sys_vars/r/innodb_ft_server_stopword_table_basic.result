@@ -16,7 +16,7 @@ innodb_ft_server_stopword_table
 select * from performance_schema.session_variables where variable_name='innodb_ft_server_stopword_table';
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_ft_server_stopword_table	
-call mtr.add_suppression("\\[ERROR\\] InnoDB: user stopword table Salmon does not exist.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: user stopword table Salmon does not exist.");
 set session innodb_ft_server_stopword_table='Salmon';
 ERROR HY000: Variable 'innodb_ft_server_stopword_table' is a GLOBAL variable and should be set with SET GLOBAL
 set @@session.innodb_ft_server_stopword_table='Salmon';

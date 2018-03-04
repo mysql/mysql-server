@@ -1,26 +1,33 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #include <gtest/gtest.h>
 
-#include "admin_cmd_arguments.h"
-#include "mysqlx_pb_wrapper.h"
-#include "xpl_error.h"
-#include "assert_error_code.h"
+#include "plugin/x/src/admin_cmd_arguments.h"
+#include "plugin/x/src/xpl_error.h"
+#include "unittest/gunit/xplugin/xpl/assert_error_code.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {
@@ -201,59 +208,6 @@ TEST_F(Admin_command_arguments_object_test, bool_arg_false) {
   ASSERT_ERROR_CODE(ER_X_SUCCESS,
                     extractor->bool_arg("first", &value, OPTIONAL_NO).end());
   ASSERT_FALSE(value);
-  ASSERT_TRUE(extractor->is_end());
-}
-
-TEST_F(Admin_command_arguments_object_test, docpath_arg) {
-  set_arguments(Any::Object{{"first", "$.path.to.member"}});
-  std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
-  ASSERT_EQ("$.path.to.member", value);
-  ASSERT_TRUE(extractor->is_end());
-}
-
-TEST_F(Admin_command_arguments_object_test, docpath_arg_root) {
-  set_arguments(Any::Object{{"first", "$"}});
-  std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
-  ASSERT_EQ("$", value);
-  ASSERT_TRUE(extractor->is_end());
-}
-TEST_F(Admin_command_arguments_object_test, docpath_arg_no_dollar) {
-  set_arguments(Any::Object{{"first", ".path.to.member"}});
-  std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
-                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
-  ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
-}
-
-TEST_F(Admin_command_arguments_object_test, docpath_arg_bad_arg) {
-  set_arguments(Any::Object{{"first", "is.not.path"}});
-  std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
-                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
-  ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
-}
-
-TEST_F(Admin_command_arguments_object_test, docpath_arg_bad_arg_space) {
-  set_arguments(Any::Object{{"first", "$.is.not.pa th"}});
-  std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
-                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
-  ASSERT_EQ("none", value);
-  ASSERT_TRUE(extractor->is_end());
-}
-
-TEST_F(Admin_command_arguments_object_test, docpath_arg_bad_arg_tab) {
-  set_arguments(Any::Object{{"first", "$.is.not.pa\th"}});
-  std::string value("none");
-  ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
-                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
-  ASSERT_EQ("none", value);
   ASSERT_TRUE(extractor->is_end());
 }
 
@@ -468,6 +422,129 @@ TEST_F(Admin_command_arguments_object_test, object_list_array_bad_arg) {
   ASSERT_EQ(0u, values.size());
   ASSERT_TRUE(extractor->is_end());
 }
+
+struct Param_docpath_arg {
+  int expect_error;
+  std::string path;
+};
+
+class Admin_command_arguments_docpath_test
+    : public Admin_command_arguments_object_test,
+      public testing::WithParamInterface<Param_docpath_arg> {};
+
+TEST_P(Admin_command_arguments_docpath_test, docpath_arg) {
+  const Param_docpath_arg& param = GetParam();
+  set_arguments(Any::Object{{"first", param.path.c_str()}});
+  std::string value("none");
+  ASSERT_ERROR_CODE(param.expect_error,
+                    extractor->docpath_arg("first", &value, OPTIONAL_NO).end());
+  ASSERT_EQ(param.expect_error == ER_X_SUCCESS ? param.path : "none", value);
+  ASSERT_TRUE(extractor->is_end());
+}
+
+Param_docpath_arg docpath_arg_param[] = {
+    {ER_X_SUCCESS, "$"},
+    {ER_X_SUCCESS, "$.path"},
+    {ER_X_SUCCESS, "$.path.to.member"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$."},
+    {ER_X_CMD_ARGUMENT_VALUE, ".path"},
+    {ER_X_CMD_ARGUMENT_VALUE, "path"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.1"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.1path"},
+    {ER_X_SUCCESS, "$.p1ath"},
+    {ER_X_SUCCESS, "$.path1"},
+    {ER_X_SUCCESS, "$.$"},
+    {ER_X_SUCCESS, "$.$$"},
+    {ER_X_SUCCESS, "$.$$$"},
+    {ER_X_SUCCESS, "$.$.path"},
+    {ER_X_SUCCESS, "$.path.$"},
+    {ER_X_SUCCESS, "$.$path"},
+    {ER_X_SUCCESS, "$.pa$th"},
+    {ER_X_SUCCESS, "$.path$"},
+    {ER_X_SUCCESS, "$.$pa$th$"},
+    {ER_X_SUCCESS, "$._"},
+    {ER_X_SUCCESS, "$.__"},
+    {ER_X_SUCCESS, "$.___"},
+    {ER_X_SUCCESS, "$._.path"},
+    {ER_X_SUCCESS, "$.path._"},
+    {ER_X_SUCCESS, "$._path"},
+    {ER_X_SUCCESS, "$.pa_th"},
+    {ER_X_SUCCESS, "$.path_"},
+    {ER_X_SUCCESS, "$._pa_th_"},
+    {ER_X_SUCCESS, "$.*"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.**"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.***"},
+    {ER_X_SUCCESS, "$.*.path"},
+    {ER_X_SUCCESS, "$.path.*"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.*path"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.pa*th"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path*"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.*pa*th*"},
+    {ER_X_SUCCESS, "$.path[1]"},
+    {ER_X_SUCCESS, "$.path[123]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path[-1]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path[a]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path[]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path["},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.[path]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.[1]"},
+    {ER_X_SUCCESS, "$.path[1].path[2]"},
+    {ER_X_SUCCESS, "$.path[1].path"},
+    {ER_X_SUCCESS, "$.path[1].*"},
+    {ER_X_SUCCESS, "$.*.path[1]"},
+    {ER_X_SUCCESS, "$.path[*]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path[**]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path[*1]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path[1*]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path[1*1]"},
+    {ER_X_SUCCESS, "$[1]"},
+    {ER_X_SUCCESS, "$[1][2]"},
+    {ER_X_SUCCESS, "$[1].path[2]"},
+    {ER_X_SUCCESS, "$[1][2].path"},
+    {ER_X_SUCCESS, "$.path[1][2]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.pa th"},
+    {ER_X_SUCCESS, "$.\"pa th\""},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.pa\th"},
+    {ER_X_SUCCESS, "$.\"pa\tth\""},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.\""},
+    {ER_X_SUCCESS, "$.\"\"\""},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.\"path"},
+    {ER_X_SUCCESS, "$.\"\"path\""},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path\""},
+    {ER_X_SUCCESS, "$.\"path\"\""},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.#"},
+    {ER_X_SUCCESS, "$.\"#\""},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path#"},
+    {ER_X_SUCCESS, "$.\"path#\""},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.#path"},
+    {ER_X_SUCCESS, "$.\"#path\""},
+    {ER_X_SUCCESS, "$.\"#\"[1]"},
+    {ER_X_SUCCESS, "$.\"\""},
+    {ER_X_SUCCESS, "$.część"},
+    {ER_X_SUCCESS, "$.łódź"},
+    {ER_X_SUCCESS, "$**.path"},
+    {ER_X_SUCCESS, "$**[1]"},
+    {ER_X_SUCCESS, "$.path**.path"},
+    {ER_X_SUCCESS, "$.path**[1]"},
+    {ER_X_SUCCESS, "$[1]**.path"},
+    {ER_X_SUCCESS, "$[1]**[1]"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$**"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path**"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$[1]**"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$***"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.path***"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$[1]***"},
+    {ER_X_CMD_ARGUMENT_VALUE, "$.**.path"},
+    {ER_X_SUCCESS, "$.***.path"},
+    {ER_X_SUCCESS, "$.\"**\""},
+    {ER_X_SUCCESS, "$.\"***\""},
+    {ER_X_SUCCESS, "$.\"pa.th\""},
+    {ER_X_CMD_ARGUMENT_VALUE, "$*"},
+};
+
+INSTANTIATE_TEST_CASE_P(docpath_arg, Admin_command_arguments_docpath_test,
+                        testing::ValuesIn(docpath_arg_param));
 
 }  // namespace test
 }  // namespace xpl

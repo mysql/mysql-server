@@ -1227,6 +1227,7 @@ ERROR HY000: MySQL server has gone away
 #
 # Bug#23743035: ADD A COPY_FILES_WILDCARD COMMAND
 #
+README_tablespace_portable_linux.txt
 bug20683959loaddata.txt
 bug30435_10k_items.txt
 bug30435_5k.txt
@@ -1241,6 +1242,8 @@ loaddata5.dat
 loaddata6.dat
 loaddata7.dat
 loaddata_dq.dat
+loaddata_incomplete_escape.dat
+loaddata_incomplete_mb.dat
 loaddata_pair.dat
 loaddata_utf8.dat
 loadxml.dat
@@ -1249,6 +1252,7 @@ numbers.txt
 wl5766_data.txt
 words.dat
 words2.dat
+README_tablespace_portable_linux.txt
 bug20683959loaddata.txt
 bug30435_10k_items.txt
 bug30435_5k.txt
@@ -1263,6 +1267,8 @@ loaddata5.dat
 loaddata6.dat
 loaddata7.dat
 loaddata_dq.dat
+loaddata_incomplete_escape.dat
+loaddata_incomplete_mb.dat
 loaddata_pair.dat
 loaddata_utf8.dat
 loadxml.dat
@@ -1555,3 +1561,15 @@ Sample test
 The test 'MYSQLTEST_VARDIR/tmp/bug25929826.test' is not supported by this installation
 Detected in file MYSQLTEST_VARDIR/tmp/bug25929826.test at line 3:
 reason: Skipping bug25929826.test
+#
+# BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
+#               STRINGS IN PATH NAME
+#
+REPLACE_STRING
+mysqltest: At line 1: query 'SELECT REPLACE_STRING FROM t1' failed: 1146: Table 'test.t1' doesn't exist
+#
+# BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
+#
+SELECT NUMBER_OF_CPUS;
+NUMBER_OF_CPUS
+NUMBER_OF_CPUS

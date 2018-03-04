@@ -4,13 +4,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -597,4 +604,20 @@ bool parse_path(const bool begins_with_column_id, const size_t path_length,
                 const char *path_expression, Json_path *path,
                 size_t *bad_index);
 
+/**
+  A helper function that uses the above one as workhorse. Entry point for
+  for JSON_TABLE (Table_function_json class) and Json_path_cache. Raises an
+  error if the path expression is syntactically incorrect. Raises an
+  error if the path expression contains wildcard tokens but is not
+  supposed to. Otherwise updates the supplied Json_path object with
+  the parsed path.
+
+  @param[in]  path_value       A String to be interpreted as a path.
+  @param[in]  forbid_wildcards True if the path shouldn't contain * or **
+  @param[out] json_path        The object that will hold the parsed path
+
+  @returns false on success (valid path or NULL), true on error
+*/
+bool parse_path(String *path_value, bool forbid_wildcards,
+                Json_path *json_path);
 #endif /* SQL_JSON_PATH_INCLUDED */

@@ -1,17 +1,24 @@
 /* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_binlog_sender.h"
 
@@ -139,7 +146,7 @@ void Binlog_sender::init()
                (thd, m_flag, m_start_file, m_start_pos,
                 &m_observe_transmission)))
   {
-    set_unknow_error("Failed to run hook 'transmit_start'");
+    set_unknown_error("Failed to run hook 'transmit_start'");
     DBUG_VOID_RETURN;
   }
   m_transmit_started=true;
@@ -185,7 +192,7 @@ void Binlog_sender::init()
 
 #ifndef DBUG_OFF
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
-    set_unknow_error("Master fails in COM_BINLOG_DUMP because of "
+    set_unknown_error("Master fails in COM_BINLOG_DUMP because of "
                      "--sporadic-binlog-dump-fail");
   m_event_count= 0;
 #endif
@@ -978,7 +985,7 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags, size_t event_len)
   if (m_observe_transmission &&
       RUN_HOOK(binlog_transmit, reserve_header, (m_thd, flags, &m_packet)))
   {
-    set_unknow_error("Failed to run hook 'reserve_header'");
+    set_unknown_error("Failed to run hook 'reserve_header'");
     DBUG_RETURN(1);
   }
 
@@ -1219,7 +1226,7 @@ inline int Binlog_sender::flush_net()
   if (DBUG_EVALUATE_IF("simulate_flush_error", 1,
       m_thd->get_protocol()->flush()))
   {
-    set_unknow_error("failed on flush_net()");
+    set_unknown_error("failed on flush_net()");
     return 1;
   }
   return 0;
@@ -1238,7 +1245,7 @@ inline int Binlog_sender::send_packet()
                          m_thd->get_protocol_classic()->get_net(),
                          (uchar*) m_packet.ptr(), m_packet.length())))
   {
-    set_unknow_error("Failed on my_net_write()");
+    set_unknown_error("Failed on my_net_write()");
     DBUG_RETURN(1);
   }
 
@@ -1260,7 +1267,7 @@ inline int Binlog_sender::before_send_hook(const char *log_file,
       RUN_HOOK(binlog_transmit, before_send_event,
                (m_thd, m_flag, &m_packet, log_file, log_pos)))
   {
-    set_unknow_error("run 'before_send_event' hook failed");
+    set_unknown_error("run 'before_send_event' hook failed");
     return 1;
   }
   return 0;
@@ -1273,7 +1280,7 @@ inline int Binlog_sender::after_send_hook(const char *log_file,
       RUN_HOOK(binlog_transmit, after_send_event,
                (m_thd, m_flag, &m_packet, log_file, log_pos)))
   {
-    set_unknow_error("Failed to run hook 'after_send_event'");
+    set_unknown_error("Failed to run hook 'after_send_event'");
     return 1;
   }
 
@@ -1283,7 +1290,7 @@ inline int Binlog_sender::after_send_hook(const char *log_file,
   */
   if (m_thd->get_protocol_classic()->get_net()->last_errno != 0)
   {
-    set_unknow_error("Found net error");
+    set_unknown_error("Found net error");
     return 1;
   }
   return 0;
@@ -1297,7 +1304,7 @@ inline int Binlog_sender::check_event_count()
   if (max_binlog_dump_events != 0 &&
       (++m_event_count > max_binlog_dump_events))
   {
-    set_unknow_error("Debugging binlog dump abort");
+    set_unknown_error("Debugging binlog dump abort");
     return 1;
   }
   return 0;

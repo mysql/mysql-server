@@ -1,17 +1,24 @@
 /* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -26,11 +33,11 @@
 #include <boost/geometry/algorithms/area.hpp>
 #include <boost/geometry/algorithms/centroid.hpp>
 #include <boost/geometry/algorithms/convex_hull.hpp>
-#include <boost/geometry/algorithms/is_simple.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/is_valid.hpp>  // IWYU pragma: keep
 #include <boost/geometry/algorithms/simplify.hpp>
 #include <boost/geometry/core/cs.hpp>
-#include <boost/geometry/strategies/spherical/distance_haversine.hpp>
+#include <boost/geometry/strategies/strategies.hpp>
+#include <boost/geometry/geometry.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/move/utility_core.hpp>
 #include <float.h>
@@ -55,7 +62,11 @@
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"   // ER_THD
 #include "sql/gis/distance.h"
+#include "sql/gis/distance_sphere.h"
 #include "sql/gis/geometries.h"
+#include "sql/gis/is_simple.h"
+#include "sql/gis/is_valid.h"
+#include "sql/gis/length.h"
 #include "sql/gis/srid.h"
 #include "sql/gis/wkb_parser.h"
 #include "sql/gis_bg_traits.h"
@@ -210,6 +221,77 @@ static bool validate_srid_arg(Item *arg, gis::srid_t *srid,
   }
 
   *srid= static_cast<gis::srid_t>(arg_srid);
+  return false;
+}
+
+
+/**
+  Verify that a geometry is in a Cartesian SRS.
+
+  If the SRID is undefined, or if the SRS is geographic, raise an error.
+
+  @param[in] g The geometry to check.
+  @param[in] func_name The function name to use in error messages.
+
+  @retval true An error has occured (and my_error has been called).
+  @retval false Success.
+*/
+static bool verify_cartesian_srs(const Geometry *g, const char *func_name)
+{
+  if (g->get_srid() != 0)
+  {
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g->get_srid(), &srs))
+      return true; // Error has already been flagged.
+
+    if (srs == nullptr)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), g->get_srid());
+      return true;
+    }
+
+    if (!srs->is_cartesian())
+    {
+      DBUG_ASSERT(srs->is_geographic());
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name,
+               g->get_class_info()->m_name.str);
+      return true;
+    }
+  }
+  return false;
+}
+
+
+/**
+  Verify that an SRID is defined.
+
+  If the SRID is undefined, raise an error.
+
+  @param[in] srid The SRID to check
+
+  @retval true An error has occured (and my_error has been called).
+  @retval false Success.
+*/
+static bool verify_srid_is_defined(gis::srid_t srid)
+{
+  if (srid != 0)
+  {
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    bool srs_exists= false;
+    if (fetcher.srs_exists(thd, srid, &srs_exists))
+      return true; // Error has already been flagged.
+
+    if (!srs_exists)
+    {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return true;
+    }
+  }
   return false;
 }
 
@@ -402,11 +484,12 @@ String *Item_func_geometry_from_text::val_str(String *str)
     }
   }
 
+  const dd::Spatial_reference_system *srs= nullptr;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
   if (srid != 0)
   {
     Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
     if (fetcher.acquire(srid, &srs))
     {
       return error_str();
@@ -414,12 +497,8 @@ String *Item_func_geometry_from_text::val_str(String *str)
 
     if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
-                          srid,
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
     }
     else if (srs->is_geographic())
     {
@@ -505,6 +584,38 @@ String *Item_func_geometry_from_text::val_str(String *str)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
+    }
+  }
+
+  if (is_geographic)
+  {
+    bool latitude_out_of_range;
+    bool longitude_out_of_range;
+    double out_of_range_coord_value;
+    if (g->validate_coordinate_range(srs->angular_unit(),
+                                     &longitude_out_of_range,
+                                     &latitude_out_of_range,
+                                     &out_of_range_coord_value))
+    {
+      if (longitude_out_of_range)
+      {
+        my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI),
+                 srs->from_radians(M_PI));
+        return error_str();
+      }
+
+      if (latitude_out_of_range)
+      {
+        my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI_2),
+                 srs->from_radians(M_PI_2));
+        return error_str();
+      }
+
+      my_error(ER_GIS_INVALID_DATA, MYF(0),
+               func_name()); /* purecov: inspected */
+      return error_str(); /* purecov: inspected */
     }
   }
 
@@ -656,12 +767,13 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     }
   }
 
+  const dd::Spatial_reference_system *srs= nullptr;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
+
   if (srid != 0)
   {
     Srs_fetcher fetcher(current_thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    dd::cache::Dictionary_client::Auto_releaser
-      m_releaser(current_thd->dd_client());
     if (fetcher.acquire(srid, &srs))
     {
       return error_str();
@@ -669,12 +781,8 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 
     if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND_AXIS_ORDER,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND_AXIS_ORDER),
-                          srid,
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), srid);
+      return error_str();
     }
     else if (srs->is_geographic())
     {
@@ -769,6 +877,38 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     {
       my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
       return error_str();
+    }
+  }
+
+  if (is_geographic)
+  {
+    bool latitude_out_of_range;
+    bool longitude_out_of_range;
+    double out_of_range_coord_value;
+    if (g->validate_coordinate_range(srs->angular_unit(),
+                                     &longitude_out_of_range,
+                                     &latitude_out_of_range,
+                                     &out_of_range_coord_value))
+    {
+      if (longitude_out_of_range)
+      {
+        my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI),
+                 srs->from_radians(M_PI));
+        return error_str();
+      }
+
+      if (latitude_out_of_range)
+      {
+        my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), out_of_range_coord_value,
+                 func_name(), srs->from_radians(-M_PI_2),
+                 srs->from_radians(M_PI_2));
+        return error_str();
+      }
+
+      my_error(ER_GIS_INVALID_DATA, MYF(0),
+               func_name()); /* purecov: inspected */
+      return error_str(); /* purecov: inspected */
     }
   }
 
@@ -884,10 +1024,13 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
     }
 
     m_user_provided_srid= true;
+
+    if (verify_srid_is_defined(m_user_srid))
+      return error_str();
   }
 
   Json_wrapper wr;
-  if (get_json_wrapper(args, 0, buf, func_name(), &wr, true))
+  if (get_json_wrapper(args, 0, buf, func_name(), &wr))
     return error_str();
 
   /*
@@ -955,6 +1098,7 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
   Geometry *result_geometry= NULL;
 
   m_srid_found_in_document = -1;
+  m_toplevel= true;
   if (parse_object(root_obj, &rollback, &collection_buffer, false,
                    &result_geometry))
   {
@@ -973,9 +1117,29 @@ String *Item_func_geomfromgeojson::val_str(String *buf)
 
   // Set the correct SRID for the geometry data.
   if (m_user_provided_srid)
+  {
     buf->write_at_position(0, m_user_srid);
+  }
   else if (m_srid_found_in_document > -1)
+  {
+    Srs_fetcher fetcher(current_thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    dd::cache::Dictionary_client
+      ::Auto_releaser releaser(current_thd->dd_client());
+    if (fetcher.acquire(m_srid_found_in_document, &srs))
+    {
+      return error_str(); /* purecov: inspected */
+    }
+
+    if (srs == nullptr)
+    {
+      delete result_geometry;
+      my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid_found_in_document);
+      return error_str();
+    }
+
     buf->write_at_position(0, static_cast<uint32>(m_srid_found_in_document));
+  }
 
   bool return_result= result_geometry->as_wkb(buf, false);
 
@@ -1061,6 +1225,15 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
       const Json_object *crs_obj= down_cast<const Json_object *>(crs_member);
       if (parse_crs_object(crs_obj))
         return true;
+      // Only top-level crs specifications are allowed, unless it's a repeated
+      // specification of the top-level SRID.
+      if (!m_toplevel &&
+          m_srid_found_in_document !=
+              (m_user_provided_srid ? m_user_srid : 4326))
+      {
+        my_error(ER_INVALID_GEOJSON_CRS_NOT_TOP_LEVEL, MYF(0), func_name());
+        return true;
+      }
     }
     else if (crs_member->json_type() != enum_json_type::J_NULL)
     {
@@ -1068,6 +1241,69 @@ parse_object(const Json_object *object, bool *rollback, String *buffer,
                CRS_MEMBER, "object");
       return true;
     }
+  }
+  m_toplevel= false;
+
+  // CRS member parsing is done, so at this point we have an SRID, either
+  // default, user specified, or parsed from the document.
+  //
+  // Now we set the allowed range for longitude and latitude coordinates based
+  // on that SRID. Geographic coordinates have limits (-180, 180] and [90, 90]
+  // in degrees (other values for other units), while Cartesians coordinates are
+  // unlimited.
+  if (m_user_provided_srid || m_srid_found_in_document >= 0)
+  {
+    gis::srid_t srid=
+      m_user_provided_srid ? m_user_srid : m_srid_found_in_document;
+
+    if (srid != 0)
+    {
+      Srs_fetcher fetcher(current_thd);
+      const dd::Spatial_reference_system *srs= nullptr;
+      dd::cache::Dictionary_client
+        ::Auto_releaser releaser(current_thd->dd_client());
+      if (fetcher.acquire(srid, &srs))
+      {
+        return true; /* purecov: inspected */
+      }
+
+      if (srs == nullptr)
+      {
+        my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid_found_in_document);
+        return true;
+      }
+
+      if (srs->is_cartesian())
+      {
+        m_min_longitude= -std::numeric_limits<double>::infinity();
+        m_max_longitude= std::numeric_limits<double>::infinity();
+        m_min_latitude= -std::numeric_limits<double>::infinity();
+        m_max_latitude= std::numeric_limits<double>::infinity();
+      }
+      else
+      {
+        m_min_longitude= srs->from_radians(-M_PI);
+        m_max_longitude= srs->from_radians(M_PI);
+        m_min_latitude= srs->from_radians(-M_PI_2);
+        m_max_latitude= srs->from_radians(M_PI_2);
+      }
+    }
+    else
+    {
+      // SRID 0.
+      m_min_longitude= -std::numeric_limits<double>::infinity();
+      m_max_longitude= std::numeric_limits<double>::infinity();
+      m_min_latitude= -std::numeric_limits<double>::infinity();
+      m_max_latitude= std::numeric_limits<double>::infinity();
+    }
+  }
+  else
+  {
+    // Default is SRID 4326 (WGS84), which is in degrees.
+    m_min_longitude= -180.0;
+    m_max_longitude= 180.0;
+    m_min_latitude= -90.0;
+    m_max_latitude= 90.0;
   }
 
   // Handle feature objects and feature collection objects.
@@ -1243,10 +1479,29 @@ get_positions(const Json_array *coordinates, Gis_point *point)
     */
     Json_wrapper coord((*coordinates)[i]);
     coord.set_alias();
+    double coordinate= coord.coerce_real("");
     if (i == 0)
-      point->set<0>(coord.coerce_real(""));
+    {
+      // Longitude.
+      if (coordinate <= m_min_longitude || coordinate > m_max_longitude)
+      {
+        my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), coordinate, func_name(),
+                 m_min_longitude, m_max_longitude);
+        return true;
+      }
+      point->set<0>(coordinate);
+    }
     else if (i == 1)
-      point->set<1>(coord.coerce_real(""));
+    {
+      // Latitude.
+      if (coordinate < m_min_latitude || coordinate > m_max_latitude)
+      {
+        my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), coordinate, func_name(),
+                 m_min_latitude, m_max_latitude);
+        return true;
+      }
+      point->set<1>(coordinate);
+    }
   }
 
   return false;
@@ -2715,6 +2970,8 @@ bool Item_func_geohash::fill_and_check_fields()
   longlong geohash_length_arg= -1;
   if (arg_count == 2)
   {
+    Geometry *geom= nullptr;
+    Geometry_buffer geometry_buffer;
     // First argument is point, second argument is geohash output length.
     String string_buffer;
     String *swkb= args[0]->val_str(&string_buffer);
@@ -2726,8 +2983,6 @@ bool Item_func_geohash::fill_and_check_fields()
     }
     else
     {
-      Geometry *geom;
-      Geometry_buffer geometry_buffer;
       if (!(geom= Geometry::construct(&geometry_buffer, swkb)))
       {
         my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
@@ -2737,6 +2992,28 @@ bool Item_func_geohash::fill_and_check_fields()
                geom->get_x(&longitude) || geom->get_y(&latitude))
       {
         my_error(ER_INCORRECT_TYPE, MYF(0), "point", func_name());
+        return true;
+      }
+    }
+
+    if (geom != nullptr && geom->get_srid() != 0)
+    {
+      THD *thd= current_thd;
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      Srs_fetcher fetcher(thd);
+      const dd::Spatial_reference_system *srs= nullptr;
+      if (fetcher.acquire(geom->get_srid(), &srs))
+        return true; // Error has already been flagged.
+
+      if (srs == nullptr)
+      {
+        my_error(ER_SRS_NOT_FOUND, MYF(0), geom->get_srid());
+        return true;
+      }
+
+      if (srs->id() != 4326)
+      {
+        my_error(ER_ONLY_IMPLEMENTED_FOR_SRID_0_AND_4326, MYF(0), func_name());
         return true;
       }
     }
@@ -3357,16 +3634,13 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
     return nullptr;
   }
 
-  // Even if args[0]->val_str didn't return swkb_tmp, it may still
-  // have modified it, so clean it up first.
-  if (swkb != &swkb_tmp)
-  {
-    swkb_tmp.set(static_cast<const char *>(nullptr), 0, swkb_tmp.charset());
-  }
-  swkb_tmp.copy(*swkb);
-  swkb= &swkb_tmp;
+  // args[0]->val_str() may have returned a string that we shouldn't modify, and
+  // it may have modified swkb_tmp in the process. We need a local copy of the
+  // string, with its own buffer, since we may have to flip coordinate order.
+  String modifiable_swkb;
+  modifiable_swkb.copy(*swkb);
 
-  if (!(g= Geometry::construct(&buffer, swkb)))
+  if (!(g= Geometry::construct(&buffer, &modifiable_swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -3470,7 +3744,7 @@ String *Item_func_as_wkt::val_str_ascii(String *str)
   if ((null_value= g->as_wkt(str)))
   {
     DBUG_ASSERT(maybe_null);
-    return nullptr;    
+    return nullptr;
   }
 
   return str;
@@ -3506,13 +3780,13 @@ String *Item_func_as_wkb::val_str(String *str)
     return nullptr;
   }
 
-  // swkb may not point to swkb_tmp, but to another string that shouldn't be
-  // modified, so the following procedure is necessary to be sure to have a
-  // string that can be altered.
-  swkb_tmp.copy(*swkb);
-  swkb= &swkb_tmp;
+  // args[0]->val_str() may have returned a string that we shouldn't modify, and
+  // it may have modified swkb_tmp in the process. We need a local copy of the
+  // string, with its own buffer, since we may have to flip coordinate order.
+  String modifiable_swkb;
+  modifiable_swkb.copy(*swkb);
 
-  if (!(g= Geometry::construct(&buffer, swkb)))
+  if (!(g= Geometry::construct(&buffer, &modifiable_swkb)))
   {
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
@@ -3611,9 +3885,8 @@ String *Item_func_as_wkb::val_str(String *str)
     }
   }
 
-  str->copy(swkb->ptr() + SRID_SIZE, swkb->length() - SRID_SIZE,
-            &my_charset_bin);
-
+  str->copy(modifiable_swkb.ptr() + SRID_SIZE,
+            modifiable_swkb.length() - SRID_SIZE, &my_charset_bin);
 
   return str;
 }
@@ -3634,6 +3907,10 @@ String *Item_func_geometry_type::val_str_ascii(String *str)
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
+
   /* String will not move */
   str->copy(geom->get_class_info()->m_name.str,
 	    geom->get_class_info()->m_name.length,
@@ -3654,27 +3931,8 @@ String *Item_func_validate::val_str(String*)
   if (!(geom= Geometry::construct(&buffer, swkb)))
     return error_str();
 
-  if (geom->get_srid() != 0)
-  {
-    THD *thd= current_thd;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
-      return error_str(); // Error has already been flagged.
-
-    if (srs == nullptr)
-    {
-      my_error(ER_SRS_NOT_CARTESIAN_UNDEFINED, MYF(0), func_name(),
-               geom->get_srid());
-      return error_str();
-    }
-    if (!srs->is_cartesian())
-    {
-      my_error(ER_SRS_NOT_CARTESIAN, MYF(0), func_name(), geom->get_srid());
-      return error_str();
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_str();
 
   int isvalid= 0;
 
@@ -3728,7 +3986,7 @@ String *Item_func_make_envelope::val_str(String *str)
   if (geom1->get_srid() != 0)
   {
     THD *thd= current_thd;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     Srs_fetcher fetcher(thd);
     const dd::Spatial_reference_system *srs= nullptr;
     if (fetcher.acquire(geom1->get_srid(), &srs))
@@ -3736,12 +3994,17 @@ String *Item_func_make_envelope::val_str(String *str)
 
     if (srs == nullptr)
     {
-      my_error(ER_SRS_NOT_CARTESIAN_UNDEFINED, MYF(0), func_name(), geom1->get_srid());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), geom1->get_srid());
       return error_str();
     }
+
     if (!srs->is_cartesian())
     {
-      my_error(ER_SRS_NOT_CARTESIAN, MYF(0), func_name(), geom1->get_srid());
+      DBUG_ASSERT(srs->is_geographic());
+      std::string parameters(geom1->get_class_info()->m_name.str);
+      parameters.append(", ").append(geom2->get_class_info()->m_name.str);
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
+               parameters.c_str());
       return error_str();
     }
   }
@@ -3882,22 +4145,8 @@ String *Item_func_envelope::val_str(String *str)
     return error_str();
   }
 
-  if (geom->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
-      return error_str(); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_str();
 
   srid= uint4korr(swkb->ptr());
   str->set_charset(&my_charset_bin);
@@ -3947,22 +4196,8 @@ String *Item_func_centroid::val_str(String *str)
     return error_str();
   }
 
-  if (geom->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
-      return error_str(); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_str();
 
   null_value= bg_centroid<bgcs::cartesian>(geom, str);
   if (null_value)
@@ -4306,22 +4541,8 @@ String *Item_func_convex_hull::val_str(String *str)
     return error_str();
   }
 
-  if (geom->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
-      return error_str(); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_str();
 
   if (bg_convex_hull<bgcs::cartesian>(geom, str))
     return error_str();
@@ -4524,18 +4745,27 @@ String *Item_func_simplify::val_str(String *str)
 
   if (geom->get_srid() != 0)
   {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(geom->get_srid(), &srs))
       return error_str(); // Error has already been flagged.
 
-    if (!srs_exists)
+    if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), geom->get_srid());
+      return error_str();
+    }
+
+    if (!srs->is_cartesian())
+    {
+      DBUG_ASSERT(srs->is_geographic());
+      std::string parameters(geom->get_class_info()->m_name.str);
+      parameters.append(", ...");
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
+               parameters.c_str());
+      return error_str();
     }
   }
 
@@ -4696,6 +4926,9 @@ String *Item_func_spatial_decomp::val_str(String *str)
     return error_str();
   }
 
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
+
   srid= uint4korr(swkb->ptr());
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
@@ -4746,6 +4979,9 @@ String *Item_func_spatial_decomp_n::val_str(String *str)
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
 
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
@@ -4899,6 +5135,9 @@ String *Item_func_pointfromgeohash::val_str(String *str)
   // Return null if one or more of the input arguments is null.
   if ((null_value= (args[0]->null_value || args[1]->null_value)))
     return NULL;
+
+  if (verify_srid_is_defined(srid))
+    return error_str();
 
   if (str->mem_realloc(GEOM_HEADER_SIZE + POINT_DATA_SIZE))
     return make_empty_result();
@@ -5302,165 +5541,59 @@ longlong Item_func_isempty::val_int()
     return error_int();
   }
 
+  if (verify_srid_is_defined(g->get_srid()))
+    return error_int();
+
   return (null_value || is_empty_geocollection(g)) ? 1 : 0;
 }
 
 
-longlong Item_func_issimple::val_int()
+longlong Item_func_st_issimple::val_int()
 {
-  DBUG_ENTER("Item_func_issimple::val_int");
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ENTER("Item_func_st_issimple::val_int");
+  DBUG_ASSERT(fixed);
 
-  tmp.length(0);
-  String *arg_wkb= args[0]->val_str(&tmp);
-  if ((null_value= args[0]->null_value))
-  {
+  String backing_arg_wkb;
+  String *arg_wkb= args[0]->val_str(&backing_arg_wkb);
+
+  // Note: Item.null_value is valid only after Item.val_* has been invoked.
+
+  if (args[0]->null_value) {
+    null_value= true;
     DBUG_ASSERT(maybe_null);
     DBUG_RETURN(0);
   }
-  if (arg_wkb == NULL)
-  {
-    // Invalid geometry.
+
+  if (!arg_wkb) {
+    // Item.val_str should not have returned nullptr if Item.null_value is
+    // false.
+    DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     DBUG_RETURN(error_int());
   }
 
-  Geometry_buffer buffer;
-  Geometry *arg= Geometry::construct(&buffer, arg_wkb);
-  if (arg == NULL)
-  {
-    // Invalid geometry.
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+  // Auto_releaser for *srs to be allocated in gis::parse_geometry
+  dd::cache::Dictionary_client::Auto_releaser
+    releaser(current_thd->dd_client());
+
+  const dd::Spatial_reference_system *srs;
+  std::unique_ptr<gis::Geometry> g;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb, &srs, &g)) {
+    DBUG_ASSERT(current_thd->is_error());
     DBUG_RETURN(error_int());
   }
+  DBUG_ASSERT(g);
 
-  if (arg->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, arg->get_srid(), &srs_exists))
-      DBUG_RETURN(error_int()); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          arg->get_srid(),
-                          func_name());
-    }
+  bool result;
+  if (gis::is_simple(srs, g.get(), func_name(), &result, &null_value)) {
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_int());
   }
+  DBUG_ASSERT(!g->is_empty() || result == true);
+  // gis::is_simple never returns null
+  DBUG_ASSERT(!null_value);
 
-  DBUG_RETURN(issimple(arg));
-}
-
-
-/**
-  Evaluate if a geometry object is simple according to the OGC definition.
-
-  @param g The geometry to evaluate.
-  @return True if the geometry is simple, false otherwise.
-*/
-bool Item_func_issimple::issimple(Geometry *g)
-{
-  bool res= false;
-
-  try
-  {
-    switch (g->get_type())
-    {
-    case Geometry::wkb_point:
-      {
-        Gis_point arg(g->get_data_ptr(), g->get_data_size(),
-                      g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_linestring:
-      {
-        Gis_line_string arg(g->get_data_ptr(), g->get_data_size(),
-                            g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-    break;
-    case Geometry::wkb_polygon:
-      {
-        const void *arg_wkb= g->normalize_ring_order();
-        if (arg_wkb == NULL)
-        {
-          // Invalid polygon.
-          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-          return error_bool();
-        }
-        Gis_polygon arg(arg_wkb, g->get_data_size(),
-                        g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multipoint:
-      {
-        Gis_multi_point arg(g->get_data_ptr(), g->get_data_size(),
-                            g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multilinestring:
-      {
-        Gis_multi_line_string arg(g->get_data_ptr(), g->get_data_size(),
-                                  g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_multipolygon:
-      {
-        const void *arg_wkb= g->normalize_ring_order();
-        if (arg_wkb == NULL)
-        {
-          // Invalid multipolygon.
-          my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-          return error_bool();
-        }
-        Gis_multi_polygon arg(arg_wkb, g->get_data_size(),
-                              g->get_flags(), g->get_srid());
-        res= boost::geometry::is_simple(arg);
-      }
-      break;
-    case Geometry::wkb_geometrycollection:
-      {
-        BG_geometry_collection collection;
-        collection.fill(g);
-
-        res= true;
-        for (BG_geometry_collection::Geometry_list::iterator i=
-               collection.get_geometries().begin();
-             i != collection.get_geometries().end();
-             ++i)
-        {
-          res= issimple(*i);
-          if (current_thd->is_error())
-          {
-            res= error_bool();
-            break;
-          }
-          if (!res)
-          {
-            break;
-          }
-        }
-      }
-      break;
-    default:
-      DBUG_ASSERT(0);
-      break;
-    }
-  }
-  catch (...)
-  {
-    res= error_bool();
-    handle_gis_exception(func_name());
-  }
-
-  return res;
+  DBUG_RETURN(result);
 }
 
 
@@ -5481,6 +5614,9 @@ longlong Item_func_isclosed::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_int();
 
   null_value= geom->is_closed(&isclosed);
 
@@ -5660,52 +5796,42 @@ static int check_geometry_valid(Geometry *geom)
 
 longlong Item_func_isvalid::val_int()
 {
-  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(fixed);
+
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
-  Geometry_buffer buffer;
-  Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return 0L;
-
-  // It should return false if the argument isn't a valid GEOMETRY string.
-  if (!(geom= Geometry::construct(&buffer, swkb)))
-    return 0L;
-
-  if (geom->get_srid() != 0)
+  if ((null_value= args[0]->null_value))
   {
-    THD *thd= current_thd;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs= nullptr;
-    if (fetcher.acquire(geom->get_srid(), &srs))
-      return error_int(); // Error has already been flagged.
-
-    if (srs == nullptr)
-    {
-      my_error(ER_SRS_NOT_CARTESIAN_UNDEFINED, MYF(0), func_name(), geom->get_srid());
-      return error_int();
-    }
-    if (!srs->is_cartesian())
-    {
-      my_error(ER_SRS_NOT_CARTESIAN, MYF(0), func_name(), geom->get_srid());
-      return error_int();
-    }
+    DBUG_ASSERT(maybe_null);
+    return 0;
   }
 
-  int ret= 0;
-  try
+  if (swkb == nullptr)
   {
-    ret= check_geometry_valid(geom);
-  }
-  catch (...)
-  {
-    null_value= true;
-    handle_gis_exception("ST_IsValid");
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_int();
   }
 
-  return ret;
+  const dd::Spatial_reference_system *srs= nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser
+    m_releaser(current_thd->dd_client());
+
+  if ( gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
+  {
+    return error_int();
+  }
+
+  bool result= false;
+
+  if (gis::is_valid(srs, g.get(),func_name(), &result))
+  {
+    return error_int();
+  }
+
+  return result;
 }
 
 
@@ -5729,6 +5855,10 @@ longlong Item_func_dimension::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_int();
+
   null_value= geom->dimension(&dim);
   return (longlong) dim;
 }
@@ -5749,6 +5879,10 @@ longlong Item_func_numinteriorring::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_int();
+
   null_value= geom->num_interior_ring(&num);
   return (longlong) num;
 }
@@ -5769,6 +5903,10 @@ longlong Item_func_numgeometries::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_int();
+
   null_value= geom->num_geometries(&num);
   return (longlong) num;
 }
@@ -5789,6 +5927,10 @@ longlong Item_func_numpoints::val_int()
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_int();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_int();
+
   null_value= geom->num_points(&num);
   return (longlong) num;
 }
@@ -5835,6 +5977,9 @@ String *Item_func_set_x::val_str(String *str)
              geom->get_class_info()->m_name.str, func_name());
     return error_str();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
 
   str->copy(*swkb);
   float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE, x_coordinate);
@@ -5884,6 +6029,9 @@ String *Item_func_set_y::val_str(String *str)
     return error_str();
   }
 
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
+
   str->copy(*swkb);
   float8store(str->c_ptr_safe() + GEOM_HEADER_SIZE + SIZEOF_STORED_DOUBLE,
               y_coordinate);
@@ -5926,6 +6074,10 @@ double Item_func_get_x::val_real()
              geom->get_class_info()->m_name.str, func_name());
     return error_real();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_real();
+
   null_value= geom->get_x(&res);
   return res;
 }
@@ -5967,6 +6119,10 @@ double Item_func_get_y::val_real()
              geom->get_class_info()->m_name.str, func_name());
     return error_real();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_real();
+
   null_value= geom->get_y(&res);
   return res;
 }
@@ -6001,6 +6157,9 @@ String *Item_func_swap_xy::val_str(String *str)
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
     return error_str();
   }
+
+  if (verify_srid_is_defined(geom->get_srid()))
+    return error_str();
 
   geom->reverse_coordinates();
 
@@ -6115,22 +6274,8 @@ double Item_func_area::val_real()
     return error_real();
   }
 
-  if (geom->get_srid() != 0)
-  {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
-      return error_real(); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
-    }
-  }
+  if (verify_cartesian_srs(geom, func_name()))
+    return error_real();
 
   res= bg_area<bgcs::cartesian>(geom);
 
@@ -6146,47 +6291,48 @@ double Item_func_area::val_real()
   return res;
 }
 
-double Item_func_glength::val_real()
+double Item_func_st_length::val_real()
 {
-  DBUG_ASSERT(fixed == 1);
-  double res= 0;				// In case of errors
+  DBUG_ENTER("Item_func_st_length::val_real");
+  DBUG_ASSERT(fixed);
   String *swkb= args[0]->val_str(&value);
-  Geometry_buffer buffer;
-  Geometry *geom;
 
-  if ((null_value= (!swkb || args[0]->null_value)))
-    return res;
-  if (!(geom= Geometry::construct(&buffer, swkb)))
+  if ((null_value= (args[0]->null_value)))
   {
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0.0);
+  }
+
+  if (swkb == nullptr)
+  {
+    /*
+    We've already found out that args[0]->null_value is false.
+    Therefore, swkb should never be null.
+    */
+    DBUG_ASSERT(false);
     my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_real();
+    DBUG_RETURN(error_real());
   }
 
-  if (geom->get_srid() != 0)
+  const dd::Spatial_reference_system *srs= nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(current_thd->dd_client());
+  if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
   {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
-      return error_real(); // Error has already been flagged.
-
-    if (!srs_exists)
-    {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
-    }
+    DBUG_RETURN(error_real());
   }
 
-  if ((null_value= geom->geom_length(&res)))
-    return res;
-  if (!std::isfinite(res))
+  double length;
+  if (gis::length(srs, g.get(), &length, &null_value))
+    DBUG_RETURN(error_real()); /* purecov: inspected */
+
+  if (null_value)
   {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    return error_real();
+    DBUG_ASSERT(maybe_null);
+    DBUG_RETURN(0.0);
   }
-  return res;
+
+  DBUG_RETURN(length);
 }
 
 longlong Item_func_get_srid::val_int()
@@ -6450,212 +6596,110 @@ double Item_func_distance::val_real()
 }
 
 
-double Item_func_distance_sphere::val_real()
+double Item_func_st_distance_sphere::val_real()
 {
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-
-  DBUG_ENTER("Item_func_distance_sphere::val_real");
+  DBUG_ENTER("Item_func_st_distance_sphere::val_real");
   DBUG_ASSERT(fixed);
 
-  String tmp_value1;
-  String tmp_value2;
-  String *res1= args[0]->val_str(&tmp_value1);
-  String *res2= args[1]->val_str(&tmp_value2);
-  Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
-  // Earth radius in meters.
-  double earth_radius= 6370986.0;
+  String backing_arg_wkb1;
+  String *arg_wkb1= args[0]->val_str(&backing_arg_wkb1);
 
-  if ((null_value= (!res1 || args[0]->null_value ||
-                    !res2 || args[1]->null_value)))
+  String backing_arg_wkb2;
+  String *arg_wkb2= args[1]->val_str(&backing_arg_wkb2);
+
+  // Note: Item.null_value is valid only after Item.val_* has been invoked.
+
+  if (args[0]->null_value || args[1]->null_value)
+  {
+    null_value= true;
+    DBUG_ASSERT(maybe_null);
     DBUG_RETURN(0.0);
+  }
 
-  if (!(g1= Geometry::construct(&buffer1, res1)) ||
-      !(g2= Geometry::construct(&buffer2, res2)))
+  if (!arg_wkb1 || !arg_wkb2)
   {
-    // If construction fails, we assume invalid input data.
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    // Item.val_str should not have returned nullptr if Item.null_value is
+    // false.
+    DBUG_ASSERT(false);
+    my_error(ER_INTERNAL_ERROR, MYF(0), func_name());
     DBUG_RETURN(error_real());
   }
 
-  // The two geometry operand must be in the same coordinate system.
-  if (g1->get_srid() != g2->get_srid())
+  // Auto_releaser for *srs to be allocated in gis::parse_geometry
+  dd::cache::Dictionary_client::Auto_releaser
+    releaser(current_thd->dd_client());
+
+  const dd::Spatial_reference_system *srs1;
+  std::unique_ptr<gis::Geometry> g1;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb1, &srs1, &g1))
   {
-    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
-             g1->get_srid(), g2->get_srid());
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_real());
+  }
+  DBUG_ASSERT(g1);
+
+  const dd::Spatial_reference_system *srs2;
+  std::unique_ptr<gis::Geometry> g2;
+  if (gis::parse_geometry(current_thd, func_name(), arg_wkb2, &srs2, &g2))
+  {
+    DBUG_ASSERT(current_thd->is_error());
+    DBUG_RETURN(error_real());
+  }
+  DBUG_ASSERT(g2);
+
+  gis::srid_t srid1= srs1 ? srs1->id() : 0;
+  gis::srid_t srid2= srs2 ? srs2->id() : 0;
+
+  if (srid1 != srid2)
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
     DBUG_RETURN(error_real());
   }
 
-  // Normally, we would have called normalize_ring_order() here, but
-  // it's not necessary since we only support points and multipoints.
+  // Sphere raduis initialized to default radius for SRID 0. Approximates Earth
+  // radius.
+  double sphere_radius= 6370986.0;
 
-  Geometry::wkbType gt1= g1->get_geotype();
-  Geometry::wkbType gt2= g2->get_geotype();
-  if (!((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
-        (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint)))
+  // Non-zero SRS overrides default radius.
+  if (srs1)
   {
-    my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
-    DBUG_RETURN(error_real());
+    double a = srs1->semi_major_axis();
+    double b = srs1->semi_minor_axis();
+    if (a == b)
+      // Avoid possible loss of precission.
+      sphere_radius= a;
+    else
+      // Mean radius, as defined by the IUGG
+      sphere_radius= ((2.0*a + b) / 3.0);
   }
 
-  if (arg_count == 3)
+  // Optional 3rd argument overrides both default and SRS-based choice.
+  if (arg_count >= 3)
   {
-    earth_radius= args[2]->val_real();
-    if ((null_value= args[2]->null_value))
-      DBUG_RETURN(0.0);
-    if (earth_radius <= 0.0)
+    sphere_radius= args[2]->val_real();
+
+    if (args[2]->null_value)
     {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      null_value= true;
+      DBUG_RETURN(0.0);
+    }
+
+    if (sphere_radius <= 0.0)
+    {
+      my_error(ER_NONPOSITIVE_RADIUS, MYF(0), func_name());
       DBUG_RETURN(error_real());
     }
   }
 
-  /*
-    Make sure all points' coordinates are valid:
-    x in (-180, 180], y in [-90, 90].
-  */
-  Numeric_interval<double> x_range(-180.0, true, 180.0, false);   // (-180, 180]
-  Numeric_interval<double> y_range(-90.0, false, 90.0, false);    // [-90, 90]
-  Point_coordinate_checker checker(x_range, y_range);
-
-  uint32 wkblen= res1->length() - SRID_SIZE;
-  wkb_scanner(res1->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
-              true, &checker);
-  if (checker.has_invalid_point())
+  double result;
+  if (gis::distance_sphere(srs1, g1.get(), g2.get(), func_name(),
+                           sphere_radius, &result, &null_value))
   {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    DBUG_ASSERT(current_thd->is_error());
     DBUG_RETURN(error_real());
   }
+  // gis::gistance_sphere will always return a valid result or error.
+  DBUG_ASSERT(!null_value);
 
-  wkblen= res2->length() - SRID_SIZE;
-  wkb_scanner(res2->ptr() + SRID_SIZE, &wkblen, Geometry::wkb_invalid_type,
-              true, &checker);
-  if (checker.has_invalid_point())
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-
-  double distance= bg_distance_spherical(g1, g2, earth_radius);
-
-  if (null_value)
-    DBUG_RETURN(error_real());
-
-  if (!std::isfinite(distance) || distance < 0.0)
-  {
-    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
-    DBUG_RETURN(error_real());
-  }
-  DBUG_RETURN(distance);
-}
-
-
-double Item_func_distance_sphere::
-distance_point_geometry_spherical(const Geometry *g1, const Geometry *g2,
-                                  double earth_radius)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0.0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Point
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-  return res;
-}
-
-
-double Item_func_distance_sphere::
-distance_multipoint_geometry_spherical(const Geometry *g1, const Geometry *g2,
-                                       double earth_radius)
-{
-  typedef bgcs::spherical_equatorial<bg::degree> bgcssed;
-  double res= 0.0;
-  bg::strategy::distance::haversine<double, double>
-    dist_strategy(earth_radius);
-
-  BG_models<bgcssed>::Multipoint
-    bg1(g1->get_data_ptr(), g1->get_data_size(),
-        g1->get_flags(), g1->get_srid());
-
-  switch (g2->get_type())
-  {
-  case Geometry::wkb_point:
-    {
-      BG_models<bgcssed>::Point
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  case Geometry::wkb_multipoint:
-    {
-      BG_models<bgcssed>::Multipoint
-        bg2(g2->get_data_ptr(), g2->get_data_size(),
-            g2->get_flags(), g2->get_srid());
-      res= bg::distance(bg1, bg2, dist_strategy);
-    }
-    break;
-  default:
-    DBUG_ASSERT(false);
-    break;
-  }
-
-  return res;
-}
-
-
-double Item_func_distance_sphere::bg_distance_spherical(const Geometry *g1,
-                                                        const Geometry *g2,
-                                                        double earth_radius)
-{
-  double res= 0.0;
-
-  try
-  {
-    switch (g1->get_type())
-    {
-    case Geometry::wkb_point:
-      res= distance_point_geometry_spherical(g1, g2, earth_radius);
-      break;
-    case Geometry::wkb_multipoint:
-      res= distance_multipoint_geometry_spherical(g1, g2, earth_radius);
-      break;
-    default:
-      DBUG_ASSERT(false);
-      break;
-    }
-  }
-  catch (...)
-  {
-    null_value= true;
-    handle_gis_exception("st_distance_sphere");
-  }
-
-  return res;
+  DBUG_RETURN(result);
 }

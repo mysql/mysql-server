@@ -636,3 +636,47 @@ SELECT * FROM bug22919028.t;
 # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/bug22919028.sql
 DROP DATABASE bug22919028;
+
+-- echo #
+-- echo # Bug#26694675: MYSQLPUMP SPAMS WITH SQL_NO_CACHE DEPRECATION WARNINGS
+-- echo #
+
+CREATE DATABASE bug26694675;
+USE bug26694675;
+CREATE TABLE t (i INT);
+INSERT INTO t VALUES (9), (0);
+--exec $MYSQL_PUMP --all-databases --log-error-file=$MYSQLTEST_VARDIR/log/err.log > $MYSQLTEST_VARDIR/tmp/bug26694675.sql
+DROP DATABASE bug26694675;
+
+--echo check for warnings
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/err.log;
+let SEARCH_PATTERN= mysqlpump: \[WARNING\];
+--source include/search_pattern.inc
+
+# cleanup
+--remove_file $MYSQLTEST_VARDIR/log/err.log
+--remove_file $MYSQLTEST_VARDIR/tmp/bug26694675.sql
+
+-- echo #
+-- echo # Bug#26116415 TABLESPACE CLAUSE CONFUSES MYSQLPUMP
+-- echo #
+
+CREATE TABLESPACE `mytbsp` ADD DATAFILE 'mytbsp.ibd' ENGINE INNODB;
+
+CREATE TABLE `test`.`t1` (a integer) TABLESPACE `mytbsp`;
+
+SHOW CREATE TABLE test.t1;
+
+--let $program= $MYSQL_PUMP --include-databases=test --include-tables=t1
+
+--exec $PROGRAM >> $MYSQL_TMP_DIR/mysqlpump.sql
+
+DROP TABLE `test`.`t1`;
+
+--exec $MYSQL < $MYSQL_TMP_DIR/mysqlpump.sql
+
+SHOW CREATE TABLE test.t1;
+
+DROP TABLE `test`.`t1`;
+DROP TABLESPACE `mytbsp`;
+

@@ -914,7 +914,7 @@ send Mysqlx.Crud.Update {
 Rows matched: 1  Changed: 1  Warnings: 0
 RUN SELECT * FROM xtest.mytable ORDER BY price
 id	name	price	info
-1	banana	null	{"color": "yellow", "third": 3, "fourth": "four"}
+1	banana	null	{"color": "yellow", "third": 3.0, "fourth": "four"}
 6	watermelon	256.53	{"color": "orange"}
 2	apple	456.54	{"color": "red"}
 5	orange	456.54	{"color": "orange"}
@@ -983,7 +983,7 @@ send Mysqlx.Crud.Update {
 Rows matched: 1  Changed: 1  Warnings: 0
 RUN SELECT * FROM xtest.mytable ORDER BY price
 id	name	price	info
-1	banana	null	{"color": "yellow", "third": 3, "fourth": "four"}
+1	banana	null	{"color": "yellow", "third": 3.0, "fourth": "four"}
 7	Grapes	null	{"third": ["two.1", "two"]}
 6	watermelon	256.53	{"color": "orange"}
 2	apple	456.54	{"color": "red"}
@@ -1024,7 +1024,7 @@ send Mysqlx.Crud.Delete {
 1 rows affected
 RUN SELECT * FROM xtest.mytable
 id	name	price	info
-1	banana	null	{"color": "yellow", "third": 3, "fourth": "four"}
+1	banana	null	{"color": "yellow", "third": 3.0, "fourth": "four"}
 2	apple	456.54	{"color": "red"}
 3	tomato	895.63	{"color": "red"}
 4	mango	895.63	{"color": "green"}
@@ -1064,7 +1064,7 @@ send Mysqlx.Crud.Delete {
 4 rows affected
 RUN SELECT * FROM xtest.mytable
 id	name	price	info
-1	banana	null	{"color": "yellow", "third": 3, "fourth": "four"}
+1	banana	null	{"color": "yellow", "third": 3.0, "fourth": "four"}
 7	Grapes	null	{"third": ["two.1", "two"]}
 0 rows affected
 Find Wrong placeholder

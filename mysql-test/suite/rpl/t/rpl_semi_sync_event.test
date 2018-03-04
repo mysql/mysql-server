@@ -77,6 +77,7 @@ while ($run)
 }
 
 connection master;
+SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL event_scheduler = OFF;
 
 let $run = 20;
@@ -108,5 +109,6 @@ connection master;
 DROP EVENT ev1;
 DROP EVENT ev2;
 DROP TABLE t1;
+SET @@global.event_scheduler= @old_event_scheduler;
 --source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

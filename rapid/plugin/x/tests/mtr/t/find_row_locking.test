@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 let $old_innodb_lock_wait_timeout= `SELECT @@innodb_lock_wait_timeout`;
 
@@ -41,8 +42,8 @@ insert into test_coll (doc) values ('{"_id": "3", "a": 1}');
 set global innodb_lock_wait_timeout=3;
 -->endsql
 
--->newsession session1	root
--->newsession session2	root
+-->newsession session1	x_root
+-->newsession session2	x_root
 
 -->echo ######### Shared lock after shared lock #########
 -->setsession session1
@@ -514,7 +515,7 @@ Mysqlx.Crud.Find {
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/find_row_locking.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/find_row_locking.tmp 2>&1
 
 ## Cleanup
 DROP SCHEMA IF EXISTS xtest;
@@ -525,4 +526,5 @@ eval SET GLOBAL innodb_lock_wait_timeout=$old_innodb_lock_wait_timeout;
 --enable_query_log
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

@@ -1,13 +1,20 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -234,7 +241,7 @@ public:
 };
 
 
-enum role_enum
+enum class role_enum
 {
   ROLE_NONE, ROLE_DEFAULT, ROLE_ALL, ROLE_NAME
 };
@@ -255,12 +262,13 @@ public:
                    const List<LEX_USER> *except_roles_arg)
   : role_type(role_type_arg), role_list(NULL), except_roles(except_roles_arg)
   {
-    DBUG_ASSERT(role_type == ROLE_NONE || role_type == ROLE_DEFAULT ||
-                role_type == ROLE_ALL);
-    DBUG_ASSERT(role_type == ROLE_ALL || except_roles == NULL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_NONE ||
+                role_type == role_enum::ROLE_DEFAULT ||
+                role_type == role_enum::ROLE_ALL);
+    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || except_roles == NULL);
   }
   explicit Sql_cmd_set_role(const List<LEX_USER> *role_arg)
-  : role_type(ROLE_NAME), role_list(role_arg)
+  : role_type(role_enum::ROLE_NAME), role_list(role_arg)
   {}
 
   virtual bool execute(THD *thd);
@@ -380,24 +388,24 @@ public:
 
 
 /**
-  Sql_cmd_show_privileges SHOW PRIVILEGES ... statement.
+  Sql_cmd_show_grants SHOW GRANTS ... statement.
 */
-class Sql_cmd_show_privileges: public Sql_cmd
+class Sql_cmd_show_grants: public Sql_cmd
 {
-  friend class PT_show_privileges;
+  friend class PT_show_grants;
 
   const LEX_USER *for_user;
   const List<LEX_USER> *using_users;
 
 public:
-  explicit Sql_cmd_show_privileges(const LEX_USER *for_user_arg,
-                                   const List<LEX_USER> *using_users_arg)
+  Sql_cmd_show_grants(const LEX_USER *for_user_arg,
+                          const List<LEX_USER> *using_users_arg)
   : for_user(for_user_arg), using_users(using_users_arg)
   { }
 
   virtual bool execute(THD *thd);
   virtual enum_sql_command sql_command_code() const
-  { return SQLCOM_SHOW_PRIVILEGES; }
+  { return SQLCOM_SHOW_GRANTS; }
 };
 
 

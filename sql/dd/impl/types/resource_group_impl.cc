@@ -1,41 +1,35 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "dd/impl/types/resource_group_impl.h"
+#include "sql/dd/impl/types/resource_group_impl.h"
 
-#include "dd/impl/raw/object_keys.h"        // Primary_id_keys
-#include "dd/impl/raw/raw_record.h"         // Raw_record
-#include "dd/impl/tables/resource_groups.h" // Resource_groups
-#include "dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
+#include "sql/dd/impl/raw/object_keys.h"        // Primary_id_keys
+#include "sql/dd/impl/raw/raw_record.h"         // Raw_record
+#include "sql/dd/impl/tables/resource_groups.h" // Resource_groups
+#include "sql/dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
 
 using dd::tables::Resource_groups;
 
 namespace dd {
-
-// Resource_group implementation
-
-const Entity_object_table &Resource_group::OBJECT_TABLE()
-{
-  return Resource_groups::instance();
-}
-
-const Object_type &Resource_group::TYPE()
-{
-  static Resource_group_type s_instance;
-  return s_instance;
-}
 
 // Resource_group_impl implementation
 
@@ -126,19 +120,23 @@ void Resource_group_impl::debug_print(String_type &outb) const
   outb= ss.str();
 }
 
-// Resource group type implementation
-void Resource_group_type::register_tables(Open_dictionary_tables_ctx *otx) const
+ const Object_table &Resource_group_impl::object_table() const
+{
+   return DD_table::instance();
+}
+
+ void Resource_group_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Resource_groups>();
 }
 
-bool Resource_group::update_id_key(id_key_type *key, Object_id id)
+bool Resource_group::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
 }
 
-bool Resource_group::update_name_key(name_key_type *key, const String_type &name)
+bool Resource_group::update_name_key(Name_key *key, const String_type &name)
 {
   // Resource group names are case insensitive
   char lc_name[NAME_LEN + 1];

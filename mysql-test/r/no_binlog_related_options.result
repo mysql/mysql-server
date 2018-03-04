@@ -1,0 +1,25 @@
+call mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
+call mtr.add_suppression("slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled.");
+SELECT @@GLOBAL.log_bin;
+@@GLOBAL.log_bin
+0
+#
+# Verify that the log-slave-updates warning is printed when starting
+# the server and log-slave-updates is enabled as before, if both
+# --skip-log-bin and --log-slave-updates options are set explicitly
+# on command line or configuration file.
+#
+include/assert_grep.inc [Found the expected warning "You need to use --log-bin to make --log-slave-updates work." in server's error log.]
+SELECT @@GLOBAL.log_slave_updates;
+@@GLOBAL.log_slave_updates
+1
+#
+# Verify that the slave-preserve-commit-order error is printed when
+# starting the server and slave-preserve-commit-order is enabled as
+# before, if both --skip-log-bin and --slave-preserve-commit-order
+# options are set explicitly on command line or configuration file.
+#
+include/assert_grep.inc [Found the expected warning "slave_preserve_commit_order is not supported unless both log_bin and log_slave_updates are enabled." in server's error log.]
+SELECT @@GLOBAL.slave_preserve_commit_order;
+@@GLOBAL.slave_preserve_commit_order
+1

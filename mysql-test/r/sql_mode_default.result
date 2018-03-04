@@ -37,7 +37,7 @@ NO_AUTO_CREATE_USER
 # Restarting server without NO_AUTO_CREATE_USER sql_mode
 # Restart server.
 
-Pattern "\[Warning\] \'NO_AUTO_CREATE_USER\' sql mode was not set" found
+Pattern "\[Warning\] \[[^]]*\] \'NO_AUTO_CREATE_USER\' sql mode was not set" found
 SELECT @@sql_mode;
 @@sql_mode
 STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION

@@ -1,13 +1,20 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1166,6 +1173,26 @@ send_result_message:
                       system_charset_info);
       break;
 
+    case HA_ADMIN_NEEDS_DUMP_UPGRADE:
+    {
+      /*
+        In-place upgrade does not allow pre 5.0 decimal to 8.0. Recreation of tables
+        will not create pre 5.0 decimal types. Hence, control should never reach here.
+      */
+      DBUG_ASSERT(FALSE);
+
+      char buf[MYSQL_ERRMSG_SIZE];
+      size_t length;
+
+      protocol->store(STRING_WITH_LEN("error"), system_charset_info);
+      length= my_snprintf(buf, sizeof(buf), "Table upgrade required for "
+                          "`%-.64s`.`%-.64s`. Please dump/reload table to "
+                          "fix it!", table->db, table->table_name);
+      protocol->store(buf, length, system_charset_info);
+      fatal_error=1;
+      break;
+    }
+
     default:				// Probably HA_ADMIN_INTERNAL_ERROR
       {
         char buf[MYSQL_ERRMSG_SIZE];
@@ -1613,9 +1640,11 @@ bool Sql_cmd_clone_local::execute(THD *thd)
   DBUG_ENTER("Sql_cmd_clone_local::execute");
   DBUG_PRINT("admin", ("CLONE type = local, DIR = %s", clone_dir));
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  auto sctx = thd->security_context();
+
+  if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first))
   {
-    my_error(ER_CMD_NEED_SUPER, MYF(0), "CLONE LOCAL");
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -1648,9 +1677,11 @@ bool Sql_cmd_clone_remote::execute(THD *thd)
   DBUG_PRINT("admin", ("CLONE type = remote, DIR = %s, FOR REPLICATION = %d",
                        clone_dir, is_for_replication));
 
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
+  auto sctx = thd->security_context();
+
+  if (!(sctx->has_global_grant(STRING_WITH_LEN("BACKUP_ADMIN")).first))
   {
-    my_error(ER_CMD_NEED_SUPER, MYF(0), "CLONE REMOTE");
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "BACKUP_ADMIN");
     DBUG_RETURN(true);
   }
 
@@ -1744,16 +1775,16 @@ bool Sql_cmd_set_role::execute(THD *thd)
   int ret= 0;
   switch (role_type)
   {
-    case ROLE_NONE:
+    case role_enum::ROLE_NONE:
       ret= mysql_set_active_role_none(thd);
     break;
-    case ROLE_DEFAULT:
+    case role_enum::ROLE_DEFAULT:
       ret= mysql_set_role_default(thd);
     break;
-    case ROLE_ALL:
+    case role_enum::ROLE_ALL:
       ret= mysql_set_active_role_all(thd, except_roles);
     break;
-    case ROLE_NAME:
+    case role_enum::ROLE_NAME:
       ret= mysql_set_active_role(thd, role_list);
     break;
   }
@@ -1798,104 +1829,27 @@ bool Sql_cmd_revoke_roles::execute(THD *thd)
 bool Sql_cmd_alter_user_default_role::execute(THD *thd)
 {
   DBUG_ENTER("Sql_cmd_alter_user_default_role::execute");
-  bool ret= false;
-  {
-    List<LEX_USER> *tmp_users= const_cast<List<LEX_USER > * >(users);
-    List_iterator<LEX_USER > it(*tmp_users);
-    LEX_USER *user;
-    while((user= it++))
-    {
-      /* Check for CURRENT_USER token */
-      user= get_current_user(thd, user);
-      if (strcmp(thd->security_context()->priv_user().str,
-                 user->user.str)  != 0)
-      {
-        TABLE_LIST table;
-        table.init_one_table("mysql", 5, "default_roles", 4, 0, TL_READ);
-        if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
-            check_global_access(thd, CREATE_USER_ACL))
-        {
-          my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
-                   user->user.str,
-                   user->host.str,
-                   (thd->password ?
-                    ER_THD(thd, ER_YES) :
-                    ER_THD(thd, ER_NO)));
-          DBUG_RETURN(true);
-        }
-      }
-      else
-      {
-        // Verify that the user actually is granted the role before it is
-        // set as default.
-        if (roles != 0)
-        {
-          List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
-          List_iterator<LEX_USER > roles_it(*tmp_roles);
-          LEX_USER *role;
-          while ((role= roles_it++))
-          {
-             if (!is_granted_role(thd->security_context()->priv_user(),
-                                  thd->security_context()->priv_host(),
-                                  role->user,
-                                  role->host))
-             {
-               my_error(ER_ACCESS_DENIED_ERROR,MYF(0),
-                        user->user.str,
-                        user->host.str,
-                        (thd->password ?
-                         ER_THD(thd, ER_YES) :
-                         ER_THD(thd, ER_NO)));
-               DBUG_RETURN(true);
-             }
-          }
-        }
-      } // end else
-    } // end while
-  } // end scope
-  List_of_auth_id_refs authids;
-  if (roles != 0)
-  {
-    List<LEX_USER> *tmp_roles= const_cast<List<LEX_USER > * >(roles);
-    List_iterator<LEX_USER > roles_it(*tmp_roles);
-    LEX_USER *role;
-    while ((role= roles_it++))
-    {
-      Auth_id_ref authid= std::make_pair(role->user, role->host);
-      authids.push_back(authid);
-    }
-  }
-  List<LEX_USER> *tmp_users= const_cast<List<LEX_USER > * >(users);
-  List_iterator<LEX_USER > it(*tmp_users);
-  LEX_USER *user;
-  while ((user= it++) && !ret)
-  {
-    user= get_current_user(thd, user);
-    if (role_type == ROLE_NONE)
-      ret= mysql_clear_default_roles(thd, user);
-    else if (role_type == ROLE_ALL)
-      ret= mysql_alter_user_set_default_roles_all(thd, user);
-    else if (role_type == ROLE_NAME)
-      ret= mysql_alter_user_set_default_roles(thd, user, authids);
-  }
+
+  bool ret= mysql_alter_or_clear_roles(thd, role_type, users, roles);
   if (!ret)
     my_ok(thd);
+
   DBUG_RETURN(ret);
 }
 
 
-bool Sql_cmd_show_privileges::execute(THD *thd)
+bool Sql_cmd_show_grants::execute(THD *thd)
 {
-  DBUG_ENTER("Sql_cmd_show_privileges::execute");
+  DBUG_ENTER("Sql_cmd_show_grants::execute");
   bool show_mandatory_roles= false;
   if (for_user == 0)
     show_mandatory_roles= true;
 
   if (for_user == 0 || for_user->user.str == 0)
   {
-	  /* SHOW PRIVILEGE FOR CURRENT_USER */
-	  LEX_USER current_user;
-	  get_default_definer(thd, &current_user);
+    /* SHOW PRIVILEGE FOR CURRENT_USER */
+    LEX_USER current_user;
+    get_default_definer(thd, &current_user);
     if (using_users == 0 || using_users->elements == 0)
     {
       List_of_auth_id_refs *active_list=

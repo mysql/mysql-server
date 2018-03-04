@@ -1,13 +1,20 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -407,13 +414,6 @@ void sys_var::set_user_host(THD *thd)
   if (thd->security_context()->host().length)
     strncpy(host, thd->security_context()->host().str,
             thd->security_context()->host().length);
-}
-
-ulonglong sys_var::get_timestamp()
-{
-  if (!timestamp)
-    timestamp= my_getsystime()/10.0;
-  return timestamp;
 }
 
 void sys_var::do_deprecated_warning(THD *thd)
@@ -872,6 +872,26 @@ err:
   DBUG_RETURN(error);
 }
 
+/**
+  This function is used to check if key management UDFs like
+  keying_key_generate/store/remove should proceed or not. If global
+  variable @@keyring_operations is OFF then above said udfs will fail.
+
+  @return Operation status
+    @retval 0 OK
+    @retval 1 ERROR, keyring operations are not allowed
+
+  @sa Sys_keyring_operations
+*/
+bool keyring_access_test()
+{
+  bool keyring_operations;
+  mysql_mutex_lock(&LOCK_keyring_operations);
+  keyring_operations= !opt_keyring_operations;
+  mysql_mutex_unlock(&LOCK_keyring_operations);
+  return keyring_operations;
+}
+
 /*****************************************************************************
   Functions to handle SET mysql_internal_variable=const_expr
 *****************************************************************************/
@@ -1060,20 +1080,13 @@ int set_var::light_check(THD *thd)
 }
 
 /**
-  Update variable source.
+  Update variable source, user, host and timestamp values.
 */
 
-void set_var::update_source()
+void set_var::update_source_user_host_timestamp(THD *thd)
 {
-    var->set_source(enum_variable_source::DYNAMIC);
-    var->set_source_name(EMPTY_STR.str);
-}
-
-/**
-  Update variables USER, HOST, TIMESTAMP
-*/
-void set_var::update_user_host_timestamp(THD *thd)
-{
+  var->set_source(enum_variable_source::DYNAMIC);
+  var->set_source_name(EMPTY_STR.str);
   var->set_user_host(thd);
   var->set_timestamp();
 }
@@ -1101,10 +1114,14 @@ int set_var::update(THD *thd)
     else
       ret= (int) var->set_default(thd, this);
   }
-  if (ret == 0)
+  /*
+   For PERSIST_ONLY syntax we dont change the value of the variable
+   for the current session, thus we should not change variables
+   source/timestamp/user/host.
+  */
+  if (ret == 0 && type != OPT_PERSIST_ONLY)
   {
-    update_user_host_timestamp(thd);
-    update_source();
+    update_source_user_host_timestamp(thd);
   }
   return ret;
 }

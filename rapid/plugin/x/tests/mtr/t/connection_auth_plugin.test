@@ -2,8 +2,9 @@
 
 --source include/have_ssl.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt: Invalid user or password'");
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
 
 ## Test starts here
 
@@ -26,11 +27,11 @@ GRANT ALL ON *.* TO xuser_sha256@localhost;
 --let $XBASIC= --file=$xtest_file 2>&1
 --let $XSSLPARAM= --ssl-cipher='DHE-RSA-AES256-SHA' $XBASIC
 
---echo Plain connection as root (just check) -> success
---exec $MYSQLXTEST -uroot                  $XBASIC
+--echo Plain connection as x_root (just check) -> success
+--exec $MYSQLXTEST -ux_root                  $XBASIC
 
---echo Ssl connection as root (just check) -> success
---exec $MYSQLXTEST -uroot                  $XSSLPARAM
+--echo Ssl connection as x_root (just check) -> success
+--exec $MYSQLXTEST -ux_root                  $XSSLPARAM
 
 --echo Ssl connection by native plugin  -> success
 --exec $MYSQLXTEST -uxuser_native -pnative $XSSLPARAM
@@ -59,5 +60,6 @@ GRANT ALL ON *.* TO xuser_sha256@localhost;
 # Postamble
 --remove_file $xtest_file
 
+--source include/xplugin_drop_user.inc
 DROP USER xuser_native@localhost, xuser_sha256@localhost;
 UNINSTALL PLUGIN mysqlx;

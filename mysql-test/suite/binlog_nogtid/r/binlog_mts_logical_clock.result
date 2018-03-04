@@ -70,9 +70,9 @@ CREATE TABLE tm (a int) ENGINE= MyISAM;
 RESET MASTER;
 CREATE TEMPORARY TABLE ttm1 (a INT) ENGINE=MyISAM;
 CREATE TEMPORARY TABLE tti1 (a INT) ENGINE=Innodb;
-*** The query is logged in four parts.
+*** The query is logged in four part.
 DROP TABLE tm,t1,ttm1,tti1;
-include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4;4 5;5 6]
+include/include/assert_logical_timestamps.inc [logical_timestamps=0 1;1 2;2 3;3 4;4 5;5 6 logical_timestamps_mix=0 1;1 2]
 CALL mtr.add_suppression("Some non-transactional changed tables couldn't be rolled back");
 CREATE TABLE t1 (a int) ENGINE= innodb;
 CREATE TABLE tm (a int) ENGINE= MyISAM;

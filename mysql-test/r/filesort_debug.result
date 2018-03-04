@@ -96,11 +96,6 @@ SELECT GROUP_CONCAT(DISTINCT t1.a) a FROM t1 WHERE t1.a =
 (SELECT a FROM t1) GROUP BY b;
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
-DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Out of memory (Needed N bytes), query: SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 1
-DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: SELECT * FROM t1 ORDER BY f1 ASC, f0
-DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Query execution was interrupted, query: SELECT * FROM t1 ORDER BY f1 ASC, f0
-DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: DELETE IGNORE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
-DATE_TIME [Note] Sort aborted, host: localhost, user: root, thread: #, error: Out of sort memory, consider increasing server sort buffer size, query: DELETE FROM t1 ORDER BY c26,c7,c23,c4,c25,c5,c20,
 #
 # Bug#21611270 ASSERTION IN FILESORT::MAKE_SORTORDER()
 #
@@ -129,3 +124,47 @@ SELECT (SELECT 1 FROM t2 GROUP BY d, a_t2 HAVING c) FROM t1 GROUP BY (1=2);
 NULL
 DROP TABLE t1, t2;
 SET sql_mode=default;
+#
+# Bug #27041420: ASSERTION `LENGTH == 3' FAILED.
+#
+CREATE TABLE t1(a DATE);
+INSERT INTO t1 VALUES('1000-01-01'), ('2017-10-31');
+SELECT HEX(WEIGHT_STRING(a)) FROM t1;
+HEX(WEIGHT_STRING(a))
+07D021
+0FC35F
+SELECT HEX(WEIGHT_STRING(a COLLATE utf8mb4_0900_ai_ci, 3, 3, 0xC0)) FROM t1;
+HEX(WEIGHT_STRING(a COLLATE utf8mb4_0900_ai_ci, 3, 3, 0xC0))
+1C3E1C
+1C3F1C
+SELECT HEX(WEIGHT_STRING(a COLLATE utf8mb4_0900_ai_ci, 4, 3, 0xC0)) FROM t1;
+HEX(WEIGHT_STRING(a COLLATE utf8mb4_0900_ai_ci, 4, 3, 0xC0))
+1C3E1C3D
+1C3F1C3D
+DROP TABLE t1;
+#
+# Bug #27041543: ASSERTION `MAX_LENGTH >= LENGTH' FAILED.
+#
+SET NAMES utf8,@@character_set_results=NULL;
+CREATE TEMPORARY TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+SELECT 1 FROM t1 ORDER BY @x:=makedate(a,a);
+1
+1
+DROP TABLE t1;
+CREATE TABLE t1 AS SELECT 1 AS a WHERE false;
+CREATE TABLE t2 AS SELECT @x:=makedate(a,a) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t2;
+CREATE TABLE t2 AS SELECT @a:=@b:=@x:=makedate(a,a) FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `@a:=@b:=@x:=makedate(a,a)` varchar(10) CHARACTER SET utf8 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t2;
+DROP TABLE t1;

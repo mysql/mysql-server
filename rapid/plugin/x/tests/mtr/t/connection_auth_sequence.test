@@ -1,0 +1,150 @@
+## Test cases for authorization plugins
+
+--source include/have_ssl.inc
+--let $dont_load_mysqlx_cleaner_plugin = 0
+--source include/xplugin_preamble.inc
+
+
+#
+## Setup
+#
+
+call mtr.add_suppression("Maximum number of authentication attempts reached");
+
+--write_file $MYSQL_TMP_DIR/auth_seq.tmp
+-->import connection_auth_mechanism_memory_helpers.macro
+-->import ssl.macro
+
+-->echo #
+-->echo ## Try to authenticate two times, last one succesfull
+-->echo #
+newsession seq	-;
+
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_native	native	test	sha256_memory;
+
+login xuser_native	native	test	plain;
+closesession;
+
+
+-->echo #
+-->echo ## 1. User must be able to perform authentication sequence with different mechanism
+-->echo ##
+-->echo ## * Try to authenticate three times, last one succesfull
+-->echo ##
+-->echo ## Requirements: PROTO1
+-->echo #
+-->echo
+
+newsession seq	-;
+
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_sha256	sha256	test	sha256_memory;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_sha256	sha256	test	mysql41;
+
+login xuser_sha256	sha256	test	plain;
+closesession;
+
+
+-->echo #
+-->echo ## 2. Server must disconnect user that tries too many authentications
+-->echo ##
+-->echo ## * Try to authenticate three times, after last error connection is disconnected
+-->echo ##
+-->echo ## Requirements: PROTO2
+-->echo #
+-->echo
+
+newsession seq	-;
+
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_cache2	wrong_pass	test	sha256_memory;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_cache2	wrong_pass	test	mysql41;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_cache2	wrong_pass	test	plain;
+peerdisc 30000 30000;
+
+
+-->echo
+-->echo #######################################################################
+-->echo ## 3. After succesfull authentication, user must be able to reset session and use
+-->echo ##    authentication sequence
+-->echo ##
+-->echo ## * Establish a session, reset it, try to do the sequence ending succesful
+-->echo ## * Establish a session, reset it, try to do the sequence ending with failure
+-->echo ##
+-->echo ## Requirements: PROTO3
+-->echo #
+-->echo
+-->echo #######################################################################
+-->echo # Sequence succesfull
+newsession seq	-;
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+login xuser_sha256	sha256	test	sha256_memory;
+
+Mysqlx.Session.Reset {
+}
+recvtype Mysqlx.Ok;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_sha256	sha256	test	mysql41;
+
+login xuser_sha256	sha256	test	sha256_memory;
+
+closesession;
+
+-->echo
+-->echo #######################################################################
+-->echo # Sequence failed
+newsession seq	-;
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+login xuser_sha256	sha256	test	sha256_memory;
+
+Mysqlx.Session.Reset {
+}
+recvtype Mysqlx.Ok;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_sha256	wrong_pass	test	mysql41;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_sha256	wrong_pass	test	sha256_memory;
+
+expecterror ER_ACCESS_DENIED_ERROR;
+login xuser_sha256	wrong_pass	test	plain;
+
+peerdisc 30000 30000;
+
+EOF
+
+--let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='AES256-SHA'
+
+--source ../include/create_mysql_accounts_for_xplugin_tests.inc
+
+
+#
+## Test starts here
+#
+
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.tmp 2>&1;
+
+#
+# Postamble
+#
+--remove_file $MYSQL_TMP_DIR/auth_seq.tmp
+
+--source ../include/remove_mysql_accounts_for_xplugin_tests.inc
+
+UNINSTALL PLUGIN mysqlx;
+UNINSTALL PLUGIN mysqlx_cache_cleaner;

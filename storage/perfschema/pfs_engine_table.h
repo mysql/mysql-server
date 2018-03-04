@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
@@ -25,9 +32,9 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pfs.h"
 #include "sql/auth/auth_common.h" /* struct ACL_* */
 #include "sql/key.h"
+#include "storage/perfschema/pfs.h"
 
 class PFS_engine_key;
 class PFS_engine_index;
@@ -40,7 +47,7 @@ typedef struct st_thr_lock THR_LOCK;
   Performance schema tables (declarations).
 */
 
-#include "pfs_instr_class.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 class Field;
 struct PFS_engine_table_share;
@@ -195,9 +202,6 @@ public:
   /** Reset the cursor position to the beginning of the table. */
   virtual void reset_position(void) = 0;
 
-  /** Get the normalizer and class type for the current row. */
-  void get_normalizer(PFS_instr_class *instr_class);
-
   /** Destructor. */
   virtual ~PFS_engine_table()
   {
@@ -246,7 +250,6 @@ protected:
     : m_share_ptr(share),
       m_pos_ptr(pos),
       m_normalizer(NULL),
-      m_class_type(PFS_CLASS_NONE),
       m_index(NULL)
   {
   }
@@ -257,8 +260,6 @@ protected:
   void *m_pos_ptr;
   /** Current normalizer */
   time_normalizer *m_normalizer;
-  /** Current class type */
-  enum PFS_class_type m_class_type;
   /** Current index. */
   PFS_engine_index_abstract *m_index;
 };
@@ -496,11 +497,9 @@ public:
   {
   }
 
-  void
-  init_mutex();
+  void init_mutex();
 
-  void
-  destroy_mutex();
+  void destroy_mutex();
 
   void
   lock_share_list()

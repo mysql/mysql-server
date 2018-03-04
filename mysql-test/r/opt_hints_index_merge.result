@@ -235,7 +235,7 @@ Warnings:
 Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f2`) */ count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
 EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ count(*) FROM t1 WHERE f2 = 3 AND f5 > '' AND f3 = 'c';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,f2,f3	f3	5	const	72	14.81	Using index condition; Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,f2,f3	f2	9	NULL	64	25.00	Using index condition; Using where
 Warnings:
 Note	1003	/* select#1 */ select /*+ NO_INDEX_MERGE(`t1`@`select#1` `f3`) */ count(0) AS `count(*)` from `test`.`t1` where ((`test`.`t1`.`f3` = 'c') and (`test`.`t1`.`f2` = 3) and (`test`.`t1`.`f5` > ''))
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE f4 = 'x' AND f2 = 5 AND f3 = 'n';

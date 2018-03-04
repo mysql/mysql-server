@@ -52,7 +52,7 @@ BUFFER_POOL_SIZE_IN_MB
 INNODB_FLUSH_METHOD
 O_DIRECT_NO_FSYNC
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
 
 #########################################
 # RESTART 3                             #
@@ -72,7 +72,7 @@ LOG_FILE_SIZE_IN_MB
 INNODB_FLUSH_METHOD
 O_DIRECT_NO_FSYNC
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
 
 #########################################
 # RESTART 4                             #
@@ -93,7 +93,7 @@ ON
 INNODB_FLUSH_METHOD
 nosync
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method" found
 
 #########################################
 # RESTART 5                             #
@@ -112,9 +112,9 @@ LOG_FILE_SIZE_IN_MB
 INNODB_FLUSH_METHOD
 nosync
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method" found
 
 #########################################
 # RESTART 6                             #
@@ -134,8 +134,8 @@ LOG_FILE_SIZE_IN_MB
 INNODB_FLUSH_METHOD
 nosync
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method" found
 SET innodb_dedicated_server = 0;
 ERROR HY000: Variable 'innodb_dedicated_server' is a read only variable
 SELECT @@innodb_dedicated_server;

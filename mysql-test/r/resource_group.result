@@ -37,11 +37,11 @@ DROP RESOURCE GROUP user_resource;
 # 8. Privilege Error - user with default privileges can't create resource group.
 CREATE USER u1;
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 # 9. Privilege Error  - user with  RESOURCE_GROUP_USER privilege can't create resource group.
 GRANT RESOURCE_GROUP_USER ON *.* TO u1;
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3 THREAD_PRIORITY=5;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP USER u1;
 # 10. Length of resource group name is greater than maximum allowed limit of identifier names.
 CREATE RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff TYPE=USER;
@@ -84,11 +84,11 @@ COUNT(*) = 0
 # 8. Privilege Error - user with default privileges can't alter resource group.
 CREATE USER u1;
 ALTER RESOURCE GROUP user_resource VCPU=0 THREAD_PRIORITY=5;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 # 9. Privilege Error  - user with  RESOURCE_GROUP_USER privilege can't alter resource group.
 GRANT RESOURCE_GROUP_USER ON *.* TO u1;
 ALTER RESOURCE GROUP user_resource  VCPU=0 THREAD_PRIORITY=5;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP USER u1;
 # 10. Length of resource group name is greater than maximum allowed limit of identifier names.
 ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff TYPE=USER;
@@ -140,7 +140,7 @@ CREATE USER u1;
 GRANT RESOURCE_GROUP_USER ON *.* TO u1;
 CREATE RESOURCE GROUP user_resource TYPE=USER VCPU=1-3;
 DROP RESOURCE GROUP user_resource;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP RESOURCE GROUP user_resource;
 DROP USER u1;
 # 10. Length of resource group name is greater than maximum allowed limit of identifier names.
@@ -177,11 +177,11 @@ COUNT(*) = 2
 # 6. Privilege Tests
 CREATE USER u1;
 SET RESOURCE GROUP user_resource;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN OR RESOURCE_GROUP_USER privilege(s) for this operation
 GRANT RESOURCE_GROUP_USER ON *.* TO u1;
 SET RESOURCE GROUP user_resource;
 SET RESOURCE GROUP system_resource;
-ERROR 42000: Access denied; you need (at least one of) the SUPER OR RESOURCE_GROUP_ADMIN privilege(s) for this operation
+ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP USER u1;
 # 7. SET RESOURCE GROUP on invalid thread id will give warning.
 SET RESOURCE GROUP user_resource FOR 77777;
@@ -203,14 +203,14 @@ SELECT /*+ RESOURCE_GROUP(rg) */ 1;
 1
 1
 Warnings:
-Warning	4553	Resource Group 'rg' does not exist.
+Warning	4552	Resource Group 'rg' does not exist.
 # 2. Using system resource group in hint for a non-privilege user should give warning
 CREATE USER u1;
 SELECT /*+ RESOURCE_GROUP(system_resource) */ 1;
 1
 1
 Warnings:
-Warning	4563	Unable to bind resource group system_resource with thread id ID.(System resource group can't be bound with a session thread).
+Warning	4562	Unable to bind resource group system_resource with thread id ID.(System resource group can't be bound with a session thread).
 DROP USER u1;
 # 3. Length of resource group name is greater than maximum allowed limit of identifier names.
 #    length shall be truncated in this case and warning output to user.

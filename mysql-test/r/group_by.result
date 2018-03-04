@@ -705,33 +705,69 @@ alias
 1,2
 1
 drop table t1;
-create table t1 (a integer, b integer, c integer);
-insert into t1 (a,b) values (1,2),(1,3),(2,5);
-select a, 0.1*0+1 r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2=1;
+CREATE TABLE t1 (a INTEGER, b INTEGER, c INTEGER);
+INSERT INTO t1 (a,b) VALUES (1,2),(1,3),(2,5);
+SELECT a, 0.1*0+1 r2, SUM(1) r1 FROM t1 WHERE a = 1 GROUP BY a HAVING r1>1 AND r2=1;
 a	r2	r1
 1	1.0	2
-select a, round(rand(100)*10) r2, sum(1) r1 from t1 where a = 1 group  by a having r1>1 and r2<=2;
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a;
 a	r2	r1
 1	2	2
-select a,sum(b) from t1 where a=1 group by c;
-a	sum(b)
+2	7	1
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
+HAVING r1>=1 AND r2<=7 AND r2 > 0;
+a	r2	r1
+1	2	2
+2	7	1
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 GROUP BY a
+HAVING r1>=1 AND (SELECT r2<=7 AND r2 > 0 FROM t1 AS t2 LIMIT 1);
+a	r2	r1
+1	2	2
+2	7	1
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
+GROUP BY a HAVING r1>1 AND r2<=2;
+a	r2	r1
+1	2	2
+SELECT a, ROUND(RAND(100)*10) r2, SUM(1) r1 FROM t1 WHERE a = 1
+GROUP BY a HAVING r1>1 AND r2<=2 ORDER BY a+r2+r1;
+a	r2	r1
+1	2	2
+SELECT a,SUM(b) FROM t1 WHERE a=1 GROUP BY c;
+a	SUM(b)
 1	5
-select a*sum(b) from t1 where a=1 group by c;
-a*sum(b)
+SELECT a*SUM(b) FROM t1 WHERE a=1 GROUP BY c;
+a*SUM(b)
 5
-select sum(a)*sum(b) from t1 where a=1 group by c;
-sum(a)*sum(b)
+SELECT SUM(a)*SUM(b) FROM t1 WHERE a=1 GROUP BY c;
+SUM(a)*SUM(b)
 10
-select a,sum(b) from t1 where a=1 group by c having a=1;
-a	sum(b)
+SELECT a,SUM(b) FROM t1 WHERE a=1 GROUP BY c HAVING a=1;
+a	SUM(b)
 1	5
-select a as d,sum(b) from t1 where a=1 group by c having d=1;
-d	sum(b)
+SELECT a AS d,SUM(b) FROM t1 WHERE a=1 GROUP BY c HAVING d=1;
+d	SUM(b)
 1	5
-select sum(a)*sum(b) as d from t1 where a=1 group by c having d > 0;
+SELECT SUM(a)*SUM(b) AS d FROM t1 WHERE a=1 GROUP BY c HAVING d > 0;
 d
 10
-drop table t1;
+SELECT a, ROUND(RAND(100)*10) r2 FROM t1;
+a	r2
+1	2
+1	7
+2	10
+SELECT ROUND(RAND(100)*10) r2 FROM t1 GROUP BY r2;
+r2
+2
+7
+10
+DROP TABLE t1;
+CREATE TABLE t1(i INT);
+INSERT INTO t1 VALUES (NULL),(1);
+SELECT DISTINCT STD(i)+0 as splus0, i+0 as plain FROM t1 GROUP BY i ;
+splus0	plain
+NULL	NULL
+0	1
+DROP TABLE t1;
 create table t1(a int) engine=myisam;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(8),(9);
 create table t2 (
@@ -2157,8 +2193,7 @@ SET BIG_TABLES=1;
 CREATE TABLE t1(a INT);
 INSERT INTO t1 VALUES (0),(0);
 SELECT 1 FROM t1 GROUP BY IF(`a`,'','');
-1
-1
+ERROR 42000: The used storage engine can't index column 'tmp_field_0'
 SELECT 1 FROM t1 GROUP BY TRIM(LEADING RAND() FROM '');
 1
 1

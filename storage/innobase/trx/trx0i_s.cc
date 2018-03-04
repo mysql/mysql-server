@@ -3,16 +3,24 @@
 Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -972,8 +980,8 @@ fetch_data_into_cache_low(
 						transactions */
 	trx_ut_list_t*		trx_list)	/*!< in: trx list */
 {
-	const trx_t*		trx;
-	bool			rw_trx_list = trx_list == &trx_sys->rw_trx_list;
+	trx_t*		trx;
+	bool		rw_trx_list = trx_list == &trx_sys->rw_trx_list;
 
 	ut_ad(rw_trx_list || trx_list == &trx_sys->mysql_trx_list);
 
@@ -992,11 +1000,14 @@ fetch_data_into_cache_low(
 		i_s_trx_row_t*		trx_row;
 		i_s_locks_row_t*	requested_lock_row;
 
+		trx_mutex_enter(trx);
+
 		/* Note: Read only transactions that modify temporary
 		tables an have a transaction ID */
 		if (!trx_is_started(trx)
 		    || (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
 
+			trx_mutex_exit(trx);
 			continue;
 		}
 
@@ -1008,6 +1019,7 @@ fetch_data_into_cache_low(
 						     &requested_lock_row)) {
 
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
 
@@ -1019,6 +1031,7 @@ fetch_data_into_cache_low(
 		if (trx_row == NULL) {
 
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
 
@@ -1027,8 +1040,11 @@ fetch_data_into_cache_low(
 			/* memory could not be allocated */
 			--cache->innodb_trx.rows_used;
 			cache->is_truncated = TRUE;
+			trx_mutex_exit(trx);
 			return;
 		}
+
+		trx_mutex_exit(trx);
 	}
 }
 

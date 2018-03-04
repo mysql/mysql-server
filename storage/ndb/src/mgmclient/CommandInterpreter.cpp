@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,6 +30,7 @@
 #include <util/BaseString.hpp>
 #include <util/Vector.hpp>
 #include <kernel/BlockNumbers.h>
+#include <kernel/signaldata/DumpStateOrd.hpp>
 
 /** 
  *  @class CommandInterpreter
@@ -114,6 +122,7 @@ public:
   int  executeTestOff(int processId, const char* parameters, bool all);
   int  executeStatus(int processId, const char* parameters, bool all);
   int  executeEventReporting(int processId, const char* parameters, bool all);
+  int  executeNodeLog(int processId, const char* parameters, bool all);
   int  executeDumpState(int processId, const char* parameters, bool all);
   int  executeReport(int processId, const char* parameters, bool all);
   int  executeStartBackup(char * parameters, bool interactive);
@@ -245,6 +254,8 @@ static const char* helpText =
 "<id> START                             Start data node (started with -n)\n"
 "<id> RESTART [-n] [-i] [-a] [-f]       Restart data or management server node\n"
 "<id> STOP [-a] [-f]                    Stop data or management server node\n"
+"<id> NODELOG DEBUG ON                  Enable Debug logging in node log\n"
+"<id> NODELOG DEBUG OFF                 Disable Debug logging in node log\n"
 "ENTER SINGLE USER MODE <id>            Enter single user mode\n"
 "EXIT SINGLE USER MODE                  Exit single user mode\n"
 "<id> STATUS                            Print status\n"
@@ -463,6 +474,14 @@ static const char* helpTextExitSingleUserMode =
 "                   (that is, all running mysqld processes) to access the database. \n" 
 ;
 
+static const char* helpTextNodelog =
+"---------------------------------------------------------------------------\n"
+" NDB Cluster -- Management Client -- Help for NODELOG command\n"
+"---------------------------------------------------------------------------\n"
+"<id> NODELOG DEBUG ON   Enable debug messages in node log\n"
+"<id> NODELOG DEBUG OFF  Disable debug messages in node log\n"
+;
+
 static const char* helpTextStatus =
 "---------------------------------------------------------------------------\n"
 " NDB Cluster -- Management Client -- Help for STATUS command\n"
@@ -626,6 +645,11 @@ struct st_cmd_help {
   {"EXIT SINGLE USER MODE", helpTextExitSingleUserMode, NULL},
   {"STATUS", helpTextStatus, NULL},
   {"CLUSTERLOG", helpTextClusterlog, NULL},
+  {"NODELOG", helpTextNodelog, NULL},
+  {"NODELOG DEBUG", helpTextNodelog, NULL},
+  {"NODELOG DEBUG", helpTextNodelog, NULL},
+  {"NODELOG DEBUG ON", helpTextNodelog, NULL},
+  {"NODELOG DEBUG OFF", helpTextNodelog, NULL},
   {"PURGE STALE SESSIONS", helpTextPurgeStaleSessions, NULL},
   {"CONNECT", helpTextConnect, NULL},
   {"REPORT", helpTextReport, helpTextReportFn},
@@ -1249,7 +1273,6 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
     disconnect();
     connect(interactive);
   }
-
   if (native_strcasecmp(firstToken, "SHOW") == 0) {
     Guard g(m_print_mutex);
     m_error = executeShow(allAfterFirstToken);
@@ -1372,6 +1395,7 @@ static const CommandInterpreter::CommandFunctionPair commands[] = {
   ,{ "STATUS", &CommandInterpreter::executeStatus }
   ,{ "LOGLEVEL", &CommandInterpreter::executeLogLevel }
   ,{ "CLUSTERLOG", &CommandInterpreter::executeEventReporting }
+  ,{ "NODELOG", &CommandInterpreter::executeNodeLog }
 #ifdef ERROR_INSERT
   ,{ "ERROR", &CommandInterpreter::executeError }
 #endif
@@ -2912,6 +2936,60 @@ CommandInterpreter::executeTestOff(int processId,
   return 0;
 }
 
+
+//*****************************************************************************
+//*****************************************************************************
+
+int
+CommandInterpreter::executeNodeLog(int processId,
+                                   const char* parameters, 
+                                   bool all)
+{
+  Vector<BaseString> command_list;
+  if (parameters)
+    split_args(parameters, command_list);
+
+  int ret_val;
+  int params[1];
+  int num_params = 1;
+  if (command_list.size() != 2)
+  {
+    ndbout_c("ERROR: Wrong number of argument(s).");
+    ret_val = -1;
+    return ret_val;
+  }
+
+  const char *item = command_list[0].c_str();
+  if (native_strcasecmp(item, "DEBUG") == 0)
+  {
+    const char *item = command_list[1].c_str();
+    if (native_strcasecmp(item, "ON") == 0)
+    {
+      DBUG_PRINT("info",("ON"));
+      params[0] = DumpStateOrd::EnableEventLoggerDebug;
+    }
+    else if (native_strcasecmp(item, "OFF") == 0)
+    {
+      DBUG_PRINT("info",("OFF"));
+      params[0] = DumpStateOrd::DisableEventLoggerDebug;
+    }
+    else
+    {
+      ndbout << "Invalid argument." << endl;
+      ret_val = -1;
+      return ret_val;
+   }
+  }
+  else
+  {
+    ndbout << "Invalid argument." << endl;
+    ret_val = -1;
+    return ret_val;
+  }
+ 
+  struct ndb_mgm_reply reply;
+  return ndb_mgm_dump_state(m_mgmsrv, processId, params, num_params, &reply);
+}
 
 //*****************************************************************************
 //*****************************************************************************

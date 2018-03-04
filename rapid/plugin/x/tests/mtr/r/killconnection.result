@@ -10,7 +10,7 @@ RUN create user killsession@localhost identified by 'killsession'
 0 rows affected
 RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
 USER	COMMAND	STATE
-root	Query	executing
+x_root	Query	executing
 root	Sleep	
 event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
@@ -35,7 +35,7 @@ Mysqlx.Ok {
 ok
 RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
 USER	COMMAND	STATE
-root	Query	executing
+x_root	Query	executing
 root	Sleep	
 event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
@@ -44,7 +44,7 @@ While executing kill 5126:
 Got expected error: Unknown thread id: 5126 (code 1094)
 RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
 USER	COMMAND	STATE
-root	Query	executing
+x_root	Query	executing
 root	Sleep	
 event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
@@ -57,8 +57,8 @@ RUN set @current := connection_id()
 0 rows affected
 RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
 USER	COMMAND	STATE
-root	Query	executing
-root	Sleep	
+x_root	Query	executing
+x_root	Sleep	
 root	Sleep	
 event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
@@ -71,7 +71,7 @@ sleep(1)
 0 rows affected
 RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
 USER	COMMAND	STATE
-root	Query	executing
+x_root	Query	executing
 root	Sleep	
 event_scheduler	Daemon	Waiting on empty queue
 0 rows affected
@@ -85,7 +85,7 @@ RUN set @current := connection_id()
 0 rows affected
 RUN select USER,COMMAND,STATE from information_schema.processlist order by ID desc
 USER	COMMAND	STATE
-root	Query	executing
+x_root	Query	executing
 root	Sleep	
 event_scheduler	Daemon	Waiting on empty queue
 0 rows affected

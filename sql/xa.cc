@@ -1,17 +1,24 @@
 /* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/xa.h"
 
@@ -124,7 +131,33 @@ static bool xacommit_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
-    hton->commit_by_xid(hton, (XID *)arg);
+  {
+    xa_status_code ret= hton->commit_by_xid(hton, (XID *)arg);
+
+    /*
+      Consider XAER_NOTA as success since not every storage should be
+      involved into XA transaction, therefore absence of transaction
+      specified by xid in storage engine doesn't mean that a real error
+      happened. To illustrate it, lets consider the corner case
+      when no one storage engine is involved into XA transaction:
+      XA START 'xid1';
+      XA END 'xid1';
+      XA PREPARE 'xid1';
+      XA COMMIT 'xid1';
+      For this use case, handing of the statement XA COMMIT leads to
+      returning XAER_NOTA by ha_innodb::commit_by_xid because there isn't
+      a real transaction managed by innodb. So, there is no XA transaction
+      with specified xid in resource manager represented by InnoDB storage
+      engine although such transaction exists in transaction manager
+      represented by mysql server runtime.
+    */
+    if (ret != XA_OK && ret != XAER_NOTA)
+    {
+      my_error(ER_XAER_RMERR,  MYF(0));
+      return true;
+    }
+    return false;
+  }
 
   return FALSE;
 }
@@ -134,16 +167,42 @@ static bool xarollback_handlerton(THD*, plugin_ref plugin, void *arg)
 {
   handlerton *hton= plugin_data<handlerton*>(plugin);
   if (hton->state == SHOW_OPTION_YES && hton->recover)
-    hton->rollback_by_xid(hton, (XID *)arg);
+  {
+    xa_status_code ret= hton->rollback_by_xid(hton, (XID *)arg);
 
+    /*
+      Consider XAER_NOTA as success since not every storage should be
+      involved into XA transaction, therefore absence of transaction
+      specified by xid in storage engine doesn't mean that a real error
+      happened. To illustrate it, lets consider the corner case
+      when no one storage engine is involved into XA transaction:
+      XA START 'xid1';
+      XA END 'xid1';
+      XA PREPARE 'xid1';
+      XA COMMIT 'xid1';
+      For this use case, handing of the statement XA COMMIT leads to
+      returning XAER_NOTA by ha_innodb::commit_by_xid because there isn't
+      a real transaction managed by innodb. So, there is no XA transaction
+      with specified xid in resource manager represented by InnoDB storage
+      engine although such transaction exists in transaction manager
+      represented by mysql server runtime.
+    */
+    if (ret != XA_OK && ret != XAER_NOTA)
+    {
+      my_error(ER_XAER_RMERR,  MYF(0));
+      return true;
+    }
+    return false;
+  }
   return FALSE;
 }
 
 
-static void ha_commit_or_rollback_by_xid(THD*, XID *xid, bool commit)
+static bool ha_commit_or_rollback_by_xid(THD*, XID *xid, bool commit)
 {
-  plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
-                 MYSQL_STORAGE_ENGINE_PLUGIN, xid);
+  return plugin_foreach(nullptr, commit ? xacommit_handlerton :
+                                          xarollback_handlerton,
+                        MYSQL_STORAGE_ENGINE_PLUGIN, xid);
 }
 
 
@@ -238,7 +297,7 @@ int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
     DBUG_RETURN(0);
 
   if (info.commit_list)
-    LogErr(INFORMATION_LEVEL, ER_XA_STARTING_RECOVERY);
+    LogErr(SYSTEM_LEVEL, ER_XA_STARTING_RECOVERY);
 
   if (total_ha_2pc > (ulong)opt_bin_log + 1)
   {
@@ -267,7 +326,7 @@ int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
   }
   if (!info.list)
   {
-    LogErr(ERROR_LEVEL, ER_OUTOFMEMORY,
+    LogErr(ERROR_LEVEL, ER_SERVER_OUTOFMEMORY,
            static_cast<int>(info.len * sizeof(XID)));
     DBUG_RETURN(1);
   }
@@ -285,7 +344,7 @@ int ha_recover(const memroot_unordered_set<my_xid> *commit_list)
     DBUG_RETURN(1);
   }
   if (info.commit_list)
-    LogErr(INFORMATION_LEVEL, ER_XA_RECOVERY_DONE);
+    LogErr(SYSTEM_LEVEL, ER_XA_RECOVERY_DONE);
   DBUG_RETURN(0);
 }
 
@@ -319,6 +378,60 @@ void cleanup_trans_state(THD *thd)
 
 
 /**
+  Find XA transaction in cache by its xid value.
+
+  @param thd                     Thread context
+  @param xid_for_trn_in_recover  xid value to look for in transaction cache
+  @param xid_state               State of XA transaction in current session
+
+  @return Pointer to an instance of Transaction_ctx corresponding to a
+          xid in argument. If XA transaction not found returns nullptr and
+          sets an error in DA to specify a reason of search failure.
+*/
+
+static Transaction_ctx* find_trn_for_recover_and_check_its_state(
+  THD *thd,
+  xid_t *xid_for_trn_in_recover,
+  XID_STATE *xid_state)
+{
+  if (!xid_state->has_state(XID_STATE::XA_NOTR))
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+    return nullptr;
+  }
+
+  /*
+    Note, that there is no race condition here between
+    transaction_cache_search and transaction_cache_delete,
+    since we always delete our own XID
+    (m_xid == thd->transaction().xid_state().m_xid).
+    The only case when m_xid != thd->transaction.xid_state.m_xid
+    and xid_state->in_thd == 0 is in the function
+    transaction_cache_insert_recovery(XID), which is called before starting
+    client connections, and thus is always single-threaded.
+  */
+  Transaction_ctx *transaction=
+    transaction_cache_search(xid_for_trn_in_recover);
+
+  XID_STATE *xs= (transaction ? transaction->xid_state() : nullptr);
+  if (!xs || !xs->is_in_recovery())
+  {
+    my_error(ER_XAER_NOTA, MYF(0));
+    return nullptr;
+  }
+  else if (thd->in_multi_stmt_transaction_mode())
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+    return nullptr;
+  }
+
+  DBUG_ASSERT(xs->is_in_recovery());
+
+  return transaction;
+}
+
+
+/**
   Commit and terminate a XA transaction.
 
   @param thd    Current thread
@@ -340,37 +453,14 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
 
   if (!xid_state->has_same_xid(m_xid))
   {
-    if (!xid_state->has_state(XID_STATE::XA_NOTR))
-    {
-      my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+    Transaction_ctx *transaction=
+      find_trn_for_recover_and_check_its_state(thd, m_xid, xid_state);
 
+    if (!transaction)
       DBUG_RETURN(true);
-    }
-    /*
-      Note, that there is no race condition here between
-      transaction_cache_search and transaction_cache_delete,
-      since we always delete our own XID
-      (m_xid == thd->transaction().xid_state().m_xid).
-      The only case when m_xid != thd->transaction.xid_state.m_xid
-      and xid_state->in_thd == 0 is in the function
-      transaction_cache_insert_recovery(XID), which is called before starting
-      client connections, and thus is always single-threaded.
-    */
-    Transaction_ctx *transaction= transaction_cache_search(m_xid);
-    XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
-    res= !xs || !xs->is_in_recovery();
-    if (res)  // todo: fix transaction cleanup, BUG#20451386
-    {
-      my_error(ER_XAER_NOTA, MYF(0));
-      DBUG_RETURN(true);
-    }
-    else if (thd->in_multi_stmt_transaction_mode())
-    {
-      my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
-      DBUG_RETURN(true);
-    }
 
-    DBUG_ASSERT(xs->is_in_recovery());
+    XID_STATE *xs= transaction->xid_state();
+
     /*
       Resumed transaction XA-commit.
       The case deals with the "external" XA-commit by either a slave applier
@@ -378,6 +468,22 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
     */
     res= xs->xa_trans_rolled_back();
 
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    /*
+      If the original transaction is not rolled back then initiate a new PSI
+      transaction to update performance schema related information.
+     */
+    if (!res)
+    {
+      thd->m_transaction_psi= MYSQL_START_TRANSACTION(&thd->m_transaction_state,
+                                                      NULL, NULL, thd->tx_isolation,
+                                                      thd->tx_read_only, false);
+      gtid_set_performance_schema_values(thd);
+      MYSQL_SET_TRANSACTION_XID(thd->m_transaction_psi,
+                                (const void *)xs->get_xid(),
+                                (int)xs->get_state());
+    }
+#endif
     /*
       xs' is_binlogged() is passed through xid_state's member to low-level
       logging routines for deciding how to log.  The same applies to
@@ -417,9 +523,27 @@ bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
       my_error(ER_XA_RBROLLBACK, MYF(0));
     res= res || gtid_error;
 
-    // todo xa framework: return an error
-    ha_commit_or_rollback_by_xid(thd, m_xid, !res);
+    res= ha_commit_or_rollback_by_xid(thd, m_xid, !res) || res;
+
     xid_state->unset_binlogged();
+
+#ifdef HAVE_PSI_TRANSACTION_INTERFACE
+    if (thd->m_transaction_psi)
+    {
+      if (!res)
+        /*
+          Mark the current PREPARED transaction as COMMITTED in PSI context.
+        */
+        MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
+      else
+        /*
+          Mark the current PREPARED transaction as ROLLED BACK in PSI context.
+        */
+        MYSQL_ROLLBACK_TRANSACTION(thd->m_transaction_psi);
+
+      thd->m_transaction_psi= nullptr;
+    }
+#endif
 
     transaction_cache_delete(transaction);
     gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
@@ -568,29 +692,14 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 
   if (!xid_state->has_same_xid(m_xid))
   {
-    if (!xid_state->has_state(XID_STATE::XA_NOTR))
-    {
-      my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
+    Transaction_ctx *transaction=
+      find_trn_for_recover_and_check_its_state(thd, m_xid, xid_state);
 
+    if (!transaction)
       DBUG_RETURN(true);
-    }
 
-    Transaction_ctx *transaction= transaction_cache_search(m_xid);
-    XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
-    if (!xs || !xs->is_in_recovery())
-    {
-      my_error(ER_XAER_NOTA, MYF(0));
-      DBUG_RETURN(true);
-    }
-    else if (thd->in_multi_stmt_transaction_mode())
-    {
-      my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
-      DBUG_RETURN(true);
-    }
-
+    XID_STATE *xs= transaction->xid_state();
     bool gtid_error= false;
-
-    DBUG_ASSERT(xs->is_in_recovery());
 
     /*
       Acquire metadata lock which will ensure that XA ROLLBACK is blocked
@@ -620,16 +729,16 @@ bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
     */
     if ((gtid_error= commit_owned_gtids(thd, true, &need_clear_owned_gtid)))
       my_error(ER_XA_RBROLLBACK, MYF(0));
-    xs->xa_trans_rolled_back();
+    bool res= xs->xa_trans_rolled_back();
     if (xs->is_binlogged())
       xid_state->set_binlogged();
     else
       xid_state->unset_binlogged();
-    ha_commit_or_rollback_by_xid(thd, m_xid, false);
+    res= ha_commit_or_rollback_by_xid(thd, m_xid, false) || res;
     xid_state->unset_binlogged();
     transaction_cache_delete(transaction);
     gtid_state_commit_or_rollback(thd, need_clear_owned_gtid, !gtid_error);
-    DBUG_RETURN(thd->is_error());
+    DBUG_RETURN(res || gtid_error);
   }
 
   if (xid_state->has_state(XID_STATE::XA_NOTR) ||
@@ -1418,7 +1527,6 @@ bool applier_reset_xa_trans(THD *thd)
   trn_ctx->set_no_2pc(Transaction_ctx::SESSION, false);
   trn_ctx->cleanup();
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
-  MYSQL_COMMIT_TRANSACTION(thd->m_transaction_psi);
   thd->m_transaction_psi= NULL;
 #endif
   thd->mdl_context.release_transactional_locks();

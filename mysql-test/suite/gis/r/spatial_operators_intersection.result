@@ -431,7 +431,7 @@ LINESTRING(11 15,19 15)
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_of_elems)))
-LINESTRING(11 15,19 15)
+GEOMETRYCOLLECTION(MULTILINESTRING((11 15,19 15)),POINT(10 15),POINT(20 15))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15)),((25 0,0 15,25 10,25 0)))'))) FROM gis_geometrycollection WHERE fid=110;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT('MULTIPOLYGON(((11 15,19 15,19 25,11 15)),((25 0,0 15,25 10,25 0)))')))
 LINESTRING(11 15,19 15)
@@ -441,12 +441,15 @@ LINESTRING(11 15,19 15)
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems_3)))
 GEOMETRYCOLLECTION EMPTY
+# Invalid geometry in input.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_elems)))
 LINESTRING(10 15,20 15)
+# Invalid geometry in input.
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=110;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
 LINESTRING(10 15,20 15)
+# Invalid geometry in input.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_line_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
 LINESTRING(10 15,20 15)
@@ -638,7 +641,7 @@ POLYGON((15 25,5 0,15 5,25 0,15 25))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((0 15,25 0,22 10,30 15,20 15,10 15,0 15)))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)))
@@ -646,7 +649,7 @@ GEOMETRYCOLLECTION EMPTY
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=100;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_of_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((0 15,25 0,22 10,30 15,20 15,10 15,0 15)))
 #====================================================================================
 # polygon,geomertycollection
 #====================================================================================
@@ -709,7 +712,7 @@ MULTIPOINT((5 0),(25 0))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_top_to_center)))
-LINESTRING(15 15,15 10)
+GEOMETRYCOLLECTION(MULTILINESTRING((15 15,15 10)),POINT(15 25))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('LINESTRING(30 30,0 35)')))
@@ -717,7 +720,7 @@ GEOMETRYCOLLECTION EMPTY
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_top_to_center)))
-LINESTRING(15 15,15 10)
+GEOMETRYCOLLECTION(MULTILINESTRING((15 15,15 10)),POINT(15 25))
 #====================================================================================
 # multipolygon,multilinestring
 #====================================================================================
@@ -739,11 +742,11 @@ GEOMETRYCOLLECTION(MULTILINESTRING((5.172413793103448 11.89655172413793,7.5 15))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((0 15,25 0,22 10,30 15,20 15,10 15,0 15)))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')))
-MULTIPOLYGON(((6.617647058823529 11.029411764705882,25 0,22 10,25.333333333333332 12.083333333333334,23 15,9 15,6.617647058823529 11.029411764705882)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((25 0,22 10,25.333333333333332 12.083333333333334,23 15,9 15,6.617647058823529 11.029411764705882,25 0)),((15 25,5 0,15 5,25 0,15 25)))
 #====================================================================================
 # multipolygon,multipolygon
 #====================================================================================
@@ -766,18 +769,18 @@ GEOMETRYCOLLECTION EMPTY
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((0 15,25 0,22 10,30 15,20 15,10 15,0 15)))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=103;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((0 15,25 0,22 10,30 15,20 15,10 15,0 15)))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=115 and fid2=115;
 ST_ASTEXT(ST_INTERSECTION(g,g2))
 POLYGON((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_collection_multilinestr)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((0 15,25 0,22 10,30 15,20 15,10 15,0 15)))
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,10 10,10 0,0 0)))'),ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')))
 GEOMETRYCOLLECTION EMPTY
@@ -861,7 +864,7 @@ GEOMETRYCOLLECTION EMPTY
 # Invalid geometry in input
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)))
-MULTIPOLYGON(((0 15,25 0,22 10,30 15,20 15,10 15,0 15)),((25 0,15 25,5 0,15 5,25 0)))
+MULTIPOLYGON(((25 0,15 25,5 0,15 5,25 0)),((0 15,25 0,22 10,30 15,20 15,10 15,0 15)))
 SELECT ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
 ST_ASTEXT(ST_INTERSECTION(g,ST_GEOMFROMTEXT(@star_collection_elems)))
 POLYGON((7 10,5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10))
@@ -911,46 +914,13 @@ GEOMETRYCOLLECTION EMPTY
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)))
 GEOMETRYCOLLECTION EMPTY
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100)));
-ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100)))
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145)));
+ERROR 22S00: st_intersection(POINT, POINT) has not been implemented for geographic spatial reference systems.
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000)));
+ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,2000),ST_GEOMFROMTEXT(@star_center,2000)))
 GEOMETRYCOLLECTION EMPTY
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 100. Calculations in function st_intersection will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 100. The axis order is unknown.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)));
-ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)))
-GEOMETRYCOLLECTION EMPTY
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 20000. Calculations in function st_intersection will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 20000. The axis order is unknown.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)));
-ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)))
-GEOMETRYCOLLECTION EMPTY
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 123456. Calculations in function st_intersection will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 123456. The axis order is unknown.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
-ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)))
-GEOMETRYCOLLECTION EMPTY
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_intersection will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)));
-ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)))
-GEOMETRYCOLLECTION EMPTY
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_intersection will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135)));
+ERROR 22S00: st_intersection(POINT, POINT) has not been implemented for geographic spatial reference systems.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,-1024),ST_GEOMFROMTEXT(@star_center,-1024)));
@@ -962,24 +932,8 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 #####################################################################################
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326)));
 ERROR HY000: Binary geometry function st_intersection given two geometries of different srids: 0 and 4326, which should have been identical.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326)));
-ERROR HY000: Binary geometry function st_intersection given two geometries of different srids: 1048576 and 4326, which should have been identical.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,1048576)));
-ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,1048576)))
-GEOMETRYCOLLECTION EMPTY
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 1048576. Calculations in function st_intersection will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 1048576. The axis order is unknown.
-SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
-ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)))
-GEOMETRYCOLLECTION EMPTY
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 1048575. Calculations in function st_intersection will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 1048575. The axis order is unknown.
+SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326)));
+ERROR HY000: Binary geometry function st_intersection given two geometries of different srids: 4145 and 4326, which should have been identical.
 SELECT ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 ST_ASTEXT(ST_INTERSECTION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)))
 GEOMETRYCOLLECTION EMPTY
@@ -1180,40 +1134,40 @@ POINT(1 1)
 POINT(1 1)
 POINT(1 1)
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 LINESTRING(1 1,2 2)
 MULTIPOINT((1 1),(2 2))
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
+POINT(1 1)
 LINESTRING(1 1,2 2)
 POINT(1 1)
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 LINESTRING(1 1,2 2)
 MULTIPOINT((1 1),(2 2))
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
+POINT(1 1)
 LINESTRING(1 1,2 2)
 LINESTRING(1 1,2 2)
 LINESTRING(1 1,2 2)
 LINESTRING(1 1,2 2)
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
@@ -1264,40 +1218,40 @@ MULTIPOINT((1 1),(2 2))
 MULTIPOINT((1 1),(2 2))
 POINT(1 1)
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTIPOINT((1 1),(2 2))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
-GEOMETRYCOLLECTION EMPTY
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
+POINT(1 1)
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 POINT(1 1)
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTIPOINT((1 1),(2 2))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
-GEOMETRYCOLLECTION EMPTY
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
+POINT(1 1)
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10)))
@@ -1305,20 +1259,20 @@ MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,5 5,6 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,5 5,6 5,10 5,10 10,5 10)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 10,5 6,6 6,6 5,10 5,10 10,5 10))),POINT(1 1))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(7 6,6 6,6 7,7 7,7 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(7 6,6 6,6 7,7 7,7 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
@@ -1369,40 +1323,40 @@ POINT(1 1)
 POINT(1 1)
 POINT(1 1)
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 LINESTRING(1 1,2 2)
 MULTIPOINT((1 1),(2 2))
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
+POINT(1 1)
 LINESTRING(1 1,2 2)
 POINT(1 1)
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 LINESTRING(1 1,2 2)
 MULTIPOINT((1 1),(2 2))
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
+POINT(1 1)
 LINESTRING(1 1,2 2)
 LINESTRING(1 1,2 2)
 LINESTRING(1 1,2 2)
 LINESTRING(1 1,2 2)
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 POLYGON((0 1,0 0,1 0,1 1,0 1))
@@ -1453,40 +1407,40 @@ MULTIPOINT((1 1),(2 2))
 MULTIPOINT((1 1),(2 2))
 POINT(1 1)
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTIPOINT((1 1),(2 2))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
-GEOMETRYCOLLECTION EMPTY
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
+POINT(1 1)
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 POINT(1 1)
 LINESTRING(1 1,2 2)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTIPOINT((1 1),(2 2))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
-GEOMETRYCOLLECTION EMPTY
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
+POINT(1 1)
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 MULTILINESTRING((1 1,2 2),(3 3,4 4))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10)))
@@ -1494,20 +1448,20 @@ MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,5 5,6 5,10 5,10 10,5 10)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,5 5,6 5,10 5,10 10,5 10)))
 GEOMETRYCOLLECTION(MULTIPOLYGON(((5 10,5 6,6 6,6 5,10 5,10 10,5 10))),POINT(1 1))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(7 6,6 6,6 7,7 7,7 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 POLYGON((0 1,0 0,1 0,1 1,0 1))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 POINT(1 1)
-GEOMETRYCOLLECTION EMPTY
+POINT(1 1)
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 5,10 5,10 10,5 10),(7 6,6 6,6 7,7 7,7 6)))
 MULTIPOLYGON(((0 1,0 0,1 0,1 1,0 1)),((5 10,5 6,6 6,6 5,10 5,10 10,5 10),(6 6,6 7,7 7,7 6,6 6)))
@@ -1636,38 +1590,64 @@ ST_GEOMFROMTEXT('POINT(0 0)', 2000),
 ST_GEOMFROMTEXT('POINT(0 0)', 2000)
 ))
 POINT(0 0)
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 SELECT ST_ASTEXT(ST_INTERSECTION(
 ST_GEOMFROMTEXT('POINT(0 0)', 4326),
 ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 ));
-ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMTEXT('POINT(0 0)', 4326),
-ST_GEOMFROMTEXT('POINT(0 0)', 4326)
-))
-POINT(0 0)
-# Undefined SRS (should pass with warning)
-SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMTEXT('POINT(0 0)', 16000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 16000000)
-));
-ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMTEXT('POINT(0 0)', 16000000),
-ST_GEOMFROMTEXT('POINT(0 0)', 16000000)
-))
-POINT(0 0)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 16000000. The axis order is unknown.
-Warning	3565	There's no spatial reference system with SRID 16000000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 16000000. Calculations in function st_intersection will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 16000000. The axis order is unknown.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (16000001, 1, 'TEST16000001', 'Foo', 16000001, 'FOOBAR', '');
-SELECT ST_ASTEXT(ST_INTERSECTION(
-ST_GEOMFROMTEXT('POINT(0 0)', 16000001),
-ST_GEOMFROMTEXT('POINT(0 0)', 16000001)
-));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 16000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 16000001;
+ERROR 22S00: st_intersection(POINT, POINT) has not been implemented for geographic spatial reference systems.
+#
+# Bug #25510403 SRID OF RESULT OF SET OPERATION IS DIFFERENT FROM INPUT
+# GEOMETRIES
+#
+SELECT ST_SRID(ST_Intersection(
+ST_GeomFromText('LINESTRING(0 0, 10 10)', 2000),
+ST_GeomFromText('POINT(5 5)', 2000)
+)) AS result;
+result
+2000
+SELECT ST_SRID(ST_Intersection(
+ST_GeomFromText('LINESTRING(0 0, 10 10)', 2000),
+ST_GeomFromText('LINESTRING(5 5, 15 15)', 2000)
+)) AS result;
+result
+2000
+SELECT ST_SRID(ST_Intersection(
+ST_GeomFromText('LINESTRING(0 0,10 10)', 2000),
+ST_GeomFromText('POLYGON((20 20,20 25,25 25,25 20,20 20))', 2000)
+)) AS result;
+result
+2000
+SELECT ST_SRID(ST_Intersection(
+ST_GeomFromText('LINESTRING(0 0, 10 10)', 2000),
+ST_GeomFromText('MULTIPOINT(5 5, 15 15)', 2000)
+)) AS result;
+result
+2000
+SELECT ST_SRID(ST_Intersection(
+ST_GeomFromText('LINESTRING(0 0,10 10)', 2000),
+ST_GeomFromText('MULTILINESTRING((-5 -5,0 0),(0 0,10 10))', 2000)
+)) AS result;
+result
+2000
+SELECT ST_SRID(ST_Intersection(
+ST_GeomFromText('LINESTRING(0 0,10 10)', 2000),
+ST_GeomFromText('MULTIPOLYGON(((20 20,20 25,25 25,25 20,20 20)))', 2000)
+)) AS result;
+result
+2000
+SELECT ST_SRID(ST_Intersection(
+ST_GeomFromText('LINESTRING(0 0, 10 10)', 2000),
+ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 1,1 1,0 0)))', 2000)
+)) AS result;
+result
+2000
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_INTERSECTION(
+x'0A000000010100000000000000000000000000000000000000',
+x'0A000000010100000000000000000000000000000000000000'
+);
+ERROR SR001: There's no spatial reference system with SRID 10.

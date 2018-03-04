@@ -409,6 +409,11 @@
       If a <b>.reject</b> file is created because a test fails, @ref
       PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" removes the file
       later the next time the test succeeds.
+
+      When <b>`--check-testcases`</b> option is enabled, a test case
+      not having its corresponding <b>.result</b> file is marked as
+      failed by MTR. See @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl".
     </li>
 
     <li>
@@ -854,6 +859,13 @@
   @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl" to pick a value
   automatically, based on system information. The parallel option may
   also be given using the environment variable <b>MTR_PARALLEL</b>.
+
+  @note
+  Test cases which use <b>not_parallel.inc</b> are run at the end with
+  a parallel value of <b>1</b> overriding the <b>`--parallel`</b>
+  option value. Such test cases will be executed at the end of the test
+  run one at a time. These tests also require
+  <b>`--non-parallel-test`</b> option to be ON.
 */
 
 ###############################################################################
@@ -3641,6 +3653,12 @@
       </td>
     </tr>
     <tr>
+      <td><tt>NUMBER_OF_CPUS</tt></td>
+      <td>
+        Defines number of processors.
+      </td>
+    </tr>
+    <tr>
       <td><tt>TSAN_OPTIONS</tt></td>
       <td>
         Path name to a file containing ThreadSanitizer suppressions.
@@ -3755,6 +3773,12 @@
       Check test cases for side effects. This is done by checking the
       system state before and after each test case. If there is any
       difference, the test case is marked as failed because of it.
+
+      Similarly, when <b>`--check-testcases`</b> option is enabled,
+      MTR does additional check for missing <b>.result</b> file and a
+      test case not having its corresponding <b>.result</b> file is
+      marked as failed.
+
       This check is enabled by default. To disable it, use the
       <b>`--nocheck-testcases`</b> option.
     </li>
@@ -4526,6 +4550,15 @@
     </li>
 
     <li>
+      <tt>`--non-parallel-test`</tt>
+
+      Allow tests marked as "non-parallel" to run. Tests can be thus
+      marked by including the line
+      <b>`--source` include/not_parallel.inc</b>, and they will only
+      be run if this option is enabled.
+    </li>
+
+    <li>
       <tt>`--sanitize`</tt>
 
       Scan the server log files for warnings from various sanitizers.
@@ -4920,9 +4953,8 @@
     <li>
       <tt>`--verbose`</tt>
 
-      Give more verbose output regarding test execution. Use the
-      option twice to get even more output. Note that the output
-      generated within each test case is not affected.
+      Give more verbose output regarding test execution. Note that the
+      output generated within each test case is not affected.
     </li>
 
     <li>
@@ -6218,7 +6250,7 @@
 
       Execute the shell command using the <b>popen()</b> library call.
       References to variables within the command are replaced with the
-      corresponding values. Use “<b>\$</b>” to specify a literal
+      corresponding values. Use “<b>\\$</b>” to specify a literal
       “<b>$</b>” character.
 
       On Cygwin, the command is executed from <b>cmd.exe</b>, so

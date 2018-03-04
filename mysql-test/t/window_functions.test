@@ -25,7 +25,6 @@ select bit_and(3) over ();
 --error ER_NOT_SUPPORTED_YET
 select bit_xor(3) over ();
 
-
 --echo Single window function (plus ORDER BY).
 CREATE TABLE t(i INT, j INT);
 INSERT INTO t VALUES (1,1);
@@ -3051,6 +3050,33 @@ SELECT a, b, LEAD (b, 1) OVER (PARTITION BY NULL ORDER BY a,b ASC) AS c FROM t1 
 DROP TABLE t1;
 
 --echo #
+--echo # Bug#26781725 INCORRECT RESULTS FOR QUERY(MAX FUNC+HAVING CLAUSE) WHEN USED INSIDE VIEW
+--echo #
+
+CREATE TABLE CC (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB AUTO_INCREMENT=30 DEFAULT CHARSET=utf8mb4;
+INSERT INTO CC VALUES
+(10,'v','v'),(18,'a','a'),(19,'v','v'),(20,'u','u'),(21,'s','s'),(22,'y','y'),
+(23,'z','z'),(28,'y','y');
+
+SELECT  MAX( col_varchar_key  )  AS field1  FROM CC  AS alias1
+ HAVING field1 <>  5;
+
+CREATE OR REPLACE VIEW v1 AS
+ SELECT  MAX( col_varchar_key  )  AS field1  FROM CC  AS alias1
+  HAVING field1  <>  5;
+
+SELECT * FROM v1;
+
+DROP VIEW v1;
+DROP TABLE CC;
+
+--echo #
 --echo # Tests added to improve GCOV Coverage data
 --echo #
 
@@ -3523,14 +3549,45 @@ FROM t  GROUP BY a);
 DROP TABLE twf,t;
 
 --echo #
---echo # Check that user hasn't changed default internal temporary table storage
---echo # engine
+--echo # Bug#26802696: DENSE_RANK WRONG WITH BUFFERED PROCESSING
 --echo #
-SET @savmode=@@GLOBAL.INTERNAL_TMP_MEM_STORAGE_ENGINE;
-SET INTERNAL_TMP_MEM_STORAGE_ENGINE='MEMORY';
---error ER_WINDOW_SE_NOT_ACCEPTABLE
-SELECT ROW_NUMBER() OVER () FROM DUAL;
-SET INTERNAL_TMP_MEM_STORAGE_ENGINE=@savmode;
+CREATE TABLE employee(department_id INT, salary INT);
+
+INSERT INTO employee VALUES (10, NULL),
+                            (10, 100000),
+                            (10, 60000),
+                            (10, 60000),
+                            (10, 70000),
+                            (20, 80000),
+                            (20, 65000),
+                            (20, 65000),
+                            (30, 300000),
+                            (30, 70000),
+                            (NULL, 75000);
+--echo with partitions
+SELECT department_id, salary,
+       RANK() OVER w AS rnk,
+       DENSE_RANK() OVER w AS dense,
+       NTILE(4) over w AS ntil,
+       CUME_DIST() OVER w AS cume,
+       PERCENT_RANK() over w AS `%rnk`
+  FROM employee
+  WINDOW w AS (PARTITION BY department_id
+               ORDER BY salary DESC)
+  ORDER BY department_id, salary DESC, ntil;
+
+--echo just default partition
+SELECT department_id, salary,
+       RANK() OVER w AS rnk,
+       DENSE_RANK() OVER w AS dense,
+       NTILE(4) over w AS ntil,
+       CUME_DIST() OVER w AS cume,
+       PERCENT_RANK() over w AS `%rnk`
+  FROM employee
+  WINDOW w AS (ORDER BY salary DESC)
+  ORDER BY salary DESC, department_id, ntil;
+
+DROP TABLE employee;
 
 --echo #
 --echo # Bug#26500442: WINDOW FUNCTIONS: CRASH IN WINDOW::HAS_WINDOWING_STEPS
@@ -3539,6 +3596,182 @@ CREATE TABLE t(a INT);
 INSERT INTO t VALUES (1), (2), (3), (4);
 SELECT ISNULL(COS(RANK() OVER())) FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#26164633 WL#9603: WRONG RESULT WHEN PARTITION EXPR USING AGGREGATES EVALUATES TO NULL
+--echo #
+CREATE TABLE t1 (
+  pk int NOT NULL DEFAULT '0',
+  col_int int DEFAULT NULL,
+  col_int_key int DEFAULT NULL
+);
+
+INSERT INTO t1 VALUES
+  (1,4,858718208),          (2,-28508160,723386368),
+  (3,6,3),                  (4,828112896,-409141248),
+  (5,1454702592,856424448), (6,7,7),
+  (7,2,4),                  (8,7,4),
+  (9,1990590464,8),         (10,-538705920,2),
+  (11,7,2002124800),        (12,776273920,-1472200704),
+  (13,7,8),                 (14,0,952041472),
+  (15,9,-427819008),        (16,8,-686096384),
+  (17,397934592,7),         (18,-768671744,6),
+  (19,3,5),                 (20,1533739008,5),
+  (21,1,-1301872640),       (22,798425088,4),
+  (23,5,-561971200),        (24,9,-1901854720),
+  (25,9,811401216),         (26,1856700416,0),
+  (27,7,4),                 (28,9,-1491992576),
+  (29,9,1),                 (30,1724252160,7);
+
+SELECT MIN(table2.pk) + table2.col_int AS part_expr,
+       DENSE_RANK() OVER (PARTITION BY MIN(table2.pk) + table2.col_int
+                          ORDER BY  table1.col_int_key) AS field1
+  FROM  t1 AS table1 LEFT JOIN t1 AS table2
+        ON table1.pk = table2.col_int
+  GROUP BY table2.col_int, table1.col_int_key;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26188578 - WL#9603: HAVING CONDITION IS OPTIMIZED OUT FOR ALIAS ON AGGREGATE W/O GROUP BY
+--echo #
+
+CREATE TABLE E (
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_10_latin1 varchar(10) DEFAULT NULL,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_latin1 varchar(255) DEFAULT NULL,
+  col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8
+   GENERATED ALWAYS AS
+   (concat(repeat(col_varchar_10_utf8,3),repeat(col_varchar_10_utf8,3)))
+   VIRTUAL,
+  col_varchar_255_latin1_key varchar(255)
+   GENERATED ALWAYS AS
+   (concat(repeat(col_varchar_10_latin1,3),repeat(col_varchar_10_latin1,3)))
+   VIRTUAL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8
+   GENERATED ALWAYS AS
+   (repeat(substr(col_varchar_10_utf8,-(1)),5)) VIRTUAL,
+  col_varchar_10_latin1_key varchar(10) GENERATED ALWAYS AS
+   (repeat(substr(col_varchar_10_latin1,-(1)),7)) VIRTUAL,
+  PRIMARY KEY (pk DESC),
+  UNIQUE KEY ucover_key1
+   (pk DESC, col_int_key DESC, col_varchar_255_utf8_key DESC,
+    col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
+    col_varchar_10_latin1_key DESC),
+  UNIQUE KEY ucover_key2
+   (pk, col_int_key, col_varchar_255_utf8_key, col_varchar_255_latin1_key,
+    col_varchar_10_utf8_key, col_varchar_10_latin1_key),
+  KEY col_int_key (col_int_key DESC),
+  KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key DESC),
+  KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key DESC),
+  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key DESC),
+  KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+  KEY multi_key1 (col_int_key DESC, col_varchar_10_latin1_key),
+  KEY multi_key1a (col_int_key DESC, col_varchar_10_latin1_key DESC),
+  KEY multi_key2 (col_int_key,col_int DESC),
+  KEY multi_key3 (col_varchar_255_utf8_key DESC, col_varchar_255_utf8),
+  KEY multi_key4 (col_varchar_255_latin1_key, col_varchar_255_latin1),
+  KEY multi_key5 (pk DESC,col_int_key DESC, col_varchar_10_latin1_key),
+  KEY cover_key1
+   (pk DESC,col_int_key DESC, col_varchar_255_utf8_key,
+    col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
+    col_varchar_10_latin1_key)
+);
+
+INSERT INTO E (col_int, col_varchar_10_utf8, pk, col_varchar_10_latin1,
+               col_varchar_255_utf8, col_varchar_255_latin1)
+ VALUES
+ (NULL,NULL,10,'this','really','mxwcftedxq'),
+ (22216704,'159973376',9,'l','mean','cidtumxwcf'),
+ (-693376,'1',8,'of','gqmwcidtum','qmwcidtumx'),
+ (-183840,'5',7,'xnvgqmwcid','b','nvgqmwcidt'),
+ (2,NULL,6,'is','f','gxqxnvgqmw'),
+ (4,NULL,5,'xdoygxqxnv','h','good'),
+ (3,'1074462720',4,'z','cjxdoygxqx','m'),
+ (-584581120,'-1176634',3,'urqdhj','rhjxdo','but'),
+ (-19295040,'1235025920',2,'svasurqdhu','can','a'),
+ (9,'951910400',1,'qlzsvasurq','lzsvasurqd','in');
+
+CREATE TABLE C (
+  col_int int(11) DEFAULT NULL,
+  col_varchar_10_utf8 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_varchar_10_latin1 varchar(10) DEFAULT NULL,
+  col_varchar_255_utf8 varchar(255) CHARACTER SET utf8 DEFAULT NULL,
+  col_varchar_255_latin1 varchar(255) DEFAULT NULL,
+  col_int_key int(11) GENERATED ALWAYS AS ((col_int + col_int)) VIRTUAL,
+  col_varchar_255_utf8_key varchar(255) CHARACTER SET utf8
+  GENERATED ALWAYS AS
+   (concat(repeat(col_varchar_10_utf8,3),repeat(col_varchar_10_utf8,3)))
+   VIRTUAL,
+  col_varchar_255_latin1_key varchar(255) GENERATED ALWAYS AS
+   (concat(repeat(col_varchar_10_latin1,3),repeat(col_varchar_10_latin1,3)))
+   VIRTUAL,
+  col_varchar_10_utf8_key varchar(10) CHARACTER SET utf8 GENERATED ALWAYS AS
+   (repeat(substr(col_varchar_10_utf8,-(1)),5)) VIRTUAL,
+  col_varchar_10_latin1_key varchar(10) GENERATED ALWAYS AS
+   (repeat(substr(col_varchar_10_latin1,-(1)),7)) VIRTUAL,
+  PRIMARY KEY (pk DESC),
+  UNIQUE KEY ucover_key1
+   (pk DESC, col_int_key DESC, col_varchar_255_utf8_key DESC,
+    col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
+    col_varchar_10_latin1_key DESC),
+  UNIQUE KEY ucover_key2
+   (pk, col_int_key, col_varchar_255_utf8_key, col_varchar_255_latin1_key,
+    col_varchar_10_utf8_key, col_varchar_10_latin1_key),
+  KEY col_int_key (col_int_key DESC),
+  KEY col_varchar_255_utf8_key (col_varchar_255_utf8_key DESC),
+  KEY col_varchar_255_latin1_key (col_varchar_255_latin1_key DESC),
+  KEY col_varchar_10_utf8_key (col_varchar_10_utf8_key DESC),
+  KEY col_varchar_10_latin1_key (col_varchar_10_latin1_key),
+  KEY multi_key1 (col_int_key DESC, col_varchar_10_latin1_key),
+  KEY multi_key1a (col_int_key DESC, col_varchar_10_latin1_key DESC),
+  KEY multi_key2 (col_int_key, col_int DESC),
+  KEY multi_key3 (col_varchar_255_utf8_key DESC, col_varchar_255_utf8),
+  KEY multi_key4 (col_varchar_255_latin1_key, col_varchar_255_latin1),
+  KEY multi_key5
+   (pk DESC, col_int_key DESC, col_varchar_10_latin1_key),
+  KEY cover_key1
+   (pk DESC, col_int_key DESC, col_varchar_255_utf8_key,
+    col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
+    col_varchar_10_latin1_key)
+);
+
+INSERT INTO C
+ (col_int, col_varchar_10_utf8, pk, col_varchar_10_latin1,
+ col_varchar_255_utf8, col_varchar_255_latin1)
+ VALUES
+ (5,'pmfyvvuqvt',6,'so','he','mfyvvuq'),
+ (5,'q',5,'iwsgpmfyvv','wsgpmf','s'),
+ (9,'oeiwsgpmfy',4,'at','can','come'),
+ (-108947046,'kkoeiwsgpm',3,'koeiwsgpmf','o','t'),
+ (NULL,'p',2,'ukkoeiwsgp','now','is'),
+ (NULL,'now',1,'up','u','u');
+
+CREATE VIEW view_E AS SELECT * FROM E;
+
+SELECT  MAX( alias1 .col_int )  AS field1  FROM view_E  AS alias1  LEFT
+JOIN C  AS alias2  ON alias1 .col_int  = alias2 .pk  WHERE alias1 .pk
+IN (  5  )  HAVING field1  <=  6;
+
+# Wrong result
+SELECT * FROM (SELECT MAX( alias1.col_int) AS field1 FROM view_E AS alias1
+                 LEFT JOIN C                                       AS alias2
+                 ON alias1 .col_int  = alias2 .pk
+                 WHERE alias1 .pk IN (5)  HAVING field1  <=  6) s1;
+
+# Works if aggregate is used directly
+SELECT * FROM (SELECT MAX( alias1.col_int) AS field1 FROM view_E AS alias1
+                 LEFT JOIN C                                       AS alias2
+                 ON alias1 .col_int  = alias2 .pk
+                 WHERE alias1 .pk IN (5)  HAVING MAX(alias1 .col_int) <=  6) s1;
+
+DROP TABLE E,C;
+DROP VIEW view_E;
 
 --echo #
 --echo # Bug #26496733: WINDOW FUNCTIONS: ASSERT FALSE WITH JSON COLUMN
@@ -3623,6 +3856,280 @@ SELECT LEAD(a,1) OVER() FROM t GROUP BY a WITH ROLLUP;
 DROP TABLE t;
 
 --echo #End of test for Bug#26497247
+
+--echo #
+--echo # Bug #26496880: CRASH IN FIELD_BLOB::GET_KEY_IMAGE
+--echo #
+
+CREATE TABLE t(
+ a INTEGER,
+ b BLOB,
+ PRIMARY KEY (b(1))
+);
+
+INSERT INTO t(b) VALUES('a'),('b'),('c'),('d');
+FLUSH TABLES;
+SELECT LEAD(1,1,1) OVER(PARTITION BY a) FROM t;
+
+DROP TABLE t;
+
+--echo #End of test for Bug#26496880
+
+--echo #
+--echo # Bug#26730020 REEXECUTE PREPARED STATEMENT CRASH WITH WINDOW FUNCTIONS
+--echo #
+CREATE TABLE t(a INT);
+PREPARE s FROM 'DO (SELECT a FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a, a));';
+EXECUTE s;
+EXECUTE s;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26907753 COMBINING CTE AND WINDOW FUNCTION GIVES WRONG RESULT
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+INSERT INTO t1 VALUES (1),(1),(2);
+
+SELECT * FROM
+    (SELECT LEAD(i) OVER w AS a, i AS b FROM t1
+     WINDOW w AS
+     (ORDER BY i ROWS CURRENT ROW))
+AS t WHERE a = b;
+
+WITH t2(i) AS (SELECT i+1 FROM t1)
+SELECT * FROM
+    (SELECT LEAD(i) OVER w AS a, i AS b FROM t2
+     WINDOW w AS
+     (ORDER BY i ROWS CURRENT ROW))
+AS t3 WHERE a = b;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#26813454 UNWARRANTED ERROR INDICATING WINDOW NAME NOT DEFINED
+--echo #
+CREATE TABLE sales(id INT AUTO_INCREMENT PRIMARY KEY, `date` DATE, sale INT);
+
+INSERT INTO sales(`date`, sale) VALUES
+  ('2017-03-01', 200),
+  ('2017-04-01', 300),
+  ('2017-05-01', 400),
+  ('2017-06-01', 200),
+  ('2017-07-01', 600),
+  ('2017-08-01', 100),
+  ('2017-03-01', 400),
+  ('2017-04-01', 300),
+  ('2017-05-01', 500),
+  ('2017-06-01', 400),
+  ('2017-07-01', 600),
+  ('2017-08-01', 150);
+
+SELECT MONTH(date), SUM(sale),
+       AVG(SUM(sale)) OVER w AS sliding_avg FROM sales GROUP BY MONTH(date)
+WINDOW w AS (ORDER BY MONTH(date)
+             RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING)
+ORDER BY AVG(SUM(sale)) OVER (ORDER BY MONTH(date)
+                              RANGE BETWEEN 1 PRECEDING AND 1 FOLLOWING),
+         MONTH(date);
+DROP TABLE sales;
+
+--echo #
+--echo # Bug#26739028: WINDOW FUNC + FROM_UNIXTIME CRASH
+--echo #
+
+SELECT FROM_UNIXTIME(LAG('',99)OVER(ROWS UNBOUNDED PRECEDING),'%I %l %I');
+SELECT FROM_UNIXTIME(FIRST_VALUE(@b)RESPECT NULLS OVER(),
+                 REPEAT('1',32))IS NOT FALSE;
+SELECT NULLIF((PASSWORD(FROM_UNIXTIME(NTH_VALUE(@b, 3) RESPECT NULLS
+                                  OVER(),(NOT(@f))))),(CURRENT_TIME()));
+SELECT ((NTILE(70)OVER())<<(FROM_UNIXTIME(LEAD('',67) RESPECT NULLS
+                                      OVER(),SHA(''))));
+SELECT FROM_UNIXTIME(LAG('-778:36:16.905133',246) RESPECT NULLS OVER(),
+                 REPLACE('%M%V   ','',''));
+
+--echo # End of test for Bug#26739028
+
+--echo #
+--echo # Bug#26389508: INT JOIN_READ_KEY(QEP_TAB*): ASSERTION
+--echo #               `!TABLE->HAS_NULL_ROW()' FAILED
+--echo #
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  col_int int(11) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (1,NULL),(2,4),(3,-501481472),(4,NULL),(5,3);
+CREATE TABLE t2 (
+  col_int_key int(11) DEFAULT NULL,
+  KEY col_int_key (col_int_key)
+);
+
+INSERT INTO t2 VALUES (NULL),(NULL),(NULL),(NULL),(5),(5);
+
+--echo This JOIN needs the fix
+SELECT FIRST_VALUE( alias1.pk ) OVER
+       (ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+   FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+         ON  alias1.pk = alias2.col_int_key;
+
+--echo This doesn't and shouldn't do save/restore it (not JT_EQ_REF). Verify
+--echo with debugger.
+SELECT FIRST_VALUE( alias1.pk ) OVER
+       (ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+   FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+         ON  alias1.pk > alias2.col_int_key;
+
+--echo Nor this one (not first window). Verify with debugger.
+SELECT ROW_NUMBER() OVER () AS `row#`,
+       FIRST_VALUE( alias1.pk ) OVER
+       (ROWS BETWEEN UNBOUNDED PRECEDING AND 1 FOLLOWING) AS field1
+   FROM  t1 AS alias1 RIGHT JOIN t2 AS alias2
+         ON  alias1.pk = alias2.col_int_key;
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#26975882: CRASH IN STRING::COPY, USUALLY WITH WKB FUNCTIONS
+--echo #               / WINDOW FUNC
+--echo #
+
+--error ER_GIS_INVALID_DATA
+SELECT ST_BUFFER(ST_ASBINARY(1), ST_ASBINARY(NTH_VALUE('4714-05-04',1)OVER(),'axis-order=long-lat'));
+
+--echo # End of test for Bug#26975882
+
+--echo #
+--echo # Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+--echo #               FALSE IN ITEM::VAL_JSON
+--echo #
+
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+               (FIRST_VALUE(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+                    )OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((FIRST_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'))OVER())<=(1));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((QUOTE(JSON_KEYS(FIRST_VALUE(JSON_KEYS(EXP(-15676),ABS('d0'))
+                          )OVER())))>=(CONNECTION_ID()));
+SELECT JSON_LENGTH(FIRST_VALUE(JSON_OBJECTAGG('key2','*B'))OVER());
+
+--echo # End of test for Bug#26740557
+
+--echo #
+--echo # Check for errors
+--echo #
+
+CREATE TABLE t1 (i INTEGER);
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i) FROM t1 WINDOW w AS (ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i), RANK() OVER (ORDER BY i) FROM t1;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i) FROM t1 ORDER BY RANK() OVER (PARTITION BY AVG(i) ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT AVG(i), RANK() OVER w FROM t1 WINDOW w AS (ORDER BY i);
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT (select AVG(i)+RANK() OVER (ORDER BY i)) FROM t1;
+
+DROP TABLE t1;
+
+--echo # End of checking for errors
+
+--echo #
+--echo # Bug#27010574 WINDOW FUNCTIONS: BUG WITH LAST_VALUE AND FRAME
+--echo #
+CREATE TABLE t(a INT, b INT);
+INSERT INTO t VALUES (1,1),
+                     (2,1),
+                     (3,2),
+                     (4,2),
+                     (5,3),
+                     (6,3);
+SELECT a, b,
+       LAST_VALUE(a) OVER (ORDER BY b,a) AS `last` FROM t;
+SELECT a, b,
+       LAST_VALUE(a) OVER (ORDER BY b,a
+                           RANGE BETWEEN UNBOUNDED PRECEDING AND
+                                 CURRENT ROW) AS `last`
+  FROM t;
+
+INSERT INTO t VALUES (1,1),
+                     (4,2),
+                     (NULL, 2),
+                     (NULL, NULL),
+                     (2, NULL);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC
+                      RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+
+SELECT a, b, COUNT(a) OVER w AS cnt,
+       COUNT(*) OVER w AS `cnt(*)`,
+       FIRST_VALUE(a) OVER w AS first,
+       LAST_VALUE (a) OVER w AS last
+  FROM t WINDOW w AS (ORDER BY b,a DESC
+                      RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING);
+
+DROP TABLE t;
+
+--echo #
+--echo # Bug#26975848: IFNULL: CRASHES WITH FIRST_VALUE
+--echo # Bug#27062796: WINDOW FUNC: CRASH IN STRING::COPY WITH WKB FUNCTIONS
+--echo # Bug#27062694: WINDOW FUNC: MUCH CRASHING WITH FIRST_VALUE/LAST_VALUE!!
+--echo #
+
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT IFNULL(JSON_TYPE(CASE WHEN(1) THEN(1) ELSE(1) END),
+              LAST_VALUE('')OVER());
+--error ER_WRONG_VALUE_FOR_TYPE
+SELECT IFNULL((UUID_TO_BIN(0xAB8631)),(FIRST_VALUE(2.469566E+307)OVER()));
+SELECT IFNULL((JSON_TYPE(@c)),(FIRST_VALUE(@b)OVER()));
+
+--error ER_GIS_INVALID_DATA
+DO ST_WITHIN(ST_ASWKB(ST_ASBINARY(1,'axis-order=srid-defined')), ST_ASWKT(
+ST_ASBINARY(LAST_VALUE(4732)OVER()),'axis-order=srid-defined'));
+
+--error ER_GIS_INVALID_DATA
+DO ST_OVERLAPS(ST_ASWKB(ST_ASBINARY(1,'axis-order=lat-long'),
+'axis-order=srid-defined'), ST_ASWKT(LAST_VALUE('*7') OVER()));
+
+--error ER_GIS_INVALID_DATA
+DO ST_POINTN(ST_ASWKT(ST_ASWKT(ST_ASWKB(6565))),
+ST_ASBINARY(LAST_VALUE(0xfd8b9af2bedb16c0d7f1cca63b5c9e) OVER()));
+
+--error ER_DATA_OUT_OF_RANGE
+DO POW(-8714,REPEAT('1',32)) OR
+VALIDATE_PASSWORD_STRENGTH(LAST_VALUE(1) OVER());
+
+--error ER_GIS_INVALID_DATA
+DO SUBSTRING_INDEX(((((RADIANS(0xBD)) && (ST_SRID(1, 4326)))) OR
+(COT(UUID_SHORT()))), FIRST_VALUE(ROW_COUNT())RESPECT NULLS OVER(), 171);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO ((JSON_TYPE('4:8')) AND (((ROLES_GRAPHML()) LIKE (FIRST_VALUE(31543)
+RESPECT NULLS OVER()))));
+
+--error ER_DATA_OUT_OF_RANGE
+DO CONCAT_WS( JSON_OBJECTAGG( ROW_COUNT(), BIT_COUNT(-23163)),
+DEGREES((1.595545e+308)), REPEAT(FIRST_VALUE('%0') OVER(), 30));
+
+--error ER_USER_LOCK_WRONG_NAME
+DO REPLACE((( RELEASE_LOCK( ACOS(0x41))) OR (1)), LAST_VALUE(9.750062e+306)
+RESPECT NULLS OVER(), UUID_SHORT());
+
+--echo # End of test for Bug#26975848, Bug#27062796, Bug#27062694
 
 # Local Variables:
 # mode: sql

@@ -1,13 +1,20 @@
 /* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,7 +27,7 @@
 extern "C" {
 #endif
 
-#include "result.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/result.h"
 
 #ifdef _WIN32
 
@@ -34,11 +41,12 @@ extern "C" {
 #define SOCK_EAGAIN WSAEINPROGRESS
 #define SOCK_EWOULDBLOCK WSAEWOULDBLOCK
 #define SOCK_EINPROGRESS WSAEINPROGRESS
+#define SOCK_EALREADY WSAEALREADY
+#define SOCK_ECONNREFUSED WSAECONNREFUSED
 #define SOCK_ERRNO task_errno
 #define SOCK_OPT_REUSEADDR SO_EXCLUSIVEADDRUSE
 #define GET_OS_ERR WSAGetLastError()
 #define SET_OS_ERR(x) WSASetLastError(x)
-#define SOCK_ECONNREFUSED WSAECONNREFUSED
 #define CLOSESOCKET(x) closesocket(x)
 #define SOCK_SHUT_RDWR SD_BOTH
 
@@ -63,6 +71,11 @@ static inline int poll(pollfd * fds, nfds_t nfds, int timeout) {
   return WSAPoll(fds, nfds, timeout);
 }
 
+static inline int is_socket_error(int x)
+{
+	return x == SOCKET_ERROR || x < 0;
+}
+
 #else
 #include <errno.h>
 #include <netdb.h>
@@ -82,11 +95,12 @@ static inline int poll(pollfd * fds, nfds_t nfds, int timeout) {
 #define SOCK_EAGAIN EAGAIN
 #define SOCK_EWOULDBLOCK EWOULDBLOCK
 #define SOCK_EINPROGRESS EINPROGRESS
+#define SOCK_EALREADY EALREADY
+#define SOCK_ECONNREFUSED ECONNREFUSED
 #define SOCK_ERRNO task_errno
 #define SOCK_OPT_REUSEADDR SO_REUSEADDR
 #define GET_OS_ERR errno
 #define SET_OS_ERR(x) errno = (x)
-#define SOCK_ECONNREFUSED ECONNREFUSED
 #define CLOSESOCKET(x) close(x)
 #define SOCK_SHUT_RDWR (SHUT_RD | SHUT_WR)
 
@@ -99,6 +113,11 @@ static inline int hard_select_err(int err) {
 }
 
 typedef struct pollfd pollfd;
+
+static inline int is_socket_error(int x)
+{
+	return x < 0;
+}
 
 #endif
 

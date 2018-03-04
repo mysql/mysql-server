@@ -1,17 +1,24 @@
 /* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
    This is a unit test for the 'meta data locking' classes.
@@ -21,6 +28,10 @@
    and the contained wiki pages GoogleTestPrimer and GoogleTestAdvancedGuide.
    The code below should hopefully be (mostly) self-explanatory.
  */
+
+#include <string>
+#include <sstream>
+#include <vector>
 
 #include <gtest/gtest.h>
 #include <stddef.h>
@@ -32,8 +43,9 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
 #include "sql/thr_malloc.h"
-#include "test_mdl_context_owner.h"
-#include "thread_utils.h"
+#include "unittest/gunit/benchmark.h"
+#include "unittest/gunit/test_mdl_context_owner.h"
+#include "unittest/gunit/thread_utils.h"
 
 /*
   Mock thd_wait_begin/end functions
@@ -280,7 +292,7 @@ TEST_F(MDLDeathTest, DieWhenMTicketsNonempty)
 
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
   EXPECT_DEATH(m_mdl_context.destroy(),
-               ".*Assertion.*MDL_TRANSACTION.*is_empty.*");
+               ".*Assertion.*m_ticket_store.*is_empty.*");
   m_mdl_context.release_transactional_locks();
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
@@ -4645,7 +4657,91 @@ TEST_F(MDLKeyTest, TruncateTooLongNames)
   EXPECT_LE(strlen(name), (uint)NAME_LEN);
   EXPECT_TRUE(strncmp(name, too_long_name, NAME_LEN) == 0);
 }
-#endif  // defined(DBUG_OFF)
 
+
+struct Mock_MDL_context_owner : public Test_MDL_context_owner
+{
+  void notify_shared_lock(MDL_context_owner *in_use,
+                          bool needs_thr_lock_abort) override final
+  {
+    in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+  }
+};
+
+
+using Name_vec= std::vector<std::string>;
+
+/*
+  Helper function for benchmark.
+ */
+inline size_t read_from_env(const char *var, size_t def)
+{
+  const char *val= getenv(var);
+  return val?static_cast<size_t>(atoi(val)):def;
+}
+
+/*
+  Helper function for benchmark.
+ */
+static Name_vec make_name_vec(size_t t)
+{
+  std::vector<std::string> names;
+  names.reserve(t);
+  static std::stringstream str;
+  for (size_t i= 0; i < t; ++i)
+  {
+    str << "t_" << i;
+    names.push_back(str.str());
+    str.str("");
+  }
+  return names;
+}
+
+/*
+  Helper function for benchmark.
+ */
+static void lock_bench(MDL_context &ctx, const Name_vec &names)
+{
+  for (auto &name : names)
+  {
+    MDL_request request;
+    MDL_REQUEST_INIT(&request, MDL_key::TABLE, "S", name.c_str(),
+                     MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+    ctx.acquire_lock(&request, 2);
+  }
+  ctx.release_transactional_locks();
+}
+
+/**
+  Microbenchmark which tests the performance of acquire_lock (find_ticket)
+*/
+static void BM_FindTicket(size_t num_iterations)
+{
+  StopBenchmarkTiming();
+  system_charset_info = &my_charset_utf8_bin;
+  mdl_init();
+  MDL_context ctx;
+  Mock_MDL_context_owner owner;
+  ctx.init(&owner);
+  size_t ntickets= read_from_env("NTICKETS", 512);
+
+  std::cout << "Tickets: " << ntickets << "\n";
+
+  Name_vec names= make_name_vec(ntickets);
+
+  StartBenchmarkTiming();
+
+  for (size_t i= 0; i < num_iterations; ++i)
+  {
+    lock_bench(ctx, names);
+  }
+
+  StopBenchmarkTiming();
+  mdl_destroy();
+}
+
+BENCHMARK(BM_FindTicket);
+
+#endif  // defined(DBUG_OFF)
 
 }  // namespace

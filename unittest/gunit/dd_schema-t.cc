@@ -1,13 +1,20 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,16 +23,16 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "dd.h"
 #include "my_inttypes.h"
 #include "sql/dd/impl/dictionary_impl.h"
 #include "sql/dd/impl/raw/object_keys.h"
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/raw/raw_table.h"
+#include "sql/dd/impl/tables/schemata.h"
 #include "sql/dd/impl/transaction_impl.h"
 #include "sql/dd/impl/types/schema_impl.h"
-#include "sql/dd/types/object_type.h"
-#include "test_utils.h"
+#include "unittest/gunit/dd.h"
+#include "unittest/gunit/test_utils.h"
 
 
 /*
@@ -479,8 +486,8 @@ TEST_F(SchemaTest, GetSchema)
 
   // Restore the object from the record.
   Entity_object *new_object= NULL;
-  EXPECT_FALSE(Schema::OBJECT_TABLE().restore_object_from_record(&ctx->otx, *r.get(),
-                                                                 &new_object));
+  EXPECT_FALSE(Schema::DD_table::instance().
+          restore_object_from_record(&ctx->otx, *r.get(), &new_object));
   schema= dynamic_cast<const Schema_impl*>(new_object);
 
   // Verify values stored into faked fields are read into schema object.

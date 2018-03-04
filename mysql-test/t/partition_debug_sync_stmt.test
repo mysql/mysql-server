@@ -5,7 +5,7 @@
 --echo #
 --echo # Test Auto increment generation and release of overbooked values.
 --echo #
-call mtr.add_suppression(".Warning. Unsafe statement written .* = STATEMENT.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Unsafe statement written .* = STATEMENT.");
 CREATE TABLE t1 (a SERIAL) ENGINE = InnoDB
 PARTITION BY KEY ALGORITHM = 1 () PARTITIONS 3;
 INSERT INTO t1 VALUES (10);

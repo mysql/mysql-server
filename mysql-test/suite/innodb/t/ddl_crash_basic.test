@@ -1,6 +1,7 @@
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc
+--source include/have_log_bin.inc
 # Observed under high parallel load
 # [ERROR] InnoDB: Could not find a valid tablespace ...
 # [Note] InnoDB: Unable to open tablespace ...
@@ -8,6 +9,7 @@
 # ... and the crash recovery has finally success.
 --disable_query_log
 CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+CALL mtr.add_suppression("\\[ERROR\\].*InnoDB: Tablespace.*, name 'test.t1', unable to open file '.*test.t1.ibd' - Data structure corruption");
 --enable_query_log
 
 SET SESSION debug= '+d,skip_dd_table_access_check';
@@ -190,3 +192,17 @@ let $crash_statement= OPTIMIZE TABLE $table_name;
 --source ../mysql-test/suite/innodb/include/ddl_crash_statement.inc
 
 eval SET GLOBAL innodb_ddl_log_crash_reset_debug = $innodb_ddl_log_crash_reset_debug_orig;
+
+--echo #
+--echo # Bug#26832347 - INNODB: CANNOT FIND SPACE FOR TBS_.*_RENAME IN TABLESPACE MEMO
+--echo #
+# This test requires bin-log, make sure it is ON
+SHOW VARIABLES LIKE 'log_bin';
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+--source include/expect_crash.inc
+SET DEBUG='+d, ib_trx_commit_crash_rseg_updated';
+--error 2013
+ALTER TABLESPACE ts1 RENAME TO ts1_renamed;
+--source include/start_mysqld.inc
+ALTER TABLESPACE ts1_renamed RENAME TO ts1;
+DROP TABLESPACE ts1;

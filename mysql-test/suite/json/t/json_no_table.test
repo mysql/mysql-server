@@ -2555,3 +2555,31 @@ SELECT CAST('{"a": [1,2,3], "a": [4,5,6]}' AS JSON);
 SELECT JSON_INSERT('{"a":1}', '$.a[1]', 123) AS c1,
        JSON_INSERT('{"a":1}', '$[0].a[1]', 123) AS c2,
        JSON_INSERT('{"a":1}', '$.a[0][1]', 123) AS c3;
+
+--echo #
+--echo # Bug#26649978: JSON_INSERT: ASSERTION FAILED: PARENT
+--echo #
+--echo # c1, c2 and c3 should have the same result due to auto-wrapping,
+--echo # but the expressions in c2, c3 and c4 used to hit an assert.
+SELECT JSON_INSERT('{"a":1}', '$[1]', 2) AS c1,
+       JSON_INSERT('{"a":1}', '$[0][1]', 2) AS c2,
+       JSON_INSERT('{"a":1}', '$[0][0][1]', 2) AS c3,
+       JSON_INSERT('{"a":1}', '$[last][1]', 2) AS c4;
+
+
+--echo #
+--echo # Bug#27028889: MYSQL NORMALIZES DECIMAL NUMBERS WITH
+--echo #               ZERO FRACTIONAL PART TO INTEGERS
+--echo #
+
+SET @floating_points = '[0.0, -0.0, 1.0, -1.0, 3.14,
+                         999999999999999.0, -999999999999999.0,
+                         1000000000000000.0, -1000000000000000.0,
+                         1e200, -1e200]';
+
+SELECT CAST(CAST(@floating_points AS JSON) AS CHAR) AS x;
+SELECT JSON_PRETTY(@floating_points);
+SELECT j, JSON_TYPE(j) FROM
+JSON_TABLE(CAST(CAST(CAST(@floating_points AS JSON) AS CHAR) AS JSON),
+           '$[*]' COLUMNS (o FOR ORDINALITY, j JSON PATH '$')) AS jt
+ORDER BY o;

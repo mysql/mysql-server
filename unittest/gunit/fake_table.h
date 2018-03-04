@@ -1,13 +1,20 @@
 /* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -25,17 +32,15 @@
 
 #include "gmock/gmock-generated-nice-strict.h"
 #include "gtest/gtest.h"
-#include "handler-t.h"
 #include "lex_string.h"
-#include "mock_field_long.h" // todo: put this #include first
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
-#include "sql/item.h"
 #include "sql/handler.h"
+#include "sql/item.h"
 #include "sql/key.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -43,6 +48,8 @@
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/table.h"
+#include "unittest/gunit/handler-t.h"
+#include "unittest/gunit/mock_field_long.h" // todo: put this #include first
 
 using ::testing::NiceMock;
 using std::vector;
@@ -224,39 +231,31 @@ public:
 
 
   /**
-     Creates a one-column fake table and stores the value in the one field.
+    Creates a fake TABLE and stores the values in their corresponding Fields.
 
-     @param column_value Item holding the integer value to be stored.
+    @param column_value The column values to be stored.
+    @param are_nullable Whether the columns are nullable.
   */
-  Fake_TABLE(Item_int *column_value) :
-    table_share(1),
-      mock_handler(&fake_handlerton, &table_share)
-  {
-    initialize();
-    add(new (*THR_MALLOC) Mock_field_long("field_1"), 0);
-    column_value->save_in_field_no_warnings(field[0], true);
-  }
-
-
-  /**
-     Creates a two-column fake table and stores the values in their
-     corresponding fields.
-
-     @param column1_value Item holding integer value to be stored.
-     @param column2_value Item holding integer value to be stored.
-  */
-  Fake_TABLE(Item_int *column1_value, Item_int *column2_value) :
-    table_share(2),
+  Fake_TABLE(std::initializer_list<int> column_values,
+             bool are_nullable= true) :
+    table_share(column_values.size()),
     mock_handler(static_cast<handlerton*>(NULL), &table_share)
   {
     field= m_field_array;
-    field[0]= new (*THR_MALLOC) Mock_field_long("field_1");
-    field[0]->table= this;
-    field[1]= new (*THR_MALLOC) Mock_field_long("field_2");
-    field[1]->table= this;
+    for (size_t i= 0; i < column_values.size(); ++i)
+    {
+      std::stringstream s;
+      s <<  "field_" << i + 1;
+      field[i]= new (*THR_MALLOC) Mock_field_long(s.str(), are_nullable);
+      field[i]->table= this;
+    }
     initialize();
-    column1_value->save_in_field_no_warnings(field[0], true);
-    column2_value->save_in_field_no_warnings(field[1], true);
+    int i= 0;
+    for (auto column_value : column_values)
+    {
+      auto item= new Item_int(column_value);
+      item->save_in_field_no_warnings(field[i++], true);
+    }
   }
 
   ~Fake_TABLE()

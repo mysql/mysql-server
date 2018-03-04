@@ -124,7 +124,7 @@ SET @poly4 = ST_GeomFromText('POLYGON((0 10, -10 10, -10 -10, 0 -10, 0 10))');
 SET @p1 = ST_PointFromText('POINT(0 0)');
 SET @mpoly = ST_GeomFromText('MULTIPOLYGON(((3 3, 3 16, 16 16, 16 3, 3 3)), ((10 10, 10 50, 50 50, 50 10, 10 10)))');
 
-CREATE TABLE gis_point (p1 POINT NOT NULL, p2 POINT NOT NULL, SPATIAL KEY k1 (p1), SPATIAL KEY k2 (p2)) ENGINE=InnoDB;
+CREATE TABLE gis_point (p1 POINT NOT NULL SRID 0, p2 POINT NOT NULL SRID 0, SPATIAL KEY k1 (p1), SPATIAL KEY k2 (p2)) ENGINE=InnoDB;
 
 INSERT INTO gis_point VALUES
 (ST_PointFromText('POINT(1 2)'), ST_PointFromText('POINT(-1 -3)')),
@@ -212,7 +212,7 @@ SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@
 -- echo Build another new table with the same schema, will insert data from this table to the orignal one
 -- echo ======================================================================
 
-CREATE TABLE p(p1 POINT NOT NULL, p2 POINT NOT NULL, SPATIAL INDEX k1(p2)) ENGINE=InnoDB;
+CREATE TABLE p(p1 POINT NOT NULL, p2 POINT NOT NULL SRID 0, SPATIAL INDEX k1(p2)) ENGINE=InnoDB;
 
 INSERT INTO p VALUES(ST_PointFromText('POINT(1000 -1000)'), ST_PointFromText('POINT(-201 203.56)'));
 INSERT INTO p VALUES(ST_PointFromText('POINT(20.5 43.9832)'), ST_PointFromText('POINT(-0 0)'));

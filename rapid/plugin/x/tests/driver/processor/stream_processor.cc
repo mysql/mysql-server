@@ -1,32 +1,40 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "processor/stream_processor.h"
+#include "plugin/x/tests/driver/processor/stream_processor.h"
 
 #include <memory>
 
-#include "processor/command_processor.h"
-#include "processor/command_multiline_processor.h"
-#include "processor/comment_processor.h"
-#include "processor/indigestion_processor.h"
-#include "processor/dump_message_block_processor.h"
-#include "processor/macro_block_processor.h"
-#include "processor/sql_block_processor.h"
+#include "my_dbug.h"
 
+#include "plugin/x/tests/driver/processor/command_multiline_processor.h"
+#include "plugin/x/tests/driver/processor/command_processor.h"
+#include "plugin/x/tests/driver/processor/comment_processor.h"
+#include "plugin/x/tests/driver/processor/dump_message_block_processor.h"
+#include "plugin/x/tests/driver/processor/indigestion_processor.h"
+#include "plugin/x/tests/driver/processor/macro_block_processor.h"
+#include "plugin/x/tests/driver/processor/sql_block_processor.h"
 
 std::vector<Block_processor_ptr> create_macro_block_processors(
     Execution_context *context) {
@@ -62,8 +70,7 @@ std::vector<Block_processor_ptr> create_block_processors(
 int process_client_input(std::istream &input,
                          std::vector<Block_processor_ptr> *eaters,
                          Script_stack *script_stack, const Console &console) {
-  const std::size_t k_buffer_length = 64 * 1024 + 1024;
-  char linebuf[k_buffer_length] = {0};
+  std::string linebuf;
 
   if (!input.good()) {
     console.print_error("Input stream isn't valid\n");
@@ -73,7 +80,7 @@ int process_client_input(std::istream &input,
 
   Block_processor_ptr hungry_block_reader;
 
-  while (input.getline(linebuf, k_buffer_length)) {
+  while (std::getline(input, linebuf)) {
     Block_processor::Result result = Block_processor::Result::Not_hungry;
 
     script_stack->front().m_line_number++;
@@ -83,7 +90,7 @@ int process_client_input(std::istream &input,
 
       while (i != eaters->end() &&
              Block_processor::Result::Not_hungry == result) {
-        result = (*i)->feed(input, linebuf);
+        result = (*i)->feed(input, linebuf.c_str());
         if (Block_processor::Result::Indigestion == result) return 1;
         if (Block_processor::Result::Feed_more == result)
           hungry_block_reader = (*i);
@@ -93,7 +100,7 @@ int process_client_input(std::istream &input,
       continue;
     }
 
-    result = hungry_block_reader->feed(input, linebuf);
+    result = hungry_block_reader->feed(input, linebuf.c_str());
 
     if (Block_processor::Result::Indigestion == result) return 1;
 

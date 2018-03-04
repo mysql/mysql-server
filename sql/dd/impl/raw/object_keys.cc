@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/raw/object_keys.h"
 
@@ -25,6 +32,7 @@
 #include "sql/dd/impl/raw/raw_key.h"   // dd::Raw_key
 #include "sql/dd/impl/raw/raw_table.h" // dd::Raw_table
 #include "sql/dd/string_type.h"        // dd::String_type
+#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
 #include "sql/field.h"                 // Field
 #include "sql/key.h"                   // KEY
 #include "sql/table.h"                 // TABLE
@@ -39,11 +47,15 @@ Raw_key *Primary_id_key::create_access_key(Raw_table *db_table) const
 {
   // Positional index of PK-Index on object-id field.
   // It is 0 for any DD-table (PK-Index is the 1st index on a DD-table).
-  const int ID_INDEX_NO= 0;
+  const int ID_INDEX_NO= static_cast<int>(
+    Object_table_impl::Common_index::PK_ID);
+  DBUG_ASSERT(ID_INDEX_NO == 0);
 
   // Positional index of PK-object-id-column.
   // It is 0 for any DD-table (object-id is the 1st column on a DD-table).
-  const int ID_COLUMN_NO= 0;
+  const int ID_COLUMN_NO= static_cast<int>(
+    Object_table_impl::Common_field::ID);
+  DBUG_ASSERT(ID_COLUMN_NO == 0);
 
   TABLE *t= db_table->get_table();
 
@@ -115,6 +127,18 @@ String_type Parent_id_range_key::str() const
 
 Raw_key *Global_name_key::create_access_key(Raw_table *db_table) const
 {
+  /*
+    Positional index of name index on the name field.
+    It is 1 for any DD-table (the name index is the 2nd index
+    on a DD-table, i.e., the ordinal position is 2). This is a
+    convention both for entities with global names, and entities
+    that are items contained in another entity.
+  */
+  const int NAME_INDEX_NO= static_cast<int>(
+    Object_table_impl::Common_index::UK_NAME);
+
+  DBUG_ASSERT(NAME_INDEX_NO == 1);
+
   TABLE *t= db_table->get_table();
 
   t->use_all_columns();
@@ -123,9 +147,9 @@ Raw_key *Global_name_key::create_access_key(Raw_table *db_table) const
                                     m_object_name.length(),
                                     &my_charset_bin);
 
-  KEY *key_info= t->key_info + 1 /* index_no */;
+  KEY *key_info= t->key_info + NAME_INDEX_NO;
 
-  Raw_key *k= new (std::nothrow) Raw_key(1 /* index_no */,
+  Raw_key *k= new (std::nothrow) Raw_key(NAME_INDEX_NO,
                                 key_info->key_length,
                                 HA_WHOLE_KEY);
 
@@ -140,6 +164,18 @@ Raw_key *Global_name_key::create_access_key(Raw_table *db_table) const
 
 Raw_key *Item_name_key::create_access_key(Raw_table *db_table) const
 {
+  /*
+    Positional index of name index on the name field.
+    It is 1 for any DD-table (the name index is the 2nd index
+    on a DD-table, i.e., the ordinal position is 2). This is a
+    convention both for entities with global names, and entities
+    that are items contained in another entity.
+  */
+  const int NAME_INDEX_NO= static_cast<int>(
+    Object_table_impl::Common_index::UK_NAME);
+
+  DBUG_ASSERT(NAME_INDEX_NO == 1);
+
   TABLE *t= db_table->get_table();
 
   t->use_all_columns();
@@ -150,9 +186,9 @@ Raw_key *Item_name_key::create_access_key(Raw_table *db_table) const
                                     m_object_name.length(),
                                     &my_charset_bin);
 
-  KEY *key_info= t->key_info + 1 /* index_no */;
+  KEY *key_info= t->key_info + NAME_INDEX_NO;
 
-  Raw_key *k= new (std::nothrow) Raw_key(1 /* index_no */,
+  Raw_key *k= new (std::nothrow) Raw_key(NAME_INDEX_NO,
                                 key_info->key_length,
                                 HA_WHOLE_KEY);
 
@@ -182,8 +218,7 @@ Raw_key *Se_private_id_key::create_access_key(Raw_table *db_table) const
 
   t->use_all_columns();
 
-  DBUG_ASSERT(m_engine);
-  t->field[m_engine_column_no]->store(m_engine->c_str(), m_engine->length(),
+  t->field[m_engine_column_no]->store(m_engine.c_str(), m_engine.length(),
                                      &my_charset_bin);
   t->field[m_engine_column_no]->set_notnull();
 
@@ -210,7 +245,7 @@ Raw_key *Se_private_id_key::create_access_key(Raw_table *db_table) const
 String_type Se_private_id_key::str() const
 {
   dd::Stringstream_type ss;
-  ss << *m_engine << ":" << m_private_id;
+  ss << m_engine << ":" << m_private_id;
   return ss.str();
 }
 
@@ -267,9 +302,9 @@ Raw_key *Routine_name_key::create_access_key(Raw_table *db_table) const
                                     m_object_name.length(),
                                     &my_charset_bin);
 
-  KEY *key_info= t->key_info + 1 /* index_no */;
+  KEY *key_info= t->key_info + m_index_no;
 
-  Raw_key *k= new (std::nothrow) Raw_key(1 /* index_no */,
+  Raw_key *k= new (std::nothrow) Raw_key(m_index_no,
                                          key_info->key_length,
                                          HA_WHOLE_KEY);
 

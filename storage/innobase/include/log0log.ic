@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -305,32 +313,6 @@ log_block_init(
 	log_block_set_first_rec_group(log_block, 0);
 }
 
-#ifdef UNIV_HOTBACKUP
-/************************************************************//**
-Initializes a log block in the log buffer in the old format, where there
-was no checksum yet. */
-UNIV_INLINE
-void
-log_block_init_in_old_format(
-/*=========================*/
-	byte*	log_block,	/*!< in: pointer to the log buffer */
-	lsn_t	lsn)		/*!< in: lsn within the log block */
-{
-	ulint	no;
-
-	ut_ad(log_mutex_own());
-	ut_ad(!log_sys->disable_redo_writes);
-
-	no = log_block_convert_lsn_to_no(lsn);
-
-	log_block_set_hdr_no(log_block, no);
-	mach_write_to_4(log_block + OS_FILE_LOG_BLOCK_SIZE
-			- LOG_BLOCK_CHECKSUM, no);
-	log_block_set_data_len(log_block, LOG_BLOCK_HDR_SIZE);
-	log_block_set_first_rec_group(log_block, 0);
-}
-#endif /* UNIV_HOTBACKUP */
-
 #ifndef UNIV_HOTBACKUP
 /** Append a string to the log.
 @param[in]	str		string
@@ -485,3 +467,21 @@ log_free_check(void)
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
+
+#if defined(UNIV_HOTBACKUP) && defined(UNIV_DEBUG)
+/** Print a log file header.
+@param[in]	block	pointer to the log buffer */
+UNIV_INLINE
+void
+meb_log_print_file_hdr(
+	byte*	block)
+{
+	ib::info() << "Log file header:"
+		   << " format " << mach_read_from_4(block + LOG_HEADER_FORMAT)
+		   << " pad1 " << mach_read_from_4(block + LOG_HEADER_PAD1)
+		   << " start_lsn " << mach_read_from_8(block +
+							LOG_HEADER_START_LSN)
+		   << " creator '" << block + LOG_HEADER_CREATOR << "'"
+		   << " checksum " << log_block_get_checksum(block);
+}
+#endif /* UNIV_HOTBACKUP && UNIV_DEBUG */

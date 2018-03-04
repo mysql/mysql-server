@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -779,10 +787,11 @@ buf_read_ibuf_merge_pages(
 
 /** Issues read requests for pages which recovery wants to read in.
 @param[in]	sync		true if the caller wants this function to wait
-for the highest address page to get read in, before this function returns
+				for the highest address page to get read in,
+				before this function returns
 @param[in]	space_id	tablespace id
 @param[in]	page_nos	array of page numbers to read, with the
-highest page number the last in the array
+				highest page number the last in the array
 @param[in]	n_stored	number of page numbers in the array */
 void
 buf_read_recv_pages(
@@ -792,9 +801,6 @@ buf_read_recv_pages(
 	ulint			n_stored)
 {
 	ulint			count;
-	bool			success;
-	dberr_t			err;
-	ulint			i;
 	fil_space_t*		space	= fil_space_get(space_id);
 
 	if (space == NULL) {
@@ -804,32 +810,47 @@ buf_read_recv_pages(
 
 	fil_space_open_if_needed(space);
 
+	auto	req_size = page_nos[n_stored - 1] + 1;
+
 	/* Extend the tablespace if needed. Required only while
 	recovering from cloned database. */
-	page_no_t	last_page = page_nos[n_stored - 1];
+	if (recv_sys->is_cloned_db && space->size < req_size) {
 
-	/* Align size to multiple of extent size */
-	success = fil_space_extend(space,
-		ut_calc_align(last_page + 1, FSP_EXTENT_SIZE));
+		/* Align size to multiple of extent size */
+		if (req_size > FSP_EXTENT_SIZE) {
 
-	if (!success) {
-		ib::error()
-			<< "Could not extend tablespace: " << space->id
+			req_size = ut_calc_align(req_size, FSP_EXTENT_SIZE);
+		}
+
+		ib::info()
+			<< "Extending tablespace : " << space->id
 			<< " space name: " << space->name
-			<< " for page number: " << last_page
+			<< " from page number: " << space->size << " pages"
+			<< " to " << req_size << " pages"
+			<< " for page number: " << page_nos[n_stored - 1]
 			<< " during recovery.";
+
+		if(!fil_space_extend(space, req_size)) {
+
+			ib::error()
+				<< "Could not extend tablespace: " << space->id
+				<< " space name: " << space->name
+				<< " to " << req_size << " pages"
+				<< " during recovery.";
+		}
 	}
 
 	const page_size_t	page_size(space->flags);
 
-	for (i = 0; i < n_stored; i++) {
-		buf_pool_t*		buf_pool;
+	for (ulint i = 0; i < n_stored; i++) {
+		buf_pool_t*	buf_pool;
 		const page_id_t	cur_page_id(space_id, page_nos[i]);
 
 		count = 0;
 
 		buf_pool = buf_pool_get(cur_page_id);
 		os_rmb;
+
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
@@ -846,6 +867,8 @@ buf_read_recv_pages(
 					<< " pending reads";
 			}
 		}
+
+		dberr_t		err;
 
 		if ((i + 1 == n_stored) && sync) {
 			buf_read_page_low(

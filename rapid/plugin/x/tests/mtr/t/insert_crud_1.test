@@ -43,6 +43,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 create user readuser@localhost identified by 'readuser';
 grant select on *.* to readuser@localhost;
 
@@ -666,7 +667,7 @@ UNLOCK TABLES;
 
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
 
 
@@ -709,7 +710,7 @@ EOF
 # Acquire lock on categories table from mysqltest client 
 # and try to run insert from mysqlxtest (Error : timeout expected from mysqlxtest)
 LOCK TABLES xplugintest.categories WRITE;
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
 UNLOCK TABLES;
 
@@ -767,8 +768,8 @@ END_MESSAGE
  print OUTPUT "-->endsql\n";
  close (OUTPUT);
 EOF
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
 let $wait_condition= select count(*)=2 from xplugintest.test_table;
 --source include/wait_condition.inc
 SELECT COUNT(*) FROM xplugintest.maincollection;
@@ -778,6 +779,7 @@ SELECT COUNT(*) FROM xplugintest.maincollection;
 --remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
 
 
+--source include/xplugin_drop_user.inc
 ## Postamble
 DROP SCHEMA if EXISTS xplugintest;
 DROP USER readuser@localhost;

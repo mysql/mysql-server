@@ -466,11 +466,9 @@ SELECT t_pk,LENGTH(t_longblob),LENGTH(t_longtext) FROM t_string_5 ORDER BY t_pk;
 
 DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
 
-DROP TABLESPACE ts1
-ENGINE = NDB;
+DROP TABLESPACE ts1;
 
 DROP LOGFILE GROUP lg1
 ENGINE =NDB;
@@ -508,11 +506,9 @@ SELECT t_pk,LENGTH(t_longblob),LENGTH(t_longtext) FROM t_string_5 ORDER BY t_pk;
 
 DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis,t_string_3,t_string_4,t_string_5;
 ALTER TABLESPACE ts1
-DROP DATAFILE 'datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
 
-DROP TABLESPACE ts1
-ENGINE = NDB;
+DROP TABLESPACE ts1;
 
 DROP LOGFILE GROUP lg1
 ENGINE =NDB;

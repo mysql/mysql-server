@@ -24,9 +24,9 @@ include/start_and_bootstrap_group_replication.inc
 SELECT NAME,TYPE FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
 NAME	TYPE
 thread/group_rpl/THD_Gcs_ext_logger_impl::m_consumer	BACKGROUND
-thread/group_rpl/THD_Gcs_xcom_engine::m_engine_thread	BACKGROUND
-thread/group_rpl/THD_Gcs_xcom_control::m_xcom_thread	BACKGROUND
 thread/group_rpl/THD_Gcs_xcom_control::m_suspicions_processing_thread	BACKGROUND
+thread/group_rpl/THD_Gcs_xcom_control::m_xcom_thread	BACKGROUND
+thread/group_rpl/THD_Gcs_xcom_engine::m_engine_thread	BACKGROUND
 include/assert.inc ['There should be 4 GCS instrumented thread entries in the threads table after starting the GR']
 
 ############################################################

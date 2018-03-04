@@ -22,12 +22,6 @@
 --source include/have_binlog_format_row.inc
 --source include/master-slave.inc
 
---source include/rpl_connection_slave.inc
-call mtr.add_suppression("No argument was provided to --log-bin, and --log-bin-index was not used; so replication may break when this MySQL server acts as a master and has his hostname changed!! Please use '--log-bin=.*' to avoid this problem.");
-
---source include/rpl_connection_master.inc
-call mtr.add_suppression("No argument was provided to --log-bin, and --log-bin-index was not used; so replication may break when this MySQL server acts as a master and has his hostname changed!! Please use '--log-bin=.*' to avoid this problem.");
-
 CREATE TABLE t1 (c1 INT);
 INSERT INTO t1 VALUES (1);
 

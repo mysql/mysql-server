@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -52,6 +59,7 @@
 #include "sql/item_geofunc.h"    // Item_func_area
 #include "sql/item_inetfunc.h"   // Item_func_inet_ntoa
 #include "sql/item_json_func.h"  // Item_func_json
+#include "sql/item_regexp_func.h"// Item_func_regexp_xxx
 #include "sql/item_strfunc.h"    // Item_func_aes_encrypt
 #include "sql/item_sum.h"        // Item_sum_udf_str
 #include "sql/item_timefunc.h"   // Item_func_add_time
@@ -1593,6 +1601,10 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "RADIANS", SQL_FACTORY(Radians_instantiator) },
   { "RAND", SQL_FN_V(Item_func_rand, 0, 1) },
   { "RANDOM_BYTES", SQL_FN(Item_func_random_bytes, 1) },
+  { "REGEXP_INSTR", SQL_FN_V_LIST(Item_func_regexp_instr, 2, 6) },
+  { "REGEXP_LIKE", SQL_FN_V_LIST(Item_func_regexp_like, 2, 3) },
+  { "REGEXP_REPLACE", SQL_FN_V_LIST(Item_func_regexp_replace, 3, 6) },
+  { "REGEXP_SUBSTR", SQL_FN_V_LIST(Item_func_regexp_substr, 2, 5) },
   { "RELEASE_ALL_LOCKS", SQL_FN(Item_func_release_all_locks, 0) },
   { "RELEASE_LOCK", SQL_FN(Item_func_release_lock, 1) },
   { "REVERSE", SQL_FN(Item_func_reverse, 1) },
@@ -1609,6 +1621,8 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "SLEEP", SQL_FN(Item_func_sleep, 1) },
   { "SOUNDEX", SQL_FN(Item_func_soundex, 1) },
   { "SPACE", SQL_FN(Item_func_space, 1) },
+  { "STATEMENT_DIGEST", SQL_FN(Item_func_statement_digest, 1) },
+  { "STATEMENT_DIGEST_TEXT", SQL_FN(Item_func_statement_digest_text, 1) },
   { "WAIT_FOR_EXECUTED_GTID_SET", SQL_FN_V(Item_wait_for_executed_gtid_set, 1, 2) },
   { "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS", SQL_FN_V(Item_master_gtid_set_wait, 1, 3) },
   { "SQRT", SQL_FN(Item_func_sqrt, 1) },
@@ -1630,7 +1644,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_DIMENSION", SQL_FN(Item_func_dimension, 1) },
   { "ST_DISJOINT", SQL_FN(Item_func_st_disjoint, 2) },
   { "ST_DISTANCE", SQL_FN_LIST(Item_func_distance, 2) },
-  { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_distance_sphere, 2, 3) },
+  { "ST_DISTANCE_SPHERE", SQL_FN_V_LIST(Item_func_st_distance_sphere, 2, 3) },
   { "ST_ENDPOINT", SQL_FACTORY(Endpoint_instantiator) },
   { "ST_ENVELOPE", SQL_FN(Item_func_envelope, 1) },
   { "ST_EQUALS", SQL_FN(Item_func_st_equals, 2) },
@@ -1653,10 +1667,10 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "ST_INTERSECTION", SQL_FN(Item_func_st_intersection, 2) },
   { "ST_ISCLOSED", SQL_FN(Item_func_isclosed, 1) },
   { "ST_ISEMPTY", SQL_FN(Item_func_isempty, 1) },
-  { "ST_ISSIMPLE", SQL_FN(Item_func_issimple, 1) },
+  { "ST_ISSIMPLE", SQL_FN(Item_func_st_issimple, 1) },
   { "ST_ISVALID", SQL_FN(Item_func_isvalid, 1) },
   { "ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1) },
-  { "ST_LENGTH", SQL_FN(Item_func_glength, 1) },
+  { "ST_LENGTH", SQL_FN(Item_func_st_length, 1) },
   { "ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator) },
   { "ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator) },
   { "ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator) },
@@ -1743,6 +1757,7 @@ static const std::pair<const char *, Create_func *> func_array[]=
   { "CAN_ACCESS_ROUTINE",
     SQL_FN_LIST_INTERNAL(Item_func_can_access_routine, 5) },
   { "CAN_ACCESS_EVENT", SQL_FN_INTERNAL(Item_func_can_access_event, 1) },
+  { "ICU_VERSION", SQL_FN(Item_func_icu_version, 0) },
   { "CAN_ACCESS_RESOURCE_GROUP", SQL_FN_INTERNAL(Item_func_can_access_resource_group, 1) },
   { "CONVERT_CPU_ID_MASK", SQL_FN_INTERNAL(Item_func_convert_cpu_id_mask, 1) },
   { "IS_VISIBLE_DD_OBJECT",

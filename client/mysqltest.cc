@@ -1,17 +1,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   mysqltest
@@ -33,48 +40,48 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <m_ctype.h>
-#include <mf_wcomp.h>   // wild_compare
-#include <my_dir.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <violite.h>
 #include <cmath> // std::isinf
 
 #include "client/client_priv.h"
+#include "extra/regex/my_regex.h" /* Our own version of regex */
+#include "m_ctype.h"
 #include "map_helpers.h"
+#include "mf_wcomp.h"   // wild_compare
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
+#include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "my_regex.h" /* Our own version of regex */
 #include "my_thread_local.h"
 #include "mysql/service_my_snprintf.h"
 #include "sql_common.h"
 #include "typelib.h"
+#include "violite.h"
 #ifndef _WIN32
 #include <sys/wait.h>
 #endif
 #ifdef _WIN32
 #include <direct.h>
 #endif
-#include <my_stacktrace.h>
 #include <signal.h>
-#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include <algorithm>
 #include <functional>
 #include <new>
 #include <string>
 
+#include "my_stacktrace.h"
 #include "prealloced_array.h"
 #include "print_version.h"
 #include "template_utils.h"
+#include "welcome_copyright_notice.h" // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 using std::min;
 using std::max;
@@ -188,7 +195,6 @@ static bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
-static const char *opt_server_public_key= 0;
 static bool can_handle_expired_passwords= TRUE;
 #include "caching_sha2_passwordopt-vars.h"
 
@@ -902,10 +908,13 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 
   for (p= query; (c= *p) && p < query_end; ++p)
   {
+    next_c= *(p+1);
     switch(c) {
     case '$':
-      if (escaped)
-      {
+      if (escaped ||
+          // a JSON path expression
+          next_c == '.' || next_c == '[' || next_c == '\'' || next_c == '"')
+     {
 	escaped= 0;
 	dynstr_append_mem(query_eval, p, 1);
       }
@@ -917,7 +926,6 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
       }
       break;
     case '\\':
-      next_c= *(p+1);
       if (escaped)
       {
 	escaped= 0;
@@ -3037,38 +3045,36 @@ static void replace_crlf_with_lf(char *buf)
   *replace = '\x0';
 }
 #endif
-/*
-  Execute given command.
 
-  SYNOPSIS
-  do_exec()
-  query	called command
 
-  DESCRIPTION
-  exec <command>
-
-  Execute the text between exec and end of line in a subprocess.
-  The error code returned from the subprocess is checked against the
-  expected error array, previously set with the --error command.
-  It can thus be used to execute a command that shall fail.
-
-  NOTE
-  Although mysqltest is executed from cygwin shell, the command will be
-  executed in "cmd.exe". Thus commands like "rm" etc can NOT be used, use
-  mysqltest commmand(s) like "remove_file" for that
-*/
-
+/// Execute the shell command using the popen() library call. References
+/// to variables within the command are replaced with the corresponding
+/// values. Use “\\$” to specify a literal “$” character.
+///
+/// The error code returned from the subprocess is checked against the
+/// expected error array, previously set with the --error command. It can
+/// thus be used to execute a command that shall fail.
+///
+/// @code
+/// exec command [args]
+/// @endcode
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
+///
+/// @note
+/// It is recommended to use mysqltest command(s) like "remove_file"
+/// instead of executing the shell commands using 'exec' command.
 static void do_exec(struct st_command *command)
 {
   int error;
-  char buf[512];
   FILE *res_file;
   char *cmd= command->first_argument;
   DYNAMIC_STRING ds_cmd;
   DBUG_ENTER("do_exec");
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
-  /* Skip leading space */
+  // Skip leading space
   while (*cmd && my_isspace(charset_info, *cmd))
     cmd++;
   if (!*cmd)
@@ -3076,26 +3082,27 @@ static void do_exec(struct st_command *command)
   command->last_argument= command->end;
 
   init_dynamic_string(&ds_cmd, 0, command->query_len+256, 256);
-  /* Eval the command, thus replacing all environment variables */
+  // Eval the command, thus replacing all environment variables
   do_eval(&ds_cmd, cmd, command->end, !is_windows);
 
-  /* Check if echo should be replaced with "builtin" echo */
+  // Check if echo should be replaced with "builtin" echo
   if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0)
   {
-    /* Replace echo with our "builtin" echo */
+    // Replace echo with our "builtin" echo
     replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
   }
 
 #ifdef _WIN32
-  /* Replace /dev/null with NUL */
+  // Replace "/dev/null" with NUL
   while(replace(&ds_cmd, "/dev/null", 9, "NUL", 3) == 0)
     ;
-  /* Replace "closed stdout" with non existing output fd */
+
+  // Replace "closed stdout" with non existing output fd
   while(replace(&ds_cmd, ">&-", 3, ">&4", 3) == 0)
     ;
 #endif
 
-  /* exec command is interpreted externally and will not take newlines */
+  // exec command is interpreted externally and will not take newlines
   while(replace(&ds_cmd, "\n", 1, " ", 1) == 0)
     ;
   
@@ -3115,8 +3122,13 @@ static void do_exec(struct st_command *command)
     die("popen(\"%s\", \"r\") failed", command->first_argument);
   }
 
-  while (fgets(buf, sizeof(buf), res_file))
+  char buf[512];
+  std::string str;
+  while (std::fgets(buf, sizeof(buf), res_file))
   {
+    if (strlen(buf) < 1)
+      continue;
+
 #ifdef WIN32
     // Replace CRLF char with LF.
     // See bug#22608247 and bug#22811243
@@ -3135,9 +3147,35 @@ static void do_exec(struct st_command *command)
     }
     else
     {
-      replace_dynstr_append(&ds_res, buf);
+      // Read the file line by line. Check if the buffer read from the
+      // file ends with EOL character.
+      if ((buf[strlen(buf)-1] != '\n' && strlen(buf) < (sizeof(buf) - 1)) ||
+          (buf[strlen(buf)-1] == '\n'))
+      {
+        // Found EOL
+        if (str.length())
+        {
+          // Temporary string exists, append the current buffer read
+          // to the temporary string.
+          str.append(buf);
+          replace_dynstr_append(&ds_res, str.c_str());
+          str.clear();
+        }
+        else
+        {
+          // Entire line is read at once
+          replace_dynstr_append(&ds_res, buf);
+        }
+      }
+      else
+      {
+        // The buffer read from the file doesn't end with EOL character,
+        // store it in a temporary string.
+        str.append(buf);
+      }
     }
   }
+
   error= pclose(res_file);
   if (error > 0)
   {
@@ -3182,7 +3220,7 @@ static void do_exec(struct st_command *command)
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
   {
-    /* Error code we wanted was != 0, i.e. not an expected success */
+    // Error code we wanted was != 0, i.e. not an expected success
     log_msg("exec of '%s failed, error: %d, errno: %d",
             ds_cmd.str, error, errno);
     dynstr_free(&ds_cmd);
@@ -6560,9 +6598,7 @@ static void do_connect(struct st_command *command)
     mysql_options(&con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
 
   /* Set server public_key */
-  if (opt_server_public_key && *opt_server_public_key)
-    mysql_options(&con_slot->mysql, MYSQL_SERVER_PUBLIC_KEY,
-                  opt_server_public_key);
+  set_server_public_key(&con_slot->mysql);
 
   set_get_server_public_key_option(&con_slot->mysql);
 
@@ -7616,10 +7652,6 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
-   "File path to the server public RSA key in PEM format.",
-   &opt_server_public_key, &opt_server_public_key, 0,
-   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7693,7 +7725,7 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     else
       tty_password= 1;
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 't':
     my_stpnmov(TMPDIR, argument, sizeof(TMPDIR));

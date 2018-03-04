@@ -291,10 +291,10 @@ INSERT INTO t1 VALUES (602, 'IMPLICIT COMMIT');
 ALTER TABLE t1 ADD KEY (s3);
 
 --echo
---echo ## Expect 0 active transactions, 0 committed transaction
+--echo ## Expect 0 active transactions, 1 committed transaction
 --connection default
 CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'ACTIVE',    0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 0);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL transaction_verifier(1, @con1_thread_id, 'transaction', 'COMMITTED', 0, '', '', '', '', 'READ WRITE', '', 'NO', 0, 0, 0, 1);
 CALL clear_transaction_tables();
 
@@ -434,17 +434,17 @@ SELECT COUNT(*) FROM performance_schema.events_transactions_current ORDER BY eve
 INSERT INTO nt1 VALUES (801, 'NON-TRANSACTIONAL');
 
 --echo
---echo ## Expect 1 transaction in events_transactions_current
+--echo ## Expect 0 transactions in events_transactions_current
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
 
 --connection con1
 COMMIT;
 
 --echo
---echo ## Expect 10 transactions in events_transactions_history
+--echo ## Expect 0 transactions in events_transactions_history
 --connection default
-CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 10);
+CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
 
 --echo
 --echo #
@@ -457,9 +457,9 @@ CALL transaction_verifier(1, @con1_thread_id, 'transaction', '', 0, '', '', '', 
 INSERT INTO nt1 VALUES (802, 'NON-TRANSACTIONAL');
 
 --echo
---echo ## Expect 1 transaction in events_transactions_current
+--echo ## Expect 0 transactions in events_transactions_current
 --connection default
-CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 1);
+CALL transaction_verifier(0, @con1_thread_id, 'transaction', '', 0, '', '', '', '', '', '', '', 0, 0, 0, 0);
 
 --echo
 --echo ## Now transactional. Transaction should be started.

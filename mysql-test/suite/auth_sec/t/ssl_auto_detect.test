@@ -21,7 +21,7 @@ let SEARCH_FILE= $server_log;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 perl;
@@ -38,7 +38,7 @@ EOF
 --copy_file std_data/server-cert.pem $DATADIR_LOCATION/server-cert.pem
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart" > $restart_file
+--exec echo "restart: --log-error-verbosity=3" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -53,7 +53,7 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 
 --echo # Try to establish SSL connection : This must succeed.
 connect (ssl_root_1,localhost,root,,,,,SSL);
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_cipher';
 SHOW VARIABLES LIKE 'have_ssl';
 
@@ -67,7 +67,7 @@ connection default;
 disconnect ssl_root_1;
 
 --echo # Connect using mysql client : This must succeed.
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 
@@ -79,7 +79,7 @@ disconnect ssl_root_1;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 perl;
@@ -120,12 +120,12 @@ disconnect root_2;
 
 let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --exec echo "wait" > $restart_file
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 
 --copy_file std_data/server-key.pem $DATADIR_LOCATION/server-key.pem
 
---exec echo "restart: --ssl-cipher=DHE-RSA-AES256-SHA" > $restart_file
+--exec echo "restart: --ssl-cipher=DHE-RSA-AES256-SHA --log-error-verbosity=3 --console" > $restart_file
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -139,7 +139,7 @@ let SEARCH_PATTERN= CA certificate .* is self signed.;
 --source include/search_pattern.inc
 
 --echo # Try creating SSL connection
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL -uroot --ssl-mode=REQUIRED -e "show status like 'Ssl_cipher';"
 
 

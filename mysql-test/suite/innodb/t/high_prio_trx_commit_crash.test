@@ -4,9 +4,6 @@
 #
 # Outcome: T2 completes according to crash point. T1 aborts.
 
-# Remove this work around after Bug#26629790
---source include/restart_mysqld.inc
-
 --source include/have_debug.inc
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc

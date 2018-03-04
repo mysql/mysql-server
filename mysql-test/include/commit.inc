@@ -822,12 +822,12 @@ create table t2 (a int);
 # COM_PREPARE.
 if (`SELECT $PS_PROTOCOL = 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)11(.*6)/\1<commit_count>\2/
+  --replace_regex /11/<commit_count>/
   call p_verify_status_increment(11, 4, 6, 0);
 }
 if (`SELECT $PS_PROTOCOL > 0`)
 {
-  --replace_regex /(call p_verify_status_increment.*)12(.*6)/\1<commit_count>\2/
+  --replace_regex /12/<commit_count>/
   call p_verify_status_increment(12, 4, 6, 0);
 }
 --echo # One extra transaction to load table 't2' into data-dictionary cache.

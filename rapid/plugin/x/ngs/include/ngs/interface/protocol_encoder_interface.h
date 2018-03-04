@@ -1,20 +1,25 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef NGS_PROTOCOL_ENCODER_INTERFACE_H_
@@ -22,10 +27,10 @@
 
 #include <string>
 
-#include "ngs/error_code.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
 
 namespace ngs {
 
@@ -44,6 +49,33 @@ enum class Frame_type {
   WARNING = Mysqlx::Notice::Frame_Type_WARNING,
   SESSION_VARIABLE_CHANGED = Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED,
   SESSION_STATE_CHANGED = Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED
+};
+
+struct Encode_column_info {
+  const char *m_catalog = "";
+  const char *m_db_name = "";
+  const char *m_table_name = "";
+  const char *m_org_table_name = "";
+  const char *m_col_name = "";
+  const char *m_org_col_name = "";
+
+  uint64_t m_collation{0};
+  bool     m_has_collation{false};
+
+  int32_t  m_type{0};
+
+  int32_t  m_decimals{0};
+  int32_t  m_has_decimals{false};
+
+  uint32_t m_flags{0};
+  bool     m_has_flags{false};
+
+  uint32_t m_length{0};
+  bool     m_has_length{false};
+
+  uint32_t m_content_type{0};
+
+  bool m_compact{true};
 };
 
 class Protocol_encoder_interface {
@@ -68,17 +100,7 @@ class Protocol_encoder_interface {
   virtual bool send_exec_ok() = 0;
   virtual bool send_result_fetch_done() = 0;
   virtual bool send_result_fetch_done_more_results() = 0;
-
-  virtual bool send_column_metadata(
-      const std::string &catalog, const std::string &db_name,
-      const std::string &table_name, const std::string &org_table_name,
-      const std::string &col_name, const std::string &org_col_name,
-      uint64_t collation, int type, int decimals, uint32_t flags,
-      uint32_t length, uint32_t content_type = 0) = 0;
-
-  virtual bool send_column_metadata(uint64_t collation, int type, int decimals,
-                                    uint32_t flags, uint32_t length,
-                                    uint32_t content_type = 0) = 0;
+  virtual bool send_column_metadata(const Encode_column_info *column_info) = 0;
 
   virtual Row_builder &row_builder() = 0;
   virtual void start_row() = 0;
@@ -93,6 +115,8 @@ class Protocol_encoder_interface {
   virtual void on_error(int error) = 0;
 
   virtual Protocol_monitor_interface &get_protocol_monitor() = 0;
+
+  virtual void set_write_timeout(const uint32_t timeout) = 0;
 };
 
 }  // namespace ngs

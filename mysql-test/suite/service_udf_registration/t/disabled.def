@@ -9,5 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-udf_old                     : Bug#26115002 2017-05-23 Horst UDF_EXAMPLE BINARY NOT PACKAGED.
-udf_mix_old_new             : Bug#26115002: 2017-05-22 joro UDF_EXAMPLE BINARY NOT PACKAGED

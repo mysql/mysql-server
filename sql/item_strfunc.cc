@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -72,6 +79,7 @@
 #include "sql/dd/properties.h"       // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd_sql_view.h"         // push_view_warning_or_error
+#include "sql/error_handler.h"       // Internal_error_handler
 #include "sql/derror.h"              // ER_THD
 #include "sql/handler.h"
 #include "sql/key.h"
@@ -92,6 +100,7 @@
 using std::min;
 using std::max;
 
+extern int MYSQLparse(class THD *thd);  ///< Defined in sql_yacc.cc.
 
 /*
   For the Items which have only val_str_ascii() method
@@ -277,9 +286,9 @@ String *Item_func_sha2::val_str_ascii(String *str)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   uint digest_length= 0;
 
+  String *input_string= args[0]->val_str(str);
   str->set_charset(&my_charset_bin);
 
-  String *input_string= args[0]->val_str(str);
   if (input_string == NULL)
   {
     null_value= TRUE;
@@ -628,7 +637,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
 
 bool Item_func_aes_decrypt::resolve_type(THD *)
 {
-   set_data_type_string(args[0]->max_length);
+   set_data_type_string(args[0]->max_char_length());
    maybe_null= true;
    return false;
 }
@@ -801,6 +810,248 @@ String *Item_func_from_base64::val_str(String *str)
   null_value= 0;
   return &tmp_value;
 }
+
+
+namespace {
+
+/**
+  Because it's not possible to disentangle the state of the parser from the
+  THD, we have to destructively modify the current THD object in order to
+  parse. This class backs up and restores members that are modified in
+  Item_func_statement_digest::val_str_ascii. It also sports its own
+  Query_arena and LEX objects, which are used during parsing.
+*/
+class Thd_parse_modifier
+{
+public:
+  Thd_parse_modifier(THD *thd)
+    : m_thd(thd),
+      m_arena(&m_mem_root, Query_arena::STMT_CONVENTIONAL_EXECUTION),
+      m_backed_up_lex(thd->lex),
+      m_saved_parser_state(thd->m_parser_state),
+      m_saved_digest(thd->m_digest)
+  {
+    thd->m_digest= &m_digest_state;
+    // We 'borrow' the THD's token array here, but that should be safe as
+    // performance_schema has picked up the digest in parse_sql(), so for the
+    // remainder of the execution of the statement the buffer should be free
+    // to use.
+    m_digest_state.reset(thd->m_token_array, get_max_digest_length());
+    m_arena.set_query_arena(thd);
+    thd->set_query_arena(&m_arena);
+    thd->lex= &m_lex;
+    lex_start(thd);
+  }
+
+  ~Thd_parse_modifier()
+  {
+    lex_end(&m_lex);
+    m_thd->lex= m_backed_up_lex;
+    m_thd->set_query_arena(&m_arena);
+    m_thd->m_parser_state= m_saved_parser_state;
+    m_thd->m_digest= m_saved_digest;
+  }
+
+private:
+  THD *m_thd;
+  MEM_ROOT m_mem_root;
+  Query_arena m_arena;
+  LEX *m_backed_up_lex;
+  LEX m_lex;
+  sql_digest_state m_digest_state;
+  Parser_state *m_saved_parser_state;
+  sql_digest_state *m_saved_digest;
+};
+
+/**
+  Error handler that wraps parse error messages, removes details and silences
+  warnings.
+
+  We don't want statement_digest() to raise warnings about deprecated syntax
+  or semantic problems. This is likely not interesting to the
+  caller. Therefore this handler issues a blanket silencing of all warnings.
+
+  The reason we want to anonymize parse errors is to avoid leaking information
+  in error messages that may be unintentionally visible to users of an
+  application. For instance an application may in error insert an expression
+  instead of a string:
+
+    SELECT statement_digest( (SELECT * FROM( SELECT user() ) t) );
+
+  The parser would normally raise an error saying:
+
+    You have an error in your SQL syntax; /.../ near 'root@localhost'
+
+  thus leaking data from the `user` table. Therefore, the errors are in this
+  not disclosed.
+*/
+class Parse_error_anonymizer : public Internal_error_handler
+{
+
+public:
+  Parse_error_anonymizer(THD *thd, Item *arg)
+    : m_thd(thd),
+      m_arg(arg)
+  {
+    thd->push_internal_handler(this);
+  }
+
+  bool handle_condition(THD *,
+                        uint,
+                        const char *,
+                        Sql_condition::enum_severity_level *level,
+                        const char *message) override
+  {
+    // Silence warnings.
+    if (*level == Sql_condition::SL_WARNING)
+      return true;
+
+    // We pretend we're not here if already inside a call to handle_condition().
+    if (is_handling)
+      return false;
+
+    is_handling= true;
+
+    if (m_arg->basic_const_item())
+      // Ok, it's a literal, we can print the whole error message.
+      my_error(ER_PARSE_ERROR_IN_DIGEST_FN, MYF(0), message);
+    else
+      // The argument is an expression, potentially from malicious use, let's
+      // not disclose anything.
+      my_error(ER_UNDISCLOSED_PARSE_ERROR_IN_DIGEST_FN, MYF(0));
+
+    is_handling= false;
+
+    return true;
+  }
+
+  ~Parse_error_anonymizer() { m_thd->pop_internal_handler(); }
+
+private:
+  THD *m_thd;
+  Item *m_arg;
+
+  /// This avoids infinte recursion through my_error().
+  bool is_handling= false;
+};
+
+
+/**
+  Parses a string and fills the token buffer.
+
+  The parser symbol MYSQLparse() is called directly instead of parse_sql(), as
+  the latter assumes that it is called with the intent to record the statement
+  in performance_schema and later execute it, neither of which is called for
+  here. In fact we hardly need the parser to calculate a digest, since it is
+  calculated from the token stream. There are only some corner cases where
+  `NULL` is sometimes a literal and sometimes an operator, as in `IS NULL`,
+  `IS NOT NULL`.
+
+  @param thd Session object used by the parser.
+
+  @param statement_expr The expression that evaluates to something that
+  can be parsed. Needed for error messages in case we don't want to disclose
+  what it evaluates to.
+
+  @param statement_string The non-NULL string resulting from evaluating
+  statement_expr. The caller is preferred to do this as this function doesn't
+  deal with NULL values.
+
+  @retval true Error.
+  @retval false All went well, the digest information is in THD::m_digest.
+*/
+bool parse(THD *thd, Item *statement_expr, String *statement_string)
+{
+  // The lexer can't handle non-zero-length strings starting with NUL and we
+  // can't return NULL for them because this function is declared
+  // nonnullable.
+  if (statement_string->length() > 0 && (*statement_string)[0] == '\0')
+    statement_string->length(0);
+
+  Parser_state ps;
+
+  // The lexer needs null-terminated strings, despite boasting the below
+  // interface. Hence the use of c_ptr_safe().
+  if (ps.init(thd, statement_string->c_ptr_safe(), statement_string->length()))
+    return true;
+
+  ps.m_lip.m_digest= thd->m_digest;
+  ps.m_lip.m_digest->m_digest_storage.m_charset_number= thd->charset()->number;
+  ps.m_lip.multi_statements= false;
+
+  thd->m_parser_state= &ps;
+
+  {
+    Parse_error_anonymizer pea(thd, statement_expr);
+    if (MYSQLparse(thd) != 0)
+      return true;
+  }
+
+  return false;
+}
+
+} // namespace
+
+/**
+  Implementation of the STATEMENT_DIGEST() native function.
+
+  @param buf A String object that we can write to.
+
+  @return The same string object, or nullptr in case of error or null return.
+*/
+String *Item_func_statement_digest::val_str_ascii(String *buf)
+{
+  DBUG_ENTER("Item_func_statement_digest::val_str_ascii");
+
+  String *statement_string= args[0]->val_str(buf);
+
+  // This function is non-nullable, meaning it doesn't return NULL, unless the
+  // argument is NULL.
+  if (statement_string == nullptr)
+    DBUG_RETURN(null_return_str());
+  null_value= false;
+
+  uchar digest[DIGEST_HASH_SIZE];
+  {
+    THD *thd= current_thd;
+    Thd_parse_modifier thd_mod(thd);
+
+    if (parse(thd, args[0], statement_string))
+      DBUG_RETURN(error_str());
+    compute_digest_hash(&thd->m_digest->m_digest_storage, digest);
+  }
+
+  if (buf->reserve(DIGEST_HASH_TO_STRING_LENGTH))
+    DBUG_RETURN(error_str());
+  buf->length(DIGEST_HASH_TO_STRING_LENGTH);
+  DIGEST_HASH_TO_STRING(digest, buf->c_ptr_quick());
+  DBUG_RETURN(buf);
+}
+
+
+String *Item_func_statement_digest_text::val_str(String *buf)
+{
+  DBUG_ENTER("Item_func_statement_digest_text::val_str_ascii");
+
+  String *statement_string= args[0]->val_str(buf);
+
+  // This function is non-nullable, meaning it doesn't return NULL, unless the
+  // argument is NULL.
+  if (statement_string == nullptr)
+    DBUG_RETURN(null_return_str());
+  null_value= false;
+
+  THD *thd= current_thd;
+  Thd_parse_modifier thd_mod(thd);
+
+  if (parse(thd, args[0], statement_string))
+    DBUG_RETURN(error_str());
+
+  compute_digest_text(&thd->m_digest->m_digest_storage, buf);
+
+  DBUG_RETURN(buf);
+}
+
 
 
 /**
@@ -1825,6 +2076,11 @@ static size_t calculate_password(String *str, char *buffer)
 #if defined(HAVE_OPENSSL)
   if (old_passwords == 2)
   {
+    if (str->length() > MAX_PLAINTEXT_LENGTH)
+    {
+      my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+      return 0;
+    }
     my_make_scrambled_password(buffer, str->ptr(),
                                str->length());
     buffer_len= strlen(buffer) + 1;
@@ -3429,7 +3685,7 @@ bool Item_func_weight_string::resolve_type(THD *)
                          field->pack_length() :
                          result_length ?
                            result_length :
-                           cs->mbmaxlen * max(args[0]->max_length,
+                           cs->mbmaxlen * max(args[0]->max_char_length(),
                                               num_codepoints));
   maybe_null= true;
   return false;
@@ -4799,6 +5055,18 @@ String *Item_func_get_dd_create_options::val_str(String *str)
         if (opt_value.size() > 7)
           opt_value.erase(7, dd::String_type::npos);
         ptr=my_stpcpy(ptr, " COMPRESSION=\"");
+        ptr=my_stpcpy(ptr, opt_value.c_str());
+        ptr=my_stpcpy(ptr, "\"");
+      }
+    }
+
+    if (p->exists("encrypt_type"))
+    {
+      dd::String_type opt_value;
+      p->get("encrypt_type", opt_value);
+      if (!opt_value.empty())
+      {
+        ptr=my_stpcpy(ptr, " ENCRYPTION=\"");
         ptr=my_stpcpy(ptr, opt_value.c_str());
         ptr=my_stpcpy(ptr, "\"");
       }

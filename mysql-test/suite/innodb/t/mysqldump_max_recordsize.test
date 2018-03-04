@@ -188,12 +188,12 @@ SELECT @@innodb_strict_mode;
 
 # Check "Cannot add field col32 in table `test`.`tab1` because after adding it, the row size is 8192"
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN = \\[ERROR\\] InnoDB: Cannot add field \\`col32\\` in table \\`test\\`.\\`tab1\\` because after adding it, the row size is 8192;
+let SEARCH_PATTERN = \\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot add field \\`col32\\` in table \\`test\\`.\\`tab1\\` because after adding it, the row size is 8192;
 --source include/search_pattern.inc
 
 # Check "Cannot add field col32 in table `test`.`tab2` because after adding it, the row size is 8192"
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN = \\[ERROR\\] InnoDB: Cannot add field \\`col32\\` in table \\`test\\`.\\`tab2\\` because after adding it, the row size is 8192;
+let SEARCH_PATTERN = \\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot add field \\`col32\\` in table \\`test\\`.\\`tab2\\` because after adding it, the row size is 8192;
 --source include/search_pattern.inc
 
 USE test;
@@ -265,8 +265,8 @@ SET innodb_strict_mode=Default;
 --source include/restart_mysqld.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot add field.*");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot add field.*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot add field.*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot add field.*");
 --enable_query_log
 --remove_file $BOOTSTRAP_SQL
 # Remove residue files and data folder of page size 32K

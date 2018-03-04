@@ -59,7 +59,7 @@ SELECT hex(c2),hex(c3),c1 FROM t2 ORDER BY c1;
 
 #
 # now setup replication to continue from last epoch
---source include/ndb_setup_slave.inc
+--source suite/ndb_rpl/ndb_setup_slave.inc
 --connection slave
 START SLAVE;
 

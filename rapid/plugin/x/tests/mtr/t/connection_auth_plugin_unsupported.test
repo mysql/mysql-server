@@ -3,8 +3,9 @@
 --source include/xplugin_preamble.inc
 --source include/have_ssl.inc
 --source include/have_mysql_no_login_plugin.inc
+--source include/xplugin_create_user.inc
 
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt: Invalid user or password'");
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
 
 ## Test starts here
 
@@ -38,8 +39,8 @@ SELECT user, plugin FROM mysql.user WHERE user LIKE 'xuser%';
 --let $XBASIC= --file=$xtest_file 2>&1
 --let $XSSLPARAM= --ssl-cipher='DHE-RSA-AES256-SHA' $XBASIC
 
---exec $MYSQLXTEST -uroot          $XBASIC
---exec $MYSQLXTEST -uroot          $XSSLPARAM
+--exec $MYSQLXTEST -ux_root          $XBASIC
+--exec $MYSQLXTEST -ux_root          $XSSLPARAM
 
 --echo Ssl connection by test plugin  -> fail
 --let $expected_error_msg= Invalid user or password \(code 1045\)
@@ -64,6 +65,7 @@ SELECT user, plugin FROM mysql.user WHERE user LIKE 'xuser%';
 # Postamble
 --remove_file $xtest_file
 
+--source include/xplugin_drop_user.inc
 DROP USER xuser_test@localhost;
 DROP USER xuser_nologin@localhost;
 UNINSTALL PLUGIN mysqlx;

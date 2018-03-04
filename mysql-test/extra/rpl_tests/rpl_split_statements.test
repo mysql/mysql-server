@@ -35,19 +35,19 @@
 #
 #  2. DROP TABLE: when a single statement drops multiple tables, then
 #     there will be a separate statement for all dropped non-temporary
-#     tables, a separate statement for all dropped transactional
-#     temporary tables, and a separate statement for all dropped
-#     non-transactional temporary tables. Moreover, statement for all
-#     dropped non-temporary tables can be split further. If no GTID
-#     is assigned then there will be individual DROP TABLE statements
-#     for each dropped table in SEs which don't support atomic DDL
-#     and single statement for all dropped tables in SEs supporting
-#     atomic DDL. If original DROP TABLE statement is supposed to be
-#     executed under single GTID then all dropped base tables (both
-#     supporting atomic DDL and not) are combined in a single
-#     statement. Execution of statements which drop both temporary
-#     and non-temporary tables or two kinds of temporary tables under
-#     single GTID is not allowed.
+#     tables, with statement binlog format a separate statement for all
+#     dropped transactional temporary tables, and a separate statement
+#     for all dropped non-transactional temporary tables. Moreover,
+#     statement for all dropped non-temporary tables can be split
+#     further. If no GTID is assigned then there will be individual
+#     DROP TABLE statements for each dropped table in SEs which don't
+#     support atomic DDL and single statement for all dropped tables in
+#     SEs supporting atomic DDL. If original DROP TABLE statement is
+#     supposed to be executed under single GTID then all dropped base
+#     tables (both supporting atomic DDL and not) are combined in a
+#     single statement. Execution of statements which drop both
+#     temporary and non-temporary tables or two kinds of temporary
+#     tables under single GTID is not allowed.
 #
 #  3. DROP DATABASE: See details in rpl_split_statements_debug.test
 #
@@ -270,10 +270,6 @@ END|
 --echo ---- GTID_MODE=AUTOMATIC ----
 
 --let $automatic= 1
-if ($gtid_mode_on)
-{
-  --let $expect_slave_error= 1
-}
 --let $transaction_count= 1
 --source extra/rpl_tests/rpl_drop_multiple_tables_in_multiple_ways.inc
 

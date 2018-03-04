@@ -306,13 +306,13 @@ let $restart_parameters = restart: --innodb_undo_tablespaces=$ORIG_UNDO_TABLESPA
 
 --disable_query_log
 call mtr.add_suppression('Skip re-populating collations and character sets tables in InnoDB read-only mode');
-call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot create undo tablespaces since innodb_read_only has been set.  Using 7 existing undo tablespaces');
-call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot create undo tablespaces since innodb_force_recovery has been set.  Using 7 existing undo tablespaces');
-call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot set innodb_undo_tablespaces to [8,3] when in read-only mode');
-call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot set innodb_rollback_segments to [8,3] when in read-only mode');
-call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot set innodb_undo_tablespaces to [8,3] when in innodb_force_recovery > 0');
-call mtr.add_suppression('\\[Warning\\] InnoDB: Cannot set innodb_rollback_segments to [8,3] when in innodb_force_recovery > 0');
-call mtr.add_suppression('\\[Warning\\] Skip updating information_schema metadata in InnoDB read-only mode');
-call mtr.add_suppression('\\[Warning\\] Skipped updating resource group metadata in InnoDB read only mode.');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot create undo tablespaces since innodb_read_only has been set.  Using 7 existing undo tablespaces');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot create undo tablespaces since innodb_force_recovery has been set.  Using 7 existing undo tablespaces');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot set innodb_undo_tablespaces to [8,3] when in read-only mode');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot set innodb_rollback_segments to [8,3] when in read-only mode');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot set innodb_undo_tablespaces to [8,3] when in innodb_force_recovery > 0');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot set innodb_rollback_segments to [8,3] when in innodb_force_recovery > 0');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] Skip updating information_schema metadata in InnoDB read-only mode');
+call mtr.add_suppression('\\[Warning\\] \\[[^]]*\\] Skipped updating resource group metadata in InnoDB read only mode.');
 --enable_query_log
 

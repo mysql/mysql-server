@@ -13,7 +13,7 @@ rows_sent_avg	decimal(21,0) unsigned	YES		NULL
 rows_examined_avg	decimal(21,0) unsigned	YES		NULL	
 first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
 last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-digest	varchar(32)	YES		NULL	
+digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.statements_with_full_table_scans;
 DESC sys.x$statements_with_full_table_scans;
 Field	Type	Null	Key	Default	Extra
@@ -30,7 +30,7 @@ rows_sent_avg	decimal(21,0) unsigned	YES		NULL
 rows_examined_avg	decimal(21,0) unsigned	YES		NULL	
 first_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
 last_seen	timestamp(6)	NO		0000-00-00 00:00:00.000000	
-digest	varchar(32)	YES		NULL	
+digest	varchar(64)	YES		NULL	
 SELECT * FROM sys.x$statements_with_full_table_scans;
 CREATE DATABASE v_statements_with_full_table_scans;
 CREATE TABLE v_statements_with_full_table_scans.t (i BIGINT AUTO_INCREMENT PRIMARY KEY, j BIGINT) ENGINE = innodb;

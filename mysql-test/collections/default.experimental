@@ -3,8 +3,6 @@
 #
 
 
-main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
-
 innodb.log_file_name                     # Bug#19442959 2014-08-14 marko calling exit() trips ut_ad(!m_freed)
 innodb.innodb_page_size_func @windows    # Bug#19527616 2015-03-13 anitha Test fails almost daily on windows
 
@@ -16,7 +14,7 @@ perfschema.transaction_nested_events     # Bug#17752288 2013-12-17 agopi Fails s
 main.ssl-big @windows                    # Bug#18200216 2014-03-14 horst Fails too often in daily in PB2.
 
 main.user_var				 # Bug#21907546 2015-12-11 erlend experimental to reduce noise
-main.locking_service			 # Bug#22304322 2015-12-11 erlend experimental to reduce noise
+
 main.partition_pruning			 # Bug#20597049 2015-12-11 erlend experimental to reduce noise
 
 # Bug #20402364 	NDB : NDB_ADDNODE_WITHBINLOG FAILS DUE TO EVENT API STALL

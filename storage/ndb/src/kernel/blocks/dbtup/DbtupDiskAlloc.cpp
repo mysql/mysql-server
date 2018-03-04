@@ -2,13 +2,20 @@
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1140,11 +1147,13 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
   Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
   Uint32 idx = req.p->m_list_index;
 
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   {
     Uint32 free = pagePtr.p->free_space - pagePtr.p->uncommitted_used_space;
     ddassert(idx == alloc.calc_page_free_bits(free));
     ddassert(pagePtr.p->free_space == req.p->m_original_estimated_free_space);
   }
+#endif
 
   {
     /**
@@ -1321,11 +1330,13 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
       key.m_page_no = pagePtr.p->m_page_no;
       key.m_file_no = pagePtr.p->m_file_no;
       
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
       Uint32 free = pagePtr.p->free_space;
       Uint32 used = pagePtr.p->uncommitted_used_space;
       ddassert(free >= used);
       ddassert(alloc.calc_page_free_bits(free - used) == idx);
-      
+#endif
+
       D("Tablespace_client - disk_page_unmap_callback");
       Tablespace_client tsman(0, this, c_tsman,
                     fragPtr.p->fragTableId,
@@ -1400,7 +1411,9 @@ Dbtup::disk_page_alloc(Signal* signal,
 {
   jam();
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
+#endif
 
   Uint64 lsn;
   if (tabPtrP->m_attributes[DD].m_no_of_varsize == 0)
@@ -1475,7 +1488,9 @@ Dbtup::disk_page_free(Signal *signal,
   jamLine(Uint16(key->m_page_idx));
   Uint32 logfile_group_id= fragPtrP->m_logfile_group_id;
   Disk_alloc_info& alloc= fragPtrP->m_disk_alloc_info;
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
   Uint32 old_free= pagePtr.p->free_space;
+#endif
 
   Uint32 sz;
   Uint64 lsn;
@@ -1825,6 +1840,11 @@ Dbtup::disk_restart_undo(Signal* signal,
   case File_formats::Undofile::UNDO_LCP_FIRST:
   case File_formats::Undofile::UNDO_LCP:
   {
+    /**
+     * Searching for end of UNDO log execution is only done in
+     * lgman.cpp. So here we assume that we are supposed to continue
+     * executing the UNDO log. So no checks for end in this logic.
+     */
     jam();
     Uint32 lcpId;
     Uint32 localLcpId;

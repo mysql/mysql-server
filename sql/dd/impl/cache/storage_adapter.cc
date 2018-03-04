@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/cache/storage_adapter.h"
 
@@ -24,12 +31,24 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/dd/cache/dictionary_client.h"   // Dictionary_client
-#include "sql/dd/impl/bootstrapper.h"         // bootstrap::stage
+#include "sql/dd/impl/bootstrap_ctx.h"        // bootstrap::DD_bootstrap_ctx
 #include "sql/dd/impl/cache/cache_element.h"
 #include "sql/dd/impl/raw/object_keys.h"      // Primary_id_key
 #include "sql/dd/impl/raw/raw_record.h"       // Raw_record
 #include "sql/dd/impl/raw/raw_table.h"        // Raw_table
 #include "sql/dd/impl/sdi.h"                  // sdi::store() sdi::drop()
+#include "sql/dd/impl/tables/character_sets.h"// dd::tables::Character_sets
+#include "sql/dd/impl/tables/collations.h"    // dd::tables::Collations
+#include "sql/dd/impl/tables/column_statistics.h" // dd::tables::Column_stat...
+#include "sql/dd/impl/tables/events.h"        // dd::tables::Events
+#include "sql/dd/impl/tables/index_stats.h"   // dd::tables::Index_stats
+#include "sql/dd/impl/tables/resource_groups.h" // dd::tables::Resource_groups
+#include "sql/dd/impl/tables/routines.h"      // dd::tables::Routines
+#include "sql/dd/impl/tables/schemata.h"      // dd::tables::Schemata
+#include "sql/dd/impl/tables/spatial_reference_systems.h"// dd::tables::Spatial...
+#include "sql/dd/impl/tables/tables.h"        // dd::tables::Tables
+#include "sql/dd/impl/tables/tablespaces.h"   // dd::tables::Tablespaces
+#include "sql/dd/impl/tables/table_stats.h"   // dd::tables::Table_stats
 #include "sql/dd/impl/transaction_impl.h"     // Transaction_ro
 #include "sql/dd/impl/types/entity_object_impl.h"
 #include "sql/dd/types/abstract_table.h"      // Abstract_table
@@ -79,15 +98,15 @@ template <typename T>
 size_t Storage_adapter::core_size()
 {
   MUTEX_LOCK(lock, &m_lock);
-  return m_core_registry.size<typename T::cache_partition_type>();
+  return m_core_registry.size<typename T::Cache_partition>();
 }
 
 
 // Get a dictionary object id from core storage.
 template <typename T>
-Object_id Storage_adapter::core_get_id(const typename T::name_key_type &key)
+Object_id Storage_adapter::core_get_id(const typename T::Name_key &key)
 {
-  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  Cache_element<typename T::Cache_partition> *element= nullptr;
   MUTEX_LOCK(lock, &m_lock);
   m_core_registry.get(key, &element);
   if (element)
@@ -105,7 +124,7 @@ void Storage_adapter::core_get(const K &key, const T **object)
 {
   DBUG_ASSERT(object);
   *object= nullptr;
-  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  Cache_element<typename T::Cache_partition> *element= nullptr;
   MUTEX_LOCK(lock, &m_lock);
   m_core_registry.get(key, &element);
   if (element)
@@ -122,18 +141,23 @@ template <typename K, typename T>
 bool Storage_adapter::get(THD *thd,
                           const K &key,
                           enum_tx_isolation isolation,
+                          bool bypass_core_registry,
                           const T **object)
 {
   DBUG_ASSERT(object);
   *object= nullptr;
 
-  instance()->core_get(key, object);
-  if (*object || s_use_fake_storage)
-    return false;
+  if (!bypass_core_registry)
+  {
+    instance()->core_get(key, object);
+    if (*object || s_use_fake_storage)
+      return false;
+  }
 
   // We may have a cache miss while checking for existing tables during
   // server start. At this stage, the object will be considered not existing.
-  if (bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED)
+  if (bootstrap::DD_bootstrap_ctx::instance().get_stage() <
+          bootstrap::Stage::CREATED_TABLES)
     return false;
 
   // Start a DD transaction to get the object.
@@ -146,7 +170,7 @@ bool Storage_adapter::get(THD *thd,
     return true;
   }
 
-  const Entity_object_table &table= T::OBJECT_TABLE();
+  const Entity_object_table &table= T::DD_table::instance();
   // Get main object table.
   Raw_table *t= trx.otx.get_table(table.name());
 
@@ -193,8 +217,9 @@ void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
                                 const T *object)
 {
   DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
-  DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
-  Cache_element<typename T::cache_partition_type> *element= nullptr;
+  DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
+          bootstrap::Stage::CREATED_TABLES);
+  Cache_element<typename T::Cache_partition> *element= nullptr;
   MUTEX_LOCK(lock, &m_lock);
 
   // For unit tests, drop based on id to simulate behavior of persistent tables.
@@ -202,13 +227,13 @@ void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
   // differ between scaffolding objects and persisted objects.
   if (s_use_fake_storage)
   {
-    typename T::id_key_type key;
+    typename T::Id_key key;
     object->update_id_key(&key);
     m_core_registry.get(key, &element);
   }
   else
   {
-    typename T::name_key_type key;
+    typename T::Name_key key;
     object->update_name_key(&key);
     m_core_registry.get(key, &element);
   }
@@ -225,7 +250,9 @@ void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
 template <typename T>
 bool Storage_adapter::drop(THD *thd, const T *object)
 {
-  if (s_use_fake_storage || bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED)
+  if (s_use_fake_storage ||
+      bootstrap::DD_bootstrap_ctx::instance().get_stage() <
+          bootstrap::Stage::CREATED_TABLES)
   {
     instance()->core_drop(thd, object);
     return false;
@@ -261,9 +288,10 @@ template <typename T>
 void Storage_adapter::core_store(THD *thd, T *object)
 {
   DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
-  DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
-  Cache_element<typename T::cache_partition_type> *element=
-    new Cache_element<typename T::cache_partition_type>();
+  DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
+          bootstrap::Stage::CREATED_TABLES);
+  Cache_element<typename T::Cache_partition> *element=
+    new Cache_element<typename T::Cache_partition>();
 
   if (object->id() != INVALID_OBJECT_ID)
   {
@@ -288,7 +316,9 @@ void Storage_adapter::core_store(THD *thd, T *object)
 template <typename T>
 bool Storage_adapter::store(THD *thd, T *object)
 {
-  if (s_use_fake_storage || bootstrap::stage() < bootstrap::BOOTSTRAP_CREATED)
+  if (s_use_fake_storage ||
+      bootstrap::DD_bootstrap_ctx::instance().get_stage() <
+          bootstrap::Stage::CREATED_TABLES)
   {
     instance()->core_store(thd, object);
     return false;
@@ -314,8 +344,9 @@ bool Storage_adapter::store(THD *thd, T *object)
 
   // Do not create SDIs for tablespaces and tables while creating
   // dictionary entry during upgrade.
-  if (bootstrap::stage() > bootstrap::BOOTSTRAP_CREATED &&
-      dd::upgrade::allow_sdi_creation() &&
+  if (bootstrap::DD_bootstrap_ctx::instance().get_stage() >
+          bootstrap::Stage::CREATED_TABLES &&
+      dd::upgrade_57::allow_sdi_creation() &&
       sdi::store(thd, object))
     return true;
 
@@ -326,17 +357,18 @@ bool Storage_adapter::store(THD *thd, T *object)
 // Sync a dictionary object from persistent to core storage.
 template <typename T>
 bool Storage_adapter::core_sync(THD *thd,
-                                const typename T::name_key_type &key,
+                                const typename T::Name_key &key,
                                 const T *object)
 {
   DBUG_ASSERT(thd->is_dd_system_thread());
-  DBUG_ASSERT(bootstrap::stage() <= bootstrap::BOOTSTRAP_CREATED);
+  DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
+          bootstrap::Stage::CREATED_TABLES);
 
   // Copy the name, needed for error output. The object has to be
   // dropped before get().
   String_type name(object->name());
   core_drop(thd, object);
-  const typename T::cache_partition_type* new_obj= nullptr;
+  const typename T::Cache_partition* new_obj= nullptr;
 
   /*
     Fetch the object from persistent tables. The object was dropped
@@ -372,14 +404,14 @@ bool Storage_adapter::core_sync(THD *thd,
        failure because the SE knows nothing about this table, and
        is unable to open it.
   */
-  if (get(thd, key, ISO_READ_COMMITTED, &new_obj) || new_obj == nullptr)
+  if (get(thd, key, ISO_READ_COMMITTED, false, &new_obj) || new_obj == nullptr)
   {
     LogErr(ERROR_LEVEL, ER_DD_METADATA_NOT_FOUND, name.c_str());
     return true;
   }
 
-  Cache_element<typename T::cache_partition_type> *element=
-    new Cache_element<typename T::cache_partition_type>();
+  Cache_element<typename T::Cache_partition> *element=
+    new Cache_element<typename T::Cache_partition>();
   element->set_object(new_obj);
   element->recreate_keys();
   MUTEX_LOCK(lock, &m_lock);
@@ -413,21 +445,21 @@ void Storage_adapter::dump()
 
 // Explicitly instantiate the type for the various usages.
 template bool Storage_adapter::core_sync(THD *,
-                                         const Table::name_key_type &,
+                                         const Table::Name_key &,
                                          const Table*);
 template bool Storage_adapter::core_sync(THD *,
-                                         const Tablespace::name_key_type &,
+                                         const Tablespace::Name_key &,
                                          const Tablespace*);
 template bool Storage_adapter::core_sync(THD *,
-                                         const Schema::name_key_type &,
+                                         const Schema::Name_key &,
                                          const Schema*);
 
 template Object_id Storage_adapter::core_get_id<Table>(
-      const Table::name_key_type &);
+      const Table::Name_key &);
 template Object_id Storage_adapter::core_get_id<Schema>(
-      const Schema::name_key_type &);
+      const Schema::Name_key &);
 template Object_id Storage_adapter::core_get_id<Tablespace>(
-      const Tablespace::name_key_type &);
+      const Tablespace::Name_key &);
 
 template
 void Storage_adapter::core_get(
@@ -458,18 +490,18 @@ template size_t Storage_adapter::core_size<Table>();
 template size_t Storage_adapter::core_size<Schema>();
 template size_t Storage_adapter::core_size<Tablespace>();
 
-template bool Storage_adapter::get<Abstract_table::id_key_type,
+template bool Storage_adapter::get<Abstract_table::Id_key,
                                 Abstract_table>
-       (THD *, const Abstract_table::id_key_type &,
-        enum_tx_isolation, const Abstract_table **);
-template bool Storage_adapter::get<Abstract_table::name_key_type,
+       (THD *, const Abstract_table::Id_key &,
+        enum_tx_isolation, bool, const Abstract_table **);
+template bool Storage_adapter::get<Abstract_table::Name_key,
                                 Abstract_table>
-       (THD *, const Abstract_table::name_key_type &,
-        enum_tx_isolation, const Abstract_table **);
-template bool Storage_adapter::get<Abstract_table::aux_key_type,
+       (THD *, const Abstract_table::Name_key &,
+        enum_tx_isolation, bool, const Abstract_table **);
+template bool Storage_adapter::get<Abstract_table::Aux_key,
                                 Abstract_table>
-       (THD *, const Abstract_table::aux_key_type &,
-        enum_tx_isolation, const Abstract_table **);
+       (THD *, const Abstract_table::Aux_key &,
+        enum_tx_isolation, bool, const Abstract_table **);
 template bool Storage_adapter::drop(THD *, const Abstract_table *);
 template bool Storage_adapter::store(THD *, Abstract_table *);
 template bool Storage_adapter::drop(THD *, const Table*);
@@ -477,75 +509,75 @@ template bool Storage_adapter::store(THD *, Table*);
 template bool Storage_adapter::drop(THD *, const View*);
 template bool Storage_adapter::store(THD *, View*);
 
-template bool Storage_adapter::get<Charset::id_key_type, Charset>
-       (THD *, const Charset::id_key_type &,
-        enum_tx_isolation, const Charset **);
-template bool Storage_adapter::get<Charset::name_key_type, Charset>
-       (THD *, const Charset::name_key_type &,
-        enum_tx_isolation, const Charset **);
-template bool Storage_adapter::get<Charset::aux_key_type, Charset>
-       (THD *, const Charset::aux_key_type &,
-        enum_tx_isolation, const Charset **);
+template bool Storage_adapter::get<Charset::Id_key, Charset>
+       (THD *, const Charset::Id_key &,
+        enum_tx_isolation, bool, const Charset **);
+template bool Storage_adapter::get<Charset::Name_key, Charset>
+       (THD *, const Charset::Name_key &,
+        enum_tx_isolation, bool, const Charset **);
+template bool Storage_adapter::get<Charset::Aux_key, Charset>
+       (THD *, const Charset::Aux_key &,
+        enum_tx_isolation, bool, const Charset **);
 template bool Storage_adapter::drop(THD *, const Charset*);
 template bool Storage_adapter::store(THD *, Charset*);
 
-template bool Storage_adapter::get<Collation::id_key_type, Collation>
-       (THD *, const Collation::id_key_type &,
-        enum_tx_isolation, const Collation **);
-template bool Storage_adapter::get<Collation::name_key_type, Collation>
-       (THD *, const Collation::name_key_type &,
-        enum_tx_isolation, const Collation **);
-template bool Storage_adapter::get<Collation::aux_key_type, Collation>
-       (THD *, const Collation::aux_key_type &,
-        enum_tx_isolation, const Collation **);
+template bool Storage_adapter::get<Collation::Id_key, Collation>
+       (THD *, const Collation::Id_key &,
+        enum_tx_isolation, bool, const Collation **);
+template bool Storage_adapter::get<Collation::Name_key, Collation>
+       (THD *, const Collation::Name_key &,
+        enum_tx_isolation, bool, const Collation **);
+template bool Storage_adapter::get<Collation::Aux_key, Collation>
+       (THD *, const Collation::Aux_key &,
+        enum_tx_isolation, bool, const Collation **);
 template bool Storage_adapter::drop(THD *, const Collation*);
 template bool Storage_adapter::store(THD *, Collation*);
 
 template bool
-Storage_adapter::get<Column_statistics::id_key_type, Column_statistics>
-  (THD *, const Column_statistics::id_key_type &, enum_tx_isolation,
-   const Column_statistics **);
+Storage_adapter::get<Column_statistics::Id_key, Column_statistics>
+  (THD *, const Column_statistics::Id_key &, enum_tx_isolation,
+   bool, const Column_statistics **);
 template bool
-Storage_adapter::get<Column_statistics::name_key_type, Column_statistics>
-  (THD *, const Column_statistics::name_key_type &, enum_tx_isolation,
-   const Column_statistics **);
+Storage_adapter::get<Column_statistics::Name_key, Column_statistics>
+  (THD *, const Column_statistics::Name_key &, enum_tx_isolation,
+   bool, const Column_statistics **);
 template bool
-Storage_adapter::get<Column_statistics::aux_key_type, Column_statistics>
-  (THD *, const Column_statistics::aux_key_type &, enum_tx_isolation,
-   const Column_statistics **);
+Storage_adapter::get<Column_statistics::Aux_key, Column_statistics>
+  (THD *, const Column_statistics::Aux_key &, enum_tx_isolation,
+   bool, const Column_statistics **);
 template bool Storage_adapter::drop(THD *, const Column_statistics*);
 template bool Storage_adapter::store(THD *, Column_statistics*);
 
-template bool Storage_adapter::get<Event::id_key_type, Event>
-(THD *, const Event::id_key_type &, enum_tx_isolation, const Event **);
-template bool Storage_adapter::get<Event::name_key_type, Event>
-(THD *, const Event::name_key_type &, enum_tx_isolation, const Event **);
-template bool Storage_adapter::get<Event::aux_key_type, Event>
-(THD *, const Event::aux_key_type &, enum_tx_isolation, const Event **);
+template bool Storage_adapter::get<Event::Id_key, Event>
+(THD *, const Event::Id_key &, enum_tx_isolation, bool, const Event **);
+template bool Storage_adapter::get<Event::Name_key, Event>
+(THD *, const Event::Name_key &, enum_tx_isolation, bool, const Event **);
+template bool Storage_adapter::get<Event::Aux_key, Event>
+(THD *, const Event::Aux_key &, enum_tx_isolation, bool, const Event **);
 template bool Storage_adapter::drop(THD *, const Event*);
 template bool Storage_adapter::store(THD *, Event*);
 
-template bool Storage_adapter::get<Resource_group::id_key_type, Resource_group>
-  (THD *, const Tablespace::id_key_type &,
-   enum_tx_isolation, const Resource_group **);
-template bool Storage_adapter::get<Resource_group::name_key_type, Resource_group>
-  (THD *, const Tablespace::name_key_type &,
-   enum_tx_isolation, const Resource_group **);
-template bool Storage_adapter::get<Resource_group::aux_key_type, Resource_group>
-  (THD *, const Tablespace::aux_key_type &,
-   enum_tx_isolation, const Resource_group **);
+template bool Storage_adapter::get<Resource_group::Id_key, Resource_group>
+  (THD *, const Tablespace::Id_key &,
+   enum_tx_isolation, bool, const Resource_group **);
+template bool Storage_adapter::get<Resource_group::Name_key, Resource_group>
+  (THD *, const Tablespace::Name_key &,
+   enum_tx_isolation, bool, const Resource_group **);
+template bool Storage_adapter::get<Resource_group::Aux_key, Resource_group>
+  (THD *, const Tablespace::Aux_key &,
+   enum_tx_isolation, bool, const Resource_group **);
 template bool Storage_adapter::drop(THD *, const Resource_group *);
 template bool Storage_adapter::store(THD *, Resource_group *);
 
-template bool Storage_adapter::get<Routine::id_key_type, Routine>
-       (THD *, const Routine::id_key_type &, enum_tx_isolation,
-        const Routine **);
-template bool Storage_adapter::get<Routine::name_key_type, Routine>
-       (THD *, const Routine::name_key_type &, enum_tx_isolation,
-        const Routine **);
-template bool Storage_adapter::get<Routine::aux_key_type, Routine>
-       (THD *, const Routine::aux_key_type &, enum_tx_isolation,
-        const Routine **);
+template bool Storage_adapter::get<Routine::Id_key, Routine>
+       (THD *, const Routine::Id_key &, enum_tx_isolation,
+        bool, const Routine **);
+template bool Storage_adapter::get<Routine::Name_key, Routine>
+       (THD *, const Routine::Name_key &, enum_tx_isolation,
+        bool, const Routine **);
+template bool Storage_adapter::get<Routine::Aux_key, Routine>
+       (THD *, const Routine::Aux_key &, enum_tx_isolation,
+        bool, const Routine **);
 template bool Storage_adapter::drop(THD *, const Routine*);
 template bool Storage_adapter::store(THD *, Routine*);
 template bool Storage_adapter::drop(THD *, const Function*);
@@ -553,42 +585,42 @@ template bool Storage_adapter::store(THD *, Function*);
 template bool Storage_adapter::drop(THD *, const Procedure*);
 template bool Storage_adapter::store(THD *, Procedure*);
 
-template bool Storage_adapter::get<Schema::id_key_type, Schema>
-       (THD *, const Schema::id_key_type &,
-        enum_tx_isolation, const Schema **);
-template bool Storage_adapter::get<Schema::name_key_type, Schema>
-       (THD *, const Schema::name_key_type &,
-        enum_tx_isolation, const Schema **);
-template bool Storage_adapter::get<Schema::aux_key_type, Schema>
-       (THD *, const Schema::aux_key_type &,
-        enum_tx_isolation, const Schema **);
+template bool Storage_adapter::get<Schema::Id_key, Schema>
+       (THD *, const Schema::Id_key &,
+        enum_tx_isolation, bool, const Schema **);
+template bool Storage_adapter::get<Schema::Name_key, Schema>
+       (THD *, const Schema::Name_key &,
+        enum_tx_isolation, bool, const Schema **);
+template bool Storage_adapter::get<Schema::Aux_key, Schema>
+       (THD *, const Schema::Aux_key &,
+        enum_tx_isolation, bool, const Schema **);
 template bool Storage_adapter::drop(THD *, const Schema*);
 template bool Storage_adapter::store(THD *, Schema*);
 
-template bool Storage_adapter::get<Spatial_reference_system::id_key_type,
+template bool Storage_adapter::get<Spatial_reference_system::Id_key,
                                    Spatial_reference_system>
-       (THD *, const Spatial_reference_system::id_key_type &,
-        enum_tx_isolation, const Spatial_reference_system **);
-template bool Storage_adapter::get<Spatial_reference_system::name_key_type,
+       (THD *, const Spatial_reference_system::Id_key &,
+        enum_tx_isolation, bool, const Spatial_reference_system **);
+template bool Storage_adapter::get<Spatial_reference_system::Name_key,
                                    Spatial_reference_system>
-       (THD *, const Spatial_reference_system::name_key_type &,
-        enum_tx_isolation, const Spatial_reference_system **);
-template bool Storage_adapter::get<Spatial_reference_system::aux_key_type,
+       (THD *, const Spatial_reference_system::Name_key &,
+        enum_tx_isolation, bool, const Spatial_reference_system **);
+template bool Storage_adapter::get<Spatial_reference_system::Aux_key,
                                    Spatial_reference_system>
-       (THD *, const Spatial_reference_system::aux_key_type &,
-        enum_tx_isolation, const Spatial_reference_system **);
+       (THD *, const Spatial_reference_system::Aux_key &,
+        enum_tx_isolation, bool, const Spatial_reference_system **);
 template bool Storage_adapter::drop(THD *, const Spatial_reference_system*);
 template bool Storage_adapter::store(THD *, Spatial_reference_system*);
 
-template bool Storage_adapter::get<Tablespace::id_key_type, Tablespace>
-       (THD *, const Tablespace::id_key_type &,
-        enum_tx_isolation, const Tablespace **);
-template bool Storage_adapter::get<Tablespace::name_key_type, Tablespace>
-       (THD *, const Tablespace::name_key_type &,
-        enum_tx_isolation, const Tablespace **);
-template bool Storage_adapter::get<Tablespace::aux_key_type, Tablespace>
-       (THD *, const Tablespace::aux_key_type &,
-        enum_tx_isolation, const Tablespace **);
+template bool Storage_adapter::get<Tablespace::Id_key, Tablespace>
+       (THD *, const Tablespace::Id_key &,
+        enum_tx_isolation, bool, const Tablespace **);
+template bool Storage_adapter::get<Tablespace::Name_key, Tablespace>
+       (THD *, const Tablespace::Name_key &,
+        enum_tx_isolation, bool, const Tablespace **);
+template bool Storage_adapter::get<Tablespace::Aux_key, Tablespace>
+       (THD *, const Tablespace::Aux_key &,
+        enum_tx_isolation, bool, const Tablespace **);
 template bool Storage_adapter::drop(THD *, const Tablespace*);
 template bool Storage_adapter::store(THD *, Tablespace*);
 
@@ -601,12 +633,12 @@ template bool Storage_adapter::store(THD *, Tablespace*);
 */
 
 template <>
-void Storage_adapter::core_get(const Table_stat::name_key_type&,
+void Storage_adapter::core_get(const Table_stat::Name_key&,
                                const Table_stat**)
 { }
 
 template <>
-void Storage_adapter::core_get(const Index_stat::name_key_type&,
+void Storage_adapter::core_get(const Index_stat::Name_key&,
                                const Index_stat**)
 { }
 
@@ -626,14 +658,14 @@ template <>
 void Storage_adapter::core_store(THD*, Index_stat*)
 { }
 
-template bool Storage_adapter::get<Table_stat::name_key_type, Table_stat>
-                (THD *, const Table_stat::name_key_type &,
-                 enum_tx_isolation, const Table_stat **);
+template bool Storage_adapter::get<Table_stat::Name_key, Table_stat>
+                (THD *, const Table_stat::Name_key &,
+                 enum_tx_isolation, bool, const Table_stat **);
 template bool Storage_adapter::store(THD *, Table_stat*);
 template bool Storage_adapter::drop(THD *, const Table_stat*);
-template bool Storage_adapter::get<Index_stat::name_key_type, Index_stat>
-                (THD *, const Index_stat::name_key_type &,
-                 enum_tx_isolation, const Index_stat **);
+template bool Storage_adapter::get<Index_stat::Name_key, Index_stat>
+                (THD *, const Index_stat::Name_key &,
+                 enum_tx_isolation, bool, const Index_stat **);
 template bool Storage_adapter::store(THD *, Index_stat*);
 template bool Storage_adapter::drop(THD *, const Index_stat*);
 

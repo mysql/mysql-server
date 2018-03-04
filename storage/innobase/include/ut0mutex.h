@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -101,6 +109,7 @@ UT_MUTEX_TYPE(TTASEventMutex, BlockMutexPolicy, BlockSyncArrayMutex)
 
 #endif /* !UNIV_DEBUG */
 
+#ifndef UNIV_HOTBACKUP
 #ifdef MUTEX_FUTEX
 /** The default mutex type. */
 typedef FutexMutex ib_mutex_t;
@@ -154,6 +163,11 @@ in the debug version. */
 #define mutex_own(M)			/* No op */
 #define mutex_validate(M)		/* No op */
 #endif /* UNIV_DEBUG */
+#else /* !UNIV_HOTBACKUP */
+# include "../meb/mutex.h"
+typedef meb::Mutex ib_mutex_t;
+typedef meb::Mutex ib_bpmutex_t;
+#endif /* !UNIV_HOTBACKUP */
 
 /** Iterate over the mutex meta data */
 class MutexMonitor {
@@ -208,6 +222,7 @@ public:
 /** Defined in sync0sync.cc */
 extern MutexMonitor*	mutex_monitor;
 
+#ifndef UNIV_HOTBACKUP
 /**
 Creates, or rather, initializes a mutex object in a specified memory
 location (which must be appropriately aligned). The mutex is initialized
@@ -241,5 +256,6 @@ void mutex_destroy(
 	mutex->destroy();
 }
 #endif /* UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 #endif /* ut0mutex_h */

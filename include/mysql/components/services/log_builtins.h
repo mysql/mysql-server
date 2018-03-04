@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -31,7 +38,15 @@
 #include <mysql/components/service_implementation.h>
 
 #include <mysql/components/services/log_shared.h>
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+#include <mysql/service_plugin_registry.h>
+#endif
+#include <stdio.h>
 
+#include <my_compiler.h>
+#if defined(MYSQL_SERVER) && !defined(MYSQL_DYNAMIC_PLUGIN)
+#include "sql/log.h"
+#endif
 
 /**
   Primitives for services to interact with the structured logger:
@@ -510,9 +525,10 @@ BEGIN_SERVICE_DEFINITION(log_builtins)
     @param   prio       the severity/prio in question
 
     @return             a label corresponding to that priority.
-    @retval  "ERROR"    for prio of ERROR_LEVEL or higher
+    @retval  "System"   for prio of SYSTEM_LEVEL
+    @retval  "Error"    for prio of ERROR_LEVEL
     @retval  "Warning"  for prio of WARNING_LEVEL
-    @retval  "Note"     otherwise
+    @retval  "Note"     for prio of INFORMATION_LEVEL
   */
   DECLARE_METHOD(const char *,     label_from_prio, (int prio));
 
@@ -623,6 +639,11 @@ END_SERVICE_DEFINITION(log_builtins_string)
 BEGIN_SERVICE_DEFINITION(log_builtins_tmp)
   // Are we shutting down yet?  Windows EventLog needs to know.
   DECLARE_METHOD(bool,             connection_loop_aborted, (void));
+  DECLARE_METHOD(size_t,           notify_client,
+                                           (void *thd,
+                                            uint severity, uint code,
+                                            char *to, size_t n,
+                                            const char *format, ...));
 END_SERVICE_DEFINITION(log_builtins_tmp)
 
 
@@ -638,9 +659,9 @@ BEGIN_SERVICE_DEFINITION(log_builtins_syseventlog)
 END_SERVICE_DEFINITION(log_builtins_syseventlog)
 
 
-#  ifdef __cplusplus
+#ifdef __cplusplus
 
-#    if !defined(LOG_H)
+#if !defined(LOG_H)
 
 extern SERVICE_TYPE(log_builtins)        *log_bi;
 extern SERVICE_TYPE(log_builtins_string) *log_bs;
@@ -670,7 +691,9 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
 #      define log_set_float               log_item_set_float
 #      define log_set_lexstring           log_item_set_lexstring
 #      define log_set_cstring             log_item_set_cstring
-#    endif
+#endif // LOG_H
+
+#ifndef DISABLE_ERROR_LOGGING
 
 #define LogErr(severity, ecode, ...) LogEvent().prio(severity)\
                                                .errcode(ecode)\
@@ -680,7 +703,43 @@ extern SERVICE_TYPE(log_builtins_string) *log_bs;
                                                .function(__FUNCTION__)\
                                                .lookup(ecode, ## __VA_ARGS__)
 
+#define LogPluginErr(severity, ecode, ...) \
+  LogEvent().prio(severity)\
+            .errcode(ecode)\
+            .subsys(LOG_SUBSYSTEM_TAG)\
+            .source_line(__LINE__)\
+            .source_file(MY_BASENAME)\
+            .function(__FUNCTION__)\
+            .lookup_quoted(ecode, "Plugin " LOG_SUBSYSTEM_TAG " reported",\
+                           ## __VA_ARGS__)
 
+#define LogPluginErrMsg(severity, ecode, ...) \
+  LogEvent().prio(severity)\
+            .errcode(ecode)\
+            .subsys(LOG_SUBSYSTEM_TAG)\
+            .source_line(__LINE__)\
+            .source_file(MY_BASENAME)\
+            .function(__FUNCTION__)\
+            .message_quoted("Plugin " LOG_SUBSYSTEM_TAG " reported",\
+                            ## __VA_ARGS__)
+
+#else
+
+inline void dummy_log_message(longlong severity MY_ATTRIBUTE((unused)),
+                              longlong ecode MY_ATTRIBUTE((unused)),
+                              ...)
+{
+  return;
+}
+
+#define LogErr(severity, ecode, ...) \
+  dummy_log_message(severity, ecode, ## __VA_ARGS__)
+#define LogPluginErr(severity, ecode, ...) \
+  dummy_log_message(severity, ecode, ## __VA_ARGS__)
+#define LogPluginErrMsg(severity, ecode, ...) \
+  dummy_log_message(severity, ecode, ## __VA_ARGS__)
+
+#endif // DISABLE_ERROR_LOGGING
 
 /**
   Modular logger: fluid API. Server-internal. Lets you use safe and
@@ -694,6 +753,7 @@ class LogEvent
 private:
   log_line     *ll;
   char         *msg;
+  const char   *msg_tag;
 
   /**
     Set MySQL error-code if none has been set yet.
@@ -726,6 +786,12 @@ private:
   {
     if ((ll != nullptr) && (msg != nullptr))
     {
+      char buf[LOG_BUFF_MAX];
+      if (msg_tag != nullptr)
+      {
+        snprintf(buf, LOG_BUFF_MAX - 1, "%s: \'%s\'", msg_tag, fmt);
+        fmt= buf;
+      }
       size_t         len=    log_msg(msg, LOG_BUFF_MAX - 1, fmt, ap);
       log_set_lexstring(log_line_item_set(this->ll, LOG_ITEM_LOG_MESSAGE),
                         msg, len);
@@ -788,6 +854,7 @@ public:
     }
     else
       msg= nullptr;
+    msg_tag= nullptr;
   }
 
   /**
@@ -798,7 +865,7 @@ public:
 
     @retval      the LogEvent, for easy fluent-style chaining.
   */
-  LogEvent &type(log_type val)
+  LogEvent &type(enum_log_type val)
   {
     log_set_int(log_line_item_set(this->ll, LOG_ITEM_LOG_TYPE), val);
     return *this;
@@ -1032,7 +1099,18 @@ public:
   }
 
   /**
-    Set error severity / message priority
+    Set error message priority.
+    Assign one of ERROR_LEVEL, WARNING_LEVEL, INFORMATION_LEVEL.
+    log-writers and other sinks should use this value (rather
+    than that of LOG_ITEM_LOG_EPRIO):
+
+    - file writers should use the value to determine
+      what label to write (perhaps by submitting it to label_from_prio())
+
+    - sinks that submit the event data to a sub-system outside of
+      the MySQL server (such as syslog, EventLog, systemd journal, etc.)
+      should translate this value into a priority/log level understood
+      by that target subsystem.
 
     @param  val   The priority for this LogEvent.
 
@@ -1043,6 +1121,7 @@ public:
     log_set_int(log_line_item_set(this->ll, LOG_ITEM_LOG_PRIO), val);
     return *this;
   }
+
 
   /**
     Set a label (usually "warning"/"error"/"information").
@@ -1107,6 +1186,30 @@ public:
   }
 
   /**
+    Fill in a format string by substituting the % with the given
+    arguments and tag, then add the result as the event's message.
+
+    @param  tag  Tag to prefix to message.
+    @param  fmt  message (treated as a printf-style format-string,
+                 so % substitution will happen)
+    @param  ...  varargs to satisfy any % in the message
+
+    @retval      the LogEvent, for easy fluent-style chaining.
+  */
+  LogEvent &message_quoted(const char *tag, const char *fmt, ...)
+  {
+    msg_tag= tag;
+
+    va_list args;
+    va_start(args, fmt);
+    set_message(fmt, args);
+    va_end(args);
+
+    return *this;
+  }
+
+
+  /**
     Find an error message by its MySQL error code.
     Substitute the % in that message with the given
     arguments, then add the result as the event's message.
@@ -1121,6 +1224,18 @@ public:
   {
     va_list args;
     va_start(args, errcode);
+    set_message_by_errcode(errcode, args);
+    va_end(args);
+
+    return *this;
+  }
+
+  LogEvent &lookup_quoted(longlong errcode, const char *tag, ...)
+  {
+    msg_tag= tag;
+
+    va_list args;
+    va_start(args, tag);
     set_message_by_errcode(errcode, args);
     va_end(args);
 
@@ -1197,6 +1312,78 @@ public:
   }
 };
 
-#  endif
+
+// Methods initialize and de-initialize logging service for plugins.
+#if defined(MYSQL_DYNAMIC_PLUGIN)
+
+/**
+  Method to de-initialize logging service in plugin.
+
+  param[in]  reg_srv    Pluin registry service.
+*/
+inline void deinit_logging_service_for_plugin(SERVICE_TYPE(registry) **reg_srv)
+{
+  if (log_bi)
+    (*reg_srv)->release((my_h_service)log_bi);
+  if (log_bs)
+    (*reg_srv)->release((my_h_service)log_bs);
+  mysql_plugin_registry_release(*reg_srv);
+  log_bi= nullptr;
+  log_bs= nullptr;
+  *reg_srv= nullptr;
+}
+
+/**
+  Method to de-initialize logging service in plugin.
+
+  param[out]  reg_srv    Pluin registry service.
+
+  @retval     false  Success.
+  @retval     true   Failed.
+*/
+inline bool init_logging_service_for_plugin(SERVICE_TYPE(registry) **reg_srv)
+{
+  my_h_service log_srv= nullptr;
+  my_h_service log_str_srv= nullptr;
+  *reg_srv= mysql_plugin_registry_acquire();
+  if (!(*reg_srv)->acquire("log_builtins.mysql_server", &log_srv) &&
+      !(*reg_srv)->acquire("log_builtins_string.mysql_server", &log_str_srv))
+  {
+    log_bi= reinterpret_cast<SERVICE_TYPE(log_builtins) *>(log_srv);
+    log_bs= reinterpret_cast<SERVICE_TYPE(log_builtins_string) *>(log_str_srv);
+  }
+  else
+  {
+    deinit_logging_service_for_plugin(reg_srv);
+    return true;
+  }
+  return false;
+}
+
+#elif defined(EXTRA_CODE_FOR_UNIT_TESTING)
+
+/**
+  Method is used by unit tests.
+
+  param[in]  reg_srv    Pluin registry service.
+*/
+inline bool init_logging_service_for_plugin(
+  SERVICE_TYPE(registry) **reg_srv MY_ATTRIBUTE((unused)))
+{
+  return false;
+}
+
+/**
+  Method is used by unit tests.
+
+  param[in]  reg_srv    Pluin registry service.
+*/
+inline void deinit_logging_service_for_plugin(
+  SERVICE_TYPE(registry) **reg_srv MY_ATTRIBUTE((unused)))
+{ }
+
+#endif // MYSQL_DYNAMIC_PLUGIN
+
+#endif  // __cplusplus
 
 #endif

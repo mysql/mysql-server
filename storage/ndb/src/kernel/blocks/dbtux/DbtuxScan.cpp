@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,7 +24,7 @@
 
 #define DBTUX_SCAN_CPP
 #include "Dbtux.hpp"
-#include <my_sys.h>
+#include "my_sys.h"
 
 #define JAM_FILE_ID 371
 
@@ -467,10 +474,12 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;       // no tuple returned
     conf->fragId = frag.m_fragId;
-    unsigned signalLength = 3;
     // if TC has ordered scan close, it will be detected here
-    sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
-               signal, signalLength, JBB);
+    sendSignal(scan.m_userRef,
+               GSN_NEXT_SCANCONF,
+               signal,
+               NextScanConf::SignalLengthNoTuple,
+               JBB);
     return;     // stop
   }
   // check index online
@@ -617,14 +626,16 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     getTupAddr(frag, ent, lkey1, lkey2);
     conf->localKey[0] = lkey1;
     conf->localKey[1] = lkey2;
-    unsigned signalLength = 5;
     // add key info
     // next time look for next entry
     scan.m_state = ScanOp::Next;
     /* We need primary table fragment id here, not index fragment id */
     c_tup->prepareTUPKEYREQ(lkey1, lkey2, frag.m_tupTableFragPtrI);
     const Uint32 blockNo = refToMain(scan.m_userRef);
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   NextScanConf::SignalLengthNoGCI);
     return;
   }
   // XXX in ACC this is checked before req->checkLcpStop
@@ -634,9 +645,11 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     conf->scanPtr = scan.m_userPtr;
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
-    unsigned signalLength = 3;
     Uint32 blockNo = refToMain(scan.m_userRef);
-    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
+    EXECUTE_DIRECT(blockNo,
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   NextScanConf::SignalLengthNoTuple);
     return;
   }
   ndbrequire(false);
@@ -1180,12 +1193,11 @@ Dbtux::scanClose(Signal* signal, ScanOpPtr scanPtr)
     conf->scanPtr = scanPtr.p->m_userPtr;
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
-    unsigned signalLength = 3;
     releaseScanOp(scanPtr);
     EXECUTE_DIRECT(blockNo,
                    GSN_NEXT_SCANCONF,
                    signal,
-                   signalLength);
+                   NextScanConf::SignalLengthNoTuple);
   } else {
     // send ref
     NextScanRef* ref = (NextScanRef*)signal->getDataPtr();

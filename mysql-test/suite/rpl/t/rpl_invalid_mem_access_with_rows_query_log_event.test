@@ -1,0 +1,67 @@
+###########################################################################
+# Bug#25695434 MEMORY LEAK IN MULTI-SOURCE REPLICATION WHEN
+#              BINLOG_ROWS_QUERY_LOG_EVENTS=1
+#
+# There is a valgrind issue of invalid memory access assosciated with the
+# above bug. This issue is fixed as a part of the above mentioned bug.
+#
+# Problem: show processlist displays the query even after the event is
+#          deleted (valgrind issue).
+#
+# Steps to reproduce:
+# 1) Create a basic master-slave topology with binlog_rows_query_log_events
+#    enabled on master.
+# 2) On master, create a table and wait till it is replicated to slave.
+# 3) On slave, set a debug point 'after_deleting_the_rows_query_ev'.
+# 4) On master, do an insert.
+# 5) SHOW PROCESSLIST on slave shows the query.
+# 6) Cleanup
+###########################################################################
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+# Since the binlog_rows_query_log_events system variable affects row-based
+# logging, row format is used.
+--source include/have_binlog_format_row.inc
+--echo #
+--echo # Step 1) Create a basic master-slave topology with
+--echo #         binlog_rows_query_log_events enabled on master.
+--echo #
+--source include/master-slave.inc
+SET @old_binlog_rows_query_log_events= @@session.binlog_rows_query_log_events;
+SET @@session.binlog_rows_query_log_events=ON;
+--echo #
+--echo # Step 2) On master, create a table and wait till it is replicated to
+--echo #         slave.
+CREATE TABLE t1(a INT);
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Step 3) On slave, set a debug point 'after_deleting_the_rows_query_ev'.
+--echo #
+SET @old_debug= @@global.debug;
+--let $debug_point= after_deleting_the_rows_query_ev
+--source include/add_debug_point.inc
+
+--echo #
+--echo # Step 4) On master, do an insert.
+--echo #
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES(1);
+
+--echo #
+--echo # Step 5) SHOW PROCESSLIST on slave should show NULL.
+--echo #
+--source include/rpl_connection_slave.inc
+SET DEBUG_SYNC= "now WAIT_FOR deleted_rows_query_ev";
+--query_vertical SELECT state,info FROM information_schema.processlist WHERE state like 'debug%';
+SET DEBUG_SYNC = "now SIGNAL go_ahead";
+
+--echo #
+--echo # Step 6) Cleanup
+--echo #
+SET GLOBAL debug= @old_debug;
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+SET @@session.binlog_rows_query_log_events= @old_binlog_rows_query_log_events;
+--source include/rpl_end.inc

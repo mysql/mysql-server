@@ -4,6 +4,9 @@
 --source include/not_windows.inc
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+call mtr.add_suppression("Maximum number of authentication attempts reached");
 
 CREATE USER user_127_0_0_1@127.0.0.1 IDENTIFIED WITH 'mysql_native_password' BY '';
 CREATE USER user_8_8_8_8@8.8.8.8 IDENTIFIED WITH 'mysql_native_password' BY '';
@@ -114,11 +117,11 @@ EOF
 -->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 -->recvresult
 
--->newsession session2	root
+-->newsession session2	x_root
 -->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 -->recvresult
 
--->newsession session3	root
+-->newsession session3	x_root
 -->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 -->recvresult
 
@@ -144,7 +147,7 @@ EOF
 
 EOF
 
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/parallel_connections.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/parallel_connections.tmp 2>&1
 
 
 --write_file $MYSQL_TMP_DIR/plain_connection.tmp
@@ -162,20 +165,20 @@ Mysqlx.Connection.CapabilitiesGet {
 -->echo #
 Mysqlx.Session.AuthenticateStart {
     mech_name: "PLAIN"
-    auth_data: "\0root\0"
+    auth_data: "\0x_root\0"
 }
 -->recvuntil Mysqlx.Session.AuthenticateOk do_not_show_intermediate
 EOF
 
---exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
+--exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
 
 
 --echo #
 --echo # Lets confirm that user can connect through UNIX socket connection is secure one
 --echo #
 SET GLOBAL require_secure_transport:=1;
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
---exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -uroot --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
 SET GLOBAL require_secure_transport:=0;
 
 #
@@ -198,7 +201,10 @@ let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.s
 
 # Check if the X Plugin is accessible through
 # new file
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+
+# Connect through unixsocket using PLAIN authentication
+--exec $MYSQLXTEST --plain-auth --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 ## Postamble
 --remove_file $MYSQL_TMP_DIR/basic_connection.tmp
@@ -206,6 +212,7 @@ let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.s
 --remove_file $MYSQL_TMP_DIR/plain_connection.tmp
 --remove_file $MYSQL_TMP_DIR/check_unixsocket.tmp
 
+--source include/xplugin_drop_user.inc
 DROP TABLE `city`;
 DROP USER user_127_0_0_1@127.0.0.1,user_8_8_8_8@8.8.8.8, user_all@'%', user_localhost@localhost, user_localhost_8_8_8_8@8.8.8.8, user_localhost_8_8_8_8@localhost;
 UNINSTALL PLUGIN mysqlx;

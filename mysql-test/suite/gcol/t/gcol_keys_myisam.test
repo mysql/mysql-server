@@ -1,7 +1,9 @@
 # General not engine specific settings and requirements
 --source suite/gcol/inc/gcol_init_vars.pre
-# Skipping the test when log-bin is enabled due to Bug#22508362
---source include/not_log_bin.inc
+
+# Skipping the test when binlog_format=STATEMENT due to unsafe statements:
+# unsafe auto-increment column, LIMIT clause.
+--source include/not_binlog_format_statement.inc
 
 ################################################################################
 # t/gcol_keys_myisam.test                                                      #

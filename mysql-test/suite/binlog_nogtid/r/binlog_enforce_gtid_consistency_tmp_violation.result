@@ -37,7 +37,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -74,7 +74,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -112,7 +112,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -149,7 +149,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -184,7 +184,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -219,7 +219,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -255,7 +255,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -290,7 +290,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -476,7 +476,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -511,7 +511,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -547,7 +547,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -582,7 +582,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -621,7 +621,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -656,7 +656,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -692,7 +692,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -727,7 +727,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -913,7 +913,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -948,7 +948,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -984,7 +984,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -1019,7 +1019,7 @@ include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -1058,7 +1058,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -1093,7 +1093,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -1129,7 +1129,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -1164,7 +1164,7 @@ include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be
 [END] DROP TEMPORARY TABLE t1;
 include/assert.inc [No warning or error should be generated.]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -1208,7 +1208,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1245,7 +1245,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1283,7 +1283,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1320,7 +1320,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1505,7 +1505,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1542,7 +1542,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1580,7 +1580,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1617,7 +1617,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1654,7 +1654,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -1691,7 +1691,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -1729,7 +1729,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -1766,7 +1766,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -1950,7 +1950,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -1987,7 +1987,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2025,7 +2025,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2062,7 +2062,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2099,7 +2099,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -2136,7 +2136,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -2174,7 +2174,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -2211,7 +2211,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -2395,7 +2395,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2432,7 +2432,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2470,7 +2470,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2507,7 +2507,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2544,7 +2544,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -2581,7 +2581,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -2619,7 +2619,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -2656,7 +2656,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
 include/assert.inc [Both counters should be 0]
@@ -2695,7 +2695,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2732,7 +2732,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2770,7 +2770,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2807,7 +2807,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be an Error, not a Warning.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 SET GTID_NEXT = 'AUTOMATIC';
@@ -2850,7 +2850,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -2893,7 +2893,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -2937,7 +2937,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -2980,7 +2980,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -3174,7 +3174,7 @@ Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -3217,7 +3217,7 @@ Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -3261,7 +3261,7 @@ Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -3304,7 +3304,7 @@ Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -3351,7 +3351,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -3394,7 +3394,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -3438,7 +3438,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -3481,7 +3481,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -3675,7 +3675,7 @@ Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -3718,7 +3718,7 @@ Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -3762,7 +3762,7 @@ Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -3805,7 +3805,7 @@ Warning	1787	Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
-include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
 ROLLBACK;
 Warnings:
@@ -3852,7 +3852,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -3895,7 +3895,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0 (stm) / 1 (row)]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1751	The creation of some temporary tables could not be rolled back.
@@ -3939,7 +3939,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
@@ -3982,7 +3982,7 @@ include/assert.inc [One warning/error should be generated.]
 include/assert.inc [It should be a Warning, not an Error.]
 include/assert.inc [Text should be "violates GTID consistency"]
 include/assert.inc [ONGOING_AUTOMATIC_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
-include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 0]
+include/assert.inc [ONGOING_ANONYMOUS_GTID_VIOLATING_TRANSACTION_COUNT should be 1 (stm) / 0 (row / mix)]
 ROLLBACK;
 Warnings:
 Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.

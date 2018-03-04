@@ -158,20 +158,20 @@ CREATE TABLE t2 ( c FLOAT(30,18) );
 INSERT INTO t2 VALUES( 123456 );
 SELECT AVG( c ) FROM t1 UNION SELECT 1;
 AVG( c )
-12139
-1
+12139.000000000000000000
+1.000000000000000000
 SELECT 1 UNION SELECT AVG( c ) FROM t1;
 1
-1
-12139
+1.000000000000000000
+12139.000000000000000000
 SELECT 1 UNION SELECT * FROM t2 UNION SELECT 1;
 1
 1
 123456
 SELECT c/1 FROM t1 UNION SELECT 1;
 c/1
-12139
-1
+12139.000000000000000000
+1.000000000000000000
 DROP TABLE t1, t2;
 create temporary table t1 (a int);
 insert into t1 values (4711);
@@ -349,3 +349,24 @@ SELECT * FROM bogus.t1;
 ERROR 42000: Unknown database 'bogus'
 SELECT * FROM bogus.t2;
 ERROR 42000: Unknown database 'bogus'
+#
+# Bug#25951134: MEMORY LEAK OF INTERNAL TEMPORARY TABLES
+#
+CREATE TABLE t1(a LONGTEXT);
+SELECT (EXISTS (SELECT 1 FROM t1
+GROUP BY (NOT EXISTS (SELECT 1 FROM (SELECT 1 FROM t1 GROUP BY a)r))))
+FROM t1;
+(EXISTS (SELECT 1 FROM t1
+GROUP BY (NOT EXISTS (SELECT 1 FROM (SELECT 1 FROM t1 GROUP BY a)r))))
+DROP TABLE t1;
+# End of test for bug#25951134
+#
+# Bug#26126789: lock0lock.cc: ((m_mode - (0xful & m_mode)) - (0xf0ul & m_mode) - (256 & m_mode))
+#
+# Failed create of temporary table that would leave REPLACE flag in Innodb txn after
+# the statement had finished
+CREATE TEMPORARY TABLE t1 (a TEXT NOT NULL) REPLACE AS SELECT total_allocated FROM sys.memory_by_thread_by_current_bytes;
+ERROR HY000: Field 'a' doesn't have a default value
+# Create table would assert because REPLACE setting is not compatible with MDL for CREATE
+CREATE TABLE IF NOT EXISTS t2 (a INT);
+DROP TABLE t2;

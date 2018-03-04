@@ -35,7 +35,7 @@ SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
 --echo # Case 2 : Provide invalid password hash
 --error ER_PASSWORD_FORMAT
 GRANT SUPER ON *.* TO userX, userY,
-                      userA IDENTIFIED WITH 'mysql_native_password'
+                      userA IDENTIFIED WITH 'caching_sha2_password'
 					  AS 'hahaha';
 
 --echo # Grants for userX, userY, userZ should not have changed
@@ -77,7 +77,7 @@ SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
 --let $invert= 0
 
 --echo # Restore userW to its former state
-UPDATE mysql.user SET plugin="mysql_native_password" WHERE user like 'userW';
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
 FLUSH PRIVILEGES;
 
 --source include/save_binlog_position.inc
@@ -163,7 +163,7 @@ SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
 --echo # Case 2 : Provide invalid password hash
 --error ER_PASSWORD_FORMAT
 GRANT SELECT ON mysql.* TO userX, userY,
-                           userA IDENTIFIED WITH 'mysql_native_password'
+                           userA IDENTIFIED WITH 'caching_sha2_password'
 					       AS 'hahaha';
 
 --echo # Grants for userX, userY, userZ should not have changed
@@ -206,7 +206,7 @@ SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
 
 
 --echo # Restore userW to its former state
-UPDATE mysql.user SET plugin="mysql_native_password" WHERE user like 'userW';
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
 FLUSH PRIVILEGES;
 
 --echo # Case 4 : Use unprivileged account to create new user using GRANT
@@ -303,7 +303,7 @@ SHOW GRANTS FOR userZ;
 --echo # Case 2 : Provide invalid password hash
 --error ER_PASSWORD_FORMAT
 GRANT PROXY ON proxied TO userX, userY,
-                          userA IDENTIFIED WITH 'mysql_native_password'
+                          userA IDENTIFIED WITH 'caching_sha2_password'
 					      AS 'hahaha';
 
 --echo # Grants for userX, userY, userZ should not have changed
@@ -341,7 +341,7 @@ SHOW GRANTS FOR userZ;
 --let $invert= 0
 
 --echo # Restore userW to its former state
-UPDATE mysql.user SET plugin="mysql_native_password" WHERE user like 'userW';
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
 FLUSH PRIVILEGES;
 
 --source include/save_binlog_position.inc

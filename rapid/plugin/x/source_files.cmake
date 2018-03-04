@@ -1,17 +1,24 @@
 # Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
 
@@ -42,12 +49,15 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/xpl_session_status_variables.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_log.h"
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.h"
+  "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.h"
   "${MYSQLX_PROJECT_DIR}/src/auth_plain.h"
-  "${MYSQLX_PROJECT_DIR}/src/auth_mysql41.h"
+  "${MYSQLX_PROJECT_DIR}/src/auth_challenge_response.h"
   "${MYSQLX_PROJECT_DIR}/src/native_plain_verification.h"
   "${MYSQLX_PROJECT_DIR}/src/native_verification.h"
+  "${MYSQLX_PROJECT_DIR}/src/cache_based_verification.h"
   "${MYSQLX_PROJECT_DIR}/src/sha256_plain_verification.h"
   "${MYSQLX_PROJECT_DIR}/src/sha2_plain_verification.h"
+  "${MYSQLX_PROJECT_DIR}/src/sha256_password_cache.h"
   "${MYSQLX_PROJECT_DIR}/src/account_verification_handler.h"
   "${MYSQLX_PROJECT_DIR}/src/admin_cmd_handler.h"
   "${MYSQLX_PROJECT_DIR}/src/admin_cmd_arguments.h"
@@ -75,6 +85,9 @@ SET(xplugin_HDRS
   "${MYSQLX_PROJECT_DIR}/src/notices.h"
   "${MYSQLX_PROJECT_DIR}/src/cap_handles_expired_passwords.h"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.h"
+  "${MYSQLX_PROJECT_DIR}/src/udf/registrator.h"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.h"
+  "${MYSQLX_PROJECT_DIR}/src/global_timeouts.h"
   ${ngs_HDRS}
 )
 
@@ -88,16 +101,19 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/xpl_dispatcher.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_system_variables.cc"
   "${MYSQLX_PROJECT_DIR}/src/xpl_regex.cc"
+  "${MYSQLX_PROJECT_DIR}/src/xpl_plugin.cc"
+  "${MYSQLX_PROJECT_DIR}/src/xpl_performance_schema.cc"
   "${MYSQLX_PROJECT_DIR}/src/io/xpl_listener_factory.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_variables.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_function_names.cc"
   "${MYSQLX_PROJECT_DIR}/src/mysql_show_variable_wrapper.cc"
   "${MYSQLX_PROJECT_DIR}/src/auth_plain.cc"
-  "${MYSQLX_PROJECT_DIR}/src/auth_mysql41.cc"
   "${MYSQLX_PROJECT_DIR}/src/native_plain_verification.cc"
   "${MYSQLX_PROJECT_DIR}/src/native_verification.cc"
+  "${MYSQLX_PROJECT_DIR}/src/cache_based_verification.cc"
   "${MYSQLX_PROJECT_DIR}/src/sha256_plain_verification.cc"
   "${MYSQLX_PROJECT_DIR}/src/sha2_plain_verification.cc"
+  "${MYSQLX_PROJECT_DIR}/src/sha256_password_cache.cc"
   "${MYSQLX_PROJECT_DIR}/src/account_verification_handler.cc"
   "${MYSQLX_PROJECT_DIR}/src/admin_cmd_handler.cc"
   "${MYSQLX_PROJECT_DIR}/src/admin_cmd_arguments.cc"
@@ -123,6 +139,8 @@ SET(xplugin_SRC
   "${MYSQLX_PROJECT_DIR}/src/view_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/insert_statement_builder.cc"
   "${MYSQLX_PROJECT_DIR}/src/notices.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/registrator.cc"
+  "${MYSQLX_PROJECT_DIR}/src/udf/mysqlx_error.cc"
   ${ngs_SRC}
 )
 

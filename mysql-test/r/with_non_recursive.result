@@ -1991,4 +1991,4 @@ with qn as (select 1) select * from qn;
 use test;
 show status like 'Created_tmp_disk_tables';
 Variable_name	Value
-Created_tmp_disk_tables	21
+Created_tmp_disk_tables	23

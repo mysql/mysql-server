@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include "nt_servc.h"
 
+#include "sql/restart_monitor_win.h"
 
 static NTService *pService;
 
@@ -104,7 +105,6 @@ long NTService::Init(LPCSTR szInternName,void *ServiceThread)
     { (char *)szInternName,(LPSERVICE_MAIN_FUNCTION) ServiceMain} ,
     { NULL, NULL }
   };
-
   return StartServiceCtrlDispatcher(stb); //register with the Service Manager
 }
 
@@ -219,10 +219,17 @@ BOOL NTService::Remove(LPCSTR szInternName)
 */
 void NTService::Stop(void)
 {
-  SetStatus(SERVICE_STOP_PENDING,NO_ERROR, 0, 1, 60000);
+  SetStatus(SERVICE_STOP_PENDING,NO_ERROR, 0, 1, 160000);
   StopService();
   SetStatus(SERVICE_STOPPED, NO_ERROR, 0, 1, 1000);
 }
+
+
+void NTService::SetExitEvent()
+{
+  SetEvent(hExitEvent);
+}
+
 
 /**
   This is the function that is called from the
@@ -232,7 +239,6 @@ void NTService::Stop(void)
 
 void NTService::ServiceMain(DWORD argc, LPTSTR *argv)
 {
-
   // registration function
   if (!(pService->hServiceStatusHandle =
 	RegisterServiceCtrlHandler(pService->ServiceName,
@@ -310,12 +316,7 @@ void NTService::StopService()
 {
   bRunning=FALSE;
 
-  // Set the event for application
-  if (hShutdownEvent)
-     SetEvent(hShutdownEvent);
-
-  // Set the event for ServiceMain
-  SetEvent(hExitEvent);
+  signal_event(Signal_type::SIGNAL_SHUTDOWN);
 }
 /* ------------------------------------------------------------------------
 

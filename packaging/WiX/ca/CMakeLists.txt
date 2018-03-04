@@ -1,17 +1,24 @@
-# Copyright (c) 2010, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(WIX_ARCH "x64")
@@ -19,8 +26,10 @@ ELSE()
   SET(WIX_ARCH "x86")
 ENDIF()
 
-IF(MSVC_VERSION EQUAL 1900)
+IF(MSVC_VERSION LESS 1910)
   SET(WIX_MSVC_DIR "VS2015")
+ELSEIF(MSVC_VERSION LESS 1920)
+  SET(WIX_MSVC_DIR "VS2017")
 ELSE()
   # When next VS is out, add the correct version here
   MESSAGE(FATAL_ERROR "Unknown VS version")

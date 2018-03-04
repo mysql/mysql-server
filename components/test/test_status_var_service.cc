@@ -1,17 +1,24 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   This file contains a test (example) component, which tests the apis of
@@ -45,8 +52,9 @@ static long long_variable_value= 1234567;
 static double double_variable_value= 8.0;
 static long long longlong_variable_value= 123456789;
 static char char_variable_value[]= "Testing CHAR status variable";
-static char *char_ptr_variable_value;
+static char *char_ptr_variable_value= nullptr;
 
+using std::swap;
 static void char_ptr_foo()
 {
   char char_buff[50];
@@ -54,7 +62,7 @@ static void char_ptr_foo()
 
   snprintf(char_buff, sizeof(char_buff), "Testing CHAR_PTR for status vars");
   char_ptr= strdup(char_buff);
-  std::swap(char_ptr, char_ptr_variable_value);
+  swap(char_ptr, char_ptr_variable_value);
 
   if (char_ptr)
     free(char_ptr);
@@ -152,6 +160,7 @@ static STATUS_VAR status_array_var[]=
 static mysql_service_status_t test_component_status_var_service_init()
 {
   outfile= fopen(filename, "w+");
+  char_ptr_variable_value= nullptr;
 
   WRITE_LOG("%s\n", "test_component_status_var init:");
   char_ptr_foo();

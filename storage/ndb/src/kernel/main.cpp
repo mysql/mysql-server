@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -119,11 +126,6 @@ static void short_usage_sub(void)
   ndb_service_print_options("ndbd");
 }
 
-static void usage()
-{
-  ndb_usage(short_usage_sub, load_default_groups, my_long_options);
-}
-
 /**
  * C++ Standard 3.6.1/3:
  *  The function main shall not be used (3.2) within a program.
@@ -133,7 +135,8 @@ static void usage()
 int
 real_main(int argc, char** argv)
 {
-  NDB_INIT(argv[0]);
+  Ndb_opts opts(argc, argv, my_long_options, load_default_groups);
+  opts.set_usage_funcs(short_usage_sub);
 
   // Print to stdout/console
   g_eventLogger->createConsoleHandler();
@@ -147,9 +150,6 @@ real_main(int argc, char** argv)
 
   // Turn on max loglevel for startup messages
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
-
-  ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndbd.trace";
@@ -166,8 +166,7 @@ real_main(int argc, char** argv)
   }
 
   int ho_error;
-  if ((ho_error=handle_options(&argc, &argv, my_long_options,
-                               ndb_std_get_one_option)))
+  if ((ho_error=opts.handle_options()))
     exit(ho_error);
 
   if (opt_no_daemon || opt_foreground) {
@@ -215,6 +214,7 @@ real_main(int argc, char** argv)
              opt_allocated_nodeid, opt_retries, opt_delay);
   }
 
+  Ndb_opts::release();
   /**
     The angel process takes care of automatic restarts, by default this is
     the default to have an angel process. When an angel process is used the

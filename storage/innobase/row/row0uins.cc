@@ -3,16 +3,24 @@
 Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -115,7 +123,7 @@ row_undo_ins_remove_clust_rec(
 		mem_heap_t*	heap	= NULL;
 		const ulint*	offsets	= rec_get_offsets(
 			rec, index, NULL, ULINT_UNDEFINED, &heap);
-		row_log_table_delete(rec, node->row, index, offsets, NULL);
+		row_log_table_delete(node->trx, rec, node->row, index, offsets, NULL);
 		mem_heap_free(heap);
 	}
 
@@ -136,7 +144,9 @@ retry:
 			&node->pcur, &mtr);
 	ut_a(success);
 
-	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, &mtr);
+	btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true,
+				   node->trx->id, node->undo_no,
+				   node->rec_type, &mtr);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -247,7 +257,7 @@ row_undo_ins_remove_sec_low(
 		externally stored columns. */
 		ut_ad(!index->is_clustered());
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0,
-					   false, &mtr);
+					   false, 0, 0, 0, &mtr);
 	}
 func_exit:
 	btr_pcur_close(&pcur);
@@ -305,7 +315,7 @@ retry:
 
 /** Parses the row reference and other info in a fresh insert undo record.
 @param[in,out]	node	row undo node
-@param[in,out]	mdl	MDL ticket */
+@param[in,out]	mdl	MDL ticket or nullptr if unnecessary */
 static
 void
 row_undo_ins_parse_undo_rec(
@@ -319,11 +329,8 @@ row_undo_ins_parse_undo_rec(
 	ulint		type;
 	ulint		dummy;
 	bool		dummy_extern;
-	bool		get_mdl;
 
 	ut_ad(node);
-
-	get_mdl = dd_mdl_for_undo(current_thd);
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &dummy,
 				    &dummy_extern, &undo_no, &table_id);
@@ -332,22 +339,15 @@ row_undo_ins_parse_undo_rec(
 
 	node->update = NULL;
 
-	if (get_mdl) {
-		node->table = dd_table_open_on_id(
-			table_id, current_thd, mdl, false, true);
-	} else {
-		node->table = dd_table_open_on_id_in_mem(table_id, false);
-	}
+	node->table = dd_table_open_on_id(
+		table_id, current_thd, mdl, false, true);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (node->table == NULL) {
 	} else if (node->table->ibd_file_missing) {
 close_table:
-		if (get_mdl) {
-			dd_table_close(node->table, current_thd, mdl, false);
-		} else {
-			dd_table_close(node->table, nullptr, nullptr, false);
-		}
+		dd_table_close(node->table, current_thd, mdl, false);
+
 		node->table = NULL;
 	} else {
 		ut_ad(!node->table->skip_alter_undo);
@@ -455,7 +455,8 @@ row_undo_ins(
 	ut_ad(node->trx->in_rollback);
 	ut_ad(trx_undo_roll_ptr_is_insert(node->roll_ptr));
 
-	row_undo_ins_parse_undo_rec(node, &mdl);
+	row_undo_ins_parse_undo_rec(
+		node, dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
 	if (node->table == NULL) {
 		return(DB_SUCCESS);
@@ -481,11 +482,7 @@ row_undo_ins(
 		err = row_undo_ins_remove_clust_rec(node);
 	}
 
-	if (dd_mdl_for_undo(current_thd)) {
-		dd_table_close(node->table, current_thd, &mdl, false);
-	} else {
-		dd_table_close(node->table, nullptr, nullptr, false);
-	}
+	dd_table_close(node->table, current_thd, &mdl, false);
 
 	node->table = NULL;
 

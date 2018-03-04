@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -295,7 +302,6 @@ struct Page8 {
   bool checkScanContainer(Uint32 conptr) const;
   Uint16 checkScans(Uint16 scanmask, Uint32 conptr) const;
 }; /* p2c: size = 8192 bytes */
-
   typedef Ptr<Page8> Page8Ptr;
 
 struct Page8SLinkMethods
@@ -312,11 +318,6 @@ struct ContainerPageLinkMethods
   static Uint32 getPrev(Page8 const& item) { return item.word32[Page8::PREV_PAGE]; }
   static void setPrev(Page8& item, Uint32 prev) { item.word32[Page8::PREV_PAGE] = prev; }
 };
-
-typedef SLCFifoList<Page8,Dbacc,Page8,Page8SLinkMethods> Page8List;
-typedef LocalSLCFifoList<Page8,Dbacc,Page8,Page8SLinkMethods> LocalPage8List;
-typedef DLCFifoList<Page8,Dbacc,Page8,ContainerPageLinkMethods> ContainerPageList;
-typedef LocalDLCFifoList<Page8,Dbacc,Page8,ContainerPageLinkMethods> LocalContainerPageList;
 
 struct Page32
 {
@@ -335,8 +336,8 @@ struct Page32
 
 typedef Ptr<Page32> Page32Ptr;
 typedef ArrayPool<Page32> Page32_pool;
-typedef DLCList<Page32, Page32_pool> Page32_list;
-typedef LocalDLCList<Page32, Page32_pool> LocalPage32_list;
+typedef DLCFifoList<Page32_pool> Page32_list;
+typedef LocalDLCFifoList<Page32_pool> LocalPage32_list;
 
   class Page32Lists {
     Page32_list::Head lists[16];
@@ -354,12 +355,28 @@ public:
 
     Uint32 getCount() const;
     void addPage32(Page32_pool& pool, Page32Ptr p);
-    void dropFirstPage32(Page32_pool& pool, Page32Ptr& p, Uint32 keep);
+    void dropLastPage32(Page32_pool& pool, Page32Ptr& p, Uint32 keep);
     void dropPage32(Page32_pool& pool, Page32Ptr p);
     void seizePage8(Page32_pool& pool, Page8Ptr& /* out */ p, int sub_page_id);
     void releasePage8(Page32_pool& pool, Page8Ptr p);
     bool haveFreePage8(int sub_page_id) const;
   };
+
+class Page8_pool
+{
+public:
+  typedef Page8 Type;
+  explicit Page8_pool(Page32_pool& pool): m_page_pool(pool) { }
+  void getPtr(Ptr<Page8>& page) const;
+  void getPtrForce(Ptr<Page8>& page) const;
+private:
+  Page32_pool& m_page_pool;
+};
+
+typedef SLCFifoList<Page8_pool,Page8,Page8SLinkMethods> Page8List;
+typedef LocalSLCFifoList<Page8_pool,Page8,Page8SLinkMethods> LocalPage8List;
+typedef DLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> ContainerPageList;
+typedef LocalDLCFifoList<Page8_pool,Page8,ContainerPageLinkMethods> LocalContainerPageList;
 
 /* --------------------------------------------------------------------------------- */
 /* FRAGMENTREC. ALL INFORMATION ABOUT FRAMENT AND HASH TABLE IS SAVED IN FRAGMENT    */
@@ -378,7 +395,6 @@ struct Fragmentrec {
   };
   Uint32 tupFragptr;
   Uint32 roothashcheck;
-  Uint32 noOfElements;
   Uint32 m_commit_count;
   State rootState;
   
@@ -735,13 +751,13 @@ struct Operationrec {
 /* --------------------------------------------------------------------------------- */
 struct ScanRec {
   enum ScanState {
-    WAIT_NEXT,  
-    SCAN_DISCONNECT
+    WAIT_NEXT = 0,
+    SCAN_DISCONNECT = 1
   };
   enum ScanBucketState {
-    FIRST_LAP,
-    SECOND_LAP,
-    SCAN_COMPLETED
+    FIRST_LAP = 0,
+    SECOND_LAP = 1,
+    SCAN_COMPLETED = 2
   };
   Uint32 activeLocalFrag;
   Uint32 nextBucketIndex;
@@ -758,9 +774,11 @@ struct ScanRec {
   Uint32 minBucketIndexToRescan;
   Uint32 maxBucketIndexToRescan;
   Uint32 scanOpsAllocated;
+  Uint32 scanLockCount;
   ScanBucketState scanBucketState;
   ScanState scanState;
   Uint16 scanLockHeld;
+  Uint16 scan_lastSeen;
   Uint32 scanUserblockref;
   Uint32 scanMask;
   Uint8 scanLockMode;
@@ -806,7 +824,6 @@ public:
   class Dblqh* c_lqh;
 
   void execACCMINUPDATE(Signal* signal);
-  void execREAD_PSEUDO_REQ(Signal* signal);
   // Get the size of the logical to physical page map, in bytes.
   Uint32 getL2PMapAllocBytes(Uint32 fragId) const;
   void removerow(Uint32 op, const Local_key*);
@@ -983,7 +1000,7 @@ private:
   void increaselistcont(Page8Ptr);
   void seizeLeftlist(Page8Ptr slPageptr, Uint32 conidx);
   void seizeRightlist(Page8Ptr slPageptr, Uint32 conidx);
-  Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
+  Uint32 readTablePk(Uint32, Uint32, Uint32, OperationrecPtr, Uint32*);
   Uint32 getElement(const AccKeyReq* signal,
                     OperationrecPtr& lockOwner,
                     Page8Ptr& bucketPageptr,
@@ -1024,14 +1041,14 @@ private:
                           bool lo) const;
   void check_lock_upgrade(Signal* signal, OperationrecPtr lock_owner,
 			  OperationrecPtr release_op) const;
-  void allocOverflowPage();
+  Uint32 allocOverflowPage();
   bool getfragmentrec(FragmentrecPtr&, Uint32 fragId);
   void insertLockOwnersList(const OperationrecPtr&) const;
   void takeOutLockOwnersList(const OperationrecPtr&) const;
 
   void initFsOpRec(Signal* signal) const;
   void initOverpage(Page8Ptr);
-  void initPage(Page8Ptr);
+  void initPage(Page8Ptr, Uint32);
   void initRootfragrec(Signal* signal) const;
   void putOpInFragWaitQue(Signal* signal) const;
   void releaseFsConnRec(Signal* signal) const;
@@ -1044,13 +1061,12 @@ private:
   void seizeFsConnectRec(Signal* signal) const;
   void seizeFsOpRec(Signal* signal) const;
   void seizeOpRec();
-  void seizePage(Page8Ptr& spPageptr, int sub_page_id);
+  Uint32 seizePage(Page8Ptr& spPageptr, int sub_page_id);
   void seizeRootfragrec(Signal* signal) const;
   void seizeScanRec();
   void sendSystemerror(int line) const;
 
   void addFragRefuse(Signal* signal, Uint32 errorCode) const;
-  void ndbsttorryLab(Signal* signal) const;
   void acckeyref1Lab(Signal* signal, Uint32 result_code) const;
   void insertelementLab(Signal* signal,
                         Page8Ptr bucketPageptr,
@@ -1058,14 +1074,12 @@ private:
   void checkNextFragmentLab(Signal* signal);
   void endofexpLab(Signal* signal);
   void endofshrinkbucketLab(Signal* signal);
-  void sttorrysignalLab(Signal* signal) const;
+  void sttorrysignalLab(Signal* signal, Uint32 signalkey) const;
   void sendholdconfsignalLab(Signal* signal) const;
   void accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
   void insertExistElemLab(Signal* signal, OperationrecPtr lockOwnerPtr) const;
-  void refaccConnectLab(Signal* signal);
   void releaseScanLab(Signal* signal);
-  void ndbrestart1Lab();
-  void initialiseRecordsLab(Signal* signal, Uint32 ref, Uint32 data);
+  void initialiseRecordsLab(Signal* signal, Uint32, Uint32, Uint32);
   void checkNextBucketLab(Signal* signal);
   void storeDataPageInDirectoryLab(Signal* signal) const;
 
@@ -1084,9 +1098,6 @@ private:
   void debug_lh_vars(const char* where) const {}
 #endif
 
-public:
-  void getPtr(Ptr<Page8>& page) const;
-  void getPtrForce(Ptr<Page8>& page) const;
 private:
   // Variables
 /* --------------------------------------------------------------------------------- */
@@ -1120,8 +1131,6 @@ private:
 /* PAGE8                                                                             */
 /* --------------------------------------------------------------------------------- */
   /* 8 KB PAGE                       */
-  Page8Ptr expPageptr;
-
   Page32Lists pages;
   Page8List::Head cfreepages;
   Uint32 cpageCount;
@@ -1129,6 +1138,7 @@ private:
   Uint32 cnoOfAllocatedPagesMax;
 
   Page32_pool c_page_pool;
+  Page8_pool c_page8_pool;
   bool c_allow_use_of_spare_pages;
 /* --------------------------------------------------------------------------------- */
 /* ROOTFRAGMENTREC                                                                   */
@@ -1151,33 +1161,6 @@ private:
   Tabrec *tabrec;
   TabrecPtr tabptr;
   Uint32 ctablesize;
-  Uint32 tipPageId;
-  Uint32 texpDirInd;
-  Uint32 tdata0;
-  Uint32 tfid;
-  Uint32 tscanFlag;
-  Uint32 tmp;
-  Uint32 tmp2;
-  Uint32 tresult;
-  Uint32 tuserptr;
-  BlockReference tuserblockref;
-  Uint32 tiopIndex;
-  Uint32 tscanTrid1;
-  Uint32 tscanTrid2;
-
-  Uint32 cminusOne;
-  NodeId cmynodeid;
-  BlockReference cownBlockref;
-  BlockReference cndbcntrRef;
-  Uint16 csignalkey;
-  Uint32 czero;
-  union {
-  Uint32 ckeys[2048 * MAX_XFRM_MULTIPLY];
-  Uint64 ckeys_align;
-  };
-  
-  Uint32 c_errorInsert3000_TableId;
-  Uint32 c_memusage_report_frequency;
 };
 
 #ifdef DBACC_C
@@ -1416,16 +1399,16 @@ inline void Dbacc::ScanRec::moveScanBit(Uint32 toptr, Uint32 fromptr)
   }
 }
 
-inline void Dbacc::getPtr(Ptr<Page8>& page) const
+inline void Dbacc::Page8_pool::getPtr(Ptr<Page8>& page) const
 {
-  ndbrequire(page.i != RNIL);
+  require(page.i != RNIL);
   Page32Ptr ptr;
   ptr.i = page.i >> 2;
-  c_page_pool.getPtr(ptr);
+  m_page_pool.getPtr(ptr);
   page.p = &ptr.p->page8[page.i & 3];
 }
 
-inline void Dbacc::getPtrForce(Ptr<Page8>& page) const
+inline void Dbacc::Page8_pool::getPtrForce(Ptr<Page8>& page) const
 {
   if (page.i == RNIL)
   {
@@ -1434,7 +1417,7 @@ inline void Dbacc::getPtrForce(Ptr<Page8>& page) const
   }
   Page32Ptr ptr;
   ptr.i = page.i >> 2;
-  c_page_pool.getPtr(ptr);
+  m_page_pool.getPtr(ptr);
   page.p = &ptr.p->page8[page.i & 3];
 }
 

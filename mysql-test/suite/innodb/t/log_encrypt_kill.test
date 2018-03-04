@@ -5,6 +5,10 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb_max_16k.inc
 
+--disable_query_log
+call mtr.add_suppression('Error in Log_event::read_log_event()');
+--enable_query_log
+
 # Create a table with encryption, should fail since keyring is not
 # loaded
 

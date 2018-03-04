@@ -1,17 +1,24 @@
 /* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifndef OPT_EXPLAIN_INCLUDED
@@ -51,6 +58,7 @@ SELECT_LEX), by calling explain_unit() for each of them.
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_result.h"            // Query_result_send
+#include "sql/sql_cmd.h"                 // Sql_cmd
 #include "sql/sql_lex.h"
 #include "sys/types.h"
 
@@ -165,6 +173,25 @@ bool explain_single_table_modification(THD *ethd,
 bool explain_query(THD *thd, SELECT_LEX_UNIT *unit);
 bool explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
                                  enum_parsing_context ctx);
-void mysql_explain_other(THD *thd);
+
+
+class Sql_cmd_explain_other_thread final : public Sql_cmd
+{
+public:
+  explicit Sql_cmd_explain_other_thread(my_thread_id thread_id)
+    : m_thread_id(thread_id)
+  {}
+
+  enum_sql_command sql_command_code() const override
+  {
+    return SQLCOM_EXPLAIN_OTHER;
+  }
+
+  bool execute(THD *thd) override;
+
+private:
+  /// connection_id in EXPLAIN FOR CONNECTION \<connection_id\>
+  my_thread_id m_thread_id;
+};
 
 #endif /* OPT_EXPLAIN_INCLUDED */

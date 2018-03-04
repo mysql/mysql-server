@@ -56,7 +56,7 @@ SELECT search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELE
 'WHERE a = "digest_collision.test"%' );
 search_error_log( '[Note]', '%Plugin Rewriter reported: ''Statement "SELECT * FROM test.t1 ' ||
 'WHERE a = "digest_collision.test"%' )
-[Note] Plugin Rewriter reported: 'Statement "SELECT * FROM test.t1 WHERE a = "digest_collision.test" UNION SELECT * FROM test.t1 WHERE a = "diges..." with digest "739febe68abfa53663f17599fc83539d" matched some rule but had different parse tree and/or literals.'
+[Note] [MY-011235] Plugin Rewriter reported: 'Statement "SELECT * FROM test.t1 WHERE a = "digest_collision.test" UNION SELECT * FROM test.t1 WHERE a = "diges..." with digest "3c579229047547d5b35dbb0f1f00f0d1ff521755e231f83952e6d51b2019818b" matched some rule but had different parse tree and/or literals.'
 DROP TABLE t1;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown

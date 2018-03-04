@@ -1,17 +1,24 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
@@ -16133,6 +16140,7 @@ static void test_change_user()
   DIE_UNLESS(rc);
   if (! opt_silent)
     printf("Got error (as expected): %s\n", mysql_error(l_mysql));
+  reconnect(&l_mysql);
 
   rc= mysql_change_user(l_mysql, user_no_pw, pw, "");
   DIE_UNLESS(rc);
@@ -16174,6 +16182,7 @@ static void test_change_user()
   DIE_UNLESS(rc);
   if (! opt_silent)
     printf("Got error (as expected): %s\n", mysql_error(l_mysql));
+  reconnect(&l_mysql);
 
   rc= mysql_change_user(l_mysql, NULL, pw, NULL);
   DIE_UNLESS(rc);
@@ -16906,13 +16915,18 @@ static void test_bug31669()
   user[USERNAME_CHAR_LENGTH]= 0;
   memset(buff, 'c', sizeof(buff));
   buff[LARGE_BUFFER_SIZE]= 0;
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' IDENTIFIED BY "
-                 "'", buff, "' WITH GRANT OPTION", NullS);
+
+  strxmov(query, "CREATE USER '", user, "'@'%' IDENTIFIED WITH 'mysql_native_password' BY '", buff, "'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' WITH GRANT OPTION", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
-  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' IDENTIFIED BY "
-                 "'", buff, "' WITH GRANT OPTION", NullS);
+  strxmov(query, "CREATE USER '", user, "'@'localhost' IDENTIFIED WITH 'mysql_native_password' BY '", buff, "'", NullS);
+  rc= mysql_query(mysql, query);
+  myquery(rc);
+  strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' WITH GRANT OPTION", NullS);
   rc= mysql_query(mysql, query);
   myquery(rc);
 
@@ -19248,20 +19262,19 @@ static void test_wl6791()
     MYSQL_OPT_PROTOCOL, MYSQL_OPT_LOCAL_INFILE, MYSQL_OPT_SSL_MODE
   },
   bool_opts[] = {
-    MYSQL_OPT_COMPRESS, MYSQL_OPT_USE_REMOTE_CONNECTION,
-    MYSQL_OPT_USE_EMBEDDED_CONNECTION, MYSQL_OPT_GUESS_CONNECTION,
+    MYSQL_OPT_COMPRESS,
     MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
     MYSQL_ENABLE_CLEARTEXT_PLUGIN, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
     MYSQL_OPT_OPTIONAL_RESULTSET_METADATA
   },
   const_char_opts[] = {
     MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
-    MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, 
+    MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME,
 #if defined (_WIN32)
     /* mysql_options() is a no-op on non-supporting platforms. */
     MYSQL_SHARED_MEMORY_BASE_NAME,
 #endif
-    MYSQL_SET_CLIENT_IP, MYSQL_OPT_BIND, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
+    MYSQL_OPT_BIND, MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
     MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT, MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH,
     MYSQL_OPT_SSL_CIPHER, MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
     MYSQL_SERVER_PUBLIC_KEY

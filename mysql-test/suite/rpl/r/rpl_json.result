@@ -74,7 +74,7 @@ i	j
 25	"23:24:25.000000"
 26	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]
 30	"base64:type15:yv66vg=="
 # Copy JSON values
@@ -110,7 +110,7 @@ i	j	JSON_TYPE(j)
 25	"23:24:25.000000"	TIME
 26	"2015-01-15"	DATE
 27	"2015-01-15 23:24:25.000000"	DATETIME
-28	{"type": "Point", "coordinates": [1, 1]}	OBJECT
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT
 29	[]	ARRAY
 30	"base64:type15:yv66vg=="	BLOB
 # Convert JSON values to TEXT
@@ -146,7 +146,7 @@ i	txt	JSON_TYPE(txt)
 25	"23:24:25.000000"	STRING
 26	"2015-01-15"	STRING
 27	"2015-01-15 23:24:25.000000"	STRING
-28	{"type": "Point", "coordinates": [1, 1]}	OBJECT
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT
 29	[]	ARRAY
 30	"base64:type15:yv66vg=="	STRING
 # Convert TEXT values back to JSON
@@ -182,7 +182,7 @@ i	j	JSON_TYPE(j)
 25	"23:24:25.000000"	STRING
 26	"2015-01-15"	STRING
 27	"2015-01-15 23:24:25.000000"	STRING
-28	{"type": "Point", "coordinates": [1, 1]}	OBJECT
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	OBJECT
 29	[]	ARRAY
 30	"base64:type15:yv66vg=="	STRING
 #
@@ -216,7 +216,7 @@ id	j	x
 17	"null"	NULL
 18	[1, 2, 3]	NULL
 19	"[1, 2, 3]"	NULL
-20	[1, 2, 3]	NULL
+20	[1.0, 2.0, 3.0]	NULL
 21	[1, 2, 3.1]	NULL
 22	{}	NULL
 23	{"a": "b"}	NULL
@@ -261,7 +261,7 @@ UPDATE t5 SET x = 8 WHERE j = JSON_ARRAY(1, 2, 3);
 SELECT * FROM t5 WHERE x = 8 ORDER BY id;
 id	j	x
 18	[1, 2, 3]	8
-20	[1, 2, 3]	8
+20	[1.0, 2.0, 3.0]	8
 # Expect two rows to be updated (number 3.14)
 UPDATE t5 SET x = 9 WHERE j = 3.14;
 SELECT * FROM t5 WHERE x = 9 ORDER BY id;
@@ -283,7 +283,7 @@ SELECT * FROM t5 WHERE x = 12 ORDER BY id;
 id	j	x
 3	1	12
 18	[1, 2, 3]	12
-20	[1, 2, 3]	12
+20	[1.0, 2.0, 3.0]	12
 21	[1, 2, 3.1]	12
 # Expect a single row to be updated
 UPDATE t5 SET x = 13 WHERE JSON_EXTRACT(j, '$[0]') = '1';
@@ -336,7 +336,7 @@ i	j
 25	"23:24:25.000000"
 26	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]
 30	"base64:type15:yv66vg=="
 100	NULL
@@ -367,7 +367,7 @@ i	j
 125	"23:24:25.000000"
 126	"2015-01-15"
 127	"2015-01-15 23:24:25.000000"
-128	{"type": "Point", "coordinates": [1, 1]}
+128	{"type": "Point", "coordinates": [1.0, 1.0]}
 129	[]
 130	"base64:type15:yv66vg=="
 201	NULL
@@ -389,7 +389,7 @@ i	j
 217	"null"
 218	[1, 2, 3]
 219	"[1, 2, 3]"
-220	[1, 2, 3]
+220	[1.0, 2.0, 3.0]
 221	[1, 2, 3.1]
 222	{}
 223	{"a": "b"}
@@ -413,7 +413,7 @@ i	j
 317	"null"
 318	[1, 2, 3]
 319	"[1, 2, 3]"
-320	[1, 2, 3]
+320	[1.0, 2.0, 3.0]
 321	[1, 2, 3.1]
 322	{}
 323	{"a": "b"}
@@ -453,7 +453,7 @@ i	j	j2
 25	"23:24:25.000000"	["TIME"]
 26	"2015-01-15"	["DATE"]
 27	"2015-01-15 23:24:25.000000"	["DATETIME"]
-28	{"type": "Point", "coordinates": [1, 1]}	["OBJECT"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	["OBJECT"]
 29	[]	["ARRAY"]
 30	"base64:type15:yv66vg=="	["BLOB"]
 UPDATE t1 SET j2 = CAST(JSON_VALID(j) AS JSON);
@@ -487,7 +487,7 @@ i	j	j2
 25	"23:24:25.000000"	true
 26	"2015-01-15"	true
 27	"2015-01-15 23:24:25.000000"	true
-28	{"type": "Point", "coordinates": [1, 1]}	true
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	true
 29	[]	true
 30	"base64:type15:yv66vg=="	true
 UPDATE t1 SET j2 = JSON_KEYS(j);
@@ -521,7 +521,7 @@ i	j	j2
 25	"23:24:25.000000"	NULL
 26	"2015-01-15"	NULL
 27	"2015-01-15 23:24:25.000000"	NULL
-28	{"type": "Point", "coordinates": [1, 1]}	["type", "coordinates"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	["type", "coordinates"]
 29	[]	NULL
 30	"base64:type15:yv66vg=="	NULL
 UPDATE t1 SET j2 = JSON_ARRAY(j,j,j);
@@ -555,7 +555,7 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000", "23:24:25.000000", "23:24:25.000000"]
 26	"2015-01-15"	["2015-01-15", "2015-01-15", "2015-01-15"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000", "2015-01-15 23:24:25.000000", "2015-01-15 23:24:25.000000"]
-28	{"type": "Point", "coordinates": [1, 1]}	[{"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [1, 1]}]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	[{"type": "Point", "coordinates": [1.0, 1.0]}, {"type": "Point", "coordinates": [1.0, 1.0]}, {"type": "Point", "coordinates": [1.0, 1.0]}]
 29	[]	[[], [], []]
 30	"base64:type15:yv66vg=="	["base64:type15:yv66vg==", "base64:type15:yv66vg==", "base64:type15:yv66vg=="]
 UPDATE t1 SET j2 = JSON_EXTRACT(j2, '$[1]');
@@ -589,7 +589,7 @@ i	j	j2
 25	"23:24:25.000000"	"23:24:25.000000"
 26	"2015-01-15"	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	[]
 30	"base64:type15:yv66vg=="	"base64:type15:yv66vg=="
 UPDATE t1 SET j2 = JSON_REMOVE(j, '$[1]');
@@ -623,7 +623,7 @@ i	j	j2
 25	"23:24:25.000000"	"23:24:25.000000"
 26	"2015-01-15"	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	[]
 30	"base64:type15:yv66vg=="	"base64:type15:yv66vg=="
 UPDATE t1 SET j2 = JSON_ARRAY_APPEND(j, '$[1]', 'abc');
@@ -657,7 +657,7 @@ i	j	j2
 25	"23:24:25.000000"	"23:24:25.000000"
 26	"2015-01-15"	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	[]
 30	"base64:type15:yv66vg=="	"base64:type15:yv66vg=="
 UPDATE t1 SET j2 = JSON_SET(j, '$[1]', 'abc');
@@ -691,7 +691,7 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000", "abc"]
 26	"2015-01-15"	["2015-01-15", "abc"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000", "abc"]
-28	{"type": "Point", "coordinates": [1, 1]}	[{"type": "Point", "coordinates": [1, 1]}, "abc"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	[{"type": "Point", "coordinates": [1.0, 1.0]}, "abc"]
 29	[]	["abc"]
 30	"base64:type15:yv66vg=="	["base64:type15:yv66vg==", "abc"]
 UPDATE t1 SET j2 = JSON_INSERT(j, '$[1]', 'abc');
@@ -725,7 +725,7 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000", "abc"]
 26	"2015-01-15"	["2015-01-15", "abc"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000", "abc"]
-28	{"type": "Point", "coordinates": [1, 1]}	[{"type": "Point", "coordinates": [1, 1]}, "abc"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	[{"type": "Point", "coordinates": [1.0, 1.0]}, "abc"]
 29	[]	["abc"]
 30	"base64:type15:yv66vg=="	["base64:type15:yv66vg==", "abc"]
 UPDATE t1 SET j2 = JSON_REPLACE(j, '$[1]', 'abc');
@@ -759,7 +759,7 @@ i	j	j2
 25	"23:24:25.000000"	"23:24:25.000000"
 26	"2015-01-15"	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	[]
 30	"base64:type15:yv66vg=="	"base64:type15:yv66vg=="
 UPDATE t1 SET j2 = JSON_MERGE_PATCH(j, '{"a": "patched", "c": null}');
@@ -793,7 +793,7 @@ i	j	j2
 25	"23:24:25.000000"	{"a": "patched"}
 26	"2015-01-15"	{"a": "patched"}
 27	"2015-01-15 23:24:25.000000"	{"a": "patched"}
-28	{"type": "Point", "coordinates": [1, 1]}	{"a": "patched", "type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": "patched", "type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	{"a": "patched"}
 30	"base64:type15:yv66vg=="	{"a": "patched"}
 UPDATE t1 SET j2 = JSON_MERGE_PRESERVE(j, j);
@@ -827,7 +827,7 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000", "23:24:25.000000"]
 26	"2015-01-15"	["2015-01-15", "2015-01-15"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000", "2015-01-15 23:24:25.000000"]
-28	{"type": "Point", "coordinates": [1, 1]}	{"type": ["Point", "Point"], "coordinates": [1, 1, 1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": ["Point", "Point"], "coordinates": [1.0, 1.0, 1.0, 1.0]}
 29	[]	[]
 30	"base64:type15:yv66vg=="	["base64:type15:yv66vg==", "base64:type15:yv66vg=="]
 UPDATE t1 SET j2 = JSON_SEARCH(j, 'one', 'abc');
@@ -861,7 +861,7 @@ i	j	j2
 25	"23:24:25.000000"	NULL
 26	"2015-01-15"	NULL
 27	"2015-01-15 23:24:25.000000"	NULL
-28	{"type": "Point", "coordinates": [1, 1]}	NULL
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	NULL
 29	[]	NULL
 30	"base64:type15:yv66vg=="	NULL
 UPDATE t1 SET j2 = CAST(JSON_CONTAINS(j, '[1]') AS JSON);
@@ -895,7 +895,7 @@ i	j	j2
 25	"23:24:25.000000"	false
 26	"2015-01-15"	false
 27	"2015-01-15 23:24:25.000000"	false
-28	{"type": "Point", "coordinates": [1, 1]}	false
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	false
 29	[]	false
 30	"base64:type15:yv66vg=="	false
 UPDATE t1 SET j2 = CAST(JSON_CONTAINS_PATH(j, 'one', '$.a') AS JSON);
@@ -929,7 +929,7 @@ i	j	j2
 25	"23:24:25.000000"	false
 26	"2015-01-15"	false
 27	"2015-01-15 23:24:25.000000"	false
-28	{"type": "Point", "coordinates": [1, 1]}	false
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	false
 29	[]	false
 30	"base64:type15:yv66vg=="	false
 UPDATE t1 SET j2 = CAST(JSON_LENGTH(j) AS JSON);
@@ -963,7 +963,7 @@ i	j	j2
 25	"23:24:25.000000"	1
 26	"2015-01-15"	1
 27	"2015-01-15 23:24:25.000000"	1
-28	{"type": "Point", "coordinates": [1, 1]}	2
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	2
 29	[]	0
 30	"base64:type15:yv66vg=="	1
 UPDATE t1 SET j2 = CAST(JSON_DEPTH(j) AS JSON);
@@ -997,7 +997,7 @@ i	j	j2
 25	"23:24:25.000000"	1
 26	"2015-01-15"	1
 27	"2015-01-15 23:24:25.000000"	1
-28	{"type": "Point", "coordinates": [1, 1]}	3
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	3
 29	[]	1
 30	"base64:type15:yv66vg=="	1
 UPDATE t1 SET j2 = JSON_OBJECT('a', j, 'b', j);
@@ -1031,7 +1031,7 @@ i	j	j2
 25	"23:24:25.000000"	{"a": "23:24:25.000000", "b": "23:24:25.000000"}
 26	"2015-01-15"	{"a": "2015-01-15", "b": "2015-01-15"}
 27	"2015-01-15 23:24:25.000000"	{"a": "2015-01-15 23:24:25.000000", "b": "2015-01-15 23:24:25.000000"}
-28	{"type": "Point", "coordinates": [1, 1]}	{"a": {"type": "Point", "coordinates": [1, 1]}, "b": {"type": "Point", "coordinates": [1, 1]}}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"a": {"type": "Point", "coordinates": [1.0, 1.0]}, "b": {"type": "Point", "coordinates": [1.0, 1.0]}}
 29	[]	{"a": [], "b": []}
 30	"base64:type15:yv66vg=="	{"a": "base64:type15:yv66vg==", "b": "base64:type15:yv66vg=="}
 UPDATE t1 SET j2 = JSON_ARRAY(JSON_UNQUOTE(j));
@@ -1065,7 +1065,7 @@ i	j	j2
 25	"23:24:25.000000"	["23:24:25.000000"]
 26	"2015-01-15"	["2015-01-15"]
 27	"2015-01-15 23:24:25.000000"	["2015-01-15 23:24:25.000000"]
-28	{"type": "Point", "coordinates": [1, 1]}	["{\"type\": \"Point\", \"coordinates\": [1, 1]}"]
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	["{\"type\": \"Point\", \"coordinates\": [1.0, 1.0]}"]
 29	[]	["[]"]
 30	"base64:type15:yv66vg=="	["base64:type15:yv66vg=="]
 UPDATE t1 SET j2 = CAST(JSON_QUOTE(CAST(j AS CHAR)) AS JSON);
@@ -1099,7 +1099,7 @@ i	j	j2
 25	"23:24:25.000000"	"\"23:24:25.000000\""
 26	"2015-01-15"	"\"2015-01-15\""
 27	"2015-01-15 23:24:25.000000"	"\"2015-01-15 23:24:25.000000\""
-28	{"type": "Point", "coordinates": [1, 1]}	"{\"type\": \"Point\", \"coordinates\": [1, 1]}"
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	"{\"type\": \"Point\", \"coordinates\": [1.0, 1.0]}"
 29	[]	"[]"
 30	"base64:type15:yv66vg=="	"\"base64:type15:yv66vg==\""
 ALTER TABLE t1 ADD COLUMN j3 JSON AS (JSON_EXTRACT(j2, '$.abc'));
@@ -1133,7 +1133,7 @@ i	j	j2	j3
 25	"23:24:25.000000"	"\"23:24:25.000000\""	NULL
 26	"2015-01-15"	"\"2015-01-15\""	NULL
 27	"2015-01-15 23:24:25.000000"	"\"2015-01-15 23:24:25.000000\""	NULL
-28	{"type": "Point", "coordinates": [1, 1]}	"{\"type\": \"Point\", \"coordinates\": [1, 1]}"	NULL
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	"{\"type\": \"Point\", \"coordinates\": [1.0, 1.0]}"	NULL
 29	[]	"[]"	NULL
 30	"base64:type15:yv66vg=="	"\"base64:type15:yv66vg==\""	NULL
 UPDATE t1 SET j2 = JSON_OBJECT('abc', j);
@@ -1167,7 +1167,7 @@ i	j	j2	j3
 25	"23:24:25.000000"	{"abc": "23:24:25.000000"}	"23:24:25.000000"
 26	"2015-01-15"	{"abc": "2015-01-15"}	"2015-01-15"
 27	"2015-01-15 23:24:25.000000"	{"abc": "2015-01-15 23:24:25.000000"}	"2015-01-15 23:24:25.000000"
-28	{"type": "Point", "coordinates": [1, 1]}	{"abc": {"type": "Point", "coordinates": [1, 1]}}	{"type": "Point", "coordinates": [1, 1]}
+28	{"type": "Point", "coordinates": [1.0, 1.0]}	{"abc": {"type": "Point", "coordinates": [1.0, 1.0]}}	{"type": "Point", "coordinates": [1.0, 1.0]}
 29	[]	{"abc": []}	[]
 30	"base64:type15:yv66vg=="	{"abc": "base64:type15:yv66vg=="}	"base64:type15:yv66vg=="
 include/sync_slave_sql_with_master.inc
@@ -1947,4 +1947,106 @@ pk	id	jd	td	gcol
 # Clean up
 DROP TABLE json_data, json_data2, json_data3, json_data4;
 include/sync_slave_sql_with_master.inc
+#
+# WL#8867: ADD JSON TABLE FUNCTIONS
+#
+[Connection Master]
+# Create table using data obtained from JSON_TABLE function
+CREATE TABLE json_data(j json);
+INSERT INTO json_data VALUES('{"a":1, "b":"trucks", "c":[1,2,3], "d":"taste", "e":"93-01-01", "f":"03:48:07"}');
+INSERT INTO json_data VALUES('{"a":2, "b":"rickshaws", "c":{"key":"value"}, "d":"smell" , "e":"12-11-12", "f":"09:09:10"}');
+INSERT INTO json_data VALUES('{"a":3, "b":"cars", "c":["a","b","c","d"], "d":"sight", "e":"01-01-01", "f":"05:18:12"}');
+INSERT INTO json_data VALUES('{"a":4, "b":"bikes", "c":{"a":[1,2]}, "d":"hearing", "e":"98-05-06", "f":"00:00:00" }');
+INSERT INTO json_data VALUES('{"a":5, "b":"mopeds", "c":["one", "two", "three"], "d":"touch", "e":"56-12-07", "f":"12:12:12"}');
+CREATE TABLE data(i INT, v VARCHAR(10), j JSON, b BLOB, d DATE, t TIME, n JSON);
+INSERT INTO data SELECT jint, jchar, jjson, jblob, jdate, jtime, njson FROM json_data,JSON_TABLE(j, '$' COLUMNS(o FOR ORDINALITY, jexst INT EXISTS PATH '$.g', jint INT PATH '$.a', jchar VARCHAR(10) PATH '$.b', jjson JSON PATH '$.c', jblob BLOB PATH '$.d', jdate DATE PATH '$.e', jtime TIME PATH '$.f', NESTED PATH '$.c' COLUMNS(njson JSON PATH '$[0]' DEFAULT '{"json":"json_val"}' ON EMPTY ))) AS alias;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the table was created on the slave
+SELECT * FROM data;
+i	v	j	b	d	t	n
+1	trucks	[1, 2, 3]	taste	1993-01-01	03:48:07	1
+2	rickshaws	{"key": "value"}	smell	2012-11-12	09:09:10	{"key": "value"}
+3	cars	["a", "b", "c", "d"]	sight	2001-01-01	05:18:12	"a"
+4	bikes	{"a": [1, 2]}	hearing	1998-05-06	00:00:00	{"a": [1, 2]}
+5	mopeds	["one", "two", "three"]	touch	2056-12-07	12:12:12	"one"
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# Update values in the table with data obtained from JSON_TABLE
+UPDATE data SET j = (SELECT ucol FROM json_data,JSON_TABLE(j, '$' COLUMNS(ucol JSON PATH '$', ucol2 INT PATH '$.a')) AS alias WHERE ucol2 = 2) WHERE i = 2;
+UPDATE data SET v = (SELECT ucol FROM JSON_TABLE('{"key":["update"]}', '$' COLUMNS(ucol VARCHAR(10) PATH '$.key[0]')) AS alias) WHERE i = 4;
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the values were updated
+SELECT j,v FROM data;
+j	v
+[1, 2, 3]	trucks
+{"a": 2, "b": "rickshaws", "c": {"key": "value"}, "d": "smell", "e": "12-11-12", "f": "09:09:10"}	rickshaws
+["a", "b", "c", "d"]	cars
+{"a": [1, 2]}	update
+["one", "two", "three"]	mopeds
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# Delete values from the table
+DELETE FROM data WHERE i = (SELECT dcol FROM JSON_TABLE('{"key":["delete",1,"2"]}', '$' COLUMNS(dcol INT PATH '$.key[1]')) AS alias);
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether the row was deleted
+SELECT * FROM data;
+i	v	j	b	d	t	n
+2	rickshaws	{"a": 2, "b": "rickshaws", "c": {"key": "value"}, "d": "smell", "e": "12-11-12", "f": "09:09:10"}	smell	2012-11-12	09:09:10	{"key": "value"}
+3	cars	["a", "b", "c", "d"]	sight	2001-01-01	05:18:12	"a"
+4	update	{"a": [1, 2]}	hearing	1998-05-06	00:00:00	{"a": [1, 2]}
+5	mopeds	["one", "two", "three"]	touch	2056-12-07	12:12:12	"one"
+include/diff_tables.inc [master:data, slave:data]
+[Connection Master]
+# cleanup
+DROP TABLE data,json_data;
+include/sync_slave_sql_with_master.inc
+#
+# Bug#26177130: SLAVE CAN'T FIND ROW USING HASH_SCAN
+#               IF JSON HAS DIFFERENT BINARY FORMAT
+#
+[connection slave]
+include/begin_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
+[connection master]
+SET @old_binlog_format = @@SESSION.binlog_format;
+SET SESSION binlog_format = ROW;
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+CREATE TABLE t (j JSON);
+SET SQL_LOG_BIN = 0;
+INSERT INTO t VALUES ('["abc", "abcdefghij"]');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'a');
+SET SQL_LOG_BIN = 1;
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["a", "abcdefghij"]	26	2
+include/sync_slave_sql_with_master.inc
+INSERT INTO t VALUES ('["a", "abcdefghij"]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
+["a", "abcdefghij"]	24	0
+# At this point, the master and the slave have the same JSON document,
+# but the binary representation is different (the master has a 'gap' due
+# to partial update).
+[connection master]
+DELETE FROM t;
+# Verify that the slave and the master are in sync after the DELETE.
+# Before the fix, the slave could not locate the row due with
+# slave_rows_search_algorithms=HASH_SCAN because of the difference in
+# the representation.
+include/sync_slave_sql_with_master.inc
+# Clean up
+[connection master]
+DROP TABLE t;
+include/sync_slave_sql_with_master.inc
+include/end_replace_combination.inc [BOTH.binlog_format=row,mixed,statement -> GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN]
+[connection slave]
+include/stop_slave.inc
+include/start_slave.inc
+[connection master]
+SET SESSION binlog_format = @old_binlog_format;
 include/rpl_end.inc

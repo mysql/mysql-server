@@ -1,17 +1,24 @@
 /* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PFS_DIGEST_H
 #define PFS_DIGEST_H
@@ -26,11 +33,11 @@
 
 #include "lf.h"
 #include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_histogram.h"
-#include "pfs_lock.h"
-#include "pfs_stat.h"
 #include "sql/sql_digest.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_histogram.h"
+#include "storage/perfschema/pfs_lock.h"
+#include "storage/perfschema/pfs_stat.h"
 
 extern bool flag_statements_digest;
 extern size_t digest_max;
@@ -38,11 +45,11 @@ extern ulong digest_lost;
 struct PFS_thread;
 
 /**
-  Structure to store a MD5 hash value (digest) for a statement.
+  Structure to store a hash value (digest) for a statement.
 */
 struct PFS_digest_key
 {
-  unsigned char m_md5[MD5_HASH_SIZE];
+  unsigned char m_hash[DIGEST_HASH_SIZE];
   char m_schema_name[NAME_LEN];
   uint m_schema_name_length;
 };
@@ -53,7 +60,7 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   /** Internal lock. */
   pfs_lock m_lock;
 
-  /** Digest Schema + MD5 Hash. */
+  /** Digest Schema + Digest Hash. */
   PFS_digest_key m_digest_key;
 
   /** Digest Storage. */
@@ -85,7 +92,8 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   PFS_histogram m_histogram;
 
   /** Reset data for this record. */
-  void reset_data(unsigned char *token_array, size_t token_array_length,
+  void reset_data(unsigned char *token_array,
+                  size_t token_array_length,
                   char *query_sample_array);
   /** Reset data and remove index for this record. */
   void reset_index(PFS_thread *thread);

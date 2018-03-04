@@ -572,3 +572,16 @@ test.t1	optimize	status	OK
 SET SESSION DEBUG = '-d,ddl_log_crash_after_replay_4';
 DROP TABLE t1;
 SET GLOBAL innodb_ddl_log_crash_reset_debug = 0;
+#
+# Bug#26832347 - INNODB: CANNOT FIND SPACE FOR TBS_.*_RENAME IN TABLESPACE MEMO
+#
+SHOW VARIABLES LIKE 'log_bin';
+Variable_name	Value
+log_bin	ON
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+SET DEBUG='+d, ib_trx_commit_crash_rseg_updated';
+ALTER TABLESPACE ts1 RENAME TO ts1_renamed;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+ALTER TABLESPACE ts1_renamed RENAME TO ts1;
+DROP TABLESPACE ts1;

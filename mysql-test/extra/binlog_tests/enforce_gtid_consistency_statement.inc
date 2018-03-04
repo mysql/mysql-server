@@ -12,7 +12,7 @@
 # --let $statement= STATEMENT
 # --let $gtid_violation= [0|1]
 # --let $statement_ends_transaction= [0|1]
-# [--let $statement_ends_transaction_row= [0|1]]
+# [--let $statement_ends_transaction_row_mixed= [0|1]]
 # --let $violation_result= [0|1|2]
 # --let $error_code= ER_SOMETHING
 # --let $error_message= some text
@@ -53,14 +53,14 @@
 #     transaction that increases the counters will decrease them when
 #     the transaction ends.
 #
-#   $statement_ends_transaction_row
+#   $statement_ends_transaction_row_mixed
 #     Normally, $statement_ends_transaction is used regardless of
 #     BINLOG_FORMAT.  But in some corner cases, the value of
 #     $statement_ends_transaction depends on BINLOG_FORMAT.  For those
 #     cases, the caller should set $statement_ends_transaction to the
-#     expected value when BINLOG_FORMAT==STATEMENT or MIXED, and
-#     $statement_ends_transaction_row to the expected value when
-#     BINLOG_FORMAT=ROW.  The output to the result file will be the
+#     expected value when BINLOG_FORMAT==STATEMENT, and
+#     $statement_ends_transaction_row_mixed to the expected value when
+#     BINLOG_FORMAT=ROW or MIXED. The output to the result file will be the
 #     same regardless of BINLOG_FORMAT.
 #
 #   $error_code
@@ -102,7 +102,7 @@ if ($gtid_violation)
 
 if ($rpl_debug)
 {
-  --echo gtid_violation='$gtid_violation' violation_result='$violation_result' error_code='$error_code' expectation='$expected_status' statement_ends_transaction='$statement_ends_transaction' statement_ends_transaction_row='$statement_ends_transaction_row'
+  --echo gtid_violation='$gtid_violation' violation_result='$violation_result' error_code='$error_code' expectation='$expected_status' statement_ends_transaction='$statement_ends_transaction' statement_ends_transaction_row_mixed='$statement_ends_transaction_row_mixed'
   --echo pre_statement='$pre_statement'
   --echo gtid_next='$gtid_next'
   --echo statement='$statement'
@@ -226,13 +226,17 @@ if ($rpl_debug)
 }
 
 --let $expect_end_transaction= $statement_ends_transaction
-if ($statement_ends_transaction_row != '')
+if ($statement_ends_transaction_row_mixed != '')
 {
   if ($binlog_format == 'ROW')
   {
-    --let $expect_end_transaction= $statement_ends_transaction_row
+    --let $expect_end_transaction= $statement_ends_transaction_row_mixed
   }
-  --let $counter_expected_text= $statement_ends_transaction_row (stm) / $statement_ends_transaction (row)
+  if ($binlog_format == 'MIXED')
+  {
+    --let $expect_end_transaction= $statement_ends_transaction_row_mixed
+  }
+  --let $counter_expected_text= $statement_ends_transaction (stm) / $statement_ends_transaction_row_mixed (row / mix)
   if ($gtid_next == 'AUTOMATIC')
   {
     --let $automatic_counter_expected_text= $counter_expected_text
@@ -247,7 +251,7 @@ if ($expect_end_transaction)
   --let $automatic_counter_expected= 0
   --let $anonymous_counter_expected= 0
 }
-if ($statement_ends_transaction_row == '')
+if ($statement_ends_transaction_row_mixed == '')
 {
   --let $automatic_counter_expected_text= $automatic_counter_expected
   --let $anonymous_counter_expected_text= $anonymous_counter_expected
@@ -276,5 +280,5 @@ SET GTID_NEXT = 'AUTOMATIC';
 --source include/assert.inc
 
 #--let $statement_ends_transaction= 0
---let $statement_ends_transaction_row=
+--let $statement_ends_transaction_row_mixed=
 --let $pre_statement=

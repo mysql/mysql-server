@@ -1,27 +1,34 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "driver_command_line_options.h"
+#include "plugin/x/tests/driver/driver_command_line_options.h"
 
 #include <iostream>
 
-#include "processor/commands/command.h"
-#include "mysqlx_version.h"
-#include "ngs_common/to_string.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/tests/driver/processor/commands/command.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
@@ -41,10 +48,17 @@ void Driver_command_line_options::print_help() {
                "by -->import\n";
   std::cout << "--sql=<SQL>           Use SQL as input and execute it like "
                "in -->sql block\n";
+  std::cout << "-e=<SQL>, --execute=<SQL> Aliases for \"--sql\" option\n";
   std::cout << "-n, --no-auth         Skip authentication which is required "
                "by -->sql block (run mode)\n";
   std::cout
       << "--plain-auth          Use PLAIN text authentication mechanism\n";
+  std::cout
+      << "--cached-auth         Use SHA256_MEMORY authentication mechanism\n";
+  std::cout
+      << "--mysql41-auth        Use MYSQL41 authentication mechanism\n";
+  std::cout << "--mysql57-compatible  Use features that are 5.7 compatible:\n";
+  std::cout << "                      * limit auth-mechanisms\n";
   std::cout << "-u, --user=<user>     Connection user\n";
   std::cout << "-p, --password=<pass> Connection password\n";
   std::cout << "-h, --host=<host>     Connection host\n";
@@ -52,17 +66,17 @@ void Driver_command_line_options::print_help() {
             << MYSQLX_TCP_PORT << ")\n";
   std::cout << "--ipv=<mode>          Force internet protocol (default:4):\n";
   std::cout << "                      0 - allow system to resolve IPv6 and "
-               "IPv4, for example";
+               "IPv4, for example\n";
   std::cout << "                          resolving of 'localhost' can "
-               "return both '::1' and '127.0.0.1'";
+               "return both '::1' and '127.0.0.1'\n";
   std::cout << "                      4 - allow system to resolve only IPv4, "
                "for example\n";
   std::cout << "                          resolving of 'localhost' is going "
-               "to return '127.0.0.1'";
+               "to return '127.0.0.1'\n";
   std::cout << "                      6 - allow system to resolve only IPv6, "
                "for example\n";
   std::cout << "                          resolving of 'localhost' is going "
-               "to return '::1'";
+               "to return '::1'\n";
   std::cout << "-t, --timeout=<ms>    I/O timeouts in milliseconds\n";
   std::cout << "--close-no-sync       Do not wait for connection to be "
                "closed by server(disconnect first)\n";
@@ -95,6 +109,7 @@ void Driver_command_line_options::print_help() {
   std::cout << "--ssl-cipher          SSL cipher to use\n";
   std::cout << "--tls-version         TLS version to use\n";
   std::cout << "--connect-expired-password Allow expired password\n";
+  std::cout << "--client-interactive  Connect in interactive mode\n";
   std::cout << "--quiet               Don't print out messages sent\n";
   std::cout << "-vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from "
                "command line\n";
@@ -102,6 +117,7 @@ void Driver_command_line_options::print_help() {
                "stopping on fatal error (default: 1)\n";
   std::cout << "-B, --bindump         Dump binary representation of messages "
                "sent, in format suitable for\n";
+  std::cout << "--trace-protocol      Enable X Protocol tracing\n";
   std::cout << "--verbose             Enable extra verbose messages\n";
   std::cout << "--daemon              Work as a daemon (unix only)\n";
   std::cout << "--help                Show command line help\n";
@@ -121,7 +137,7 @@ Driver_command_line_options::Driver_command_line_options(
       m_run_without_auth(false),
       m_has_file(false),
       m_cap_expired_password(false),
-      m_use_plain_auth(false),
+      m_client_interactive(false),
       m_daemon(false) {
   std::string user;
 
@@ -133,8 +149,18 @@ Driver_command_line_options::Driver_command_line_options(
     } else if (check_arg(argv, i, "--no-auth", "-n")) {
       m_run_without_auth = true;
     } else if (check_arg(argv, i, "--plain-auth", NULL)) {
-      m_use_plain_auth = true;
+      m_auth_methods.push_back("PLAIN");
+    } else if (check_arg(argv, i, "--cached-auth", NULL)) {
+      m_auth_methods.push_back("SHA256_MEMORY");
+    } else if (check_arg(argv, i, "--mysql41-auth", NULL)) {
+      m_auth_methods.push_back("MYSQL41");
+    } else if (check_arg_with_value(argv, i, "--debug", NULL, value)) {
+#ifndef DBUG_OFF
+      DBUG_PUSH(value);
+#endif  // DBUG_OFF
     } else if (check_arg_with_value(argv, i, "--sql", NULL, value)) {
+      m_sql = value;
+    } else if (check_arg_with_value(argv, i, "--execute", "-e", value)) {
       m_sql = value;
     } else if (check_arg_with_value(argv, i, "--password", "-p", value)) {
       m_connection_options.password = value;
@@ -172,16 +198,22 @@ Driver_command_line_options::Driver_command_line_options(
       m_connection_options.password = value;
     } else if (check_arg_with_value(argv, i, "--socket", "-S", value)) {
       m_connection_options.socket = value;
+    } else if (check_arg(argv, i, "--mysql57-compatible", NULL)) {
+      m_connection_options.compatible = true;
     } else if (check_arg_with_value(argv, i, NULL, "-v", value)) {
       set_variable_option(value);
     } else if (check_arg(argv, i, "--use-socket", NULL)) {
       m_connection_options.socket = get_socket_name();
+    } else if (check_arg(argv, i, "--trace-protocol", NULL)) {
+      m_connection_options.trace_protocol = true;
     } else if (check_arg(argv, i, "--close-no-sync", NULL)) {
       m_connection_options.dont_wait_for_disconnect = true;
     } else if (check_arg(argv, i, "--bindump", "-B")) {
       m_context_options.m_bindump = true;
     } else if (check_arg(argv, i, "--connect-expired-password", NULL)) {
       m_cap_expired_password = true;
+    } else if (check_arg(argv, i, "--client-interactive", NULL)) {
+      m_client_interactive = true;
     } else if (check_arg(argv, i, "--quiet", "-q")) {
       m_context_options.m_quiet = true;
     } else if (check_arg(argv, i, "--verbose", NULL)) {

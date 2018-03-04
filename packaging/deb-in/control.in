@@ -241,8 +241,10 @@ Architecture: any
 Section: libdevel
 Depends: libmysqlclient21 (= ${binary:Version}),
  ${shlibs:Depends}, ${misc:Depends}
+Breaks: libmysqld-dev
 Replaces: mysql-client-5.6, mysql-client-core-5.6,
- mysql-client-5.7, mysql-client-core-5.7
+ mysql-client-5.7, mysql-client-core-5.7,
+ libmysqld-dev
 Description: MySQL development headers
  The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
  and robust SQL (Structured Query Language) database server. MySQL Server
@@ -281,4 +283,6 @@ Description: MySQL Test Run MTR - The MySQL testsuite
  Oracle. This package contains the MySQL regression test suite for MySQL
  database server.
 
+@DEB_CONTROL_DBGSYM@
 @DEB_NDB_CONTROL_EXTRAS@
+@DEB_COMMERCIAL_CONTROL_EXTRAS@

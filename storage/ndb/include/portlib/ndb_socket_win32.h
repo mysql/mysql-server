@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -26,6 +33,8 @@
 #define MY_SOCKET_FORMAT "%p"
 #define MY_SOCKET_FORMAT_VALUE(x) (x.s)
 
+typedef int ndb_socket_len_t;
+
 typedef SOCKET ndb_native_socket_t;
 typedef struct { SOCKET s; } ndb_socket_t;
 
@@ -35,45 +44,40 @@ ndb_socket_get_native(ndb_socket_t s)
   return s.s;
 }
 
-static inline int my_socket_valid(ndb_socket_t s)
+static inline
+int ndb_socket_valid(ndb_socket_t s)
 {
   return (s.s != INVALID_SOCKET);
 }
 
-static inline ndb_socket_t* my_socket_invalidate(ndb_socket_t *s)
+static inline
+ndb_socket_t* ndb_socket_invalidate(ndb_socket_t *s)
 {
   s->s= INVALID_SOCKET;
   return s;
 }
 
-static inline ndb_socket_t my_socket_create_invalid()
+static inline ndb_socket_t
+ndb_socket_create_invalid()
 {
   ndb_socket_t s;
-  my_socket_invalidate(&s);
+  ndb_socket_invalidate(&s);
   return s;
 }
 
-static inline SOCKET my_socket_get_fd(ndb_socket_t s)
-{
-  return s.s;
-}
-
-static inline int my_socket_close(ndb_socket_t s)
+static inline
+int ndb_socket_close(ndb_socket_t s)
 {
   return closesocket(s.s);
 }
 
-static inline int my_socket_errno()
+static inline int ndb_socket_errno()
 {
   return WSAGetLastError();
 }
 
-static inline void my_socket_set_errno(int error)
-{
-  WSASetLastError(error);
-}
-
-static inline ndb_socket_t my_socket_create(int domain, int type, int protocol)
+static inline
+ndb_socket_t ndb_socket_create(int domain, int type,int protocol)
 {
   ndb_socket_t s;
   s.s= socket(domain, type, protocol);
@@ -81,7 +85,8 @@ static inline ndb_socket_t my_socket_create(int domain, int type, int protocol)
   return s;
 }
 
-static inline ssize_t my_recv(ndb_socket_t s, char* buf, size_t len, int flags)
+static inline
+ssize_t ndb_recv(ndb_socket_t s, char* buf, size_t len, int flags)
 {
   int ret= recv(s.s, buf, (int)len, flags);
   if (ret == SOCKET_ERROR)
@@ -90,7 +95,7 @@ static inline ssize_t my_recv(ndb_socket_t s, char* buf, size_t len, int flags)
 }
 
 static inline
-ssize_t my_send(ndb_socket_t s, const char* buf, size_t len, int flags)
+ssize_t ndb_send(ndb_socket_t s, const char* buf, size_t len, int flags)
 {
   int ret= send(s.s, buf, (int)len, flags);
   if (ret == SOCKET_ERROR)
@@ -98,38 +103,36 @@ ssize_t my_send(ndb_socket_t s, const char* buf, size_t len, int flags)
   return ret;
 }
 
-static inline int my_socket_reuseaddr(ndb_socket_t s, int enable)
+static inline
+int ndb_socket_reuseaddr(ndb_socket_t s, int enable)
 {
   const int on = enable;
   return setsockopt(s.s, SOL_SOCKET, SO_REUSEADDR,
                     (const char*)&on, sizeof(on));
 }
 
-static inline int my_socket_nonblock(ndb_socket_t s, int enable)
+static inline
+int ndb_socket_nonblock(ndb_socket_t s, int enable)
 {
   unsigned long  ul = enable;
 
   if(ioctlsocket(s.s, FIONBIO, &ul))
-    return my_socket_errno();
+    return ndb_socket_errno();
 
   return 0;
 }
 
-static inline int my_bind(ndb_socket_t s, const struct sockaddr *my_addr,
-                          socket_len_t len)
+static inline
+int ndb_bind_inet(ndb_socket_t s, const struct sockaddr_in *addr)
 {
-  return bind(s.s, my_addr, len);
+  return bind(s.s, (const struct sockaddr*)addr, sizeof(struct sockaddr_in));
 }
 
-static inline int my_bind_inet(ndb_socket_t s, const struct sockaddr_in *my_addr)
-{
-  return bind(s.s, (const struct sockaddr*)my_addr, sizeof(struct sockaddr_in));
-}
-
-static inline int my_socket_get_port(ndb_socket_t s, unsigned short *port)
+static inline
+int ndb_socket_get_port(ndb_socket_t s, unsigned short *port)
 {
   struct sockaddr_in servaddr;
-  socket_len_t sock_len = sizeof(servaddr);
+  ndb_socket_len_t sock_len = sizeof(servaddr);
   if(getsockname(s.s, (struct sockaddr*)&servaddr, &sock_len) < 0) {
     return 1;
   }
@@ -138,77 +141,72 @@ static inline int my_socket_get_port(ndb_socket_t s, unsigned short *port)
   return 0;
 }
 
-static inline int my_listen(ndb_socket_t s, int backlog)
+static inline
+int ndb_listen(ndb_socket_t s, int backlog)
 {
   return listen(s.s, backlog);
 }
 
 static inline
-ndb_socket_t my_accept(ndb_socket_t s, struct sockaddr *addr,
-                       socket_len_t *addrlen)
+ndb_socket_t ndb_accept(ndb_socket_t s, struct sockaddr *addr,
+                       ndb_socket_len_t *addrlen)
 {
   ndb_socket_t r;
   r.s= accept(s.s, addr, addrlen);
   return r;
 }
 
-static inline int my_connect_inet(ndb_socket_t s, const struct sockaddr_in *addr)
+static inline
+int ndb_connect_inet(ndb_socket_t s, const struct sockaddr_in *addr)
 {
   return connect(s.s, (const struct sockaddr*) addr,
                  sizeof(struct sockaddr_in));
 }
 
 static inline
-int my_getsockopt(ndb_socket_t s, int level, int optname,
-                  void *optval, socket_len_t *optlen)
+int ndb_getsockopt(ndb_socket_t s, int level, int optname,
+                   void *optval, ndb_socket_len_t *optlen)
 {
   return getsockopt(s.s, level, optname, (char*)optval, optlen);
 }
 
 static inline
-int my_setsockopt(ndb_socket_t s, int level, int optname,
-                  void *optval, socket_len_t optlen)
+int ndb_setsockopt(ndb_socket_t s, int level, int optname,
+                   void *optval, ndb_socket_len_t optlen)
 {
   return setsockopt(s.s, level, optname, (char*)optval, optlen);
 }
 
-static inline int my_socket_connect_address(ndb_socket_t s, struct in_addr *a)
+static inline
+int ndb_socket_connect_address(ndb_socket_t s, struct in_addr *a)
 {
   struct sockaddr_in addr;
-  socket_len_t addrlen= sizeof(addr);
+  ndb_socket_len_t addrlen= sizeof(addr);
   if(getpeername(s.s, (struct sockaddr*)&addr, &addrlen)==SOCKET_ERROR)
-    return my_socket_errno();
+    return ndb_socket_errno();
 
   *a= addr.sin_addr;
   return 0;
 }
 
-static inline int my_getpeername(ndb_socket_t s, struct sockaddr *a,
-                                 socket_len_t *addrlen)
+static inline
+int ndb_getpeername(ndb_socket_t s, struct sockaddr *a,
+                    ndb_socket_len_t *addrlen)
 {
   if(getpeername(s.s, a, addrlen))
-    return my_socket_errno();
+    return ndb_socket_errno();
 
   return 0;
 }
 
-static inline int ndb_getsockname(ndb_socket_t s, struct sockaddr *a,
-                                 socket_len_t *addrlen)
+static inline
+int ndb_getsockname(ndb_socket_t s, struct sockaddr *a,
+                                 ndb_socket_len_t *addrlen)
 {
   if(getsockname(s.s, a, addrlen))
     return 1;
 
   return 0;
-}
-
-static inline int my_shutdown(ndb_socket_t s, int how)
-{
-  return shutdown(s.s, how);
-}
-
-static inline int my_socket_equal(ndb_socket_t s1, ndb_socket_t s2)
-{
-  return s1.s==s2.s;
 }
 
 /*
@@ -221,8 +219,9 @@ struct iovec {
   void*  iov_base;  /* 'char*  buf' in WSABUF */
 };
 
-static inline ssize_t my_socket_readv(ndb_socket_t s, const struct iovec *iov,
-                                      int iovcnt)
+static inline
+ssize_t ndb_socket_readv(ndb_socket_t s, const struct iovec *iov,
+                         int iovcnt)
 {
   DWORD rv=0;
   if (WSARecv(s.s,(LPWSABUF)iov,iovcnt,&rv,0,0,0) == SOCKET_ERROR)
@@ -230,7 +229,8 @@ static inline ssize_t my_socket_readv(ndb_socket_t s, const struct iovec *iov,
   return rv;
 }
 
-static inline ssize_t my_socket_writev(ndb_socket_t s, const struct iovec *iov,
+static inline
+ssize_t ndb_socket_writev(ndb_socket_t s, const struct iovec *iov,
                                        int iovcnt)
 {
   DWORD rv=0;

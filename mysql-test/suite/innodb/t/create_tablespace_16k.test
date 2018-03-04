@@ -635,12 +635,15 @@ DROP TABLESPACE s_16k;
 --rmdir $MYSQL_TMP_DIR/test
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to find tablespace for table `test`.`t_missing` in the cache. Attempting to load the tablespace with space id .*");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `s_missing` because it could not be opened");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=delete_me.ibd\\);");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to find tablespace for table `test`.`t_missing` in the cache. Attempting to load the tablespace with space id .*");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name 's_missing', file 'delete_me.ibd' is missing!");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace `s_missing` because it could not be opened");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Unable to open tablespace .* \\(flags=.*, filename=delete_me.ibd\\);");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Trying to access missing tablespace .*");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: '.*s_.k.ibd' read failed! - attempted to read 4 bytes, read only 0 bytes at offset 16418");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: Ignoring '.*s_.k.ibd' invalid tablespace ID in the header");
 --enable_query_log

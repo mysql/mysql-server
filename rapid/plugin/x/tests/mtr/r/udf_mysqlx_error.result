@@ -1,0 +1,66 @@
+install plugin mysqlx soname "mysqlx.so";
+call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
+call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
+SELECT MYSQLX_ERROR(5018);
+ERROR HY000: Mysqlx internal error
+DO MYSQLX_ERROR(5018);
+ERROR HY000: Mysqlx internal error
+CALL MYSQLX_ERROR(5018);
+ERROR 42000: PROCEDURE test.MYSQLX_ERROR does not exist
+DO MYSQLX_ERROR(5018, 5017);
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument
+DO MYSQLX_ERROR('abc');
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument
+DO MYSQLX_ERROR(NULL);
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument
+DO MYSQLX_ERROR(123.45);
+ERROR HY000: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument
+CREATE PROCEDURE my_procedure(IN nr_error INT)
+BEGIN
+SELECT 1;
+DO MYSQLX_ERROR(nr_error);
+SELECT 2;
+END ||
+CALL my_procedure(5018);
+1
+1
+ERROR HY000: Mysqlx internal error
+DROP PROCEDURE my_procedure;
+RUN SELECT MYSQLX_ERROR(5018);
+Got expected error: Mysqlx internal error (code 5018)
+RUN DO MYSQLX_ERROR(5018);
+Got expected error: Mysqlx internal error (code 5018)
+RUN CALL MYSQLX_ERROR(5018);
+Got expected error: No database selected (code 1046)
+RUN USE test;
+
+0 rows affected
+RUN CALL MYSQLX_ERROR(5018);
+Got expected error: PROCEDURE test.MYSQLX_ERROR does not exist (code 1305)
+RUN DO MYSQLX_ERROR(5018, 5017);
+Got expected error: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument (code 1123)
+RUN DO MYSQLX_ERROR('abc');
+Got expected error: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument (code 1123)
+RUN DO MYSQLX_ERROR(NULL);
+Got expected error: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument (code 1123)
+RUN DO MYSQLX_ERROR(123.45);
+Got expected error: Can't initialize function 'mysqlx_error'; Function expect only one numeric argument (code 1123)
+RUN CREATE PROCEDURE my_procedure(IN nr_error INT)
+BEGIN
+  SELECT 1;
+  SELECT MYSQLX_ERROR(nr_error);
+  SELECT 2;
+END 
+
+0 rows affected
+RUN CALL my_procedure(5018)
+1
+1
+While executing CALL my_procedure(5018):
+Got expected error: Mysqlx internal error (code 5018)
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+DROP PROCEDURE my_procedure;
+UNINSTALL PLUGIN mysqlx;

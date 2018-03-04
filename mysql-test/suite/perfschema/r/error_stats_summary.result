@@ -15,7 +15,7 @@ SIGNAL mycond SET MESSAGE_TEXT = 'An error occurred';
 END//
 CREATE PROCEDURE bigError()
 BEGIN
-SIGNAL SQLSTATE "HY000" SET MYSQL_ERRNO = 20000, MESSAGE_TEXT = "A big error number";
+SIGNAL SQLSTATE "HY000" SET MYSQL_ERRNO = 40000, MESSAGE_TEXT = "A big error number";
 END//
 truncate  performance_schema.events_errors_summary_by_thread_by_error;
 truncate  performance_schema.events_errors_summary_by_user_by_error;

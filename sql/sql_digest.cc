@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   This code needs extra visibility in the lexer structures
@@ -24,7 +31,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "my_md5.h"                 // compute_md5_hash
+#include "sha2.h"                   // SHA256
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -165,11 +172,14 @@ inline void store_token_identifier(sql_digest_storage* digest_storage,
   }
 }
 
-void compute_digest_md5(const sql_digest_storage *digest_storage, unsigned char *md5)
+void compute_digest_hash(const sql_digest_storage *digest_storage, unsigned char *hash)
 {
-  compute_md5_hash((char *) md5,
-                   (const char *) digest_storage->m_token_array,
-                   digest_storage->m_byte_count);
+  static_assert(DIGEST_HASH_SIZE == SHA256_DIGEST_LENGTH,
+                "DIGEST is no longer SHA256, fix compute_digest_hash()");
+
+  SHA256(digest_storage->m_token_array,
+         digest_storage->m_byte_count,
+         hash);
 }
 
 /*
@@ -621,6 +631,8 @@ sql_digest_state* digest_add_token(sql_digest_state *state,
     }
     case 0:
     {
+      if (digest_storage->m_byte_count < SIZE_OF_A_TOKEN)
+        break;
       unsigned int temp_tok;
       read_token(digest_storage,
                  digest_storage->m_byte_count-SIZE_OF_A_TOKEN,

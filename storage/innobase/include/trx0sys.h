@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -32,15 +40,17 @@ Created 3/26/1996 Heikki Tuuri
 #include "fil0fil.h"
 #include "trx0types.h"
 #ifndef UNIV_HOTBACKUP
-#include "mem0mem.h"
-#include "mtr0mtr.h"
-#include "ut0byte.h"
-#include "mem0mem.h"
-#include "ut0lst.h"
-#include "page0types.h"
-#include "ut0mutex.h"
+# include "mem0mem.h"
+# include "mtr0mtr.h"
+# include "ut0byte.h"
+# include "mem0mem.h"
+# include "ut0lst.h"
+# include "page0types.h"
+# include "ut0mutex.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "trx0trx.h"
 
+#ifndef UNIV_HOTBACKUP
 typedef UT_LIST_BASE_NODE_T(trx_t) trx_ut_list_t;
 
 // Forward declaration
@@ -172,6 +182,7 @@ trx_sys_get_max_trx_id(void);
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 extern uint			trx_rseg_n_slots_debug;
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
 /** Writes a trx id to an index page. In case that the id size changes in some
 future version, this function should be used instead of mach_write_...
@@ -183,6 +194,7 @@ trx_write_trx_id(
 	byte*		ptr,
 	trx_id_t	id);
 
+#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -193,6 +205,7 @@ trx_id_t
 trx_read_trx_id(
 /*============*/
 	const byte*	ptr);	/*!< in: pointer to memory from where to read */
+
 /****************************************************************//**
 Looks for the trx instance with the given id in the rw trx_list.
 @return	the trx handle or NULL if not found */
@@ -434,8 +447,6 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID. */
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE
 /* @} */
 
-#ifndef UNIV_HOTBACKUP
-
 /** List of undo tablespace IDs. */
 class Space_Ids : public std::vector<space_id_t, ut_allocator<space_id_t>>
 {
@@ -459,6 +470,7 @@ public:
 	}
 };
 
+#ifndef UNIV_HOTBACKUP
 /** The transaction system central memory data structure. */
 struct trx_sys_t {
 
@@ -538,7 +550,12 @@ struct trx_sys_t {
 
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
 					in the XA PREPARED state */
+
+	bool		found_prepared_trx; /*!< True if XA PREPARED trxs are
+					    found. */
 };
+
+#endif /* !UNIV_HOTBACKUP */
 
 /** A list of undo tablespace IDs found in the TRX_SYS page.
 This cannot be part of the trx_sys_t object because it is initialized before
@@ -550,7 +567,6 @@ extern	Space_Ids*	trx_sys_undo_spaces;
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 #define TRX_SYS_TRX_ID_WRITE_MARGIN	((trx_id_t) 256)
-#endif /* !UNIV_HOTBACKUP */
 
 /** Test if trx_sys->mutex is owned. */
 #define trx_sys_mutex_own() (trx_sys->mutex.is_owned())

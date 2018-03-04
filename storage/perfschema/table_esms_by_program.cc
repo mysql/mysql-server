@@ -1,17 +1,24 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/table_esms_by_program.cc
@@ -22,16 +29,16 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_program.h"
-#include "pfs_timer.h"
-#include "pfs_visitor.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_program.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_esms_by_program::m_table_lock;
 
@@ -147,6 +154,7 @@ table_esms_by_program::get_row_count(void)
 table_esms_by_program::table_esms_by_program()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
+  m_normalizer = time_normalizer::get_statement();
 }
 
 void
@@ -245,11 +253,10 @@ table_esms_by_program::make_row(PFS_program *program)
     memcpy(
       m_row.m_schema_name, program->m_schema_name, m_row.m_schema_name_length);
 
-  time_normalizer *normalizer = time_normalizer::get(statement_timer);
   /* Get stored program's over all stats. */
-  m_row.m_sp_stat.set(normalizer, &program->m_sp_stat);
+  m_row.m_sp_stat.set(m_normalizer, &program->m_sp_stat);
   /* Get sub statements' stats. */
-  m_row.m_stmt_stat.set(normalizer, &program->m_stmt_stat);
+  m_row.m_stmt_stat.set(m_normalizer, &program->m_stmt_stat);
 
   if (!program->m_lock.end_optimistic_lock(&lock))
   {

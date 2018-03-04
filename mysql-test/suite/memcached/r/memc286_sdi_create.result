@@ -50,7 +50,7 @@ ENGINE = INNODB;
 CREATE TABLE t7(c1 INT PRIMARY KEY,
 c2 INT,
 c3 CHAR(255),
-c4 GEOMETRY NOT NULL,
+c4 GEOMETRY NOT NULL SRID 0,
 SPATIAL INDEX(c4))
 ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
@@ -68,7 +68,7 @@ Get rec(type:id) is t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   UNIQUE KEY `idx2` (`c6`(50)),
   KEY `idx1` (`c4`(20))
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
@@ -1070,32 +1070,32 @@ Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c998` int(11) DEFAULT NULL,
   `c999` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 Get rec(type:id) is t4	CREATE TABLE `t4` (
   `c1` int(11) NOT NULL,
   `c2` blob,
   PRIMARY KEY (`c1`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c2`) REFERENCES `t4` (`c1`) ON UPDATE CASCADE
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` char(255) DEFAULT NULL,
-  `c4` geometry NOT NULL,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 # 2. Test with alter table
 ALTER TABLE t1 ADD COLUMN c11 INT;
 Get rec(type:id) is t1	CREATE TABLE `t1` (
@@ -2122,7 +2122,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
-  `c4` geometry NOT NULL,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -2157,7 +2157,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
-  `c4` geometry NOT NULL,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`),
   KEY `idx3` (`c2`,`c3`(50))
@@ -2222,7 +2222,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
-  `c4` geometry NOT NULL,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`),
   KEY `idx3` (`c2`,`c3`(50))
@@ -2263,7 +2263,7 @@ ENGINE = INNODB;
 CREATE TABLE t7(c1 INT PRIMARY KEY,
 c2 INT,
 c3 CHAR(255),
-c4 GEOMETRY NOT NULL,
+c4 GEOMETRY NOT NULL SRID 0,
 SPATIAL INDEX(c4))
 ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
@@ -3305,7 +3305,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` char(255) DEFAULT NULL,
-  `c4` geometry NOT NULL,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -4335,7 +4335,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
-  `c4` geometry NOT NULL,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -4370,7 +4370,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
-  `c4` geometry NOT NULL,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`),
   KEY `idx3` (`c2`,`c3`(50))
@@ -4435,7 +4435,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` bigint(20) NOT NULL,
   `c3` char(255) DEFAULT NULL,
-  `c4` geometry NOT NULL,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`),
   KEY `idx3` (`c2`,`c3`(50))

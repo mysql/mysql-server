@@ -1,17 +1,24 @@
 # Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # This is the CMakeLists for NDB/Memcache
 
@@ -65,6 +72,24 @@ endif()
 
 
 ####################################################
+
+# Disable specific types of warnings for current directory
+# if the compiler supports the flag
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  INCLUDE(CheckCXXCompilerFlag)
+  FOREACH(warning
+          "unused-but-set-variable"
+          "strict-aliasing"
+          "unused-parameter")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-W${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
+  ENDFOREACH()
+ENDIF()
 
 # Don't disable assert
 remove_definitions(-DNDEBUG)
@@ -245,7 +270,42 @@ target_link_libraries(ndbmemcache
                       ${MEMCACHED_UTILITIES_LIBRARY})
 
 ### Build the module
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Turn off array-bounds warning in ndb_engine.c wich occurs
+  # when it uses the struct engine_info in the external memcached
+  # file engine.h to define its engine capabilities.
+  ADD_COMPILE_FLAGS(src/ndb_engine.c
+                   COMPILE_FLAGS "-Wno-array-bounds")
+ENDIF()
+
 add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
+
+IF(APPLE)
+  SET_TARGET_PROPERTIES(ndb_engine PROPERTIES
+    MACOSX_RPATH ON
+  )
+ENDIF()
+
+IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
+  ADD_DEPENDENCIES(ndb_engine copy_openssl_dlls)
+
+  ADD_CUSTOM_COMMAND(TARGET ndb_engine POST_BUILD
+    COMMAND install_name_tool -change
+    "${CRYPTO_VERSION}" "@loader_path/${CRYPTO_VERSION}"
+    $<TARGET_LINKER_FILE:ndb_engine>
+    COMMAND install_name_tool -change
+    "${OPENSSL_VERSION}" "@loader_path/${OPENSSL_VERSION}"
+    $<TARGET_LINKER_FILE:ndb_engine>
+    )
+ENDIF()
+
+# Collect all dynamic libraries in the same directory
+SET_TARGET_PROPERTIES(ndb_engine PROPERTIES
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+
+IF(LINUX_INSTALL_RPATH_ORIGIN)
+  SET_PROPERTY(TARGET ndb_engine PROPERTY INSTALL_RPATH "\$ORIGIN/")
+ENDIF()
 
 target_link_libraries(ndb_engine ndbmemcache ndbclient_static)
 

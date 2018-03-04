@@ -105,7 +105,7 @@ drop table t1, t2;
 
 --echo # 1) By blowing the mock_tabname buffer(currently 512 bytes)
 let $parent_tabname = `select repeat('abcdefghijklmnopqrstuvxyz_', 20)`;
---error ER_CANNOT_ADD_FOREIGN
+--error ER_WRONG_TABLE_NAME
 eval create table t1 (
   pk int not null primary key,
   b int,
@@ -767,6 +767,7 @@ create table t1 (
 ) engine=ndb;
 
 set foreign_key_checks=1;
+--replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_<child_id>_<id>/
 --error ER_TRUNCATE_ILLEGAL_FK
 truncate table t2;
 set foreign_key_checks=0;
@@ -797,6 +798,7 @@ create table t1 (
 ) engine=ndb;
 
 set foreign_key_checks=1;
+--replace_regex /(FK|fk)_[0-9]+_[0-9]+/FK_<child_id>_<id>/
 --error ER_TRUNCATE_ILLEGAL_FK
 truncate table t2;
 set foreign_key_checks=0;

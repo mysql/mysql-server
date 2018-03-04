@@ -96,7 +96,7 @@ include/assert_binlog_events.inc [Anonymous_Gtid # !Q(DROP TABLE.*) # Anonymous_
 include/save_binlog_position.inc
 SET GTID_NEXT = 'AUTOMATIC';
 DROP DATABASE db13;
-ERROR HY000: Can't drop database 'db13'; database doesn't exist
+ERROR HY000: Schema 'db13' does not exist, but schema directory './db13/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
 include/assert_binlog_events.inc [()]
 # db16: not a database.
 include/save_binlog_position.inc
@@ -150,7 +150,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 include/save_binlog_position.inc
 SET GTID_NEXT = '#';
 DROP DATABASE db14;
-ERROR HY000: Can't drop database 'db14'; database doesn't exist
+ERROR HY000: Schema 'db14' does not exist, but schema directory './db14/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
 include/assert_binlog_events.inc [()]
 SET GTID_NEXT = 'AUTOMATIC';
 # db17: not a database.
@@ -199,7 +199,7 @@ SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
 [connection master]
 # db15: not a database, but an empty directory exists.
 DROP DATABASE db15;
-ERROR HY000: Can't drop database 'db15'; database doesn't exist
+ERROR HY000: Schema 'db15' does not exist, but schema directory './db15/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
 ---- Clean up ----
 DROP DATABASE db1;
 DROP DATABASE db2;

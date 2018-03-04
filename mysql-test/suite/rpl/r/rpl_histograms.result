@@ -23,8 +23,8 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	not_replicated	col1	{"buckets": [[1, 0.5], [2, 1]], "data-type": "int", "charset-id": 8, "null-values": 0, "sampling-rate": 1, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
-test	replicated	col1	{"buckets": [[1, 0.5], [2, 1]], "data-type": "int", "charset-id": 8, "null-values": 0, "sampling-rate": 1, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	not_replicated	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	replicated	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
 # Sync slave with master, and verify that we only have column statistics
 # for table 'replicated' on the slave
 include/sync_slave_sql_with_master.inc
@@ -32,7 +32,7 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	replicated	col1	{"buckets": [[1, 0.5], [2, 1]], "data-type": "int", "charset-id": 8, "null-values": 0, "sampling-rate": 1, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
+test	replicated	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 1024}
 DROP TABLE replicated, not_replicated;
 #
 # Bug#26041269 WL8943(RPL):ASSERTION `HEAD->VARIABLES.GTID_NEXT.TYPE !=

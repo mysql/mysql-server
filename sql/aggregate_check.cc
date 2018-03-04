@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
    @file
@@ -39,7 +46,6 @@
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"
-#include "sql/sql_array.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
@@ -120,7 +126,7 @@ bool Distinct_check::check_query(THD *thd)
       This query is valid because the expression in ORDER BY is the same as
       the one in SELECT list. But in setup_order():
       'b' in ORDER BY (not yet fixed) is still a 'generic' Item_field,
-      'b' in SELECT (already fixed) is Item_direct_view_ref referencing 'x*2'
+      'b' in SELECT (already fixed) is Item_view_ref referencing 'x*2'
       (so type()==REF_ITEM).
       So Item_field::eq() says the 'b's are different, so 'sin(b)' of
       ORDER BY is not found equal to 'sin(b)' of SELECT.
@@ -168,8 +174,8 @@ bool Distinct_check::check_query(THD *thd)
 
 /**
    Rejects the query if it does aggregation or grouping, and expressions in
-   its SELECT list, ORDER BY clause, or HAVING condition, may vary inside a
-   group (are not "group-invariant").
+   its SELECT list, ORDER BY clause, HAVING condition, or window functions
+   may vary inside a group (are not "group-invariant").
 */
 bool Group_check::check_query(THD *thd)
 {
@@ -180,6 +186,7 @@ bool Group_check::check_query(THD *thd)
   Item *expr;
   uint number_in_list= 1;
   const char *place= "SELECT list";
+
   while ((expr= select_exprs_it++))
   {
     if (check_expression(thd, expr, true))
@@ -213,21 +220,18 @@ bool Group_check::check_query(THD *thd)
       goto err;
   }
 
-  // Validate windows' ORDER BY and PARTITION BY clauses
+  // Validate windows' ORDER BY and PARTITION BY clauses.
   char buff[STRING_BUFFER_USUAL_SIZE];
   {
     List_iterator<Window> li(select->m_windows);
     for (Window *w= li++; w != nullptr; w= li++)
     {
-      const PT_order_list *li[]= { w->partition(), w->order() };
-      auto constexpr size= sizeof(li) / sizeof(PT_order_list*);
-      number_in_list= 1;
-
-      for (auto it: Bounds_checked_array<const PT_order_list *>(li, size))
+      for (auto it: {w->first_partition_by(), w->first_order_by()})
       {
         if (it != nullptr)
         {
-          for (ORDER *o= it->value.first; o != nullptr; o= o->next)
+          number_in_list= 1;
+          for (ORDER *o= it; o != nullptr; o= o->next)
           {
             Item *expr= *(o->item);
             if (check_expression(thd, expr, false))
@@ -571,7 +575,8 @@ void Group_check::add_to_fd(Item *item, bool local_column,
   {
     Item_field *const item_field= (Item_field*)item;
     TABLE_LIST *const tl= item_field->field->table->pos_in_table_list;
-    if (tl->uses_materialization()) // materialized table
+    if (tl->uses_materialization() && // materialized table
+        !tl->is_table_function())     // there's no underlying query expr
       add_to_source_of_mat_table(item_field, tl);
   }
 }
@@ -816,7 +821,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
                       pointer_cast<uchar *>(&ut));
     /*
       todo When we eliminate all uses of cached_table, we can probably add a
-      derived_table_ref field to Item_direct_view_ref objects and use it here.
+      derived_table_ref field to Item_view_ref objects and use it here.
     */
     TABLE_LIST *const tl= item->cached_table;
     DBUG_ASSERT(tl->is_view_or_derived());
@@ -870,7 +875,8 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item)
         return true;
       }
     }
-    else if (tl->uses_materialization()) // Materialized derived table
+    else if (tl->uses_materialization() && // Materialized derived table
+             !tl->is_table_function())
     {
       SELECT_LEX *const mat_select= tl->derived_unit()->first_select();
       uint j;

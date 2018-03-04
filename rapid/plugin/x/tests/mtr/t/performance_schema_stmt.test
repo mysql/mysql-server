@@ -4,6 +4,7 @@
 ## Preamble
 --source ../include/have_performance_schema_statements.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 # Tests
 --write_file $MYSQL_TMP_DIR/performance_schema_stmt.tmp
@@ -315,9 +316,12 @@ set password for unpriv@localhost = password('x');
 
 -->callmacro Clear_sql_history
 -->echo ######### kill_client #########
--->newsession unpriv	unpriv	x
+# Perfrom single authentication using mysql41.
+# One query is going to be execute on mysql.user
+# and must be visible in PFS.
+-->newsession_mysql41 unpriv	unpriv	x
 -->varlet %CLIENT_ID% %ACTIVE_CLIENT_ID%
--->newsession root	root	
+-->newsession_mysql41 x_root	x_root
 -->stmtadmin kill_client	{"id": %CLIENT_ID%}
 -->recvresult
 -->stmtsql drop user unpriv@localhost;
@@ -360,11 +364,12 @@ EOF
 
 --let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
 --replace_regex /BINARY // /KILL [0-9]+/KILL/ /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -uroot --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.tmp 2>&1
 
 ## Cleanup
 DROP SCHEMA IF EXISTS xtest;
 --remove_file $MYSQL_TMP_DIR/performance_schema_stmt.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;

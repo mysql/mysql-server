@@ -1,7 +1,7 @@
 --source include/have_ssl.inc
 
 connect (ssl_con,localhost,root,,,,,SSL);
---replace_result DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
+--replace_result ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 SHOW STATUS LIKE 'Ssl_cipher';
 
 CREATE USER 'kristofer' IDENTIFIED WITH 'sha256_password';

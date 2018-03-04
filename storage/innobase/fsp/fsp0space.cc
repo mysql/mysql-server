@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -151,7 +159,7 @@ Tablespace::open_or_create(bool is_temp)
 				? FIL_TYPE_TEMPORARY : FIL_TYPE_TABLESPACE);
 		}
 
-		ut_a(fil_validate());
+		ut_ad(fil_validate());
 
 		/* Create the tablespace node entry for this data file. */
 		if (!fil_node_create(
@@ -220,36 +228,38 @@ Tablespace::add_datafile(
 	/* The path provided ends in ".ibd".  This was assured by
 	validate_create_tablespace_info() */
 	ut_d(const char* dot = strrchr(datafile_added, '.'));
-	ut_ad(dot != NULL && 0 == strcmp(dot, DOT_IBD));
+	ut_ad(dot != NULL && Fil_path::has_ibd_suffix(dot));
 
-	char* filepath = mem_strdup(datafile_added);
-	if (filepath == NULL) {
-		return(DB_OUT_OF_MEMORY);
-	}
-	os_normalize_path(filepath);
+	std::string	filepath{datafile_added};
+
+	Fil_path::normalize(filepath);
 
 	/* If the path is an absolute path, separate it onto m_path and a
 	basename. For relative paths, make the whole thing a basename so that
 	it can be appended to the datadir. */
-	bool	is_abs_path = is_absolute_path(filepath);
-	size_t	dirlen = (is_abs_path ? dirname_length(filepath) : 0);
-	const char* basename = filepath + dirlen;
+	bool	is_abs_path = Fil_path::is_absolute_path(filepath);
+	size_t	dirlen = (is_abs_path ? dirname_length(filepath.c_str()) : 0);
 
 	/* If the pathname contains a directory separator, fill the
 	m_path member which is the default directory for files in this
 	tablespace. Leave it null otherwise. */
 	if (dirlen > 0) {
-		set_path(filepath, dirlen);
+		set_path(filepath.c_str(), dirlen);
 	}
 
-	/* Now add a new Datafile and set the filepath
-	using the m_path created above. */
-	m_files.push_back(Datafile(m_name, m_flags,
-				   FIL_IBD_FILE_INITIAL_SIZE, 0));
-	Datafile* datafile = &m_files.back();
-	datafile->make_filepath(m_path, basename, IBD);
+	Datafile	value(m_name, m_flags, FIL_IBD_FILE_INITIAL_SIZE, 0);
 
-	ut_free(filepath);
+	/* Now add a new Datafile and set the filepath using the m_path
+	created above. */
+	m_files.push_back(value);
+
+	Datafile*	datafile = &m_files.back();
+
+	if (dirlen > 0) {
+		filepath.erase(0, dirlen);
+	}
+
+	datafile->make_filepath(m_path, filepath.c_str(), IBD);
 
 	return(DB_SUCCESS);
 }

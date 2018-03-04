@@ -19,7 +19,8 @@ INSERT INTO t3 VALUES (1,1,1),(2,2,2),(3,3,3);
 # Test renaming the column in the referenced table.
 
 ALTER TABLE t1 CHANGE a e INT;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE which renames columns in parent table of foreign key'
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 # Ensure that online column rename works.
 ALTER TABLE t1 CHANGE b c INT;
 affected rows: 0
@@ -38,7 +39,8 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 # Test with self-referential constraints
 
 ALTER TABLE t3 CHANGE a f INT;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE which renames columns in parent table of foreign key'
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t3 CHANGE b g INT;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -52,9 +54,9 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` int(11) NOT NULL,
+  `e` int(11) NOT NULL,
   `c` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`)
+  PRIMARY KEY (`e`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -62,17 +64,17 @@ t2	CREATE TABLE `t2` (
   `z` int(11) NOT NULL,
   `c` int(11) DEFAULT NULL,
   PRIMARY KEY (`z`),
-  CONSTRAINT `fk1` FOREIGN KEY (`z`) REFERENCES `t1` (`a`)
+  CONSTRAINT `fk1` FOREIGN KEY (`z`) REFERENCES `t1` (`e`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
-  `a` int(11) NOT NULL,
+  `f` int(11) NOT NULL,
   `g` int(11) DEFAULT NULL,
   `d` int(11) DEFAULT NULL,
-  PRIMARY KEY (`a`),
+  PRIMARY KEY (`f`),
   KEY `b` (`g`),
-  CONSTRAINT `fk2` FOREIGN KEY (`g`) REFERENCES `t3` (`a`)
+  CONSTRAINT `fk2` FOREIGN KEY (`g`) REFERENCES `t3` (`f`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
 SELECT f.FOR_NAME, f.REF_NAME, f.N_COLS, f.TYPE, c.FOR_COL_NAME, c.REF_COL_NAME, c.POS
 FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS c
@@ -80,8 +82,8 @@ INNER JOIN INFORMATION_SCHEMA.INNODB_FOREIGN f
 ON c.ID=f.ID
 WHERE FOR_NAME LIKE 'test/t%';
 FOR_NAME	REF_NAME	N_COLS	TYPE	FOR_COL_NAME	REF_COL_NAME	POS
-test/t2	test/t1	1	0	z	a	1
-test/t3	test/t3	1	0	g	a	1
+test/t2	test/t1	1	0	z	e	1
+test/t3	test/t3	1	0	g	f	1
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;

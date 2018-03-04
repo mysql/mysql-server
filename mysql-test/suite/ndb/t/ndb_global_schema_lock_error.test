@@ -60,8 +60,4 @@ DROP TABLE t3, t4;
 # will hide the table)
 #
 # Wait until mysqld has connected properly to cluster
---disable_result_log
---disable_query_log
 source include/ndb_not_readonly.inc;
---enable_query_log
---enable_result_log

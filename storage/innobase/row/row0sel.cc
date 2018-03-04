@@ -10,16 +10,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -95,6 +103,7 @@ static
 ibool
 row_sel_sec_rec_is_for_blob(
 /*========================*/
+	trx_t*		trx,		/*!< in: the operating transaction */
 	ulint		mtype,		/*!< in: main type */
 	ulint		prtype,		/*!< in: precise type */
 	ulint		mbminmaxlen,	/*!< in: minimum and maximum length of
@@ -134,7 +143,8 @@ row_sel_sec_rec_is_for_blob(
 	}
 
 	len = lob::btr_copy_externally_stored_field_prefix(
-		buf, prefix_len, dict_tf_get_page_size(table->flags),
+		table->first_index(), buf, prefix_len,
+		dict_tf_get_page_size(table->flags),
 		clust_field, dict_table_is_sdi(table->id), clust_len);
 
 	if (len == 0) {
@@ -188,6 +198,7 @@ row_sel_sec_rec_is_for_clust_rec(
 	ulint*		clust_offs	= clust_offsets_;
 	ulint*		sec_offs	= sec_offsets_;
 	ibool		is_equal	= TRUE;
+	trx_t*		trx = thr_get_trx(thr);
 
 	rec_offs_init(clust_offsets_);
 	rec_offs_init(sec_offsets_);
@@ -276,6 +287,7 @@ row_sel_sec_rec_is_for_clust_rec(
 				|| (dict_table_has_atomic_blobs(
 					sec_index->table) && sec_len == 0))) {
 				if (!row_sel_sec_rec_is_for_blob(
+						trx,
 					    col->mtype, col->prtype,
 					    col->mbminmaxlen,
 					    clust_field, clust_len,
@@ -303,6 +315,7 @@ row_sel_sec_rec_is_for_clust_rec(
 			geo data to generate the MBR for comparing. */
 			if (rec_offs_nth_extern(clust_offs, clust_pos)) {
 				dptr = lob::btr_copy_externally_stored_field(
+					clust_index,
 					&clust_len, dptr,
 					dict_tf_get_page_size(
 						sec_index->table->flags),
@@ -490,6 +503,7 @@ static
 void
 row_sel_fetch_columns(
 /*==================*/
+	trx_t*		trx,	/*!< in: the current transaction or nullptr */
 	dict_index_t*	index,	/*!< in: record index */
 	const rec_t*	rec,	/*!< in: record in a clustered or non-clustered
 				index; must be protected by a page latch */
@@ -528,7 +542,7 @@ row_sel_fetch_columns(
 				heap = mem_heap_create(1);
 
 				data = lob::btr_rec_copy_externally_stored_field(
-					rec, offsets,
+					index, rec, offsets,
 					dict_table_page_size(index->table),
 					field_no, &len,
 					dict_index_is_sdi(index), heap);
@@ -1039,7 +1053,7 @@ row_sel_get_clust_rec(
 	released until mtr_commit(mtr). */
 
 	ut_ad(!rec_get_deleted_flag(clust_rec, rec_offs_comp(offsets)));
-	row_sel_fetch_columns(index, clust_rec, offsets,
+	row_sel_fetch_columns(thr_get_trx(thr), index, clust_rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
 	*out_rec = clust_rec;
 func_exit:
@@ -1504,6 +1518,7 @@ static
 ulint
 row_sel_try_search_shortcut(
 /*========================*/
+	trx_t*		trx,	/*!< in: trx doing the operation. */
 	sel_node_t*	node,	/*!< in: select node for a consistent read */
 	plan_t*		plan,	/*!< in: plan for a unique search in clustered
 				index */
@@ -1583,7 +1598,7 @@ row_sel_try_search_shortcut(
 	plan->pcur was positioned.  The latch will not be released
 	until mtr_commit(mtr). */
 
-	row_sel_fetch_columns(index, rec, offsets,
+	row_sel_fetch_columns(trx, index, rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
 
 	/* Test the rest of search conditions */
@@ -1718,7 +1733,7 @@ table_loop:
 			rw_lock_s_lock(btr_get_search_latch(index));
 		}
 
-		found_flag = row_sel_try_search_shortcut(node, plan,
+		found_flag = row_sel_try_search_shortcut(thr_get_trx(thr), node, plan,
 							 search_latch_locked,
 							 &mtr);
 
@@ -1986,6 +2001,7 @@ skip_lock:
 					until mtr_commit(mtr). */
 
 					row_sel_fetch_columns(
+						thr_get_trx(thr),
 						index, rec, offsets,
 						UT_LIST_GET_FIRST(
 							plan->columns));
@@ -2015,7 +2031,7 @@ skip_lock:
 	row_sel_open_pcur() or row_sel_restore_pcur_pos().  The latch
 	will not be released until mtr_commit(mtr). */
 
-	row_sel_fetch_columns(index, rec, offsets,
+	row_sel_fetch_columns(thr_get_trx(thr), index, rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
 
 	/* Test the selection end conditions: these can only contain columns
@@ -3072,9 +3088,13 @@ row_sel_store_mysql_field_func(
 		already run out of memory in the next call, which
 		causes an assert */
 
+		dict_index_t* clust_index = prebuilt->table->first_index();
+
+		const page_size_t page_size
+			= dict_table_page_size(prebuilt->table);
+
 		data = lob::btr_rec_copy_externally_stored_field(
-			rec, offsets,
-			dict_table_page_size(prebuilt->table),
+			clust_index, rec, offsets, page_size,
 			field_no, &len, dict_index_is_sdi(index), heap);
 
 		if (UNIV_UNLIKELY(!data)) {
@@ -3142,8 +3162,6 @@ row_sel_store_mysql_field_func(
 			if (prebuilt->blob_heap == NULL) {
 				prebuilt->blob_heap = mem_heap_create(
 					UNIV_PAGE_SIZE);
-				DBUG_PRINT("anna", ("blob_heap allocated: %p",
-						    prebuilt->blob_heap));
 			}
 
 			data = static_cast<byte*>(
@@ -3308,7 +3326,8 @@ row_sel_store_mysql_rec(
 		ulint		sec_field_no = ULINT_UNDEFINED;
 
 		/* We should never deliver column prefixes to MySQL,
-		except for evaluating innobase_index_cond(). */
+		except for evaluating innobase_index_cond() or
+		row_search_end_range_check(). */
 		ut_ad(index->get_field(field_no)->prefix_len == 0);
 
 		if (clust_templ_for_sec) {
@@ -4159,22 +4178,56 @@ row_search_idx_cond_check(
 /** Check the pushed-down end-range condition to avoid extra traversal
 if records are not with in view and also to avoid prefetching too
 many records into the record buffer.
-@param[in]	mysql_rec	record in MySQL format
-@param[in,out]	handler		the MySQL handler performing the scan
-@param[in,out]	record_buffer	the record buffer we are reading into
-				or it can be NULL
+@param[in]	mysql_rec		record in MySQL format
+@param[in]	rec			InnoDB record
+@param[in]	prebuilt		prebuilt struct
+@param[in]	clust_templ_for_sec	true if \a rec belongs to the secondary
+					index but the \a prebuilt template is in
+					clustered index format
+@param[in]	offsets			information about column offsets in the
+					secondary index, if virtual columns need
+					to be copied into \a mysql_rec
+@param[in,out]	record_buffer		the record buffer we are reading into,
+					or \c nullptr if there is no buffer
 @retval true	if the row in \a mysql_rec is out of range
 @retval false	if the row in \a mysql_rec is in range */
 static
 bool
 row_search_end_range_check(
-	const byte*	mysql_rec,
-	ha_innobase*	handler,
+	byte*		mysql_rec,
+	const rec_t*	rec,
+	row_prebuilt_t*	prebuilt,
+	bool clust_templ_for_sec,
+	const ulint*	offsets,
 	Record_buffer*	record_buffer)
 {
-	if (handler->end_range &&
-	    handler->compare_key_in_buffer(mysql_rec) > 0) {
+	const auto handler = prebuilt->m_mysql_handler;
+	ut_ad(handler->end_range != nullptr);
 
+	/* When reading from non-covering secondary indexes, mysql_rec won't
+	have the values of virtual columns until the handler has called
+	update_generated_read_fields(). If the end-range condition refers to a
+	virtual column, we may have to copy its value from the secondary index
+	before evaluating the condition. */
+	if (clust_templ_for_sec && handler->m_virt_gcol_in_end_range) {
+		ut_ad(offsets != nullptr);
+		for (ulint i = 0; i < prebuilt->n_template; ++i) {
+			const auto& templ = prebuilt->mysql_template[i];
+			if (templ.is_virtual &&
+			    templ.icp_rec_field_no != ULINT_UNDEFINED &&
+			    !row_sel_store_mysql_field(mysql_rec, prebuilt,
+						       rec,
+						       prebuilt->index,
+						       offsets,
+						       templ.icp_rec_field_no,
+						       &templ,
+						       ULINT_UNDEFINED)) {
+				return(false);
+			}
+		}
+	}
+
+	if (handler->compare_key_in_buffer(mysql_rec) > 0) {
 		if (record_buffer != NULL) {
 			record_buffer->set_out_of_range(true);
 		}
@@ -4601,6 +4654,9 @@ row_search_mvcc(
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
 	dict_index_t*	clust_index;
+	/* True if we are scanning a secondary index, but the template is based
+	on the primary index. */
+	bool		clust_templ_for_sec;
 	que_thr_t*	thr;
 	const rec_t*	prev_rec = NULL;
 	const rec_t*	rec = NULL;
@@ -4626,6 +4682,8 @@ row_search_mvcc(
 	mem_heap_t*	heap				= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets				= offsets_;
+	ulint		sec_offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		sec_offsets = nullptr;
 	ibool		table_lock_waited		= FALSE;
 	byte*		next_buf			= 0;
 	bool		spatial_search			= false;
@@ -4997,6 +5055,9 @@ row_search_mvcc(
 
 	clust_index = index->table->first_index();
 
+	clust_templ_for_sec =
+		index != clust_index && prebuilt->need_to_access_clustered;
+
 	/* Do some start-of-statement preparations */
 
 	if (!prebuilt->sql_stat_start) {
@@ -5184,19 +5245,16 @@ rec_loop:
 		    && prebuilt->idx_cond == false && end_loop >= 100) {
 
 			dict_index_t*	key_index = prebuilt->index;
-			bool		clust_templ_for_sec = false;
 
 			if (end_range_cache == NULL) {
 				end_range_cache = static_cast<byte*>(
 					ut_malloc_nokey(prebuilt->mysql_row_len));
 			}
 
-			if (index != clust_index
-			    && prebuilt->need_to_access_clustered) {
+			if (clust_templ_for_sec) {
 				/** Secondary index record but the template
 				based on PK. */
 				key_index = clust_index;
-				clust_templ_for_sec = true;
 			}
 
 			/** Create offsets based on prebuilt index. */
@@ -5210,7 +5268,10 @@ rec_loop:
 
 				if (row_search_end_range_check(
 					end_range_cache,
-					prebuilt->m_mysql_handler,
+					prev_rec,
+					prebuilt,
+					clust_templ_for_sec,
+					offsets,
 					record_buffer)) {
 
 					/** In case of prebuilt->fetch,
@@ -5900,15 +5961,37 @@ requires_clust_rec:
 			server has pushed down an end range condition, evaluate
 			the condition to prevent that we read too many rows. */
 			if (record_buffer != nullptr &&
-			    row_search_end_range_check(
-				    next_buf, prebuilt->m_mysql_handler,
-				    record_buffer)) {
-				if (next_buf != buf) {
-					record_buffer->remove_last();
+			    prebuilt->m_mysql_handler->end_range != nullptr) {
+
+				/* If the end-range condition refers to a
+				virtual column and we are reading from the
+				clustered index, next_buf does not have the
+				value of the virtual column. Get the offsets in
+				the secondary index so that we can read the
+				virtual column from the index. */
+				if (clust_templ_for_sec &&
+				    prebuilt->m_mysql_handler->
+				    m_virt_gcol_in_end_range) {
+					if (sec_offsets == nullptr) {
+						rec_offs_init(sec_offsets_);
+						sec_offsets = sec_offsets_;
+					}
+					sec_offsets = rec_get_offsets(
+						rec, index, sec_offsets,
+						ULINT_UNDEFINED, &heap);
 				}
-				next_buf = prev_buf;
-				err = DB_RECORD_NOT_FOUND;
-				goto normal_return;
+
+				if (row_search_end_range_check(
+					    next_buf, rec, prebuilt,
+					    clust_templ_for_sec,
+					    sec_offsets, record_buffer)) {
+					if (next_buf != buf) {
+						record_buffer->remove_last();
+					}
+					next_buf = prev_buf;
+					err = DB_RECORD_NOT_FOUND;
+					goto normal_return;
+				}
 			}
 
 			if (next_buf != buf) {

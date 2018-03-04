@@ -116,7 +116,7 @@ EOF
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --log-bin" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:--defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf" --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --server-id=$MYSQL_SERVER_ID --sort_buffer_size=462144 --secure-file-priv="" --innodb_dedicated_server=OFF > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 
 # Creating sperate extra mysql configuration file.
@@ -452,5 +452,96 @@ SELECT @@innodb_fast_shutdown, @@innodb_default_row_format, @@innodb_flush_log_a
 
 --echo # Restart server with all defaults
 --source include/restart_mysqld.inc
+
+--echo #
+--echo # BUG#26085774: SERVER CRASHES WHEN STARTED USING CORRUPTED MYSQLD-AUTO.CNF
+--echo #
+
+# Set valiables to be used in parameters of mysqld.
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_BASEDIR= `SELECT @@basedir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PIDFILE= `SELECT @@pid_file`;
+let $MYSQL_PORT= `SELECT @@port`;
+let $MYSQL_MESSAGESDIR= `SELECT @@lc_messages_dir`;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--write_file $MYSQLTEST_VARDIR/tmp/my.cnf
+[mysqld]
+innodb_fast_shutdown=1
+EOF
+
+--echo # this is the wrong format with event_scheduler value not being string
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "mysql_server": { "event_scheduler": OFF , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--echo # on windows even though server fails to start return code is 0, thus expecting error to be 0 or 1
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # this is the wrong format with binlog_gtid_simple_recovery value not being string
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "mysql_server": { "event_scheduler": "OFF" , "mysql_server_static_options": {"binlog_gtid_simple_recovery": 0 , "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # this is the wrong format with no ',' between key/value pair
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "mysql_server": { "event_scheduler": OFF , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0"  "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # this is the wrong format with wrong static variables group name
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "mysql_server": { "event_scheduler": OFF , "mysql_xxxx_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--echo # this is the wrong format with group name
+--write_file $MYSQLD_DATADIR/mysqld-auto.cnf
+{ "xxxx_server": { "event_scheduler": OFF , "mysql_server_static_options": {"binlog_gtid_simple_recovery": "0" , "ft_query_expansion_limit": "200" } } }
+EOF
+
+--echo # server should fail to start
+--error 0,1
+--exec $MYSQLD --defaults-file=$MYSQLTEST_VARDIR/tmp/my.cnf --basedir=$MYSQL_BASEDIR --datadir=$MYSQLD_DATADIR --socket=$MYSQL_SOCKET --pid-file=$MYSQL_PIDFILE --port=$MYSQL_PORT --lc-messages-dir=$MYSQL_MESSAGESDIR --daemonize --secure-file-priv=""
+
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
+--remove_file $MYSQLTEST_VARDIR/tmp/my.cnf
+
+--echo # start server with all defaults
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Bug#26100122: SERVER CRASHES WHEN SET PERSIST CALLS WITH A LONG STATEMENT
+--echo #
+
+set @a=repeat('A',2000);
+--eval SET PERSIST init_connect=@a;
+set @b=repeat('A',24000);
+--eval SET PERSIST init_connect=@b;
+
+--echo # Cleanup
+SET GLOBAL init_connect=default;
+RESET PERSIST;
+--remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
 SELECT 'END OF TEST';

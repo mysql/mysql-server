@@ -9,6 +9,15 @@
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
+# MDL blocking concurrent drop schema is different with --ps-protocol
+let $drop_schema_target_state='Waiting for schema metadata lock';
+if (`SELECT $PS_PROTOCOL = 1`)
+{
+  let $drop_schema_target_state='Waiting for table metadata lock';
+}
+
 --disable_warnings
 drop database if exists mysqltest1;
 --enable_warnings
@@ -44,8 +53,9 @@ connection con2;
 
 --echo # Connection default
 connection default;
+
 let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
-                     WHERE state= 'Waiting for table metadata lock' 
+                     WHERE state= $drop_schema_target_state
                      AND info='DROP SCHEMA schema1';
 --source include/wait_condition.inc
 --error ER_NO_SUCH_DB
@@ -171,9 +181,11 @@ connection con2;
 
 --echo # Connection 3
 connection con3;
+
 let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
-  WHERE state='Waiting for table metadata lock' and info='DROP DATABASE db1';
+  WHERE state= $drop_schema_target_state;
 --source include/wait_condition.inc
+
 --echo # But it should still be possible to CREATE/ALTER/DROP other databases.
 CREATE DATABASE db2;
 ALTER DATABASE db2 DEFAULT CHARACTER SET utf8;
@@ -335,7 +347,8 @@ ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
 SHOW CREATE SCHEMA s;
 
 # DROP SCHEMA verifies directory existence, and fails.
---error ER_DB_DROP_EXISTS
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_MISSING
 DROP SCHEMA s;
 
 # Re-create the directory, then DROP will work.
@@ -576,3 +589,130 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 --echo # Clean-up.
 --remove_file $MYSQLD_DATADIR/db1
 --disable_connect_log
+
+
+--echo #
+--echo # Bug#24510948: ALTER TABLE+INSERT+DROP DB HANG
+--echo #
+
+CREATE DATABASE db1;
+CREATE TABLE db1.t1(id INT, title VARCHAR(100),
+                    FULLTEXT fidx(title), PRIMARY KEY(id));
+
+--echo # Con1 will attempt insert and block holding open_in_progress on share
+--connect(con1, localhost, root)
+SET DEBUG_SYNC= 'get_share_before_open SIGNAL wait_share WAIT_FOR continue_insert';
+SET SESSION lock_wait_timeout= 5;
+--send INSERT INTO db1.t1 VALUES(1, 'mysql database')
+
+--echo # Con2 will attempt alter and block before waiting on COND_open
+--connect(con2, localhost, root)
+SET DEBUG_SYNC= 'now WAIT_FOR wait_share';
+SET DEBUG_SYNC= 'get_share_before_COND_open_wait SIGNAL wait_cond WAIT_FOR continue_alter';
+--send ALTER TABLE db1.t1 DROP INDEX fidx
+
+--echo # Con3 will wait until the other connections are waiting for signals,
+--echo # then attempt to drop schema, which requires X-MDL
+--connect(con3, localhost, root)
+SET DEBUG_SYNC= 'now WAIT_FOR wait_cond';
+
+--send DROP DATABASE db1
+
+--connection default
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for schema metadata lock" AND
+        info = "DROP DATABASE db1";
+--source include/wait_condition.inc
+
+--echo # Con3 is now waiting for MDL on schema. Waking the other connections
+--echo # should let them continue (before fix con1 and con2 would deadlock
+--echo # on schema MDL and LOCK_open (protecting share->open_in_progress)
+--echo # until con1 aborts with lock timeout
+SET DEBUG_SYNC= 'now SIGNAL continue_insert';
+SET DEBUG_SYNC= 'now SIGNAL continue_alter';
+
+--echo # Reaping connection con1
+--connection con1
+--reap
+
+--echo # Reaping connection con2
+--connection con2
+--reap
+
+--echo # Reaping connection con3
+--connection con3
+--reap
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing!");
+--enable_query_log
+
+--echo #
+--echo # Bug#26043994: CREATE DATABASE/DIRECTORY INCONSISTENCY
+--echo #
+
+--echo # Dropping a non-existing schema fails
+--error ER_DB_DROP_EXISTS
+DROP SCHEMA s1;
+
+--echo # but drop succeeds (with a warning) when using IF EXISTS
+DROP SCHEMA IF EXISTS s1;
+
+--echo # Verify that schema can be created successfully
+CREATE SCHEMA s1;
+
+--echo # Verify that trying to create it again fails
+--error ER_DB_CREATE_EXISTS
+CREATE SCHEMA s1;
+
+--echo # but create succeds (with a warning) when using IF NOT EXITSTS
+CREATE SCHEMA IF NOT EXISTS s1;
+DROP SCHEMA s1;
+
+--echo # Create a directory in datadir manually
+--mkdir $MYSQLD_DATADIR/bogus__
+
+--echo # Creating a schema with the same name as directory in datadir fails
+--echo # but with new error message
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_EXISTS
+CREATE SCHEMA bogus__;
+
+--echo # Creating a schema with the same name as a directory in datadir
+--echo # with IF NOT EXISTS fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_EXISTS
+CREATE SCHEMA IF NOT EXISTS bogus__;
+
+--echo # Drop a non-existent schema with the same name as a directory in
+--echo # datadir fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN
+DROP SCHEMA bogus__;
+
+--echo # Drop a non-existent schema with the same name as a directory in
+--echo # datadir with IF EXISTS fails.
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_UNKNOWN
+DROP SCHEMA IF EXISTS bogus__;
+
+--rmdir $MYSQLD_DATADIR/bogus__
+
+CREATE SCHEMA broken;
+--echo # Remove the schema directory for an existing schema
+--rmdir $MYSQLD_DATADIR/broken
+
+--echo # Drop then fails with new error message
+--replace_result $MYSQLD_DATADIR ./ \\ /
+--error ER_SCHEMA_DIR_MISSING
+DROP SCHEMA broken;
+
+--echo # but drop succeeds (with warning) when adding IF EXISTS
+--echo # Suppress output since it is not stable across platforms
+--disable_warnings ONCE
+DROP SCHEMA IF EXISTS broken;
+
+--echo # Create and drop schema again to make sure nothing is left behind
+CREATE SCHEMA broken;
+DROP SCHEMA broken;

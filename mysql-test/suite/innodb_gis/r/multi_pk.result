@@ -1,4 +1,4 @@
-create table t1 (c1 int, c2 varchar(255), c3 geometry not null, primary key(c1, c2), spatial index (c3))engine=innodb charset latin1;
+create table t1 (c1 int, c2 varchar(255), c3 geometry not null SRID 0, primary key(c1, c2), spatial index (c3))engine=innodb charset latin1;
 create function rand_string(str_length tinyint unsigned, str_type tinyint unsigned) returns varchar(255) charset latin1
 begin
 declare counter int unsigned default 0;

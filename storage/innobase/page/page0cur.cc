@@ -4,16 +4,24 @@ Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -32,17 +40,19 @@ Created 10/4/1994 Heikki Tuuri
 #include "mtr0log.h"
 #include "my_inttypes.h"
 #include "page0zip.h"
-#ifndef UNIV_HOTBACKUP
 #include <algorithm>
 
-#include "gis0rtree.h"
-#include "rem0cmp.h"
+#ifndef UNIV_HOTBACKUP
+# include "gis0rtree.h"
+# include "rem0cmp.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef PAGE_CUR_ADAPT
 # ifdef UNIV_SEARCH_PERF_STAT
 static ulint	page_cur_short_succ	= 0;
 # endif /* UNIV_SEARCH_PERF_STAT */
 
+#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 This is a linear congruential generator PRNG. Returns a pseudo random
 number between 0 and 2^64-1 inclusive. The formula and the constants
@@ -245,7 +255,7 @@ exit_func:
 	}
 	return(success);
 }
-#endif
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef PAGE_CUR_LE_OR_EXTENDS
 /****************************************************************//**
@@ -303,6 +313,7 @@ page_cur_rec_field_extends(
 }
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
 
+#ifndef UNIV_HOTBACKUP
 /** If key is fixed length then populate offset directly from
 cached version.
 @param[in]	rec	B-Tree record for which offset needs to be
@@ -392,7 +403,10 @@ populate_offsets(
 
 	return(index->rec_cache.offsets);
 }
+#endif /* !UNIV_HOTBACKUP */
+#endif /* PAGE_CUR_ADAPT */
 
+#ifndef UNIV_HOTBACKUP
 /****************************************************************//**
 Searches the right position for a page cursor. */
 void
@@ -2539,6 +2553,10 @@ page_cur_parse_delete_rec(
 		rec_offs_init(offsets_);
 
 		page_cur_position(rec, block, &cursor);
+#ifdef UNIV_HOTBACKUP
+        ib::trace() << "page_cur_parse_delete_rec { page: " << page << ", "
+                    << "offset: " << offset << ", rec: " <<rec<<"\n";
+#endif /* UNIV_HOTBACKUP */
 		ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 
 		page_cur_delete_rec(&cursor, index,

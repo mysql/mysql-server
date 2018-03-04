@@ -11,10 +11,10 @@
 # When the created table is myisam, it is considered a
 # non-transactional statement, and therefore logged before the
 # transaction ends, and thus anonymous ownership is released and the
-# counters decreased.  Except when binlog_format='row': in that case
-# CREATE TEMPORARY is not logged at all.  Therefore, the transaction
-# context is left open, so it keeps anonymous ownership, and does not
-# modify counter values.
+# counters decreased.  Except when binlog_format='row' or 'mixed': in
+# that case CREATE TEMPORARY is not logged at all.  Therefore, the
+# transaction context is left open, so it keeps anonymous ownership,
+# and does not modify counter values.
 
 --echo ---- CREATE TEMPORARY in trx (InnoDB, BEGIN) ----
 --let $statement_ends_transaction= 0
@@ -25,7 +25,7 @@ DROP TEMPORARY TABLE IF EXISTS t1;
 
 --echo ---- CREATE TEMPORARY in trx (MyISAM, BEGIN) ----
 --let $statement_ends_transaction= 1
---let $statement_ends_transaction_row= 0
+--let $statement_ends_transaction_row_mixed= 0
 --let $pre_statement= BEGIN
 --let $statement= CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
@@ -41,7 +41,7 @@ DROP TEMPORARY TABLE IF EXISTS t1;
 
 --echo ---- CREATE TEMPORARY in trx (MyISAM, AUTOCOMMIT=0) ----
 --let $statement_ends_transaction= 1
---let $statement_ends_transaction_row= 0
+--let $statement_ends_transaction_row_mixed= 0
 SET AUTOCOMMIT = 0;
 --let $statement= CREATE TEMPORARY TABLE t1 (a INT) ENGINE = MyISAM
 --source extra/binlog_tests/enforce_gtid_consistency_statement.inc
@@ -57,6 +57,7 @@ CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = InnoDB;
 
 --echo ---- DROP TEMPORARY in trx (MyISAM, BEGIN) ----
 --let $statement_ends_transaction= 1
+--let $statement_ends_transaction_row_mixed= 0
 CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = MyISAM;
 --let $pre_statement= BEGIN
 --let $statement= DROP TEMPORARY TABLE t1
@@ -72,6 +73,7 @@ SET AUTOCOMMIT = 1;
 
 --echo ---- DROP TEMPORARY in trx (MyISAM, AUTOCOMMIT=0) ----
 --let $statement_ends_transaction= 1
+--let $statement_ends_transaction_row_mixed= 0
 CREATE TEMPORARY TABLE IF NOT EXISTS t1 (a INT) ENGINE = MyISAM;
 SET AUTOCOMMIT = 0;
 --let $statement= DROP TEMPORARY TABLE t1

@@ -21,7 +21,7 @@ include/stop_slave_sql.inc
 [connection master]
 include/gtid_step_reset.inc
 FLUSH LOGS;
-CREATE USER user1;
+CREATE USER user1 IDENTIFIED WITH 'mysql_native_password';
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
@@ -131,7 +131,7 @@ DROP VIEW v_0;
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
-CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so';
+CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB';
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
@@ -199,15 +199,15 @@ START SLAVE SQL_THREAD;
 include/wait_for_slave_sql_error.inc [errno=1105]
 SET @@GLOBAL.debug="-d,rli_pre_commit_error";
 [connection master]
-Loop: 1 out of 39; current query: 'CREATE USER user1'; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'';
+Loop: 1 out of 39; current query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.user WHERE user = 'user1''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.user WHERE user = 'user1'';
 [connection slave]
-*** Query: 'CREATE USER user1'. Crash right after the query has been prepared in the engine before being logged. ***
+*** Query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=0]
-*** Query: 'CREATE USER user1'. Crash right after the query has been binary-logged before committed in the engine. ***
+*** Query: 'CREATE USER user1 IDENTIFIED WITH 'mysql_native_password''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
@@ -615,15 +615,15 @@ include/rpl_start_server.inc [server_number=2]
 [connection slave]
 include/gtid_step_assert.inc [count=1, only_count=1]
 [connection master]
-Loop: 27 out of 39; current query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon'';
+Loop: 27 out of 39; current query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB''; pre-binlog check: 'SELECT count(*) = 0 FROM mysql.func where NAME = 'metaphon''; pre-commit check: 'SELECT count(*) = 1 FROM mysql.func where NAME = 'metaphon'';
 [connection slave]
-*** Query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so''. Crash right after the query has been prepared in the engine before being logged. ***
+*** Query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB''. Crash right after the query has been prepared in the engine before being logged. ***
 SET @@GLOBAL.debug="+d,crash_commit_before_log";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;
 include/rpl_start_server.inc [server_number=2]
 include/gtid_step_assert.inc [count=0, only_count=1]
-*** Query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example.so''. Crash right after the query has been binary-logged before committed in the engine. ***
+*** Query: 'CREATE FUNCTION metaphon RETURNS STRING SONAME 'udf_example_LIB''. Crash right after the query has been binary-logged before committed in the engine. ***
 SET @@GLOBAL.debug="+d,crash_commit_after_log";
 include/gtid_step_reset.inc
 START SLAVE SQL_THREAD;

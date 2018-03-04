@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include <boost/concept/usage.hpp>
@@ -40,6 +47,8 @@
 #include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"                        // ER_THD
 #include "sql/gis/srid.h"
 #include "sql/inplace_vector.h"
@@ -48,6 +57,7 @@
 #include "sql/item_geofunc.h"
 #include "sql/item_geofunc_internal.h"
 #include "sql/spatial.h"
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
 #include "sql/sql_exception_handler.h"
 #include "sql/srs_fetcher.h"
@@ -402,7 +412,7 @@ public:
 
     // Need merge, exclude Points that are on the result Linestring.
     retgeo= m_ifso->combine_sub_results<Coordsys>
-      (tmp1, tmp2, result);
+      (tmp1, tmp2, g1->get_srid(), result);
     copy_ifso_state();
 
     return retgeo;
@@ -479,7 +489,7 @@ public:
     }
 
     retgeo= m_ifso->combine_sub_results<Coordsys>
-      (guard1.release(), guard2.release(), result);
+      (guard1.release(), guard2.release(), g1->get_srid(), result);
     copy_ifso_state();
 
     return retgeo;
@@ -700,7 +710,7 @@ public:
     }
 
     retgeo= m_ifso->combine_sub_results<Coordsys>
-      (guard1.release(), guard2.release(), result);
+      (guard1.release(), guard2.release(), g1->get_srid(), result);
     copy_ifso_state();
 
     return retgeo;
@@ -976,6 +986,7 @@ public:
       // GeometryCollection result containing one or more Polygons and
       // one or more LineStrings.
       Gis_geometry_collection *collection= new Gis_geometry_collection();
+      collection->set_srid(g1->get_srid());
 
       if (mpy2.size() > 1)
       {
@@ -984,6 +995,7 @@ public:
       else
       {
         mpy2[0].to_wkb_unparsed();
+        mpy2[0].set_srid(g1->get_srid());
         collection->append_geometry(&mpy2[0], result);
       }
 
@@ -993,6 +1005,7 @@ public:
       }
       else
       {
+        (*linestrings)[0].set_srid(g1->get_srid());
         collection->append_geometry(&(*linestrings)[0], result);
       }
 
@@ -1224,6 +1237,7 @@ public:
       // GeometryCollection result containing one or more Polygons and
       // one or more LineStrings.
       Gis_geometry_collection *collection= new Gis_geometry_collection();
+      collection->set_srid(g1->get_srid());
 
       if (mpy2.size() > 1)
       {
@@ -1232,6 +1246,7 @@ public:
       else
       {
         mpy2[0].to_wkb_unparsed();
+        mpy2[0].set_srid(g1->get_srid());
         collection->append_geometry(&mpy2[0], result);
       }
 
@@ -1241,6 +1256,7 @@ public:
       }
       else
       {
+        (*linestrings)[0].set_srid(g1->get_srid());
         collection->append_geometry(&(*linestrings)[0], result);
       }
 
@@ -2595,6 +2611,7 @@ bg_geo_set_op(Geometry *g1, Geometry *g2, String *result)
               computed by BG set operation.
   @param geo2 Second operand, a Multipoint object
               computed by BG set operation.
+  @param[in] default_srid The SRID to use when returning an empty result.
   @param result Holds result geometry's WKB data in GEOMETRY format.
   @return A geometry combined from geo1 and geo2. Either or both of
   geo1 and geo2 can be NULL, so we may end up with a multipoint,
@@ -2603,7 +2620,8 @@ bg_geo_set_op(Geometry *g1, Geometry *g2, String *result)
  */
 template<typename Coordsys>
 Geometry *Item_func_spatial_operation::
-combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
+combine_sub_results(Geometry *geo1, Geometry *geo2, gis::srid_t default_srid,
+                    String *result)
 {
   typedef BG_models<Coordsys> Geom_types;
   typedef typename Geom_types::Multipoint Multipoint;
@@ -2621,7 +2639,7 @@ combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
 
   Gis_geometry_collection *geocol= NULL;
   if (geo1 == NULL && geo2 == NULL)
-    retgeo= empty_result(result, Geometry::default_srid);
+    retgeo= empty_result(result, default_srid);
   else if (geo1 != NULL && geo2 == NULL)
   {
     retgeo= geo1;
@@ -2729,6 +2747,7 @@ simplify_multilinestring(Gis_multi_line_string *mls, String *result)
        i != mls->end();
        ++i)
   {
+    i->set_srid(mls->get_srid());
     if (i->size() != 2)
     {
       DBUG_ASSERT(i->size() > 2);
@@ -2736,6 +2755,8 @@ simplify_multilinestring(Gis_multi_line_string *mls, String *result)
       continue;
     }
 
+    (*i)[0].set_srid(mls->get_srid());
+    (*i)[1].set_srid(mls->get_srid());
     const Gis_point &start= (*i)[0];
     const Gis_point &end= (*i)[1];
     if (start == end)
@@ -2771,6 +2792,7 @@ simplify_multilinestring(Gis_multi_line_string *mls, String *result)
   {
     // Linestring result
     Gis_line_string *linestringresult= new Gis_line_string();
+    linestringresult->set_srid(mls->get_srid());
     size_t oldlength= result->length();
     linestrings->begin()->as_geometry(result, false);
     size_t newlength= result->length();
@@ -2791,6 +2813,7 @@ simplify_multilinestring(Gis_multi_line_string *mls, String *result)
   {
     // Point result
     Gis_point *pointresult= new Gis_point();
+    pointresult->set_srid(mls->get_srid());
     size_t oldlength= result->length();
     points->begin()->as_geometry(result, false);
     size_t newlength= result->length();
@@ -2811,6 +2834,7 @@ simplify_multilinestring(Gis_multi_line_string *mls, String *result)
   {
     // GeometryCollection result
     Gis_geometry_collection *collection= new Gis_geometry_collection();
+    collection->set_srid(mls->get_srid());
 
     if (points->size() > 1)
     {
@@ -3133,18 +3157,27 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
 
   if (g1->get_srid() != 0)
   {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, g1->get_srid(), &srs_exists))
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(g1->get_srid(), &srs))
       DBUG_RETURN(error_str()); // Error has already been flagged.
 
-    if (!srs_exists)
+    if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          g1->get_srid(),
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), g1->get_srid());
+      DBUG_RETURN(error_str());
+    }
+
+    if (!srs->is_cartesian())
+    {
+      DBUG_ASSERT(srs->is_geographic());
+      std::string parameters(g1->get_class_info()->m_name.str);
+      parameters.append(", ").append(g2->get_class_info()->m_name.str);
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
+               parameters.c_str());
+      DBUG_RETURN(error_str());
     }
   }
 
@@ -3267,6 +3300,9 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
 exit:
   if (gres != g1 && gres != g2 && gres != NULL)
     delete gres;
+  // Result and argument SRIDs must be the same.
+  DBUG_ASSERT(null_value ||
+              uint4korr(str_value_arg->ptr()) == uint4korr(res1->ptr()));
   DBUG_RETURN(null_value ? NULL : str_value_arg);
 }
 

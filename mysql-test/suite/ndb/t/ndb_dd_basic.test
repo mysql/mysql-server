@@ -71,8 +71,7 @@ ENGINE NDB;
 
 ALTER TABLESPACE ts1
 ADD DATAFILE 'datafile02.dat'
-INITIAL_SIZE = 4M 
-ENGINE=NDB;
+INITIAL_SIZE = 4M;
 
 ########################################
 # Create a table using this tablespace
@@ -284,14 +283,12 @@ insert into t1 values (1,1);
 
 --error ER_ALTER_FILEGROUP_FAILED
 alter tablespace ts2
-drop datafile 'datafile2_1.dat'
-engine ndb;
+drop datafile 'datafile2_1.dat';
 
 drop table t1;
 
 alter tablespace ts2
-drop datafile 'datafile2_1.dat'
-engine ndb;
+drop datafile 'datafile2_1.dat';
 
 #It will give error messages: NoDatafile in tablespace
 --error ER_GET_ERRMSG
@@ -300,13 +297,11 @@ into City (Name,CountryCode,District,Population)
 values ('BeiJing','CN','Beijing',2000);
 
 --error ER_TABLESPACE_IS_NOT_EMPTY
-drop tablespace ts2
-engine ndb;
+drop tablespace ts2;
 
 drop table City;
 
-drop tablespace ts2
-engine ndb;
+drop tablespace ts2;
 
 ############################
 # Test update of mm/dd part
@@ -515,15 +510,12 @@ drop table t1;
 ###################
 
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile.dat' 
-ENGINE = NDB;
+DROP DATAFILE 'datafile.dat';
 
 ALTER TABLESPACE ts1 
-DROP DATAFILE 'datafile02.dat' 
-ENGINE = NDB;
+DROP DATAFILE 'datafile02.dat';
 
-DROP TABLESPACE ts1 
-ENGINE = NDB;
+DROP TABLESPACE ts1;
 
 DROP LOGFILE GROUP lg1 
 ENGINE =NDB;
@@ -556,16 +548,13 @@ engine ndb;
 --error ER_ALTER_FILEGROUP_FAILED
 alter tablespace ts1
 add datafile 'datafile02.dat'
-initial_size 1M
-engine ndb;
+initial_size 1M;
 show warnings;
 
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
+drop datafile 'datafile.dat';
 
-drop tablespace ts1
-engine ndb;
+drop tablespace ts1;
 
 drop logfile group lg1
 engine ndb;
@@ -592,16 +581,14 @@ where engine = 'ndbcluster' and tablespace_name is not null
 order by file_type, file_name;
 
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
+drop datafile 'datafile.dat';
 
 select distinct tablespace_name, file_type, file_name
 from information_schema.files
 where engine = 'ndbcluster' and tablespace_name is not null
 order by file_type, file_name;
 
-drop tablespace ts1
-engine ndb;
+drop tablespace ts1;
 
 drop logfile group lg1
 engine ndb;
@@ -641,8 +628,7 @@ engine ndb;
 # 3342335 = 102 * 32k - 1 => 110 * 32k == 11 * EXT = 3604480
 alter tablespace ts1
 add datafile 'datafile02.dat'
-initial_size 3342335
-engine ndb;
+initial_size 3342335;
 
 # check logfile group
 select logfile_group_name, extra
@@ -667,15 +653,12 @@ where file_type = 'DATAFILE'
 order by file_name;
 
 alter tablespace ts1
-drop datafile 'datafile02.dat'
-engine ndb;
+drop datafile 'datafile02.dat';
 
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
+drop datafile 'datafile.dat';
 
-drop tablespace ts1
-engine ndb;
+drop tablespace ts1;
 
 drop logfile group lg1
 engine ndb;

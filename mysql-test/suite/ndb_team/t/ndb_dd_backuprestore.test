@@ -54,11 +54,9 @@ SELECT pk1, c2, c3,  hex(c4) FROM test.t1 ORDER BY pk1 LIMIT 5;
 DROP TABLE test.t1;
 
 ALTER TABLESPACE table_space1
-DROP DATAFILE './table_space1/datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE './table_space1/datafile.dat';
 
-DROP TABLESPACE table_space1
-ENGINE = NDB;
+DROP TABLESPACE table_space1;
 
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;
@@ -128,11 +126,9 @@ DROP TABLE test.t3;
 DROP TABLE test.t4;
 
 ALTER TABLESPACE table_space1
-DROP DATAFILE './table_space1/datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE './table_space1/datafile.dat';
 
-DROP TABLESPACE table_space1
-ENGINE = NDB;
+DROP TABLESPACE table_space1;
 
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;
@@ -258,18 +254,14 @@ DROP TABLE test.t5;
 DROP TABLE test.t6;
 
 ALTER TABLESPACE table_space1
-DROP DATAFILE './table_space1/datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE './table_space1/datafile.dat';
 
 ALTER TABLESPACE table_space2
-DROP DATAFILE './table_space2/datafile.dat'
-ENGINE = NDB;
+DROP DATAFILE './table_space2/datafile.dat';
 
-DROP TABLESPACE table_space1
-ENGINE = NDB;
+DROP TABLESPACE table_space1;
 
-DROP TABLESPACE table_space2
-ENGINE = NDB;
+DROP TABLESPACE table_space2;
 
 DROP LOGFILE GROUP log_group1
 ENGINE =NDB;
@@ -342,13 +334,13 @@ DROP TABLE test.t4;
 DROP TABLE test.t5;
 DROP TABLE test.t6;
 
-ALTER TABLESPACE table_space1 DROP DATAFILE './table_space1/datafile.dat' ENGINE=NDB;
+ALTER TABLESPACE table_space1 DROP DATAFILE './table_space1/datafile.dat';
 
-ALTER TABLESPACE table_space2 DROP DATAFILE './table_space2/datafile.dat' ENGINE=NDB;
+ALTER TABLESPACE table_space2 DROP DATAFILE './table_space2/datafile.dat';
 
-DROP TABLESPACE table_space1 ENGINE = NDB;
+DROP TABLESPACE table_space1;
 
-DROP TABLESPACE table_space2 ENGINE = NDB;
+DROP TABLESPACE table_space2;
 
 DROP LOGFILE GROUP log_group1 ENGINE = NDB;
 

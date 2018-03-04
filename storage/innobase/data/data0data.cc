@@ -3,16 +3,24 @@
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -38,6 +46,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "rem0cmp.h"
 #include "rem0rec.h"
 #include "row0upd.h"
+#include "lob0lob.h"
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -529,6 +538,8 @@ dtuple_convert_big_rec(
 	ulint*		n_ext)	/*!< in/out: number of
 				externally stored columns */
 {
+	DBUG_ENTER("dtuple_convert_big_rec");
+
 	mem_heap_t*	heap;
 	big_rec_t*	vector;
 	dfield_t*	dfield;
@@ -539,7 +550,7 @@ dtuple_convert_big_rec(
 	ulint		local_prefix_len;
 
 	if (!index->is_clustered()) {
-		return(NULL);
+		DBUG_RETURN(NULL);
 	}
 
 	if (!dict_table_has_atomic_blobs(index->table)) {
@@ -583,6 +594,8 @@ dtuple_convert_big_rec(
 		ulint			longest		= 0;
 		ulint			longest_i	= ULINT_MAX;
 		byte*			data;
+		upd_field_t*		uf = nullptr;
+
 
 		for (i = dict_index_get_n_unique_in_tree(index);
 		     i < dtuple_get_n_fields(entry); i++) {
@@ -636,7 +649,7 @@ skip_field:
 
 			mem_heap_free(heap);
 
-			return(NULL);
+			DBUG_RETURN(NULL);
 		}
 
 		/* Move data from field longest_i to big rec vector.
@@ -646,23 +659,43 @@ skip_field:
 		from locally stored data. */
 
 		dfield = dtuple_get_nth_field(entry, longest_i);
+
 		ifield = index->get_field(longest_i);
 		local_prefix_len = local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
-		vector->append(
-			big_rec_field_t(
-				longest_i,
-				dfield_get_len(dfield) - local_prefix_len,
-				static_cast<char*>(dfield_get_data(dfield))
-				+ local_prefix_len));
+		big_rec_field_t big_rec(
+			longest_i,
+			dfield_get_len(dfield) - local_prefix_len,
+			static_cast<char*>(dfield_get_data(dfield))
+				+ local_prefix_len);
 
 		/* Allocate the locally stored part of the column. */
 		data = static_cast<byte*>(mem_heap_alloc(heap, local_len));
 
-		/* Copy the local prefix. */
-		memcpy(data, dfield_get_data(dfield), local_prefix_len);
+		/* Copy the local prefix (including LOB pointer). */
+		memcpy(data, dfield_get_data(dfield), local_len);
+
 		/* Clear the extern field reference (BLOB pointer). */
 		memset(data + local_prefix_len, 0, BTR_EXTERN_FIELD_REF_SIZE);
+
+		if (upd != nullptr
+		    && upd->is_modified(longest_i)) {
+
+			/* When the externally stored LOB is going to be
+			updated, the old LOB reference (BLOB pointer) can be
+			used to access the old LOB object. So copy the LOB
+			reference here. */
+			uf = upd->get_field_by_field_no(longest_i, index);
+
+			if (dfield_is_ext(&uf->old_val)) {
+				byte* field_ref = static_cast<byte*>(
+					dfield_get_data(&uf->old_val))
+					+ local_prefix_len;
+				memcpy(data + local_prefix_len, field_ref,
+				       lob::ref_t::SIZE);
+			}
+		}
+
 #if 0
 		/* The following would fail the Valgrind checks in
 		page_cur_insert_rec_low() and page_cur_insert_rec_zip().
@@ -688,6 +721,7 @@ skip_field:
 			upd_field.orig_len = 0;
 			upd_field.exp = NULL;
 			upd_field.old_v_val = NULL;
+			upd_field.ext_in_old = dfield_is_ext(dfield);
 			dfield_copy(&upd_field.new_val,
 				    dfield->clone(upd->heap));
 			upd->append(upd_field);
@@ -698,11 +732,21 @@ skip_field:
 			ut_ad(upd_field.new_val.len == local_len);
 			ut_ad(upd_field.new_val.len == dfield_get_len(dfield));
 		}
+
+		if (upd == nullptr) {
+			big_rec.ext_in_old = false;
+		} else {
+			upd_field_t* uf = upd->get_field_by_field_no(longest_i, index);
+			ut_ad(uf != nullptr);
+			big_rec.ext_in_old = uf->ext_in_old;
+		}
+
+		big_rec.ext_in_new = true;
+		vector->append(big_rec);
 	}
 
 	ut_ad(n_fields == vector->n_fields);
-
-	return(vector);
+	DBUG_RETURN(vector);
 }
 
 /**************************************************************//**
@@ -805,6 +849,74 @@ dfield_t::blobref() const
 	ut_ad(ext);
 
 	return(static_cast<byte*>(data) + len - BTR_EXTERN_FIELD_REF_SIZE);
+}
+
+/** Print the dfield_t object into the given output stream.
+@param[in]	out	the output stream.
+@return	the ouput stream. */
+std::ostream&
+dfield_t::print(
+	std::ostream&	out) const
+{
+	out << "[dfield_t: data=" << (void *) data << ", ext=" << ext << " ";
+
+	if (dfield_is_ext(this)) {
+		byte* tmp = static_cast<byte*>(data);
+		lob::ref_t ref(tmp + len - lob::ref_t::SIZE);
+		out << ref;
+	}
+
+	out << ", spatial_status=" << spatial_status << ", len=" << len
+		<< ", type=" << "]";
+
+	return(out);
+}
+
+#ifdef UNIV_DEBUG
+/** Print the big_rec_field_t object into the given output stream.
+@param[in]	out	the output stream.
+@return	the ouput stream. */
+std::ostream&
+big_rec_field_t::print(
+	std::ostream&	out) const
+{
+	out << "[big_rec_field_t: field_no=" << field_no << ", len=" << len
+		<< ", data=" << data << ", ext_in_old=" << ext_in_old
+		<< ", ext_in_new=" << ext_in_new << "]";
+	return(out);
+}
+
+/** Print the current object into the given output stream.
+@param[in]	out	the output stream.
+@return	the ouput stream. */
+std::ostream&
+big_rec_t::print(
+	std::ostream&	out) const
+{
+	out << "[big_rec_t: capacity=" << capacity << ", n_fields=" << n_fields << " ";
+	for (ulint i = 0; i < n_fields; ++i) {
+		out << fields[i];
+	}
+	out << "]";
+	return(out);
+}
+#endif /* UNIV_DEBUG */
+
+/* Read the trx id from the tuple (DB_TRX_ID)
+@return transaction id of the tuple. */
+trx_id_t dtuple_t::get_trx_id() const
+{
+	for (ulint i = 0; i < n_fields; ++i) {
+		dfield_t& field = fields[i];
+
+		uint32_t prtype = field.type.prtype & DATA_SYS_PRTYPE_MASK;
+
+		if (field.type.mtype == DATA_SYS && prtype == DATA_TRX_ID) {
+			return(mach_read_from_6((byte*) field.data));
+		}
+	}
+
+	return(0);
 }
 
 #endif /* !UNIV_HOTBACKUP */

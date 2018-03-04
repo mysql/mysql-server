@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -237,11 +245,14 @@ row_build_index_entry_low(
 						: dict_table_page_size(
 							index->table);
 
+					const dict_index_t* clust_index =
+						(ext == nullptr
+						 ? index->table->first_index()
+						 : ext->index);
+
 					dptr = lob::btr_copy_externally_stored_field(
-						&dlen, dptr,
-						page_size,
-						flen,
-						false,
+						clust_index, &dlen, dptr,
+						page_size, flen, false,
 						temp_heap);
 				} else {
 					dptr = static_cast<uchar*>(
@@ -541,8 +552,9 @@ row_build_low(
 		row_log_table_delete(). */
 
 	} else if (j) {
-		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
-				      dict_index_is_sdi(index), heap);
+		*ext = row_ext_create(
+			index, j, ext_cols, index->table->flags, row,
+			dict_index_is_sdi(index), heap);
 	} else {
 		*ext = NULL;
 	}
@@ -726,6 +738,7 @@ row_rec_to_index_entry(
 	dtuple_t*	entry;
 	byte*		buf;
 	const rec_t*	copy_rec;
+	DBUG_ENTER("row_rec_to_index_entry");
 
 	ut_ad(rec != NULL);
 	ut_ad(heap != NULL);
@@ -746,7 +759,7 @@ row_rec_to_index_entry(
 	dtuple_set_info_bits(entry,
 			     rec_get_info_bits(rec, rec_offs_comp(offsets)));
 
-	return(entry);
+	DBUG_RETURN(entry);
 }
 
 /*******************************************************************//**

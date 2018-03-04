@@ -58,7 +58,7 @@ SET GLOBAL group_replication_gtid_assignment_block_size= 2;
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 Matching lines are:
-DATE_TIME [ERROR] Plugin group_replication reported: 'The member is configured with a group_replication_gtid_assignment_block_size option value '2' different from the group '1'. The member will now exit the group.'
+DATE_TIME [ERROR] [MY-011254] Plugin group_replication reported: 'The member is configured with a group_replication_gtid_assignment_block_size option value '2' different from the group '1'. The member will now exit the group.'
 Occurrences of 'The member is configured with a group_replication_gtid_assignment_block_size option value' in the input file: 1
 
 ############################################################

@@ -105,7 +105,6 @@ setup_consumers	0	performance_schema	PRIMARY	HASH
 setup_instruments	0	performance_schema	PRIMARY	HASH	
 setup_objects	0	performance_schema	OBJECT	HASH	
 setup_threads	0	performance_schema	PRIMARY	HASH	
-setup_timers	0	performance_schema	PRIMARY	HASH	
 socket_instances	1	performance_schema	IP	HASH	
 socket_instances	0	performance_schema	PRIMARY	HASH	
 socket_instances	1	performance_schema	SOCKET_ID	HASH	
@@ -267,6 +266,7 @@ memory_summary_global_by_event_name	0	performance_schema	PRIMARY	1	EVENT_NAME	NU
 metadata_locks	1	performance_schema	OBJECT_TYPE	1	OBJECT_TYPE	NULL	
 metadata_locks	1	performance_schema	OBJECT_TYPE	2	OBJECT_SCHEMA	NULL	YES
 metadata_locks	1	performance_schema	OBJECT_TYPE	3	OBJECT_NAME	NULL	YES
+metadata_locks	1	performance_schema	OBJECT_TYPE	4	COLUMN_NAME	NULL	YES
 metadata_locks	1	performance_schema	OWNER_THREAD_ID	1	OWNER_THREAD_ID	NULL	YES
 metadata_locks	1	performance_schema	OWNER_THREAD_ID	2	OWNER_EVENT_ID	NULL	YES
 metadata_locks	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	
@@ -313,7 +313,6 @@ setup_objects	0	performance_schema	OBJECT	1	OBJECT_TYPE	NULL
 setup_objects	0	performance_schema	OBJECT	2	OBJECT_SCHEMA	NULL	YES
 setup_objects	0	performance_schema	OBJECT	3	OBJECT_NAME	NULL	
 setup_threads	0	performance_schema	PRIMARY	1	NAME	NULL	
-setup_timers	0	performance_schema	PRIMARY	1	NAME	NULL	
 socket_instances	1	performance_schema	IP	1	IP	NULL	
 socket_instances	1	performance_schema	IP	2	PORT	NULL	
 socket_instances	0	performance_schema	PRIMARY	1	OBJECT_INSTANCE_BEGIN	NULL	

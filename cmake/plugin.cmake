@@ -1,17 +1,24 @@
 # Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
@@ -50,16 +57,13 @@ ENDMACRO()
 MACRO(MYSQL_ADD_PLUGIN)
   MYSQL_PARSE_ARGUMENTS(ARG
     "LINK_LIBRARIES;DEPENDENCIES;MODULE_OUTPUT_NAME;STATIC_OUTPUT_NAME"
-    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;MANDATORY;DEFAULT;DISABLED;TEST_ONLY;SKIP_INSTALL"
+    "STORAGE_ENGINE;STATIC_ONLY;MODULE_ONLY;CLIENT_ONLY;MANDATORY;DEFAULT;DISABLED;TEST_ONLY;SKIP_INSTALL"
     ${ARGN}
   )
   
   # Add common include directories
   INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include 
-                    ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-                    ${CMAKE_SOURCE_DIR}/sql/auth
-                    ${SSL_INCLUDE_DIRS})
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include)
 
   LIST(GET ARG_DEFAULT_ARGS 0 plugin) 
   SET(SOURCES ${ARG_DEFAULT_ARGS})
@@ -169,7 +173,9 @@ MACRO(MYSQL_ADD_PLUGIN)
     ADD_LIBRARY(${target} MODULE ${SOURCES}) 
     SET_TARGET_PROPERTIES (${target} PROPERTIES PREFIX ""
       COMPILE_DEFINITIONS "MYSQL_DYNAMIC_PLUGIN")
-    TARGET_LINK_LIBRARIES (${target} mysqlservices)
+    IF(NOT ARG_CLIENT_ONLY)
+      TARGET_LINK_LIBRARIES (${target} mysqlservices)
+    ENDIF()
 
     # Plugin uses symbols defined in mysqld executable.
     # Some operating systems like Windows and OSX and are pretty strict about 
@@ -179,8 +185,10 @@ MACRO(MYSQL_ADD_PLUGIN)
     # Thus we skip TARGET_LINK_LIBRARIES on Linux, as it would only generate
     # an additional dependency.
     # Use MYSQL_PLUGIN_IMPORT for static data symbols to be exported.
-    IF(WIN32 OR APPLE)
-      TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
+    IF(NOT ARG_CLIENT_ONLY)
+      IF(WIN32 OR APPLE)
+        TARGET_LINK_LIBRARIES (${target} mysqld ${ARG_LINK_LIBRARIES})
+      ENDIF()
     ENDIF()
     ADD_DEPENDENCIES(${target} GenError ${ARG_DEPENDENCIES})
 
@@ -215,6 +223,9 @@ MACRO(MYSQL_ADD_PLUGIN)
       SET(INSTALL_COMPONENT Server)
       IF(ARG_TEST_ONLY)
         SET(INSTALL_COMPONENT Test)
+      ENDIF()
+      IF(LINUX_INSTALL_RPATH_ORIGIN)
+        SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
       ENDIF()
       MYSQL_INSTALL_TARGETS(${target}
         DESTINATION ${INSTALL_PLUGINDIR}

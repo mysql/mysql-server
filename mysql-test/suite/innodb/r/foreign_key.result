@@ -86,7 +86,7 @@ DROP TABLE t2, t1;
 # Verify that index types that cannot be used as foreign keys are
 # ignored when creating foreign keys.
 set @@foreign_key_checks=0;
-CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL) ENGINE InnoDB;
+CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL SRID 0) ENGINE InnoDB;
 # Creating a foreign key on a GEOMETRY column is not supported
 ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
 ERROR 42000: BLOB/TEXT column 'b' used in key specification without a key length
@@ -158,3 +158,97 @@ DROP TABLE parent_table;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
 DROP TABLE child_table;
 DROP TABLE parent_table;
+#
+# Bug#26764604 - INNODB: FAILING ASSERTION: COL_NR < TABLE->N_DEF
+#
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+unique1 int(11) DEFAULT NULL,
+unique2 int(11) DEFAULT NULL,
+two int(11) DEFAULT NULL,
+four int(11) DEFAULT NULL,
+ten int(11) DEFAULT NULL,
+twenty int(11) DEFAULT NULL,
+forty int(11) DEFAULT NULL,
+sixty int(11) DEFAULT NULL,
+eighty int(11) DEFAULT NULL,
+tenPercent int(11) DEFAULT NULL,
+twentyPercent int(11) DEFAULT NULL,
+fiftyPercent int(11) DEFAULT NULL,
+unique1gc int(11) GENERATED ALWAYS AS ((unique1 + unique2)) VIRTUAL,
+unique2gc int(11) GENERATED ALWAYS AS ((unique1 * unique2)) VIRTUAL,
+twogc int(11) GENERATED ALWAYS AS (((two * two) + 1)) VIRTUAL,
+fourgc int(11) GENERATED ALWAYS AS (((four + four) - 1)) VIRTUAL,
+tengc int(11) GENERATED ALWAYS AS ((twogc + ten)) VIRTUAL,
+twentygc int(11) GENERATED ALWAYS AS ((((twenty * twogc) * unique1) % 20)) VIRTUAL,
+fortygc int(11) GENERATED ALWAYS AS (forty) VIRTUAL,
+sixtygc int(11) GENERATED ALWAYS AS (sixty) VIRTUAL,
+eightygc int(11) GENERATED ALWAYS AS ((((eighty - twentygc) - ten) - two)) VIRTUAL,
+PRIMARY KEY (pk),
+KEY allkey(unique1,unique2,two,four,ten,twenty,forty,sixty,eighty,tenPercent,twentyPercent,fiftyPercent),
+KEY kugc1 (unique1gc),
+KEY kugc2 (unique2gc),
+KEY kumixgc1 (unique1gc,unique2gc),
+KEY kgc1 (twogc,fourgc),
+KEY kgc2 (fourgc,tengc),
+KEY kgc3 (tengc,twentygc),
+KEY kgc4 (twentygc,fortygc),
+KEY kgc5 (fortygc,sixtygc),
+KEY kgc6 (sixtygc,eightygc),
+KEY allkeygc(unique1gc,unique2gc,twogc,fourgc,tengc,twentygc,fortygc,sixtygc,eightygc)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE t2_fk (
+pk int(11) NOT NULL,
+sixty int(11) DEFAULT NULL,
+PRIMARY KEY (pk),
+CONSTRAINT fk6 FOREIGN KEY (sixty) REFERENCES t1(sixty)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+ERROR HY000: Cannot add foreign key constraint
+DROP TABLE t1;
+#
+# Bug#27014308 - UPGRADING TO 8.0.3 FAILS IF FOREIGN KEYS OF EXACTLY 64 CHARACTERS ARE PRESENT
+#
+# test with FK identifier of length exactly 64 characters;
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=INNODB;
+CREATE TABLE child (
+id INT,
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INT,
+INDEX par_ind
+(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx),
+CONSTRAINT
+`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+FOREIGN
+KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+DROP TABLE child;
+DROP TABLE parent;
+# test with FK identifier of length exactly 65 characters,
+# child table creation should fail
+CREATE TABLE parent (
+id INT NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=INNODB;
+CREATE TABLE child (
+id INT,
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+INT,
+INDEX par_ind
+(xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx),
+CONSTRAINT
+`xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
+FOREIGN
+KEY (xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx)
+REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+ERROR 42000: Identifier name 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' is too long
+DROP TABLE parent;

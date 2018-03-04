@@ -10,16 +10,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -53,7 +61,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "sync0rw.h"
 #include "trx0purge.h"
 #include "trx0undo.h"
-#endif /* !UNIV_HOTBACKUP */
 
 #include <errno.h>
 #include <stdarg.h>
@@ -74,6 +81,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "ut0new.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef HAVE_LIBNUMA
 #include <numa.h>
@@ -703,7 +711,6 @@ buf_page_print(
 		break;
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
-	case FIL_PAGE_TYPE_ZBLOB3:
 		fputs("InnoDB: Page may be a compressed BLOB page\n",
 		      stderr);
 		break;
@@ -2503,8 +2510,23 @@ buf_pool_clear_hash_index(void)
 					continue;
 				}
 
-				ut_ad(buf_block_get_state(block)
-				      == BUF_BLOCK_FILE_PAGE);
+				switch(buf_block_get_state(block)) {
+				case BUF_BLOCK_FILE_PAGE:
+					break;
+				case BUF_BLOCK_REMOVE_HASH:
+					/* It is possible that a parallel thread
+					might have set this state. It means AHI
+					for this block is being removed. After
+					this function, AHI entries would anyway
+					be removed. So its Ok to reset block
+					index/pointers here otherwise it would
+					be pointing to removed AHI entries. */
+					break;
+				default:
+					/* No other state should have AHI */
+					ut_ad(block->index == nullptr);
+					ut_ad(block->n_pointers == 0);
+				}
 
 # if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 				block->n_pointers = 0;
@@ -3266,8 +3288,12 @@ buf_zip_decompress(
 	case FIL_PAGE_TYPE_XDES:
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
-	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_ZBLOB:
+	case FIL_PAGE_TYPE_ZLOB_FIRST:
+	case FIL_PAGE_TYPE_ZLOB_DATA:
+	case FIL_PAGE_TYPE_ZLOB_INDEX:
+	case FIL_PAGE_TYPE_ZLOB_FRAG:
+	case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 		/* Copy to uncompressed storage. */
 		memcpy(block->frame, frame, block->page.size.physical());
 		return(TRUE);
@@ -6352,13 +6378,13 @@ buf_get_free_list_len(void)
 @param[in]	page_size	page size
 @param[in,out]	block		block to init */
 void
-buf_page_init_for_backup_restore(
+meb_page_init(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	buf_block_t*		block)
 {
 	block->page.state = BUF_BLOCK_FILE_PAGE;
-	block->page.id = page_id;
+	block->page.id.copy_from(page_id);
 	block->page.size.copy_from(page_size);
 
 	page_zip_des_init(&block->page.zip);
@@ -6371,6 +6397,12 @@ buf_page_init_for_backup_restore(
 	} else {
 		page_zip_set_size(&block->page.zip, 0);
 	}
+
+	ib::trace()
+		<< "meb_page_init: block  Space: "
+		<< block->page.id.space() << " , zip_size: "
+		<< block->page.size.physical() << " unzip_size: "
+		<< block->page.size.logical() << " }\n";
 }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -6384,6 +6416,7 @@ operator<<(
 	std::ostream&		out,
 	const buf_pool_t&	buf_pool)
 {
+#ifndef UNIV_HOTBACKUP
 	/* These locking requirements might be relaxed if desired */
 	ut_ad(mutex_own(&buf_pool.LRU_list_mutex));
 	ut_ad(mutex_own(&buf_pool.free_list_mutex));
@@ -6406,5 +6439,52 @@ operator<<(
 		<< ", pages read=" << buf_pool.stat.n_pages_read
 		<< ", created=" << buf_pool.stat.n_pages_created
 		<< ", written=" << buf_pool.stat.n_pages_written << "]";
+#endif /* !UNIV_HOTBACKUP */
 	return(out);
 }
+
+/** Get the page type as a string.
+@return the page type as a string. */
+const char*
+buf_block_t::get_page_type_str() const
+{
+	ulint	type = get_page_type();
+
+#define PAGE_TYPE(x) case x: return(#x);
+
+	switch(type) {
+	PAGE_TYPE(FIL_PAGE_INDEX);
+	PAGE_TYPE(FIL_PAGE_RTREE);
+	PAGE_TYPE(FIL_PAGE_SDI);
+	PAGE_TYPE(FIL_PAGE_UNDO_LOG);
+	PAGE_TYPE(FIL_PAGE_INODE);
+	PAGE_TYPE(FIL_PAGE_IBUF_FREE_LIST);
+	PAGE_TYPE(FIL_PAGE_TYPE_ALLOCATED);
+	PAGE_TYPE(FIL_PAGE_IBUF_BITMAP);
+	PAGE_TYPE(FIL_PAGE_TYPE_SYS);
+	PAGE_TYPE(FIL_PAGE_TYPE_TRX_SYS);
+	PAGE_TYPE(FIL_PAGE_TYPE_FSP_HDR);
+	PAGE_TYPE(FIL_PAGE_TYPE_XDES);
+	PAGE_TYPE(FIL_PAGE_TYPE_BLOB);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZBLOB);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZBLOB2);
+	PAGE_TYPE(FIL_PAGE_TYPE_UNKNOWN);
+	PAGE_TYPE(FIL_PAGE_COMPRESSED);
+	PAGE_TYPE(FIL_PAGE_ENCRYPTED);
+	PAGE_TYPE(FIL_PAGE_COMPRESSED_AND_ENCRYPTED);
+	PAGE_TYPE(FIL_PAGE_ENCRYPTED_RTREE);
+	PAGE_TYPE(FIL_PAGE_SDI_BLOB);
+	PAGE_TYPE(FIL_PAGE_SDI_ZBLOB);
+	PAGE_TYPE(FIL_PAGE_TYPE_LOB_INDEX);
+	PAGE_TYPE(FIL_PAGE_TYPE_LOB_DATA);
+	PAGE_TYPE(FIL_PAGE_TYPE_LOB_FIRST);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FIRST);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_DATA);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_INDEX);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FRAG);
+	PAGE_TYPE(FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY);
+	}
+	ut_ad(0);
+	return("UNKNOWN");
+}
+

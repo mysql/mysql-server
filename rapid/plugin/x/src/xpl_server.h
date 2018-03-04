@@ -1,42 +1,51 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef _XPL_SERVER_H_
 #define _XPL_SERVER_H_
 
+#include <atomic>
 #include <string>
 #include <vector>
 
-#include "mysql_show_variable_wrapper.h"
 #include "mysql/plugin.h"
-#include "ngs_common/atomic.h"
-#include "ngs_common/connection_vio.h"
-#include "ngs/memory.h"
-#include "ngs/scheduler.h"
-#include "ngs/server.h"
-#include "xpl_client.h"
-#include "xpl_global_status_variables.h"
-#include "xpl_session.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs/server.h"
+#include "plugin/x/ngs/include/ngs_common/atomic.h"
+#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/src/mysql_show_variable_wrapper.h"
+#include "plugin/x/src/sha256_password_cache.h"
+#include "plugin/x/src/xpl_client.h"
+#include "plugin/x/src/xpl_global_status_variables.h"
+#include "plugin/x/src/xpl_session.h"
 
 
 namespace xpl
 {
+
+extern std::atomic<bool> g_cache_plugin_started;
 
 class Session;
 class Sql_data_context;
@@ -76,6 +85,11 @@ public:
   template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
   static void global_status_variable(THD *thd, st_mysql_show_var *var, char *buff);
 
+  template <typename Copy_type,
+           void (ngs::Client_interface::*method)(const Copy_type value)>
+  static void thd_variable(THD *thd, st_mysql_sys_var*, void *tgt,
+                           const void *save);
+
   ngs::Server &server() { return m_server; }
 
   ngs::Error_code kill_client(uint64_t client_id, Session &requester);
@@ -93,6 +107,10 @@ public:
     return instance ? Server_ptr(ngs::allocate_object<Server_with_lock>(ngs::ref(*instance), ngs::ref(instance_rwl))) : Server_ptr();
   }
 
+  SHA256_password_cache &get_sha256_password_cache() {
+    return m_sha256_password_cache;
+  }
+
 private:
   static Client_ptr      get_client_by_thd(Server_ptr &server, THD *thd);
   static void            verify_mysqlx_user_grants(Sql_data_context &context);
@@ -105,6 +123,7 @@ private:
   bool on_verify_server_state();
 
   void plugin_system_variables_changed();
+  void update_global_timeout_values();
 
   virtual ngs::shared_ptr<ngs::Client_interface>  create_client(ngs::Connection_ptr connection);
   virtual ngs::shared_ptr<ngs::Session_interface> create_session(ngs::Client_interface &client,
@@ -118,6 +137,9 @@ private:
   virtual void on_client_closed(const ngs::Client_interface &client);
   virtual bool is_terminating() const;
 
+  void register_udfs();
+  void unregister_udfs();
+
   static Server*      instance;
   static ngs::RWLock  instance_rwl;
   static MYSQL_PLUGIN plugin_ref;
@@ -130,9 +152,12 @@ private:
   ngs::shared_ptr<ngs::Scheduler_dynamic> m_nscheduler;
   ngs::Mutex  m_accepting_mutex;
   ngs::Server m_server;
+  std::set<std::string> m_udf_names;
 
   static bool exiting;
   static bool is_exiting();
+
+  SHA256_password_cache m_sha256_password_cache;
 };
 
 
@@ -264,6 +289,32 @@ void Server::global_status_variable(THD*, st_mysql_show_var *var, char *buff)
   ReturnType result = ((*context).*method)();
 
   mysqld::xpl_show_var(var).assign(result);
+}
+
+template <typename Copy_type,
+         void (ngs::Client_interface::*method)(const Copy_type value)>
+void Server::thd_variable(THD *thd, st_mysql_sys_var* sys_var, void *tgt,
+                          const void *save) {
+  // Lets copy the data to mysqld storage
+  // this is going to allow following to return correct value:
+  // SHOW SESSION VARIABLE LIKE '**var-name**';
+  *static_cast<Copy_type*>(tgt) = *static_cast<const Copy_type*>(save);
+
+  // Lets make our own copy of it
+  Server_ptr server(get_instance());
+  if (server)
+  {
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
+
+    Client_ptr client = get_client_by_thd(server, thd);
+    if (client)
+      ((*client).*method)(*static_cast<Copy_type*>(tgt));
+
+    // We should store the variables values so that they can be set when new
+    // client is connecting. This is done through a registered
+    // update_global_timeout_values callback.
+    Plugin_system_variables::update_func<Copy_type>(thd, sys_var, tgt, save);
+  }
 }
 
 } // namespace xpl

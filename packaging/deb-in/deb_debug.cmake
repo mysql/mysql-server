@@ -1,17 +1,24 @@
 # Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 SET (DEB_RULES_DEBUG_CMAKE
 "
@@ -67,8 +74,10 @@ SET (DEB_INSTALL_DEBUG_SERVER_PLUGINS
 usr/lib/mysql/plugin/debug/adt_null.so
 usr/lib/mysql/plugin/debug/auth_socket.so
 usr/lib/mysql/plugin/debug/authentication_ldap_sasl_client.so
+usr/lib/mysql/plugin/debug/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/debug/component_log_sink_json.so
 usr/lib/mysql/plugin/debug/component_log_sink_syseventlog.so
+usr/lib/mysql/plugin/debug/component_validate_password.so
 usr/lib/mysql/plugin/debug/group_replication.so
 usr/lib/mysql/plugin/debug/connection_control.so
 usr/lib/mysql/plugin/debug/innodb_engine.so
@@ -117,6 +126,7 @@ usr/lib/mysql/plugin/debug/libtest_framework.so
 usr/lib/mysql/plugin/debug/libtest_services.so
 usr/lib/mysql/plugin/debug/libtest_services_threaded.so
 usr/lib/mysql/plugin/debug/libtest_session_detach.so
+usr/lib/mysql/plugin/debug/libtest_session_attach.so
 usr/lib/mysql/plugin/debug/libtest_session_info.so
 usr/lib/mysql/plugin/debug/libtest_session_in_thd.so
 usr/lib/mysql/plugin/debug/libtest_sql_2_sessions.so
@@ -141,6 +151,7 @@ usr/lib/mysql/plugin/debug/qa_auth_server.so
 usr/lib/mysql/plugin/debug/replication_observers_example_plugin.so
 usr/lib/mysql/plugin/debug/rewrite_example.so
 usr/lib/mysql/plugin/debug/test_udf_services.so
+usr/lib/mysql/plugin/debug/udf_example.so
 usr/lib/mysql/plugin/debug/test_security_context.so
 usr/lib/mysql/plugin/debug/test_services_plugin_registry.so
 usr/lib/mysql/plugin/debug/component_test_status_var_service.so

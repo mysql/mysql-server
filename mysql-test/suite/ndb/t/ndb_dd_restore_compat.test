@@ -30,11 +30,9 @@ SHOW CREATE TABLE t1;
 drop table t1;
 
 ALTER TABLESPACE ts
-DROP DATAFILE 'datafile.dat'
-ENGINE NDB;
+DROP DATAFILE 'datafile.dat';
 
-drop tablespace ts
-engine ndb;
+drop tablespace ts;
 
 drop logfile group lg
 engine ndb;

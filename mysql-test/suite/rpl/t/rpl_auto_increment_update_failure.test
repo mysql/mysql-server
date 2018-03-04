@@ -1,2 +1,211 @@
---source include/not_windows.inc
---source extra/rpl_tests/rpl_auto_increment_update_failure.inc
+#
+# Bug45677
+# This test verifies the following two properties:
+# P1) insert/update in an autoinc column causes statement to 
+#     be logged in row format if binlog_format=mixed.
+# P2) if binlog_format=mixed, and a trigger or function contains 
+#     two or more inserts/updates in a table that has an autoinc 
+#     column, then the slave should not go out of sync, even if 
+#     there are concurrent transactions.
+# 
+# Property (P1) is tested by executing an insert and an update on 
+# a table that has an autoinc column, and verifying that these 
+# statements result in row events in the binlog.
+# Property (P2) is tested by setting up the test scenario and 
+# verifying that the tables are identical on master and slave.
+#
+
+--source include/not_group_replication_plugin.inc
+source include/have_binlog_format_mixed.inc;
+source include/master-slave.inc;
+
+--echo # Test case1: INVOKES A TRIGGER with after insert action
+let $trigger_action = after insert;
+source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+
+--echo # Test case2: INVOKES A TRIGGER with before insert action
+let $trigger_action = before insert;
+source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+
+--echo # Test case3: INVOKES A TRIGGER with after update action
+let $trigger_action = after update;
+source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+
+--echo # Test case4: INVOKES A TRIGGER with before update action
+let $trigger_action = before update;
+source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+
+--echo # Test case5: INVOKES A TRIGGER with after delete action
+let $trigger_action = after delete;
+source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+
+--echo # Test case6: INVOKES A TRIGGER with before delete action
+let $trigger_action = before delete;
+source extra/rpl_tests/rpl_auto_increment_invoke_trigger.test;
+
+--echo # Test case7: CALLS A FUNCTION which INVOKES A TRIGGER with after insert action
+let $insert_action = after insert;
+source extra/rpl_tests/rpl_autoinc_func_invokes_trigger.test;
+
+--echo # Test case8: CALLS A FUNCTION which INVOKES A TRIGGER with before insert action
+let $insert_action = before insert;
+source extra/rpl_tests/rpl_autoinc_func_invokes_trigger.test;
+
+--echo # Test case9: INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS with after insert action
+let $insert_action = after insert;
+source extra/rpl_tests/rpl_auto_increment_insert_view.test;
+
+--echo # Test case10: INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS with before insert action
+let $insert_action = before insert;
+source extra/rpl_tests/rpl_auto_increment_insert_view.test;
+
+--echo # Test case11: INVOKES A FUNCTION TO INSERT TWO OR MORE VALUES INTO A TABLE WITH AUTOINC COLUMN
+connection master;
+create table t1(a int) engine=innodb;
+create table t2(i1 int not null auto_increment, a int, primary key(i1)) engine=innodb;
+delimiter //;
+CREATE FUNCTION f1_two_inserts() RETURNS INTEGER
+BEGIN
+   INSERT INTO t2(a) values(2);
+   INSERT INTO t2(a) values(2);
+   RETURN 1;
+END//
+delimiter ;//
+begin;
+insert into t1(a) values(f1_two_inserts());
+
+connection master1;
+#The default autocommit is set to 1, so the statement is auto committed
+insert into t2(a) values(4),(5);
+
+connection master;
+commit;
+insert into t1(a) values(f1_two_inserts());
+commit;
+
+connection master;
+--echo #Test result for INVOKES A FUNCTION TO INSERT TWO OR MORE VALUES on master
+select * from t2 ORDER BY i1;
+
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+--echo #Test result for INVOKES A FUNCTION TO INSERT TWO OR MORE VALUES on slave
+select * from t2 ORDER BY i1;
+
+connection master;
+drop table t1;
+drop table t2;
+drop function f1_two_inserts;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Test case12: INVOKES A FUNCTION TO UPDATE TWO OR MORE VALUES OF A TABLE WITH AUTOINC COLUMN
+connection master;
+create table t1(a int) engine=innodb;
+create table t2(i1 int not null auto_increment, a int, b int, primary key(i1)) engine=innodb;
+delimiter //;
+CREATE FUNCTION f1_two_updates() RETURNS INTEGER
+BEGIN
+   update t2 set a = a + 5 where b = 1;
+   update t2 set a = a + 5 where b = 2;
+   update t2 set a = a + 5 where b = 3;
+   update t2 set a = a + 5 where b = 4;
+   RETURN 1;
+END//
+delimiter ;//
+
+connection master1;
+#The default autocommit is set to 1, so the statement is auto committed
+insert into t2(a,b) values(1,1);
+insert into t2(a,b) values(2,2);
+insert into t2(a,b) values(3,3);
+insert into t2(a,b) values(4,4);
+insert into t1(a) values(f1_two_updates());
+
+connection master;
+begin;
+insert into t1(a) values(f1_two_updates());
+commit;
+
+connection master;
+--echo #Test result for INVOKES A FUNCTION TO UPDATE TWO OR MORE VALUES on master
+select * from t2 ORDER BY i1;
+
+--source include/sync_slave_sql_with_master.inc
+connection slave;
+--echo #Test result for INVOKES A FUNCTION TO UPDATE TWO OR MORE VALUES on slave
+select * from t2 ORDER BY i1;
+
+connection master;
+drop table t1;
+drop table t2;
+drop function f1_two_updates;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Test case13: UPDATE MORE THAN ONE TABLES ON TOP-STATEMENT
+connection master;
+create table t1(i1 int not null auto_increment, a int, b int, primary key(i1)) engine=innodb;
+create table t2(i1 int not null auto_increment, a int, b int, primary key(i1)) engine=innodb;
+begin;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+insert into t1(a,b) values(1,1),(2,2);
+insert into t2(a,b) values(1,1),(2,2);
+update t1,t2 set t1.a=t1.a+5, t2.a=t2.a+5 where t1.b=t2.b;
+insert into t1(a,b) values(3,3);
+insert into t2(a,b) values(3,3);
+commit;
+--echo # To verify if it works fine when these statements are not be marked as unsafe
+source include/show_binlog_events.inc;
+
+--source include/sync_slave_sql_with_master.inc
+--echo #Test if the results are consistent on master and slave
+--echo #for 'UPDATE MORE THAN ONE TABLES ON TOP-STATEMENT'
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+let $diff_tables= master:t2, slave:t2;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+drop table t2;
+--source include/sync_slave_sql_with_master.inc
+
+--echo # Test case14: INSERT DATA INTO VIEW WHICH INVOLVED MORE THAN ONE TABLES
+connection master;
+CREATE TABLE t1(i1 int not null auto_increment, c1 INT, primary key(i1)) engine=innodb;
+CREATE TABLE t2(i1 int not null auto_increment, c2 INT, primary key(i1)) engine=innodb;
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+begin;
+INSERT INTO t1(c1) VALUES (11), (12);
+INSERT INTO t2(c2) VALUES (13), (14);
+
+CREATE VIEW v15 AS SELECT c1, c2 FROM t1, t2;
+
+INSERT INTO v15(c1) VALUES (15),(16);
+INSERT INTO v15(c2) VALUES (17),(18);
+
+connection master1;
+INSERT INTO v15(c1) VALUES (19),(20);
+INSERT INTO v15(c2) VALUES (21),(22);
+
+connection master;
+INSERT INTO v15(c1) VALUES (23), (24);
+INSERT INTO v15(c2) VALUES (25), (26);
+commit;
+--echo # To verify if it works fine when these statements are not be marked as unsafe
+source include/show_binlog_events.inc;
+
+--source include/sync_slave_sql_with_master.inc
+--echo #Test if the results are consistent on master and slave
+--echo #for 'INSERT DATA INTO VIEW WHICH INVOLVED MORE THAN ONE TABLES'
+let $diff_tables= master:t1, slave:t1;
+source include/diff_tables.inc;
+let $diff_tables= master:t2, slave:t2;
+source include/diff_tables.inc;
+
+connection master;
+drop table t1;
+drop table t2;
+drop view  v15;
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc

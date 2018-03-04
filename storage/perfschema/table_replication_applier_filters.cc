@@ -2,13 +2,20 @@
   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -25,14 +32,14 @@
 
 #include "my_compiler.h"
 #include "my_dbug.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
 #include "sql/rpl_rli.h"
 #include "sql/rpl_slave.h"
 #include "sql/sql_parse.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
 
 THR_LOCK table_replication_applier_filters::m_table_lock;
 
@@ -98,9 +105,9 @@ table_replication_applier_filters::reset_position(void)
 ha_rows
 table_replication_applier_filters::get_row_count()
 {
-  rpl_filter_map.rdlock();
-  uint count = rpl_filter_map.get_filter_count();
-  rpl_filter_map.unlock();
+  rpl_channel_filters.rdlock();
+  uint count = rpl_channel_filters.get_filter_count();
+  rpl_channel_filters.unlock();
 
   return count;
 }
@@ -111,11 +118,11 @@ table_replication_applier_filters::rnd_next(void)
   int res = HA_ERR_END_OF_FILE;
   Rpl_pfs_filter *rpl_pfs_filter = NULL;
 
-  rpl_filter_map.wrlock();
+  rpl_channel_filters.rdlock();
   for (m_pos.set_at(&m_next_pos); res != 0; m_pos.next())
   {
-    /* Get ith rpl_pfs_filter from rpl_filter_map. */
-    rpl_pfs_filter = rpl_filter_map.get_filter_at_pos(m_pos.m_index);
+    /* Get ith rpl_pfs_filter from rpl_channel_filters. */
+    rpl_pfs_filter = rpl_channel_filters.get_filter_at_pos(m_pos.m_index);
 
     if (rpl_pfs_filter == NULL)
     {
@@ -128,7 +135,7 @@ table_replication_applier_filters::rnd_next(void)
       res = 0;
     }
   }
-  rpl_filter_map.unlock();
+  rpl_channel_filters.unlock();
 
   return res;
 }
@@ -141,15 +148,15 @@ table_replication_applier_filters::rnd_pos(const void *pos)
 
   set_position(pos);
 
-  rpl_filter_map.wrlock();
-  /* Get ith rpl_pfs_filter from rpl_filter_map. */
-  rpl_pfs_filter = rpl_filter_map.get_filter_at_pos(m_pos.m_index - 1);
+  rpl_channel_filters.rdlock();
+  /* Get ith rpl_pfs_filter from rpl_channel_filters. */
+  rpl_pfs_filter = rpl_channel_filters.get_filter_at_pos(m_pos.m_index - 1);
   if (rpl_pfs_filter)
   {
     make_row(rpl_pfs_filter);
     ret = 0;
   }
-  rpl_filter_map.unlock();
+  rpl_channel_filters.unlock();
 
   return ret;
 }
@@ -173,12 +180,12 @@ table_replication_applier_filters::make_row(Rpl_pfs_filter *rpl_pfs_filter)
     m_row.filter_rule.copy(rpl_pfs_filter->get_filter_rule());
 
   m_row.configured_by =
-    rpl_pfs_filter->m_rpl_filter_statistics.get_configured_by();
+    rpl_pfs_filter->get_rpl_filter_statistics()->get_configured_by();
 
   m_row.active_since =
-    rpl_pfs_filter->m_rpl_filter_statistics.get_active_since();
+    rpl_pfs_filter->get_rpl_filter_statistics()->get_active_since();
 
-  m_row.counter = rpl_pfs_filter->m_rpl_filter_statistics.get_counter();
+  m_row.counter = rpl_pfs_filter->get_rpl_filter_statistics()->get_counter();
 
   m_row_exists = true;
 }

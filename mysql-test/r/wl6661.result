@@ -27,7 +27,7 @@ SELECT @@global.log_error_verbosity;
 SET GLOBAL log_error_verbosity=DEFAULT;
 SELECT @@global.log_error_verbosity;
 @@global.log_error_verbosity
-3
+2
 
 # Spec 4c "range"
 SET GLOBAL log_error_verbosity=0;
@@ -126,7 +126,7 @@ UTC
 # Spec D  "ISO 8601 / RFC 3339 compliant timestamps"
 #
 # error log:
-DATE_TIME [Note] Access denied for user 'mysqltest_3_yeslog'@'localhost' (using password: NO)
+DATE_TIME [Note] [MY-010926] Access denied for user 'mysqltest_3_yeslog'@'localhost' (using password: NO)
 
 
 # cleanup

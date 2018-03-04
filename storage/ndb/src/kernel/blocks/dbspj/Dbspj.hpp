@@ -2,17 +2,24 @@
    Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #ifndef DBSPJ_H
@@ -474,10 +481,10 @@ public:
     STATIC_CONST( SIZE = GLOBAL_PAGE_SIZE_WORDS - 7 );
   };
   typedef ArrayPool<RowPage> RowPage_pool;
-  typedef SLList<RowPage, RowPage_pool> RowPage_list;
-  typedef LocalSLList<RowPage, RowPage_pool> Local_RowPage_list;
-  typedef DLFifoList<RowPage, RowPage_pool> RowPage_fifo;
-  typedef LocalDLFifoList<RowPage, RowPage_pool> Local_RowPage_fifo;
+  typedef SLList<RowPage_pool> RowPage_list;
+  typedef LocalSLList<RowPage_pool> Local_RowPage_list;
+  typedef DLFifoList<RowPage_pool> RowPage_fifo;
+  typedef LocalDLFifoList<RowPage_pool> Local_RowPage_fifo;
 
   typedef Tup_varsize_page Var_page;
 
@@ -702,9 +709,9 @@ public:
     };
   };
 
-  typedef RecordPool<ScanFragHandle, ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
-  typedef SLFifoList<ScanFragHandle, ScanFragHandle_pool> ScanFragHandle_list;
-  typedef LocalSLFifoList<ScanFragHandle, ScanFragHandle_pool> Local_ScanFragHandle_list;
+  typedef RecordPool<ArenaPool<ScanFragHandle> > ScanFragHandle_pool;
+  typedef SLFifoList<ScanFragHandle_pool> ScanFragHandle_list;
+  typedef LocalSLFifoList<ScanFragHandle_pool> Local_ScanFragHandle_list;
 
   /**
    * This class computes mean and standard deviation incrementally for a series
@@ -1071,13 +1078,13 @@ public:
 
   static const Ptr<TreeNode> NullTreeNodePtr;
 
-  typedef RecordPool<TreeNode, ArenaPool<TreeNode> > TreeNode_pool;
-  typedef DLFifoList<TreeNode, TreeNode_pool> TreeNode_list;
-  typedef LocalDLFifoList<TreeNode, TreeNode_pool> Local_TreeNode_list;
+  typedef RecordPool<ArenaPool<TreeNode> > TreeNode_pool;
+  typedef DLFifoList<TreeNode_pool> TreeNode_list;
+  typedef LocalDLFifoList<TreeNode_pool> Local_TreeNode_list;
 
-  typedef SLList<TreeNode, TreeNode_pool, TreeNode_cursor_ptr>
+  typedef SLList<TreeNode_pool, TreeNode_cursor_ptr>
   TreeNodeCursor_list;
-  typedef LocalSLList<TreeNode, TreeNode_pool, TreeNode_cursor_ptr>
+  typedef LocalSLList<TreeNode_pool, TreeNode_cursor_ptr>
   Local_TreeNodeCursor_list;
 
   /**
@@ -1281,11 +1288,11 @@ private:
 
   } c_Counters;
 
-  typedef RecordPool<Request, ArenaPool<Request> > Request_pool;
-  typedef DLList<Request, Request_pool> Request_list;
-  typedef LocalDLList<Request, Request_pool> Local_Request_list;
-  typedef DLHashTable<Request_pool, Request> Request_hash;
-  typedef DLHashTable<Request_pool, Request>::Iterator Request_iterator;
+  typedef RecordPool<ArenaPool<Request> > Request_pool;
+  typedef DLList<Request_pool> Request_list;
+  typedef LocalDLList<Request_pool> Local_Request_list;
+  typedef DLHashTable<Request_pool> Request_hash;
+  typedef DLHashTable<Request_pool>::Iterator Request_iterator;
 
   ArenaAllocator m_arenaAllocator;
   Request_pool m_request_pool;

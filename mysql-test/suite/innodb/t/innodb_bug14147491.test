@@ -11,10 +11,10 @@ source include/not_crashrep.inc;
 source include/have_debug.inc;
 
 --disable_query_log
-CALL mtr.add_suppression("\\[ERROR\\] \\[FATAL\\] InnoDB: Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk or a failed");
+CALL mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[FATAL\\] InnoDB: Unable to read page \\[page id: space=.*, page number=.*\\] into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Database page corruption on disk or a failed");
 # ib::fatal() calls ut_error
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Assertion failure: ut0ut\.cc:");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Assertion failure: ut0ut\.cc:");
 --enable_query_log
 
 # Disable compression for this table, otherwise our pattern matching below

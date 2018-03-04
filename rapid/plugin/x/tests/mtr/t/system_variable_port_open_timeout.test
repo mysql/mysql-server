@@ -1,14 +1,17 @@
 ## Test configuration
 ##
---let $dont_load_plugin = 1
---let $wait_for_unixsocket_status = no_wait
---let $wait_for_tcpsocket_status = no_wait
+--let $dont_load_mysqlx_plugin = 1
 --source include/xplugin_preamble.inc
 
 call mtr.add_suppression("option 'mysqlx-port-open-timeout': value -1 adjusted to 0");
 call mtr.add_suppression("option 'mysqlx-port-open-timeout': unsigned value 10000 adjusted to 120");
 call mtr.add_suppression("option 'mysqlx-port-open-timeout': unsigned value 2147483648 adjusted to 120");
 call mtr.add_suppression("option 'mysqlx-port-open-timeout': unsigned value 1024 adjusted to 120");
+call mtr.add_suppression("used for variable 'mysqlx-port-open-timeout'");
+call mtr.add_suppression("Error while setting value '2.*40' to 'mysqlx-port-open-timeout'");
+call mtr.add_suppression("Error while setting value 'TRUE' to 'mysqlx-port-open-timeout'");
+call mtr.add_suppression("Error while setting value 'INVALID' to 'mysqlx-port-open-timeout'");
+call mtr.add_suppression("Parsing options for plugin 'mysqlx' failed");
 
 
 ## Test body
@@ -120,7 +123,6 @@ SELECT COUNT(@@SESSION.Mysqlx_port_open_timeout);
 UNINSTALL PLUGIN `mysqlx`;
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
---let $dont_load_plugin = 1
 --let $restart_parameters = restart: --loose-mysqlx-port-open-timeout="INVALID"
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --let $wait_for_tcpsocket_status = no_wait
@@ -130,6 +132,7 @@ UNINSTALL PLUGIN `mysqlx`;
 --let $assert_text= Mysqlx_port_open_timeout global variablem shouldn't exist
 --let $assert_cond= [SELECT COUNT(*) as Result from performance_schema.global_variables WHERE VARIABLE_NAME ="Mysqlx_port_open_timeout";, Result, 1] =0
 --source include/assert.inc
+UNINSTALL PLUGIN `mysqlx`;
 
 
 # Before setting invalid values we need to uninstall plugin
@@ -137,7 +140,6 @@ UNINSTALL PLUGIN `mysqlx`;
 # Invalid should be handled as zero
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
---let $dont_load_plugin = 1
 --let $restart_parameters = restart: --loose-mysqlx-port-open-timeout=TRUE
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --let $wait_for_tcpsocket_status = no_wait
@@ -147,6 +149,7 @@ UNINSTALL PLUGIN `mysqlx`;
 --let $assert_text= Mysqlx_port_open_timeout global variablem shouldn't exist
 --let $assert_cond= [SELECT COUNT(*) as Result from performance_schema.global_variables WHERE VARIABLE_NAME ="Mysqlx_port_open_timeout";, Result, 1] =0
 --source include/assert.inc
+UNINSTALL PLUGIN `mysqlx`;
 
 
 # Before setting invalid values we need to uninstall plugin
@@ -154,7 +157,6 @@ UNINSTALL PLUGIN `mysqlx`;
 # Invalid should be handled as zero
 --let $wait_for_tcpsocket_status = no_wait
 --let $wait_for_unixsocket_status = no_wait
---let $dont_load_plugin = 1
 --let $restart_parameters = restart: --loose-mysqlx-port-open-timeout=2*40
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 --let $wait_for_tcpsocket_status = no_wait
@@ -164,6 +166,7 @@ UNINSTALL PLUGIN `mysqlx`;
 --let $assert_text= Mysqlx_port_open_timeout global variablem shouldn't exist
 --let $assert_cond= [SELECT COUNT(*) as Result from performance_schema.global_variables WHERE VARIABLE_NAME ="Mysqlx_port_open_timeout";, Result, 1] =0
 --source include/assert.inc
+UNINSTALL PLUGIN `mysqlx`;
 
 
 ## Cleanup

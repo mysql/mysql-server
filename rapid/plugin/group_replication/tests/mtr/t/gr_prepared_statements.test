@@ -42,16 +42,21 @@ DEALLOCATE PREPARE stmt1;
 DEALLOCATE PREPARE stmt2;
 DEALLOCATE PREPARE stmt3;
 
+--source include/rpl_sync.inc
+
 # Connect to server2
 --echo
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-# Wait for t1 to be available
---let $wait_condition= SELECT COUNT(*)=1 FROM information_schema.tables WHERE table_schema = 'test' AND table_name = 't1';
---source include/wait_condition.inc
-# Wait for the records to get synced
---let $wait_condition= SELECT COUNT(*)=3 FROM test.t1;
---source include/wait_condition.inc
+
+--let $assert_text= 'Check table t1 exist on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_SCHEMA=\"test\" AND TABLE_NAME=\"t1\"]" = 1
+--source include/assert.inc
+
+--let $assert_text= 'Check all records exists on server 2'
+--let $assert_cond= "[SELECT COUNT(*) FROM test.t1]" = 3
+--source include/assert.inc
+
 # Create a prepared statement to insert
 PREPARE stmt4 FROM "INSERT INTO t1(a) value (?)";
 # Insert data
@@ -89,13 +94,17 @@ DEALLOCATE PREPARE stmt5;
 DEALLOCATE PREPARE stmt6;
 DEALLOCATE PREPARE stmt7;
 
+--source include/rpl_sync.inc
+
 # Connect to server1 and verify the data with server2
 --echo
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
-# Wait for the records to get synced
---let $wait_condition= SELECT COUNT(*)=4 FROM test.t1;
---source include/wait_condition.inc
+
+--let $assert_text= 'Check all records exists on server 1'
+--let $assert_cond= "[SELECT COUNT(*) FROM test.t1 WHERE a>10]" = 4
+--source include/assert.inc
+
 # Create a prepared statement to select
 PREPARE stmt8 FROM "SELECT * FROM t1";
 EXECUTE stmt8;

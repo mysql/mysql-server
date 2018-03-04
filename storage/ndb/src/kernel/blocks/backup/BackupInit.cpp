@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -143,6 +150,7 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_LCP_PREPARE_REQ, &Backup::execLCP_PREPARE_REQ);
   addRecSignal(GSN_END_LCPREQ, &Backup::execEND_LCPREQ);
 
+  addRecSignal(GSN_SYNC_PAGE_WAIT_REP, &Backup::execSYNC_PAGE_WAIT_REP);
   addRecSignal(GSN_SYNC_PAGE_CACHE_CONF, &Backup::execSYNC_PAGE_CACHE_CONF);
   addRecSignal(GSN_SYNC_EXTENT_PAGES_CONF,
                &Backup::execSYNC_EXTENT_PAGES_CONF);
@@ -223,9 +231,12 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
 			    &c_defaults.m_compressed_lcp);
 
-  m_enable_partial_lcp = 0; /* Default to disabled */
+  m_enable_partial_lcp = 1; /* Default to enabled */
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
                             &m_enable_partial_lcp);
+
+  m_recovery_work = 50; /* Default to 50% */
+  ndb_mgm_get_int_parameter(p, CFG_DB_RECOVERY_WORK, &m_recovery_work);
 
   calculate_real_disk_write_speed_parameters();
 
@@ -256,7 +267,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
    */
   c_nodePool.setSize(MAX_NDB_NODES);
   c_backupPool.setSize(noBackups + 1);
-  c_backupFilePool.setSize(3 * noBackups + 6);
+  c_backupFilePool.setSize(3 * noBackups +
+                           4 + (2*BackupFormat::NDB_MAX_FILES_PER_LCP));
   c_tablePool.setSize(noBackups * noTables + 2);
   c_triggerPool.setSize(noBackups * 3 * noTables);
   c_fragmentPool.setSize(noBackups * noFrags + 2);
@@ -274,19 +286,27 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   jam();
 
   const Uint32 DEFAULT_WRITE_SIZE = (256 * 1024);
-  const Uint32 DEFAULT_MAX_WRITE_SIZE = (1024 * 1024);
-  const Uint32 DEFAULT_BUFFER_SIZE = (2 * 1024 * 1024);
+  const Uint32 DEFAULT_MAX_WRITE_SIZE = (512 * 1024);
+  const Uint32 DEFAULT_BUFFER_SIZE = (512 * 1024);
 
   Uint32 szDataBuf = DEFAULT_BUFFER_SIZE;
   Uint32 szLogBuf = DEFAULT_BUFFER_SIZE;
   Uint32 szWrite = DEFAULT_WRITE_SIZE;
   Uint32 maxWriteSize = DEFAULT_MAX_WRITE_SIZE;
 
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
-  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
+  /**
+   * We make the backup data buffer, write size and max write size hard coded.
+   * The sizes are large enough to provide enough bandwidth on hard drives.
+   * On SSD the defaults will be just fine. By limiting the backup data buffer
+   * size we avoid that we spend a lot of CPU resources to fill up the data
+   * buffer where there is anyways no room to write it out to the file.
+   *
+   * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_DATA_BUFFER_MEM, &szDataBuf);
+   * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
+   * ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
+   */
 
+  ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   if (maxWriteSize < szWrite)
   {
     /**
@@ -339,7 +359,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   /**
    * We allocate szDataBuf + szLogBuf pages for Backups and
-   * szDataBuf * 2 pages for LCPs.
+   * szDataBuf * 16 pages for LCPs.
    * We also need pages for 3 CTL files for LCP and one file for
    * delete LCP process (2 per file),
    * for backups the meta data file uses NO_OF_PAGES_META_FILE.
@@ -349,7 +369,8 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noPages =
     (szDataBuf + sizeof(Page32) - 1) / sizeof(Page32) +
     (szLogBuf + sizeof(Page32) - 1) / sizeof(Page32) +
-    (2 * ((c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) /
+    ((2 * BackupFormat::NDB_MAX_FILES_PER_LCP) * 
+      ((c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) /
            sizeof(Page32)));
 
   Uint32 seizeNumPages = noPages + (1*NO_OF_PAGES_META_FILE)+ 9;

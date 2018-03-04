@@ -121,6 +121,7 @@ CALL p11(10, UUID());
 --enable_warnings
 --connection server1
 # Scheduler is on
+SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL EVENT_SCHEDULER = on;
 # Wait while events will executed
 ALTER EVENT e1 ENABLE;
@@ -137,7 +138,7 @@ ALTER EVENT e1 ENABLE;
 #
 --let $wait_condition= SELECT status="DISABLED" FROM information_schema.events WHERE event_schema='test' AND event_name="e1"
 --source include/wait_condition_or_abort.inc
-SET GLOBAL EVENT_SCHEDULER = off;
+SET GLOBAL EVENT_SCHEDULER = @old_event_scheduler;
 
 --source include/rpl_sync.inc
 # Check original objects

@@ -38,8 +38,8 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL);
 --echo
 --echo ###########################################################
 --echo # Scenario 1: UNIQUE NOT NULL KEY, conflicting case
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES (1, 2)
 --let $remote_transaction=INSERT INTO t1 VALUES (3, 2)
@@ -49,8 +49,8 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT UNIQUE KEY NOT NULL);
 --echo
 --echo ############################################################
 --echo # Scenario 2: UNIQUE NOT NULL KEY, non-conflicting case
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction=INSERT INTO t1 VALUES (5, 6)
 --let $remote_transaction=INSERT INTO t1 VALUES (7, 8)

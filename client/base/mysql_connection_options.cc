@@ -2,13 +2,20 @@
    Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -17,7 +24,6 @@
 
 #include "client/base/mysql_connection_options.h"
 
-#include <mysys_err.h>
 #include <stdlib.h>
 #include <functional>
 #include <sstream>
@@ -114,6 +120,8 @@ void Mysql_connection_options::create_options()
     "Directory for client-side plugins.");
   this->create_new_option(&this->m_default_auth, "default_auth",
     "Default authentication client-side plugin to use.");
+  this->create_new_option(&this->m_server_public_key, "server_public_key_path",
+    "Path to file containing server public key");
   this->create_new_option(&this->m_get_server_public_key,
     "get-server-public-key",
     "Get public key from server");
@@ -158,6 +166,9 @@ MYSQL* Mysql_connection_options::create_connection()
   mysql_options(connection, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(connection, MYSQL_OPT_CONNECT_ATTR_ADD,
                   "program_name", this->m_program->get_name().c_str());
+
+  mysql_options(connection, MYSQL_SERVER_PUBLIC_KEY,
+                this->get_null_or_string(this->m_user));
 
   if (this->m_get_server_public_key)
     mysql_options(connection, MYSQL_OPT_GET_SERVER_PUBLIC_KEY,

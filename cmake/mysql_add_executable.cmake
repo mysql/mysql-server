@@ -1,17 +1,24 @@
 # Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # Add executable plus some additional MySQL specific stuff
 # Usage (same as for standard CMake's ADD_EXECUTABLE)
@@ -25,7 +32,6 @@
 #   ADD_TEST     add a unit test with given name (and add SKIP_INSTALL)
 # On Windows :
 # - add version resource
-# - instruct CPack to do autenticode signing if SIGNCODE is set
 #
 # All executables are built in ${CMAKE_BINARY_DIR}/runtime_output_directory
 # (can be overridden by the RUNTIME_OUTPUT_DIRECTORY option).
@@ -58,15 +64,29 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
   ADD_EXECUTABLE(${target} ${ARG_WIN32} ${sources})
 
   IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
-    ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
-      COMMAND install_name_tool -change
+    IF(BUILD_IS_SINGLE_CONFIG)
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
               "${CRYPTO_VERSION}" "@loader_path/../lib/${CRYPTO_VERSION}"
               $<TARGET_FILE_NAME:${target}>
-      COMMAND install_name_tool -change
+        COMMAND install_name_tool -change
               "${OPENSSL_VERSION}" "@loader_path/../lib/${OPENSSL_VERSION}"
               $<TARGET_FILE_NAME:${target}>
-      WORKING_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}
+        WORKING_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY}
       )
+    ELSE()
+      ADD_CUSTOM_COMMAND(TARGET ${target} POST_BUILD
+        COMMAND install_name_tool -change
+            "${CRYPTO_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${CRYPTO_VERSION}"
+        $<TARGET_FILE_NAME:${target}>
+        COMMAND install_name_tool -change
+            "${OPENSSL_VERSION}"
+            "@loader_path/../../lib/${CMAKE_CFG_INTDIR}/${OPENSSL_VERSION}"
+        $<TARGET_FILE_NAME:${target}>
+        WORKING_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}
+      )
+    ENDIF()
   ENDIF()
 
   IF(ARG_EXCLUDE_FROM_ALL)
@@ -83,7 +103,7 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
   # Add unit test, do not install it.
   IF (ARG_ADD_TEST)
     ADD_TEST(${ARG_ADD_TEST}
-      ${CMAKE_BINARY_DIR}/runtime_output_directory/${target})
+      ${TARGET_RUNTIME_OUTPUT_DIRECTORY}/${target})
     SET(ARG_SKIP_INSTALL TRUE)
   ENDIF()
 
@@ -98,6 +118,9 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
       SET(COMP COMPONENT ${MYSQL_INSTALL_COMPONENT})
     ELSE()
       SET(COMP COMPONENT Client)
+    ENDIF()
+    IF(LINUX_INSTALL_RPATH_ORIGIN)
+      SET_PROPERTY(TARGET ${target} PROPERTY INSTALL_RPATH "\$ORIGIN/")
     ENDIF()
     MYSQL_INSTALL_TARGETS(${target} DESTINATION ${ARG_DESTINATION} ${COMP})
 #   MESSAGE(STATUS "INSTALL ${target} ${ARG_DESTINATION}")

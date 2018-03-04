@@ -1,26 +1,30 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
 #include <cstring>
 #include <memory>
 
 #include "base64.h"
-#include "base_mock_field.h"
-#include "benchmark.h"
-#include "fake_table.h"
 #include "my_inttypes.h"
 #include "sql/json_binary.h"
 #include "sql/json_diff.h"
@@ -30,7 +34,10 @@
 #include "sql/sql_time.h"
 #include "sql_string.h"
 #include "template_utils.h"     // down_cast
-#include "test_utils.h"
+#include "unittest/gunit/base_mock_field.h"
+#include "unittest/gunit/benchmark.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/test_utils.h"
 
 /**
  Test Json_dom class hierarchy API, cf. json_dom.h
@@ -836,11 +843,6 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate)
     Json_array_ptr array(down_cast<Json_array*>(dom->clone().release()));
     array->remove(i);
     array->insert_clone(i, jint.to_dom(thd()));
-    String dbg;
-    Json_wrapper wp(array->clone());
-    wp.to_string(&dbg, true, "dbg");
-    String dbg2;
-    doc.to_string(&dbg2, true, "dbg2");
     EXPECT_EQ(0, doc.compare(Json_wrapper(std::move(array))));
 
     EXPECT_EQ(TYPE_OK, m_field.store_json(&doc));

@@ -62,7 +62,7 @@ max_questions	0
 max_updates	0
 max_connections	0
 max_user_connections	0
-plugin	mysql_native_password
+plugin	caching_sha2_password
 authentication_string	
 password_expired	N
 password_last_changed	DTVALUE
@@ -146,7 +146,7 @@ max_questions	10
 max_updates	0
 max_connections	0
 max_user_connections	0
-plugin	mysql_native_password
+plugin	caching_sha2_password
 authentication_string	
 password_expired	N
 password_last_changed	DTVALUE
@@ -202,7 +202,7 @@ max_questions	10
 max_updates	20
 max_connections	30
 max_user_connections	0
-plugin	mysql_native_password
+plugin	caching_sha2_password
 authentication_string	
 password_expired	N
 password_last_changed	DTVALUE
@@ -3096,3 +3096,19 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP USER 'untrusted8657'@localhost;
 DROP DATABASE db8657;
+#
+# Regression test added in WL#8063
+#
+CREATE DATABASE db8063;
+CREATE TABLE db8063.t1(a VARCHAR(20));
+CREATE USER 'untrusted8063'@'localhost';
+# Connection con1
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE db8063.t1;
+ERROR 28000: Access denied for user 'untrusted8063'@'localhost' (using password: NO)
+SHOW CREATE TABLE db8063.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(20) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP USER 'untrusted8063'@localhost;
+DROP DATABASE db8063;

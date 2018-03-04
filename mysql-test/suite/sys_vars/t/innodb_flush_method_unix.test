@@ -3,7 +3,7 @@
 select @@innodb_flush_method;
 # Linux tmpfs
 call mtr.add_suppression("InnoDB: Failed to set O_DIRECT");
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to create check sector file*");
+CALL mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to create check sector file*");
 # Solaris
 call mtr.add_suppression("InnoDB: Failed to set DIRECTIO_ON");
 

@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,7 +25,6 @@
 /* maintaince of mysql databases */
 
 #include <fcntl.h>
-#include <my_thread.h>				/* because of signal()	*/
 #include <mysql.h>
 #include <mysqld_error.h>                       /* to check server error codes */
 #include <signal.h>
@@ -26,7 +32,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <time.h>
-#include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <string>
 
 #include "client/client_priv.h"
@@ -36,10 +41,12 @@
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_macros.h"
+#include "my_thread.h"				/* because of signal()	*/
 #include "mysql/service_mysql_alloc.h"
 #include "print_version.h"
 #include "sql_common.h"
 #include "typelib.h"
+#include "welcome_copyright_notice.h"           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #define MAX_MYSQL_VAR 512
 #define SHUTDOWN_DEF_TIMEOUT 3600		/* Wait for shutdown */
@@ -81,7 +88,7 @@ static uint ex_val_max_len[MAX_MYSQL_VAR];
 static bool ex_status_printed = 0; /* First output is not relative. */
 static uint ex_var_count, max_var_length, max_val_length;
 
-#include <sslopt-vars.h>
+#include "sslopt-vars.h"
 
 #include "caching_sha2_passwordopt-vars.h"
 
@@ -219,7 +226,7 @@ static struct my_option my_long_options[] =
   {"sleep", 'i', "Execute commands repeatedly with a sleep between.",
    &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
-#include <sslopt-longopts.h>
+#include "sslopt-longopts.h"
 
 #include "caching_sha2_passwordopt-longopts.h"
 
@@ -300,7 +307,7 @@ get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqladmin.trace");
     break;
-#include <sslopt-case.h>
+#include "sslopt-case.h"
 
   case 'V':
     print_version();
@@ -420,6 +427,7 @@ int main(int argc,char *argv[])
   mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
                 &can_handle_passwords);
 
+  set_server_public_key(&mysql);
   set_get_server_public_key_option(&mysql);
   if (sql_connect(&mysql, option_wait))
   {

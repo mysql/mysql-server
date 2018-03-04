@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__DICTIONARY_IMPL_INCLUDED
 #define DD__DICTIONARY_IMPL_INCLUDED
@@ -85,13 +92,11 @@ public:
 
   virtual uint get_actual_dd_version(THD *thd);
 
-  virtual uint get_actual_dd_version(THD *thd, bool *exists);
-
   static uint get_target_I_S_version();
 
-  static uint get_target_P_S_version();
-
   virtual uint get_actual_I_S_version(THD *thd);
+
+  static uint get_target_P_S_version();
 
   virtual uint get_actual_P_S_version(THD *thd);
 
@@ -107,8 +112,7 @@ public:
   { return (schema_name == MYSQL_SCHEMA_NAME.str); }
 
   virtual bool is_dd_table_name(const String_type &schema_name,
-                               const String_type &table_name) const
-  { return (get_dd_table(schema_name, table_name) != NULL); }
+                               const String_type &table_name) const;
 
   virtual int table_type_error_code(const String_type &schema_name,
                                     const String_type &table_name) const;
@@ -134,11 +138,15 @@ public:
   static Object_id default_catalog_id()
   { return DEFAULT_CATALOG_ID; }
 
+  static Object_id dd_tablespace_id()
+  { return DD_TABLESPACE_ID; }
+
   static const String_type &default_catalog_name()
   { return DEFAULT_CATALOG_NAME; }
 
 private:
   static Object_id DEFAULT_CATALOG_ID;
+  static Object_id DD_TABLESPACE_ID;
   static const String_type DEFAULT_CATALOG_NAME;
 };
 

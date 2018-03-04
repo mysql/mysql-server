@@ -59,7 +59,7 @@ let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo
 # Search for perticular warning during server startup
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN= \[Warning\] \'NO_AUTO_CREATE_USER\' sql mode was not set;
+let SEARCH_PATTERN= \[Warning\] \[[^]]*\] \'NO_AUTO_CREATE_USER\' sql mode was not set;
 --source include/search_pattern.inc
 
 SELECT @@sql_mode;

@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -35,6 +43,7 @@ Created 4/18/1996 Heikki Tuuri
 #include "os0file.h"
 #include "srv0srv.h"
 #include "trx0trx.h"
+#include "dict0dd.h"
 
 /**********************************************************************//**
 Gets a pointer to the dictionary header and x-latches its page.
@@ -198,7 +207,7 @@ dict_hdr_create(
 	/* Start counting row, table, index, and tree ids from 0 */
 	mlog_write_ull(dict_header + DICT_HDR_ROW_ID, 0, mtr);
 
-	mlog_write_ull(dict_header + DICT_HDR_TABLE_ID, 0, mtr);
+	mlog_write_ull(dict_header + DICT_HDR_TABLE_ID, DICT_MAX_DD_TABLES, mtr);
 
 	mlog_write_ull(dict_header + DICT_HDR_INDEX_ID, 0, mtr);
 

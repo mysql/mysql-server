@@ -2,6 +2,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 ## Test starts here
 --let $xtest_result= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
 --write_file $xtest_result 
@@ -777,20 +778,20 @@ show status like 'Mysqlx%notice%';
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_result 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_result 2>&1
 
 ###expect notice %s cannot be disabled related error,change result file once it is fixed
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_readonly 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_readonly 2>&1
 
 ###expect notice %s cannot be disabled related error ,change result file once it is fixed with normal user
 create user xplugin@localhost identified by 'xplugin';
 --exec $MYSQLXTEST -uxplugin --password='xplugin' --file=$xtest_readonly 2>&1
 
 ##change result file once Bug#21611216 is fixed
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_warnings 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_warnings 2>&1
 
 ## Disable multiple notices both read-only and read-write with single StmtExecute,expect error from the first error is sees
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_notices 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_notices 2>&1
 
 --remove_file $xtest_result
 --remove_file $xtest_readonly
@@ -799,5 +800,6 @@ create user xplugin@localhost identified by 'xplugin';
 --remove_file $xtest_disable
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 drop user xplugin@localhost;
 uninstall plugin mysqlx;

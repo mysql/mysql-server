@@ -1,30 +1,35 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "admin_cmd_arguments.h"
+#include "plugin/x/src/admin_cmd_arguments.h"
 
 #include <algorithm>
 #include <limits>
 
-#include "ngs/mysqlx/getter_any.h"
-#include "xpl_error.h"
-#include "xpl_regex.h"
+#include "plugin/x/ngs/include/ngs/mysqlx/getter_any.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_regex.h"
 
 namespace xpl {
 
@@ -266,14 +271,25 @@ class String_argument_validator {
   ngs::Error_code *m_error;
 };
 
+inline std::string adjust_sql_regex(const char *regex) {
+  if (!regex) return {};
+  std::string str{regex};
+  if (str.size() < 2) return str;
+  for (std::string::size_type b = str.find(R"(\\)", 0); b != std::string::npos;
+       b = str.find(R"(\\)", b))
+    str.erase(++b, 1);
+  return str;
+}
+
 class Docpath_argument_validator : String_argument_validator {
  public:
   Docpath_argument_validator(const char *name, ngs::Error_code *error)
       : String_argument_validator(name, error) {}
 
   void operator()(const std::string &input, std::string *output) {
-    static const Regex re(
-        "^[[.dollar-sign.]]([[.period.]][^[:space:][.period.]]+)*$");
+    static const std::string k_doc_member_regex =
+        adjust_sql_regex("^" DOC_MEMBER_REGEX "$");
+    static const Regex re(k_doc_member_regex.c_str());
     std::string value;
     String_argument_validator::operator()(input, &value);
     if (*m_error) return;
@@ -332,8 +348,7 @@ Admin_command_arguments_object::get_object_field(const char *name,
 
   const Object_field_list &fld = m_object.fld();
   Object_field_list::const_iterator i = std::find_if(
-      fld.begin(), fld.end(),
-      [name](const Object_field & fld)->bool {
+      fld.begin(), fld.end(), [name](const Object_field & fld)->bool {
         return fld.has_key() && fld.key() == name;
       });
   if (i == fld.end()) {

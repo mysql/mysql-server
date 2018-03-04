@@ -1,17 +1,24 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/table_events_stages.cc
@@ -25,12 +32,12 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_events_stages.h"
-#include "pfs_instr.h"
-#include "pfs_instr_class.h"
-#include "pfs_timer.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_events_stages.h"
+#include "storage/perfschema/pfs_instr.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_timer.h"
 
 THR_LOCK table_events_stages_current::m_table_lock;
 
@@ -186,6 +193,7 @@ table_events_stages_common::table_events_stages_common(
   const PFS_engine_table_share *share, void *pos)
   : PFS_engine_table(share, pos)
 {
+  m_normalizer = time_normalizer::get_stage();
 }
 
 /**
@@ -215,7 +223,7 @@ table_events_stages_common::make_row(PFS_events_stages *stage)
 
   if (m_row.m_end_event_id == 0)
   {
-    timer_end = get_timer_raw_value(stage_timer);
+    timer_end = get_stage_timer();
   }
   else
   {
@@ -402,7 +410,6 @@ table_events_stages_current::reset_position(void)
 int
 table_events_stages_current::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
@@ -446,8 +453,6 @@ table_events_stages_current::rnd_pos(const void *pos)
 int
 table_events_stages_current::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
-
   PFS_index_events_stages *result;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_events_stages);
@@ -522,7 +527,6 @@ table_events_stages_history::reset_position(void)
 int
 table_events_stages_history::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 
@@ -604,8 +608,6 @@ table_events_stages_history::rnd_pos(const void *pos)
 int
 table_events_stages_history::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
-
   PFS_index_events_stages *result;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_events_stages);
@@ -702,7 +704,6 @@ table_events_stages_history_long::reset_position(void)
 int
 table_events_stages_history_long::rnd_init(bool)
 {
-  m_normalizer = time_normalizer::get(stage_timer);
   return 0;
 }
 

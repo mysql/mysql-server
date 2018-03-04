@@ -1,4 +1,7 @@
 set @@global.optimizer_switch='batched_key_access=on';
+select @@session.optimizer_switch;
+@@session.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 drop table if exists t1,t2,t3,t4;
 create temporary table server_counts_at_startup
 select * from performance_schema.global_status 
@@ -5247,7 +5250,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	68	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -5265,7 +5268,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -5283,7 +5286,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	2054	test.x.d3,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`y`.`b3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
 47	Dole	2	47	47	Dole	2	47
@@ -5351,10 +5354,10 @@ explain
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,const	1	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`y`.`a3` = `test`.`x`.`a3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`x`.`b3` = 0x2f))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole') and (`test`.`x`.`b3` = 0x2f))
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
@@ -5362,10 +5365,10 @@ explain
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	66	const	3	100.00	NULL
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	Cannot push table 'y' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`y`.`a3` = `test`.`x`.`a3`) and (`test`.`x`.`a3` = 'Dole'))
+Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole'))
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
@@ -5617,10 +5620,8 @@ a	c	a	b
 drop table t1;
 drop table t2;
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
-drop tablespace ts1
-engine ndb;
+drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1
 engine ndb;
 create temporary table old_count 
@@ -7593,6 +7594,7 @@ insert into t1 values
 (3,1,1,2), (3,2,2,3), (3,4,3,4),
 (4,1,4,5), (4,2,5,1), (4,3,1,2);
 set global debug='+d,max_4rows_in_spj_batches';
+set @save_optimizer_switch = @@optimizer_switch;
 set optimizer_switch='materialization=off';
 explain
 select count(*) from t1 where 
@@ -7634,8 +7636,9 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	NULL
 1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t1.c	2	100.00	FirstMatch(t1)
 Warnings:
-Note	1003	Can't push table 'subq1' as child of 't1', 'FirstMatch' not allowed to contain scan-child
-Note	1003	Can't push table 'subq2' as child of 't1', 'FirstMatch' not allowed to contain scan-child
+Note	1003	Can't push table 'subq1' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 'subq2' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 'subq2' as child of 'subq1', their dependency is 'const'
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq2` join `test`.`t1` `subq1`) where ((`test`.`subq1`.`c` = `test`.`t1`.`c`) and (`test`.`subq2`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select c from t1 as subq1 where 
@@ -7647,19 +7650,442 @@ select count(*) from t1 where
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
-1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	c	4	test.t1.c	2	100.00	NULL
-1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.subq1.a	2	100.00	FirstMatch(t1)
+1	SIMPLE	subq1	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	c	4	test.t1.c	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	subq2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.subq1.a	2	100.00	Child of 'subq1' in pushed join@1; FirstMatch(t1)
 Warnings:
-Note	1003	Can't push table 'subq1' as child of 't1', 'FirstMatch' not allowed to contain scan-child
+Note	1003	Can't push table 'subq1' as child of 't1', semi join of scan-child not implemented
 Note	1003	Can't push table 'subq2' as child of 't1', column 'subq1.a' is outside scope of pushable join
-Note	1003	Can't push table 'subq2' as child of 'subq1', 'FirstMatch' not allowed to contain scan-child
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `subq1` straight_join `test`.`t1` `subq2`) where ((`test`.`subq2`.`c` = `test`.`subq1`.`a`) and (`test`.`subq1`.`c` = `test`.`t1`.`c`))
 select count(*) from t1 where 
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 count(*)
 16
-set optimizer_switch='materialization=default';
+set optimizer_switch=@save_optimizer_switch;
 set global debug=@save_debug;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='loosescan=on';
+explain SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table2.b	2	100.00	LooseScan
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table2.a,test.table2.b	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Can't push table 'table1s' as child of 'table2', semi join of scan-child not implemented
+Note	1003	Cannot push table 'table1' as child of table 'table2'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	Cannot push table 'table1' as child of table 'table1s'. Doing so would prevent using join buffer for table 'table1'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ count(0) AS `count(*)` from `test`.`t1` `table1` semi join (`test`.`t1` `table1s`) join `test`.`t1` `table2` where ((`test`.`table1`.`a` = `test`.`table2`.`a`) and (`test`.`table1s`.`c` = `test`.`table2`.`b`) and (`test`.`table1`.`b` = `test`.`table2`.`b`))
+SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+count(*)
+16
+set @@optimizer_switch='firstmatch=on';
+explain SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table1.b	2	100.00	FirstMatch(table2); Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 'table2' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Cannot push table 'table1s' as child of table 'table1'. Doing so would prevent using join buffer for table 'table1s'.
+Note	1003	Push of table 'table1s' as scan-child with lookup-root 'table2' not implemented
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` FIRSTMATCH) */ count(0) AS `count(*)` from `test`.`t1` `table1` semi join (`test`.`t1` `table1s`) join `test`.`t1` `table2` where ((`test`.`table2`.`a` = `test`.`table1`.`a`) and (`test`.`table2`.`b` = `test`.`table1`.`b`) and (`test`.`table1s`.`c` = `test`.`table1`.`b`))
+SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+count(*)
+16
+set optimizer_switch=@save_optimizer_switch;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='materialization=on';
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery2>.c	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using join buffer (Batched Key Access)
+2	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery2>.c	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,<subquery2>.c	1	100.00	Using join buffer (Batched Key Access)
+2	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`) and (`test`.`t2`.`b` = `<subquery2>`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+count(*)
+13
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery3>.c	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,<subquery3>.c	1	100.00	Using join buffer (Batched Key Access)
+3	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#3` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t1`.`c` = `<subquery3>`.`c`) and (`test`.`t2`.`b` = `<subquery3>`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+count(*)
+13
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery3>.c	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,<subquery3>.c	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_key>	<auto_key>	4	func	1	100.00	Using where
+3	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+4	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#3` MATERIALIZATION) SEMIJOIN(@`select#4` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery3>`.`c`) and (`test`.`t2`.`b` = `<subquery3>`.`c`) and (`<subquery4>`.`c` = `<subquery3>`.`c`))
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+count(*)
+13
+set optimizer_switch='block_nested_loop=off';
+explain
+select count(*)
+from t1 cross join t1 as t2
+where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
+from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery2>.c	2	100.00	Using join buffer (Batched Key Access)
+2	MATERIALIZED	t3s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+2	MATERIALIZED	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	PRIMARY	4	test.t3s.b	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Can't push table 't3s' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 't4s' as child of table 't1'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't4s' as child of table 't2'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't4s' as child of table 't3s'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) join `test`.`t1` `t2` where ((`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t2`.`c` = `<subquery2>`.`c`))
+select count(*)
+from t1 cross join t1 as t2
+where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
+from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+count(*)
+256
+set optimizer_switch=@save_optimizer_switch;
+set global debug='+d,max_4rows_in_spj_batches';
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Start temporary
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t3s.c	2	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 't4s' as child of table 't3s'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't1' as child of table 't3s'. Doing so would prevent using join buffer for table 't1'.
+Note	1003	Cannot push table 't2' as child of table 't3s'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't1' as child of table 't4s'. Doing so would prevent using join buffer for table 't1'.
+Note	1003	Cannot push table 't2' as child of table 't4s'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) join `test`.`t1` `t2` where ((`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `test`.`t3s`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Start temporary
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	PRIMARY	4	test.t1.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t2.c	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	100.00	End temporary; Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3s' as child of table 't1'. Doing so would prevent using join buffer for table 't3s'.
+Note	1003	Cannot push table 't4s' as child of table 't1'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't3s' as child of table 't2'. Doing so would prevent using join buffer for table 't3s'.
+Note	1003	Cannot push table 't4s' as child of table 't2'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't4s' as child of table 't3s'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) join `test`.`t1` `t2` where ((`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3s`.`c` = `test`.`t2`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Start temporary
+1	SIMPLE	t5s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t6s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t4s.c	2	100.00	End temporary; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 't5s' as child of table 't4s'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't4s'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't1' as child of table 't4s'. Doing so would prevent using join buffer for table 't1'.
+Note	1003	Cannot push table 't2' as child of table 't4s'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't4s'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	Cannot push table 't6s' as child of table 't5s'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't1' as child of table 't5s'. Doing so would prevent using join buffer for table 't1'.
+Note	1003	Cannot push table 't2' as child of table 't5s'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't5s'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	Cannot push table 't1' as child of table 't6s'. Doing so would prevent using join buffer for table 't1'.
+Note	1003	Cannot push table 't2' as child of table 't6s'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't6s'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	Cannot push table 't3' as child of table 't2'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t4s` join `test`.`t1` `t5s` join `test`.`t1` `t6s`) join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t5s`.`a` = `test`.`t4s`.`b`) and (`test`.`t6s`.`a` = `test`.`t5s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t1`.`c` = `test`.`t4s`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Start temporary
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	PRIMARY	4	test.t1.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t2.c	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t5s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t6s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	100.00	End temporary; Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	Cannot push table 't4s' as child of table 't1'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't5s' as child of table 't1'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't1'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't3' as child of table 't2'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	Cannot push table 't4s' as child of table 't2'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't5s' as child of table 't2'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't2'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't4s' as child of table 't3'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't5s' as child of table 't3'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't3'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't5s' as child of table 't4s'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't4s'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't6s' as child of table 't5s'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t4s` join `test`.`t1` `t5s` join `test`.`t1` `t6s`) join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t5s`.`a` = `test`.`t4s`.`b`) and (`test`.`t6s`.`a` = `test`.`t5s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t4s`.`c` = `test`.`t2`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Start temporary
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	PRIMARY	4	test.t2.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t3.c	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t5s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t6s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	100.00	End temporary; Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	Cannot push table 't4s' as child of table 't1'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't5s' as child of table 't1'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't1'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't3' as child of table 't2'. Doing so would prevent using join buffer for table 't3'.
+Note	1003	Cannot push table 't4s' as child of table 't2'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't5s' as child of table 't2'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't2'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't4s' as child of table 't3'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't5s' as child of table 't3'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't3'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't5s' as child of table 't4s'. Doing so would prevent using join buffer for table 't5s'.
+Note	1003	Cannot push table 't6s' as child of table 't4s'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	Cannot push table 't6s' as child of table 't5s'. Doing so would prevent using join buffer for table 't6s'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t4s` join `test`.`t1` `t5s` join `test`.`t1` `t6s`) join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t5s`.`a` = `test`.`t4s`.`b`) and (`test`.`t6s`.`a` = `test`.`t5s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t4s`.`c` = `test`.`t3`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+set global debug=@save_debug;
+set optimizer_switch=@save_optimizer_switch;
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery2>.c	2	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using join buffer (Batched Key Access)
+2	MATERIALIZED	t3s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+2	MATERIALIZED	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Can't push table 't3s' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 't4s' as child of table 't1'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't4s' as child of table 't2'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	Cannot push table 't4s' as child of table 't3s'. Doing so would prevent using join buffer for table 't4s'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) join `test`.`t1` `t2` where ((`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN(
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
+join t1 as t4s1 on t4s1.a = t3s1.b
+)
+and t1.d IN (
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
+join t1 as t4s2 on t4s2.a = t3s2.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c,d	c	4	<subquery2>.c	2	100.00	Using where with pushed condition (`test`.`t1`.`d` is not null); Using join buffer (Batched Key Access)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.d	1	100.00	NULL
+2	MATERIALIZED	t3s1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+2	MATERIALIZED	t4s1	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s1.b	1	100.00	Using join buffer (Batched Key Access)
+3	MATERIALIZED	t3s2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+3	MATERIALIZED	t4s2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s2.b	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 't2' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Can't push table 't3s1' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 't4s1' as child of table 't1'. Doing so would prevent using join buffer for table 't4s1'.
+Note	1003	Can't push table 't3s2' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 't4s2' as child of table 't1'. Doing so would prevent using join buffer for table 't4s2'.
+Note	1003	Cannot push table 't4s1' as child of table 't2'. Doing so would prevent using join buffer for table 't4s1'.
+Note	1003	Cannot push table 't4s2' as child of table 't2'. Doing so would prevent using join buffer for table 't4s2'.
+Note	1003	Cannot push table 't4s1' as child of table 't3s1'. Doing so would prevent using join buffer for table 't4s1'.
+Note	1003	Cannot push table 't4s2' as child of table 't3s1'. Doing so would prevent using join buffer for table 't4s2'.
+Note	1003	Cannot push table 't4s2' as child of table 't4s1'. Doing so would prevent using join buffer for table 't4s2'.
+Note	1003	Cannot push table 't4s2' as child of table 't3s2'. Doing so would prevent using join buffer for table 't4s2'.
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) SEMIJOIN(@`select#3` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s1` join `test`.`t1` `t4s1`) semi join (`test`.`t1` `t3s2` join `test`.`t1` `t4s2`) join `test`.`t1` `t2` where ((`test`.`t4s2`.`a` = `test`.`t3s2`.`b`) and (`test`.`t4s1`.`a` = `test`.`t3s1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`<subquery3>`.`c` = `test`.`t1`.`d`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN(
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
+join t1 as t4s1 on t4s1.a = t3s1.b
+)
+and t1.d IN (
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
+join t1 as t4s2 on t4s2.a = t3s2.b
+);
+count(*)
+64
 drop table t1;
 CREATE TABLE ndb_order_test (
 node_id int(10) unsigned NOT NULL,
@@ -7723,9 +8149,9 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	24
-Ndb_pushed_queries_defined	0
+Ndb_pushed_queries_defined	2
 Ndb_pushed_queries_dropped	0
-Ndb_sorted_scan_count	0
+Ndb_sorted_scan_count	16
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 set @@global.optimizer_switch=default;

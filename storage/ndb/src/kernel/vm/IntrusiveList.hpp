@@ -2,13 +2,20 @@
    Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -216,12 +223,13 @@ template<typename T> struct remove_reference<T&> { typedef T type; };
 template<typename T> struct pod { typedef typename T::POD type; };
 template<typename T> struct pod<T&> { typedef typename T::POD& type; };
 
-template<typename T, class Pool, typename THead, class LM = DefaultDoubleLinkMethods<T> > class IntrusiveList
+template<class Pool, typename THead, class LM = DefaultDoubleLinkMethods<typename Pool::Type> > class IntrusiveList
 {
 public:
 typedef typename remove_reference<THead>::type Head;
 typedef typename Head::POD HeadPOD;
 public:
+  typedef typename Pool::Type T;
   explicit IntrusiveList(Pool& pool, THead head): m_pool(pool), m_head(head) { }
   explicit IntrusiveList(Pool& pool): m_pool(pool) { m_head.init(); }
   ~IntrusiveList() { }
@@ -272,19 +280,19 @@ protected:
 /* Specialisations */
 
 #define INTRUSIVE_LIST_COMPAT(prefix, links) \
-template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class prefix##List : public IntrusiveList<T, P, prefix##Head, LM> { \
-public: prefix##List(P& pool): IntrusiveList<T, P, prefix##Head, LM>(pool) { } \
+template <typename P, typename U = typename P::Type, typename LM = Default##links##LinkMethods<typename P::Type, U> > \
+class prefix##List : public IntrusiveList<P, prefix##Head, LM> { \
+public: prefix##List(P& pool): IntrusiveList<P, prefix##Head, LM>(pool) { } \
 }; \
  \
-template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class Local##prefix##List : public IntrusiveList<T, P, prefix##Head::POD&, LM> { \
-public: Local##prefix##List(P& pool, prefix##Head::POD& head): IntrusiveList<T, P, prefix##Head::POD&, LM>(pool, head) { } \
+template <typename P, typename U = typename P::Type, typename LM = Default##links##LinkMethods<typename P::Type, U> > \
+class Local##prefix##List : public IntrusiveList<P, prefix##Head::POD&, LM> { \
+public: Local##prefix##List(P& pool, prefix##Head::POD& head): IntrusiveList<P, prefix##Head::POD&, LM>(pool, head) { } \
 }; \
  \
-template <typename T, typename P, typename U = T, typename LM = Default##links##LinkMethods<T, U> > \
-class ConstLocal##prefix##List : public IntrusiveList<T, P, const prefix##Head::POD&, LM> { \
-public: ConstLocal##prefix##List(P& pool, const prefix##Head::POD& head): IntrusiveList<T, P, const prefix##Head::POD&, LM>(pool, head) { } \
+template <typename P, typename U = typename P::Type, typename LM = Default##links##LinkMethods<typename P::Type, U> > \
+class ConstLocal##prefix##List : public IntrusiveList<P, const prefix##Head::POD&, LM> { \
+public: ConstLocal##prefix##List(P& pool, const prefix##Head::POD& head): IntrusiveList<P, const prefix##Head::POD&, LM>(pool, head) { } \
 }
 
 typedef ListHead<FirstLink, NoLastLink, NoCount> SLHead;
@@ -309,8 +317,8 @@ INTRUSIVE_LIST_COMPAT(DLCFifo, Double);
  * Implementation IntrusiveList
  **/
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::addFirst(Ptr<T> p)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::addFirst(Ptr<T> p)
 {
   Ptr<T> firstItem;
   if (first(firstItem))
@@ -327,8 +335,8 @@ inline void IntrusiveList<T, Pool, THead, LM>::addFirst(Ptr<T> p)
   m_head.incrCount();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::addLast(Ptr<T> p)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::addLast(Ptr<T> p)
 {
   Ptr<T> lastItem;
   if (last(lastItem))
@@ -345,8 +353,8 @@ inline void IntrusiveList<T, Pool, THead, LM>::addLast(Ptr<T> p)
   m_head.incrCount();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::insertBefore(Ptr<T> p, Ptr<T> loc)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::insertBefore(Ptr<T> p, Ptr<T> loc)
 {
   assert(!loc.isNull());
   Ptr<T> prevItem = loc;
@@ -364,8 +372,8 @@ inline void IntrusiveList<T, Pool, THead, LM>::insertBefore(Ptr<T> p, Ptr<T> loc
   m_head.incrCount();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::insertAfter(Ptr<T> p, Ptr<T> loc)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::insertAfter(Ptr<T> p, Ptr<T> loc)
 {
   assert(!loc.isNull());
   Ptr<T> nextItem = loc;
@@ -383,8 +391,8 @@ inline void IntrusiveList<T, Pool, THead, LM>::insertAfter(Ptr<T> p, Ptr<T> loc)
   m_head.incrCount();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::removeFirst(Ptr<T>& p)
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::removeFirst(Ptr<T>& p)
 {
   if (!first(p))
     return false;
@@ -403,8 +411,8 @@ inline bool IntrusiveList<T, Pool, THead, LM>::removeFirst(Ptr<T>& p)
   return true;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::removeLast(Ptr<T>& p)
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::removeLast(Ptr<T>& p)
 {
   if (!last(p))
     return false;
@@ -423,14 +431,14 @@ inline bool IntrusiveList<T, Pool, THead, LM>::removeLast(Ptr<T>& p)
   return true;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::remove(Ptr<T> p)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::remove(Ptr<T> p)
 {
   remove(p.p);
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::remove(T* p)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::remove(T* p)
 {
   Ptr<T> prevItem;
   Ptr<T> nextItem;
@@ -459,14 +467,14 @@ inline void IntrusiveList<T, Pool, THead, LM>::remove(T* p)
   m_head.decrCount();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::hasNext(Ptr<T> p) const
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::hasNext(Ptr<T> p) const
 {
   return LM::hasNext(*p.p);
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::next(Ptr<T>& p) const
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::next(Ptr<T>& p) const
 {
   p.i = LM::getNext(*p.p);
   if (p.i == RNIL)
@@ -475,14 +483,14 @@ inline bool IntrusiveList<T, Pool, THead, LM>::next(Ptr<T>& p) const
   return true;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::hasPrev(Ptr<T> p) const
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::hasPrev(Ptr<T> p) const
 {
   return LM::hasPrev(*p.p);
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::prev(Ptr<T>& p) const
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::prev(Ptr<T>& p) const
 {
   p.i = LM::getPrev(*p.p);
   if (p.i == RNIL)
@@ -491,16 +499,16 @@ inline bool IntrusiveList<T, Pool, THead, LM>::prev(Ptr<T>& p) const
   return true;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::swapList(Head& src)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::swapList(Head& src)
 {
   Head tmp = m_head;
   m_head = src;
   src = tmp;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-template<class OtherHead> inline void IntrusiveList<T, Pool, THead, LM>::prependList(OtherHead& other)
+template<class Pool, typename THead, class LM>
+template<class OtherHead> inline void IntrusiveList<Pool, THead, LM>::prependList(OtherHead& other)
 {
   if (other.isEmpty())
     return;
@@ -527,8 +535,8 @@ template<class OtherHead> inline void IntrusiveList<T, Pool, THead, LM>::prepend
   other.setLast(RNIL);
 }
 
-template<typename T, class Pool, typename THead, class LM>
-template<class OtherHead> inline void IntrusiveList<T, Pool, THead, LM>::appendList(OtherHead& other)
+template<class Pool, typename THead, class LM>
+template<class OtherHead> inline void IntrusiveList<Pool, THead, LM>::appendList(OtherHead& other)
 {
   if (other.isEmpty())
     return;
@@ -555,42 +563,42 @@ template<class OtherHead> inline void IntrusiveList<T, Pool, THead, LM>::appendL
   other.setLast(RNIL);
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::isEmpty() const
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::isEmpty() const
 {
   return m_head.isEmpty();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline Uint32 IntrusiveList<T, Pool, THead, LM>::getCount() const
+template<class Pool, typename THead, class LM>
+inline Uint32 IntrusiveList<Pool, THead, LM>::getCount() const
 {
   return m_head.getCount();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::first(Ptr<T>& p) const
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::first(Ptr<T>& p) const
 {
   p.i = m_head.getFirst();
   getPtr(p);
   return !p.isNull();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::last(Ptr<T>& p) const
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::last(Ptr<T>& p) const
 {
   p.i = m_head.getLast();
   getPtr(p);
   return !p.isNull();
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline Pool& IntrusiveList<T, Pool, THead, LM>::getPool() const
+template<class Pool, typename THead, class LM>
+inline Pool& IntrusiveList<Pool, THead, LM>::getPool() const
 {
   return m_pool;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::seizeFirst(Ptr<T>& p)
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::seizeFirst(Ptr<T>& p)
 {
   if (!getPool().seize(p))
     return false;
@@ -598,8 +606,8 @@ inline bool IntrusiveList<T, Pool, THead, LM>::seizeFirst(Ptr<T>& p)
   return true;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::seizeLast(Ptr<T>& p)
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::seizeLast(Ptr<T>& p)
 {
   if (!getPool().seize(p))
     return false;
@@ -607,8 +615,8 @@ inline bool IntrusiveList<T, Pool, THead, LM>::seizeLast(Ptr<T>& p)
   return true;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::releaseFirst()
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::releaseFirst()
 {
   Ptr<T> p;
   if (!removeFirst(p))
@@ -617,8 +625,8 @@ inline bool IntrusiveList<T, Pool, THead, LM>::releaseFirst()
   return true;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline bool IntrusiveList<T, Pool, THead, LM>::releaseLast()
+template<class Pool, typename THead, class LM>
+inline bool IntrusiveList<Pool, THead, LM>::releaseLast()
 {
   Ptr<T> p;
   if (!removeLast(p))
@@ -627,15 +635,15 @@ inline bool IntrusiveList<T, Pool, THead, LM>::releaseLast()
   return true;
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::release(Ptr<T> p)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::release(Ptr<T> p)
 {
   remove(p);
   getPool().release(p);
 }
 
-template<typename T, class Pool, typename THead, class LM>
-inline void IntrusiveList<T, Pool, THead, LM>::release(Uint32 i)
+template<class Pool, typename THead, class LM>
+inline void IntrusiveList<Pool, THead, LM>::release(Uint32 i)
 {
   Ptr<T> p;
   getPtr(p, i);

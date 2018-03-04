@@ -63,10 +63,10 @@ SELECT * FROM mysql.gtid_executed;
 --echo #
 CREATE TEMPORARY TABLE tmp1 (c1 INT) Engine=MyISAM;
 CREATE TABLE t3 (a INT);
-if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
+if (`SELECT @@BINLOG_FORMAT = 'ROW' || @@BINLOG_FORMAT = 'MIXED'`)
 {
   # We did not generate gtid for above 'CREATE TEMPORARY TABLE' statement
-  # in row format, but we did in statement format. So let the 'INSERT'
+  # in row or mixed format, but we did in statement format. So let the 'INSERT'
   # statement generate the missed gtid in row format.
   --disable_query_log
   INSERT INTO t3 VALUES(1);
@@ -76,6 +76,13 @@ if (`SELECT @@BINLOG_FORMAT = 'ROW'`)
 --error ER_BAD_TABLE_ERROR
 DROP TEMPORARY TABLE tmp1, t3;
 DROP TEMPORARY TABLE tmp1;
+if (`SELECT @@BINLOG_FORMAT = 'ROW' || @@BINLOG_FORMAT = 'MIXED'`)
+{
+  # Likewise for the DROP TEMPORARY TABLE above
+  --disable_query_log
+  INSERT INTO t3 VALUES(1);
+  --enable_query_log
+}
 DROP TABLE t3;
 --let $assert_text= committed gtids MASTER_UUID:1-8
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-8"

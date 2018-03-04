@@ -89,7 +89,7 @@ explain SELECT /*+ SET_VAR(max_allowed_packet = 1M) */ * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Warning	4537	Variable 'max_allowed_packet' cannot be set using SET_VAR hint.
+Warning	3637	Variable 'max_allowed_packet' cannot be set using SET_VAR hint.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1`
 explain SELECT /*+ SET_VAR(optimizer_switch = 'batched_key_acces=off') SET_VAR(range_alloc_block_size=amba)*/ * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -792,7 +792,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "id"
+          "id",
+          "n"
         ]
       }
     }
@@ -842,7 +843,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }
@@ -858,6 +860,18 @@ VARIABLE_VALUE
 OFF
 VARIABLE_VALUE
 ON
+WITH RECURSIVE qn AS (
+SELECT 1 AS a UNION ALL
+SELECT 1+a FROM qn WHERE a<=10)
+SELECT /*+ SET_VAR(cte_max_recursion_depth=5) */ COUNT(*) FROM qn;
+ERROR HY000: Recursive query aborted after 6 iterations. Try increasing @@cte_max_recursion_depth to a larger value.
+CALL test_hint("SET_VAR(cte_max_recursion_depth=5)", "cte_max_recursion_depth");
+VARIABLE_VALUE
+1000
+VARIABLE_VALUE
+5
+VARIABLE_VALUE
+1000
 DROP PROCEDURE test_hint;
 #
 # Bug#26482684 WL681: RESULT DIFF SEEN FOR SQL_SELECT_LIMIT HINT.

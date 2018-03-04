@@ -6,8 +6,9 @@
 # spill over to INNODB as tmp file for the frame buffer (slower)
 # ----------------------------------------------------------------------
 default size is 16777216. Use 10 * 16777216 to fit frame buffer in memory
-SET GLOBAL tmp_table_size=167772160;
+SET tmp_table_size=167772160;
 SET max_heap_table_size=167772160;
+SET internal_tmp_mem_storage_engine=MEMORY;
 CREATE TABLE td(d INT);
 INSERT INTO td(d) VALUES (10),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 INSERT INTO td(d) SELECT d+10 FROM td UNION
@@ -72,7 +73,7 @@ d	summ	nth	lagg
 999992	18999829	999984	999972
 999991	19999810	999983	999971
 TRUNCATE cpy;
-set global tmp_table_size=16384;
+set tmp_table_size=16384;
 set max_heap_table_size=16384;
 Spill frame buffer to INNODB
 INSERT INTO cpy SELECT d, SUM(d) OVER w summ, NTH_VALUE(d, 3) OVER w nth, LAG(d, 20) OVER w lagg FROM td
@@ -91,8 +92,9 @@ d	summ	nth	lagg
 999991	19999810	999983	999971
 DROP TABLE td, cpy;
 Set tmp_table_size and max_heap_table_size back to default
-SET GLOBAL tmp_table_size=16777216;
-SET max_heap_table_size=16777216;
+SET tmp_table_size=DEFAULT;
+SET max_heap_table_size=DEFAULT;
+SET internal_tmp_mem_storage_engine=DEFAULT;
 #
 # Bug#25894783 WL9603: CAN'T FIND RECORD IN '/TMP/#SQL6E16_3_4'
 #

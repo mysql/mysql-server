@@ -3,6 +3,7 @@
 ## Preamble
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 # Tests
 --write_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
@@ -20,7 +21,7 @@
 
 -->repeat 10
 -->varinc %CON_COUNTER% 1
--->newsession NAME_%CON_COUNTER%	root
+-->newsession NAME_%CON_COUNTER%	x_root
 -->callmacro check_xconnection_count	%CON_COUNTER%
 -->endrepeat
 
@@ -121,7 +122,7 @@ EOF
 -->callmacro Verify_greater_or_equal	%WRITE_TIME%	`SUM_TIMER_WRITE`	`socket_summary_by_instance`	'wait/io/socket/mysqlx/client_connection'
 -->callmacro Verify_greater_or_equal	%WRITE_TIME%	`SUM_TIMER_WRITE`	`socket_summary_by_instance`	'wait/io/socket/mysqlx/client_connection'
 
--->newsession second_session	root
+-->newsession second_session	x_root
 -->varlet %READ_BYTES2% 0
 -->repeat 40
 -->callmacro Verify_increase	%READ_BYTES2%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'
@@ -129,7 +130,7 @@ EOF
 
 -->varlet %ACCETP_COUNT% 0
 -->repeat 40
--->newsession temporary_connection	root
+-->newsession temporary_connection	x_root
 -->callmacro Verify_increase	%ACCETP_COUNT%	`COUNT_MISC`	'wait/io/socket/mysqlx/tcpip_socket'
 -->closesession
 -->endrepeat
@@ -168,18 +169,19 @@ if ( $XPlugin_port != $XPlugin_port_expected) {
 }
 
 --echo Check if clinet_socket are reported in proper way in PFS
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/performance_schema_socket_num.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema_socket_num.tmp 2>&1
 
 --echo No socket should be reported by X Plugin
 let $wait_condition=
   SELECT count(*)= 0 as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection';
 --source include/wait_condition_or_abort.inc
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp 2>&1
 
 ## Cleanup
 --remove_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
 --remove_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp
 
+--source include/xplugin_drop_user.inc
 ## Postamble
 UNINSTALL PLUGIN mysqlx;

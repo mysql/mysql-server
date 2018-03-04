@@ -2,13 +2,20 @@
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -264,7 +271,7 @@ private:
     Uint32 m_file_no;
     Uint32 nextPool;
   };
-  typedef RecordPool<File_entry, RWPool<File_entry> > File_entry_pool;
+  typedef RecordPool<RWPool<File_entry> > File_entry_pool;
   File_entry_pool m_file_entry_pool;
 
   struct Page_request {
@@ -295,9 +302,9 @@ private:
     Uint32 m_magic;
   };
 
-  typedef RecordPool<Page_request, WOPool<Page_request> > Page_request_pool;
-  typedef SLFifoList<Page_request, Page_request_pool> Page_request_list;
-  typedef LocalSLFifoList<Page_request, Page_request_pool> Local_page_request_list;
+  typedef RecordPool<WOPool<Page_request> > Page_request_pool;
+  typedef SLFifoList<Page_request_pool> Page_request_list;
+  typedef LocalSLFifoList<Page_request_pool> Local_page_request_list;
   
   struct Page_entry_stack_ptr {
     Uint32 nextList;
@@ -410,12 +417,12 @@ private:
   };
 
   typedef ArrayPool<Page_entry> Page_entry_pool;
-  typedef DLCHashTable<Page_entry_pool, Page_entry> Page_hashlist;
-  typedef DLCFifoList<Page_entry, Page_entry_pool, Page_entry_stack_ptr> Page_stack;
-  typedef DLCFifoList<Page_entry, Page_entry_pool, Page_entry_queue_ptr> Page_queue;
-  typedef DLCFifoList<Page_entry, Page_entry_pool, Page_entry_sublist_ptr> Page_sublist;
-  typedef DLFifoList<Page_entry, Page_entry_pool, Page_entry_dirty_ptr> Page_dirty_list;
-  typedef LocalDLFifoList<Page_entry, Page_entry_pool, Page_entry_dirty_ptr>
+  typedef DLCHashTable<Page_entry_pool> Page_hashlist;
+  typedef DLCFifoList<Page_entry_pool, Page_entry_stack_ptr> Page_stack;
+  typedef DLCFifoList<Page_entry_pool, Page_entry_queue_ptr> Page_queue;
+  typedef DLCFifoList<Page_entry_pool, Page_entry_sublist_ptr> Page_sublist;
+  typedef DLCFifoList<Page_entry_pool, Page_entry_dirty_ptr> Page_dirty_list;
+  typedef LocalDLCFifoList<Page_entry_pool, Page_entry_dirty_ptr>
     LocalPage_dirty_list;
 
   /**
@@ -470,7 +477,7 @@ private:
   typedef Ptr<FragmentRecord> FragmentRecordPtr;
   typedef ArrayPool<FragmentRecord> FragmentRecord_pool;
   FragmentRecord_pool m_fragmentRecordPool;
-  DLFifoList<FragmentRecord, FragmentRecord_pool> m_fragmentRecordList;
+  DLFifoList<FragmentRecord_pool> m_fragmentRecordList;
   DLHashTable<FragmentRecord_pool, FragmentRecord> m_fragmentRecordHash;
 
   Page_dirty_list m_dirty_list_lcp;
@@ -480,6 +487,7 @@ private:
   Uint32 m_lcp_fragment_id;
 
   bool m_lcp_loop_ongoing;
+  Uint32 m_locked_pages_written;
   Uint32 m_lcp_outstanding;     // remaining i/o waits
   SyncExtentPagesReq::LcpOrder m_sync_extent_order;
   bool m_sync_extent_pages_ongoing;
@@ -490,6 +498,7 @@ private:
   EndLcpReq m_end_lcp_req;
 
   /* Methods to handle local LCP from LGMAN after UNDO log execution */
+  void sendSYNC_PAGE_WAIT_REP(Signal *signal, bool normal_pages);
   void sendSYNC_PAGE_CACHE_REQ(Signal*, FragmentRecordPtr);
   void sendSYNC_EXTENT_PAGES_REQ(Signal*);
   void sendEND_LCPCONF(Signal*);
@@ -672,7 +681,7 @@ private:
   void insert_fragment_dirty_list(Ptr<Page_entry>,
                                   Page_state,
                                   EmulatedJamBuffer*);
-  void remove_fragment_dirty_list(Ptr<Page_entry>, Page_state);
+  void remove_fragment_dirty_list(Signal*, Ptr<Page_entry>, Page_state);
   Uint32 create_data_file(Uint32 version);
   Uint32 alloc_data_file(Uint32 file_no, Uint32 version);
   void map_file_no(Uint32 file_no, Uint32 fd);

@@ -2,13 +2,13 @@
 # Inserting testing SRS values in spatial reference table
 ##########################################################
 # Inserting geographical srs with long-lat ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name, organization, organization_coordsys_id, definition, description) VALUES (30000000, 1, 'TEST30000000', 'EPSG', 30000000, 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","30000000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30000000 NAME 'TEST30000000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","30000000"]]';
 # Inserting geographical srs with lat-long ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name, organization, organization_coordsys_id, definition, description) VALUES (30100000, 1, 'TEST30100000', 'EPSG', 30100000, 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","30100000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30100000 NAME 'TEST30100000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","30100000"]]';
 # Inserting projected srs with northing-easting ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name, organization, organization_coordsys_id, definition, description) VALUES (30200000, 1, 'TEST30200000', 'EPSG', 30200000, 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","30200000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30200000 NAME 'TEST30200000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","30200000"]]';
 # Inserting projected srs with easting-northing ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name, organization, organization_coordsys_id, definition, description) VALUES (30300000, 1, 'TEST30300000', 'EPSG', 30300000, 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","30300000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30300000 NAME 'TEST30300000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","30300000"]]';
 # Creating the spatial objects
 CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_linestring (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
@@ -23,70 +23,49 @@ INSERT INTO gis_point VALUES
 (102, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30100000)),
 (103, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30200000)),
 (104, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30300000)),
-(105, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 0)),
-(106, ST_POINTFROMTEXT('POINT(5 10)',426845214));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
+(105, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 0));
 # Inserting LINESTRING Geometry Values with different SRID types
 INSERT INTO gis_linestring VALUES
 (201, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30000000)),
 (202, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30100000)),
 (203, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30200000)),
 (204, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30300000)),
-(205, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 0)),
-(206, ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',426845214));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
+(205, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 0));
 # Inserting POLYGON Geometry Values with different SRID types
 INSERT INTO gis_polygon VALUES
 (301, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30000000)),
 (302, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30100000)),
 (303, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30200000)),
 (304, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30300000)),
-(305, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 0)),
-(306, ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))', 426845214));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
+(305, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 0));
 # Inserting MULTIPOINT Geometry Values with different SRID types
 INSERT INTO gis_multi_point VALUES
 (401, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30000000)),
 (402, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30100000)),
 (403, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30200000)),
 (404, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30300000)),
-(405, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 0)),
-(406, ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))', 426845214));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
+(405, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 0));
 # Inserting MULTILINESTRING Geometry Values with different SRID types
 INSERT INTO gis_multi_linestring VALUES
 (501, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30000000)),
 (502, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30100000)),
 (503, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30200000)),
 (504, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30300000)),
-(505, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 0)),
-(506, ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))', 426845214));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
+(505, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 0));
 # Inserting MULTIPOLYGON Geometry Values with different SRID types
 INSERT INTO gis_multi_polygon VALUES
 (601, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30000000)),
 (602, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30100000)),
 (603, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30200000)),
 (604, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30300000)),
-(605, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 0)),
-(606, ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))', 426845214));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
+(605, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 0));
 # Inserting GEOMETRYCOLLECTION Geometry Values with different SRID types
 INSERT INTO gis_geometrycollection VALUES
 (701, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30000000)),
 (702, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30100000)),
 (703, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30200000)),
 (704, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30300000)),
-(705, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 0)),
-(706, ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))', 426845214));
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
+(705, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 0));
 #####################################################################
 # Retrieving geometries with ST_ASWKB with no parameter
 # (Should thus be retrieved with the SRID default axis ordering)
@@ -100,9 +79,6 @@ POINT(10 5)
 POINT(5 10)
 POINT(5 10)
 POINT(5 10)
-POINT(5 10)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_linestring
 ORDER BY fid;
@@ -112,9 +88,6 @@ LINESTRING(5 0,10 5,15 10)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
-LINESTRING(0 5,5 10,10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_polygon
 ORDER BY fid;
@@ -124,9 +97,6 @@ POLYGON((0 0,0 5,5 5,5 0,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
-POLYGON((0 0,5 0,5 5,0 5,0 0))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_point
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_multi_point
 ORDER BY fid;
@@ -136,9 +106,6 @@ MULTIPOINT((2 0),(7 5),(2 8),(9 4))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_multi_linestring
 ORDER BY fid;
@@ -148,9 +115,6 @@ MULTILINESTRING((2 0,4 2,6 4),(11 8,14 11,17 14))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_multi_polygon
 ORDER BY fid;
@@ -160,9 +124,6 @@ MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6,4 4)),((0 0,-2 -2,-2 0,
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_geometrycollection
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g))) FROM gis_geometrycollection
 ORDER BY fid;
@@ -172,9 +133,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 #####################################################################
 # Retrieving geometries with ST_ASWKB with lat-long axis ordering
 # (Default SRID coordination should thus be overridden)
@@ -188,9 +146,6 @@ POINT(10 5)
 POINT(5 10)
 POINT(5 10)
 POINT(5 10)
-POINT(5 10)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_linestring ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long')))
@@ -199,9 +154,6 @@ LINESTRING(5 0,10 5,15 10)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
-LINESTRING(0 5,5 10,10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_polygon
 ORDER BY fid;
@@ -211,9 +163,6 @@ POLYGON((0 0,0 5,5 5,5 0,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
-POLYGON((0 0,5 0,5 5,0 5,0 0))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_point
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_multi_point ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long')))
@@ -222,9 +171,6 @@ MULTIPOINT((2 0),(7 5),(2 8),(9 4))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_multi_linestring ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long')))
@@ -233,9 +179,6 @@ MULTILINESTRING((2 0,4 2,6 4),(11 8,14 11,17 14))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_multi_polygon ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long')))
@@ -244,9 +187,6 @@ MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6,4 4)),((0 0,-2 -2,-2 0,
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_geometrycollection
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long'))) FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=lat-long')))
@@ -255,9 +195,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 #####################################################################
 # Retrieving geometries with ST_ASWKB with long-lat axis ordering
 # (Default SRID coordination should thus be overridden)
@@ -271,9 +208,6 @@ POINT(5 10)
 POINT(5 10)
 POINT(5 10)
 POINT(5 10)
-POINT(5 10)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_linestring ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat')))
@@ -282,9 +216,6 @@ LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
-LINESTRING(0 5,5 10,10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_polygon
 ORDER BY fid;
@@ -294,9 +225,6 @@ POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
-POLYGON((0 0,5 0,5 5,0 5,0 0))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_point
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_multi_point ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat')))
@@ -305,9 +233,6 @@ MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_multi_linestring ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat')))
@@ -316,9 +241,6 @@ MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_multi_polygon ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat')))
@@ -327,9 +249,6 @@ MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_geometrycollection
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat'))) FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=long-lat')))
@@ -338,9 +257,6 @@ GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 #####################################################################
 # Retrieving geometries with ST_ASWKB with srid-default axis ordering
 # (Default SRID coordination should thus be explicitly used)
@@ -354,9 +270,6 @@ POINT(10 5)
 POINT(5 10)
 POINT(5 10)
 POINT(5 10)
-POINT(5 10)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_linestring ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined')))
@@ -365,9 +278,6 @@ LINESTRING(5 0,10 5,15 10)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
-LINESTRING(0 5,5 10,10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_polygon ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined')))
@@ -376,9 +286,6 @@ POLYGON((0 0,0 5,5 5,5 0,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
-POLYGON((0 0,5 0,5 5,0 5,0 0))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_point
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_multi_point ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined')))
@@ -387,9 +294,6 @@ MULTIPOINT((2 0),(7 5),(2 8),(9 4))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_multi_linestring ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined')))
@@ -398,9 +302,6 @@ MULTILINESTRING((2 0,4 2,6 4),(11 8,14 11,17 14))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_multi_polygon ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined')))
@@ -409,9 +310,6 @@ MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6,4 4)),((0 0,-2 -2,-2 0,
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_geometrycollection
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined'))) FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=srid-defined')))
@@ -420,9 +318,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 ##########################################################################
 # Retrieving geometries with ST_ASWKB with empty axis ordering parameter
 # (Default SRID coordination should thus be used)
@@ -436,9 +331,6 @@ POINT(10 5)
 POINT(5 10)
 POINT(5 10)
 POINT(5 10)
-POINT(5 10)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_linestring
 ORDER BY fid;
@@ -448,9 +340,6 @@ LINESTRING(5 0,10 5,15 10)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
 LINESTRING(0 5,5 10,10 15)
-LINESTRING(0 5,5 10,10 15)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_polygon
 ORDER BY fid;
@@ -460,9 +349,6 @@ POLYGON((0 0,0 5,5 5,5 0,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
 POLYGON((0 0,5 0,5 5,0 5,0 0))
-POLYGON((0 0,5 0,5 5,0 5,0 0))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_point
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_multi_point
 ORDER BY fid;
@@ -472,9 +358,6 @@ MULTIPOINT((2 0),(7 5),(2 8),(9 4))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
 MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-MULTIPOINT((0 2),(5 7),(8 2),(4 9))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_linestring
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_multi_linestring
 ORDER BY fid;
@@ -484,9 +367,6 @@ MULTILINESTRING((2 0,4 2,6 4),(11 8,14 11,17 14))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
 MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_multi_polygon
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_multi_polygon
 ORDER BY fid;
@@ -496,9 +376,6 @@ MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6,4 4)),((0 0,-2 -2,-2 0,
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
 MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0)))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Retrieve all values from gis_geometrycollection
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ''))) FROM gis_geometrycollection
 ORDER BY fid;
@@ -508,9 +385,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 ################################
 # Specific cases testing
 # ##############################
@@ -522,9 +396,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=LaT-LOng'))) FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=LaT-LOng')))
 GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6,4 4)),((0 0,-2 -2,-2 0,0 0))))
@@ -532,9 +403,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=LOnG-lAT'))) FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, 'axis-order=LOnG-lAT')))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
@@ -542,9 +410,6 @@ GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Test with combined lowercase, uppercase and whitespaces in optional parameter
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, '   aXIs-oRDer=sriD-dEFineD    '))) FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, '   aXIs-oRDer=sriD-dEFineD    ')))
@@ -553,9 +418,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ' axis-order=LaT-LOng   '))) FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, ' axis-order=LaT-LOng   ')))
 GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0),(4 4,6 4,6 6,4 6,4 4)),((0 0,-2 -2,-2 0,0 0))))
@@ -563,9 +425,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, '   axis-order=LOnG-lAT       '))) FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, '   axis-order=LOnG-lAT       ')))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
@@ -573,9 +432,6 @@ GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 # Test with only whitespaces in optional parameter (Should return same as empty string)
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASWKB(g, '       '))) FROM gis_geometrycollection
 ORDER BY fid;
@@ -585,9 +441,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 ##########################
 # Error testing
 # ########################
@@ -659,7 +512,7 @@ SELECT ST_AsWKB(POINT(1, 1), 'axis-order=lat-long , foo=bar');
 ERROR 22023: Invalid option key 'foo' in function st_aswkb.
 # Test with invalid options value and invalid SRID (should give same
 # error as with a valid SRID)
-DO ST_AsWKB(ST_GeomFromText('POINT(1 1)', 4325), 'axis-order = foo');
+DO ST_AsWKB(ST_GeomFromText('POINT(1 1)', 4326), 'axis-order = foo');
 ERROR 22023: Invalid value 'foo' for option 'axis-order' in function 'st_aswkb'.
 #####################################################################
 # ST_ASBINARY
@@ -672,9 +525,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=srid-defined')))
 FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=srid-defined')))
@@ -683,9 +533,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, '')))
 FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, '')))
@@ -694,9 +541,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=lat-long')))
 FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=lat-long')))
@@ -705,9 +549,6 @@ GEOMETRYCOLLECTION(POINT(5 3),POLYGON((0 0,0 10,10 10,10 0,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=long-lat')))
 FROM gis_geometrycollection ORDER BY fid;
 ST_ASTEXT(ST_GEOMFROMWKB(ST_ASBINARY(g, 'axis-order=long-lat')))
@@ -716,9 +557,6 @@ GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
 GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-GEOMETRYCOLLECTION(POINT(3 5),POLYGON((0 0,10 0,10 10,0 10,0 0)),MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4,4 4)),((0 0,-2 -2,0 -2,0 0))))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 426845214. The axis order is unknown.
 SELECT ST_ASBINARY(g, 'invalid_option=invalid-value')
 FROM gis_geometrycollection;
 ERROR 22023: Invalid option key 'invalid_option' in function st_aswkb.
@@ -744,5 +582,7 @@ DROP TABLE gis_multi_point;
 DROP TABLE gis_multi_linestring;
 DROP TABLE gis_multi_polygon;
 DROP TABLE gis_geometrycollection;
-DELETE FROM mysql.st_spatial_reference_systems
-WHERE id >= 30000000 AND id <= 31000000;
+DROP SPATIAL REFERENCE SYSTEM 30000000;
+DROP SPATIAL REFERENCE SYSTEM 30100000;
+DROP SPATIAL REFERENCE SYSTEM 30200000;
+DROP SPATIAL REFERENCE SYSTEM 30300000;

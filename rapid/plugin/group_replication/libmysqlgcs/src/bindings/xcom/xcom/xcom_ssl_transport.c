@@ -1,13 +1,20 @@
 /* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -15,17 +22,17 @@
 */
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "xcom_profile.h"
-
 #include <assert.h>
 #include <stdlib.h>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
 #include "openssl/engine.h"
-#include "task_debug.h"
-#include "x_platform.h"
-#include "xcom_ssl_transport.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
 
 static const char *ssl_mode_options[] = {
     "DISABLED", "PREFERRED", "REQUIRED", "VERIFY_CA", "VERIFY_IDENTITY",
@@ -138,12 +145,21 @@ static unsigned char dh2048_g[] = {
 static DH *get_dh2048(void) {
   DH *dh;
   if ((dh = DH_new())) {
-    dh->p = BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
-    dh->g = BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
-    if (!dh->p || !dh->g) {
+    BIGNUM *p= BN_bin2bn(dh2048_p, sizeof(dh2048_p), NULL);
+    BIGNUM *g= BN_bin2bn(dh2048_g, sizeof(dh2048_g), NULL);
+    if (!p || !g
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+        || !DH_set0_pqg(dh, p, NULL, g)
+#endif /* OPENSSL_VERSION_NUMBER >= 0x10100000L */
+    ) {
+      /* DH_free() will free 'p' and 'g' at once. */
       DH_free(dh);
-      dh = 0;
+      return NULL;
     }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    dh->p= p;
+    dh->g= g;
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   }
   return (dh);
 }
@@ -500,7 +516,9 @@ error:
 void xcom_cleanup_ssl() {
   if (!xcom_use_ssl()) return;
 
-  ERR_remove_state(0);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 }
 
 void xcom_destroy_ssl() {
@@ -602,7 +620,11 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
     goto error;
   }
 
-  cn = (char *)ASN1_STRING_data(cn_asn1);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+  cn = (char *) ASN1_STRING_data(cn_asn1);
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  cn = (char *) ASN1_STRING_get0_data(cn_asn1);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
   /* There should not be any NULL embedded in the CN */
   if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {

@@ -152,7 +152,7 @@ SELECT IP, HOST FROM performance_schema.host_cache WHERE host IS NULL
 
 OK: Handler_read_key
 
-*** ERROR ***: Result set: Empty  Expected: Non-empty
+OK: Result set: Empty  Expected: Empty
 
 OK: Extra rows: 0  Missing rows: 0
 ========

@@ -1,3 +1,6 @@
+select @@session.optimizer_switch;
+@@session.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=off,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=off,semijoin=off,loosescan=off,firstmatch=off,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
 drop table if exists t1,t2,t3,t4;
 create temporary table server_counts_at_startup
 select * from performance_schema.global_status 
@@ -1024,7 +1027,7 @@ where t1.a=2 and t1.b=2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	const	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	const,test.t2.b	1	100.00	Child of 't2' in pushed join@1; Using where
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.a,test.t2.b	1	100.00	Child of 't2' in pushed join@1; Using where
 Warnings:
 Note	1003	/* select#1 */ select '2' AS `a`,'2' AS `b`,'1' AS `c`,'1' AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1_myisam` `t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = '1') and (`test`.`t3`.`b` = '1') and (`test`.`t2`.`a` = '1') and (`test`.`t3`.`a` = '1'))
 select *
@@ -1663,7 +1666,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t0.a,test.t0.b	1	100.00	Child of 't0' in pushed join@1
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.a,test.t1.b	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
-1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t3.c,test.t3.a	1	100.00	Child of 't3' in pushed join@1; Using where
+1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t3.c,test.t2.c	1	100.00	Child of 't3' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t0`.`a` AS `a`,`test`.`t0`.`b` AS `b`,`test`.`t0`.`c` AS `c`,`test`.`t0`.`d` AS `d`,`test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` `t0` left join `test`.`t1` on(((`test`.`t1`.`b` = `test`.`t0`.`b`) and (`test`.`t1`.`a` = `test`.`t0`.`a`))) left join (`test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4`) on(((`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t4`.`a` = `test`.`t3`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))) where 1
 explain
@@ -1722,7 +1725,7 @@ select straight_join * from
 inner join t1 as t3 on t3.a = t2.b and t3.b = t1.c
 left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 4 pushed join@1; Using where with pushed condition ((`test`.`t1`.`d` is not null) and (`test`.`t1`.`c` is not null))
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 4 pushed join@1; Using where with pushed condition (`test`.`t1`.`d` is not null)
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.d,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 1	SIMPLE	t4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t1.c	1	100.00	Child of 't2' in pushed join@1
@@ -2611,7 +2614,6 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`d3` = `test`.`x`.`c3`) and (`test`.`x`.`d3` = 31))
 select * from t3 x, t3 y where x.d3=31 and y.d3=x.c3;
 a3	b3	c3	d3	a3	b3	c3	d3
-31	47	1	31	47	63	2	47
 explain
 select * from t3 x, t3 y 
 where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
@@ -4004,7 +4006,7 @@ explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	68	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
@@ -4021,7 +4023,7 @@ explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
@@ -4038,7 +4040,7 @@ explain
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	518	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	2054	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
@@ -4105,8 +4107,8 @@ insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	22	const,const	1	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1
+1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,const	1	100.00	Parent of 2 pushed join@1
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole') and (`test`.`x`.`b3` = 0x2f))
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
@@ -4115,8 +4117,8 @@ Dole	47	2	47	Dole	47	2	47
 explain
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	18	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1
+1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	66	const	3	100.00	Parent of 2 pushed join@1
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	70	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole'))
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
@@ -4195,8 +4197,8 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3000	100.00	Parent of 3 pushed join@1
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`d`) and (`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
 select count(*)
@@ -4213,7 +4215,7 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3000	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.c	30	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
 select count(*)
@@ -4229,7 +4231,7 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 join t1 as t3 on t3.a = t2.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3000	100.00	Parent of 3 pushed join@1
-1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.c	30	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`d`) and (`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
@@ -4248,7 +4250,7 @@ join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3000	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.c	30	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	259	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	1024	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))
 select count(*)
@@ -4344,10 +4346,8 @@ a	c	a	b
 drop table t1;
 drop table t2;
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine ndb;
-drop tablespace ts1
-engine ndb;
+drop datafile 'datafile.dat';
+drop tablespace ts1;
 drop logfile group lg1
 engine ndb;
 create temporary table old_count 
@@ -4604,9 +4604,9 @@ and x.a = y.pk
 where y.pk = 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	const	PRIMARY	PRIMARY	4	const	1	100.00	NULL
-1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	const	PRIMARY,a	NULL	NULL	NULL	1	100.00	Impossible ON condition
+1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	const	PRIMARY,a	PRIMARY	4	const	1	100.00	Impossible ON condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`x`.`pk` AS `pk`,`test`.`x`.`a` AS `a`,'2' AS `pk`,'20' AS `a` from `test`.`t1` `y` left join `test`.`t1` `x` on((multiple equal(2, `test`.`x`.`pk`, `test`.`x`.`a`))) where 1
+Note	1003	/* select#1 */ select NULL AS `pk`,NULL AS `a`,'2' AS `pk`,'20' AS `a` from `test`.`t1` `y` left join `test`.`t1` `x` on((multiple equal(2, NULL, NULL))) where 1
 select * from t1 as x right join t1 as y
 on x.pk = y.pk
 and x.pk = y.a
@@ -5609,8 +5609,8 @@ right outer join tc as x2 on x1.b=x2.a
 left outer join tc as x3 on x2.b = x3.b and x1.c=x3.c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ref	uk1	uk1	13	test.x2.a	1	100.00	Parent of 2 pushed join@1
-1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ref	uk1	uk1	26	test.x2.b,test.x1.c	1	100.00	Child of 'x1' in pushed join@1
+1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ref	uk1	uk1	43	test.x2.a	1	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ref	uk1	uk1	86	test.x2.b,test.x1.c	1	100.00	Child of 'x1' in pushed join@1
 Warnings:
 Note	1003	Can't push table 'x1' as child of 'x2', outer join of scan-child not implemented
 Note	1003	Can't push table 'x3' as child of 'x2', column 'x1.c' is outside scope of pushable join
@@ -5625,13 +5625,13 @@ bb	cc	x	cc	dd	x	cc	dd	x
 explain select * from tc as x1, tc as x2 where x1.b=x2.a for update;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	uk1	NULL	NULL	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`x1`.`b` is not null)
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	12	test.x1.b	1	100.00	Child of 'x1' in pushed join@1
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	42	test.x1.b	1	100.00	Child of 'x1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c` from `test`.`tc` `x1` join `test`.`tc` `x2` where (`test`.`x2`.`a` = `test`.`x1`.`b`)
 explain select * from tc as x1, tc as x2 where x1.b=x2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	uk1	NULL	NULL	NULL	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`x1`.`b` is not null)
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	12	test.x1.b	1	100.00	Child of 'x1' in pushed join@1
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	42	test.x1.b	1	100.00	Child of 'x1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c` from `test`.`tc` `x1` join `test`.`tc` `x2` where (`test`.`x2`.`a` = `test`.`x1`.`b`)
 drop table tc;
@@ -5859,7 +5859,7 @@ insert into t1 values ('cq',4);
 insert into t2 values (1,2), (2,3), (3,4), (4,5);
 explain select * from t1 join t2 on t1.u = t2.pk order by t1.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	10	NULL	5	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	index	NULL	PRIMARY	40	NULL	5	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	4	test.t1.u	1	100.00	Child of 't1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`u` AS `u`,`test`.`t2`.`pk` AS `pk`,`test`.`t2`.`u` AS `u` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`pk` = `test`.`t1`.`u`) order by `test`.`t1`.`pk`
@@ -5909,7 +5909,7 @@ l29 char(255) not null,
 l30 char(255) not null,
 l31 char(255) not null,
 index(c, b)
-) engine=ndb partition by key(a) partitions 8;
+) engine=ndb character set latin1 partition by key(a) partitions 8;
 insert into t1 values ('a','a','a','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
 insert into t1 values ('b','b','b','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
 insert into t1 values ('c','c','c','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
@@ -6183,6 +6183,7 @@ insert into t1 values
 (3,1,1,2), (3,2,2,3), (3,4,3,4),
 (4,1,4,5), (4,2,5,1), (4,3,1,2);
 set global debug='+d,max_4rows_in_spj_batches';
+set @save_optimizer_switch = @@optimizer_switch;
 set optimizer_switch='materialization=off';
 explain
 select count(*) from t1 where 
@@ -6239,8 +6240,368 @@ select count(*) from t1 where
 t1.c in (select subq1.c from t1 as subq1 straight_join t1 as subq2 on subq1.a = subq2.c);
 count(*)
 16
-set optimizer_switch='materialization=default';
+set optimizer_switch=@save_optimizer_switch;
 set global debug=@save_debug;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='loosescan=on';
+explain SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table2.b	2	100.00	LooseScan
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table2.a,test.table2.b	1	100.00	Child of 'table2' in pushed join@1
+Warnings:
+Note	1003	Can't push table 'table1s' as child of 'table2', semi join of scan-child not implemented
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` LOOSESCAN) */ count(0) AS `count(*)` from `test`.`t1` `table1` semi join (`test`.`t1` `table1s`) join `test`.`t1` `table2` where ((`test`.`table1`.`a` = `test`.`table2`.`a`) and (`test`.`table1s`.`c` = `test`.`table2`.`b`) and (`test`.`table1`.`b` = `test`.`table2`.`b`))
+SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(LOOSESCAN)*/ table1s.c FROM t1 as table1s);
+count(*)
+16
+set @@optimizer_switch='firstmatch=on';
+explain SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	100.00	Child of 'table1' in pushed join@1
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table1.b	2	100.00	FirstMatch(table2)
+Warnings:
+Note	1003	Can't push table 'table1s' as child of 'table1', semi join of scan-child not implemented
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` FIRSTMATCH) */ count(0) AS `count(*)` from `test`.`t1` `table1` semi join (`test`.`t1` `table1s`) join `test`.`t1` `table2` where ((`test`.`table2`.`a` = `test`.`table1`.`a`) and (`test`.`table2`.`b` = `test`.`table1`.`b`) and (`test`.`table1s`.`c` = `test`.`table1`.`b`))
+SELECT count(*)
+FROM (t1 AS table1 JOIN t1 AS table2 USING(a,b))
+WHERE table1.b IN
+(SELECT /*+ SEMIJOIN(FIRSTMATCH)*/ table1s.c FROM t1 as table1s);
+count(*)
+16
+set optimizer_switch=@save_optimizer_switch;
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+set @@optimizer_switch='materialization=on';
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery2>.c	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
+2	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+Warnings:
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery2>.c	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,<subquery2>.c	1	100.00	Child of 't1' in pushed join@1
+2	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+Warnings:
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`) and (`test`.`t2`.`b` = `<subquery2>`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+count(*)
+13
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery3>.c	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,<subquery3>.c	1	100.00	Child of 't1' in pushed join@1
+3	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+Warnings:
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#3` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t1`.`c` = `<subquery3>`.`c`) and (`test`.`t2`.`b` = `<subquery3>`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c;
+count(*)
+13
+explain
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery3>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery3>.c	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,<subquery3>.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	<subquery4>	NULL	eq_ref	<auto_key>	<auto_key>	4	func	1	100.00	Using where
+3	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+4	MATERIALIZED	t3	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	NULL
+Warnings:
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't3' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#3` MATERIALIZATION) SEMIJOIN(@`select#4` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3`) semi join (`test`.`t1` `t3`) join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery3>`.`c`) and (`test`.`t2`.`b` = `<subquery3>`.`c`) and (`<subquery4>`.`c` = `<subquery3>`.`c`))
+select count(*)
+from (select * from t1 where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3)) as t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+where t1.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ c from t1 as t3);
+count(*)
+13
+set optimizer_switch='block_nested_loop=off';
+explain
+select count(*)
+from t1 cross join t1 as t2
+where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
+from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery2>.c	2	100.00	NULL
+2	MATERIALIZED	t3s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+2	MATERIALIZED	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	PRIMARY	4	test.t3s.b	1	100.00	Child of 't3s' in pushed join@1
+Warnings:
+Note	1003	Can't push table 't2' as child of 't1', column '<subquery2>.c' is outside scope of pushable join
+Note	1003	Can't push table 't3s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't4s' as child of 't1', column 't3s.b' is outside scope of pushable join
+Note	1003	Can't push table 't4s' as child of 't2', column 't3s.b' is outside scope of pushable join
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) join `test`.`t1` `t2` where ((`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t2`.`c` = `<subquery2>`.`c`))
+select count(*)
+from t1 cross join t1 as t2
+where t2.c IN (select /*+ SEMIJOIN(MATERIALIZATION)*/ t4s.c
+from t1 as t3s join t1 as t4s on t4s.a = t3s.b);
+count(*)
+256
+set optimizer_switch=@save_optimizer_switch;
+set global debug='+d,max_4rows_in_spj_batches';
+set @save_optimizer_switch = @@optimizer_switch;
+set @@optimizer_switch='semijoin=on';
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t3s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1; Start temporary
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	100.00	Child of 't3s' in pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t3s.c	2	100.00	Child of 't3s' in pushed join@1; End temporary
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
+Warnings:
+Note	1003	Can't push table 't2' as child of 't3s', not members of same join 'nest'
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) join `test`.`t1` `t2` where ((`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `test`.`t3s`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t2.c	2	100.00	Parent of 2 pushed join@2; Start temporary
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	100.00	Child of 't3s' in pushed join@2; End temporary
+Warnings:
+Note	1003	Can't push table 't3s' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 't4s' as child of 't1', column 't3s.b' is outside scope of pushable join
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) join `test`.`t1` `t2` where ((`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3s`.`c` = `test`.`t2`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Parent of 4 pushed join@1; Start temporary
+1	SIMPLE	t5s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	100.00	Child of 't4s' in pushed join@1
+1	SIMPLE	t6s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	100.00	Child of 't5s' in pushed join@1
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t4s.c	2	100.00	Child of 't4s' in pushed join@1; End temporary
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Parent of 2 pushed join@2
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Child of 't2' in pushed join@2
+Warnings:
+Note	1003	Can't push table 't2' as child of 't4s', not members of same join 'nest'
+Note	1003	Can't push table 't3' as child of 't4s', column 't2.b' is outside scope of pushable join
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t4s` join `test`.`t1` `t5s` join `test`.`t1` `t6s`) join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t5s`.`a` = `test`.`t4s`.`b`) and (`test`.`t6s`.`a` = `test`.`t5s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t1`.`c` = `test`.`t4s`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t1.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t2.c	2	100.00	Parent of 3 pushed join@2; Start temporary
+1	SIMPLE	t5s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	100.00	Child of 't4s' in pushed join@2
+1	SIMPLE	t6s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	100.00	Child of 't5s' in pushed join@2; End temporary
+Warnings:
+Note	1003	Can't push table 't4s' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 't5s' as child of 't1', column 't4s.b' is outside scope of pushable join
+Note	1003	Can't push table 't6s' as child of 't1', column 't5s.b' is outside scope of pushable join
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t4s` join `test`.`t1` `t5s` join `test`.`t1` `t6s`) join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t5s`.`a` = `test`.`t4s`.`b`) and (`test`.`t6s`.`a` = `test`.`t5s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t4s`.`c` = `test`.`t2`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t2.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,c	PRIMARY	4	test.t2.b	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.t3.c	2	100.00	Parent of 3 pushed join@2; Start temporary
+1	SIMPLE	t5s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t4s.b	1	100.00	Child of 't4s' in pushed join@2
+1	SIMPLE	t6s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t5s.b	1	100.00	Child of 't5s' in pushed join@2; End temporary
+Warnings:
+Note	1003	Can't push table 't4s' as child of 't1', semi join of scan-child not implemented
+Note	1003	Can't push table 't5s' as child of 't1', column 't4s.b' is outside scope of pushable join
+Note	1003	Can't push table 't6s' as child of 't1', column 't5s.b' is outside scope of pushable join
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` DUPSWEEDOUT) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t4s` join `test`.`t1` `t5s` join `test`.`t1` `t6s`) join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t5s`.`a` = `test`.`t4s`.`b`) and (`test`.`t6s`.`a` = `test`.`t5s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t4s`.`c` = `test`.`t3`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+join t1 as t3 on t3.a = t2.b
+where t3.c IN (
+select /*+ SEMIJOIN(DUPSWEEDOUT)*/ t4s.c from t1 as t4s
+join t1 as t5s on t5s.a = t4s.b
+join t1 as t6s on t6s.a = t5s.b
+);
+count(*)
+256
+set global debug=@save_debug;
+set optimizer_switch=@save_optimizer_switch;
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	<subquery2>.c	2	100.00	Parent of 2 pushed join@1
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
+2	MATERIALIZED	t3s	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@2
+2	MATERIALIZED	t4s	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s.b	1	100.00	Child of 't3s' in pushed join@2
+Warnings:
+Note	1003	Can't push table 't3s' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't4s' as child of 't1', column 't3s.b' is outside scope of pushable join
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s` join `test`.`t1` `t4s`) join `test`.`t1` `t2` where ((`test`.`t4s`.`a` = `test`.`t3s`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN (
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s.c from t1 as t3s
+join t1 as t4s on t4s.a = t3s.b);
+count(*)
+64
+explain
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN(
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
+join t1 as t4s1 on t4s1.a = t3s1.b
+)
+and t1.d IN (
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
+join t1 as t4s2 on t4s2.a = t3s2.b
+);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	100.00	NULL
+1	SIMPLE	t1	p0,p1,p2,p3,p4,p5,p6,p7	ref	c,d	c	4	<subquery2>.c	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`t1`.`d` is not null)
+1	SIMPLE	t2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	<subquery3>	NULL	eq_ref	<auto_key>	<auto_key>	4	test.t1.d	1	100.00	NULL
+2	MATERIALIZED	t3s1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@2
+2	MATERIALIZED	t4s1	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s1.b	1	100.00	Child of 't3s1' in pushed join@2
+3	MATERIALIZED	t3s2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	c	NULL	NULL	NULL	16	100.00	Parent of 2 pushed join@3
+3	MATERIALIZED	t4s2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.t3s2.b	1	100.00	Child of 't3s2' in pushed join@3
+Warnings:
+Note	1003	Can't push table 't3s1' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't4s1' as child of 't1', column 't3s1.b' is outside scope of pushable join
+Note	1003	Can't push table 't3s2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 't4s2' as child of 't1', column 't3s2.b' is outside scope of pushable join
+Note	1003	Can't push table 't4s2' as child of 't3s1', column 't3s2.b' is outside scope of pushable join
+Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` MATERIALIZATION) SEMIJOIN(@`select#3` MATERIALIZATION) */ count(0) AS `count(*)` from `test`.`t1` semi join (`test`.`t1` `t3s1` join `test`.`t1` `t4s1`) semi join (`test`.`t1` `t3s2` join `test`.`t1` `t4s2`) join `test`.`t1` `t2` where ((`test`.`t4s2`.`a` = `test`.`t3s2`.`b`) and (`test`.`t4s1`.`a` = `test`.`t3s1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`<subquery3>`.`c` = `test`.`t1`.`d`) and (`test`.`t1`.`c` = `<subquery2>`.`c`))
+select count(*)
+from t1
+join t1 as t2 on t2.a = t1.b
+where t1.c IN(
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s1.c from t1 as t3s1
+join t1 as t4s1 on t4s1.a = t3s1.b
+)
+and t1.d IN (
+select /*+ SEMIJOIN(MATERIALIZATION)*/ t3s2.c from t1 as t3s2
+join t1 as t4s2 on t4s2.a = t3s2.b
+);
+count(*)
+64
 drop table t1;
 CREATE TABLE ndb_order_test (
 node_id int(10) unsigned NOT NULL,
@@ -6302,9 +6663,9 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	11
-Ndb_pushed_queries_defined	420
+Ndb_pushed_queries_defined	465
 Ndb_pushed_queries_dropped	13
-Ndb_sorted_scan_count	93
+Ndb_sorted_scan_count	109
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
 set @@global.optimizer_switch=default;

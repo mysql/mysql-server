@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -151,12 +158,12 @@ bool Window::check_window_functions(THD *thd, SELECT_LEX *select)
       INT_MIN64 can't be specified due 2's complement range.
       Offset is always given as a positive value; lead converted to negative
       but can't get to INT_MIN64. So, if we see this value, this window
-      function isn't LEAD or LAG. 
+      function isn't LEAD or LAG.
     */
     if (reqs.opt_ll_row.m_rowno != INT_MIN64)
       m_opt_lead_lag.m_offsets.push_back(reqs.opt_ll_row);
 
-    if (thd->lex->describe && m_frame != nullptr && !wfs->framing())
+    if (thd->lex->is_explain() && m_frame != nullptr && !wfs->framing())
     {
       /*
         SQL2014 <window clause> SR6b: functions which do not respect frames
@@ -218,10 +225,30 @@ static Item_cache *make_result_item(Item *value)
   return result;
 }
 
+/**
+  Return element with index i from list
+
+  @param list List of ORDER elements
+  @param i zero-based index
+
+  @return element at index i, or nullptr if i out of range
+*/
+static ORDER *elt(const SQL_I_List<ORDER> &list, uint i)
+{
+  ORDER *o= list.first;
+  while (o != nullptr)
+  {
+    if (i-- == 0)
+      return o;
+    o= o->next;
+  }
+  DBUG_ASSERT(false);
+  return nullptr;
+}
 
 bool Window::setup_range_expressions(THD *thd)
 {
-  const PT_order_list *o= order();
+  const PT_order_list *o= effective_order_by();
 
   if (o == nullptr && m_frame->m_unit == WFU_RANGE)
   {
@@ -239,10 +266,7 @@ bool Window::setup_range_expressions(THD *thd)
     }
   }
 
-  PT_border *ba[]= { m_frame->m_from, m_frame->m_to };
-  auto constexpr siz= sizeof(ba) / sizeof(PT_border *);
-
-  for (auto border : Bounds_checked_array<PT_border *>(ba, siz))
+  for (auto border : { m_frame->m_from, m_frame->m_to })
   {
     Item_func *cmp= nullptr, **cmp_ptr= nullptr /* to silence warning */ ;
     enum_window_border_type border_type= border->m_border_type;
@@ -287,53 +311,93 @@ bool Window::setup_range_expressions(THD *thd)
       // fall through
     case WBT_CURRENT_ROW:
       {
-        bool asc= o->value.first->direction == ORDER_ASC;
         /*
-          Below, "value" is the value of ORDER BY expr at current row.
-          "nr" is the value of the ORDER BY expr at another row in partition
-          which we want to determine whether resided in the specified RANGE.
+          We compute lower than (LT) as
 
-          We poke in the actual value of expr of the current row (cached) into value
-          in Cached_item_xxx:cmp.
+                   OR
+                  /  \
+           oe-1 LT ?  OR
+                     /  \
+              oe-2 LT ?   OR
+                            :
+                            OR
+                           /   \
+                  oe-n LT ?   false
+
+          WBT_VALUE_PRECEDING and WBT_VALUE_FOLLOWING requires the tree to have
+          exactly one oe-1 LT (for the one ORDER BY expession allowed for such
+          queries).
         */
-        Item *nr= m_order_by_items[0]->get_item();
-        /*
-          WBT_CURRENT_ROW:
-          if FROM:
-          asc ? nr < value : nr > value ;
-          if TO: < becomes > and vice-versa.
-          WBT_VALUE_PRECEDING:
-          if FROM:
-          asc ? nr < value - border->val_int() :
-          nr > value + border->val_int())
-          if TO: < becomes > and vice-versa.
-          WBT_VALUE_FOLLOWING:
-          If FROM:
-          asc ? nr < value + border->val_int() :
-          nr > value - border->val_int()
-          if TO: < becomes > and vice-versa.
-        */
-        Item_cache *value_i= make_result_item(nr);
-        if (value_i == nullptr)
-          return true;
-        Item *cmp_arg;
-        if (border_type == WBT_VALUE_PRECEDING ||
-            border_type == WBT_VALUE_FOLLOWING)
+        cmp= reinterpret_cast<Item_func*>(new Item_int(0,1));
+
+        // Build OR tree from bottom up, so left most expression ends up on top
+        for (int i= o->value.elements - 1; i >= 0; i--)
         {
-          cmp_arg= border->build_addop(value_i,
-                                       border_type == WBT_VALUE_PRECEDING,
-                                       asc, this);
-          if (cmp_arg == nullptr)
+          bool asc= elt(o->value, i)->direction == ORDER_ASC;
+          Item *nr= m_order_by_items[i]->get_item();
+
+          /*
+            Below, "value" is the value of ORDER BY expr at current row.
+            "nr" is the value of the ORDER BY expr at another row in partition
+            which we want to determine whether resided in the specified RANGE.
+
+            We poke in the actual value of expr of the current row (cached) into
+            value in Cached_item_xxx:cmp.
+          */
+
+          Item_cache *value= make_result_item(nr);
+          if (value == nullptr)
+            return true;
+
+          /*
+            WBT_CURRENT_ROW:
+              if FROM:
+                asc ? nr < value : nr > value ;
+              if TO: < becomes > and vice-versa.
+
+              If we have multiple ORDER BY expressions we build and
+              OR tree with several levels of conditions. These gets flattened
+              into a single OR node at execution time, which we evaluate
+              explicitly in before_or_after_frame, inclucing null handling
+
+            WBT_VALUE_PRECEDING:
+              if FROM:
+                asc ? nr < value - border->val_int() :
+                      nr > value + border->val_int())
+              if TO: < becomes > and vice-versa.
+            WBT_VALUE_FOLLOWING:
+              If FROM:
+                asc ? nr < value + border->val_int() :
+                      nr > value - border->val_int()
+              if TO: < becomes > and vice-versa.
+          */
+          Item *cmp_arg;
+          if (border_type == WBT_VALUE_PRECEDING ||
+              border_type == WBT_VALUE_FOLLOWING)
+          {
+            DBUG_ASSERT(i == 0); // only one expr allowed with WBT_VALUE_*
+            cmp_arg= border->build_addop(value,
+                                         border_type == WBT_VALUE_PRECEDING,
+                                         asc, this);
+            if (cmp_arg == nullptr)
+                return true;
+          }
+          else
+          {
+            cmp_arg= value;
+          }
+
+          Item_func *new_cmp;
+          if ((border == m_frame->m_from) ? asc : !asc)
+            new_cmp= new Item_func_lt(nr, cmp_arg);
+          else
+            new_cmp= new Item_func_gt(nr, cmp_arg);
+
+          cmp= new Item_cond_or(new_cmp, cmp);
+          if (cmp == nullptr)
             return true;
         }
-        else
-          cmp_arg= value_i;
-        if ((border == m_frame->m_from) ? asc : !asc)
-          cmp= new Item_func_lt(nr, cmp_arg);
-        else
-          cmp= new Item_func_gt(nr, cmp_arg);
-        if (cmp == nullptr)
-          return true;
+
         cmp_ptr= &m_comparators[border_type][border == m_frame->m_to];
         *cmp_ptr= cmp;
 
@@ -354,8 +418,10 @@ ORDER *Window::sorting_order(THD *thd)
 {
   if (m_sorting_order == nullptr)
   {
-    ORDER *part= partition() ? partition()->value.first : nullptr;
-    ORDER *ord= order() ? order()->value.first : nullptr;
+    ORDER *part= effective_partition_by() ?
+      effective_partition_by()->value.first : nullptr;
+    ORDER *ord= effective_order_by() ?
+      effective_order_by()->value.first : nullptr;
 
     /*
       1. Copy both lists
@@ -385,7 +451,7 @@ ORDER *Window::sorting_order(THD *thd)
 bool Window::resolve_reference(THD *thd, Item_sum *wf, PT_window **m_window)
 {
   Prepared_stmt_arena_holder stmt_arena_holder(thd);
-  
+
   if (!(*m_window)->is_reference())
   {
     (*m_window)->m_functions.push_back(wf);
@@ -514,69 +580,90 @@ bool Window::before_or_after_frame(bool before)
   if (border_type == infinity)
     return false; // all rows included
 
-  List_iterator<Cached_item> li(m_order_by_items);
-  Cached_item *cur_row = li++;
-  Item *candidate= cur_row->get_item();
   /*
-    'cur_row' represents the value of the current row's windowing ORDER BY
-    expression, and 'candidate' represents the same expression in the
-    candidate row. Our caller is calculating the WF's value for 'cur_row';
-    to this aim, here we want to know if 'candidate' is part of the frame of
-    'cur_row'.
-
-    First, as the candidate row has just been copied back from the frame
-    buffer, we must update the item's null_value
+    If multiple ORDER BY expressions: only CURRENT ROW need be considered
+    since infinity handled above.
   */
-  (void)candidate->update_null_value();
-
-  const bool asc= order()->value.first->direction == ORDER_ASC;
-  const bool nulls_at_infinity= // true if NULLs stick to 'infinity'
-    before ? asc : !asc;
-
   DBUG_ASSERT(border_type == WBT_CURRENT_ROW ||
-              border_type == WBT_VALUE_PRECEDING ||
-              border_type == WBT_VALUE_FOLLOWING);
+              (m_order_by_items.elements == 1 &&
+               (border_type == WBT_VALUE_PRECEDING ||
+                border_type == WBT_VALUE_FOLLOWING)));
 
-  if (cur_row->null_value)                           // Current row is NULL
-  {
-    if (candidate->null_value)
-      return false; // peer, so can't be before or after
-    else
-      return !nulls_at_infinity;
-  }
-
-  // Current row is not NULL:
-  if (candidate->null_value)
-    return nulls_at_infinity;
-
-  // both value non-NULL, so compare
-
+  List_iterator<Cached_item> li(m_order_by_items);
+  Cached_item *cur_row;
+  uint i= 0;
   Item_func *comparator= m_comparators[border_type][!before];
-  /*
-    'comparator' is set to compare 'cur_row' with 'candidate' but it has an
-    old value of 'cur_row', update it.
+  DBUG_ASSERT(comparator->functype() == Item_func::COND_OR_FUNC);
 
-    'comparator' is one of
+  // fix_items will have flattened the OR tree into a single multi-arg OR
+  List<Item> &args= *down_cast<Item_cond_or*>(comparator)->argument_list();
+  const PT_order_list *eff_ob= effective_order_by();
+  const SQL_I_List<ORDER> order= eff_ob->value;
+  ORDER *o_expr= order.first;
+
+  while ((cur_row= li++))
+  {
+    /*
+      'cur_row' represents the value of the current row's windowing ORDER BY
+      expression, and 'candidate' represents the same expression in the
+      candidate row. Our caller is calculating the WF's value for 'cur_row';
+      to this aim, here we want to know if 'candidate' is part of the frame of
+      'cur_row'.
+
+      First, as the candidate row has just been copied back from the frame
+      buffer, we must update the item's null_value
+    */
+    Item *candidate= cur_row->get_item();
+    (void)candidate->update_null_value();
+
+    const bool asc= o_expr->direction == ORDER_ASC;
+    o_expr= o_expr->next;
+
+    const bool nulls_at_infinity= // true if NULLs stick to 'infinity'
+      before ? asc : !asc;
+
+    Item_func *func= down_cast<Item_func *>(args[i++]);
+
+    if (cur_row->null_value)                           // Current row is NULL
+    {
+      if (candidate->null_value)
+        continue; // peer, so can't be before or after, next expr will decide
+      else
+        return !nulls_at_infinity;
+    }
+
+    if (candidate->null_value)
+      return nulls_at_infinity;
+
+    /*
+      'comparator' is set to compare 'cur_row' with 'candidate' but it has an
+      old value of 'cur_row', update it.
+
+      'comparator' is one of
       candidate {<, >} cur_row
       candidate {<, >} cur_row {-,+} constant
 
-    The second form is used when the the RANGE frame boundary is
-    WBT_VALUE_PRECEDING/WBT_VALUE_FOLLOWING, "constant" above being the value
-    specified in the query, cf. setup in Window::setup_range_expressions.
-  */
-  Item *to_update;
-  if (border_type == WBT_CURRENT_ROW)
-  {
-    to_update= comparator->arguments()[1];
+      The second form is used when the the RANGE frame boundary is
+      WBT_VALUE_PRECEDING/WBT_VALUE_FOLLOWING, "constant" above being the value
+      specified in the query, cf. setup in Window::setup_range_expressions.
+    */
+    Item *to_update= func->arguments()[1];
+    if (border_type == WBT_CURRENT_ROW)
+    {
+      to_update= func->arguments()[1];
+    }
+    else
+    {
+      DBUG_ASSERT(i == 1);
+      Item_func *addop= down_cast<Item_func *>(func->arguments()[1]);
+      to_update= addop->arguments()[0];
+    }
+
+    cur_row->copy_to_Item_cache(down_cast<Item_cache*>(to_update));
+    if (func->val_int())
+      return true;
   }
-  else
-  {
-    Item_func *addop=
-      down_cast<Item_func *>(comparator->arguments()[1]);
-    to_update= addop->arguments()[0];
-  }
-  cur_row->copy_to_Item_cache(down_cast<Item_cache*>(to_update));
-  return comparator->val_int();
+  return false;
 }
 
 
@@ -811,10 +898,7 @@ bool Window::check_border_sanity(THD *thd, Window *w,
 
   const PT_frame &fr= *f;
 
-  PT_border *ba[]= { fr.m_from, fr.m_to };
-  auto constexpr siz= sizeof(ba) / sizeof(PT_border *);
-
-  for (auto border : Bounds_checked_array<PT_border *>(ba, siz))
+  for (auto border : { fr.m_from, fr.m_to })
   {
     enum_window_border_type border_t= border->m_border_type;
     switch (fr.m_unit)
@@ -963,7 +1047,7 @@ public:
 
   /**
     If the window depends on another window, return 1, else 0.
-    
+
     @param wno the window
     @returns the out degree
   */
@@ -1023,23 +1107,60 @@ public:
   }
 };
 
-
-/**
-  For now, we allow only the use of the new temp table memory engine,
-  and not the old HEAP engine. This makes the old logic to handle overflow
-  irrelevant, but we keep it now in case we decide to allow using HEAP again.
-  FIXME.
-*/
-static bool check_acceptable_storage_engines(THD *thd)
+void Window::remove_unused_windows(THD *thd,
+                                   List<Window> &windows)
 {
-  if (thd->variables.internal_tmp_mem_storage_engine != TMP_TABLE_TEMPTABLE)
+  /*
+    Go through the list. Check if a window is used by any function. If not,
+    check if any other window (used by window functions) is actually inheriting
+    from this window. If not, remove this window definition.
+  */
+  List_iterator<Window> wi1(windows);
+  for (Window *w1= wi1++; w1 != nullptr; w1= wi1++)
   {
-    my_error(ER_WINDOW_SE_NOT_ACCEPTABLE, MYF(0));
-    return true;
-  }
+    if (w1->m_functions.elements == 0)
+    {
+      /*
+        No window functions use this window, so check if other used window
+        definitions inherit from this window.
+      */
+      bool window_used= false;
+      List_iterator<Window> wi2(windows);
+      for (const Window *w2= wi2++; w2 != nullptr; w2= wi2++)
+      {
+        if (w2->m_functions.elements > 0)
+        {
+          /*
+            Go through the ancestor list and see if the current window
+            definition is used by this window.
+          */
+          for (const Window *w_a= w2->m_ancestor; w_a != nullptr;
+               w_a= w_a->m_ancestor)
+          {
+            // Can't inherit from unnamed window:
+            DBUG_ASSERT(w_a->m_name != nullptr);
 
-  return false;
+            if (my_strcasecmp(system_charset_info,
+                              w1->m_name->str_value.ptr(),
+                              w_a->m_name->str_value.ptr()) == 0)
+            {
+              window_used= true;
+              break;
+            }
+          }
+        }
+        if (window_used)
+          break;
+      }
+      if (!window_used)
+      {
+        w1->cleanup(thd);
+        wi1.remove();
+      }
+    }
+  }
 }
+
 
 bool Window::setup_windows(THD* thd,
                            SELECT_LEX *select,
@@ -1050,9 +1171,6 @@ bool Window::setup_windows(THD* thd,
                            List<Window> &windows)
 {
   bool some_window_needs_frame_buffer= false;
-
-  if (check_acceptable_storage_engines(thd))
-    return true;
 
   if (!select->first_execution)
   {
@@ -1068,8 +1186,6 @@ bool Window::setup_windows(THD* thd,
     Window *w;
     while ((w= w_it++))
     {
-      const PT_frame *f= w->frame();
-      const PT_order_list *o= w->order();
       /*
         We can encounter aggregate functions in the ORDER BY and PARTITION clauses
         of window function, so make sure we allow it:
@@ -1090,11 +1206,19 @@ bool Window::setup_windows(THD* thd,
         return true;
 
       thd->lex->allow_sum_func= save_allow_sum_func;
+    }
 
+    w_it.rewind();
+    while ((w= w_it++))
+    {
+      const PT_frame *f= w->frame();
+      const PT_order_list *o= w->effective_order_by();
       if (w->setup_ordering_cached_items(thd, select, o, false))
         return true;
 
-      if (w->setup_ordering_cached_items(thd, select, w->partition(), true))
+      if (w->setup_ordering_cached_items(thd, select,
+                                         w->effective_partition_by(),
+                                         true))
         return true;
 
       /*
@@ -1158,7 +1282,7 @@ bool Window::setup_windows(THD* thd,
     /*
       If window N depends on (references) window M for its definition,
       we add the relation n->m to the adjacency list, cf.
-      w1->set_ancestor(w2) vs. adj.add(i, j) below. 
+      w1->set_ancestor(w2) vs. adj.add(i, j) below.
     */
     AdjacencyList adj(windows.elements);
 
@@ -1271,7 +1395,7 @@ bool Window::setup_windows(THD* thd,
   while ((w= w_it++))
   {
     const PT_frame *f= w->frame();
-    const PT_order_list *o= w->order();
+    const PT_order_list *o= w->effective_order_by();
 
     if (w->check_unique_name(windows))
       return true;
@@ -1279,14 +1403,16 @@ bool Window::setup_windows(THD* thd,
     if (w->setup_ordering_cached_items(thd, select, o, false))
       return true;
 
-    if (w->setup_ordering_cached_items(thd, select, w->partition(), true))
+    if (w->setup_ordering_cached_items(thd, select,
+                                       w->effective_partition_by(),
+                                       true))
       return true;
 
     if (w->check_window_functions(thd, select))
       return true;
 
     some_window_needs_frame_buffer|= w->needs_buffering();
-    
+
     /*
       initialize the physical sorting order by merging the partition clause
       and the ordering clause of the window specification.
@@ -1307,38 +1433,6 @@ bool Window::setup_windows(THD* thd,
       return true;
     }
 
-#if 0 // GROUPS not yet supported, see error above.
-    /*
-      If frame uses GROUPS <value>, require ORDER BY
-      cf. SQL 2011 SR 11.c.i)
-    */
-    if (f != nullptr && f->m_unit == WFU_GROUPS)
-    {
-      if (o == nullptr || o->value.elements != 1)
-      {
-        my_error(ER_WINDOW_GROUPS_REQUIRES_ORDER_BY_COL, MYF(0),
-                 w->printable_name());
-        return true;
-      }
-      /* check the ORDER BY type */
-      Item *order_expr= *(o->value.first->item);
-
-      /* must be numeric */
-      switch (order_expr->result_type())
-      {
-        case INT_RESULT:
-        case REAL_RESULT:
-        case DECIMAL_RESULT:
-          goto ok2;
-        default: ;
-      }
-      my_error(ER_WINDOW_GROUPS_REQUIRES_ORDER_BY_COL, MYF(0),
-               w->printable_name());
-      return true;
-    ok2: ;
-    }
-#endif
-
     /*
       So we can determine is a row's value falls within range of current row's
     */
@@ -1355,13 +1449,6 @@ bool Window::setup_windows(THD* thd,
   /* Do this last, after any re-ordering */
   windows[windows.elements - 1]->m_last= true;
   return false;
-}
-
-
-bool Window::needs_sorting()
-{
-  return (m_partition_by != nullptr ||
-          m_order_by != nullptr);
 }
 
 
@@ -1391,15 +1478,9 @@ void Window::cleanup(THD *thd)
   {
     (void)m_frame_buffer->file->ha_index_or_rnd_end();
     free_tmp_table(thd, m_frame_buffer);
-#ifdef WF_DEBUG
-    m_frame_buffer_cache.clear();
-#endif // WF_DEBUG
   }
 
-  List<Cached_item> *lis[]= { &m_order_by_items, &m_partition_items };
-  auto constexpr siz= sizeof(lis) / sizeof(List<Cached_item> *);
-
-  for (auto it : Bounds_checked_array<List<Cached_item> *>(lis, siz))
+  for (auto it : { &m_order_by_items, &m_partition_items })
   {
     List_iterator<Cached_item> li(*it);
     Cached_item *ci;
@@ -1451,9 +1532,7 @@ void Window::reset_execution_state(Reset_level level)
         need to reset it to original pointer(item_ptr).
       */
       {
-        const PT_order_list *li[]= { m_partition_by, m_order_by };
-        auto constexpr siz= sizeof(li) / sizeof(PT_order_list*);
-        for (auto it : Bounds_checked_array<const PT_order_list *>(li, siz))
+        for (auto it : { m_partition_by, m_order_by })
         {
           if (it != nullptr)
           {
@@ -1498,21 +1577,18 @@ void Window::reset_execution_state(Reset_level level)
 
   /*
     These state variables are always set per row processed, so no need to
-    reset here
-  */
-  // m_rowno_being_visited= 0;
-  // m_last_rowno_in_peerset= 0;
-  // m_partition_border= true;
-  // m_frame_cardinality= 0;
-  // m_dont_aggregate= false;
-  // m_inverse_aggregation= false;
-  // m_rowno_in_frame= 0;
-  // m_rowno_in_partition= 0;
-  // m_do_copy_null= false;
-  // m_is_last_row_in_frame= false;
+    reset here:
+        m_rowno_being_visited
+        m_last_rowno_in_peerset
+        m_partition_border
+        m_dont_aggregate
+        m_inverse_aggregation
+        m_rowno_in_frame
+        m_rowno_in_partition
+        m_do_copy_null
+        m_is_last_row_in_frame
 
-  /*
-    These need resetting for all levels
+    But these need resetting for all levels
   */
   m_last_row_output= 0;
   m_last_rowno_in_cache= 0;
@@ -1522,27 +1598,7 @@ void Window::reset_execution_state(Reset_level level)
 }
 
 
-bool Window::is_last_row_in_frame ()
-{
-  return (m_is_last_row_in_frame ||
-          m_select->table_list.elements == 0);
-}
-
-//int64 Window::frame_cardinality()
-//{
-//  if (!m_needs_frame_buffering)
-//    return m_rowno_in_frame;
-//  else
-//  {
-//    if (m_frame == nullptr)
-//      return m_last_rowno_in_cache;
-//    else
-//      return m_frame_cardinality;
-//  }
-//}
-
-
-bool Window::has_two_pass_wf()
+bool Window::some_wf_needs_frame_card()
 {
   List_iterator<Item_sum> it(m_functions);
   Item_result_field *f;
@@ -1550,7 +1606,7 @@ bool Window::has_two_pass_wf()
   {
     if (f->type() == Item::SUM_FUNC_ITEM &&
         !down_cast<Item_sum *>(f)->framing() &&
-        down_cast<Item_sum *>(f)->two_pass())
+        down_cast<Item_sum *>(f)->needs_card())
       return true;
   }
 
@@ -1611,32 +1667,10 @@ void Window::print_frame(String *str, enum_query_type qt) const
   print_border(str, f.m_from, qt);
   str->append(" AND ");
   print_border(str, f.m_to, qt);
-
-  // if (f.m_exclusion != nullptr)
-  // {
-  //   str->append(" EXCLUDE ");
-  //   const char *what;
-  //   switch (f.m_exclusion->exclusion())
-  //   {
-  //     case WFX_CURRENT_ROW:
-  //       what= "CURRENT ROW";
-  //       break;
-  //     case WFX_GROUP:
-  //       what= "GROUP";
-  //       break;
-  //     case WFX_TIES:
-  //       what= "TIES";
-  //       break;
-  //     case WFX_NO_OTHERS:
-  //       what= "NO OTHERS";
-  //       break;
-  //   }
-  //   str->append(what);
-  // }
 }
 
 
-void Window::print(THD *thd, SELECT_LEX *lex, String *str, enum_query_type qt,
+void Window::print(THD *thd, String *str, enum_query_type qt,
                    bool expand_definition) const
 {
   if (m_name != nullptr && !expand_definition)
@@ -1656,18 +1690,17 @@ void Window::print(THD *thd, SELECT_LEX *lex, String *str, enum_query_type qt,
       str->append(' ');
     }
 
-
     if (m_partition_by != nullptr)
     {
       str->append("PARTITION BY ");
-      lex->print_order(str, m_partition_by->value.first, qt);
+      SELECT_LEX::print_order(str, m_partition_by->value.first, qt);
       str->append(' ');
     }
 
     if (m_order_by != nullptr)
     {
       str->append("ORDER BY ");
-      lex->print_order(str, m_order_by->value.first, qt);
+      SELECT_LEX::print_order(str, m_order_by->value.first, qt);
       str->append(' ');
     }
 
@@ -1686,8 +1719,7 @@ void Window::reset_all_wf_state()
   Item_sum *sum;
   while ((sum= ls++))
   {
-    bool framing[2]= {false, true};
-    for (auto f : Bounds_checked_array<bool>(framing, 2))
+    for (auto f : {false, true})
     {
       (void)sum->walk(&Item::reset_wf_state,
                       Item::enum_walk(Item::WALK_POSTFIX),

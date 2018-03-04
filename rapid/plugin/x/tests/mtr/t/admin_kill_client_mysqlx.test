@@ -1,6 +1,7 @@
 ## Kill client
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 create user unpriv@localhost;
 set password for unpriv@localhost = password('x');
@@ -22,7 +23,7 @@ set password for unpriv@localhost = password('x');
 
 
 ## create and activate new session
--->newsession aux	root
+-->newsession aux	x_root
 
 -->varlet %CLIENT_ID2% %ACTIVE_CLIENT_ID%
 
@@ -60,7 +61,7 @@ set password for unpriv@localhost = password('x');
 -->recvresult
 
 
-## Try to kill a root session from unpriv
+## Try to kill a x_root session from unpriv
 -->stmtadmin kill_client	{"id": %CLIENT_ID1% }
 -->expecterror 1095
 -->recvresult
@@ -82,15 +83,16 @@ set password for unpriv@localhost = password('x');
 -->sleep 1;
 
 
-## Should list only root session
+## Should list only x_root session
 -->stmtadmin list_clients
 -->recvresult
 EOF
 
 --replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Postamble
 --remove_file $xtest_file
+--source include/xplugin_drop_user.inc
 drop user unpriv@localhost;
 uninstall plugin mysqlx;

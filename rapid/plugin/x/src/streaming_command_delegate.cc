@@ -1,35 +1,41 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "streaming_command_delegate.h"
+#include "plugin/x/src/streaming_command_delegate.h"
 
 #include <stddef.h>
-#include "ngs/interface/protocol_encoder_interface.h"
 #include <iostream>
 #include <string>
 
 #include "decimal.h"
 #include "my_dbug.h"
-#include "ngs/protocol/row_builder.h"
-#include "ngs_common/protocol_const.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "xpl_log.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/row_builder.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_const.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/src/xpl_log.h"
 
 using namespace xpl;
 
@@ -72,26 +78,24 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
   if (Command_delegate::field_metadata(field, charset))
     return true;
 
-  Mysqlx::Resultset::ColumnMetaData::FieldType xtype = (Mysqlx::Resultset::ColumnMetaData::FieldType)0;
-  uint32_t xflags = 0;
-  uint32_t ctype = 0;
-  uint64_t xcollation = 0;
-  enum_field_types type = field->type;
+  enum_field_types        type = field->type;
+  int32_t                 flags = 0;
+  ngs::Column_info_builder column_info;
 
   if (field->flags & NOT_NULL_FLAG)
-    xflags |= MYSQLX_COLUMN_FLAGS_NOT_NULL;
+    flags |= MYSQLX_COLUMN_FLAGS_NOT_NULL;
 
   if (field->flags & PRI_KEY_FLAG)
-    xflags |= MYSQLX_COLUMN_FLAGS_PRIMARY_KEY;
+    flags |= MYSQLX_COLUMN_FLAGS_PRIMARY_KEY;
 
   if (field->flags & UNIQUE_KEY_FLAG)
-    xflags |= MYSQLX_COLUMN_FLAGS_UNIQUE_KEY;
+    flags |= MYSQLX_COLUMN_FLAGS_UNIQUE_KEY;
 
   if (field->flags & MULTIPLE_KEY_FLAG)
-    xflags |= MYSQLX_COLUMN_FLAGS_MULTIPLE_KEY;
+    flags |= MYSQLX_COLUMN_FLAGS_MULTIPLE_KEY;
 
   if (field->flags & AUTO_INCREMENT_FLAG)
-    xflags |= MYSQLX_COLUMN_FLAGS_AUTO_INCREMENT;
+    flags |= MYSQLX_COLUMN_FLAGS_AUTO_INCREMENT;
 
   if (MYSQL_TYPE_STRING == type)
   {
@@ -108,43 +112,54 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
+      column_info.set_length(field->length);
+
       if (field->flags & UNSIGNED_FLAG)
-        xtype = Mysqlx::Resultset::ColumnMetaData::UINT;
+        column_info.set_type(Mysqlx::Resultset::ColumnMetaData::UINT);
       else
-        xtype = Mysqlx::Resultset::ColumnMetaData::SINT;
+        column_info.set_type(Mysqlx::Resultset::ColumnMetaData::SINT);
 
       if (field->flags & ZEROFILL_FLAG)
-        xflags |= MYSQLX_COLUMN_FLAGS_UINT_ZEROFILL;
+        flags |= MYSQLX_COLUMN_FLAGS_UINT_ZEROFILL;
       break;
 
     case MYSQL_TYPE_FLOAT:
       if (field->flags & UNSIGNED_FLAG)
-        xflags |= MYSQLX_COLUMN_FLAGS_FLOAT_UNSIGNED;
-      xtype = Mysqlx::Resultset::ColumnMetaData::FLOAT;
+        flags |= MYSQLX_COLUMN_FLAGS_FLOAT_UNSIGNED;
+      column_info.set_decimals(field->decimals);
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::FLOAT);
       break;
 
     case MYSQL_TYPE_DOUBLE:
       if (field->flags & UNSIGNED_FLAG)
-        xflags |= MYSQLX_COLUMN_FLAGS_DOUBLE_UNSIGNED;
-      xtype = Mysqlx::Resultset::ColumnMetaData::DOUBLE;
+        flags |= MYSQLX_COLUMN_FLAGS_DOUBLE_UNSIGNED;
+      column_info.set_decimals(field->decimals);
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::DOUBLE);
       break;
 
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_NEWDECIMAL:
       if (field->flags & UNSIGNED_FLAG)
-        xflags |= MYSQLX_COLUMN_FLAGS_DECIMAL_UNSIGNED;
-      xtype = Mysqlx::Resultset::ColumnMetaData::DECIMAL;
+        flags |= MYSQLX_COLUMN_FLAGS_DECIMAL_UNSIGNED;
+      column_info.set_decimals(field->decimals);
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::DECIMAL);
       break;
 
     case MYSQL_TYPE_STRING:
-      xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
-      xflags |= MYSQLX_COLUMN_FLAGS_BYTES_RIGHTPAD;
-      xcollation = charset ? charset->number : (m_resultcs ? m_resultcs->number : 0);
+      flags |= MYSQLX_COLUMN_FLAGS_BYTES_RIGHTPAD;
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BYTES);
+      column_info.set_length(field->length);
+      column_info.set_collation(
+          charset ?charset->number : (m_resultcs ? m_resultcs->number : 0));
       break;
 
     case MYSQL_TYPE_SET:
-      xtype = Mysqlx::Resultset::ColumnMetaData::SET;
-      xcollation = charset ? charset->number : (m_resultcs ? m_resultcs->number : 0);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::SET);
+      column_info.set_collation(
+          charset ?charset->number : (m_resultcs ? m_resultcs->number : 0));
       break;
 
     case MYSQL_TYPE_TINY_BLOB:
@@ -153,63 +168,90 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
     case MYSQL_TYPE_LONG_BLOB:
     case MYSQL_TYPE_VARCHAR:
     case MYSQL_TYPE_VAR_STRING:
-      xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
-      xcollation = charset ? charset->number : (m_resultcs ? m_resultcs->number : 0);
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BYTES);
+      column_info.set_collation(
+          charset ?charset->number : (m_resultcs ? m_resultcs->number : 0));
       break;
 
     case MYSQL_TYPE_JSON:
-      xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
-      ctype = Mysqlx::Resultset::JSON;
-      xcollation = charset ? charset->number : (m_resultcs ? m_resultcs->number : 0);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BYTES);
+      column_info.set_content_type(Mysqlx::Resultset::JSON);
+      column_info.set_length(field->length);
+      column_info.set_collation(
+          charset ?charset->number : (m_resultcs ? m_resultcs->number : 0));
       break;
 
     case MYSQL_TYPE_GEOMETRY:
-      xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
-      ctype = Mysqlx::Resultset::GEOMETRY;
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BYTES);
+      column_info.set_content_type(Mysqlx::Resultset::GEOMETRY);
       break;
 
     case MYSQL_TYPE_TIME:
     case MYSQL_TYPE_TIME2:
-      xtype = Mysqlx::Resultset::ColumnMetaData::TIME;
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::TIME);
       break;
 
     case MYSQL_TYPE_NEWDATE:
     case MYSQL_TYPE_DATE:
-      xtype = Mysqlx::Resultset::ColumnMetaData::DATETIME;
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::DATETIME);
+      column_info.set_content_type(Mysqlx::Resultset::DATE);
       break;
 
     case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_DATETIME2:
-      xtype = Mysqlx::Resultset::ColumnMetaData::DATETIME;
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::DATETIME);
+      column_info.set_content_type(Mysqlx::Resultset::DATETIME);
       break;
 
     case MYSQL_TYPE_YEAR:
-      xtype = Mysqlx::Resultset::ColumnMetaData::UINT;
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::UINT);
       break;
 
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_TIMESTAMP2:
-      xtype = Mysqlx::Resultset::ColumnMetaData::DATETIME;
-      xflags = MYSQLX_COLUMN_FLAGS_DATETIME_TIMESTAMP;
+      flags |= MYSQLX_COLUMN_FLAGS_DATETIME_TIMESTAMP;
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::DATETIME);
+      column_info.set_content_type(Mysqlx::Resultset::DATETIME);
       break;
 
     case MYSQL_TYPE_ENUM:
-      xtype = Mysqlx::Resultset::ColumnMetaData::ENUM;
-      xcollation = charset ? charset->number : (m_resultcs ? m_resultcs->number : 0);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::ENUM);
+      column_info.set_collation(
+          charset ?charset->number : (m_resultcs ? m_resultcs->number : 0));
       break;
 
     case MYSQL_TYPE_NULL:
-      xtype = Mysqlx::Resultset::ColumnMetaData::BYTES;
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BYTES);
       break;
 
     case MYSQL_TYPE_BIT:
-      xtype = Mysqlx::Resultset::ColumnMetaData::BIT;
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::BIT);
       break;
   }
-  DBUG_ASSERT(xtype != (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
+  DBUG_ASSERT(column_info.get().m_type  != (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
-  if (send_column_metadata(xcollation, xtype, xflags, ctype, field))
+  if (!m_compact_metadata) {
+    column_info.set_non_compact_data(
+        "def",
+        field->col_name,
+        field->table_name,
+        field->db_name,
+        field->org_col_name,
+        field->org_table_name);
+  }
+
+  if (flags)
+    column_info.set_flags(flags);
+
+  if (m_proto->send_column_metadata(&column_info.get()))
     return false;
 
   my_message(ER_IO_WRITE_ERROR, "Connection reset by peer", MYF(0));
@@ -330,8 +372,10 @@ int Streaming_command_delegate::get_datetime(const MYSQL_TIME * value, uint deci
   return false;
 }
 
-int Streaming_command_delegate::get_string(const char * const value, size_t length,
-                                               const CHARSET_INFO * const valuecs)
+int Streaming_command_delegate::get_string(
+    const char * const value,
+    size_t length,
+    const CHARSET_INFO * const valuecs)
 {
   enum_field_types type = m_field_types[m_proto->row_builder().get_num_fields()].type;
   unsigned int flags = m_field_types[m_proto->row_builder().get_num_fields()].flags;
@@ -374,15 +418,4 @@ void Streaming_command_delegate::handle_ok(uint server_status, uint statement_wa
       m_proto->send_result_fetch_done();
   }
   Command_delegate::handle_ok(server_status, statement_warn_count, affected_rows, last_insert_id, message);
-}
-
-
-bool Streaming_command_delegate::send_column_metadata(uint64_t xcollation, const Mysqlx::Resultset::ColumnMetaData::FieldType &xtype,
-                                                      uint32_t xflags, uint32_t ctype, const st_send_field *field)
-{
-  if (compact_metadata())
-    return m_proto->send_column_metadata(xcollation, xtype, field->decimals, xflags, field->length, ctype);
-  return m_proto->send_column_metadata("def", field->db_name, field->table_name, field->org_table_name,
-                                       field->col_name, field->org_col_name, xcollation, xtype, field->decimals,
-                                       xflags, field->length, ctype);
 }

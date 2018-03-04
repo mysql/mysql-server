@@ -1,28 +1,19 @@
 SET GLOBAL innodb_file_per_table=ON;
+CREATE DATABASE discover;
+use discover;
 SET GLOBAL innodb_master_thread_disabled_debug=1;
 SET SESSION debug="+d,fil_ibd_create_log";
-CREATE TABLE t1(c INT) engine=InnoDB;
+CREATE TABLE discover.t1(c INT) engine=InnoDB;
 ERROR HY000: Lost connection to MySQL server during query
 # restart
-call mtr.add_suppression("InnoDB: Table .*test.*t1.*does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
-DROP TABLE IF EXISTS t1;
-Warnings:
-Note	1051	Unknown table 'test.t1'
-CREATE TABLE t2(c INT) ENGINE=InnoDB;
+CREATE TABLE discover.t2(c INT) ENGINE=InnoDB;
 BEGIN;
 INSERT INTO t2 VALUES(1);
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
 INSERT INTO t2 SELECT * FROM t2;
-INSERT INTO t2 SELECT * FROM t2;
-INSERT INTO t2 SELECT * FROM t2;
-INSERT INTO t2 SELECT * FROM t2;
-INSERT INTO t2 SELECT * FROM t2;
 # Kill the server
-"Removing tablespaces.open.* files"
-"Restarting with --innodb-scan-directories=."
-# restart: --innodb-scan-directories=.;
+# restart
 SELECT * FROM t2;
 c
-DROP TABLE t2;
-call mtr.add_suppression("InnoDB: No space ID to filename mapping file found");
+DROP DATABASE discover;

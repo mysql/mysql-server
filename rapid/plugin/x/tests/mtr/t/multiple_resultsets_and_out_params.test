@@ -3,6 +3,7 @@
 
 ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/multiple_resultsets_and_out_params.tmp
 
@@ -18,7 +19,7 @@ INSERT INTO tab_2 VALUES ('2006-07-03'), ('2013-06-15'), ('2012-11-24'), ('1979-
 
 DELIMITER //
 
-CREATE PROCEDURE empty()
+CREATE PROCEDURE `empty`()
 BEGIN
 END //
 
@@ -156,7 +157,7 @@ END //
 
 DELIMITER ;
 
-CALL empty();
+CALL `empty`();
 
 CALL one_results_set();
 CALL three_results_sets();
@@ -229,8 +230,9 @@ drop schema if exists xtest;
 
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/multiple_resultsets_and_out_params.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/multiple_resultsets_and_out_params.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/multiple_resultsets_and_out_params.tmp
 
 ## Postamble
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;

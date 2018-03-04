@@ -1,24 +1,32 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql_service_command.h"
+#include "plugin/group_replication/include/sql_service/sql_service_command.h"
 
-#include "plugin_log.h"
-#include "plugin_psi.h"
-#include "plugin_constants.h"
 #include <mysql/group_replication_priv.h>
+
+#include "plugin/group_replication/include/plugin_constants.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/plugin_psi.h"
 
 using std::string;
 
@@ -85,7 +93,6 @@ establish_session_connection(enum_plugin_con_isolation isolation_param,
       m_plugin_session_thread->terminate_session_thread();
       delete m_plugin_session_thread;
       m_plugin_session_thread = NULL;
-      m_server_interface= NULL;
     } else
     {
       delete m_server_interface;
@@ -146,16 +153,12 @@ internal_set_super_read_only(Sql_service_interface *sql_interface, void*)
   if (srv_err == 0)
   {
 #ifndef DBUG_OFF
-    sql_interface->execute_query("SELECT @@GLOBAL.super_read_only;", &rset);
-    DBUG_ASSERT(rset.getLong(0) == 1);
-    log_message(MY_INFORMATION_LEVEL, "Setting super_read_only mode on the "
-      "server");
+    long err;
+    err = sql_interface->execute_query("SELECT @@GLOBAL.super_read_only;", &rset);
+
+    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 1);
+    log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=ON.");
 #endif
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, "'SET super_read_only= 1' query execution"
-      " resulted in failure. errno: %d", srv_err); /* purecov: inspected */
   }
 
   DBUG_RETURN(srv_err);
@@ -192,20 +195,15 @@ internal_reset_super_read_only(Sql_service_interface *sql_interface, void*)
 
   const char * query= "SET GLOBAL super_read_only= 0";
   long srv_err= sql_interface->execute_query(query);
-  if (srv_err)
-  {
-    log_message(MY_ERROR_LEVEL, "SET super_read_only query execution "
-      "resulted in failure. errno: %d", srv_err); /* purecov: inspected */
-  }
 #ifndef DBUG_OFF
-  else
+  if (srv_err == 0)
   {
+    long err;
     query= "SELECT @@GLOBAL.super_read_only;";
-    sql_interface->execute_query(query, &rset);
-    DBUG_ASSERT(rset.getLong(0) == 0);
+    err= sql_interface->execute_query(query, &rset);
 
-    log_message(MY_INFORMATION_LEVEL, "Resetting super_read_only mode on the"
-      " server ");
+    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
+    log_message(MY_INFORMATION_LEVEL, "Setting super_read_only=OFF.");
   }
 #endif
   DBUG_RETURN(srv_err);
@@ -242,19 +240,15 @@ internal_reset_read_only(Sql_service_interface *sql_interface, void*)
   const char* query= "SET GLOBAL read_only= 0";
   long srv_err= sql_interface->execute_query(query);
 
-  if (srv_err)
-  {
-
-    log_message(MY_ERROR_LEVEL, "SET read_only query execution "
-      "resulted in failure. errno: %d", srv_err); /* purecov: inspected */
-  }
 #ifndef DBUG_OFF
-  else
+  if (srv_err == 0)
   {
+    long err;
     query= "SELECT @@GLOBAL.read_only";
-    sql_interface->execute_query(query, &rset);
-    DBUG_ASSERT(rset.getLong(0) == 0);
-    log_message(MY_INFORMATION_LEVEL, "Resetting read_only mode on the server ");
+    err= sql_interface->execute_query(query, &rset);
+
+    DBUG_ASSERT(!err && rset.get_rows() > 0 && rset.getLong(0) == 0);
+    log_message(MY_INFORMATION_LEVEL, "Setting read_only=OFF.");
   }
 #endif
 
@@ -320,14 +314,9 @@ internal_get_server_super_read_only(Sql_service_interface *sql_interface, void*)
 
   long srv_error=
     sql_interface->execute_query("SELECT @@GLOBAL.super_read_only", &rset);
-  if (srv_error == 0)
+  if (srv_error == 0 && rset.get_rows() > 0)
   {
     server_super_read_only= rset.getLong(0);
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, " SELECT @@GLOBAL.read_only "
-      "resulted in failure. errno: %d", srv_error); /* purecov: inspected */
   }
 
   DBUG_RETURN(server_super_read_only);
@@ -362,14 +351,9 @@ internal_get_server_read_only(Sql_service_interface *sql_interface, void*)
   Sql_resultset rset;
   longlong server_read_only= -1;
   long srv_error= sql_interface->execute_query("SELECT @@GLOBAL.read_only", &rset);
-  if (srv_error == 0)
+  if (srv_error == 0 && rset.get_rows())
   {
     server_read_only= rset.getLong(0);
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, " SELECT @@GLOBAL.read_only "
-      "resulted in failure. errno: %d", srv_error); /* purecov: inspected */
   }
 
   DBUG_RETURN(server_read_only);
@@ -408,15 +392,10 @@ internal_get_server_gtid_executed(Sql_service_interface *sql_interface,
   Sql_resultset rset;
   long srv_err=
     sql_interface->execute_query("SELECT @@GLOBAL.gtid_executed", &rset);
-  if (srv_err == 0)
+  if (srv_err == 0 && rset.get_rows() > 0)
   {
     gtid_executed.assign(rset.getString(0));
     DBUG_RETURN(0);
-  }
-  else
-  {
-    log_message(MY_ERROR_LEVEL, "Internal query: SELECT GLOBAL.gtid_executed"
-      " resulted in failure. errno: %d", srv_err); /* purecov: inspected */
   }
   DBUG_RETURN(1);
 }
@@ -495,7 +474,8 @@ Session_plugin_thread(Sql_service_commands* command_interface)
   : command_interface(command_interface), m_server_interface(NULL),
    incoming_methods(NULL), m_plugin_pointer(NULL),
    m_method_execution_completed(false), m_method_execution_return_value(0),
-   m_session_thread_running(false), m_session_thread_terminate(false),
+   m_session_thread_running(false), m_session_thread_starting(false),
+   m_session_thread_terminate(false),
    m_session_thread_error(0)
 {
   mysql_mutex_init(key_GR_LOCK_session_thread_run, &m_run_lock,
@@ -571,6 +551,7 @@ Session_plugin_thread::launch_session_thread(void* plugin_pointer_var, const cha
 
   m_session_thread_error= 0;
   m_session_thread_terminate= false;
+  m_session_thread_starting= true;
   m_plugin_pointer= plugin_pointer_var;
   session_user= user;
 
@@ -580,6 +561,7 @@ Session_plugin_thread::launch_session_thread(void* plugin_pointer_var, const cha
                            launch_handler_thread,
                            (void*)this)))
   {
+    m_session_thread_starting= false;
     mysql_mutex_unlock(&m_run_lock); /* purecov: inspected */
     DBUG_RETURN(1);                /* purecov: inspected */
   }
@@ -606,7 +588,7 @@ Session_plugin_thread::terminate_session_thread()
 
   int stop_wait_timeout= GR_PLUGIN_SESSION_THREAD_TIMEOUT;
 
-  while (m_session_thread_running)
+  while (m_session_thread_running || m_session_thread_starting)
   {
     DBUG_PRINT("loop", ("killing plugin session thread"));
 
@@ -622,7 +604,7 @@ Session_plugin_thread::terminate_session_thread()
     {
       stop_wait_timeout= stop_wait_timeout - 1;
     }
-    else if (m_session_thread_running) // quit waiting
+    else if (m_session_thread_running || m_session_thread_starting) // quit waiting
     {
       mysql_mutex_unlock(&m_run_lock);
       DBUG_RETURN(1);
@@ -653,10 +635,13 @@ Session_plugin_thread::session_thread_handler()
   m_server_interface= new Sql_service_interface();
   m_session_thread_error=
     m_server_interface->open_thread_session(m_plugin_pointer);
+  DBUG_EXECUTE_IF("group_replication_sql_service_force_error",
+                  { m_session_thread_error= 1; });
   if (!m_session_thread_error)
     m_session_thread_error= m_server_interface->set_session_user(session_user);
 
   mysql_mutex_lock(&m_run_lock);
+  m_session_thread_starting= false;
   m_session_thread_running= true;
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);

@@ -15,6 +15,7 @@
 
 let GREP_START=`SELECT DATE_FORMAT(CONVERT_TZ(SYSDATE(6),'SYSTEM','UTC'),'%Y%m%d%H%i%s%f');`;
 
+SET @orig_log_error_verbosity= @@GLOBAL.log_error_verbosity;
 SET @@global.log_error_verbosity=3;
 
 let $log_error_= `SELECT @@GLOBAL.log_error`;
@@ -65,7 +66,7 @@ SET @@global.log_error_services="log_filter_internal; log_sink_test; log_sink_js
 SELECT "logging as traditional MySQL error log and as JSON";
 --echo # Force a call to variable-checking in all loaded log-services
 # currently nothing is loaded that can handle this, so we'll fail on update
---error ER_WRONG_ARGUMENTS
+--error ER_UNKNOWN_SYSTEM_VARIABLE
 SET @@global.log_error_filter_rules= DEFAULT;
 --echo # Reload logging services
 FLUSH ERROR LOGS;
@@ -83,6 +84,7 @@ UNINSTALL COMPONENT "file://component_log_sink_json";
 --echo # cleanup
 SET @@session.debug="-d,parser_stmt_to_error_log";
 SET @@session.debug="-d,log_error_normalize";
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 ## WL#9651
 # SET @@global.log_error_filter_rules=@save_filters;
 

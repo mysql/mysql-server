@@ -93,4 +93,8 @@ SELECT * FROM mysql.default_roles;
 SELECT * FROM mysql.role_edges;
 source include/show_binlog_events.inc;
 
+--source include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER='root';
+--source include/start_slave.inc
+
 --source include/rpl_end.inc

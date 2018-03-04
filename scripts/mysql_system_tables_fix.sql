@@ -1,13 +1,20 @@
 -- Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License as published by
--- the Free Software Foundation; version 2 of the License.
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License for more details.
+-- GNU General Public License, version 2.0, for more details.
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -25,6 +32,19 @@
 
 set sql_mode='';
 set default_storage_engine=InnoDB;
+
+# Create a user mysql.infoschema@localhost as the owner of views in information_schema.
+# That user should be created at the beginning of the script, because a query against a
+# view from information_schema leads to check for presence of a user specified in view's DEFINER clause.
+# If the user mysql.infoschema@localhost hadn't been created at the beginning of the script,
+# the query from information_schema.tables below would have failed with the error
+# ERROR 1449 (HY000): The user specified as a definer ('mysql.infoschema'@'localhost') does not exist.
+
+INSERT IGNORE INTO mysql.user
+(host, user, select_priv, plugin, authentication_string, ssl_cipher, x509_issuer, x509_subject)
+VALUES ('localhost','mysql.infoschema','Y','mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','','','');
+
+FLUSH PRIVILEGES;
 
 # Move distributed grant tables to default engine during upgrade, remember
 # which tables was moved so they can be moved back after upgrade
@@ -486,9 +506,10 @@ DROP PREPARE stmt;
 drop procedure mysql.die;
 SET GLOBAL automatic_sp_privileges = @global_automatic_sp_privileges;
 
-ALTER TABLE user ADD plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,  ADD authentication_string TEXT;
-ALTER TABLE user MODIFY plugin char(64) DEFAULT 'mysql_native_password' NOT NULL;
-UPDATE user SET plugin=IF((length(password) = 41) OR (length(password) = 0), 'mysql_native_password', '') WHERE plugin = '';
+ALTER TABLE user ADD plugin char(64) DEFAULT 'caching_sha2_password' NOT NULL,  ADD authentication_string TEXT;
+ALTER TABLE user MODIFY plugin char(64) DEFAULT 'caching_sha2_password' NOT NULL;
+UPDATE user SET plugin=IF((length(password) = 41), 'mysql_native_password', '') WHERE plugin = '';
+UPDATE user SET plugin=IF((length(password) = 0), 'caching_sha2_password', '') WHERE plugin = '';
 ALTER TABLE user MODIFY authentication_string TEXT;
 
 -- establish if the field is already there.
@@ -618,6 +639,8 @@ UPDATE user SET account_locked = 'N' WHERE @hadAccountLocked=0;
 -- need to compensate for the ALTER TABLE user .. CONVERT TO CHARACTER SET above
 ALTER TABLE user MODIFY account_locked ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 
+UPDATE user SET account_locked ='Y' WHERE host = 'localhost' AND user = 'mysql.infoschema';
+
 --
 -- Drop password column
 --
@@ -643,10 +666,17 @@ FROM mysql.user WHERE super_priv = 'Y' AND @hadXARecoverAdminPriv = 0;
 COMMIT;
 
 -- Add the privilege BACKUP_ADMIN for every user who has the privilege RELOAD
--- provided that there isn't a user who already has the privilige BACKUP_ADMIN.
+-- provided that there isn't a user who already has the privilege BACKUP_ADMIN.
 SET @hadBackupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'BACKUP_ADMIN');
 INSERT INTO global_grants SELECT user, host, 'BACKUP_ADMIN', IF(grant_priv = 'Y', 'Y', 'N')
 FROM mysql.user WHERE Reload_priv = 'Y' AND @hadBackupAdminPriv = 0;
+COMMIT;
+
+-- Add the privilege RESOURCE_GROUP_ADMIN for every user who has the privilege SUPER
+-- provided that there isn't a user who already has the privilege RESOURCE_GROUP_ADMIN.
+SET @hadResourceGroupAdminPriv = (SELECT COUNT(*) FROM global_grants WHERE priv = 'RESOURCE_GROUP_ADMIN');
+INSERT INTO global_grants SELECT user, host, 'RESOURCE_GROUP_ADMIN',
+IF(grant_priv = 'Y', 'Y', 'N') FROM mysql.user WHERE super_priv = 'Y' AND @hadResourceGroupAdminPriv = 0;
 COMMIT;
 
 # Activate the new, possible modified privilege tables
@@ -689,6 +719,21 @@ ALTER TABLE slave_master_info ADD Tls_version TEXT CHARACTER SET utf8 COLLATE ut
 ALTER TABLE slave_master_info
   MODIFY COLUMN Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version'
   AFTER Channel_name;
+
+# The Public_key_path field at slave_master_info should be added after the Tls_version field
+ALTER TABLE slave_master_info ADD Public_key_path TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.';
+
+# The Get_public_key field at slave_master_info should be added after the slave_master_info field
+ALTER TABLE slave_master_info ADD Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.';
+
+# If the order of column Public_key_path, Get_public_key is wrong, this will correct the order in
+# slave_master_info table.
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Public_key_path TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.'
+  AFTER Tls_version;
+ALTER TABLE slave_master_info
+  MODIFY COLUMN Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.'
+  AFTER Public_key_path;
 
 SET @have_innodb= (SELECT COUNT(engine) FROM information_schema.engines WHERE engine='InnoDB' AND support != 'NO');
 SET @str=IF(@have_innodb <> 0, "ALTER TABLE innodb_table_stats STATS_PERSISTENT=0", "SET @dummy = 0");

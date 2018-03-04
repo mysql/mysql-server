@@ -35,7 +35,7 @@ userZ	N
 include/assert_binlog_events.inc
 # Case 2 : Provide invalid password hash
 GRANT SUPER ON *.* TO userX, userY,
-userA IDENTIFIED WITH 'mysql_native_password'
+userA IDENTIFIED WITH 'caching_sha2_password'
 					  AS 'hahaha';
 ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
 # Grants for userX, userY, userZ should not have changed
@@ -86,7 +86,7 @@ userZ	N
 # This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SUPER ON.*userX.*userW.*userY.*)
 include/assert_binlog_events.inc
 # Restore userW to its former state
-UPDATE mysql.user SET plugin="mysql_native_password" WHERE user like 'userW';
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
 FLUSH PRIVILEGES;
 include/save_binlog_position.inc
 # Case 4 : Use unprivileged account to create new user using GRANT
@@ -184,7 +184,7 @@ userX	mysql	Y	N
 include/assert_binlog_events.inc
 # Case 2 : Provide invalid password hash
 GRANT SELECT ON mysql.* TO userX, userY,
-userA IDENTIFIED WITH 'mysql_native_password'
+userA IDENTIFIED WITH 'caching_sha2_password'
 					       AS 'hahaha';
 ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
 # Grants for userX, userY, userZ should not have changed
@@ -232,7 +232,7 @@ userX	mysql	Y	N
 # This event sequence pattern MUST NOT be present in binlog: !Q(GRANT SELECT ON.*mysql.*userX.*userW.*userY.*)
 include/assert_binlog_events.inc
 # Restore userW to its former state
-UPDATE mysql.user SET plugin="mysql_native_password" WHERE user like 'userW';
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
 FLUSH PRIVILEGES;
 # Case 4 : Use unprivileged account to create new user using GRANT
 CREATE USER userSELECT;
@@ -342,7 +342,7 @@ GRANT USAGE ON *.* TO `userZ`@`%`
 include/assert_binlog_events.inc
 # Case 2 : Provide invalid password hash
 GRANT PROXY ON proxied TO userX, userY,
-userA IDENTIFIED WITH 'mysql_native_password'
+userA IDENTIFIED WITH 'caching_sha2_password'
 					      AS 'hahaha';
 ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
 # Grants for userX, userY, userZ should not have changed
@@ -380,7 +380,7 @@ GRANT USAGE ON *.* TO `userZ`@`%`
 # This event sequence pattern MUST NOT be present in binlog: !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userW.*userY.*)
 include/assert_binlog_events.inc
 # Restore userW to its former state
-UPDATE mysql.user SET plugin="mysql_native_password" WHERE user like 'userW';
+UPDATE mysql.user SET plugin="caching_sha2_password" WHERE user like 'userW';
 FLUSH PRIVILEGES;
 include/save_binlog_position.inc
 # Case 4 : Use unprivileged account to create new user using GRANT

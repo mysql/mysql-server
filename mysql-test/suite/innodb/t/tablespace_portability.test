@@ -15,6 +15,16 @@
 
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 
+--disable_query_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+--enable_query_log
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW VARIABLES LIKE 'innodb_directories';
+
 --echo #
 --echo # Try to create a tablespace in a read-only directory.
 --echo #
@@ -30,9 +40,10 @@ SHOW WARNINGS;
 --rmdir $MYSQL_TMP_DIR/read_only_dir
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means mysqld does not have the access rights to the directory.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Converting backslash to forward slash in ADD DATAFILE");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: The error means mysqld does not have the access rights to the directory.");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Cannot create file");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: Converting backslash to forward slash in ADD DATAFILE");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: '.*' permission error, can't delete!");
 --enable_query_log
 
 --source suite/innodb/include/tablespace_filenames.inc

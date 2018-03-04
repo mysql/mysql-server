@@ -18,7 +18,8 @@
 # rpl and binlog suites run with all 3
 # binlog-formats  row, stmt and mixed
 # Run with --big-test option so that longer tests are also run
-perl mysql-test-run.pl --debug-server --force --timer  --big-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features  --unit-tests-report --no-skip
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --debug-server --force --timer  --big-test --non-parallel-test --testcase-timeout=90  --parallel=auto --experimental=collections/default.experimental --comment=all-default-big  --vardir=var-all-default-big  --report-features  --unit-tests-report --no-skip
 
 # Run default suites with ps protocol
 perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-timeout=90 --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol
@@ -29,7 +30,7 @@ perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-t
 
 #################SECTION2: RUN SUITES THAT ARE NOT PART OF DEFAULT##########
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
-# interactive_utilities,engines, memcached, rpl_many_mysqlds
+# interactive_utilities,engines, memcached
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=60   --parallel=auto --experimental=collections/default.experimental --comment=funcs2-big  --vardir=var-funcs2-big --suite=funcs_2 --no-skip
 perl mysql-test-run.pl --debug-server --force --timer --big-test  --parallel=auto --experimental=collections/default.experimental --comment=stress --vardir=var-stress  --suite=stress --no-skip
 perl mysql-test-run.pl --debug-server --force --timer --big-test  --parallel=auto --experimental=collections/default.experimental --comment=jp --vardir=var-jp --suite=jp --no-skip
@@ -42,29 +43,20 @@ perl mysql-test-run.pl --debug-server --timer --force  --parallel=auto --comment
 
 # Memcached tests
 perl mysql-test-run.pl --debug-server --timer --force  --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto  --suite=memcached  --no-skip
-# Replication test cases using many mysqlds (rpl_many_mysqlds)
-perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --parallel=1 --experimental=collections/default.experimental --comment=rpl_many_mysqlds-big --vardir=var-rpl_many_mysqlds-big --suite=rpl_many_mysqlds --no-skip
 ######END OF SECTION 2 (NON-DEFAULT SUITES)######################
 
 ######## SECTION 3: EXTENDED RUNS FOR REPLICATION AND BINLOG#######
 # Add runs of rpl and binlog test suites with additional
 # MTR or mysqld options in this section
 
-# Additional modes for rpl. Multi-Threaded Slave
-perl mysql-test-run.pl --debug-server --timer  --force --parallel=auto --comment=rpl_MTS_db_part --vardir=var-mts-rpl_db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip
-perl mysql-test-run.pl --debug-server --timer  --force --parallel=auto --comment=rpl_MTS_LC --vardir=var-mts-rpl_LC --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip
+# Additional mode for rpl. Multi-Threaded Slave
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-db --vardir=var-rpl-mts-db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --do-suite=rpl --no-skip --non-parallel-test
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl-mts-lc --vardir=var-rpl-mts-lc --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=logical_clock --do-suite=rpl --no-skip --non-parallel-test
 
-# Same as above, for rpl_many_mysqlds (without mtr parallelization)
-perl mysql-test-run.pl --debug-server --timer --force --parallel=1 --comment=rpl_many_mysqlds-mts-db --vardir=var-rpl_many_mysqlds-mts-db --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=database --suite=rpl_many_mysqlds --no-skip
-
-# Same as above, for rpl_many_mysqlds (without mtr parallelization)
-perl mysql-test-run.pl --debug-server --timer --force --parallel=1 --comment=rpl_many_mysqlds-mts-lc --vardir=var-rpl_many_mysqlds-mts-lc --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-parallel-type=LOGICAL_CLOCK --suite=rpl_many_mysqlds --no-skip
-
-# Additional GTID coverage (rpl and rpl_many_mysqlds suites with gtid_mode=ON)
-perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl-gtid --vardir=var-rpl-gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
-
-# Same as above, for rpl_many_mysqlds (without mtr paralellization)
-perl mysql-test-run.pl --debug-server --force --timer  --parallel=1 --experimental=collections/default.experimental --comment=rpl_many_mysqlds-gtid --vardir=var-rpl_many_mysqlds-gtid --suite=rpl_many_mysqlds --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
+# Additional GTID coverage (rpl suite with gtid_mode=ON)
+# Run with --non-parallel-test option so that non parallel tests are also run
+perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=rpl-gtid --vardir=var-rpl-gtid --suite=rpl --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip --non-parallel-test
 
 # Additional GTID coverage (binlog suite with gtid_mode=ON)
 perl mysql-test-run.pl --debug-server --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=binlog_with_gtid --vardir=var-binlog_gtid --suite=binlog --mysqld=--enforce-gtid-consistency --mysqld=--gtid-mode=on --no-skip
@@ -135,8 +127,8 @@ perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experime
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_row_hash_scan --vardir=var-binlog_row_hash_scan --mysqld=--binlog-format=row --do-suite=binlog --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_hash_MTS --vardir=var-mts-rpl-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --no-skip
 perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=binlog_row_hash_MTS --vardir=var-mts-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=binlog --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --no-skip
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=binlog_row_table_MTS --vardir=var-mts-binlog-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=binlog --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_table_MTS --vardir=var-mts-rpl-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=binlog_row_table_MTS --vardir=var-mts-binlog-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=binlog --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip 
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_row_table_MTS --vardir=var-mts-rpl-table-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --no-skip 
 
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_row_table_scan --vardir=var-binlog_row_table_scan --mysqld=--binlog-format=row --do-suite=binlog --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=rpl_row_table_scan --vardir=var-rpl_row_table_scan --mysqld=--binlog-format=row --do-suite=rpl --mysqld=--slave-rows-search-algorithms=TABLE_SCAN,INDEX_SCAN --big-test --testcase-timeout=60  --no-skip

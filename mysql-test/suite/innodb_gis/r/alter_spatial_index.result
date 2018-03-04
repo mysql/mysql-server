@@ -1,10 +1,10 @@
 CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded");
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace for table .* is set as discarded");
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
 ENGINE=InnoDB;
-CREATE TABLE tab1(c1 int NOT NULL PRIMARY KEY,c2 MULTIPOINT NOT NULL,
-c3 MULTILINESTRING NOT NULL,c4 MULTIPOLYGON NOT NULL,c5 GEOMETRY NOT NULL)
+CREATE TABLE tab1(c1 int NOT NULL PRIMARY KEY,c2 MULTIPOINT NOT NULL SRID 0,
+c3 MULTILINESTRING NOT NULL SRID 0,c4 MULTIPOLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
 ENGINE=InnoDB;
 INSERT INTO tab1 SELECT * FROM tab;
 INSERT INTO tab(c1,c2,c3,c4,c5)
@@ -85,23 +85,23 @@ SELECT c1,ST_AsText(c2),ST_AsText(c4) FROM tab WHERE MBRWithin(tab.c4, @g1);
 c1	ST_AsText(c2)	ST_AsText(c4)
 5	POINT(200 200)	POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))
 DELETE FROM tab WHERE MBRWithin(tab.c4, @g1);
-ALTER TABLE tab MODIFY COLUMN c2 MULTIPOINT;
+ALTER TABLE tab MODIFY COLUMN c2 MULTIPOINT SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING;
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON;
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NULL;
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NULL SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NULL;
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NULL SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-ALTER TABLE tab MODIFY COLUMN c4 Geometry NULL;
+ALTER TABLE tab MODIFY COLUMN c4 Geometry NULL SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-ALTER TABLE tab CHANGE COLUMN c2 c22 POINT;
+ALTER TABLE tab CHANGE COLUMN c2 c22 POINT SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING;
+ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
-ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON;
+ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON SRID 0;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 ALTER TABLE tab add SPATIAL INDEX idx1(c1);
 ERROR 42000: A SPATIAL index may only contain a geometrical type column
@@ -109,20 +109,20 @@ ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING BTREE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE' at line 1
 ALTER TABLE tab ADD SPATIAL INDEX idx6(c2) USING HASH;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING HASH' at line 1
-ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL FIRST, ALGORITHM=COPY;
+ALTER TABLE tab CHANGE c2 c2 MULTIPOINT NOT NULL SRID 0 FIRST, ALGORITHM=COPY;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
-ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL,ALGORITHM=COPY;
+ALTER TABLE tab MODIFY COLUMN c3 MULTILINESTRING NOT NULL SRID 0,ALGORITHM=COPY;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
-ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL;
+ALTER TABLE tab MODIFY COLUMN c4 MULTIPOLYGON NOT NULL SRID 0;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` point NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -150,17 +150,17 @@ SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE ST_Crosses(tab.c4, @g1);
 c1	ST_Astext(c2)	ST_Astext(c4)
 # Invalid polygon.
 DELETE FROM tab WHERE ST_Crosses(tab.c4, @g1);
-ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL;
-ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING NOT NULL;
-ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON NOT NULL;
+ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL SRID 0;
+ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING NOT NULL SRID 0;
+ALTER TABLE tab CHANGE COLUMN c4 c44 POLYGON NOT NULL SRID 0;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c22` point NOT NULL,
-  `c33` linestring NOT NULL,
-  `c44` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c22` point NOT NULL /*!80003 SRID 0 */,
+  `c33` linestring NOT NULL /*!80003 SRID 0 */,
+  `c44` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c22`),
   SPATIAL KEY `idx3` (`c33`),
@@ -176,17 +176,17 @@ tab	1	idx3	1	c33	A	#	32	NULL		SPATIAL			YES
 tab	1	idx4	1	c44	A	#	32	NULL		SPATIAL		testing spatial index on Polygon	YES
 tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry	YES
 tab	1	idx6	1	c44	A	#	10	NULL		BTREE			YES
-ALTER TABLE tab CHANGE COLUMN c22 c2 POINT NOT NULL;
-ALTER TABLE tab CHANGE COLUMN c33 c3 LINESTRING NOT NULL;
-ALTER TABLE tab CHANGE COLUMN c44 c4 POLYGON NOT NULL;
+ALTER TABLE tab CHANGE COLUMN c22 c2 POINT NOT NULL SRID 0;
+ALTER TABLE tab CHANGE COLUMN c33 c3 LINESTRING NOT NULL SRID 0;
+ALTER TABLE tab CHANGE COLUMN c44 c4 POLYGON NOT NULL SRID 0;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` point NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -282,10 +282,10 @@ SHOW CREATE TABLE temp_tab;
 Table	Create Table
 temp_tab	CREATE TEMPORARY TABLE `temp_tab` (
   `c1` int(11) NOT NULL,
-  `c2` point NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
   SPATIAL KEY `idx4` (`c4`),
@@ -305,10 +305,10 @@ SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` point NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx3` (`c3`),
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
@@ -328,10 +328,10 @@ SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` point NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`(25)),
   UNIQUE KEY `const_1` (`c2`(25)),
   SPATIAL KEY `idx3` (`c3`),
@@ -362,10 +362,10 @@ SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` point NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c5`(10)),
   UNIQUE KEY `const_1` (`c5`(10)),
   SPATIAL KEY `idx3` (`c3`),
@@ -388,8 +388,8 @@ VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,3
 ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'),
 ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 DROP TABLE tab,tab1,temp_tab;
-CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL,
-c3 LINESTRING NOT NULL,c4 POLYGON NOT NULL,c5 GEOMETRY NOT NULL)
+CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
+c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
 ENGINE=InnoDB;
 INSERT INTO tab(c1,c2,c3,c4,c5)
 VALUES(1,ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('LINESTRING(5 5,20 20,30 30)'),
@@ -439,8 +439,8 @@ ALTER TABLE tab ADD SPATIAL KEY idx3(c3);
 ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Polygon';
 ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
-ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL;
-ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL;
+ALTER TABLE tab MODIFY COLUMN c2 GEOMETRY NOT NULL SRID 0;
+ALTER TABLE tab MODIFY COLUMN c3 POLYGON NOT NULL SRID 0;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
 ERROR 22004: Invalid use of NULL value
@@ -450,10 +450,10 @@ SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` geometry NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` geometry NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -478,17 +478,17 @@ c1	ST_Astext(c2)	ST_Astext(c4)
 DELETE FROM tab WHERE MBRContains(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRContains(tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c2)	ST_Astext(c4)
-ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL;
+ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL SRID 0;
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
-ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL;
+ALTER TABLE tab MODIFY COLUMN c4 GEOMETRY NOT NULL SRID 0;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` geometry NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` geometry NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` geometry NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` geometry NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -528,17 +528,17 @@ Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SET @g1 = ST_GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))');
 SET @g2 = ST_GeomFromText('LINESTRING(1 1,2 2,3 3)');
-ALTER TABLE tab MODIFY COLUMN c2 POINT NOT NULL;
-ALTER TABLE tab MODIFY COLUMN c3 LINESTRING NOT NULL;
-ALTER TABLE tab MODIFY COLUMN c4 POLYGON NOT NULL;
+ALTER TABLE tab MODIFY COLUMN c2 POINT NOT NULL SRID 0;
+ALTER TABLE tab MODIFY COLUMN c3 LINESTRING NOT NULL SRID 0;
+ALTER TABLE tab MODIFY COLUMN c4 POLYGON NOT NULL SRID 0;
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `c1` int(11) NOT NULL,
-  `c2` point NOT NULL,
-  `c3` linestring NOT NULL,
-  `c4` polygon NOT NULL,
-  `c5` geometry NOT NULL,
+  `c2` point NOT NULL /*!80003 SRID 0 */,
+  `c3` linestring NOT NULL /*!80003 SRID 0 */,
+  `c4` polygon NOT NULL /*!80003 SRID 0 */,
+  `c5` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `idx2` (`c2`),
   SPATIAL KEY `idx3` (`c3`),
@@ -608,8 +608,8 @@ DELETE FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
 SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab.c2, @g1) AND MBRWithin(tab.c3, @g2);
 c1	ST_AsText(c2)	ST_AsText(c3)	ST_Astext(c4)
 DROP TABLE tab;
-CREATE TABLE parent (id POINT, PRIMARY KEY(id)) ENGINE=InnoDB;
-CREATE TABLE child (id GEOMETRY NOT NULL, parent_id POINT NOT NULL) ENGINE=InnoDB;
+CREATE TABLE parent (id POINT SRID 0, PRIMARY KEY(id)) ENGINE=InnoDB;
+CREATE TABLE child (id GEOMETRY NOT NULL, parent_id POINT NOT NULL SRID 0) ENGINE=InnoDB;
 ALTER TABLE parent ADD SPATIAL INDEX idx1(id);
 ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
 ANALYZE TABLE parent;
@@ -621,7 +621,7 @@ test.child	analyze	status	OK
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `id` point NOT NULL,
+  `id` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`(25)),
   SPATIAL KEY `idx1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -629,7 +629,7 @@ SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `id` geometry NOT NULL,
-  `parent_id` point NOT NULL,
+  `parent_id` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM parent;
@@ -644,8 +644,8 @@ ERROR HY000: Cannot add foreign key constraint
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ON DELETE CASCADE ;
 ERROR HY000: Cannot add foreign key constraint
 DROP table child,parent;
-CREATE TABLE parent (id GEOMETRY, PRIMARY KEY(id(10))) ENGINE=InnoDB;
-CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL) ENGINE=InnoDB;
+CREATE TABLE parent (id GEOMETRY SRID 0, PRIMARY KEY(id(10))) ENGINE=InnoDB;
+CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL SRID 0) ENGINE=InnoDB;
 ALTER TABLE parent ADD SPATIAL INDEX idx1(id) ;
 ALTER TABLE child ADD SPATIAL INDEX idx2(parent_id);
 ANALYZE TABLE parent;
@@ -657,7 +657,7 @@ test.child	analyze	status	OK
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `id` geometry NOT NULL,
+  `id` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`(10)),
   SPATIAL KEY `idx1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -665,7 +665,7 @@ SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `id` geometry NOT NULL,
-  `parent_id` geometry NOT NULL,
+  `parent_id` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`parent_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SHOW INDEX FROM parent;
@@ -706,7 +706,7 @@ DROP table t1;
 # BUG#20111575 ALTER TABLE...ADD SPATIAL INDEX...LOCK NONE IS REFUSED
 # WITHOUT STATING A REASON
 #
-CREATE TABLE t1(p point NOT NULL) ENGINE=innodb;
+CREATE TABLE t1(p point NOT NULL SRID 0) ENGINE=innodb;
 ALTER TABLE t1 ADD SPATIAL INDEX(p), LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
 ALTER TABLE t1 ADD SPATIAL INDEX(p);

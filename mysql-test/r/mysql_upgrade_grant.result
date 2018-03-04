@@ -699,5 +699,74 @@ GRANT BACKUP_ADMIN,XA_RECOVER_ADMIN ON *.* TO `u2`@`%` WITH GRANT OPTION
 DROP USER u1;
 DROP USER u2;
 REVOKE XA_RECOVER_ADMIN ON *.* FROM `mysql.session`@localhost;
+#
+# Bug#26948662 - REMOVE SUPER_ACL CHECK IN RESOURCE GROUPS.
+#
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM root@localhost;
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
+CREATE USER user1;
+GRANT SUPER ON *.* TO user1;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# Users root@localhost and user1 have privilege SUPER but not RESOURCE_GROUP_ADMIN 
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+SHOW GRANTS FOR user1;
+Grants for user1@%
+GRANT SUPER ON *.* TO `user1`@`%`
+# Start upgrade
+mysql.columns_priv                                 OK
+mysql.component                                    OK
+mysql.db                                           OK
+mysql.default_roles                                OK
+mysql.engine_cost                                  OK
+mysql.func                                         OK
+mysql.general_log                                  OK
+mysql.global_grants                                OK
+mysql.gtid_executed                                OK
+mysql.help_category                                OK
+mysql.help_keyword                                 OK
+mysql.help_relation                                OK
+mysql.help_topic                                   OK
+mysql.innodb_ddl_log                               OK
+mysql.innodb_dynamic_metadata                      OK
+mysql.innodb_index_stats                           OK
+mysql.innodb_table_stats                           OK
+mysql.password_history                             OK
+mysql.plugin                                       OK
+mysql.procs_priv                                   OK
+mysql.proxies_priv                                 OK
+mysql.role_edges                                   OK
+mysql.server_cost                                  OK
+mysql.servers                                      OK
+mysql.slave_master_info                            OK
+mysql.slave_relay_log_info                         OK
+mysql.slave_worker_info                            OK
+mysql.slow_log                                     OK
+mysql.tables_priv                                  OK
+mysql.time_zone                                    OK
+mysql.time_zone_leap_second                        OK
+mysql.time_zone_name                               OK
+mysql.time_zone_transition                         OK
+mysql.time_zone_transition_type                    OK
+mysql.user                                         OK
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
+sys.sys_config                                     OK
+# After upgrade users root@localhost and user1 has privilege RESOURCE_GROUP_ADMIN.
+SHOW GRANTS FOR root@localhost;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+SHOW GRANTS FOR user1;
+Grants for user1@%
+GRANT SUPER ON *.* TO `user1`@`%`
+GRANT RESOURCE_GROUP_ADMIN ON *.* TO `user1`@`%`
+DROP USER user1;
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM `mysql.session`@localhost;
 
 End of tests

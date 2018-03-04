@@ -1,35 +1,43 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <errno.h>
-#include <cassert>
-#include <string>
-#include <sstream>
 #include <algorithm>
+#include <cassert>
+#include <sstream>
+#include <string>
 
 #ifndef XCOM_STANDALONE
-#include <my_sys.h>
-#include <my_dir.h>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <time.h>
+
+#include "my_dir.h"
+#include "my_sys.h"
 #endif /* XCOM_STANDALONE */
 
-#include "mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
 void *consumer_function(void *ptr);
 
@@ -44,7 +52,6 @@ Gcs_async_buffer::Gcs_async_buffer(Sink_interface *sink, int buffer_size)
   m_sink(sink),
   m_consumer(new My_xp_thread_impl()),
   m_wait_for_events_cond(new My_xp_cond_impl()),
-  m_wait_for_events_mutex(new My_xp_mutex_impl()),
   m_free_buffer_cond(new My_xp_cond_impl()),
   m_free_buffer_mutex(new My_xp_mutex_impl())
 {
@@ -55,7 +62,6 @@ Gcs_async_buffer::~Gcs_async_buffer()
 {
   delete m_consumer;
   delete m_wait_for_events_cond;
-  delete m_wait_for_events_mutex;
   delete m_free_buffer_cond;
   delete m_free_buffer_mutex;
   delete m_sink;
@@ -93,10 +99,11 @@ enum_gcs_error Gcs_async_buffer::initialize()
     it.set_event(false);
   }
 
-  m_wait_for_events_cond->init();
-  m_wait_for_events_mutex->init(NULL);
-  m_free_buffer_cond->init();
-  m_free_buffer_mutex->init(NULL);
+  m_wait_for_events_cond->init(
+    key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond);
+  m_free_buffer_cond->init(key_GCS_COND_Gcs_async_buffer_m_free_buffer_cond);
+  m_free_buffer_mutex->init(key_GCS_MUTEX_Gcs_async_buffer_m_free_buffer_mutex,
+                            NULL);
 
   m_terminated= false;
   if ((ret_thread= m_consumer->create(
@@ -108,7 +115,6 @@ enum_gcs_error Gcs_async_buffer::initialize()
               << ret_thread << std::endl;
 
     m_wait_for_events_cond->destroy();
-    m_wait_for_events_mutex->destroy();
     m_free_buffer_cond->destroy();
     m_free_buffer_mutex->destroy();
 
@@ -131,13 +137,13 @@ enum_gcs_error Gcs_async_buffer::finalize()
   m_free_buffer_mutex->lock();
   m_terminated= true;
   m_free_buffer_cond->broadcast();
+  m_wait_for_events_cond->signal();
   m_free_buffer_mutex->unlock();
 
   // Wait for consumer to finish processing events
   m_consumer->join(NULL);
 
   m_wait_for_events_cond->destroy();
-  m_wait_for_events_mutex->destroy();
   m_free_buffer_cond->destroy();
   m_free_buffer_mutex->destroy();
 
@@ -240,11 +246,12 @@ void Gcs_async_buffer::consume_events()
     m_free_buffer_mutex->lock();
     number_entries= m_number_entries;
     is_terminated= m_terminated;
-    m_free_buffer_mutex->unlock();
 
     if (number_entries == 0)
     {
-      sleep_consumer();
+      if (!is_terminated)
+        sleep_consumer();
+      m_free_buffer_mutex->unlock();
     }
     else
     {
@@ -254,6 +261,7 @@ void Gcs_async_buffer::consume_events()
         give the user threads the chance to produce new content if there are
         no free slots.
       */
+      m_free_buffer_mutex->unlock();
       int64_t to_read, read;
       int64_t max_entries= (m_buffer_size / 25);
       assert(number_entries != 0);

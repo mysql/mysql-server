@@ -1,17 +1,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
@@ -52,14 +59,13 @@ typedef struct user_conn USER_CONN;
 class Security_context;
 struct TABLE;
 struct TABLE_LIST;
+enum class role_enum;
 
 /** user, host tuple which reference either acl_cache or g_default_roles */
 typedef std::pair< LEX_CSTRING, LEX_CSTRING > Auth_id_ref;
 typedef std::vector< Auth_id_ref >  List_of_auth_id_refs;
 
 bool operator<(const Auth_id_ref &a, const Auth_id_ref &b);
-
-/* Classes */
 
 enum ACL_internal_access_result
 {
@@ -75,6 +81,8 @@ enum ACL_internal_access_result
   /** No decision yet, use the grant tables. */
   ACL_INTERNAL_ACCESS_CHECK_GRANT
 };
+
+/* Classes */
 
 /**
   Per internal table ACL access rules.
@@ -822,12 +830,13 @@ bool mysql_grant_role(THD *thd, const List <LEX_USER > *users,
 bool mysql_revoke_role(THD *thd, const List <LEX_USER > *users,
                        const List <LEX_USER > *roles);
 void get_default_roles(const Auth_id_ref &user, List_of_auth_id_refs *list);
-bool mysql_alter_user_set_default_roles(THD *thd, LEX_USER *user,
-                       const List_of_auth_id_refs &authids);
-bool mysql_alter_user_set_default_roles_all(THD *thd, LEX_USER *user);
+
 bool is_granted_table_access(THD *thd, ulong required_acl,
                              TABLE_LIST *table);
-bool mysql_clear_default_roles(THD *thd, LEX_USER *user);
+
+bool mysql_alter_or_clear_roles(THD *thd, role_enum role_type,
+                                const List<LEX_USER> *users,
+                                const List<LEX_USER> *roles);
 void roles_graphml(THD *thd, String *);
 bool has_grant_role_privilege(THD *thd, const LEX_CSTRING &role_name,
                               const LEX_CSTRING &role_host);
@@ -865,8 +874,11 @@ bool do_auto_cert_generation(ssl_artifacts_status auto_detection_status);
 #define DEFAULT_SSL_SERVER_KEY  "server-key.pem"
 
 void update_mandatory_roles(void);
+bool check_authorization_id_string(const char *buffer, size_t length);
 String *func_current_role(THD *thd, String *str, String *active_role);
 
 extern volatile uint32 global_password_history, global_password_reuse_interval;
+
+bool operator==(const LEX_CSTRING &a, const LEX_CSTRING &b);
 #endif /* AUTH_COMMON_INCLUDED */
 

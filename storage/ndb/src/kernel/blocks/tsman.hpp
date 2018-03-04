@@ -2,13 +2,20 @@
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -152,10 +159,10 @@ public:
     }
   };
 
-  typedef RecordPool<Datafile, RWPool<Datafile> > Datafile_pool;
-  typedef DLFifoList<Datafile, Datafile_pool> Datafile_list;
-  typedef LocalDLFifoList<Datafile, Datafile_pool> Local_datafile_list;
-  typedef DLHashTable<Datafile_pool, Datafile> Datafile_hash;
+  typedef RecordPool<RWPool<Datafile> > Datafile_pool;
+  typedef DLFifoList<Datafile_pool> Datafile_list;
+  typedef LocalDLFifoList<Datafile_pool> Local_datafile_list;
+  typedef DLHashTable<Datafile_pool> Datafile_hash;
 
   struct Tablespace
   {
@@ -206,10 +213,10 @@ public:
     }
   };
 
-  typedef RecordPool<Tablespace, RWPool<Tablespace> > Tablespace_pool;
-  typedef DLList<Tablespace, Tablespace_pool> Tablespace_list;
-  typedef LocalDLList<Tablespace, Tablespace_pool> Local_tablespace_list;
-  typedef KeyTable<Tablespace_pool, Tablespace> Tablespace_hash;
+  typedef RecordPool<RWPool<Tablespace> > Tablespace_pool;
+  typedef DLList<Tablespace_pool> Tablespace_list;
+  typedef LocalDLList<Tablespace_pool> Local_tablespace_list;
+  typedef KeyTable<Tablespace_pool> Tablespace_hash;
 
 private:
   friend class Tablespace_client;

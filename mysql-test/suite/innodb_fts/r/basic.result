@@ -285,3 +285,9 @@ FTS_DOC_ID
 196606
 262141
 drop table t1;
+create table t1( a text character set utf8mb4 collate utf8mb4_czech_ci not null, fulltext key(a))engine=innodb;
+insert into t1 values('');
+select match(a)against(0xf3) from t1;
+match(a)against(0xf3)
+0
+drop table t1;

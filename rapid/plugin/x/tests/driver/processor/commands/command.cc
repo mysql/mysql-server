@@ -1,40 +1,47 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "command.h"
+#include "plugin/x/tests/driver/processor/commands/command.h"
 
 #include <algorithm>
 #include <fstream>
 #include <iostream>
-#include "ngs_common/to_string.h"
 
-#include "connector/mysqlx_all_msgs.h"
-#include "formatters/message_formatter.h"
-#include "json_to_any_handler.h"
-#include "processor/commands/mysqlxtest_error_names.h"
-#include "processor/comment_processor.h"
-#include "processor/macro_block_processor.h"
-#include "processor/indigestion_processor.h"
-#include "processor/stream_processor.h"
-
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/tests/driver/connector/mysqlx_all_msgs.h"
+#include "plugin/x/tests/driver/formatters/message_formatter.h"
+#include "plugin/x/tests/driver/json_to_any_handler.h"
+#include "plugin/x/tests/driver/processor/commands/mysqlxtest_error_names.h"
+#include "plugin/x/tests/driver/processor/comment_processor.h"
+#include "plugin/x/tests/driver/processor/indigestion_processor.h"
+#include "plugin/x/tests/driver/processor/macro_block_processor.h"
+#include "plugin/x/tests/driver/processor/stream_processor.h"
 
 namespace {
 
 const char *const CMD_ARG_BE_QUIET = "be-quiet";
+const char *const CMD_ARG_SHOW_RECEIVED = "show-received";
 const char CMD_ARG_SEPARATOR = '\t';
 const std::string CMD_PREFIX = "-->";
 
@@ -104,7 +111,7 @@ Command::Command() {
   m_commands["recvtovar"] = &Command::cmd_recvtovar;
   m_commands["recvuntil"] = &Command::cmd_recvuntil;
   m_commands["recvuntildisc"] = &Command::cmd_recv_all_until_disc;
-  m_commands["enablessl"] = &Command::cmd_enablessl;
+  m_commands["do_ssl_handshake"] = &Command::cmd_do_ssl_handshake;
   m_commands["sleep"] = &Command::cmd_sleep;
   m_commands["login"] = &Command::cmd_login;
   m_commands["stmtadmin"] = &Command::cmd_stmtadmin;
@@ -122,7 +129,9 @@ Command::Command() {
   m_commands["fatalerrors"] = &Command::cmd_fatalerrors;
   m_commands["nofatalerrors"] = &Command::cmd_nofatalerrors;
   m_commands["newsession"] = &Command::cmd_newsession;
-  m_commands["newsessionplain"] = &Command::cmd_newsessionplain;
+  m_commands["newsession_plain"] = &Command::cmd_newsession_plain;
+  m_commands["newsession_mysql41"] = &Command::cmd_newsession_mysql41;
+  m_commands["newsession_memory"] = &Command::cmd_newsession_memory;
   m_commands["setsession"] = &Command::cmd_setsession;
   m_commands["closesession"] = &Command::cmd_closesession;
   m_commands["expecterror"] = &Command::cmd_expecterror;
@@ -144,6 +153,7 @@ Command::Command() {
       &Command::cmd_macro_delimiter_compress;
   m_commands["import"] = &Command::cmd_import;
   m_commands["assert_eq"] = &Command::cmd_assert_eq;
+  m_commands["assert_ne"] = &Command::cmd_assert_ne;
   m_commands["assert_gt"] = &Command::cmd_assert_gt;
   m_commands["assert_ge"] = &Command::cmd_assert_ge;
   m_commands["query_result"] = &Command::cmd_query;
@@ -563,9 +573,10 @@ Command::Result Command::cmd_recvuntil(std::istream &input,
   return Result::Continue;
 }
 
-Command::Result Command::cmd_enablessl(std::istream &input,
-                                       Execution_context *context,
-                                       const std::string &args) {
+Command::Result Command::cmd_do_ssl_handshake(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args) {
   xcl::XError error =
       context->session()->get_protocol().get_connection().activate_tls();
   if (error) {
@@ -662,7 +673,7 @@ Command::Result Command::cmd_sleep(std::istream &input,
 Command::Result Command::cmd_login(std::istream &input,
                                    Execution_context *context,
                                    const std::string &args) {
-  std::string user, pass, db, auth_meth;
+  std::string user, pass, db, auth_meth = "MYSQL41";
 
   if (args.empty()) {
     context->m_connection->get_credentials(&user, &pass);
@@ -693,30 +704,30 @@ Command::Result Command::cmd_login(std::istream &input,
     }
   }
 
-  std::string method = "MYSQL41";
   auto protocol = context->m_connection->active_xprotocol();
 
-  // XXX
-  // Prepered for method map
-  if (0 == strncmp(auth_meth.c_str(), "plain", 5)) {
-    method = "PLAIN";
-  } else if (!(0 == strncmp(auth_meth.c_str(), "mysql41", 5) ||
-               0 == auth_meth.length())) {
-    context->print_error("Wrong authentication method", '\n');
-    return Result::Stop_with_failure;
-  }
+  for (auto &c : auth_meth)
+    c = toupper(c);
 
-  auto error = protocol->execute_authenticate(user, pass, db, method);
+  auto error = protocol->execute_authenticate(user, pass, db, auth_meth);
 
   context->m_connection->active_holder().remove_notice_handler();
 
   if (error) {
+    if (CR_X_UNSUPPORTED_OPTION_VALUE == error.error()) {
+      context->print_error("Wrong authentication method", '\n');
+      return Result::Stop_with_failure;
+    }
+
     if (!context->m_expected_error.check_error(error)) {
       return Result::Stop_with_failure;
     }
 
     return Result::Continue;
   }
+
+  context->m_connection->setup_variables(
+      context->m_connection->active_xsession());
 
   context->print("Login OK\n");
   return Result::Continue;
@@ -859,27 +870,49 @@ Command::Result Command::cmd_recv_all_until_disc(std::istream &input,
                                                  const std::string &args) {
   xcl::XProtocol::Server_message_type_id msgid;
   xcl::XError error;
+  bool show_all_received_messages = false;
+
+  if (!args.empty()) {
+    std::string copy_arg = args;
+    aux::trim(copy_arg);
+
+    if (copy_arg != CMD_ARG_SHOW_RECEIVED) {
+      context->print_error(
+          "'recvuntildisc' command, accepts zero or one argument. "
+          "Acceptable value for the argument is \"", CMD_ARG_SHOW_RECEIVED,"\"\n");
+      return Result::Stop_with_failure;
+    }
+
+    show_all_received_messages = true;
+  }
+
   try {
     while (true) {
       Message_ptr msg{
           context->m_connection->active_xprotocol()->recv_single_message(
               &msgid,
               &error)};
+
       if (error)
         throw error;
+
+    if (msg.get() && show_all_received_messages)
+      context->print(context->m_variables->unreplace(
+          formatter::message_to_text(*msg), true), "\n");
     }
   }
   catch (xcl::XError &) {
     context->print_error("Server disconnected", '\n');
   }
 
+  /* Ensure that connection is closed. This is going to stop XSession from
+   executing disconnection flow */
+  context->m_connection->active_xconnection()->close();
+
   if (context->m_connection->is_default_active()) {
     return Result::Stop_with_success;
   }
 
-  /* Ensure that connection is closed. This is going to stop XSession from
-   executing disconnection flow */
-  context->m_connection->active_xconnection()->close();
   context->m_connection->close_active(false);
 
   return Result::Continue;
@@ -1041,21 +1074,37 @@ Command::Result Command::cmd_nofatalerrors(std::istream &input,
   return Result::Continue;
 }
 
-Command::Result Command::cmd_newsessionplain(std::istream &input,
+Command::Result Command::cmd_newsession_memory(std::istream &input,
                                              Execution_context *context,
                                              const std::string &args) {
-  return do_newsession(input, context, args, true);
+  return do_newsession(input, context, args, {"SHA256_MEMORY"});
+}
+
+Command::Result Command::cmd_newsession_mysql41(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args) {
+  return do_newsession(input, context, args, {"MYSQL41"});
+}
+
+Command::Result Command::cmd_newsession_plain(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args) {
+  return do_newsession(input, context, args, {"PLAIN"});
 }
 
 Command::Result Command::cmd_newsession(std::istream &input,
                                         Execution_context *context,
                                         const std::string &args) {
-  return do_newsession(input, context, args, false);
+  return do_newsession(input, context, args, {});
 }
 
-Command::Result Command::do_newsession(std::istream &input,
-                                       Execution_context *context,
-                                       const std::string &args, bool plain) {
+Command::Result Command::do_newsession(
+    std::istream &input,
+    Execution_context *context,
+    const std::string &args,
+    const std::vector<std::string> &auth_methods) {
   if (args.empty()) {
     context->print_error(
         "'newsession' command, requires at "
@@ -1092,7 +1141,7 @@ Command::Result Command::do_newsession(std::istream &input,
   }
 
   try {
-    context->m_connection->create(name, user, pass, db, plain);
+    context->m_connection->create(name, user, pass, db, auth_methods);
     if (!context->m_expected_error.check_ok()) return Result::Stop_with_failure;
   }
   catch (xcl::XError &err) {
@@ -1255,9 +1304,19 @@ Command::Result Command::cmd_varlet(std::istream &input,
   if (p == std::string::npos) {
     context->m_variables->set(args, "");
   } else {
-    std::string value = args.substr(p + 1);
+    const std::string name  = args.substr(0, p);
+    std::string       value = args.substr(p + 1);
+
     context->m_variables->replace(&value);
-    context->m_variables->set(args.substr(0, p), value);
+
+    if (!context->m_variables->set(name, value)) {
+      context->print_error(
+          "'varlet' command failed, when setting the '",
+          name,
+          "' variable.\n");
+
+      return Result::Stop_with_failure;
+    }
   }
   return Result::Continue;
 }
@@ -1542,8 +1601,36 @@ Command::Result Command::cmd_assert_eq(std::istream &input,
   context->m_variables->replace(&vargs[1]);
 
   if (vargs[0] != vargs[1]) {
+    context->print_error("Execution of '", args, "', resulted in an error:\n");
     context->print_error("Expecting '", vargs[0], "', but received '", vargs[1],
                          "'\n");
+    return Result::Stop_with_failure;
+  }
+
+  return Result::Continue;
+}
+
+Command::Result Command::cmd_assert_ne(std::istream &input,
+                                       Execution_context *context,
+                                       const std::string &args) {
+  std::vector<std::string> vargs;
+
+  aux::split(vargs, args, "\t", true);
+
+  if (2 != vargs.size()) {
+    context->print_error(
+        "Specified invalid number of arguments for command assert_eq:",
+        vargs.size(), " expecting 2\n");
+    return Result::Stop_with_failure;
+  }
+
+  context->m_variables->replace(&vargs[0]);
+  context->m_variables->replace(&vargs[1]);
+
+  if (vargs[0] == vargs[1]) {
+    context->print_error(
+        "Expecting '", vargs[0],
+        "', to be different from '", vargs[1], "'\n");
     return Result::Stop_with_failure;
   }
 
@@ -1619,8 +1706,10 @@ Command::Result Command::cmd_noquery(std::istream &input,
   return Result::Continue;
 }
 
-void Command::put_variable_to(std::string *result, const std::string &value) {
+bool Command::put_variable_to(std::string *result, const std::string &value) {
   *result = value;
+
+  return true;
 }
 
 void Command::try_result(Result result) {
@@ -1715,6 +1804,24 @@ bool Command::json_string_to_any(const std::string &json_string,
   return !reader.Parse(ss, handler).IsError();
 }
 
+static bool try_open_file_on_different_paths(
+    std::ifstream &stream,
+    const std::string &filename,
+    const std::vector<std::string> &paths) {
+  for (const auto &path : paths) {
+    stream.open(path + filename);
+
+    // Lets access the file to make the "fs.flags" contain
+    // valid values.
+    stream.peek();
+
+    if (stream.good())
+      return true;
+  }
+
+  return stream.good();
+}
+
 Command::Result Command::cmd_import(std::istream &input,
                                     Execution_context *context,
                                     const std::string &args) {
@@ -1723,18 +1830,18 @@ Command::Result Command::cmd_import(std::istream &input,
     return Result::Stop_with_failure;
   }
 
-  std::string varg(args);
-  context->m_variables->replace(&varg);
-  const std::string filename = context->m_options.m_import_path + varg;
+  std::string filename(args);
+  context->m_variables->replace(&filename);
 
-  std::ifstream fs(filename.c_str());
+  std::ifstream stream;
 
-  // Lets access the file to make the "fs.flags" contain
-  // valid values.
-  fs.peek();
+  try_open_file_on_different_paths(
+      stream,
+      filename,
+      {context->m_options.m_import_path, ""});
 
   // After the "peek", good can be checked
-  if (!fs.good()) {
+  if (!stream.good()) {
     context->print_error(context->m_script_stack, "Could not open macro file ",
                          args, " (aka ", filename, ")\n");
     return Result::Stop_with_failure;
@@ -1748,7 +1855,7 @@ Command::Result Command::cmd_import(std::istream &input,
     std::make_shared<Indigestion_processor>(context)
   };
 
-  bool r = process_client_input(fs, &processors, &context->m_script_stack,
+  bool r = process_client_input(stream, &processors, &context->m_script_stack,
                                 context->m_console) == 0;
   context->m_script_stack.pop();
 
@@ -1846,15 +1953,15 @@ void print_help_commands() {
   std::cout << "-->macro_delimiter_compress TRUE|FALSE|0|1\n";
   std::cout << "  Enable/disable grouping of adjacent delimiters into\n";
   std::cout << "  single one at \"callmacro\" command.\n";
-  std::cout << "-->enablessl\n";
-  std::cout << "  Enables ssl on current connection\n";
+  std::cout << "-->do_ssl_handshake\n";
+  std::cout << "  Execute SSL handshake, enables SSL on current connection\n";
   std::cout << "<protomsg>\n";
   std::cout << "  Encodes the text format protobuf message and sends it to "
                "the server (allows variables).\n";
   std::cout << "-->recv [quiet|<FIELD PATH>]\n";
   std::cout << "  quiet        - received message isn't printed\n";
-  std::cout << "  <FIELD PATH> - print only selected part of the message using"
-               "                 \"field-path\" filter:\n";
+  std::cout << "  <FIELD PATH> - print only selected part of the message using\n";
+  std::cout << "                 \"field-path\" filter:\n";
   std::cout << "                 * field_name1\n";
   std::cout << "                 * field_name1.field_name2\n";
   std::cout << "                 * repeated_field_name1[1].field_name1\n";
@@ -1892,7 +1999,7 @@ void print_help_commands() {
   std::cout << "  Send StmtExecute with sql command\n";
   std::cout << "-->stmtadmin <CMD> [json_string]\n";
   std::cout << "  Send StmtExecute with admin command with given aguments "
-               "(formated as json object) \n";
+               "(formated as json object)\n";
   std::cout << "-->system <CMD>\n";
   std::cout << "  Execute application or script (dev only)\n";
   std::cout << "-->exit\n";
@@ -1901,15 +2008,18 @@ void print_help_commands() {
   std::cout << "-->abort\n";
   std::cout << "  Exit immediately, without performing cleanup\n";
   std::cout << "-->nowarnings/-->yeswarnings\n";
-  std::cout << "   Whether to print warnings generated by the statement "
+  std::cout << "  Whether to print warnings generated by the statement "
                "(default no)\n";
+  std::cout << "-->recvuntildisc [" << CMD_ARG_SHOW_RECEIVED << "]\n";
+  std::cout << "  Receive all messages until server drops current connection.\n";
+  std::cout << "  " << CMD_ARG_SHOW_RECEIVED << " - received messages are printed to standard output.\n";
   std::cout << "-->peerdisc <MILLISECONDS> [TOLERANCE]\n";
   std::cout << "  Expect that xplugin disconnects after given number of "
                "milliseconds and tolerance\n";
   std::cout << "-->sleep <SECONDS>\n";
   std::cout << "  Stops execution of mysqlxtest for given number of seconds "
                "(may be fractional)\n";
-  std::cout << "-->login <user>\t<pass>\t<db>\t<mysql41|plain>]\n";
+  std::cout << "-->login <user>\t<pass>\t<db>\t<mysql41|plain|sha256_memory>]\n";
   std::cout << "  Performs authentication steps (use with --no-auth)\n";
   std::cout << "-->loginerror <errno>\t<user>\t<pass>\t<db>\n";
   std::cout << "  Performs authentication steps expecting an error (use with "
@@ -1921,58 +2031,68 @@ void print_help_commands() {
                "something else occurs\n";
   std::cout << "  Works for: newsession, closesession, recvresult, recvok\n";
   std::cout << "-->newsession <name>\t<user>\t<pass>\t<db>\n";
-  std::cout << "  Create a new connection with given name and account (use - "
-               "as user for no-auth)\n";
-  std::cout << "-->newsessionplain <name>\t<user>\t<pass>\t<db>\n";
-  std::cout << "  Create a new connection with given name and account and "
-               "force it to NOT use ssl, even if its generally enabled\n";
+  std::cout << "  Create a new connection which is going to be authenticate"
+               " using sequence of mechanisms (AUTO). Use '-' in place of"
+               " the user for raw connection.\n";
+  std::cout << "-->newsession_mysql41 <name>\t<user>\t<pass>\t<db>\n";
+  std::cout << "  Create a new connection which is going to be authenticate"
+               " using MYSQL41 mechanism.\n";
+  std::cout << "-->newsession_memory <name>\t<user>\t<pass>\t<db>\n";
+  std::cout << "  Create a new connection which is going to be authenticate"
+               " using SHA256_MEMORY mechanism.\n";
+  std::cout << "-->newsession_plain <name>\t<user>\t<pass>\t<db>\n";
+  std::cout << "  Create a new connection which is going to be authenticate"
+               " using PLAIN mechanism.\n";
   std::cout << "-->setsession <name>\n";
   std::cout << "  Activate the named session\n";
   std::cout << "-->closesession [abort]\n";
   std::cout << "  Close the active session (unless its the default session)\n";
   std::cout << "-->wait_for <VALUE_EXPECTED>\t<SQL QUERY>\n";
-  std::cout << "   Wait until SQL query returns value matches expected value "
+  std::cout << "  Wait until SQL query returns value matches expected value "
                "(time limit 30 second)\n";
   std::cout << "-->assert_eq <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
-  std::cout << "   Ensure that 'TESTED' value equals 'EXPECTED' by comparing "
+  std::cout << "  Ensure that 'TESTED' value equals 'EXPECTED' by comparing "
                "strings lexicographically\n";
+  std::cout << "-->assert_ne <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
+  std::cout << "  Ensure that 'TESTED' value doesn't equals 'EXPECTED' by"
+               " comparing strings lexicographically\n";
   std::cout << "-->assert_gt <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
-  std::cout << "   Ensure that 'TESTED' value is greater than 'EXPECTED' "
+  std::cout << "  Ensure that 'TESTED' value is greater than 'EXPECTED' "
                "(only when the both are numeric values)\n";
   std::cout << "-->assert_ge <VALUE_EXPECTED>\t<VALUE_TESTED>\n";
-  std::cout << "   Ensure that 'TESTED' value is greater  or equal to "
+  std::cout << "  Ensure that 'TESTED' value is greater  or equal to "
                "'EXPECTED' (only when the both are numeric values)\n";
   std::cout << "-->varfile <varname> <datafile>\n";
-  std::cout << "   Assigns the contents of the file to the named variable\n";
+  std::cout << "  Assigns the contents of the file to the named variable\n";
   std::cout << "-->varlet <varname> <value>\n";
   std::cout
-      << "   Assign the value (can be another variable) to the variable\n";
+      << "  Assign the value (can be another variable) to the variable\n";
   std::cout << "-->varinc <varname> <n>\n";
-  std::cout << "   Increment the value of varname by n (assuming both "
+  std::cout << "  Increment the value of varname by n (assuming both "
                "convert to integral)\n";
   std::cout << "-->varsub <varname>\n";
-  std::cout << "   Add a variable to the list of variables to replace for "
+  std::cout << "  Add a variable to the list of variables to replace for "
                "the next recv or sql command (value is replaced by the "
                "name)\n";
   std::cout << "-->varescape <varname>\n";
-  std::cout << "   Escape end-line and backslash characters.\n";
+  std::cout << "  Escape end-line and backslash characters.\n";
   std::cout << "-->binsend <bindump>[<bindump>...]\n";
-  std::cout << "   Sends one or more binary message dumps to the server "
+  std::cout << "  Sends one or more binary message dumps to the server "
                "(generate those with --bindump)\n";
   std::cout << "-->binsendoffset <srcvar> [offset-begin[percent]> "
                "[offset-end[percent]]]\n";
   std::cout
-      << "   Same as binsend with begin and end offset of data to be send\n";
+      << "  Same as binsend with begin and end offset of data to be send\n";
   std::cout << "-->binparse MESSAGE.NAME {\n";
   std::cout << "    MESSAGE.DATA\n";
   std::cout << "}\n";
-  std::cout << "   Dump given message to variable %MESSAGE_DUMP%\n";
+  std::cout << "  Dump given message to variable %MESSAGE_DUMP%\n";
   std::cout << "-->quiet/noquiet\n";
-  std::cout << "   Toggle verbose messages\n";
+  std::cout << "  Toggle verbose messages\n";
   std::cout << "-->query_result/noquery_result\n";
-  std::cout << "   Toggle visibility for query results\n";
+  std::cout << "  Toggle visibility for query results\n";
   std::cout << "-->received <msgtype>\t<varname>\n";
-  std::cout << "   Assigns number of received messages of indicated type (in "
+  std::cout << "  Assigns number of received messages of indicated type (in "
                "active session) to a variable\n";
   std::cout << "# comment\n";
 }

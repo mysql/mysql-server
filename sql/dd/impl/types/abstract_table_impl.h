@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__ABSTRACT_TABLE_IMPL_INCLUDED
 #define DD__ABSTRACT_TABLE_IMPL_INCLUDED
@@ -31,7 +38,6 @@
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"      // dd::Abstract_table
 #include "sql/dd/types/column.h"              // IWYU pragma: keep
-#include "sql/dd/types/object_type.h"         // dd::Object_type
 #include "sql/sql_time.h"                     // gmt_time_to_local_time
 
 class Time_zone;
@@ -40,6 +46,7 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
+class Object_table;
 class Open_dictionary_tables_ctx;
 class Sdi_rcontext;
 class Sdi_wcontext;
@@ -49,6 +56,10 @@ class Abstract_table_impl : public Entity_object_impl,
                             virtual public Abstract_table
 {
 public:
+  virtual const Object_table &object_table() const;
+
+  static void register_tables(Open_dictionary_tables_ctx *otx);
+
   virtual bool validate() const;
 
   virtual bool restore_children(Open_dictionary_tables_ctx *otx);
@@ -206,20 +217,6 @@ private:
 
 protected:
   Abstract_table_impl(const Abstract_table_impl &src);
-};
-
-///////////////////////////////////////////////////////////////////////////
-
-class Abstract_table_type : public Object_type
-{
-public:
-  virtual void register_tables(Open_dictionary_tables_ctx *otx) const;
-
-  virtual Weak_object *create_object() const
-  {
-    DBUG_ASSERT(false);
-    return NULL;
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

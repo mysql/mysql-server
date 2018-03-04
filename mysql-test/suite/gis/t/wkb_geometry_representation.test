@@ -15,16 +15,16 @@
 --echo ##########################################################
 
 --echo # Inserting geographical srs with long-lat ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name, organization, organization_coordsys_id, definition, description) VALUES (30000000, 1, 'TEST30000000', 'EPSG', 30000000, 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","30000000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30000000 NAME 'TEST30000000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","30000000"]]';
 
 --echo # Inserting geographical srs with lat-long ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name, organization, organization_coordsys_id, definition, description) VALUES (30100000, 1, 'TEST30100000', 'EPSG', 30100000, 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","30100000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30100000 NAME 'TEST30100000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","30100000"]]';
 
 --echo # Inserting projected srs with northing-easting ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name, organization, organization_coordsys_id, definition, description) VALUES (30200000, 1, 'TEST30200000', 'EPSG', 30200000, 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","30200000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30200000 NAME 'TEST30200000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","30200000"]]';
 
 --echo # Inserting projected srs with easting-northing ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name, organization, organization_coordsys_id, definition, description) VALUES (30300000, 1, 'TEST30300000', 'EPSG', 30300000, 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","30300000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30300000 NAME 'TEST30300000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","30300000"]]';
 
 
 ####################################
@@ -52,8 +52,7 @@ INSERT INTO gis_point VALUES
     (102, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30100000)),
     (103, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30200000)),
     (104, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 30300000)),
-    (105, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 0)),
-    (106, ST_POINTFROMTEXT('POINT(5 10)',426845214));
+    (105, ST_SRID(ST_POINTFROMTEXT('POINT(5 10)',0), 0));
 
 ###########################################
 # Inserting LINESTRING Geometry values
@@ -66,8 +65,7 @@ INSERT INTO gis_linestring VALUES
     (202, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30100000)),
     (203, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30200000)),
     (204, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 30300000)),
-    (205, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 0)),
-    (206, ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',426845214));
+    (205, ST_SRID(ST_LINEFROMTEXT('LINESTRING(0 5,5 10,10 15)',0), 0));
 
 ############################################
 # Inserting POLYGON Geometry values
@@ -80,8 +78,7 @@ INSERT INTO gis_polygon VALUES
     (302, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30100000)),
     (303, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30200000)),
     (304, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 30300000)),
-    (305, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 0)),
-    (306, ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))', 426845214));
+    (305, ST_SRID(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,0 5,0 0))',0), 0));
 
 ############################################
 # Inserting MULTIPOINT Geometry values
@@ -94,8 +91,7 @@ INSERT INTO gis_multi_point VALUES
     (402, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30100000)),
     (403, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30200000)),
     (404, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 30300000)),
-    (405, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 0)),
-    (406, ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))', 426845214));
+    (405, ST_SRID(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (8 2), (4 9))',0), 0));
 
 ################################################
 # Inserting MULTILINESTRING Geometry values
@@ -108,8 +104,7 @@ INSERT INTO gis_multi_linestring VALUES
     (502, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30100000)),
     (503, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30200000)),
     (504, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 30300000)),
-    (505, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 0)),
-    (506, ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))', 426845214));
+    (505, ST_SRID(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(8 11,11 14,14 17))',0), 0));
 
 #############################################
 # Inserting MULTIPOLYGON Geometry values
@@ -122,8 +117,7 @@ INSERT INTO gis_multi_polygon VALUES
     (602, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30100000)),
     (603, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30200000)),
     (604, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 30300000)),
-    (605, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 0)),
-    (606, ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))', 426845214));
+    (605, ST_SRID(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',0), 0));
 
 ##################################################
 # Inserting GEOMETRYCOLLECTION Geometry values
@@ -136,8 +130,7 @@ INSERT INTO gis_geometrycollection VALUES
     (702, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30100000)),
     (703, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30200000)),
     (704, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 30300000)),
-    (705, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 0)),
-    (706, ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))', 426845214));
+    (705, ST_SRID(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(3 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',0), 0));
 
 --echo #####################################################################
 --echo # Retrieving geometries with ST_ASWKB with no parameter
@@ -398,7 +391,7 @@ SELECT ST_AsWKB(POINT(1, 1), 'axis-order=lat-long , foo=bar');
 --echo # error as with a valid SRID)
 
 --error ER_INVALID_OPTION_VALUE
-DO ST_AsWKB(ST_GeomFromText('POINT(1 1)', 4325), 'axis-order = foo'); 
+DO ST_AsWKB(ST_GeomFromText('POINT(1 1)', 4326), 'axis-order = foo'); 
 
 
 --echo #####################################################################
@@ -451,5 +444,7 @@ DROP TABLE gis_multi_polygon;
 DROP TABLE gis_geometrycollection;
 
 # Cleanup.
-DELETE FROM mysql.st_spatial_reference_systems
-WHERE id >= 30000000 AND id <= 31000000;
+DROP SPATIAL REFERENCE SYSTEM 30000000;
+DROP SPATIAL REFERENCE SYSTEM 30100000;
+DROP SPATIAL REFERENCE SYSTEM 30200000;
+DROP SPATIAL REFERENCE SYSTEM 30300000;

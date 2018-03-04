@@ -13,7 +13,7 @@
 
 # In the test scenario, there can be orphaned .frm files.
 # These are expected.  So suppressing the associated warnings.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: table .* does not exist "
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: table .* does not exist "
 			 "in the InnoDB internal");
 
 ################################################################################
@@ -35,7 +35,7 @@ set global innodb_file_per_table = off;
 let $MYSQL_TMP_DIR = `select @@tmpdir`;
 let $MYSQL_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
-let $args = --loose-console > $SEARCH_FILE 2>&1;
+let $args = --loose-console --log-error-verbosity=3 > $SEARCH_FILE 2>&1;
 let crash = $args --innodb-force-recovery-crash;
 
 #-----------------------------------------------------------------------------

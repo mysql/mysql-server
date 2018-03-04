@@ -2,13 +2,20 @@
    Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,15 +25,15 @@
 #ifndef XPL_SYSTEM_VARIABLES_H
 #define XPL_SYSTEM_VARIABLES_H
 
-#include "xpl_log.h"
-#include "ngs_common/bind.h"
-#include <vector>
 #include <algorithm>
+#include <vector>
+
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/src/xpl_log.h"
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet
 #endif // max_allowed_packet
-
 
 struct st_mysql_sys_var;
 class THD;
@@ -66,11 +73,12 @@ public:
   static char        *socket;
   static unsigned int port_open_timeout;
   static char        *bind_address;
+  static uint32_t     m_interactive_timeout;
 
   static Ssl_config ssl_config;
 
 public:
-  typedef ngs::function<void()> Value_changed_callback;
+  typedef ngs::function<void(THD*)> Value_changed_callback;
 
   static void clean_callbacks();
   static void registry_callback(Value_changed_callback callcback);
@@ -82,22 +90,18 @@ public:
   static void setup_system_variable_from_env_or_compile_opt(char *&cnf_option, const char *env_variable, const char *compile_option);
 
 private:
-  struct Executor
-  {
-    void operator() (const Value_changed_callback & callback) { callback(); };
-  };
-
   static const char *get_system_variable_impl(const char *cnf_option, const char *env_variable, const char *compile_option);
 
   static std::vector<Value_changed_callback> m_callbacks;
 };
 
 template<typename Copy_type>
-void Plugin_system_variables::update_func(THD*, st_mysql_sys_var*, void *tgt, const void *save)
+void Plugin_system_variables::update_func(THD *thd, st_mysql_sys_var*, void *tgt, const void *save)
 {
   *(Copy_type*)tgt = *(Copy_type*) save;
 
-  std::for_each(m_callbacks.begin(), m_callbacks.end(), Executor());
+  std::for_each(m_callbacks.begin(), m_callbacks.end(),
+      [&thd](const Value_changed_callback &callback) { callback(thd); });
 }
 
 } // namespace xpl

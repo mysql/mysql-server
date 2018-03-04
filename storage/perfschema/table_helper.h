@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
   */
 
 #ifndef PFS_TABLE_HELPER_H
@@ -28,41 +35,15 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "pfs_column_types.h"
-#include "pfs_digest.h"
-#include "pfs_engine_table.h"
-#include "pfs_events.h"
-#include "pfs_instr_class.h"
-#include "pfs_setup_actor.h"
-#include "pfs_stat.h"
-#include "pfs_timer.h"
-
-/*
-  Write MD5 hash value in a string to be used
-  as DIGEST for the statement.
-*/
-#define MD5_HASH_TO_STRING(_hash, _str)       \
-  sprintf(_str,                               \
-          "%02x%02x%02x%02x%02x%02x%02x%02x"  \
-          "%02x%02x%02x%02x%02x%02x%02x%02x", \
-          _hash[0],                           \
-          _hash[1],                           \
-          _hash[2],                           \
-          _hash[3],                           \
-          _hash[4],                           \
-          _hash[5],                           \
-          _hash[6],                           \
-          _hash[7],                           \
-          _hash[8],                           \
-          _hash[9],                           \
-          _hash[10],                          \
-          _hash[11],                          \
-          _hash[12],                          \
-          _hash[13],                          \
-          _hash[14],                          \
-          _hash[15])
-
-#define MD5_HASH_TO_STRING_LENGTH 32
+#include "storage/perfschema/digest.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_digest.h"
+#include "storage/perfschema/pfs_engine_table.h"
+#include "storage/perfschema/pfs_events.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_setup_actor.h"
+#include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/pfs_timer.h"
 
 struct PFS_host;
 struct PFS_user;
@@ -496,7 +477,10 @@ struct PFS_instrument_view_constants
   static const uint VIEW_METADATA = 8;
   static const uint LAST_VIEW = 8;
 
-  /* THREAD are displayed in table setup_threads instead of setup_instruments. */
+  /*
+    THREAD are displayed in table setup_threads
+    instead of setup_instruments.
+  */
 
   static const uint VIEW_STAGE = 9;
   static const uint VIEW_STATEMENT = 10;
@@ -571,7 +555,7 @@ struct PFS_digest_row
   /** Length in bytes of @c m_schema_name. */
   uint m_schema_name_length;
   /** Column DIGEST. */
-  char m_digest[COL_DIGEST_SIZE];
+  char m_digest[DIGEST_HASH_TO_STRING_LENGTH + 1];
   /** Length in bytes of @c m_digest. */
   uint m_digest_length;
   /** Column DIGEST_TEXT. */
@@ -625,9 +609,32 @@ struct PFS_object_row
   /** Build a row from a memory buffer. */
   int make_row(PFS_table_share *pfs);
   int make_row(PFS_program *pfs);
-  int make_row(const MDL_key *pfs);
   /** Set a table field from the row. */
   void set_field(uint index, Field *f);
+  void set_nullable_field(uint index, Field *f);
+};
+
+/** Row fragment for columns OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME, COLUMN_NAME. */
+struct PFS_column_row
+{
+  /** Column OBJECT_TYPE. */
+  enum_object_type m_object_type;
+  /** Column SCHEMA_NAME. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
+  /** Column OBJECT_NAME. */
+  char m_object_name[NAME_LEN];
+  /** Length in bytes of @c m_object_name. */
+  uint m_object_name_length;
+  /** Column OBJECT_NAME. */
+  char m_column_name[NAME_LEN];
+  /** Length in bytes of @c m_column_name. */
+  uint m_column_name_length;
+
+  /** Build a row from a memory buffer. */
+  int make_row(const MDL_key *pfs);
+  /** Set a table field from the row. */
   void set_nullable_field(uint index, Field *f);
 };
 
@@ -1134,6 +1141,9 @@ public:
 
   /** Set a table field from the row. */
   void set_field(Field *f);
+
+  const char* get_str() const { return m_str; }
+  uint get_length() const { return m_length; }
 
 private:
   int make_row(const CHARSET_INFO *cs, const char *str, size_t length);
@@ -1773,6 +1783,7 @@ public:
   bool match(const PFS_program *pfs);
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_setup_object *pfs);
   bool match(const char *schema_name, uint schema_name_length);
 };
@@ -1792,9 +1803,24 @@ public:
   bool match(const PFS_program *pfs);
   bool match(const PFS_prepared_stmt *pfs);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_index_row *pfs);
   bool match(const PFS_setup_object *pfs);
   bool match(const char *schema_name, uint schema_name_length);
+};
+
+class PFS_key_column_name : public PFS_key_string<NAME_CHAR_LEN>
+{
+public:
+  PFS_key_column_name(const char *name) : PFS_key_string(name)
+  {
+  }
+
+  ~PFS_key_column_name()
+  {
+  }
+
+  bool match(const PFS_column_row *pfs);
 };
 
 class PFS_key_object_type : public PFS_engine_key
@@ -1813,8 +1839,11 @@ public:
 
   bool match(enum_object_type object_type);
   bool match(const PFS_object_row *pfs);
+  bool match(const PFS_column_row *pfs);
   bool match(const PFS_program *pfs);
 
+private:
+  bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 
@@ -1837,6 +1866,8 @@ public:
   bool match(const PFS_object_row *pfs);
   bool match(const PFS_program *pfs);
 
+private:
+  bool do_match(bool record_null, enum_object_type object_type);
   enum_object_type m_object_type;
 };
 

@@ -1,0 +1,66 @@
+#
+# WL#8688: Support ability to persist SET GLOBAL settings
+#
+SET PERSIST server_id=47, @@persist.general_log=0;
+SET PERSIST concurrent_insert=NEVER;
+# TEST plugin variables
+call mtr.add_suppression("Dictionary file not specified");
+INSTALL COMPONENT "file://component_validate_password";
+# before restart
+SELECT @@global.validate_password.policy, @@global.validate_password.length;
+@@global.validate_password.policy	@@global.validate_password.length
+MEDIUM	8
+# persist plugin variables
+SET PERSIST validate_password.policy= 2;
+SET PERSIST validate_password.length= 13;
+# Restart server
+# after restart
+SELECT @@global.server_id;
+@@global.server_id
+47
+SELECT @@global.general_log;
+@@global.general_log
+0
+SELECT @@global.concurrent_insert;
+@@global.concurrent_insert
+NEVER
+SELECT @@global.validate_password.policy;
+@@global.validate_password.policy
+STRONG
+SELECT @@global.validate_password.length;
+@@global.validate_password.length
+13
+# uninstall component
+UNINSTALL COMPONENT "file://component_validate_password";
+CALL mtr.add_suppression("currently unknown variable 'validate_password*");
+# Restart server after plugin uninstall this should report
+# warnings in server log
+# Search for warnings in error log.
+CALL mtr.add_suppression("currently unknown variable 'validate_password*");
+# Restart server
+# Test RESET PERSIST for component variables.
+INSTALL COMPONENT "file://component_validate_password";
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+SET PERSIST validate_password.policy= 2;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password.policy	STRONG
+SET PERSIST validate_password.length= 13;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password.policy	STRONG
+validate_password.length	13
+RESET PERSIST `validate_password.length`;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password.policy	STRONG
+# uninstall component
+UNINSTALL COMPONENT "file://component_validate_password";
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE
+validate_password.policy	STRONG
+# Test RESET PERSIST after plugin is uninstalled
+RESET PERSIST;
+SELECT * FROM performance_schema.persisted_variables;
+VARIABLE_NAME	VARIABLE_VALUE

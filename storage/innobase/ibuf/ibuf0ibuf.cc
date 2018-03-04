@@ -3,16 +3,24 @@
 Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -193,7 +201,7 @@ it uses synchronous aio, it can access any pages, as long as it obeys the
 access order rules. */
 
 /** Operations that can currently be buffered. */
-ibuf_use_t	ibuf_use		= IBUF_USE_ALL;
+ulong	innodb_change_buffering	= IBUF_USE_ALL;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /** Flag to control insert buffer debugging. */
@@ -2187,10 +2195,10 @@ void
 ibuf_free_excess_pages(void)
 /*========================*/
 {
-	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID, NULL), RW_LOCK_X));
+	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID), RW_LOCK_X));
 
 	ut_ad(rw_lock_get_x_lock_count(
-		fil_space_get_latch(IBUF_SPACE_ID, NULL)) == 1);
+			fil_space_get_latch(IBUF_SPACE_ID)) == 1);
 
 	/* NOTE: We require that the thread did not own the latch before,
 	because then we know that we can obey the correct latching order
@@ -3685,7 +3693,9 @@ ibuf_insert(
 	ibool		no_counter;
 	/* Read the settable global variable ibuf_use only once in
 	this function, so that we will have a consistent view of it. */
-	ibuf_use_t	use		= ibuf_use;
+	DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
+	ibuf_use_t	use		= static_cast<ibuf_use_t>(innodb_change_buffering);
+
 	DBUG_ENTER("ibuf_insert");
 
 	DBUG_PRINT("ibuf", ("op: %d, space: " UINT32PF ", page_no: " UINT32PF,
@@ -4374,7 +4384,7 @@ ibuf_delete_rec(
 	root = ibuf_tree_root_get(mtr);
 
 	btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur), 0,
-				   false, mtr);
+				   false, 0, 0, 0, mtr);
 	ut_a(err == DB_SUCCESS);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

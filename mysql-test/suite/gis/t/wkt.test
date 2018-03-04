@@ -309,21 +309,13 @@ CALL gis_wkt_funcs(2000);
 --echo # Geographic SRS (should pass)
 CALL gis_wkt_funcs(4326);
 
---echo # Undefined SRS (should pass)
+--echo # Undefined SRS (should fail)
 # Assume SRID 19000000 is undefined
+--error ER_SRS_NOT_FOUND
 CALL gis_wkt_funcs(19000000);
-
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 55555555 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (55555555, 1, 'TEST55555555', 'Foo', 55555555, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-CALL gis_wkt_funcs(55555555);
 
 --echo # Clean up
 DROP PROCEDURE gis_wkt_funcs;
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 55555555;
 
 --echo #
 --echo # Bug #23632147 MYSQL USES INVALID WKT FOR EMPTY GEOMETRYCOLLECTION
@@ -430,69 +422,16 @@ SELECT ST_ASTEXT(ST_GEOMFROMTEXT(
 --echo ########################################################################
 
 --echo # Inserting geographical srs with long-lat ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description) VALUES
-(30000000, 1, 'TEST30000000', 'EPSG', 30000000,
-'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",
-SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],
-AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",
-0.017453292519943278,
-AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],
-AUTHORITY["EPSG","30000000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30000000 NAME 'TEST30000000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","30000000"]]';
 
 --echo # Inserting geographical srs with lat-long ordering
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description) VALUES
-(30100000, 1, 'TEST30100000', 'EPSG', 30100000, 'GEOGCS["SIRGAS 1995",
-DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",
-SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],
-TOWGS84[0,0,0,0,0,0,0],
-AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,
-AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,
-AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],
-AUTHORITY["EPSG","30100000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30100000 NAME 'TEST30100000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","30100000"]]';
 
 --echo # Inserting projected srs with northing-easting ordering
-INSERT IGNORE INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description) VALUES
-(30200000, 1, 'TEST30200000', 'EPSG', 30200000, 'PROJCS["NAD83(NSRS2007) /
-Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",
-SPHEROID["GRS 1980",6378137,298.257222101,
-AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],
-AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,
-AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,
-AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],
-AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",
-AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,
-AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,
-AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,
-AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,
-AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,
-AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,
-AUTHORITY["EPSG","8827"]],UNIT["metre",1,
-AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],
-AUTHORITY["EPSG","30200000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30200000 NAME 'TEST30200000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","30200000"]]';
 
 --echo # Inserting projected srs with easting-northing ordering
-INSERT IGNORE INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description) VALUES
-(30300000, 1, 'TEST30300000', 'EPSG', 30300000, 'PROJCS["NAD83(NSRS2007) /
-Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",
-SPHEROID["GRS 1980",6378137,298.257222101,
-AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],
-AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,
-AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,
-AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],
-AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",
-AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,
-AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,
-AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,
-AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,
-AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,
-AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,
-AUTHORITY["EPSG","8827"]],UNIT["metre",1,
-AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],
-AUTHORITY["EPSG","30300000"]]', '');
+CREATE SPATIAL REFERENCE SYSTEM 30300000 NAME 'TEST30300000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",EAST],AXIS["Y",NORTH],AUTHORITY["EPSG","30300000"]]';
 
 
 --echo ########################################################################
@@ -1000,6 +939,142 @@ SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)', 30200000, NULL));
 SELECT ST_ASTEXT(ST_POINTFROMTEXT('point(1 2)', NULL, NULL));
 SELECT ST_ASTEXT(ST_POINTFROMTEXT(NULL, NULL, NULL));
 
+--echo #
+--echo # Bug #25818451 ASAN HEAP-USE-AFTER-FREE WITH GEOMETRY + STRING
+--echo #
+
+SET @c:=REPEAT('a',128);
+SET @f:=0x336f;
+SET @s:=REPLACE("DO ST_ASTEXT(LEFT(@c,@f));","'",'"');
+PREPARE s FROM @s;
+--error ER_GIS_INVALID_DATA
+EXECUTE s;
+DROP PREPARE s;
+
+######################################################################
+# WL#9449 Restrict range of geographic coordinates in import functions
+######################################################################
+
+--echo ##########################################################
+--echo # Inserting testing SRS values in spatial reference table
+--echo ##########################################################
+
+--echo # Inserting geographical srs with long-lat ordering
+CREATE SPATIAL REFERENCE SYSTEM 32000000 NAME 'TEST32000000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LONG",EAST],AXIS["LAT",NORTH],AUTHORITY["EPSG","32000000"]]';
+
+--echo # Inserting geographical srs with lat-long ordering
+CREATE SPATIAL REFERENCE SYSTEM 32100000 NAME 'TEST32100000' DEFINITION 'GEOGCS["SIRGAS 1995",DATUM["Sistema de Referencia Geocentrico para America del Sur 1995",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6170"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["LAT",NORTH],AXIS["LONG",EAST],AUTHORITY["EPSG","32100000"]]';
+
+--echo # Inserting projected srs with northing-easting ordering
+CREATE SPATIAL REFERENCE SYSTEM 32200000 NAME 'TEST32200000' DEFINITION 'PROJCS["NAD83(NSRS2007) / Virginia Lambert",GEOGCS["NAD83(NSRS2007)",DATUM["NAD83 (National Spatial Reference System 2007)",SPHEROID["GRS 1980",6378137,298.257222101,AUTHORITY["EPSG","7019"]],TOWGS84[0,0,0,0,0,0,0],AUTHORITY["EPSG","6759"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.017453292519943278,AUTHORITY["EPSG","9122"]],AXIS["Lat",NORTH],AXIS["Long",EAST],AUTHORITY["EPSG","4759"]],PROJECTION["Lambert Conic Conformal (2SP)",AUTHORITY["EPSG","9802"]],PARAMETER["Latitude of false origin",36,AUTHORITY["EPSG","8821"]],PARAMETER["Longitude of false origin",-79.5,AUTHORITY["EPSG","8822"]],PARAMETER["Latitude of 1st standard parallel",37,AUTHORITY["EPSG","8823"]],PARAMETER["Latitude of 2nd standard parallel",39.5,AUTHORITY["EPSG","8824"]],PARAMETER["Easting at false origin",0,AUTHORITY["EPSG","8826"]],PARAMETER["Northing at false origin",0,AUTHORITY["EPSG","8827"]],UNIT["metre",1,AUTHORITY["EPSG","9001"]],AXIS["X",NORTH],AXIS["Y",EAST],AUTHORITY["EPSG","32200000"]]';
+
+--echo #########################################################################
+--echo # Test with geometries with geographic SRS with long-lat ordering outside
+--echo # valid range.
+--echo #########################################################################
+
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(-200 10)',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_LINEFROMTEXT('LINESTRING(0 5,194 10,10 15)',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,-300 5,0 0))',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (798 2), (-344 9))',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(744 11,11 14,14 17))',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,350 0,350 350,0 350,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',32000000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(-199 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',32000000);
+
+--echo #########################################################################
+--echo # Test with geometries with geographic SRS with lat-long ordering outside
+--echo # valid range (same geometries as above, but with different error since
+--echo # coordinates are flipped).
+--echo #########################################################################
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(-200 10)',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_LINEFROMTEXT('LINESTRING(0 5,194 10,10 15)',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,-300 5,0 0))',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (798 2), (4 9))',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(744 11,11 14,14 17))',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,350 0,350 350,0 350,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',32100000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(-199 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',32100000);
+
+--echo ##############################
+--echo # Miscellaneous error testing
+--echo ##############################
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(-91 10)',32100000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(10 -182)',32100000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(744 11,11 91,14 17))',32000000);
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_MLINEFROMTEXT('MULTILINESTRING((0 95,2 4,4 6),(744 11,11 91,14 17))',32000000);
+
+--echo ###################
+--echo # Edge case testing
+--echo ###################
+
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(-90.0000000 10)',32100000));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(10 -180.000000)',32100000));
+
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(90.0000000 10)',32100000));
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(10 180.000000)',32100000));
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(-90.0000001 10)',32100000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(10 -180.0000001)',32100000);
+
+--error ER_LATITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(90.0000001 10)',32100000);
+--error ER_LONGITUDE_OUT_OF_RANGE
+SELECT ST_POINTFROMTEXT('POINT(10 180.0000001)',32100000);
+
+--echo #################################################################
+--echo # Test that range restriction does not apply to projected spatial
+--echo # reference systems
+--echo #################################################################
+
+SELECT ST_ASTEXT(ST_POINTFROMTEXT('POINT(-200 10)',32200000));
+SELECT ST_ASTEXT(ST_LINEFROMTEXT('LINESTRING(0 5,194 10,10 15)',32200000));
+SELECT ST_ASTEXT(ST_POLYFROMTEXT('POLYGON((0 0,5 0,5 5,-300 5,0 0))',32200000));
+SELECT ST_ASTEXT(ST_MPOINTFROMTEXT('MULTIPOINT((0 2), (5 7), (798 2), (4 9))',32200000));
+SELECT ST_ASTEXT(ST_MLINEFROMTEXT('MULTILINESTRING((0 2,2 4,4 6),(744 11,11 14,14 17))',32200000));
+SELECT ST_ASTEXT(ST_MPOLYFROMTEXT('MULTIPOLYGON(((0 0,350 0,350 350,0 350,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0)))',32200000));
+SELECT ST_ASTEXT(ST_GEOMCOLLFROMTEXT('GEOMETRYCOLLECTION(POINT(-199 5), POLYGON((0 0,10 0,10 10,0 10,0 0)), MULTIPOLYGON(((0 0,10 0,10 10,0 10,0 0),(4 4,4 6,6 6,6 4, 4 4)),((0 0,-2 -2,0 -2, 0 0))))',32200000));
+
+--echo ########################################################
+--echo # Test with empty GEOMETRYCOLLECTION with geographic SRS
+--echo ########################################################
+
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()', 32000000));
+SELECT ST_ASTEXT(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()', 32100000));
+
 # Cleanup.
-DELETE FROM mysql.st_spatial_reference_systems
-WHERE id >= 30000000 AND id <= 31000000;
+DROP SPATIAL REFERENCE SYSTEM 30000000;
+DROP SPATIAL REFERENCE SYSTEM 30100000;
+DROP SPATIAL REFERENCE SYSTEM 30200000;
+DROP SPATIAL REFERENCE SYSTEM 30300000;
+DROP SPATIAL REFERENCE SYSTEM 32000000;
+DROP SPATIAL REFERENCE SYSTEM 32100000;
+DROP SPATIAL REFERENCE SYSTEM 32200000;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined. Should raise warning.
+DO ST_ASTEXT(x'0A000000010100000000000000000000000000000000000000');
+DO ST_ASWKT(x'0A000000010100000000000000000000000000000000000000');

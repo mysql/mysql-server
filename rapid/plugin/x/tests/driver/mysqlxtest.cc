@@ -1,31 +1,36 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #include <fstream>
 #include <stdexcept>
 
+#include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "plugin/x/tests/driver/driver_command_line_options.h"
+#include "plugin/x/tests/driver/processor/stream_processor.h"
 #include "violite.h"
-
-#include "driver_command_line_options.h"
-#include "processor/stream_processor.h"
 
 
 static void ignore_traces_from_libraries(enum loglevel ll, const char *format,
@@ -123,8 +128,9 @@ int client_connect_and_process(const Driver_command_line_options &options,
 
     cm.connect_default(
         options.m_cap_expired_password,
+        options.m_client_interactive,
         options.m_run_without_auth,
-        options.m_use_plain_auth);
+        options.m_auth_methods);
 
     std::vector<Block_processor_ptr> eaters = create_block_processors(&context);
     int result_code = process_client_input(input,
@@ -197,6 +203,8 @@ static void daemonize() {
 
 int main(int argc, char **argv) {
   MY_INIT(argv[0]);
+  DBUG_ENTER("main");
+
   local_message_hook = ignore_traces_from_libraries;
 
   Driver_command_line_options options(argc, argv);
@@ -215,7 +223,7 @@ int main(int argc, char **argv) {
 #ifdef WIN32
   if (!have_tcpip) {
     std::cerr << "OS doesn't have tcpip\n";
-    return 1;
+    DBUG_RETURN(1);
   }
 #endif
 
@@ -240,5 +248,5 @@ int main(int argc, char **argv) {
 
   vio_end();
   my_end(0);
-  return result;
+  DBUG_RETURN(result);
 }

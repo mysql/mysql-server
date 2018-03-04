@@ -1,32 +1,38 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef _XPL_ACCOUNT_VERIFICATION_HANDLER_H_
 #define _XPL_ACCOUNT_VERIFICATION_HANDLER_H_
 
 #include <map>
+#include <string>
 
-#include "ngs/error_code.h"
-#include "ngs/interface/account_verification_interface.h"
-#include "ngs/interface/authentication_interface.h"
-#include "ngs/interface/session_interface.h"
-#include "sql_user_require.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
+#include "plugin/x/src/sql_user_require.h"
 
 namespace xpl {
 
@@ -38,7 +44,7 @@ class Account_verification_handler {
       ngs::Session_interface *session,
       const ngs::Account_verification_interface::Account_type account_type,
       ngs::Account_verification_interface *verificator)
-      : m_session(session) {
+      : m_session(session), m_account_type(account_type) {
     add_account_verificator(account_type, verificator);
   }
 
@@ -79,9 +85,15 @@ class Account_verification_handler {
     Sql_user_require user_required;
   };
 
-  bool extract_sub_message(const std::string &message,
-                           std::size_t &element_position,
-                           std::string &sub_message) const;
+  bool extract_sub_message(
+      const std::string &message,
+      std::size_t &element_position,
+      std::string &sub_message) const;
+
+  bool extract_last_sub_message(
+      const std::string &message,
+      std::size_t &element_position,
+      std::string &sub_message) const;
 
   ngs::Account_verification_interface::Account_type
       get_account_verificator_id(const std::string &plugin_name) const;
@@ -95,6 +107,8 @@ class Account_verification_handler {
 
   ngs::Session_interface *m_session;
   Account_verificator_list m_verificators;
+  ngs::Account_verification_interface::Account_type m_account_type =
+      ngs::Account_verification_interface::Account_unsupported;
 };
 
 typedef ngs::Memory_instrumented<Account_verification_handler>::Unique_ptr

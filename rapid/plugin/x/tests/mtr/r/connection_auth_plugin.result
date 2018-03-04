@@ -1,16 +1,16 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt: Invalid user or password'");
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
 CREATE USER xuser_native@localhost
 IDENTIFIED WITH 'mysql_native_password' BY 'native';
 CREATE USER xuser_sha256@localhost
 IDENTIFIED WITH 'sha256_password' BY 'sha256';
 GRANT ALL ON *.* TO xuser_native@localhost;
 GRANT ALL ON *.* TO xuser_sha256@localhost;
-Plain connection as root (just check) -> success
+Plain connection as x_root (just check) -> success
 user	plugin
-root	mysql_native_password
+x_root	mysql_native_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	OFF
@@ -19,9 +19,9 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Ssl connection as root (just check) -> success
+Ssl connection as x_root (just check) -> success
 user	plugin
-root	mysql_native_password
+x_root	mysql_native_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	ON

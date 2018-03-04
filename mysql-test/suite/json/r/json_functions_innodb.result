@@ -1277,8 +1277,8 @@ id	rank	j	JSON_TYPE(j)
 15	13	-1.0345678901234e-71	DOUBLE
 16	14	-1e-100	DOUBLE
 17	15	0	INTEGER
-18	15	0	DOUBLE
-19	15	-0	DOUBLE
+18	15	0.0	DOUBLE
+19	15	-0.0	DOUBLE
 20	15	0.0	DECIMAL
 21	15	0	DECIMAL
 22	16	1e-100	DOUBLE
@@ -1781,46 +1781,46 @@ null	NULL
 -9223372036854775806.000	DECIMAL
 -1001	INTEGER
 -1001.000	DECIMAL
--1001	DOUBLE
+-1001.0	DOUBLE
 -1000	INTEGER
 -1000.000	DECIMAL
--1000	DOUBLE
+-1000.0	DOUBLE
 -999	INTEGER
 -999.000	DECIMAL
--999	DOUBLE
+-999.0	DOUBLE
 -101	INTEGER
 -101.000	DECIMAL
--101	DOUBLE
+-101.0	DOUBLE
 -100	INTEGER
 -100.000	DECIMAL
--100	DOUBLE
+-100.0	DOUBLE
 -99	INTEGER
 -99.000	DECIMAL
--99	DOUBLE
+-99.0	DOUBLE
 -22	INTEGER
 -22.000	DECIMAL
--22	DOUBLE
+-22.0	DOUBLE
 -21	INTEGER
 -21.000	DECIMAL
--21	DOUBLE
+-21.0	DOUBLE
 -20	INTEGER
 -20.000	DECIMAL
--20	DOUBLE
+-20.0	DOUBLE
 -12	INTEGER
 -12.000	DECIMAL
--12	DOUBLE
+-12.0	DOUBLE
 -11	INTEGER
 -11.000	DECIMAL
--11	DOUBLE
+-11.0	DOUBLE
 -10	INTEGER
 -10.000	DECIMAL
--10	DOUBLE
+-10.0	DOUBLE
 -5	INTEGER
 -5.000	DECIMAL
--5	DOUBLE
+-5.0	DOUBLE
 -4	INTEGER
 -4.000	DECIMAL
--4	DOUBLE
+-4.0	DOUBLE
 -3.151	DECIMAL
 -3.151	DOUBLE
 -3.150	DECIMAL
@@ -1841,13 +1841,13 @@ null	NULL
 -3.129	DOUBLE
 -3	INTEGER
 -3.000	DECIMAL
--3	DOUBLE
+-3.0	DOUBLE
 -2	INTEGER
 -2.000	DECIMAL
--2	DOUBLE
+-2.0	DOUBLE
 -1	INTEGER
 -1.000	DECIMAL
--1	DOUBLE
+-1.0	DOUBLE
 -0.100	DECIMAL
 -0.1	DOUBLE
 -0.010	DECIMAL
@@ -1866,12 +1866,12 @@ null	NULL
 0.000	DECIMAL
 0.000	DECIMAL
 0.000	DECIMAL
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
--0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+-0.0	DOUBLE
 0.0	DECIMAL
 1e-323	DOUBLE
 1e-322	DOUBLE
@@ -1893,20 +1893,20 @@ null	NULL
 1	UNSIGNED INTEGER
 1.000	DECIMAL
 1.000	DECIMAL
-1	DOUBLE
-1	DOUBLE
+1.0	DOUBLE
+1.0	DOUBLE
 2	INTEGER
 2	UNSIGNED INTEGER
 2.000	DECIMAL
 2.000	DECIMAL
-2	DOUBLE
-2	DOUBLE
+2.0	DOUBLE
+2.0	DOUBLE
 3	INTEGER
 3	UNSIGNED INTEGER
 3.000	DECIMAL
 3.000	DECIMAL
-3	DOUBLE
-3	DOUBLE
+3.0	DOUBLE
+3.0	DOUBLE
 3.129	DECIMAL
 3.129	DOUBLE
 3.130	DECIMAL
@@ -1929,86 +1929,86 @@ null	NULL
 4	UNSIGNED INTEGER
 4.000	DECIMAL
 4.000	DECIMAL
-4	DOUBLE
-4	DOUBLE
+4.0	DOUBLE
+4.0	DOUBLE
 5	INTEGER
 5	UNSIGNED INTEGER
 5.000	DECIMAL
 5.000	DECIMAL
-5	DOUBLE
-5	DOUBLE
+5.0	DOUBLE
+5.0	DOUBLE
 10	INTEGER
 10	UNSIGNED INTEGER
 10.000	DECIMAL
 10.000	DECIMAL
-10	DOUBLE
-10	DOUBLE
+10.0	DOUBLE
+10.0	DOUBLE
 11	INTEGER
 11	UNSIGNED INTEGER
 11.000	DECIMAL
 11.000	DECIMAL
-11	DOUBLE
-11	DOUBLE
+11.0	DOUBLE
+11.0	DOUBLE
 12	INTEGER
 12	UNSIGNED INTEGER
 12.000	DECIMAL
 12.000	DECIMAL
-12	DOUBLE
-12	DOUBLE
+12.0	DOUBLE
+12.0	DOUBLE
 20	INTEGER
 20	UNSIGNED INTEGER
 20.000	DECIMAL
 20.000	DECIMAL
-20	DOUBLE
-20	DOUBLE
+20.0	DOUBLE
+20.0	DOUBLE
 21	INTEGER
 21	UNSIGNED INTEGER
 21.000	DECIMAL
 21.000	DECIMAL
-21	DOUBLE
-21	DOUBLE
+21.0	DOUBLE
+21.0	DOUBLE
 22	INTEGER
 22	UNSIGNED INTEGER
 22.000	DECIMAL
 22.000	DECIMAL
-22	DOUBLE
-22	DOUBLE
+22.0	DOUBLE
+22.0	DOUBLE
 99	INTEGER
 99	UNSIGNED INTEGER
 99.000	DECIMAL
 99.000	DECIMAL
-99	DOUBLE
-99	DOUBLE
+99.0	DOUBLE
+99.0	DOUBLE
 100	INTEGER
 100	UNSIGNED INTEGER
 100.000	DECIMAL
 100.000	DECIMAL
-100	DOUBLE
-100	DOUBLE
+100.0	DOUBLE
+100.0	DOUBLE
 101	INTEGER
 101	UNSIGNED INTEGER
 101.000	DECIMAL
 101.000	DECIMAL
-101	DOUBLE
-101	DOUBLE
+101.0	DOUBLE
+101.0	DOUBLE
 999	INTEGER
 999	UNSIGNED INTEGER
 999.000	DECIMAL
 999.000	DECIMAL
-999	DOUBLE
-999	DOUBLE
+999.0	DOUBLE
+999.0	DOUBLE
 1000	INTEGER
 1000	UNSIGNED INTEGER
 1000.000	DECIMAL
 1000.000	DECIMAL
-1000	DOUBLE
-1000	DOUBLE
+1000.0	DOUBLE
+1000.0	DOUBLE
 1001	INTEGER
 1001	UNSIGNED INTEGER
 1001.000	DECIMAL
 1001.000	DECIMAL
-1001	DOUBLE
-1001	DOUBLE
+1001.0	DOUBLE
+1001.0	DOUBLE
 9223372036854775806	INTEGER
 9223372036854775806	UNSIGNED INTEGER
 9223372036854775806.000	DECIMAL
@@ -2052,8 +2052,8 @@ null	NULL
 "bc"	STRING
 {"an": "object"}	OBJECT
 {"another": "object"}	OBJECT
-{"type": "Point", "coordinates": [0, 0]}	OBJECT
-{"type": "Point", "coordinates": [0, 1]}	OBJECT
+{"type": "Point", "coordinates": [0.0, 0.0]}	OBJECT
+{"type": "Point", "coordinates": [0.0, 1.0]}	OBJECT
 ["an array"]	ARRAY
 ["another array"]	ARRAY
 false	BOOLEAN
@@ -2196,8 +2196,8 @@ true	BOOLEAN
 false	BOOLEAN
 ["an array"]	ARRAY
 ["another array"]	ARRAY
-{"type": "Point", "coordinates": [0, 0]}	OBJECT
-{"type": "Point", "coordinates": [0, 1]}	OBJECT
+{"type": "Point", "coordinates": [0.0, 0.0]}	OBJECT
+{"type": "Point", "coordinates": [0.0, 1.0]}	OBJECT
 {"an": "object"}	OBJECT
 {"another": "object"}	OBJECT
 "bc"	STRING
@@ -2245,86 +2245,86 @@ false	BOOLEAN
 1001	UNSIGNED INTEGER
 1001.000	DECIMAL
 1001.000	DECIMAL
-1001	DOUBLE
-1001	DOUBLE
+1001.0	DOUBLE
+1001.0	DOUBLE
 1000	INTEGER
 1000	UNSIGNED INTEGER
 1000.000	DECIMAL
 1000.000	DECIMAL
-1000	DOUBLE
-1000	DOUBLE
+1000.0	DOUBLE
+1000.0	DOUBLE
 999	INTEGER
 999	UNSIGNED INTEGER
 999.000	DECIMAL
 999.000	DECIMAL
-999	DOUBLE
-999	DOUBLE
+999.0	DOUBLE
+999.0	DOUBLE
 101	INTEGER
 101	UNSIGNED INTEGER
 101.000	DECIMAL
 101.000	DECIMAL
-101	DOUBLE
-101	DOUBLE
+101.0	DOUBLE
+101.0	DOUBLE
 100	INTEGER
 100	UNSIGNED INTEGER
 100.000	DECIMAL
 100.000	DECIMAL
-100	DOUBLE
-100	DOUBLE
+100.0	DOUBLE
+100.0	DOUBLE
 99	INTEGER
 99	UNSIGNED INTEGER
 99.000	DECIMAL
 99.000	DECIMAL
-99	DOUBLE
-99	DOUBLE
+99.0	DOUBLE
+99.0	DOUBLE
 22	INTEGER
 22	UNSIGNED INTEGER
 22.000	DECIMAL
 22.000	DECIMAL
-22	DOUBLE
-22	DOUBLE
+22.0	DOUBLE
+22.0	DOUBLE
 21	INTEGER
 21	UNSIGNED INTEGER
 21.000	DECIMAL
 21.000	DECIMAL
-21	DOUBLE
-21	DOUBLE
+21.0	DOUBLE
+21.0	DOUBLE
 20	INTEGER
 20	UNSIGNED INTEGER
 20.000	DECIMAL
 20.000	DECIMAL
-20	DOUBLE
-20	DOUBLE
+20.0	DOUBLE
+20.0	DOUBLE
 12	INTEGER
 12	UNSIGNED INTEGER
 12.000	DECIMAL
 12.000	DECIMAL
-12	DOUBLE
-12	DOUBLE
+12.0	DOUBLE
+12.0	DOUBLE
 11	INTEGER
 11	UNSIGNED INTEGER
 11.000	DECIMAL
 11.000	DECIMAL
-11	DOUBLE
-11	DOUBLE
+11.0	DOUBLE
+11.0	DOUBLE
 10	INTEGER
 10	UNSIGNED INTEGER
 10.000	DECIMAL
 10.000	DECIMAL
-10	DOUBLE
-10	DOUBLE
+10.0	DOUBLE
+10.0	DOUBLE
 5	INTEGER
 5	UNSIGNED INTEGER
 5.000	DECIMAL
 5.000	DECIMAL
-5	DOUBLE
-5	DOUBLE
+5.0	DOUBLE
+5.0	DOUBLE
 4	INTEGER
 4	UNSIGNED INTEGER
 4.000	DECIMAL
 4.000	DECIMAL
-4	DOUBLE
-4	DOUBLE
+4.0	DOUBLE
+4.0	DOUBLE
 3.151	DECIMAL
 3.151	DOUBLE
 3.150	DECIMAL
@@ -2347,20 +2347,20 @@ false	BOOLEAN
 3	UNSIGNED INTEGER
 3.000	DECIMAL
 3.000	DECIMAL
-3	DOUBLE
-3	DOUBLE
+3.0	DOUBLE
+3.0	DOUBLE
 2	INTEGER
 2	UNSIGNED INTEGER
 2.000	DECIMAL
 2.000	DECIMAL
-2	DOUBLE
-2	DOUBLE
+2.0	DOUBLE
+2.0	DOUBLE
 1	INTEGER
 1	UNSIGNED INTEGER
 1.000	DECIMAL
 1.000	DECIMAL
-1	DOUBLE
-1	DOUBLE
+1.0	DOUBLE
+1.0	DOUBLE
 0.100	DECIMAL
 0.1	DOUBLE
 0.1	DOUBLE
@@ -2385,12 +2385,12 @@ false	BOOLEAN
 0.000	DECIMAL
 0.000	DECIMAL
 0.000	DECIMAL
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
--0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+-0.0	DOUBLE
 0.0	DECIMAL
 -1e-323	DOUBLE
 -1e-322	DOUBLE
@@ -2404,13 +2404,13 @@ false	BOOLEAN
 -0.1	DOUBLE
 -1	INTEGER
 -1.000	DECIMAL
--1	DOUBLE
+-1.0	DOUBLE
 -2	INTEGER
 -2.000	DECIMAL
--2	DOUBLE
+-2.0	DOUBLE
 -3	INTEGER
 -3.000	DECIMAL
--3	DOUBLE
+-3.0	DOUBLE
 -3.129	DECIMAL
 -3.129	DOUBLE
 -3.130	DECIMAL
@@ -2431,46 +2431,46 @@ false	BOOLEAN
 -3.151	DOUBLE
 -4	INTEGER
 -4.000	DECIMAL
--4	DOUBLE
+-4.0	DOUBLE
 -5	INTEGER
 -5.000	DECIMAL
--5	DOUBLE
+-5.0	DOUBLE
 -10	INTEGER
 -10.000	DECIMAL
--10	DOUBLE
+-10.0	DOUBLE
 -11	INTEGER
 -11.000	DECIMAL
--11	DOUBLE
+-11.0	DOUBLE
 -12	INTEGER
 -12.000	DECIMAL
--12	DOUBLE
+-12.0	DOUBLE
 -20	INTEGER
 -20.000	DECIMAL
--20	DOUBLE
+-20.0	DOUBLE
 -21	INTEGER
 -21.000	DECIMAL
--21	DOUBLE
+-21.0	DOUBLE
 -22	INTEGER
 -22.000	DECIMAL
--22	DOUBLE
+-22.0	DOUBLE
 -99	INTEGER
 -99.000	DECIMAL
--99	DOUBLE
+-99.0	DOUBLE
 -100	INTEGER
 -100.000	DECIMAL
--100	DOUBLE
+-100.0	DOUBLE
 -101	INTEGER
 -101.000	DECIMAL
--101	DOUBLE
+-101.0	DOUBLE
 -999	INTEGER
 -999.000	DECIMAL
--999	DOUBLE
+-999.0	DOUBLE
 -1000	INTEGER
 -1000.000	DECIMAL
--1000	DOUBLE
+-1000.0	DOUBLE
 -1001	INTEGER
 -1001.000	DECIMAL
--1001	DOUBLE
+-1001.0	DOUBLE
 -9223372036854775806	INTEGER
 -9223372036854775806.000	DECIMAL
 -9223372036854775807	INTEGER
@@ -2533,46 +2533,46 @@ null	NULL
 -9223372036854775806.000	DECIMAL
 -1001	INTEGER
 -1001.000	DECIMAL
--1001	DOUBLE
+-1001.0	DOUBLE
 -1000	INTEGER
 -1000.000	DECIMAL
--1000	DOUBLE
+-1000.0	DOUBLE
 -999	INTEGER
 -999.000	DECIMAL
--999	DOUBLE
+-999.0	DOUBLE
 -101	INTEGER
 -101.000	DECIMAL
--101	DOUBLE
+-101.0	DOUBLE
 -100	INTEGER
 -100.000	DECIMAL
--100	DOUBLE
+-100.0	DOUBLE
 -99	INTEGER
 -99.000	DECIMAL
--99	DOUBLE
+-99.0	DOUBLE
 -22	INTEGER
 -22.000	DECIMAL
--22	DOUBLE
+-22.0	DOUBLE
 -21	INTEGER
 -21.000	DECIMAL
--21	DOUBLE
+-21.0	DOUBLE
 -20	INTEGER
 -20.000	DECIMAL
--20	DOUBLE
+-20.0	DOUBLE
 -12	INTEGER
 -12.000	DECIMAL
--12	DOUBLE
+-12.0	DOUBLE
 -11	INTEGER
 -11.000	DECIMAL
--11	DOUBLE
+-11.0	DOUBLE
 -10	INTEGER
 -10.000	DECIMAL
--10	DOUBLE
+-10.0	DOUBLE
 -5	INTEGER
 -5.000	DECIMAL
--5	DOUBLE
+-5.0	DOUBLE
 -4	INTEGER
 -4.000	DECIMAL
--4	DOUBLE
+-4.0	DOUBLE
 -3.151	DECIMAL
 -3.151	DOUBLE
 -3.150	DECIMAL
@@ -2593,13 +2593,13 @@ null	NULL
 -3.129	DOUBLE
 -3	INTEGER
 -3.000	DECIMAL
--3	DOUBLE
+-3.0	DOUBLE
 -2	INTEGER
 -2.000	DECIMAL
--2	DOUBLE
+-2.0	DOUBLE
 -1	INTEGER
 -1.000	DECIMAL
--1	DOUBLE
+-1.0	DOUBLE
 -0.100	DECIMAL
 -0.1	DOUBLE
 -0.010	DECIMAL
@@ -2618,12 +2618,12 @@ null	NULL
 0.000	DECIMAL
 0.000	DECIMAL
 0.000	DECIMAL
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
--0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+-0.0	DOUBLE
 0.0	DECIMAL
 1e-323	DOUBLE
 1e-322	DOUBLE
@@ -2645,20 +2645,20 @@ null	NULL
 1	UNSIGNED INTEGER
 1.000	DECIMAL
 1.000	DECIMAL
-1	DOUBLE
-1	DOUBLE
+1.0	DOUBLE
+1.0	DOUBLE
 2	INTEGER
 2	UNSIGNED INTEGER
 2.000	DECIMAL
 2.000	DECIMAL
-2	DOUBLE
-2	DOUBLE
+2.0	DOUBLE
+2.0	DOUBLE
 3	INTEGER
 3	UNSIGNED INTEGER
 3.000	DECIMAL
 3.000	DECIMAL
-3	DOUBLE
-3	DOUBLE
+3.0	DOUBLE
+3.0	DOUBLE
 3.129	DECIMAL
 3.129	DOUBLE
 3.130	DECIMAL
@@ -2681,86 +2681,86 @@ null	NULL
 4	UNSIGNED INTEGER
 4.000	DECIMAL
 4.000	DECIMAL
-4	DOUBLE
-4	DOUBLE
+4.0	DOUBLE
+4.0	DOUBLE
 5	INTEGER
 5	UNSIGNED INTEGER
 5.000	DECIMAL
 5.000	DECIMAL
-5	DOUBLE
-5	DOUBLE
+5.0	DOUBLE
+5.0	DOUBLE
 10	INTEGER
 10	UNSIGNED INTEGER
 10.000	DECIMAL
 10.000	DECIMAL
-10	DOUBLE
-10	DOUBLE
+10.0	DOUBLE
+10.0	DOUBLE
 11	INTEGER
 11	UNSIGNED INTEGER
 11.000	DECIMAL
 11.000	DECIMAL
-11	DOUBLE
-11	DOUBLE
+11.0	DOUBLE
+11.0	DOUBLE
 12	INTEGER
 12	UNSIGNED INTEGER
 12.000	DECIMAL
 12.000	DECIMAL
-12	DOUBLE
-12	DOUBLE
+12.0	DOUBLE
+12.0	DOUBLE
 20	INTEGER
 20	UNSIGNED INTEGER
 20.000	DECIMAL
 20.000	DECIMAL
-20	DOUBLE
-20	DOUBLE
+20.0	DOUBLE
+20.0	DOUBLE
 21	INTEGER
 21	UNSIGNED INTEGER
 21.000	DECIMAL
 21.000	DECIMAL
-21	DOUBLE
-21	DOUBLE
+21.0	DOUBLE
+21.0	DOUBLE
 22	INTEGER
 22	UNSIGNED INTEGER
 22.000	DECIMAL
 22.000	DECIMAL
-22	DOUBLE
-22	DOUBLE
+22.0	DOUBLE
+22.0	DOUBLE
 99	INTEGER
 99	UNSIGNED INTEGER
 99.000	DECIMAL
 99.000	DECIMAL
-99	DOUBLE
-99	DOUBLE
+99.0	DOUBLE
+99.0	DOUBLE
 100	INTEGER
 100	UNSIGNED INTEGER
 100.000	DECIMAL
 100.000	DECIMAL
-100	DOUBLE
-100	DOUBLE
+100.0	DOUBLE
+100.0	DOUBLE
 101	INTEGER
 101	UNSIGNED INTEGER
 101.000	DECIMAL
 101.000	DECIMAL
-101	DOUBLE
-101	DOUBLE
+101.0	DOUBLE
+101.0	DOUBLE
 999	INTEGER
 999	UNSIGNED INTEGER
 999.000	DECIMAL
 999.000	DECIMAL
-999	DOUBLE
-999	DOUBLE
+999.0	DOUBLE
+999.0	DOUBLE
 1000	INTEGER
 1000	UNSIGNED INTEGER
 1000.000	DECIMAL
 1000.000	DECIMAL
-1000	DOUBLE
-1000	DOUBLE
+1000.0	DOUBLE
+1000.0	DOUBLE
 1001	INTEGER
 1001	UNSIGNED INTEGER
 1001.000	DECIMAL
 1001.000	DECIMAL
-1001	DOUBLE
-1001	DOUBLE
+1001.0	DOUBLE
+1001.0	DOUBLE
 9223372036854775806	INTEGER
 9223372036854775806	UNSIGNED INTEGER
 9223372036854775806.000	DECIMAL
@@ -2804,8 +2804,8 @@ null	NULL
 "bc"	STRING
 {"an": "object"}	OBJECT
 {"another": "object"}	OBJECT
-{"type": "Point", "coordinates": [0, 0]}	OBJECT
-{"type": "Point", "coordinates": [0, 1]}	OBJECT
+{"type": "Point", "coordinates": [0.0, 0.0]}	OBJECT
+{"type": "Point", "coordinates": [0.0, 1.0]}	OBJECT
 ["an array"]	ARRAY
 ["another array"]	ARRAY
 false	BOOLEAN
@@ -2904,46 +2904,46 @@ null	NULL
 -9.223372036854776e18	DOUBLE
 -1001	INTEGER
 -1001.000	DECIMAL
--1001	DOUBLE
+-1001.0	DOUBLE
 -1000	INTEGER
 -1000.000	DECIMAL
--1000	DOUBLE
+-1000.0	DOUBLE
 -999	INTEGER
 -999.000	DECIMAL
--999	DOUBLE
+-999.0	DOUBLE
 -101	INTEGER
 -101.000	DECIMAL
--101	DOUBLE
+-101.0	DOUBLE
 -100	INTEGER
 -100.000	DECIMAL
--100	DOUBLE
+-100.0	DOUBLE
 -99	INTEGER
 -99.000	DECIMAL
--99	DOUBLE
+-99.0	DOUBLE
 -22	INTEGER
 -22.000	DECIMAL
--22	DOUBLE
+-22.0	DOUBLE
 -21	INTEGER
 -21.000	DECIMAL
--21	DOUBLE
+-21.0	DOUBLE
 -20	INTEGER
 -20.000	DECIMAL
--20	DOUBLE
+-20.0	DOUBLE
 -12	INTEGER
 -12.000	DECIMAL
--12	DOUBLE
+-12.0	DOUBLE
 -11	INTEGER
 -11.000	DECIMAL
--11	DOUBLE
+-11.0	DOUBLE
 -10	INTEGER
 -10.000	DECIMAL
--10	DOUBLE
+-10.0	DOUBLE
 -5	INTEGER
 -5.000	DECIMAL
--5	DOUBLE
+-5.0	DOUBLE
 -4	INTEGER
 -4.000	DECIMAL
--4	DOUBLE
+-4.0	DOUBLE
 -3.151	DECIMAL
 -3.151	DOUBLE
 -3.150	DECIMAL
@@ -2964,13 +2964,13 @@ null	NULL
 -3.129	DOUBLE
 -3	INTEGER
 -3.000	DECIMAL
--3	DOUBLE
+-3.0	DOUBLE
 -2	INTEGER
 -2.000	DECIMAL
--2	DOUBLE
+-2.0	DOUBLE
 -1	INTEGER
 -1.000	DECIMAL
--1	DOUBLE
+-1.0	DOUBLE
 -0.100	DECIMAL
 -0.1	DOUBLE
 -0.010	DECIMAL
@@ -2989,12 +2989,12 @@ null	NULL
 0.000	DECIMAL
 0.000	DECIMAL
 0.000	DECIMAL
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
-0	DOUBLE
--0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+0.0	DOUBLE
+-0.0	DOUBLE
 0.0	DECIMAL
 1e-323	DOUBLE
 1e-322	DOUBLE
@@ -3016,20 +3016,20 @@ null	NULL
 1	UNSIGNED INTEGER
 1.000	DECIMAL
 1.000	DECIMAL
-1	DOUBLE
-1	DOUBLE
+1.0	DOUBLE
+1.0	DOUBLE
 2	INTEGER
 2	UNSIGNED INTEGER
 2.000	DECIMAL
 2.000	DECIMAL
-2	DOUBLE
-2	DOUBLE
+2.0	DOUBLE
+2.0	DOUBLE
 3	INTEGER
 3	UNSIGNED INTEGER
 3.000	DECIMAL
 3.000	DECIMAL
-3	DOUBLE
-3	DOUBLE
+3.0	DOUBLE
+3.0	DOUBLE
 3.129	DECIMAL
 3.129	DOUBLE
 3.130	DECIMAL
@@ -3052,86 +3052,86 @@ null	NULL
 4	UNSIGNED INTEGER
 4.000	DECIMAL
 4.000	DECIMAL
-4	DOUBLE
-4	DOUBLE
+4.0	DOUBLE
+4.0	DOUBLE
 5	INTEGER
 5	UNSIGNED INTEGER
 5.000	DECIMAL
 5.000	DECIMAL
-5	DOUBLE
-5	DOUBLE
+5.0	DOUBLE
+5.0	DOUBLE
 10	INTEGER
 10	UNSIGNED INTEGER
 10.000	DECIMAL
 10.000	DECIMAL
-10	DOUBLE
-10	DOUBLE
+10.0	DOUBLE
+10.0	DOUBLE
 11	INTEGER
 11	UNSIGNED INTEGER
 11.000	DECIMAL
 11.000	DECIMAL
-11	DOUBLE
-11	DOUBLE
+11.0	DOUBLE
+11.0	DOUBLE
 12	INTEGER
 12	UNSIGNED INTEGER
 12.000	DECIMAL
 12.000	DECIMAL
-12	DOUBLE
-12	DOUBLE
+12.0	DOUBLE
+12.0	DOUBLE
 20	INTEGER
 20	UNSIGNED INTEGER
 20.000	DECIMAL
 20.000	DECIMAL
-20	DOUBLE
-20	DOUBLE
+20.0	DOUBLE
+20.0	DOUBLE
 21	INTEGER
 21	UNSIGNED INTEGER
 21.000	DECIMAL
 21.000	DECIMAL
-21	DOUBLE
-21	DOUBLE
+21.0	DOUBLE
+21.0	DOUBLE
 22	INTEGER
 22	UNSIGNED INTEGER
 22.000	DECIMAL
 22.000	DECIMAL
-22	DOUBLE
-22	DOUBLE
+22.0	DOUBLE
+22.0	DOUBLE
 99	INTEGER
 99	UNSIGNED INTEGER
 99.000	DECIMAL
 99.000	DECIMAL
-99	DOUBLE
-99	DOUBLE
+99.0	DOUBLE
+99.0	DOUBLE
 100	INTEGER
 100	UNSIGNED INTEGER
 100.000	DECIMAL
 100.000	DECIMAL
-100	DOUBLE
-100	DOUBLE
+100.0	DOUBLE
+100.0	DOUBLE
 101	INTEGER
 101	UNSIGNED INTEGER
 101.000	DECIMAL
 101.000	DECIMAL
-101	DOUBLE
-101	DOUBLE
+101.0	DOUBLE
+101.0	DOUBLE
 999	INTEGER
 999	UNSIGNED INTEGER
 999.000	DECIMAL
 999.000	DECIMAL
-999	DOUBLE
-999	DOUBLE
+999.0	DOUBLE
+999.0	DOUBLE
 1000	INTEGER
 1000	UNSIGNED INTEGER
 1000.000	DECIMAL
 1000.000	DECIMAL
-1000	DOUBLE
-1000	DOUBLE
+1000.0	DOUBLE
+1000.0	DOUBLE
 1001	INTEGER
 1001	UNSIGNED INTEGER
 1001.000	DECIMAL
 1001.000	DECIMAL
-1001	DOUBLE
-1001	DOUBLE
+1001.0	DOUBLE
+1001.0	DOUBLE
 9223372036854775806	INTEGER
 9223372036854775807	INTEGER
 9223372036854775806	UNSIGNED INTEGER
@@ -3175,8 +3175,8 @@ null	NULL
 "bc"	STRING
 {"an": "object"}	OBJECT
 {"another": "object"}	OBJECT
-{"type": "Point", "coordinates": [0, 0]}	OBJECT
-{"type": "Point", "coordinates": [0, 1]}	OBJECT
+{"type": "Point", "coordinates": [0.0, 0.0]}	OBJECT
+{"type": "Point", "coordinates": [0.0, 1.0]}	OBJECT
 ["an array"]	ARRAY
 ["another array"]	ARRAY
 false	BOOLEAN
@@ -5013,16 +5013,16 @@ cast(se as json)
 "a,c"
 select cast(ge as json) from t1;
 cast(ge as json)
-{"type": "Point", "coordinates": [1, 1]}
+{"type": "Point", "coordinates": [1.0, 1.0]}
 select cast(po as json) from t1;
 cast(po as json)
-{"type": "Point", "coordinates": [1, 1]}
+{"type": "Point", "coordinates": [1.0, 1.0]}
 select cast(ls as json) from t1;
 cast(ls as json)
-{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}
+{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}
 select cast(py as json) from t1;
 cast(py as json)
-{"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]}
+{"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}
 select cast(js as json) from t1;
 cast(js as json)
 [123]
@@ -5258,12 +5258,12 @@ FROM department d
 WHERE id = 405;
 JSON_ARRAY( d.deptName, CAST( '{ "processed" : true }' AS JSON ) )
 ["Accounting", {"processed": true}]
-create table json_table( json_column json );
-INSERT INTO json_table( json_column )
+create table jsn_table( json_column json );
+INSERT INTO jsn_table( json_column )
 SELECT JSON_ARRAY( d.deptName, d.id, d.blobColumn )
 FROM department d
 WHERE id = 405;
-drop table json_table;
+drop table jsn_table;
 drop table department;
 create table misc_dt
 (
@@ -5279,7 +5279,7 @@ insert into misc_dt values
 );
 select id, json_array( true, py, false ) from misc_dt order by id;
 id	json_array( true, py, false )
-1	[true, {"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]}, false]
+1	[true, {"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}, false]
 2	[true, null, false]
 drop table misc_dt;
 create table jro
@@ -6107,14 +6107,14 @@ a
 "b"
 {"a": 1, "b": 2}
 {"a": 1, "b": 3}
-{"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]}
-{"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 9], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]}
-{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}
-{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 3]]}
-{"type": "Point", "coordinates": [1, 1]}
-{"type": "Point", "coordinates": [1, 4]}
-{"type": "Point", "coordinates": [1, 2]}
-{"type": "Point", "coordinates": [1, 3]}
+{"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}
+{"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 9.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}
+{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}
+{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 3.0]]}
+{"type": "Point", "coordinates": [1.0, 1.0]}
+{"type": "Point", "coordinates": [1.0, 4.0]}
+{"type": "Point", "coordinates": [1.0, 2.0]}
+{"type": "Point", "coordinates": [1.0, 3.0]}
 [1, 2]
 [1, 3]
 "2013-11-25"
@@ -6240,10 +6240,10 @@ insert into jtable select 3, 'linestring', cast(ls as json) from misc_dt;
 insert into jtable select 4, 'polygon', cast(py as json) from misc_dt;
 select id, descr, json_type( doc ), doc from jtable order by id;
 id	descr	json_type( doc )	doc
-1	geometry	OBJECT	{"type": "Point", "coordinates": [1, 1]}
-2	point	OBJECT	{"type": "Point", "coordinates": [1, 1]}
-3	linestring	OBJECT	{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}
-4	polygon	OBJECT	{"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]}
+1	geometry	OBJECT	{"type": "Point", "coordinates": [1.0, 1.0]}
+2	point	OBJECT	{"type": "Point", "coordinates": [1.0, 1.0]}
+3	linestring	OBJECT	{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}
+4	polygon	OBJECT	{"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}
 select json_object
 (
 'geometry', ST_GeomFromText('POINT(1 1)'),
@@ -6260,7 +6260,7 @@ json_object
 'polygon', ST_GeomFromText('POLYGON((0 0,10 0,10 10,0 10,0 0),
     (5 5,7 5,7 7,5 7, 5 5))')
 )
-{"point": {"type": "Point", "coordinates": [1, 1]}, "polygon": {"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]}, "geometry": {"type": "Point", "coordinates": [1, 1]}, "linestring": {"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}}
+{"point": {"type": "Point", "coordinates": [1.0, 1.0]}, "polygon": {"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}, "geometry": {"type": "Point", "coordinates": [1.0, 1.0]}, "linestring": {"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}}
 delete from misc_dt;
 select * from misc_dt;
 ge	po	ls	py
@@ -6277,7 +6277,7 @@ ST_AsGeoJSON( ls ),
 ST_AsGeoJSON( py )
 from misc_dt;
 ST_AsGeoJSON( ge )	ST_AsGeoJSON( po )	ST_AsGeoJSON( ls )	ST_AsGeoJSON( py )
-{"type": "Point", "coordinates": [1, 1]}	{"type": "Point", "coordinates": [1, 1]}	{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}	{"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]}
+{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "Point", "coordinates": [1.0, 1.0]}	{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}	{"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}
 drop table misc_dt;
 drop table jtable;
 create table jtable( id int, descr varchar(20), doc json );
@@ -6317,17 +6317,17 @@ insert into jtable select 3, 'multilinestring', cast(ls as json) from misc_dt;
 insert into jtable select 4, 'multipolygon', cast(py as json) from misc_dt;
 select id, descr, json_type( doc ), doc from jtable order by id;
 id	descr	json_type( doc )	doc
-1	geometrycollection	OBJECT	{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [2, 2]}]}
-2	multipoint	OBJECT	{"type": "MultiPoint", "coordinates": [[1, 1], [2, 2]]}
-3	multilinestring	OBJECT	{"type": "MultiLineString", "coordinates": [[[0, 0], [1, 1], [2, 2]], [[0, 0], [11, 11], [12, 12]]]}
-4	multipolygon	OBJECT	{"type": "MultiPolygon", "coordinates": [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]], [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]]}
+1	geometrycollection	OBJECT	{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1.0, 1.0]}, {"type": "Point", "coordinates": [2.0, 2.0]}]}
+2	multipoint	OBJECT	{"type": "MultiPoint", "coordinates": [[1.0, 1.0], [2.0, 2.0]]}
+3	multilinestring	OBJECT	{"type": "MultiLineString", "coordinates": [[[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]], [[0.0, 0.0], [11.0, 11.0], [12.0, 12.0]]]}
+4	multipolygon	OBJECT	{"type": "MultiPolygon", "coordinates": [[[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]], [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]]}
 select ST_AsGeoJSON( ge ),
 ST_AsGeoJSON( po ),
 ST_AsGeoJSON( ls ),
 ST_AsGeoJSON( py )
 from misc_dt;
 ST_AsGeoJSON( ge )	ST_AsGeoJSON( po )	ST_AsGeoJSON( ls )	ST_AsGeoJSON( py )
-{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [2, 2]}]}	{"type": "MultiPoint", "coordinates": [[1, 1], [2, 2]]}	{"type": "MultiLineString", "coordinates": [[[0, 0], [1, 1], [2, 2]], [[0, 0], [11, 11], [12, 12]]]}	{"type": "MultiPolygon", "coordinates": [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]], [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]]}
+{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1.0, 1.0]}, {"type": "Point", "coordinates": [2.0, 2.0]}]}	{"type": "MultiPoint", "coordinates": [[1.0, 1.0], [2.0, 2.0]]}	{"type": "MultiLineString", "coordinates": [[[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]], [[0.0, 0.0], [11.0, 11.0], [12.0, 12.0]]]}	{"type": "MultiPolygon", "coordinates": [[[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]], [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]]}
 delete from misc_dt;
 select * from misc_dt;
 ge	po	ls	py
@@ -6344,7 +6344,7 @@ ST_AsGeoJSON( ls ),
 ST_AsGeoJSON( py )
 from misc_dt;
 ST_AsGeoJSON( ge )	ST_AsGeoJSON( po )	ST_AsGeoJSON( ls )	ST_AsGeoJSON( py )
-{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1, 1]}, {"type": "Point", "coordinates": [2, 2]}]}	{"type": "MultiPoint", "coordinates": [[1, 1], [2, 2]]}	{"type": "MultiLineString", "coordinates": [[[0, 0], [1, 1], [2, 2]], [[0, 0], [11, 11], [12, 12]]]}	{"type": "MultiPolygon", "coordinates": [[[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]], [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]]}
+{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [1.0, 1.0]}, {"type": "Point", "coordinates": [2.0, 2.0]}]}	{"type": "MultiPoint", "coordinates": [[1.0, 1.0], [2.0, 2.0]]}	{"type": "MultiLineString", "coordinates": [[[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]], [[0.0, 0.0], [11.0, 11.0], [12.0, 12.0]]]}	{"type": "MultiPolygon", "coordinates": [[[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]], [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]]}
 drop table misc_dt;
 drop table jtable;
 # ----------------------------------------------------------------------
@@ -8703,16 +8703,16 @@ j	i
 SELECT * FROM t1 AS a, t1 AS b WHERE a.j > b.i ORDER BY b.i, a.i;
 j	i	j	i
 1	1	0	0
-1	2	0	0
+1.0	2	0	0
 [1, 2, 3]	3	0	0
 {}	4	0	0
 "abc"	5	0	0
 [1, 2, 3]	3	1	1
 {}	4	1	1
 "abc"	5	1	1
-[1, 2, 3]	3	1	2
-{}	4	1	2
-"abc"	5	1	2
+[1, 2, 3]	3	1.0	2
+{}	4	1.0	2
+"abc"	5	1.0	2
 [1, 2, 3]	3	[1, 2, 3]	3
 {}	4	[1, 2, 3]	3
 "abc"	5	[1, 2, 3]	3
@@ -8747,16 +8747,16 @@ j	i
 SELECT * FROM t1 AS a, t1 AS b WHERE a.j > b.i ORDER BY b.i, a.i;
 j	i	j	i
 1	1	0	0
-1	2	0	0
+1.0	2	0	0
 [1, 2, 3]	3	0	0
 {}	4	0	0
 "abc"	5	0	0
 [1, 2, 3]	3	1	1
 {}	4	1	1
 "abc"	5	1	1
-[1, 2, 3]	3	1	2
-{}	4	1	2
-"abc"	5	1	2
+[1, 2, 3]	3	1.0	2
+{}	4	1.0	2
+"abc"	5	1.0	2
 [1, 2, 3]	3	[1, 2, 3]	3
 {}	4	[1, 2, 3]	3
 "abc"	5	[1, 2, 3]	3
@@ -11125,7 +11125,7 @@ Warning	1364	Field 'j' doesn't have a default value
 UPDATE t SET j = JSON_REMOVE(j, '$[0]');
 SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
 j	JSON_STORAGE_SIZE(j)	JSON_STORAGE_FREE(j)
-null	2	0
+null	0	0
 DROP TABLE t;
 #
 # Bug#25893720: TABLE::SETUP_PARTIAL_UPDATE():
@@ -11222,7 +11222,7 @@ SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;
 id	j	ss	sf
 1	["x", [1, 2, 4, 5, 6]]	42	10
-2	{"x": {"defghijkl": "m"}, "y": "z"}	45	0
+2	{"x": {"defghijkl": "m"}, "y": "z"}	81	36
 3	null	2	0
 4	NULL	NULL	NULL
 UPDATE t SET j = JSON_SET(JSON_REMOVE(j, '$.x.a'), '$.x.a', 'abcd', '$.x.b', 9);

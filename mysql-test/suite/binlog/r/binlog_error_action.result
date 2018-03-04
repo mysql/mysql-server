@@ -183,7 +183,7 @@ SET DEBUG_SYNC = "before_binlog_closed_due_to_error SIGNAL another_group_encount
 SET SESSION debug ="+d,simulate_error_during_flush_cache_to_file";
 INSERT INTO t2 values (2);;
 Matching lines are:
---TIME-- [ERROR] An error occurred during flush_or_sync stage stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'. Hence turning logging off for the whole duration of the MySQL server process. To turn it on again: fix the cause, shutdown the MySQL server and restart it.
+--TIME-- [ERROR] [MY-010861] An error occurred during flush_or_sync stage stage of the commit. 'binlog_error_action' is set to 'IGNORE_ERROR'. Hence turning logging off for the whole duration of the MySQL server process. To turn it on again: fix the cause, shutdown the MySQL server and restart it.
 Occurrences of 'An error occurred during' in the input file: 1
 DROP table t1, t2;
 # restart

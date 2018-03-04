@@ -23,7 +23,7 @@ include/assert.inc [All workers must have NULL in field `PROCESSLIST_INFO`]
 include/assert.inc [All workers must have NULL in field `PROCESSLIST_COMMAND`]
 include/assert.inc [All workers must have NULL in field `PROCESSLIST_ID`]
 Login OK
-Verify [Current process needs to have root in PROCESSLIST_USER column]
+Verify [Current process needs to have x_root in PROCESSLIST_USER column]
 Verify [Current process needs to have localhost in PROCESSLIST_HOST column]
 Verify [Current process needs to have performance_schema in PROCESSLIST_DB column]
 Verify [Current process needs to have performance_schema in PROCESSLIST_DB column]

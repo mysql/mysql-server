@@ -546,20 +546,7 @@ SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_top_to_center,0), 1));
 ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_top_to_center,0), 1))
 LINESTRING(15 25,15 10)
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_lines_near_vertical,4326), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_lines_near_vertical,4326), 1))
-MULTILINESTRING((5 0,25 15,25 0))
-SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star,123456789), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star,123456789), 1))
-POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 123456789. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 123456789. Calculations in function st_simplify will be done in SRID 0.
-SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295), 1));
-ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295), 1))
-POLYGON((5 0,15 25,25 0,15 5,5 0))
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_simplify will be done in SRID 0.
+ERROR 22S00: st_simplify(MULTILINESTRING, ...) has not been implemented for geographic spatial reference systems.
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_of_elems,4294967296), 1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_SIMPLIFY(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000), 1));
@@ -643,17 +630,12 @@ DROP TABLE gis_geometrycollection;
 DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 0), 1);
 # Projected SRS (should pass)
 DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1);
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1);
-# Undefined SRS (should pass with warning)
-DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 21000000), 1);
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 21000000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 21000000. Calculations in function st_simplify will be done in SRID 0.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (21000001, 1, 'TEST21000001', 'Foo', 21000001, 'FOOBAR', '');
-DO ST_SIMPLIFY(ST_GEOMFROMTEXT('POINT(0 0)', 21000001), 1);
-ERROR SR002: Can't parse the spatial reference system definition of SRID 21000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 21000001;
+ERROR 22S00: st_simplify(POINT, ...) has not been implemented for geographic spatial reference systems.
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_SIMPLIFY(x'0A000000010100000000000000000000000000000000000000', 1);
+ERROR SR001: There's no spatial reference system with SRID 10.

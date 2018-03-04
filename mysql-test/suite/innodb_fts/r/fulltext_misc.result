@@ -119,7 +119,7 @@ create table t2 ENGINE = InnoDB as select concat(match (a) against ('a')) as a f
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `a` varchar(23) DEFAULT NULL
+  `a` varchar(22) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1, t2;
 CREATE TABLE t1(a TEXT CHARSET ucs2 COLLATE ucs2_unicode_ci) ENGINE = InnoDB;

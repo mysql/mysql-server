@@ -413,3 +413,71 @@ eval $query4;
 eval $query5;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #26532061: SELECT DISTINCT WITH SECONDARY KEY FOR
+--echo #                'USING INDEX FOR GROUP-BY' BAD RESULTS
+--echo #
+
+CREATE TABLE t1(
+  pk INT NOT NULL,
+  c1 CHAR(2),
+  c2 INT,
+  PRIMARY KEY(pk),
+  UNIQUE KEY ukey(c1, c2)
+);
+
+INSERT INTO t1(pk, c1, c2) VALUES (1,1,1),(2,2,2),(3,3,3),(4,5,4);
+SET @a:=5;
+--disable_warnings
+INSERT IGNORE INTo t1(pk, c1, c2)
+  SELECT (@a:=@a+1),@a,@a FROM t1, t1 t2,t1 t3, t1 t4;
+--enable_warnings
+ANALYZE TABLE t1;
+
+SELECT * FROM t1 WHERE pk = 1 OR pk = 231;
+
+#query shouldn't use loose index scan
+let query1=
+SELECT DISTINCT c1
+FROM t1 FORCE INDEX(ukey)
+WHERE pk IN (1,231) and c1 IS NOT NULL;
+
+let query2=
+SELECT DISTINCT c1
+FROM t1 IGNORE INDEX(ukey)
+WHERE pk IN (1,231) and c1 IS NOT NULL;
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+
+eval $query1;
+eval $query2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #25989915: LOOSE INDEX SCANS RETURNING WRONG RESULT
+--echo #
+
+CREATE TABLE t1 (
+  pk INT NOT NULL AUTO_INCREMENT,
+  c1 varchar(100) DEFAULT NULL,
+  c2 INT NOT NULL,
+  PRIMARY KEY (pk),
+  UNIQUE KEY ukey (c2,c1)
+);
+
+INSERT INTO t1(pk, c2) VALUES (100, 0), (101, 0), (102, 0), (103, 0);
+ANALYZE TABLE t1;
+
+let query1= SELECT COUNT(DISTINCT(c2)) FROM t1 WHERE pk IN (102, 101);
+let query2= SELECT COUNT(DISTINCT(c2)) FROM t1 WHERE pk IN (102, 100);
+
+eval EXPLAIN $query1;
+eval EXPLAIN $query2;
+
+eval $query1;
+eval $query2;
+
+DROP TABLE t1;

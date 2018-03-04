@@ -1863,7 +1863,7 @@ Note	1265	Data truncated for column 'c1' at row 2
 Note	1265	Data truncated for column 'c1' at row 3
 DESC t2;
 Field	Type	Null	Key	Default	Extra
-c1	decimal(34,0)	YES		NULL	
+c1	decimal(34,1)	YES		NULL	
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a DECIMAL(30,30));
 INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
@@ -2169,7 +2169,6 @@ DROP TABLE t1;
 CREATE TABLE t(a DECIMAL(56,13) NOT NULL);
 INSERT INTO t VALUES(0);
 SELECT 1 FROM t WHERE a<=>time('-t');
-1
 1
 Warnings:
 Warning	1292	Truncated incorrect time value: '-t'

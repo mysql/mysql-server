@@ -738,3 +738,96 @@ explain format=json SELECT 1 FROM q
 WHERE (SELECT MATCH(b) AGAINST ('*') FROM z);
 ERROR HY000: Incorrect arguments to MATCH
 DROP TABLE z, q;
+#
+# Bug#26271244: ASSERT FAILS WHEN SHOW CREATE TABLE CALLED ON A FILE
+# CREATED FOR FULLTEXT INDEX
+#
+# Create Innodb table with full text index
+CREATE TABLE t1(id INT, c CHAR(100) , FULLTEXT KEY `msg_idx` (`c`))
+ENGINE INNODB;
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
+# Find name of first FTS index "table"
+# SHOW CREATE TABLE on an FTS index table should give error
+# (not crash). Query log and error message suppressed as the name of
+# FTS index table is not stable.
+Got one of the listed errors
+# Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+# Msg_type Error ER_NO_SUCH_TABLE,ER_NO_SUCH_TABLE
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+Got one of the listed errors
+DROP TABLE t1, t2;
+#
+# BUG#21625016: INNODB FULL TEXT CASE SENSITIVE NOT WORKING
+#
+CREATE TABLE t1(fld1 VARCHAR(10) COLLATE 'latin1_bin', FULLTEXT INDEX (fld1))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('abCD'),('ABCD');
+# With the patch, case sensitive comparison is performed since
+# binary collation is used.
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE);
+fld1
+abCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN BOOLEAN MODE);
+fld1
+ABCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN NATURAL LANGUAGE MODE);
+fld1
+abCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
+fld1
+ABCD
+# Since binary collation is not used, case insensitive comparison is
+# performed.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10) COLLATE 'latin1_general_cs';
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE);
+fld1
+abCD
+ABCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN BOOLEAN MODE);
+fld1
+abCD
+ABCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN NATURAL LANGUAGE MODE);
+fld1
+abCD
+ABCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
+fld1
+abCD
+ABCD
+# With the patch, case sensitive comparison is performed.
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10) COLLATE 'utf8mb4_bin';
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE);
+fld1
+abCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN BOOLEAN MODE);
+fld1
+ABCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN NATURAL LANGUAGE MODE);
+fld1
+abCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
+fld1
+ABCD
+# Test(using case insensitive collation) added for coverage
+ALTER TABLE t1 MODIFY fld1 VARCHAR(10) COLLATE 'utf8mb4_general_ci';
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN BOOLEAN MODE);
+fld1
+abCD
+ABCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN BOOLEAN MODE);
+fld1
+abCD
+ABCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('abCD' IN NATURAL LANGUAGE MODE);
+fld1
+abCD
+ABCD
+SELECT * FROM t1 WHERE MATCH(fld1) AGAINST ('ABCD' IN NATURAL LANGUAGE MODE);
+fld1
+abCD
+ABCD
+DROP TABLE t1;

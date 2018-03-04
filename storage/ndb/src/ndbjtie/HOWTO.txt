@@ -1,21 +1,89 @@
+/*
+   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
+
 How to map a method:
 
 - Add it to the appropriate class or interface
-  - const methods belong in the xxxConst interface
+  - const methods belong in the both the xxxConst interface and in the implementing class
   - non-const methods belong in the implementing class
   - constructors are mapped using a create method with the same parameters as the constructor
 
+- Type mapping implementation
+    git/mysql-5.7-cluster-7.5/storage/ndb/src/ndbjtie/jtie/jtie_tconv_array_impl.hpp
+
+  - bool
+      Java boolean
+  - byte, unsigned byte, Int8, Uint8,
+      Java byte
+  - short, unsigned short, Int16, Uint16
+      Java short
+  - int, Int32, Uint32
+      Java int
+  - long long, unsigned long long, Int64, Uint64
+      Java long
+  - Uint32
+      Java int
+  - char *
+      Java String
+  - Uint16 *, Uint32 *
+      Java needs special treatment for these types, which are used for arrays of Uint16 and Uint32.
+      The jtie infrastructure implements most integral types and object types that use this pattern.
+      The types are mapped in conjunction with a length parameter of type Uint32
+      The Java type is an array of short or int
+        the length is calculated by the calling Java program (clusterj component) from the array parameter
+
+  - in/out parameters need special treatment
+      The types are mapped to Java arrays that are passed by reference and can be modified
+      For example:
+        cd git/mysql-5.7-cluster-7.5/storage/ndb/
+        cat clusterj/clusterj-tie/src/main/java/com/mysql/clusterj/tie/NdbRecordBlobImpl.java
+    public void readData() {
+        int length = getLength().intValue();
+        data = new byte[length];
+        readData(data, length); // calls BlobImpl.java
+    }
+        cat clusterj/clusterj-tie/src/main/java/com/mysql/clusterj/tie/BlobImpl.java
+    public void readData(byte[] array, int length) {
+        // int[1] is an artifact of ndbjtie to pass an in/out parameter
+        // this depends on java allocating the int[1] on the stack so it can't move while reading blob data
+        // we add one to length to trap the case where the int[1] moved so the proper length was not set
+        int[] lengthRead = new int[] {length + 1}; // length will be filled by readData
+        int returnCode = ndbBlob.readData(buffer, lengthRead); // calls native code
+
   for example, add the c++ constructor Ndb_cluster_connection(const char *, int)
   add a method create(String, int) to class Ndb_cluster_connection
+    cd git/mysql-5.7-cluster-7.5/storage/ndb/src/ndbjtie/com/mysql/ndbjtie/ndbapi
+    vi Ndb_cluster_connection.java
   this makes it visible to the application
-  edit com/mysql/ndbjtie/ndbapi/Ndb_cluster_connection.java
   compile the class via make
 
-- Add it to the implementation
+- Add it to the implementation in the build directory
   - run javah on the compiled class
+    cd builds/mysql-5.7-cluster-7.5/storage/ndb/src/ndbjtie
     javah -classpath target/classes com.mysql.ndbjtie.ndbapi.Ndb_cluster_connection
     the result will be in the file com_mysql_ndbjtie_ndbapi_Ndb_cluster_connection.h
-  - edit ndbapi_jtie.hpp
+  - edit git/mysql-5.7-cluster-7.5/storage/ndb/src/ndbjtie/ndbapi_jtie.hpp
       copy the new method definition from the javah output and put it in the same place as javah put it
       implement the new method
       copy from other methods

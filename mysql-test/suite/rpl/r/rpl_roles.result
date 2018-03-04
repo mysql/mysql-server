@@ -94,7 +94,7 @@ FROM_HOST	FROM_USER	TO_HOST	TO_USER	WITH_ADMIN_OPTION
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 slave-bin.000001	#	Query	#	#	use `test`; CREATE ROLE r1, r2, r3
-slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
 slave-bin.000001	#	Query	#	#	use `test`; GRANT r1 TO r2
 slave-bin.000001	#	Query	#	#	use `test`; GRANT r2 TO u1@localhost
 slave-bin.000001	#	Query	#	#	use `test`; GRANT r3 TO u1@localhost
@@ -109,4 +109,10 @@ slave-bin.000001	#	Query	#	#	use `test`; GRANT r4 to u1@localhost
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER u1@localhost DEFAULT ROLE ALL
 slave-bin.000001	#	Query	#	#	use `test`; DROP ROLE r1, r2, r3,r4
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER='root';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
 include/rpl_end.inc

@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -35,10 +42,6 @@
 */
 #include "sql/window_lex.h"
 #include "sql_string.h"
-
-#ifdef WF_DEBUG
-#include <unordered_map>
-#endif
 
 #include <sys/types.h>
 #include <cstring>                              // std::memcpy
@@ -77,13 +80,6 @@ class Temp_table_param;
   The latter is marked as such for ease of separation later.
 */
 class Window {
-public:
-  /// @returns the first PARTITION BY expression for this window
-  ORDER *first_partition_by() const;
-
-  /// @returns the first ORDER BY expression for this window
-  ORDER *first_order_by() const;
-
   /*------------------------------------------------------------------------
    *
    * Variables stable during execution
@@ -158,6 +154,13 @@ protected:
   bool m_opt_last_row;
 
   /**
+    Can be true if first window after a join: we may need to restore the input
+    record after buffered window processing if join_read_key's caching logic
+    presumes the record hasn't been modified (when last qep_tab uses JT_EQ_REF).
+  */
+  bool m_needs_restore_input_row;
+
+  /**
     The last window to be evaluated at execution time.
   */
   bool m_last;
@@ -221,6 +224,7 @@ public:
     accesses, cf. #m_frame_buffer_positions.
   */
   enum retrieve_cached_row_reason {
+    REA_WONT_UPDATE_HINT= -1, // special value when using restore_special_record
     REA_FIRST_IN_PARTITION= 0,
     REA_CURRENT= 1,
     REA_FIRST_IN_FRAME= 2,
@@ -317,6 +321,20 @@ public:
   }
 
   /**
+    Copy frame buffer position hint from one to another.
+  */
+  void copy_pos(retrieve_cached_row_reason from_reason,
+                retrieve_cached_row_reason to_reason)
+  {
+    m_frame_buffer_positions[to_reason].m_rowno=
+      m_frame_buffer_positions[from_reason].m_rowno;
+
+    std::memcpy(m_frame_buffer_positions[to_reason].m_position,
+                m_frame_buffer_positions[from_reason].m_position,
+                frame_buffer()->file->ref_length);
+  }
+
+  /**
      Keys for m_frame_buffer_cache and m_special_rows_cache, for special
      rows.
   */
@@ -332,10 +350,12 @@ public:
     FBC_FIRST_IN_STATIC_RANGE= -2,
     /// An already prepared output row whose result we want to reuse.
     FBC_LAST_RESULT_OPTIMIZED_RANGE= -3,
+    /// The last row cached in the frame buffer; needed to resurrect input row
+    FBC_LAST_BUFFERED_ROW= -4,
     // Insert new values here.
     // And keep the ones below up to date.
     FBC_FIRST_KEY= FBC_FIRST_IN_NEXT_PARTITION,
-    FBC_LAST_KEY= FBC_LAST_RESULT_OPTIMIZED_RANGE,
+    FBC_LAST_KEY= FBC_LAST_BUFFERED_ROW,
   };
 
 protected:
@@ -374,33 +394,10 @@ protected:
   */
   int64 m_frame_buffer_partition_offset;
 
-// Enable for more checks. Not for Valgrind as not freed.
-// @todo: Remove entirely.
-#ifdef WF_DEBUG
   /**
-    Execution state: used iff m_needs_frame_buffering. Holds the in memory
-    alternative frame buffer used in the prototype prior to using a tmp file.
-    After we started using a real tmp file for the frame buffer, we retained
-    this cache in debug mode for asserting that the tmp file returns the correct
-    values, in any case for a two other records we never write to the tmp file,
-    (cf. the Special_keys enumeration):
-       - the first row in the next partition: we had to read that row in order
-         to know when a full partition has been read when we buffer partition
-         rows, so we need somehwere to store it, and we chose not to store it
-         in the frame buffer tmp file since it doesn't logically belong there
-         and its layout may be different depending on how we choose to store
-         the frame buffer records.
-       - the first record as fully evaluated in a partition with no frames and
-         no ORDER BY: in such cases the aggregate window functions (SUM, AVG..)
-         will have the same value for all rows, so we skip evaluating them for
-         rows 2..N where N is the last row in the partition.
-  */
-  std::unordered_map<uint64, std::vector<uchar>> m_frame_buffer_cache;
-#endif // WF_DEBUG
-  /**
-     Holds a fixed number of copies of special rows; each copy can use up to
-     #m_special_rows_cache_max_length bytes.
-     cf. the Special_keys enumeration.
+    Holds a fixed number of copies of special rows; each copy can use up to
+    #m_special_rows_cache_max_length bytes.
+    cf. the Special_keys enumeration.
   */
   uchar *m_special_rows_cache;
   /// Length of each copy in #m_special_rows_cache, in bytes
@@ -461,14 +458,6 @@ protected:
     output within the partition. 1-based.
   */
   int64 m_rowno_in_partition;
-
-  /**
-    Execution state: number of rows in frame. Only calculated if we need it,
-    if not, 0. For example, NTH_VALUE(e, n) FROM LAST needs it.
-   
-    @note FROM LAST is not yet supported.
-  */
-  // int64 m_frame_cardinality;
 
   /**
    Execution state: for optimizable aggregates, cf. m_row_optimizable and
@@ -580,6 +569,14 @@ protected:
   */
   bool m_dont_aggregate;
 
+  /*
+    When we bring back rows from the frame buffer to the input row,
+    we destroy its contents, unless the row we bring back is
+    m_last_rowno_in_cache. True if we last brought back something else.
+    Set by bring_back_frame_row. Used to determine if we need to resurrect
+    row m_last_rowno_in_cache when needed.
+   */
+  bool m_input_row_clobbered;
   /*------------------------------------------------------------------------
    *
    * Constructors
@@ -608,6 +605,7 @@ private:
       m_static_aggregates(false),
       m_opt_first_row(false),
       m_opt_last_row(false),
+      m_needs_restore_input_row(false),
       m_last(false),
       m_ancestor(nullptr),
       m_tmp_pos(nullptr, -1),
@@ -625,14 +623,14 @@ private:
       m_rowno_being_visited(0),
       m_rowno_in_frame(0),
       m_rowno_in_partition(0),
-      // m_frame_cardinality(0),
       m_aggregates_primed(false),
       m_first_rowno_in_range_frame(1),
       m_last_rowno_in_range_frame(0),
       m_is_last_row_in_frame(false),
       m_do_copy_null(false),
       m_inverse_aggregation(false),
-      m_dont_aggregate(false)
+      m_dont_aggregate(false),
+      m_input_row_clobbered(false)
   {
     m_opt_nth_row.m_offsets.init_empty_const();
     m_opt_lead_lag.m_offsets.init_empty_const();
@@ -701,7 +699,7 @@ public:
     the ancestor chain. Uniqueness checked in #setup_windows
     SQL 2011 7.11 GR 1.b.i.5.A-C
   */
-  const PT_order_list *order() const
+  const PT_order_list *effective_order_by() const
   {
     const PT_order_list *o= m_order_by;
     const Window *w= m_ancestor;
@@ -715,10 +713,21 @@ public:
   }
 
   /**
+    Get the first argument of the ORDER BY clause for this window
+    if any. "ORDER BY" is not checked in ancestor unlike
+    effective_order_by().
+    Use when the goal is to operate on the set of item clauses for
+    all windows of a query. When interrogating the effective order
+    by for a window (specified for it or inherited from another
+    window) use effective_order_by().
+  */
+  ORDER *first_order_by() const;
+
+  /**
     Get partition, if any. That is, the partition if any, of the
     root window. SQL 2011 7.11 GR 1.b.i.4.A-C
   */
-  const PT_order_list *partition() const
+  const PT_order_list *effective_partition_by() const
   {
     const PT_order_list *p= m_partition_by;
     const Window *w= m_ancestor;
@@ -738,6 +747,16 @@ public:
     }
     return p;
   }
+  /**
+    Get the first argument of the PARTITION clause for this window
+    if any. "PARTITION BY" is not checked in ancestor unlike
+    effective_partition_by().
+    Use when the goal is to operate on the set of item clauses for
+    all windows of a query. When interrogating the effective
+    partition by for a window (specified for it or inherited from
+    another window) use effective_partition_by().
+  */
+  ORDER *first_partition_by() const;
 
   /**
     Get the list of functions invoked on this window.
@@ -886,6 +905,16 @@ public:
                             List<Window> &windows);
 
   /**
+    Remove unused window definitions. Do this only after syntactic and
+    semantic checking for errors has been performed.
+
+    @param thd             The session's execution thread
+    @param windows         The list of windows defined for this select
+  */
+  static void remove_unused_windows(THD *thd,
+                                    List<Window> &windows);
+
+  /**
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
 
     @param thd              The session's execution thread
@@ -936,7 +965,10 @@ public:
     @return true if we have such a clause, which means we need to sort the
             input table before evaluating the window functions
   */
-  bool needs_sorting();
+  bool needs_sorting() const
+  {
+    return (m_partition_by != nullptr || m_order_by != nullptr);
+  }
 
   /**
     If we cannot compute the window function without looking at succeeding
@@ -984,6 +1016,16 @@ public:
   bool is_last() const { return m_last; }
 
   /**
+    See #m_needs_restore_input_row
+  */
+  void set_needs_restore_input_row(bool b) { m_needs_restore_input_row= b; }
+
+  /**
+    See #m_needs_restore_input_row
+  */
+  bool needs_restore_input_row() const { return m_needs_restore_input_row; }
+
+  /**
     See #m_opt_nth_row
   */
   const st_nth &opt_nth_row() const { return m_opt_nth_row; }
@@ -996,7 +1038,7 @@ public:
   /**
     Getter for m_frame_buffer_param, q.v.
   */
-  Temp_table_param *frame_buffer_param() { return m_frame_buffer_param; }
+  Temp_table_param *frame_buffer_param() const { return m_frame_buffer_param; }
 
   /**
     Setter for m_frame_buffer_param, q.v.
@@ -1006,7 +1048,7 @@ public:
   /**
     Getter for m_frame_buffer, q.v.
   */
-  TABLE *frame_buffer() { return m_frame_buffer; }
+  TABLE *frame_buffer() const { return m_frame_buffer; }
 
   /**
     Setter for m_frame_buffer, q.v.
@@ -1016,7 +1058,7 @@ public:
   /**
    Getter for m_outtable_param, q.v.
    */
-  Temp_table_param *outtable_param() { return m_outtable_param; }
+  Temp_table_param *outtable_param() const { return m_outtable_param; }
 
   /**
    Setter for m_outtable_param, q.v.
@@ -1039,20 +1081,6 @@ public:
   */
   bool has_dynamic_frame_upper_bound() const;
 
-#ifdef WF_DEBUG
-  /**
-    If a window needs buffering for its rows before we can evalate some
-    window function referencing that window, this map contains the
-    buffered rows.
-
-    @returns reference to the map containing the buffered rows
-  */
-  std::unordered_map<uint64, std::vector<uchar>> &frame_buffer_cache()
-  {
-    return m_frame_buffer_cache;
-  }
-#endif // WF_DEBUG
-
   /**
     Allocate the cache for special rows
     @param thd      thread handle
@@ -1064,7 +1092,7 @@ public:
   /**
     See #m_last_row_output
   */
-  int64 last_row_output() { return m_last_row_output; }
+  int64 last_row_output() const { return m_last_row_output; }
 
   /**
     See #m_last_row_output
@@ -1074,7 +1102,7 @@ public:
   /**
    See #m_rowno_being_visited
    */
-  int64 rowno_being_visited() { return m_rowno_being_visited; }
+  int64 rowno_being_visited() const { return m_rowno_being_visited; }
 
   /**
    See #m_rowno_being_visited
@@ -1084,7 +1112,7 @@ public:
   /**
     See #m_last_rowno_in_cache
   */
-  int64 last_rowno_in_cache () { return m_last_rowno_in_cache; }
+  int64 last_rowno_in_cache () const { return m_last_rowno_in_cache; }
 
   /**
     See #m_last_rowno_in_cache
@@ -1094,7 +1122,7 @@ public:
   /**
     See #m_last_rowno_in_range_frame
   */
-  int64 last_rowno_in_range_frame () { return m_last_rowno_in_range_frame; }
+  int64 last_rowno_in_range_frame () const { return m_last_rowno_in_range_frame; }
 
   /**
     See #m_last_rowno_in_range_frame
@@ -1104,7 +1132,7 @@ public:
   /**
     See #m_last_rowno_in_peerset
   */
-  int64 last_rowno_in_peerset() { return m_last_rowno_in_peerset; }
+  int64 last_rowno_in_peerset() const { return m_last_rowno_in_peerset; }
 
   /**
     See #m_last_rowno_in_peerset
@@ -1114,7 +1142,7 @@ public:
   /**
     See #m_do_copy_null
   */
-  bool do_copy_null () { return m_do_copy_null; }
+  bool do_copy_null () const { return m_do_copy_null; }
 
   /**
     See #m_do_copy_null
@@ -1124,7 +1152,7 @@ public:
   /**
     See #m_inverse_aggregation
   */
-  bool do_inverse () { return m_inverse_aggregation; }
+  bool do_inverse () const { return m_inverse_aggregation; }
 
   /**
     See #m_inverse_aggregation
@@ -1138,7 +1166,7 @@ public:
   /**
     See #m_aggregates_primed
   */
-  bool aggregates_primed() { return m_aggregates_primed; }
+  bool aggregates_primed() const { return m_aggregates_primed; }
 
   /**
     See #m_aggregates_primed
@@ -1148,7 +1176,7 @@ public:
   /**
     See #m_dont_aggregate
   */
-  bool dont_aggregate() { return m_dont_aggregate; }
+  bool dont_aggregate() const { return m_dont_aggregate; }
 
   /**
     See #m_dont_aggregate
@@ -1160,9 +1188,22 @@ public:
   }
 
   /**
+    See #m_input_row_clobbered
+  */
+  bool input_row_clobbered() const { return m_input_row_clobbered; }
+
+  /**
+    See #m_input_row_clobbered
+  */
+  void set_input_row_clobbered(bool b) { m_input_row_clobbered= b; }
+
+  /**
     See #m_is_last_row_in_frame
   */
-  bool is_last_row_in_frame ();
+  bool is_last_row_in_frame() const
+  {
+    return m_is_last_row_in_frame || m_select->table_list.elements == 0;
+  }
 
   /**
     See #m_is_last_row_in_frame
@@ -1179,7 +1220,7 @@ public:
   /**
     See #m_rowno_in_frame
   */
-  int64 rowno_in_frame () { return m_rowno_in_frame; }
+  int64 rowno_in_frame () const { return m_rowno_in_frame; }
 
   /**
     See #m_rowno_in_frame
@@ -1193,7 +1234,7 @@ public:
   /**
     See #m_rowno_in_partition
   */
-  int64 rowno_in_partition () { return m_rowno_in_partition; }
+  int64 rowno_in_partition () const { return m_rowno_in_partition; }
 
   /**
     See #m_rowno_in_partition
@@ -1211,7 +1252,10 @@ public:
   /**
     See #m_first_rowno_in_range_frame
   */
-  int64 first_rowno_in_range_frame() { return m_first_rowno_in_range_frame; }
+  int64 first_rowno_in_range_frame() const
+  {
+    return m_first_rowno_in_range_frame;
+  }
 
   /**
     See #m_frame_buffer_total_rows
@@ -1224,7 +1268,7 @@ public:
   /**
     See #m_frame_buffer_total_rows
   */
-  int64 frame_buffer_total_rows() { return m_frame_buffer_total_rows; }
+  int64 frame_buffer_total_rows() const { return m_frame_buffer_total_rows; }
 
   /**
     See #m_frame_buffer_partition_offset
@@ -1237,7 +1281,7 @@ public:
   /**
     See #m_frame_buffer_partition_offset
   */
-  int64 frame_buffer_partition_offset()
+  int64 frame_buffer_partition_offset() const
   {
     return m_frame_buffer_partition_offset;
   }
@@ -1262,13 +1306,12 @@ public:
 
     @returns true if that is the case, else false
   */
-  bool has_two_pass_wf();
+  bool some_wf_needs_frame_card();
 
   /**
     Free up any resource used to process the window functions of this window,
     e.g. temporary files and in-memory data structures. Called when done
     with all window processing steps from SELECT_LEX::cleanup.
-    FIXME: release earlier?
   */
   void cleanup(THD *thd);
 
@@ -1306,8 +1349,6 @@ public:
     Reset the execution state for all window functions defined on this window.
   */
   void reset_all_wf_state();
-
-  enum Wf_type { WT_FRAMING=1, WT_TWO_PASS=2, WT_STREAMING=4 };
 
   /**
     Collects evaluation requirements from a window function,
@@ -1362,7 +1403,7 @@ public:
             m_name->str_value.ptr() : "<unnamed window>");
   }
 
-  void print(THD *thd, SELECT_LEX *lex, String *str, enum_query_type qt,
+  void print(THD *thd, String *str, enum_query_type qt,
              bool expand_definition) const;
 
   bool has_windowing_steps() const;

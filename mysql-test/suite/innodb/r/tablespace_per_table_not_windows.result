@@ -3,12 +3,6 @@
 # the database name with the table name to make a unique table name.
 #
 SET default_storage_engine=InnoDB;
-# Suppress errors about too long filenames in error log.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number .* means '.*'");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file .*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'create' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'delete' returned OS error .*");
 #
 # MySQL limits each database and tablename identifier to 64 characters
 # of up to 3 bytes per character, corresponding to 192 bytes.

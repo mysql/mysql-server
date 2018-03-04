@@ -1,5 +1,7 @@
 ## Test cases for mysqlx plugin TLS versions
 
+--source include/xplugin_create_user.inc
+
 SET GLOBAL mysqlx_connect_timeout = 300;
 
 eval CREATE USER user5_mysqlx@localhost
@@ -20,11 +22,11 @@ SHOW STATUS LIKE 'Mysqlx_ssl_version';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -uroot --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --file=$xtest_file 2>&1
 
 --let $XTESTPARAMS= -u user5_mysqlx --password='auth_string' --file=$xtest_file --ssl-cipher='DHE-RSA-AES256-SHA'
 --let $ERROR1= /in main, line 0:ERROR: error:00000001:lib\(0\):func\(0\):reason\(1\)/Application terminated with expected error: protocol version mismatch/
---let $ERROR5= /in main, line 0:ERROR: error:00000005:lib\(0\):func\(0\):DH lib/Application terminated with expected error: socket layer receive error/
+--let $ERROR5= /in main, line 0:ERROR: error:00000005:lib\(0\):func\(0\):DH lib/Application terminated with expected error: socket layer receive error/ /in main, line 0:ERROR: error:00000001:lib\(0\):func\(0\):reason\(1\)/Application terminated with expected error: socket layer receive error/
 
 --exec $MYSQLXTEST                                     $XTESTPARAMS 2>&1
 --exec $MYSQLXTEST --tls-version=TLSv1,TLSv1.1,TLSv1.2 $XTESTPARAMS 2>&1
@@ -90,6 +92,7 @@ EOF
 
 
 # Postamble
+--source include/xplugin_drop_user.inc
 --remove_file $xtest_file
 
 DROP USER user5_mysqlx@localhost;

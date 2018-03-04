@@ -53,8 +53,8 @@ CREATE TABLE t2 (c2 INT PRIMARY KEY, FOREIGN KEY (c2) REFERENCES t1(c1));
 INSERT INTO t1 VALUES(1);
 --source include/rpl_sync.inc
 
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction= INSERT INTO t2 VALUES (1)
 --let $remote_transaction=UPDATE t1 SET c1=2 WHERE c1=1
@@ -68,8 +68,8 @@ INSERT INTO t1 VALUES(1);
 --echo
 INSERT INTO t1 VALUES (5);
 
---let $local_server_connection1=server_1
---let $local_server_connection2=server1
+--let $local_server_connection1=server1
+--let $local_server_connection2=server_1
 --let $remote_server_connection=server2
 --let $local_transaction= INSERT INTO t2 VALUES (5)
 --let $remote_transaction=UPDATE t1 SET c1=6 WHERE c1=2

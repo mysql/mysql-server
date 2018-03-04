@@ -1,25 +1,33 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef PIPELINE_INTERFACES_INCLUDED
 #define PIPELINE_INTERFACES_INCLUDED
 
 #include <mysql/group_replication_priv.h>
-#include "plugin_server_include.h"
-#include "plugin_log.h"
-#include "plugin_psi.h"
+
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/plugin_psi.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
 
 //Define the data packet type
 #define DATA_PACKET_TYPE  1
@@ -417,7 +425,7 @@ private:
     {
       log_message(MY_ERROR_LEVEL,
                   "Unable to convert the event into a packet on the applier!"
-                  " Error: %d\n", error); /* purecov: inspected */
+                  " Error: %s.\n", get_string_log_read_error_msg(error)); /* purecov: inspected */
       return error; /* purecov: inspected */
     }
     packet= new Data_packet((uchar*)packet_data.ptr(), static_cast<ulong>(packet_data.length()));
@@ -426,6 +434,29 @@ private:
     log_event= NULL;
 
     return error;
+  }
+
+  const char* get_string_log_read_error_msg(int error)
+  {
+    switch (error)
+    {
+      case LOG_READ_BOGUS:
+        return "corrupted data in log event";
+      case LOG_READ_TOO_LARGE:
+        return "log event entry exceeded slave_max_allowed_packet; Increase "
+          "slave_max_allowed_packet";
+      case LOG_READ_IO:
+        return "I/O error reading log event";
+      case LOG_READ_MEM:
+        return "memory allocation failed reading log event, machine is out of memory";
+      case LOG_READ_TRUNC:
+        return "binlog truncated in the middle of event; consider out of disk space";
+      case LOG_READ_CHECKSUM_FAILURE:
+        return "event read from binlog did not pass checksum algorithm "
+          "check specified on --binlog-checksum option";
+      default:
+        return "unknown error reading log event";
+    }
   }
 
 private:

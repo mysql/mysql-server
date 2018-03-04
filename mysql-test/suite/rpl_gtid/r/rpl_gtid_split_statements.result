@@ -158,18 +158,7 @@ include/gtid_step_reset.inc
 DROP TABLE base, temp_t;
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/assert_binlog_events.inc
-include/wait_for_slave_sql_error.inc [errno=1884]
-include/include/rpl_skip_to_end_of_relay_log.inc
-include/stop_slave.inc
-Warnings:
-Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
-RESET SLAVE;
-include/start_slave.inc
-DROP TABLE base;
-DROP TABLE IF EXISTS base, temp_t, temp_n;
-Warnings:
-Note	1051	Unknown table 'test.base'
-Note	1051	Unknown table 'test.temp_t'
+DROP TABLE temp_n;
 include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
@@ -179,18 +168,7 @@ include/gtid_step_reset.inc
 DROP TABLE base, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/assert_binlog_events.inc
-include/wait_for_slave_sql_error.inc [errno=1884]
-include/include/rpl_skip_to_end_of_relay_log.inc
-include/stop_slave.inc
-Warnings:
-Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
-RESET SLAVE;
-include/start_slave.inc
-DROP TABLE base;
-DROP TABLE IF EXISTS base, temp_t, temp_n;
-Warnings:
-Note	1051	Unknown table 'test.base'
-Note	1051	Unknown table 'test.temp_n'
+DROP TABLE temp_t;
 include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
@@ -200,17 +178,7 @@ include/gtid_step_reset.inc
 DROP TABLE temp_t, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/assert_binlog_events.inc
-include/wait_for_slave_sql_error.inc [errno=1884]
-include/include/rpl_skip_to_end_of_relay_log.inc
-include/stop_slave.inc
-Warnings:
-Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
-RESET SLAVE;
-include/start_slave.inc
-DROP TABLE IF EXISTS base, temp_t, temp_n;
-Warnings:
-Note	1051	Unknown table 'test.temp_t'
-Note	1051	Unknown table 'test.temp_n'
+DROP TABLE base;
 include/rpl_sync.inc
 include/rpl_reset.inc
 CALL create_tables();
@@ -220,19 +188,6 @@ include/gtid_step_reset.inc
 DROP TABLE base, temp_t, temp_n;
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/assert_binlog_events.inc
-include/wait_for_slave_sql_error.inc [errno=1884]
-include/include/rpl_skip_to_end_of_relay_log.inc
-include/stop_slave.inc
-Warnings:
-Warning	3022	This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0.
-RESET SLAVE;
-include/start_slave.inc
-DROP TABLE base;
-DROP TABLE IF EXISTS base, temp_t, temp_n;
-Warnings:
-Note	1051	Unknown table 'test.base'
-Note	1051	Unknown table 'test.temp_t'
-Note	1051	Unknown table 'test.temp_n'
 include/rpl_sync.inc
 include/rpl_reset.inc
 ---- Clean up ----

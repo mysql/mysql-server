@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -30,6 +37,7 @@
 #include <boost/geometry/strategies/cartesian/buffer_point_circle.hpp>
 #include <boost/geometry/strategies/cartesian/buffer_point_square.hpp>
 #include <boost/geometry/strategies/cartesian/buffer_side_straight.hpp>
+#include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <ctype.h>
 #include <stdlib.h>
@@ -47,6 +55,8 @@
 #include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"                        // ER_THD
 #include "sql/item.h"
 #include "sql/item_geofunc.h"
@@ -390,17 +400,21 @@ String *Item_func_buffer::val_str(String *str_value_arg)
   DBUG_ENTER("Item_func_buffer::val_str");
   DBUG_ASSERT(fixed == 1);
   String strat_bufs[side_strategy + 1];
+
   String *obj= args[0]->val_str(&tmp_value);
+  if (!obj || args[0]->null_value)
+    DBUG_RETURN(error_str());
+
   double dist= args[1]->val_real();
+  if (args[1]->null_value)
+    DBUG_RETURN (error_str());
+
   Geometry_buffer buffer;
   Geometry *geom;
   String *str_result= str_value_arg;
 
   null_value= false;
   bg_resbuf_mgr.free_result_buffer();
-
-  if (!obj || args[0]->null_value || args[1]->null_value)
-    DBUG_RETURN(error_str());
 
   // Reset the two arrays, set_strategies() requires the settings array to
   // be brand new on every ST_Buffer() call.
@@ -429,18 +443,27 @@ String *Item_func_buffer::val_str(String *str_value_arg)
 
   if (geom->get_srid() != 0)
   {
-    bool srs_exists= false;
-    if (Srs_fetcher::srs_exists(current_thd, geom->get_srid(), &srs_exists))
+    THD *thd= current_thd;
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    Srs_fetcher fetcher(thd);
+    const dd::Spatial_reference_system *srs= nullptr;
+    if (fetcher.acquire(geom->get_srid(), &srs))
       DBUG_RETURN(error_str()); // Error has already been flagged.
 
-    if (!srs_exists)
+    if (srs == nullptr)
     {
-      push_warning_printf(current_thd,
-                          Sql_condition::SL_WARNING,
-                          ER_WARN_SRS_NOT_FOUND,
-                          ER_THD(current_thd, ER_WARN_SRS_NOT_FOUND),
-                          geom->get_srid(),
-                          func_name());
+      my_error(ER_SRS_NOT_FOUND, MYF(0), geom->get_srid());
+      DBUG_RETURN(error_str());
+    }
+
+    if (!srs->is_cartesian())
+    {
+      DBUG_ASSERT(srs->is_geographic());
+      std::string parameters(geom->get_class_info()->m_name.str);
+      parameters.append(", ...");
+      my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
+               parameters.c_str());
+      DBUG_RETURN(error_str());
     }
   }
 

@@ -683,6 +683,136 @@ SELECT * FROM json_data;
 DROP TABLE json_data, json_data2, json_data3, json_data4;
 
 --source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # WL#8867: ADD JSON TABLE FUNCTIONS
+--echo #
+
+--connection master
+--echo [Connection Master]
+
+--echo # Create table using data obtained from JSON_TABLE function
+CREATE TABLE json_data(j json);
+INSERT INTO json_data VALUES('{"a":1, "b":"trucks", "c":[1,2,3], "d":"taste", "e":"93-01-01", "f":"03:48:07"}');
+INSERT INTO json_data VALUES('{"a":2, "b":"rickshaws", "c":{"key":"value"}, "d":"smell" , "e":"12-11-12", "f":"09:09:10"}');
+INSERT INTO json_data VALUES('{"a":3, "b":"cars", "c":["a","b","c","d"], "d":"sight", "e":"01-01-01", "f":"05:18:12"}');
+INSERT INTO json_data VALUES('{"a":4, "b":"bikes", "c":{"a":[1,2]}, "d":"hearing", "e":"98-05-06", "f":"00:00:00" }');
+INSERT INTO json_data VALUES('{"a":5, "b":"mopeds", "c":["one", "two", "three"], "d":"touch", "e":"56-12-07", "f":"12:12:12"}');
+
+CREATE TABLE data(i INT, v VARCHAR(10), j JSON, b BLOB, d DATE, t TIME, n JSON);
+INSERT INTO data SELECT jint, jchar, jjson, jblob, jdate, jtime, njson FROM json_data,JSON_TABLE(j, '$' COLUMNS(o FOR ORDINALITY, jexst INT EXISTS PATH '$.g', jint INT PATH '$.a', jchar VARCHAR(10) PATH '$.b', jjson JSON PATH '$.c', jblob BLOB PATH '$.d', jdate DATE PATH '$.e', jtime TIME PATH '$.f', NESTED PATH '$.c' COLUMNS(njson JSON PATH '$[0]' DEFAULT '{"json":"json_val"}' ON EMPTY ))) AS alias;
+
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+--echo [Connection Slave]
+
+--echo # Check whether the table was created on the slave
+SELECT * FROM data;
+
+--let $diff_tables= master:data, slave:data
+--source include/diff_tables.inc
+
+--connection master
+--echo [Connection Master]
+
+--echo # Update values in the table with data obtained from JSON_TABLE
+
+UPDATE data SET j = (SELECT ucol FROM json_data,JSON_TABLE(j, '$' COLUMNS(ucol JSON PATH '$', ucol2 INT PATH '$.a')) AS alias WHERE ucol2 = 2) WHERE i = 2;
+
+UPDATE data SET v = (SELECT ucol FROM JSON_TABLE('{"key":["update"]}', '$' COLUMNS(ucol VARCHAR(10) PATH '$.key[0]')) AS alias) WHERE i = 4;
+
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+--echo [Connection Slave]
+
+--echo # Check whether the values were updated
+SELECT j,v FROM data;
+
+--let $diff_tables= master:data, slave:data
+--source include/diff_tables.inc
+
+--connection master
+--echo [Connection Master]
+
+--echo # Delete values from the table
+DELETE FROM data WHERE i = (SELECT dcol FROM JSON_TABLE('{"key":["delete",1,"2"]}', '$' COLUMNS(dcol INT PATH '$.key[1]')) AS alias);
+
+--source include/sync_slave_sql_with_master.inc
+--connection slave
+--echo [Connection Slave]
+
+--echo # Check whether the row was deleted
+
+SELECT * FROM data;
+
+--let $diff_tables= master:data, slave:data
+--source include/diff_tables.inc
+
+--connection master
+--echo [Connection Master]
+
+--echo # cleanup
+
+DROP TABLE data,json_data;
+
+--source include/sync_slave_sql_with_master.inc
+
+--echo #
+--echo # Bug#26177130: SLAVE CAN'T FIND ROW USING HASH_SCAN
+--echo #               IF JSON HAS DIFFERENT BINARY FORMAT
+--echo #
+
+# We are only interested in testing this with binlog_format=row.
+# Replace the options binlog_format=row/mixed/statement by the options
+# slave_rows_search_algorithms=hash_scan/table_scan/index_scan.
+--source include/rpl_connection_slave.inc
+--let $replace_combination_from= BOTH.binlog_format=row,mixed,statement
+--let $replace_combination_to= GLOBAL.slave_rows_search_algorithms=HASH_SCAN,TABLE_SCAN,INDEX_SCAN
+--source include/begin_replace_combination.inc
+--source include/rpl_connection_master.inc
+SET @old_binlog_format = @@SESSION.binlog_format;
+SET SESSION binlog_format = ROW;
+
+# Restart slave threads to make the change in binlog format take effect
+# for them.
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t (j JSON);
+SET SQL_LOG_BIN = 0;
+INSERT INTO t VALUES ('["abc", "abcdefghij"]');
+UPDATE t SET j = JSON_SET(j, '$[0]', 'a');
+SET SQL_LOG_BIN = 1;
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+--source include/sync_slave_sql_with_master.inc
+INSERT INTO t VALUES ('["a", "abcdefghij"]');
+SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM t;
+--echo # At this point, the master and the slave have the same JSON document,
+--echo # but the binary representation is different (the master has a 'gap' due
+--echo # to partial update).
+--source include/rpl_connection_master.inc
+DELETE FROM t;
+--echo # Verify that the slave and the master are in sync after the DELETE.
+--echo # Before the fix, the slave could not locate the row due with
+--echo # slave_rows_search_algorithms=HASH_SCAN because of the difference in
+--echo # the representation.
+--source include/sync_slave_sql_with_master.inc
+--echo # Clean up
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+
+# Stop mapping row/mixed/statement to hash_scan/table_scan/index_scan,
+# and restart the slave to make it pick up the change.
+--source include/end_replace_combination.inc
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--source include/start_slave.inc
+--source include/rpl_connection_master.inc
+SET SESSION binlog_format = @old_binlog_format;
+
 --source include/rpl_end.inc
 
 # End:

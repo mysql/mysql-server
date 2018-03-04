@@ -1,17 +1,24 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/types/column_statistics_impl.h"
 
@@ -21,8 +28,6 @@
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
-#include "include/my_md5.h"                // array_to_hex
-#include "include/sha1.h"                  // compute_sha1_hash
 #include "m_ctype.h"
 #include "m_string.h"                      // STRING_WITH_LEN
 #include "my_dbug.h"
@@ -30,7 +35,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"               // current_thd
 #include "sql/dd/impl/dictionary_impl.h"   // Dictionary_impl
-#include "sql/dd/impl/raw/object_keys.h"   // id_key_type
+#include "sql/dd/impl/raw/object_keys.h"   // Primary_id_key
 #include "sql/dd/impl/raw/raw_record.h"    // Raw_record
 #include "sql/dd/impl/sdi_impl.h"          // sdi read/write functions
 #include "sql/dd/impl/tables/column_statistics.h" // Column_statistics
@@ -40,19 +45,6 @@
 #include "template_utils.h"
 
 namespace dd {
-
-const Entity_object_table &Column_statistics::OBJECT_TABLE()
-{
-  return dd::tables::Column_statistics::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Column_statistics::TYPE()
-{
-  static Column_statistics_type s_instance;
-  return s_instance;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -83,20 +75,25 @@ String_type Column_statistics::create_name(const String_type &schema_name,
 
 ///////////////////////////////////////////////////////////////////////////
 
-String_type Column_statistics::create_mdl_key(const String_type &schema_name,
-                                              const String_type &table_name,
-                                              const String_type &column_name)
+void Column_statistics::create_mdl_key(const String_type &schema_name,
+                                       const String_type &table_name,
+                                       const String_type &column_name,
+                                       MDL_key *mdl_key)
 {
-  String_type name= Column_statistics::create_name(schema_name, table_name,
-                                                  column_name);
+  /*
+    Column names are always case insensitive, so convert it to lowercase.
+    Lookups in MDL is always done using this method, so this should
+    ensure that we always have consistent locks.
+  */
+  DBUG_ASSERT(column_name.length() <= NAME_LEN);
+  char lowercase_name[NAME_LEN + 1]; // Max column length name + \0
+  memcpy(lowercase_name, column_name.c_str(), column_name.length() + 1);
+  my_casedn_str(system_charset_info, lowercase_name);
 
-  // Temporary buffer to store 160bit digest.
-  uint8 digest[SHA1_HASH_SIZE];
-  compute_sha1_hash(digest, name.data(), name.length());
-
-  char output[SHA1_HASH_SIZE * 2];
-  array_to_hex(output, digest, SHA1_HASH_SIZE);
-  return String_type(output, SHA1_HASH_SIZE * 2);
+  mdl_key->mdl_key_init(MDL_key::COLUMN_STATISTICS,
+                        schema_name.c_str(),
+                        table_name.c_str(),
+                        lowercase_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -197,7 +194,7 @@ bool Column_statistics_impl::deserialize(Sdi_rcontext *rctx,
 }
 
 ///////////////////////////////////////////////////////////////////////////
-bool Column_statistics::update_id_key(id_key_type *key, Object_id id)
+bool Column_statistics::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -205,7 +202,7 @@ bool Column_statistics::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Column_statistics::update_name_key(name_key_type *key,
+bool Column_statistics::update_name_key(Name_key *key,
                                         const String_type &name)
 {
   return dd::tables::Column_statistics::update_object_key(
@@ -213,11 +210,16 @@ bool Column_statistics::update_name_key(name_key_type *key,
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Column_statistics_type implementation.
+
+const Object_table &Column_statistics_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
 void
-Column_statistics_type::register_tables(Open_dictionary_tables_ctx *otx) const
+Column_statistics_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<dd::tables::Column_statistics>();
 }

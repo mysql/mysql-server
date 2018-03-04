@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -2396,8 +2403,15 @@ Ndb::isConsistentGCI(Uint64 gci)
 const NdbEventOperation*
 Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 {
+  return getNextEventOpInEpoch3(iter, event_types, NULL);
+}
+
+const NdbEventOperation*
+Ndb::getNextEventOpInEpoch3(Uint32* iter, Uint32* event_types,
+                           Uint32* cumulative_any_value)
+{
   NdbEventOperationImpl* op =
-    theEventBuffer->getGCIEventOperations(iter, event_types);
+    theEventBuffer->getEpochEventOperations(iter, event_types, cumulative_any_value);
   if (op != NULL)
     return op->m_facade;
   return NULL;
@@ -2406,7 +2420,7 @@ Ndb::getNextEventOpInEpoch2(Uint32* iter, Uint32* event_types)
 const NdbEventOperation*
 Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 {
-  return getNextEventOpInEpoch2(iter, event_types);
+  return getNextEventOpInEpoch3(iter, event_types, NULL);
   /*
    * No event operation is added to gci_ops list for exceptional event data.
    * So it is not possible to get them in event_types. No check needed.

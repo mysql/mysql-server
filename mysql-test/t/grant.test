@@ -3,6 +3,7 @@
 let $date_to_restore_root=`SELECT password_last_changed from mysql.user where user='root'`;
 let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where user='mysql.sys'`;
 let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
+let $date_to_restore_inf_schema_user=`SELECT password_last_changed from mysql.user where user='mysql.infoschema'`;
 
 # Test of GRANT commands
 
@@ -2447,6 +2448,7 @@ DROP USER 'wl7131'@'localhost';
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_root'
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_sys' WHERE USER= 'mysql.sys'
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_session_user' WHERE USER= 'mysql.session'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_inf_schema_user' WHERE USER= 'mysql.infoschema'
 --enable_query_log
 --echo # mysql.user table restored to original values.
 
@@ -2778,6 +2780,30 @@ SHOW CREATE TABLE db8657.t1;
 
 DROP USER 'untrusted8657'@localhost;
 DROP DATABASE db8657;
+
+--echo #
+--echo # Regression test added in WL#8063
+--echo #
+
+CREATE DATABASE db8063;
+CREATE TABLE db8063.t1(a VARCHAR(20));
+
+CREATE USER 'untrusted8063'@'localhost';
+
+
+--echo # Connection con1
+connect (con1, localhost, untrusted8063);
+
+--error ER_ACCESS_DENIED_ERROR
+LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE db8063.t1;
+
+disconnect con1;
+connection default;
+
+SHOW CREATE TABLE db8063.t1;
+
+DROP USER 'untrusted8063'@localhost;
+DROP DATABASE db8063;
 
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc

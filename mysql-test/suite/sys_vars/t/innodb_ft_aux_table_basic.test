@@ -40,3 +40,10 @@ set global innodb_ft_aux_table='Salmon';
 
 SET @@global.innodb_ft_aux_table = @start_global_value;
 SELECT @@global.innodb_ft_aux_table;
+
+set @a:=repeat(':/',128);
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_ft_aux_table =@a;
+set @a:=repeat(':/',256);
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_ft_aux_table =@a;

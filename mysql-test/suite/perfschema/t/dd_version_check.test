@@ -1,0 +1,209 @@
+
+--source include/have_debug.inc
+
+--disable_query_log
+
+--disable_warnings
+drop table if exists test.pfs_published_schema;
+drop table if exists test.pfs_check_table;
+drop procedure if exists test.pfs_check_proc;
+--enable_warnings
+
+--echo "Checking the data dictionary properties ..."
+
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT SUBSTRING_INDEX(SUBSTRING(properties, LOCATE('PS_VERSION', properties), 30), ';', 1)
+  FROM mysql.dd_properties;
+SET SESSION debug= '-d,skip_dd_table_access_check';
+
+SET @old_group_concat_max_len = @@group_concat_max_len;
+
+# We need 1700 rows of varchar(64) concatenated
+SET group_concat_max_len = 200000;
+
+create table test.pfs_published_schema
+  (version varchar(20), signature varchar(64), primary key (version));
+
+#
+# MAINTAINER:
+#
+# ONCE A RELEASE IS PUBLISHED,
+# DO NOT EVER CHANGE THE SIGNATURES HERE.
+#
+# The whole point of this MTR test script is that
+# it will fail if any change to the performance schema
+# database structure is detected, acting as a fail safe.
+#
+# If a change was intended, then:
+# - (a) Go in storage/perfschema/pfs_dd_version.h
+# and create a new version number for this release
+# - (b) Add a row in table test.pfs_published_schema
+# for the new schema published, using the signature
+# of the new schema.
+#
+# (a) will ensure that upgrades from old releases
+# will notice the schema change, and upgrade
+# the performance_schema structure in the data dictionary accordingly.
+# (b) will ensure this test pass again without the SIGNAL complaining.
+#
+# BEWARE, failure to do (a) when doing (b) alone
+# **WILL** result in broken upgrades,
+# with a server binary using a new table definition
+# in the code and an old, different, table definition
+# in the data dictionary found on disk.
+#
+# This test is designed to be a reminder to do (a)
+# by detecting differences in (b)
+#
+# If you fail to properly update PFS_DD_VERSION,
+# git blame will find you.
+#
+
+insert into test.pfs_published_schema
+ values("MySQL 8.0.4-rc",
+        "80ee00f3ee0f5a775b6c661cc79909e36c43d5d6d3403391a844662e22b6e4cf");
+
+create table test.pfs_check_table
+  (id int(11) NOT NULL AUTO_INCREMENT,
+   t text NOT NULL,
+   row_hash varchar(64) default null,
+   PRIMARY KEY (id));
+
+delimiter $$;
+
+create procedure test.pfs_check_proc()
+begin
+  declare whole_schema longtext;
+  declare max_length int(11);
+  declare found_signature varchar(64);
+  declare found_version varchar(20);
+
+  insert into test.pfs_check_table(t)
+    select concat(CATALOG_NAME, "-",
+                  SCHEMA_NAME, "-",
+                  DEFAULT_CHARACTER_SET_NAME, "-",
+                  DEFAULT_COLLATION_NAME, "-",
+                  ifnull(SQL_PATH, "NULL"))
+    from INFORMATION_SCHEMA.SCHEMATA
+    where SCHEMA_NAME = "performance_schema";
+
+  insert into test.pfs_check_table(t)
+    select concat(TABLE_CATALOG, "-",
+                  TABLE_SCHEMA, "-",
+                  TABLE_NAME, "-",
+                  TABLE_TYPE, "-",
+                  ENGINE, "-",
+                  VERSION, "-",
+                  ROW_FORMAT, "-",
+                  ifnull(AUTO_INCREMENT, "no_auto_increment"), "-",
+                  ifnull(TABLE_COLLATION, "no_collation"), "-",
+                  ifnull(CREATE_OPTIONS, "no_create_options"), "-",
+                  ifnull(TABLE_COMMENT, "no_table_comments"))
+    from INFORMATION_SCHEMA.TABLES
+    where TABLE_SCHEMA = "performance_schema"
+    order by TABLE_NAME;
+
+  insert into test.pfs_check_table(t)
+    select concat(TABLE_CATALOG, "-",
+                  TABLE_SCHEMA, "-",
+                  TABLE_NAME, "-",
+                  COLUMN_NAME, "-",
+                  ORDINAL_POSITION, "-",
+                  ifnull(COLUMN_DEFAULT, "no_default"), "-",
+                  IS_NULLABLE, "-",
+                  COLUMN_TYPE, "-",
+                  ifnull(CHARACTER_SET_NAME, "no_charset"), "-",
+                  ifnull(COLLATION_NAME, "no_collation"), "-",
+                  ifnull(COLUMN_COMMENT, "no_comment"))
+    from INFORMATION_SCHEMA.COLUMNS
+    where TABLE_SCHEMA = "performance_schema"
+    order by TABLE_NAME, ORDINAL_POSITION;
+
+  insert into test.pfs_check_table(t)
+    select concat(TABLE_CATALOG, "-",
+                  TABLE_SCHEMA, "-",
+                  TABLE_NAME, "-",
+                  NON_UNIQUE, "-",
+                  INDEX_SCHEMA, "-",
+                  INDEX_NAME, "-",
+                  SEQ_IN_INDEX, "-",
+                  COLUMN_NAME, "-",
+                  NULLABLE, "-",
+                  INDEX_TYPE, "-",
+                  COMMENT)
+    from INFORMATION_SCHEMA.STATISTICS
+    where TABLE_SCHEMA = "performance_schema"
+    order by TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
+
+/*
+  There is a lot of data to crunch,
+  doing an intermediate checksum by row.
+*/
+
+  update test.pfs_check_table
+    set row_hash = sha2(t, 256);
+
+/*
+  And then doing a checksum of all rows.
+*/
+
+  select group_concat(row_hash order by id)
+    from test.pfs_check_table
+    into whole_schema;
+
+  select length(whole_schema) into max_length;
+
+  if (max_length = @@group_concat_max_len)
+  then
+    signal sqlstate "50000" set message_text = "Failed to check, whole_schema string truncated";
+  end if;
+
+  select SHA2(whole_schema, 256) into found_signature;
+
+  select version into found_version from test.pfs_published_schema
+    where signature = found_signature;
+
+  if found_version is null
+  then
+    begin
+      /* Limitation on SIGNAL */
+      declare full_msg text;
+
+      /*
+        Booby trap: some people do not analyze test failures and
+        blindly mtr --record a test to make it 'pass'.
+        Make sure, by using now(), that this will not happen.
+        See the comments in the MAINTAINER section of this test.
+      */
+      select concat("Unknown signature ",
+                    found_signature,
+                    ", fix PFS_DD_VERSION now (",
+                    now(),
+                    ")") into full_msg;
+
+      signal sqlstate "50000" set message_text = full_msg;
+    end;
+  end if;
+
+  select concat("The tables in the performance_schema were last changed in ",
+                found_version) as "CHECK STATUS";
+
+end
+$$
+
+delimiter ;$$
+
+--echo "Checking the performance schema database structure ..."
+
+call test.pfs_check_proc();
+
+# Debug
+# select count(*) from test.pfs_check_table;
+
+SET group_concat_max_len = @old_group_concat_max_len;
+
+drop table test.pfs_published_schema;
+drop table test.pfs_check_table;
+drop procedure test.pfs_check_proc;
+
+--enable_query_log

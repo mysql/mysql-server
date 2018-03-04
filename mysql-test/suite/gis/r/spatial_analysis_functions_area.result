@@ -292,24 +292,6 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0));
 ST_AREA(ST_GEOMFROMTEXT(@star_top_to_center,0))
 0
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000));
-ST_AREA(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 1000. Calculations in function st_area will be done in SRID 0.
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star,123456789));
-ST_AREA(ST_GEOMFROMTEXT(@star,123456789))
-287.5
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 123456789. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 123456789. Calculations in function st_area will be done in SRID 0.
-SELECT ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-ST_AREA(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295))
-200
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_area will be done in SRID 0.
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_of_elems,4294967296));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_AREA(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
@@ -397,21 +379,12 @@ ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 0))
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
 0
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
-ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
-0
-# Undefined SRS (should pass with warning)
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 5000000));
-ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 5000000))
-0
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 5000000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 5000000. Calculations in function st_area will be done in SRID 0.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (5000001, 1, 'TEST5000001', 'Foo', 5000001, 'FOOBAR', '');
-SELECT ST_AREA(ST_GEOMFROMTEXT('POINT(0 0)', 5000001));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 5000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 5000001;
+ERROR 22S00: st_area(POINT) has not been implemented for geographic spatial reference systems.
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_AREA(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.

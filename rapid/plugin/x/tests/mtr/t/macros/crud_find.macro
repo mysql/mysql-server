@@ -6,3 +6,9 @@ Mysqlx.Crud.Find {
   %PAYLOAD%
 }
 -->endmacro
+
+-->macro Show  %TABLE%
+# "Fast" to write, version of Mysqlx.Crud.Find
+-->stmtsql SELECT doc FROM xtest.%TABLE%
+-->recvresult
+-->endmacro

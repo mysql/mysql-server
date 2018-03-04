@@ -1,0 +1,81 @@
+#
+# Bug#27122947: RSA PUBLIC KEY GETS CACHED ON SLAVE
+#               WHICH IS USED BY SUBSEQUENT LOGINS
+#
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+==== Create new replication user ====
+[connection master]
+CREATE USER u27122947 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd';
+GRANT REPLICATION SLAVE ON *.* TO u27122947;
+==== Start using new replication user on slave ====
+include/sync_slave_sql_with_master.inc
+[connection slave]
+include/stop_slave.inc
+CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+Warnings:
+Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+==== Make sure that replication works ====
+[connection master]
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT * FROM t1;
+c1
+1
+==== Stop slave and used empty values for master_public_key_path ====
+[connection slave]
+include/stop_slave.inc
+CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
+Warnings:
+Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+==== Remove cached password from master ====
+[connection master]
+FLUSH PRIVILEGES;
+INSERT INTO t1 VALUES (2);
+==== Try START SLAVE on slave : I/O thread should throw error ====
+[connection slave]
+START SLAVE;
+include/wait_for_slave_io_error.inc [errno=2061]
+==== Try setting correct public key ====
+[connection slave]
+include/stop_slave.inc
+CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+Warnings:
+Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc
+==== Try setting master_public_key_path to '' ====
+[connection slave]
+include/stop_slave.inc
+CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
+Warnings:
+Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+==== IO thread should start without issues because password is still cached ====
+[connection slave]
+include/start_slave.inc
+SELECT * FROM t1;
+c1
+1
+2
+==== Reset and cleanup ====
+[connection slave]
+include/stop_slave.inc
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/rpl_reset.inc
+[connection master]
+DROP TABLE t1;
+DROP USER u27122947;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

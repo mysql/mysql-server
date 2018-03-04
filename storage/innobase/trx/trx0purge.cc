@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -990,8 +998,8 @@ trx_purge_mark_undo_for_truncate(
 	ut_a(undo::spaces->size() >= FSP_MIN_UNDO_TABLESPACES);
 
 	/* Return immediately if
-	     * truncate is disabled or
-	     * an undo tablespace is currently marked for truncate. */
+	 1. truncate is disabled or
+	 2. an undo tablespace is currently marked for truncate. */
 	if (!srv_undo_log_truncate || undo_trunc->is_marked()) {
 		return;
 	}
@@ -1067,7 +1075,8 @@ trx_purge_cleanse_purge_queue(
 		     ++it2) {
 
 			if ((*it2)->space_id
-				== undo_trunc->get_marked_space_id()) {
+			    == undo_trunc->get_marked_space_id()) {
+
 				it->erase(it2);
 				break;
 			}
@@ -1416,6 +1425,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
+#ifdef UNIV_DEBUG
 		trx_sys_mutex_enter();
 
 		/* Add debug code to track history list corruption reported
@@ -1429,14 +1439,19 @@ trx_purge_rseg_get_next_history_log(
 		if (trx_sys->rseg_history_len > 2000000) {
 			ib::warn() << "Purge reached the head of the history"
 				" list, but its length is still reported as "
-				<< trx_sys->rseg_history_len << "! Make"
-				" a detailed bug report, and submit it to"
-				" http://bugs.mysql.com";
-			ut_ad(0);
+				<< trx_sys->rseg_history_len << " which is"
+				" unusually high.";
+			ib::info() << "This can happen for multiple reasons";
+			ib::info() << "1. A long running transaction is"
+				" withholding purging of undo logs or a read"
+				" view is open. Please try to commit the long"
+				" running transaction.";
+			ib::info() << "2. Try increasing the number of purge"
+				" threads to expedite purging of undo logs.";
 		}
 
 		trx_sys_mutex_exit();
-
+#endif
 		return;
 	}
 
@@ -1495,6 +1510,7 @@ trx_purge_read_undo_rec(
 	page_no_t	page_no;
 	ib_uint64_t	undo_no;
 	space_id_t	undo_rseg_space;
+	trx_id_t	modifier_trx_id;
 
 	purge_sys->hdr_offset = purge_sys->rseg->last_offset;
 	page_no = purge_sys->hdr_page_no = purge_sys->rseg->last_page_no;
@@ -1506,6 +1522,7 @@ trx_purge_read_undo_rec(
 		mtr_start(&mtr);
 
 		undo_rec = trx_undo_get_first_rec(
+			&modifier_trx_id,
 			purge_sys->rseg->space_id,
 			page_size,
 			purge_sys->hdr_page_no,
@@ -1527,11 +1544,13 @@ trx_purge_read_undo_rec(
 		offset = 0;
 		undo_no = 0;
 		undo_rseg_space = SPACE_UNKNOWN;
+		modifier_trx_id = 0;
 	}
 
 	purge_sys->offset = offset;
 	purge_sys->page_no = page_no;
 	purge_sys->iter.undo_no = undo_no;
+	purge_sys->iter.modifier_trx_id = modifier_trx_id;
 	purge_sys->iter.undo_rseg_space = undo_rseg_space;
 
 	purge_sys->next_stored = TRUE;
@@ -1698,6 +1717,9 @@ static MY_ATTRIBUTE((warn_unused_result))
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(
 /*=====================*/
+	trx_id_t*	modifier_trx_id,
+					/*!< out: modifier trx id. this is the
+					trx that created the undo record. */
 	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
 	ulint*		n_pages_handled,/*!< in/out: number of UNDO log pages
 					handled */
@@ -1724,6 +1746,8 @@ trx_purge_fetch_next_rec(
 	*roll_ptr = trx_undo_build_roll_ptr(
 		FALSE, purge_sys->rseg->space_id,
 		purge_sys->page_no, purge_sys->offset);
+
+	*modifier_trx_id = purge_sys->iter.modifier_trx_id;
 
 	/* The following call will advance the stored values of the
 	purge iterator. */
@@ -1808,7 +1832,8 @@ trx_purge_attach_undo_recs(
 
 		/* Fetch the next record, and advance the purge_sys->iter. */
 		rec.undo_rec = trx_purge_fetch_next_rec(
-			&rec.roll_ptr, &n_pages_handled, heap);
+			&rec.modifier_trx_id, &rec.roll_ptr, &n_pages_handled,
+			heap);
 
 		if (rec.undo_rec == &trx_purge_ignore_rec) {
 
@@ -1867,10 +1892,11 @@ trx_purge_attach_undo_recs(
 			if (node->recs == nullptr) {
 				node->recs = it->second;
 			} else {
-				node->recs->insert(
-					std::end(*node->recs),
-					std::begin(*it->second),
-					std::end(*it->second));
+
+				for (auto iter = it->second->begin();
+				     iter != it->second->end(); ++iter) {
+					node->recs->push_back(*iter);
+				}
 			}
 		}
 	}

@@ -204,3 +204,24 @@ SELECT ROW_NUMBER() OVER () rn,
        1+NTH_VALUE(SUM(c/d), 1) OVER (ORDER BY a) plus_fv,
        1+NTH_VALUE(SUM(c/d), 2) OVER (ORDER BY a) plus_lv FROM t GROUP BY a,b;
 DROP TABLE t;
+
+--echo #
+--echo # Bug#26740557: WINDOW FUNC + JSON: ASSERTION FAILED:
+--echo #               FALSE IN ITEM::VAL_JSON
+--echo #
+
+SELECT ((MAKETIME(((QUARTER('| !*c>*{/'))<=>
+               (NTH_VALUE(JSON_OBJECTAGG('key4',0x067c13d0d0d7d8c8d768aef7)
+                    ,1)OVER())),'9236-05-27',0xe2a7d4))^(0x1109));
+SELECT ((NTH_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'),246)OVER())<=(1));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((NTH_VALUE(JSON_MERGE_PATCH(1.755913e+308,'{ }'),1)OVER())<=(1));
+SELECT ((QUOTE(JSON_KEYS(NTH_VALUE(JSON_KEYS(EXP(-15676),ABS('d0')),
+                          162)OVER())))>=(CONNECTION_ID()));
+--error ER_INVALID_TYPE_FOR_JSON
+SELECT ((QUOTE(JSON_KEYS(NTH_VALUE(JSON_KEYS(EXP(-15676),ABS('d0')),
+                          1)OVER())))>=(CONNECTION_ID()));
+SELECT JSON_LENGTH(NTH_VALUE(JSON_OBJECTAGG('key2','*B'),172)OVER());
+SELECT JSON_LENGTH(NTH_VALUE(JSON_OBJECTAGG('key2','*B'),1)OVER());
+
+--echo # End of test for Bug#26740557

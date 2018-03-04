@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -686,6 +693,26 @@ Dbtup::varsize_reader(Uint8* outBuffer,
       memcpy(dst, srcPtr, srcBytes);
       zero32(dst, srcBytes);
       req_struct->out_buf_index= newIndexBuf;
+#if 0
+      /**
+       * Code that can be activated in debug mode to verify that record
+       * is consistent.
+       */
+      Uint32 arrayType = AttributeDescriptor::getArrayType(attr_descriptor);
+      if (arrayType == NDB_ARRAYTYPE_SHORT_VAR)
+      {
+        jam();
+        const Uint8 *len = (const Uint8*)srcPtr;
+        ndbassert(((*len) + 1) == srcBytes);
+      }
+      else if (arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
+      {
+        jam();
+        const Uint8 *len = (const Uint8*)srcPtr;
+        Uint32 tot_len = 2 + len[0] + (256 * len[1]);
+        ndbassert(tot_len == srcBytes);
+      }
+#endif
       return true;
     }
   }
@@ -1796,6 +1823,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
                                         value, /* truncate */ false) == false))
       {
         jam();
+        ndbassert(false);
         return -ZAI_INCONSISTENCY_ERROR;
       }
       inBufIndex += 1 + sz;
@@ -1829,6 +1857,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
                                           gciLo, /*truncate*/ true) == false))
         {
           jam();
+          ndbassert(false);
           return -ZAI_INCONSISTENCY_ERROR;
         }
       }
@@ -1931,6 +1960,7 @@ Dbtup::updateFixedSizeTHOneWordNotNULL(Uint32* inBuffer,
     }
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -1966,7 +1996,8 @@ Dbtup::updateFixedSizeTHTwoWordNotNULL(Uint32* inBuffer,
       return false;
     }
   } else {
-    jam();
+    jam(); 
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -2035,6 +2066,7 @@ Dbtup::fixsize_updater(Uint32* inBuffer,
     }
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -2079,6 +2111,7 @@ Dbtup::updateFixedSizeTHManyWordNULLable(Uint32* inBuffer,
       return true;
     } else {
       jam();
+      ndbassert(false);
       req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
       return false;
     }
@@ -2150,6 +2183,7 @@ Dbtup::varsize_updater(Uint32* in_buffer,
         return true;
       }
       jam();
+      ndbassert(false);
       req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
       return false;
     }
@@ -2160,6 +2194,7 @@ Dbtup::varsize_updater(Uint32* in_buffer,
   }
   
   jam();
+  ndbassert(false);
   req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
   return false;
 }
@@ -2193,7 +2228,8 @@ Dbtup::updateVarSizeNULLable(Uint32* inBuffer,
       req_struct->in_buf_index= newIndex;
       return true;
     } else {
-      jam();
+      jam(); 
+      ndbassert(false);
       req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
       return false;
     }
@@ -2298,6 +2334,7 @@ Dbtup::updateDynFixedSizeNULLable(Uint32* inBuffer,
     return true;
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -2363,6 +2400,7 @@ Dbtup::updateDynBigFixedSizeNULLable(Uint32* inBuffer,
     return true;
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -2405,6 +2443,7 @@ Dbtup::updateDynBitsNotNULL(Uint32* inBuffer,
     }//if
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }//if
@@ -2437,6 +2476,7 @@ Dbtup::updateDynBitsNULLable(Uint32* inBuffer,
     return true;
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -2496,6 +2536,7 @@ Dbtup::updateDynVarSizeNULLable(Uint32* inBuffer,
     return true;
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -2547,18 +2588,16 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     sz = 1;
     break;
   case AttributeHeader::ROW_COUNT:
+  {
+    Uint64 row_count = req_struct->fragPtrP->m_row_count;
+    memcpy(&outBuffer[1], &row_count, 8);
+    sz = 2;
+    break;
+  }
   case AttributeHeader::COMMIT_COUNT:
   {
-    const Uint32 DataSz = 2;
-    SignalT<DataSz> signalT;
-    Signal * signal = new (&signalT) Signal(0);
-
-    signal->theData[0] = req_struct->operPtrP->userpointer;
-    signal->theData[1] = attrId;
-    
-    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
-    outBuffer[1] = signal->theData[0];
-    outBuffer[2] = signal->theData[1];
+    Uint64 committed_changes = req_struct->fragPtrP->m_committed_changes;
+    memcpy(&outBuffer[1], &committed_changes, 8);
     sz = 2;
     break;
   }
@@ -3097,6 +3136,7 @@ Dbtup::updateBitsNotNULL(Uint32* inBuffer,
     }//if
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }//if
@@ -3136,6 +3176,7 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
       return true;
     } else {
       jam();
+      ndbassert(false);
       req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
       return false;
     }//if
@@ -3200,6 +3241,7 @@ Dbtup::updateDiskFixedSizeNotNULL(Uint32* inBuffer,
     }
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -3231,6 +3273,7 @@ Dbtup::updateDiskFixedSizeNULLable(Uint32* inBuffer,
       return true;
     } else {
       jam();
+      ndbassert(false);
       req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
       return false;
     }
@@ -3298,6 +3341,7 @@ Dbtup::updateDiskVarAsFixedSizeNotNULL(Uint32* inBuffer,
     }
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode= ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -3329,6 +3373,7 @@ Dbtup::updateDiskVarAsFixedSizeNULLable(Uint32* inBuffer,
       return true;
     } else {
       jam();
+      ndbassert(false);
       req_struct->errorCode= ZAI_INCONSISTENCY_ERROR;
       return false;
     }
@@ -3379,6 +3424,7 @@ Dbtup::updateDiskVarSizeNotNULL(Uint32* in_buffer,
     }
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }
@@ -3415,6 +3461,7 @@ Dbtup::updateDiskVarSizeNULLable(Uint32* inBuffer,
       return true;
     } else {
       jam();
+      ndbassert(false);
       req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
       return false;
     }
@@ -3450,6 +3497,7 @@ Dbtup::updateDiskBitsNotNULL(Uint32* inBuffer,
     }//if
   } else {
     jam();
+    ndbassert(false);
     req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
     return false;
   }//if
@@ -3489,6 +3537,7 @@ Dbtup::updateDiskBitsNULLable(Uint32* inBuffer,
       return true;
     } else {
       jam();
+      ndbassert(false);
       req_struct->errorCode = ZAI_INCONSISTENCY_ERROR;
       return false;
     }//if

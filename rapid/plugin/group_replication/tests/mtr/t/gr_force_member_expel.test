@@ -91,6 +91,9 @@ SET SESSION sql_log_bin= 1;
 --let $group_replication_number_of_members= 1
 --source ../inc/gr_wait_for_number_of_members.inc
 
+--let $wait_condition= SELECT @@GLOBAL.super_read_only = '1'
+--source include/wait_condition.inc
+
 --error ER_OPTION_PREVENTS_STATEMENT
 CREATE TABLE te (c1 INT NOT NULL PRIMARY KEY);
 

@@ -782,7 +782,7 @@ end|
 
 create trigger tr1 before insert on t1 for each row 
 begin 
-  call bug11587();
+  call bug11587(new.c2);
   set new.c2= '2004-04-02';
 end|
 delimiter ;|
@@ -4096,3 +4096,96 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test/t1.dat;
 
 SET TIMESTAMP= DEFAULT;
+
+
+--echo #
+--echo # BUG 26626277: BUG IN "INSERT... ON DUPLICATE KEY UPDATE" QUERY
+--echo #
+
+--echo # Setup.
+CREATE TABLE t1 (fld1 VARCHAR(64) NOT NULL,
+fld2 INT DEFAULT 0, PRIMARY KEY (fld1));
+
+CREATE TABLE t2 (fld1 VARCHAR(64) NOT NULL,
+fld2 INT(11) DEFAULT NULL, PRIMARY KEY (fld1));
+
+INSERT INTO t1(fld1) VALUES (1100);
+INSERT INTO t2 VALUES (1100, 40);
+
+DELIMITER $$;
+
+CREATE TRIGGER update_after_update
+AFTER UPDATE ON t2 FOR EACH ROW
+BEGIN
+  UPDATE t1 SET t1.fld2 = t1.fld2 + 1
+  WHERE t1.fld1 = NEW.fld1;
+END$$
+
+DELIMITER ;$$
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo # Without patch, the after update trigger is not invoked.
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 50;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo # Without patch, the after update trigger is not invoked.
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 50;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo # Test added for coverage.
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 60;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo # Tests covering before update trigger.
+
+--echo # Setup.
+TRUNCATE TABLE t1;
+DROP TRIGGER update_after_update;
+INSERT INTO t1(fld1) VALUES (1100);
+
+DELIMITER $$;
+
+CREATE TRIGGER update_before_update
+BEFORE UPDATE ON t2 FOR EACH ROW
+BEGIN
+  UPDATE t1 SET t1.fld2 = t1.fld2 + 1
+  WHERE t1.fld1 = NEW.fld1;
+END$$
+
+DELIMITER ;$$
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 50;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 50;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 60;
+
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+--echo # Cleanup
+DROP TRIGGER update_before_update;
+DROP TABLE t1, t2;

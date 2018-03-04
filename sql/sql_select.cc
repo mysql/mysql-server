@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -165,6 +172,8 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
                       removed_options))
       goto err;
   }
+
+  lex->set_exec_started();
 
   DBUG_ASSERT(!lex->is_query_tables_locked());
   /*
@@ -552,6 +561,8 @@ bool Sql_cmd_dml::execute(THD *thd)
 #endif
   }
 
+  lex->set_exec_started();
+
   DBUG_EXECUTE_IF("use_attachable_trx",
                   thd->begin_attachable_ro_transaction(););
 
@@ -792,37 +803,47 @@ static bool check_locking_clause_access(THD *thd, Global_tables_list tables)
 
 bool Sql_cmd_select::precheck(THD *thd)
 {
-  bool res;
   /*
     lex->exchange != NULL implies SELECT .. INTO OUTFILE and this
     requires FILE_ACL access.
   */
-  ulong privileges_requested= lex->exchange ? SELECT_ACL | FILE_ACL :
-                                              SELECT_ACL;
+  bool check_file_acl= (lex->result != nullptr &&
+                        lex->result->needs_file_privilege());
 
+  /*
+    Check following,
+
+    1) Check FILE privileges for current user who runs a query if needed.
+
+    2) Check privileges for every user specified as a definer for a view or
+       check privilege to access any DB in case a table wasn't specified.
+       Although calling of check_access() when no tables are specified results
+       in returning false value immediately, this call has important side
+       effect: the counter 'stage/sql/checking permissions' in performance
+       schema is incremented. Therefore, this function is called in order to
+       save backward compatibility.
+
+    3) Performs access check for the locking clause, if present.
+
+    @todo: The condition below should be enabled when this function is
+    extended to handle SHOW statements as well.
+
+      || (first_table && first_table->schema_table_reformed &&
+       check_show_access(thd, first_table));
+  */
   TABLE_LIST *tables= lex->query_tables;
-  //TABLE_LIST *first_table= tables;
 
+  if (check_file_acl && check_global_access(thd, FILE_ACL))
+    return true;
+
+  bool res;
   if (tables)
-  {
-    res= check_table_access(thd,
-                            privileges_requested,
-                            tables, false, UINT_MAX, false); // ||
-         /*
-           @todo: The lines below should be enabled when this function is
-           extended to handle SHOW statements as well.
-
-         (first_table && first_table->schema_table_reformed &&
-          check_show_access(thd, first_table));
-         */
-  }
+    res= check_table_access(thd, SELECT_ACL, tables, false,
+                            UINT_MAX, false);
   else
-    res= check_access(thd, privileges_requested, any_db, NULL, NULL, 0, 0);
+    res= check_access(thd, SELECT_ACL, any_db, nullptr, nullptr, 0, 0);
 
-  if (!res)
-    res= check_locking_clause_access(thd, tables);
-
-  return res;
+  return res || check_locking_clause_access(thd, tables);
 }
 
 
@@ -1279,6 +1300,8 @@ static bool setup_semijoin_dups_elimination(JOIN *join, uint no_jbuf_after)
                                                sjtbl->rowid_len + 
                                                sjtbl->null_bytes,
                                                sjtbl);
+          if (sjtbl->tmp_table == nullptr)
+            DBUG_RETURN(true);
           if (sjtbl->tmp_table->hash_field)
             sjtbl->tmp_table->file->ha_index_init(0, 0);
           join->sj_tmp_tables.push_back(sjtbl->tmp_table);
@@ -1455,11 +1478,7 @@ void JOIN::reset()
     }
   }
   clear_sj_tmp_tables(this);
-  if (current_ref_item_slice != REF_SLICE_SAVE)
-  {
-    set_ref_item_slice(REF_SLICE_SAVE);
-    set_group_rpa= false;
-  }
+  set_ref_item_slice(REF_SLICE_SAVE);
 
   /* need to reset ref access state (see join_read_key) */
   if (qep_tab)
@@ -1518,11 +1537,13 @@ bool JOIN::prepare_result()
 
   error= 0;
   // Create result tables for materialized views/derived tables
-  if (select_lex->materialized_derived_table_count && !zero_result_cause)
+  if ((select_lex->materialized_derived_table_count > 0 ||
+       select_lex->table_func_count > 0) && !zero_result_cause)
   {
     for (TABLE_LIST *tl= select_lex->leaf_tables; tl; tl= tl->next_leaf)
     {
-      if (tl->is_view_or_derived() && tl->create_derived(thd))
+      if ((tl->is_view_or_derived() || tl->is_table_function()) &&
+          tl->create_materialized_table(thd))
         goto err;                 /* purecov: inspected */
     }
   }
@@ -2063,11 +2084,6 @@ get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
     if (item_ref->ref_type() == Item_ref::OUTER_REF)
     {
       if ((*item_ref->ref)->type() == Item::FIELD_ITEM)
-        field_item= static_cast<Item_field*>(item_ref->real_item());
-      else if ((*(Item_ref**)(item_ref)->ref)->ref_type()
-               == Item_ref::DIRECT_REF
-               && 
-               item_ref->real_item()->type() == Item::FIELD_ITEM)
         field_item= static_cast<Item_field*>(item_ref->real_item());
     }
   }
@@ -2763,7 +2779,8 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
 {
   const bool statistics= !join->thd->lex->is_explain();
   const bool prep_for_pos= join->need_tmp_before_win || join->select_distinct ||
-                           join->group_list || join->order;
+                           join->group_list || join->order ||
+                           join->m_windows.elements > 0;
 
   DBUG_ENTER("make_join_readinfo");
   ASSERT_BEST_REF_IN_JOIN_ORDER(join);
@@ -2929,7 +2946,7 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
         for a query.
       */
       tab->position()->filter_effect=
-        join->thd->lex->describe ?
+        join->thd->lex->is_explain() ?
         calculate_condition_filter(tab,
                                    (tab->ref().key != -1) ? tab->position()->key : NULL,
                                    tab->prefix_tables() & ~tab->table_ref->map(),
@@ -2944,7 +2961,13 @@ make_join_readinfo(JOIN *join, uint no_jbuf_after)
     qep_tab->pick_table_access_method(tab);
 
     // Materialize derived tables prior to accessing them.
-    if (tab->table_ref->uses_materialization())
+    if (tab->table_ref->is_table_function())
+    {
+      qep_tab->materialize_table= join_materialize_table_function;
+      if (tab->dependent)
+        qep_tab->rematerialize= true;
+    }
+    else if (tab->table_ref->uses_materialization())
       qep_tab->materialize_table= join_materialize_derived;
 
     if (qep_tab->sj_mat_exec())
@@ -3156,7 +3179,7 @@ void JOIN::join_free()
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  bool full= (!select_lex->uncacheable && !thd->lex->describe);
+  bool full= (!select_lex->uncacheable && !thd->lex->is_explain());
   bool can_unlock= full;
   DBUG_ENTER("JOIN::join_free");
 
@@ -3259,11 +3282,8 @@ void JOIN::cleanup()
   }
 
   /* Restore ref array to original state */
-  if (current_ref_item_slice != REF_SLICE_SAVE)
-  {
-    set_ref_item_slice(REF_SLICE_SAVE);
-    set_group_rpa= false;
-  }
+  set_ref_item_slice(REF_SLICE_SAVE);
+
   DBUG_VOID_RETURN;
 }
 
@@ -3953,7 +3973,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
             from SUM(). ROLLUP code should find and set both NULL in order
             to get correct result.
           */
-          if ( item == *group_tmp->item || item->eq(*group_tmp->item, false))
+          if (item == *group_tmp->item || item->eq(*group_tmp->item, false))
 	  {
 	    /*
 	      This is an element that is used by the GROUP BY and should be
@@ -4101,6 +4121,26 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table)
 
 
 /**
+  todo: remove this explanation after reviewers have seen it.
+  More info about the problem that required this function:
+  select from (select WF1 over w1, WF2 over w2) dt;
+  where "dt" is materialized. First the "dt" table structure is created with
+  create_tmp_table() and that sets WF{1,2}->result_field (pointing into
+  columns of "dt"). Then the inner subquery is optimized, that calls
+  create_tmp_table() for the two windows. First for w1: WF1 is to be
+  calculated in w1 so a column is added for its result in the tmp table; so
+  its result_field gets re-set to point there, all fine. Continuing with the
+  creation of wf1, WF2 is skipped. Then change_to_use_tmp_fields() sees that
+  WF1 and WF2 have a result_field (see test
+  'else if ((field= item->get_tmp_table_field()))'), so concludes that the ref
+  slice used to read the tmp table of w1 should contain Item_fields for WF1
+  and WF2; that's incorrect for WF2, and leads to WF2 never being calculated.
+  My fix: in create_tmp_table(), when the destination table is to materialize
+  a derived table / UNION (i.e. is not a group-by/windowing table), there's no
+  reason to set result_field (results are not saved by this means anyway, but
+  by Query_result_union::send_data() which reads the last table of the query
+  and writes that to the materialized table), so don't set it.
+
   In subqueries, this state may not be clean before we start creating tmp files
   for windowing passes. This is needed because only the first window gets its
   result field set in the first tmp file pass, other result fields should be
@@ -4113,18 +4153,7 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table)
 
   causing the second windowing to fail, i.e. SUM.
 */
-static void reset_wf_result_fields(List<Item> *curr_all_fields)
-{
-  List_iterator<Item> li(*curr_all_fields);
-  Item *item;
-  while((item= li++))
-  {
-    if (item->has_wf())
-    {
-      down_cast<Item_result_field*>(item)->set_result_field(nullptr);
-    }
-  }
-}
+//static void reset_wf_result_fields(List<Item> *curr_all_fields)
 
 
 /**
@@ -4195,15 +4224,6 @@ bool JOIN::make_tmp_tables_info()
   const bool has_group_by= this->grouped;
 
   /*
-    Setup last table to provide fields and all_fields lists to the next
-    node in the plan.
-  */
-  if (qep_tab)
-  {
-    qep_tab[primary_tables - 1].fields= &fields_list;
-    qep_tab[primary_tables - 1].all_fields= &all_fields;
-  }
-  /*
     The loose index scan access method guarantees that all grouping or
     duplicate row elimination (for distinct) is already performed
     during data retrieval, and that all MIN/MAX functions are already
@@ -4219,8 +4239,6 @@ bool JOIN::make_tmp_tables_info()
       !qep_tab[0].quick()->is_agg_loose_index_scan();
 
   uint last_slice_before_windowing= REF_SLICE_BASE;
-
-  reset_wf_result_fields(curr_all_fields);
 
   /*
     Create the first temporary table if distinct elimination is requested or
@@ -4280,7 +4298,7 @@ bool JOIN::make_tmp_tables_info()
       sorted access even if final result is not to be sorted.
     */
     DBUG_ASSERT(
-      !(ordered_index_usage == ordered_index_void &&
+      !(m_ordered_index_usage == ORDERED_INDEX_VOID &&
         !plan_is_const() && 
         qep_tab[const_tables].position()->sj_strategy != SJ_OPT_LOOSE_SCAN &&
         qep_tab[const_tables].use_order()));
@@ -4319,8 +4337,6 @@ bool JOIN::make_tmp_tables_info()
     // Need to set them now for correct group_fields setup, reset at the end.
     set_ref_item_slice(REF_SLICE_TMP1);
     qep_tab[curr_tmp_table].ref_item_slice= REF_SLICE_TMP1;
-    qep_tab[curr_tmp_table].all_fields= &tmp_all_fields[REF_SLICE_TMP1];
-    qep_tab[curr_tmp_table].fields= &tmp_fields_list[REF_SLICE_TMP1];
     setup_tmptable_write_func(&qep_tab[curr_tmp_table], REF_SLICE_TMP1,
                               &trace_this_tbl);
     last_slice_before_windowing= REF_SLICE_TMP1;
@@ -4338,6 +4354,9 @@ bool JOIN::make_tmp_tables_info()
         NOTE : We cannot apply having after distinct. If columns of having are
                not part of select distinct, then distinct may remove rows
                which can satisfy having.
+
+        As this condition will read the tmp table, it is appropriate that
+        REF_SLICE_TMP1 is in effect when we create it below.
       */
       if (!select_distinct && add_having_as_tmp_table_cond(curr_tmp_table))
         DBUG_RETURN(true);
@@ -4481,8 +4500,6 @@ bool JOIN::make_tmp_tables_info()
       curr_all_fields= &tmp_all_fields[REF_SLICE_TMP2];
       set_ref_item_slice(REF_SLICE_TMP2);
       qep_tab[curr_tmp_table].ref_item_slice= REF_SLICE_TMP2;
-      qep_tab[curr_tmp_table].all_fields= &tmp_all_fields[REF_SLICE_TMP2];
-      qep_tab[curr_tmp_table].fields= &tmp_fields_list[REF_SLICE_TMP2];
       setup_tmptable_write_func(&qep_tab[curr_tmp_table], REF_SLICE_TMP2,
                                 &trace_this_tbl);
       last_slice_before_windowing= REF_SLICE_TMP2;
@@ -4584,20 +4601,26 @@ bool JOIN::make_tmp_tables_info()
 
     curr_fields_list= &tmp_fields_list[REF_SLICE_TMP3];
     curr_all_fields= &tmp_all_fields[REF_SLICE_TMP3];
-    set_ref_item_slice(REF_SLICE_TMP3);
     last_slice_before_windowing= REF_SLICE_TMP3;
-    
-    if (qep_tab)
-    {
-      // Set grouped fields on the last table
-      qep_tab[primary_tables + tmp_tables - 1].ref_item_slice= REF_SLICE_TMP3;
-      qep_tab[primary_tables + tmp_tables - 1].all_fields=
-        &tmp_all_fields[REF_SLICE_TMP3];
-      qep_tab[primary_tables + tmp_tables - 1].fields=
-        &tmp_fields_list[REF_SLICE_TMP3];
-    }
+
+    if (qep_tab) // remember when to switch to REF_SLICE_TMP3 in execution
+      before_ref_item_slice_tmp3= &qep_tab[primary_tables + tmp_tables - 1];
+    /*
+      make_sum_func_list() calls rollup_make_fields() which needs the slice
+      TMP3 in input; indeed it compares *curr_all_fields (i.e. the fields_list
+      of TMP3) with the GROUP BY list (to know which Item of the SELECT list
+      should be set to NULL) so this GROUP BY had better point to the items in
+      TMP3 for the comparison to work:
+    */
+    uint save_sliceno= current_ref_item_slice;
+    set_ref_item_slice(REF_SLICE_TMP3);
     if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
       DBUG_RETURN(true);
+    /*
+      Exit the TMP3 slice, to set up sum funcs, as they take input from
+      previous table, not from that slice.
+    */
+    set_ref_item_slice(save_sliceno);
     const bool need_distinct=
       !(qep_tab && qep_tab[0].quick() &&
         qep_tab[0].quick()->is_agg_loose_index_scan());
@@ -4605,6 +4628,8 @@ bool JOIN::make_tmp_tables_info()
       DBUG_RETURN(true);
     if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
       DBUG_RETURN(true);
+    // And now set it as input for next phases:
+    set_ref_item_slice(REF_SLICE_TMP3);
   }
 
 
@@ -4613,13 +4638,6 @@ bool JOIN::make_tmp_tables_info()
     /*
       [1] above: too early to do query ORDER BY if we have windowing; must
       wait till after window processing.
-      Moreover, with window processing we can have several temporary tables;
-      if, below, we add HAVING as a condition attached to the current table
-      and evaluated by filesort()/find_all_keys(), such condition will contain
-      Item_ref whose val_*() looks at result_field, which is a column of the
-      next table, whereas correct evaluation should look at the value of *ref,
-      which is a column of the current table. To avoid the problem, we must
-      not use add_having_as_tmp_table_cond() when there are windows.
     */
     ASSERT_BEST_REF_IN_JOIN_ORDER(this);
     DBUG_PRINT("info",("Sorting for send_result_set_metadata"));
@@ -4664,8 +4682,8 @@ bool JOIN::make_tmp_tables_info()
     DBUG_PRINT("info",("Sorting for order by/group by"));
     ORDER_with_src order_arg= group_list ?  group_list : order;
     if (qep_tab &&
-        ordered_index_usage !=
-        (group_list ? ordered_index_group_by : ordered_index_order_by) &&
+        m_ordered_index_usage !=
+        (group_list ? ORDERED_INDEX_GROUP_BY : ORDERED_INDEX_ORDER_BY) &&
         // Windowing will change order, so it's too early to sort here
         !m_windowing_steps)
     {
@@ -4759,6 +4777,9 @@ bool JOIN::make_tmp_tables_info()
        */
       const uint widx= REF_SLICE_WIN_1 + wno;
       const int fbidx= widx + m_windows.elements; // use far area
+      m_windows[wno]->set_needs_restore_input_row(
+        wno == 0 && qep_tab[primary_tables - 1].type() == JT_EQ_REF);
+
 
       if (m_windows[wno]->needs_buffering())
       {
@@ -4824,7 +4845,7 @@ bool JOIN::make_tmp_tables_info()
       }
 
       if (order != nullptr &&
-          ordered_index_usage != ordered_index_order_by &&
+          m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
           m_windows[wno]->is_last())
       {
         if (add_sorting_to_table(curr_tmp_table, &order))
@@ -4848,8 +4869,6 @@ bool JOIN::make_tmp_tables_info()
       curr_all_fields= &tmp_all_fields[widx];
       set_ref_item_slice(widx);
       qep_tab[curr_tmp_table].ref_item_slice= widx;
-      qep_tab[curr_tmp_table].all_fields= &tmp_all_fields[widx];
-      qep_tab[curr_tmp_table].fields= &tmp_fields_list[widx];
       setup_tmptable_write_func(&qep_tab[curr_tmp_table], widx,
                                 &trace_this_tbl);
 

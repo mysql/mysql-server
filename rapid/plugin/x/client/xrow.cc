@@ -1,23 +1,28 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "mysqlxclient/xrow.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
 
 #include <algorithm>
 #include <cassert>
@@ -247,7 +252,8 @@ bool buffer_to_double(const std::string& buffer,
 }
 
 bool buffer_to_datetime(const std::string& buffer,
-                        DateTime *out_result) {
+                        DateTime *out_result,
+                        const bool has_time) {
   uint16_t year;
   uint8_t  month, day;
   uint8_t  hour = 0, minutes = 0, seconds = 0;
@@ -266,16 +272,18 @@ bool buffer_to_datetime(const std::string& buffer,
   if (!read_required_uint64(&input_stream, &day))
     return false;
 
-  read_optional_time(&input_stream,
-                     &hour, &minutes, &seconds,
-                     &useconds);
+  if (out_result) {
+    if (has_time) {
+      read_optional_time(&input_stream, &hour, &minutes, &seconds, &useconds);
+      *out_result = DateTime(year, month, day, hour, minutes, seconds,
+                             useconds);
+    } else {
+      *out_result = DateTime(year, month, day);
+    }
+    return true;
+  }
 
-  if (out_result)
-    *out_result = DateTime(year, month, day,
-                    hour, minutes, seconds,
-                    useconds);
-
-  return true;
+  return false;
 }
 
 bool buffer_to_time(const std::string& buffer,

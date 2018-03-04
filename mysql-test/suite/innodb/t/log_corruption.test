@@ -6,24 +6,24 @@ write_file $newdir/mysql/plugin.frm;
 EOF
 
 let SEARCH_FILE = $newdir/my_restart.err;
-let $args=--no-defaults --innodb_dedicated_server=OFF --datadir=$newdir --secure-file-priv="" --loose-skip-auto-generate-certs --loose-skip-sha256-password-auto-generate-rsa-keys --loose-console --loose-skip-log-bin > $SEARCH_FILE 2>&1 ;
+let $args=--no-defaults --innodb_dedicated_server=OFF --datadir=$newdir --secure-file-priv="" --loose-skip-auto-generate-certs --loose-skip-sha256-password-auto-generate-rsa-keys --loose-console --loose-skip-log-bin --log-error-verbosity=3 > $SEARCH_FILE 2>&1 ;
 
---echo # redo log from before MySQL 5.7.9
+--echo # redo log from before we started versioning in MySQL 5.7.9
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: Unsupported redo log format\\. The redo log was created before MySQL 5\\.7\\.9\\.;
+let SEARCH_PATTERN=InnoDB: Unsupported redo log format \(0\). The redo log was created before MySQL 5\.7\.9.*;
 --source include/search_pattern.inc
 
---echo # redo log from MySQL 5.7.9, with corrupted log block
+--echo # redo log from before MySQL 8.0.3, with corrupted log block
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption0.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported. This redo log was created with malicious intentions, or perhaps, and it appears corrupted;
+let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported.*;
 --source include/search_pattern.inc
 
---echo # redo log from "after" MySQL 5.7.9, but with invalid header checksum
+--echo # redo log from MySQL 8.0.3, but with invalid header checksum
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption1.zip -d $newdir > $SEARCH_FILE
 --error 1,42
@@ -36,19 +36,19 @@ let SEARCH_PATTERN=InnoDB: Invalid redo log header checksum;
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption2.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: Unsupported redo log format. The redo log was created with malicious intentions, or perhaps\\. Please follow the instructions at http://dev.mysql.com/doc/refman/8.0/en/upgrading-downgrading.html;
+let SEARCH_PATTERN=InnoDB: Unknown redo log format \(4294967295\).*;
 --source include/search_pattern.inc
 
---echo # redo log from MySQL 5.7.9, with corrupted log checkpoint
+--echo # redo log from MySQL 8.0.3, with corrupted log checkpoint
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption3.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: No valid checkpoint found .corrupted redo log;
+let SEARCH_PATTERN=InnoDB: No valid checkpoint found.*corrupted redo log;
 --source include/search_pattern.inc
 
 --echo # valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2,
---echo # invalid block checksum (MLOG_CHECKPOINT cannot be read),
+--echo # invalid block checksum,
 --echo # thus we cannot determine if the redo log is logically clean.
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption4.zip -d $newdir > $SEARCH_FILE
@@ -56,15 +56,16 @@ let SEARCH_PATTERN=InnoDB: No valid checkpoint found .corrupted redo log;
 # Missing tablespace files are tolerated already with innodb_force_recovery=1.
 --error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=5
-let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported\\. This redo log was created with malicious intentions, or perhaps, and it appears corrupted\\.;
+let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished with innodb_force_recovery > 0;
 --source include/search_pattern.inc
+
 --echo # --innodb-force-recovery=6 (skip the entire redo log)
 --error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=6
 let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished in read-only mode;
 --source include/search_pattern.inc
 
---echo # valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
+--echo # valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption4a.zip -d $newdir > $SEARCH_FILE
 # Anything below innodb_force_recovery=6 must find a valid redo log.
@@ -72,16 +73,21 @@ let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished in read-only 
 --echo # Start with innodb-force-recovery=5
 --error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=5
-let SEARCH_PATTERN=Cannot continue InnoDB startup in force_recovery mode because there are no existing undo tablespaces found;
+let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished with innodb_force_recovery > 0;
 --source include/search_pattern.inc
+
 --echo # Start with --innodb-force-recovery=6 (skip the entire redo log)
 --error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=6
 let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished in read-only mode;
 --source include/search_pattern.inc
 
---echo # valid 8.0.0 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
+--echo # valid 8.0.3 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
 --remove_file $newdir/ib_logfile0
+# Make server believe this is 8.0 datadir
+--move_file $newdir/mysql/plugin.frm $newdir/mysql/plugin.frm.old
+write_file $newdir/mysql.ibd;
+EOF
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption4b.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=5
@@ -89,6 +95,9 @@ let SEARCH_PATTERN=InnoDB: Log block 2372 at lsn 1213952 has valid header, but c
 --source include/search_pattern.inc
 let SEARCH_PATTERN=Data Dictionary initialization failed;
 --source include/search_pattern.inc
+--remove_file $newdir/mysql.ibd
+--move_file $newdir/mysql/plugin.frm.old $newdir/mysql/plugin.frm
+
 --echo # --innodb-force-recovery=6 (skip the entire redo log)
 --error 1,42
 --exec $MYSQLD $args --innodb-force-recovery=6
@@ -99,7 +108,7 @@ let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished in read-only 
 --remove_file $newdir/ib_logfile0
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption4c.zip -d $newdir > $SEARCH_FILE
 --error 1,42
---exec $MYSQLD $args --innodb-force-recovery=5
+--exec $MYSQLD $args
 let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported\\. This redo log was created with malicious intentions, or perhaps\\.;
 --source include/search_pattern.inc
 let SEARCH_PATTERN=Data Dictionary initialization failed;
@@ -116,10 +125,10 @@ let SEARCH_PATTERN=InnoDB: Database upgrade cannot be accomplished in read-only 
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption4d.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args --innodb-log-file-size=4M
-let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported\\. This redo log was created with malicious intentions, or perhaps\\.;
+let SEARCH_PATTERN=InnoDB: Upgrade after a crash is not supported.*;
 --source include/search_pattern.inc
 
-# Replace database with 1M redo logs from before MySQL 5.7.9
+# Replace database with 1M redo logs from before MySQL 8.0.3
 --remove_file $newdir/ib_logfile0
 --remove_file $newdir/ib_logfile1
 --remove_file $newdir/ibdata1
@@ -146,7 +155,7 @@ let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption6.zip -d $newdir > $SEARCH_FILE
 --error 1,42
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: The log file was created by mysqlbackup --apply-log at ibbackup was here!!!1!\\. The following crash recovery is part of a normal restore\\.;
+let SEARCH_PATTERN=InnoDB: The log file was created by mysqlbackup --apply-log at MEB      was here!!!1!\\. The following crash recovery is part of a normal restore\\.;
 --source include/search_pattern.inc
 let SEARCH_PATTERN=InnoDB: ############### CORRUPT LOG RECORD FOUND ###############;
 --source include/search_pattern.inc
@@ -161,19 +170,16 @@ let SEARCH_PATTERN=InnoDB: Set innodb_force_recovery to ignore this error;
 
 --echo # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
 --echo # redo log
---remove_file $newdir/ib_logfile0
+--force-rmdir $newdir
+--mkdir $newdir
+--mkdir $newdir/mysql
+write_file $newdir/mysql/plugin.frm;
+EOF
+
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption7.zip -d $newdir > $SEARCH_FILE
 --error 1
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1213973;
+let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1319985;
 --source include/search_pattern.inc
-# This was created by the upgrade.
---remove_file $newdir/ib_buffer_pool
 
---remove_file $SEARCH_FILE
---remove_files_wildcard $newdir ibdata*
---remove_files_wildcard $newdir ib_logfile*
---remove_files_wildcard $newdir undo_00*
---remove_files_wildcard $newdir tablespaces.open.*
---force-rmdir  $newdir/mysql
---rmdir $newdir
+--force-rmdir  $newdir

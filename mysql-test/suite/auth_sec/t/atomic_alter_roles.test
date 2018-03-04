@@ -1,0 +1,130 @@
+--source include/have_log_bin.inc
+--source include/save_binlog_position.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+--echo
+
+--echo # Create a few users
+CREATE USER userX, userY, userZ;
+--echo # Create a few roles
+CREATE ROLE 'administrator', 'qa', 'developer', 'manager';
+--echo # Grant roles to the created users
+GRANT 'administrator', 'qa', 'developer', 'manager' to userX, userY, userZ;
+--echo # Check the number of the roles and users created.
+SELECT COUNT(*) FROM mysql.user;
+--echo # Check the number of default roles.
+SELECT COUNT(*) FROM mysql.default_roles;
+--echo
+
+--echo #
+--echo # 1. Tests to SET list of roles as DEFAULT
+--echo #
+--echo
+
+--echo # 1.1 : Set the default roles for a valid and an invalid user; Must fail.
+--error ER_FAILED_DEFAULT_ROLES
+SET DEFAULT ROLE 'administrator', 'qa' to userX, invalidUser;
+--echo
+
+--echo # No default roles must be added for valid user i.e. userX
+SELECT * FROM mysql.default_roles;
+--echo
+
+--let $invert= 1
+--let $event= !Q(SET DEFAULT ROLE .*userX.*invalidUser.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+--source include/save_binlog_position.inc
+--echo
+
+--echo # 1.2 : Set the default roles for two valid users
+SET DEFAULT ROLE administrator, qa to userX, userY;
+--echo
+
+--echo # Default roles must be added for both users
+SELECT * FROM mysql.default_roles;
+--echo
+
+--let $event= !Q(SET DEFAULT ROLE .*userX.*userY.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+--echo
+
+--echo #
+--echo # 2. Tests to set the default roles to ALL
+--echo #
+--echo
+
+--echo # 2.1 : Set default roles for valid users and an invalid user; Must fail.
+--error ER_UNKNOWN_AUTHID
+SET DEFAULT ROLE ALL to userY, userZ, invalidUser;
+--echo
+
+--echo # No default roles must be added for valid users i.e. userY, userZ
+SELECT * FROM mysql.default_roles;
+--echo
+
+--let $invert= 1
+--let $event= !Q(SET DEFAULT ROLE ALL .*userX.*userY.*invalidUser.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--let $invert= 0
+--source include/save_binlog_position.inc
+--echo
+
+--echo # 2.2 : Set the default roles for multiple users
+SET DEFAULT ROLE ALL to userX, userY, userZ;
+--echo
+
+--echo # All default roles must be added/updated for users
+SELECT * FROM mysql.default_roles;
+--echo
+
+--let $event= !Q(SET DEFAULT ROLE ALL .*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+--echo
+
+--echo #
+--echo # 3. Tests to set the default roles to NONE
+--echo #
+--echo
+
+--echo # 3.1 : Set default roles to NONE for valid users and ignore invalid user;
+SET DEFAULT ROLE NONE to userY, invalidUser;
+--echo
+
+--echo # Default roles must be removed from valid users
+SELECT * FROM mysql.default_roles;
+--echo
+
+--let $event= !Q(SET DEFAULT ROLE NONE .*userY.*invalidUser.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+--echo
+
+--echo # 3.2 : Set the default roles to NONE for valid users
+SET DEFAULT ROLE NONE to userX, userY, userZ;
+--echo
+
+--echo # All default roles must be removed for users
+SELECT * FROM mysql.default_roles;
+--echo
+
+--let $event= !Q(SET DEFAULT ROLE NONE .*userX.*userY.*userZ.*)
+--source ../include/auth_sec_assert_binlog_events.inc
+--source include/save_binlog_position.inc
+--echo
+
+--echo #
+--echo # End of tests
+--echo #
+--echo
+
+--echo # Drop the roles
+DROP ROLE 'administrator', 'qa', 'developer', 'manager';
+--echo # Drop the users
+DROP USER userX, userY, userZ;
+
+# Wait till we reached the initial number of concurrent sessions
+--source include/wait_until_count_sessions.inc

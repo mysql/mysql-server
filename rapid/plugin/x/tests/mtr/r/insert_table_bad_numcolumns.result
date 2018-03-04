@@ -344,8 +344,6 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: ""
   schema: ""
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 21
   flags: 16
 }

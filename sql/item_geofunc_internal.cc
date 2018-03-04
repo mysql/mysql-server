@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -22,6 +29,7 @@
 #include <boost/geometry/core/exception.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/index/predicates.hpp>
+#include <boost/geometry/strategies/strategies.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 #include <string.h>
 #include <algorithm>
@@ -48,7 +56,7 @@ class Spatial_reference_system;
 }  // namespace dd
 
 
-bool Srs_fetcher::lock(gis::srid_t srid)
+bool Srs_fetcher::lock(gis::srid_t srid, enum_mdl_type lock_type)
 {
   DBUG_ENTER("lock_srs");
   DBUG_ASSERT(srid != 0);
@@ -60,15 +68,17 @@ bool Srs_fetcher::lock(gis::srid_t srid)
   mdl_request.init_with_source(MDL_key::SRID,
                                "",
                                id_str,
-                               MDL_SHARED_READ,
+                               lock_type,
                                MDL_TRANSACTION,
                                __FILE__,
                                __LINE__);
   if (m_thd->mdl_context.acquire_lock(&mdl_request,
                                       m_thd->variables.lock_wait_timeout))
   {
+    /* purecov: begin inspected */
     // If locking fails, an error has already been flagged.
     DBUG_RETURN(true);
+    /* purecov: end */
   }
 
   DBUG_RETURN(false);
@@ -78,11 +88,23 @@ bool Srs_fetcher::lock(gis::srid_t srid)
 bool Srs_fetcher::acquire(gis::srid_t srid,
                           const dd::Spatial_reference_system **srs)
 {
-  if (lock(srid))
-    return true;
+  if (lock(srid, MDL_SHARED_READ))
+    return true; /* purecov: inspected */
 
   if (m_thd->dd_client()->acquire(srid, srs))
-    return true;
+    return true; /* purecov: inspected */
+  return false;
+}
+
+
+bool Srs_fetcher::acquire_for_modification(gis::srid_t srid,
+                                           dd::Spatial_reference_system **srs)
+{
+  if (lock(srid, MDL_EXCLUSIVE))
+    return true; /* purecov: inspected */
+
+  if (m_thd->dd_client()->acquire_for_modification(srid, srs))
+    return true; /* purecov: inspected */
   return false;
 }
 
@@ -94,7 +116,7 @@ bool Srs_fetcher::srs_exists(THD *thd, gis::srid_t srid, bool *exists)
   Srs_fetcher fetcher(thd);
   const dd::Spatial_reference_system *srs= nullptr;
   if (fetcher.acquire(srid, &srs))
-    return true;
+    return true; /* purecov: inspected */
   *exists= (srs != nullptr);
   return false;
 }

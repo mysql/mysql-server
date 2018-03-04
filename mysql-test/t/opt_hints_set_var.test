@@ -441,9 +441,15 @@ FROM t1 WINDOW w as (ORDER BY d RANGE BETWEEN 1 FOLLOWING AND 2 FOLLOWING);
 DROP TABLE t1;
 CALL test_hint("SET_VAR(windowing_use_high_precision=OFF)", "windowing_use_high_precision");
 
+# Testing cte_max_recursion_depth
+--error ER_CTE_MAX_RECURSION_DEPTH
+WITH RECURSIVE qn AS (
+SELECT 1 AS a UNION ALL
+SELECT 1+a FROM qn WHERE a<=10)
+SELECT /*+ SET_VAR(cte_max_recursion_depth=5) */ COUNT(*) FROM qn;
+CALL test_hint("SET_VAR(cte_max_recursion_depth=5)", "cte_max_recursion_depth");
 
 DROP PROCEDURE test_hint;
-
 
 --echo #
 --echo # Bug#26482684 WL681: RESULT DIFF SEEN FOR SQL_SELECT_LIMIT HINT.

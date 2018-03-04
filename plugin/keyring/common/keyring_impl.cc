@@ -1,27 +1,34 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sstream>
 #include <stddef.h>
 #include <memory>
+#include <sstream>
 
-#include "keyring.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/psi/mysql_memory.h"
+#include "plugin/keyring/common/keyring.h"
 
 namespace keyring
 {
@@ -240,4 +247,38 @@ bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove)
   retval= keys->remove_key(key_to_remove.get());
   mysql_rwlock_unlock(&LOCK_keyring);
   return retval;
+}
+
+bool mysql_keyring_iterator_init(Keys_iterator *key_iterator)
+{
+  mysql_rwlock_rdlock(&LOCK_keyring);
+  key_iterator->init();
+  mysql_rwlock_unlock(&LOCK_keyring);
+  return false;
+}
+
+void mysql_keyring_iterator_deinit(Keys_iterator *key_iterator)
+{
+  key_iterator->deinit();
+}
+
+bool mysql_keyring_iterator_get_key(Keys_iterator *key_iterator,
+                                    char *key_id, char *user_id)
+{
+  keyring::Key_metadata *key_loaded= NULL;
+  bool error= key_iterator->get_key(&key_loaded);
+  if (error == false && key_loaded != NULL)
+  {
+    if (key_id)
+      strcpy(key_id, key_loaded->id->c_str());
+    if (user_id)
+      strcpy(user_id, key_loaded->user->c_str());
+    delete key_loaded;
+  }
+  else if (error == false && key_loaded == NULL)
+  {
+    /* no keys exists or all keys are read */
+    return true;
+  }
+  return error;
 }

@@ -14,6 +14,7 @@
 ###############################################################################
 
 --source include/big_test.inc
+--source include/have_ssl.inc
 --source include/have_mysqlx_plugin.inc
 --source ../inc/have_group_replication_plugin_base.inc
 
@@ -49,7 +50,7 @@ SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=0;
 EOF
 
 --echo Starting GR on server 1
---exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
 
 # Wait for member state to be ONLINE
 --let $group_replication_member_state= ONLINE
@@ -61,10 +62,6 @@ EOF
 --let $xcom_port = `SELECT SUBSTR("$group_replication_local_address",11,5)`
 
 ## Verify the default values of some of the GLOBAL variables whose values are independent of the MTR enviroment
-
---let $assert_text= group_replication_allow_local_disjoint_gtids_join is OFF
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_allow_local_disjoint_gtids_join]" = "0"
---source include/assert.inc
 
 --let $assert_text= group_replication_allow_local_lower_version_join is OFF
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_allow_local_lower_version_join]" = "0"
@@ -130,7 +127,6 @@ EOF
 
 --source include/stop_group_replication.inc
 
-SET @group_replication_allow_local_disjoint_gtids_join_save= @@GLOBAL.group_replication_allow_local_disjoint_gtids_join;
 SET @group_replication_allow_local_lower_version_join_save= @@GLOBAL.group_replication_allow_local_lower_version_join;
 SET @group_replication_auto_increment_increment_save= @@GLOBAL.group_replication_auto_increment_increment;
 SET @group_replication_components_stop_timeout_save= @@GLOBAL.group_replication_components_stop_timeout;
@@ -159,12 +155,13 @@ SET @group_replication_recovery_use_ssl_save= @@GLOBAL.group_replication_recover
 SET @group_replication_single_primary_mode_save= @@GLOBAL.group_replication_single_primary_mode;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
 SET @group_replication_start_on_boot_save= @@GLOBAL.group_replication_start_on_boot;
+SET @group_replication_recovery_public_key_path_save= @@GLOBAL.group_replication_recovery_public_key_path;
+SET @group_replication_recovery_get_public_key_save= @@GLOBAL.group_replication_recovery_get_public_key;
 
 ## Set the GR Variables
 
 --write_file $MYSQL_TMP_DIR/set_variables.tmp
 -->sql
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= ON;
 SET GLOBAL group_replication_allow_local_lower_version_join= ON;
 SET GLOBAL group_replication_auto_increment_increment= 5;
 SET GLOBAL group_replication_bootstrap_group= 1;
@@ -213,11 +210,16 @@ SET GLOBAL group_replication_recovery_use_ssl= ON;
 SET GLOBAL group_replication_single_primary_mode= ON;
 SET GLOBAL group_replication_ssl_mode= "VERIFY_CA";
 SET GLOBAL group_replication_start_on_boot= ON;
+SET GLOBAL group_replication_recovery_get_public_key= ON;
+-->endsql
+-->varsub %TEST_DIR%
+-->sql
+SET GLOBAL group_replication_recovery_public_key_path= '%TEST_DIR%/std_data/rsa_public_key.pem';
 -->endsql
 EOF
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR $xcom_port xcom_port
---exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/set_variables.tmp -v %TEST_DIR%=$MYSQL_TEST_DIR -v %XCOM_PORT%=$xcom_port 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/set_variables.tmp -v %TEST_DIR%=$MYSQL_TEST_DIR -v %XCOM_PORT%=$xcom_port 2>&1
 
 ## Start GR
 
@@ -225,10 +227,6 @@ EOF
 ## it resets the Group name set above.
 
 --source include/start_group_replication_command.inc
-
---let $assert_text= group_replication_allow_local_disjoint_gtids_join is ON
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_allow_local_disjoint_gtids_join]" = "1"
---source include/assert.inc
 
 --let $assert_text= group_replication_allow_local_lower_version_join is ON
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_allow_local_lower_version_join]" = "1"
@@ -346,6 +344,14 @@ EOF
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_ssl_mode]" = "VERIFY_CA"
 --source include/assert.inc
 
+--let $assert_text= group_replication_recovery_public_key_path is MYSQL_TEST_DIR/std_data/rsa_public_key.pem
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_public_key_path]" = "$MYSQL_TEST_DIR/std_data/rsa_public_key.pem"
+--source include/assert.inc
+
+--let $assert_text= group_replication_recovery_get_public_key is ON
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_get_public_key]" = "1"
+--source include/assert.inc
+
 # Creating temp file to stop GR.
 --write_file $MYSQL_TMP_DIR/stop_group_replication.tmp
 -->stmtsql STOP GROUP_REPLICATION;
@@ -354,7 +360,7 @@ EOF
 
 ## Stop GR on Server1
 --echo Stopping GR on server 1
---exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 
 ## Wait for member state to be OFFLINE.
 --let $group_replication_member_state= OFFLINE
@@ -363,7 +369,6 @@ EOF
 
 ## Modify the GLOBAL variables to its original value
 
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= @group_replication_allow_local_disjoint_gtids_join_save;
 SET GLOBAL group_replication_allow_local_lower_version_join= @group_replication_allow_local_lower_version_join_save;
 SET GLOBAL group_replication_auto_increment_increment= @group_replication_auto_increment_increment_save;
 SET GLOBAL group_replication_components_stop_timeout= @group_replication_components_stop_timeout_save;
@@ -393,14 +398,16 @@ SET GLOBAL group_replication_single_primary_mode= @group_replication_single_prim
 SET GLOBAL group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET GLOBAL group_replication_start_on_boot= @group_replication_start_on_boot_save;
 SET GLOBAL group_replication_enforce_update_everywhere_checks= @group_replication_enforce_update_everywhere_checks_save;
+SET GLOBAL group_replication_recovery_public_key_path= @group_replication_recovery_public_key_path_save;
+SET GLOBAL group_replication_recovery_get_public_key= @group_replication_recovery_get_public_key_save;
 
 ## See if GR is able to start after resetting the values.
---exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
 --let $group_replication_member_state= ONLINE
 --source ../inc/gr_wait_for_member_state.inc
 
 ## Stop GR
---exec $MYSQLXTEST -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$mysqlx_port1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $group_replication_member_state= OFFLINE

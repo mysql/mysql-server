@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <algorithm>
 
@@ -68,7 +75,7 @@ bool apply_to_table_graph(const dd::Table &table,
     return true;
   }
 
-  for (auto &&ix : table.indexes())
+  for (auto &ix : table.indexes())
   {
     if (ftor(*ix, std::forward<CLOSURE_TYPE>(clos)))
     {
@@ -76,19 +83,22 @@ bool apply_to_table_graph(const dd::Table &table,
     }
   }
 
-  for (auto &&part : table.partitions())
+  if (table.partitions().empty())
   {
-    if (ftor(*part, std::forward<CLOSURE_TYPE>(clos)))
+    return false;
+  }
+  const dd::Partition *part= table.partitions().front();
+
+  if (ftor(*part, std::forward<CLOSURE_TYPE>(clos)))
+  {
+    return true;
+  }
+
+  for (auto &part_ix : part->indexes())
+  {
+    if (ftor(*part_ix, std::forward<CLOSURE_TYPE>(clos)))
     {
       return true;
-    }
-
-    for (auto &&part_ix : part->indexes())
-    {
-      if (ftor(*part_ix, std::forward<CLOSURE_TYPE>(clos)))
-      {
-        return true;
-      }
     }
   }
   return false;
@@ -163,10 +173,6 @@ enum struct Sdi_type : uint32
   TABLESPACE,
 };
 
-dd::sdi_key_t get_sdi_key(const dd::Schema &schema)
-{
-  return dd::sdi_key_t {static_cast<uint32>(Sdi_type::SCHEMA), schema.id()};
-}
 
 dd::sdi_key_t get_sdi_key(const dd::Table &table)
 {
@@ -179,89 +185,34 @@ dd::sdi_key_t get_sdi_key(const dd::Tablespace &tablespace)
       tablespace.id()};
 }
 
-void check_error_state(THD *thd, const char *operation,
-                       const dd::Schema *sch,
-                       const dd::Table *tbl,
-                       const dd::Tablespace &tspc)
-{
-  // TODO: Bug#26516584 - Handle SDI API error
-  // Gopal: What is expected here ?
-  if (thd->is_error() || thd->killed)
-  {
-    // An error should not be set here, but if it is, we don't want to report
-    // ER_SDI_OPERATION_FAILED
-    return;
-  }
-  my_error(ER_SDI_OPERATION_FAILED, MYF(0), operation,
-           (sch?sch->name().c_str():"<no schema>"),
-           (tbl?tbl->name().c_str():"<no table>"),
-           tspc.name().c_str());
-}
-
 } // namespace
 
 namespace dd {
 namespace sdi_tablespace {
-bool store_sch_sdi(THD *thd, const handlerton &hton,
-                   const Sdi_type &sdi, const dd::Schema &schema,
-                   const dd::Table &table)
-{
-  const dd::sdi_key_t schema_key= get_sdi_key(schema);
-  return apply_to_tablespaces
-    (thd, table,
-     [&] (const dd::Tablespace &tblspc)
-     {
-       DBUG_PRINT("ddsdi", ("store_sch_sdi(Schema" ENTITY_FMT
-                            ", Table" ENTITY_FMT ")",
-                            ENTITY_VAL(schema), ENTITY_VAL(table)));
-
-       if (hton.sdi_set(tblspc,
-                        &table,
-                        &schema_key,
-                        sdi.c_str(), sdi.size()))
-       {
-         check_error_state(thd, "store schema", &schema,
-                           &table, tblspc);
-         return true;
-       }
-       return false;
-     });
-}
-
 bool store_tbl_sdi(THD *thd, const handlerton &hton,
                    const dd::Sdi_type &sdi, const dd::Table &table,
-                   const dd::Schema &schema)
+                   const dd::Schema &schema MY_ATTRIBUTE((unused)))
 {
   const dd::sdi_key_t key= get_sdi_key(table);
-  const dd::sdi_key_t schema_key= get_sdi_key(schema);
-  const dd::Sdi_type schema_sdi= dd::serialize(schema);
 
-  auto store_sdi_with_schema= [&] (const dd::Tablespace &tblspc) -> bool
+  auto store_sdi= [&] (const dd::Tablespace &tblspc) -> bool
   {
     DBUG_PRINT("ddsdi",("store_sdi_with_schema[](Schema" ENTITY_FMT
                         ", Table" ENTITY_FMT ")",
                         ENTITY_VAL(schema), ENTITY_VAL(table)));
     if (hton.sdi_set(tblspc, &table, &key, sdi.c_str(), sdi.size()))
     {
-      check_error_state(thd, "store table", &schema, &table, tblspc);
-      return true;
-    }
-
-    if (hton.sdi_set(tblspc, &table, &schema_key, schema_sdi.c_str(),
-                     schema_sdi.size()))
-    {
-      check_error_state(thd, "store schema", &schema, &table, tblspc);
-      return true;
+      return checked_return(true);
     }
 
     return false;
   };
 
-  return apply_to_tablespaces(thd, table, store_sdi_with_schema);
+  return apply_to_tablespaces(thd, table, store_sdi);
 }
 
 
-bool store_tsp_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
+bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
                    const Tablespace &tblspc)
 {
   dd::sdi_key_t key= get_sdi_key(tblspc);
@@ -269,15 +220,15 @@ bool store_tsp_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
   DBUG_PRINT("ddsdi",("store_tsp_sdi(" ENTITY_FMT ")", ENTITY_VAL(tblspc)));
   if (hton.sdi_set(tblspc, nullptr, &key, sdi.c_str(), sdi.size()))
   {
-    check_error_state(thd, "store tablespace", nullptr, nullptr, tblspc);
-    return true;
+    return checked_return(true);
   }
   return false;
 }
 
 
 bool drop_tbl_sdi(THD *thd, const handlerton &hton,
-                  const Table &table, const Schema &schema)
+                  const Table &table,
+                  const Schema &schema MY_ATTRIBUTE((unused)))
 {
   DBUG_PRINT("ddsdi",("store_tbl_sdi(Schema" ENTITY_FMT
                       ", Table" ENTITY_FMT ")",
@@ -290,9 +241,7 @@ bool drop_tbl_sdi(THD *thd, const handlerton &hton,
       {
         if (hton.sdi_delete(tblspc, &table, &sdi_key))
         {
-          check_error_state(thd, "drop table", &schema, &table,
-                            tblspc);
-          return true;
+          return checked_return(true);
         }
         return false;
       });

@@ -11,38 +11,85 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-# restart: --log-error=LOG_FILE3 --log-error-verbosity=7 --binlog-format=statement
+# restart: --log-error=LOG_FILE3 --log-error-verbosity=3 --binlog-format=statement
 INSERT INTO t1 SELECT FOUND_ROWS();
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 DROP TABLE t1;
-# restart: --log-error=LOG_FILE8 --lc-messages-dir=MSG_DIR
+# restart: --log-error=LOG_FILE8 --lc-messages-dir=MSG_DIR --log-error-verbosity=3
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
-# restart: --log-error=LOG_FILE9 --log-error-services=abcd 
+# restart: --log-error=LOG_FILE8B --lc-messages=invalid_arg1 --lc-time-names=invalid_arg2
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+# restart: --log-error=LOG_FILE9 --log-error-verbosity=3 --log-error-services=abcd 
 SELECT @@GLOBAL.LOG_ERROR_SERVICES;
 @@GLOBAL.LOG_ERROR_SERVICES
 log_filter_internal; log_sink_internal
 SET GLOBAL LOG_ERROR_SERVICES=@@GLOBAL.LOG_ERROR_SERVICES;
-# restart: --log-error=LOG_FILE10 --log-error-services=log_sink_json 
+Pattern "\[Note\].*Cannot set services "abcd" requested in --log-error-services, using defaults" found
+# restart: --log-error=LOG_FILE10 --log-error-verbosity=3 --log-error-services=log_sink_json 
+Pattern "\[Note\].*Cannot set services "log_sink_json" requested in --log-error-services, using defaults" found
 INSTALL COMPONENT "file://component_log_sink_json";
-# restart: --no-console --log-error=LOG_FILE11 --log-error-services=log_filter_internal;log_sink_internal;log_sink_json 
+# restart: --no-console --log-error=LOG_FILE11 --log-error-services=log_filter_internal;log_sink_internal;log_sink_json --log-error-verbosity=3
 connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
 SET GLOBAL log_error_services= default;
 UNINSTALL COMPONENT "file://component_log_sink_json";
+Pattern "\[ERROR\].*unknown variable 'dragnet.log_error_filter_rules=a'" found
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+# restart: --no-console --log-error=LOG_FILE13 --log-error-services=log_filter_internal;log_filter_dragnet;log_sink_internal --dragnet.log-error-filter-rules=
+SELECT @@log_error_services;
+@@log_error_services
+log_filter_internal;log_filter_dragnet;log_sink_internal
+SELECT @@dragnet.log_error_filter_rules;
+@@dragnet.log_error_filter_rules
+
+SET @saved_log_error_verbosity= @@global.log_error_verbosity;
+SET GLOBAL log_error_verbosity= 3;
+SET GLOBAL dragnet.log_error_filter_rules="IF err_code==ER_ACCESS_DENIED_ERROR_WITH_PASSWORD THEN throttle 3/3600.";
+Warnings:
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==10926 THEN throttle 3/3600.';
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+connect(localhost,unknown_user,,,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'unknown_user'@'localhost' (using password: NO)
+SET GLOBAL log_error_verbosity= @saved_log_error_verbosity;
+SET PERSIST dragnet.log_error_filter_rules= "IF prio>INFORMATION THEN drop.";
+Warnings:
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>INFORMATION THEN drop.';
+# restart: --no-console --log-error=LOG_FILE14 --log-error-services=log_filter_internal;log_filter_dragnet;log_sink_internal 
+SELECT @@global.dragnet.log_error_filter_rules;
+@@global.dragnet.log_error_filter_rules
+IF prio>INFORMATION THEN drop.
+RESET PERSIST `dragnet.log_error_filter_rules`;
+SET GLOBAL log_error_services= default;
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+# restart: --no-console --log-error=LOG_FILE15 --dragnet.log_error_filter_rules=invalid
+SELECT @@global.dragnet.log_error_filter_rules;
+@@global.dragnet.log_error_filter_rules
+IF prio>=INFORMATION THEN drop. IF EXISTS source_line THEN unset source_line.
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 
 Reading error logs for validation
 ---------------------------------
 [ PASS ] Error log does not contain WARNING's/NOTE's with --log-error-verbosity=1
 [ PASS ] Error log does not contain NOTE's with --log-error-verbosity=2
 [ PASS ] Error log contains NOTE's & WARNING's with --log-error-verbosity=3
-[ PASS ] Error log does not contain NOTE's with default verbosity(2)  during initialization
+[ PASS ] Error log does not contain NOTE's or WARNING's with --log-error-verbosity=-1 (adjusted to 1) during initialization
 [ PASS ] Error log does not contain WARNING's/NOTE's with --log-error-verbosity=1  during initialization
 [ PASS ] Error log does not contain NOTE's with --log-error-verbosity=2  during initialization
-[ PASS ] Error log contains NOTE's with --log-error-verbosity=3 during initialization
+[ PASS ] Error log contains NOTE's with --log-error-verbosity=7 (adjusted to 3) during initialization.
 [ PASS ] Error log contains a NOTE with compiled-in message 'Access denied' when lc_messages_dir does not contain error messages
 [ PASS ] Error log successfully parsed as a json document
 [ PASS ] Expected entry found in the json error log:-Access denied for user 'unknown_user'@'localhost' (using password: NO)
+[ PASS ] Error log messages throttled at three for 'Access denied' messages

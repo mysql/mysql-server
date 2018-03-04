@@ -1,18 +1,25 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #include <gtest/gtest.h>
@@ -21,12 +28,12 @@
 #include <string>
 #include <utility>
 
-#include "client/xsession_impl.h"
 #include "errmsg.h"
-#include "mock/factory.h"
-#include "mock/protocol.h"
-#include "mock/connection.h"
-#include "mock/connection_state.h"
+#include "plugin/x/client/xsession_impl.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection.h"
+#include "unittest/gunit/xplugin/xcl/mock/connection_state.h"
+#include "unittest/gunit/xplugin/xcl/mock/factory.h"
+#include "unittest/gunit/xplugin/xcl/mock/protocol.h"
 
 
 namespace xcl {
@@ -49,7 +56,7 @@ class Xcl_session_impl_tests : public Test {
     m_sut = make_sut(false);
   }
 
-  std::unique_ptr<Session_impl> make_sut(const bool is_connected) {
+  std::unique_ptr<Session_impl> prepare_session() {
     std::unique_ptr<Session_impl> result;
     /** Create mock and return it to the `Session_impl` object.
      The object takes ownership of the pointer. We hold a copy
@@ -72,8 +79,6 @@ class Xcl_session_impl_tests : public Test {
         WillRepeatedly(ReturnRef(m_mock_connection));
     EXPECT_CALL(m_mock_connection, state()).
         WillRepeatedly(ReturnRef(m_mock_connection_state));
-    EXPECT_CALL(m_mock_connection_state, is_connected()).
-        WillRepeatedly(Return(is_connected));
 
     result.reset(new Session_impl(
         std::unique_ptr<Protocol_factory>{m_mock_factory}));
@@ -81,11 +86,23 @@ class Xcl_session_impl_tests : public Test {
     return result;
   }
 
+  std::unique_ptr<Session_impl> make_sut(const bool is_connected,
+      const std::string &auth = "MYSQL41") {
+    auto result = prepare_session();
+
+    EXPECT_CALL(m_mock_connection_state, is_connected()).
+        WillRepeatedly(Return(false));
+    result->set_mysql_option(
+        xcl::XSession::Mysqlx_option::Authentication_method, auth);
+    ::testing::Mock::VerifyAndClearExpectations(&m_mock_connection_state);
+    EXPECT_CALL(m_mock_connection_state, is_connected()).
+        WillRepeatedly(Return(is_connected));
+
+    return result;
+  }
+
   void expect_connection_close() {
-    EXPECT_CALL(*m_mock_protocol,
-        send(An<const ::Mysqlx::Connection::Close &>())).
-            WillOnce(Return(XError{}));
-    EXPECT_CALL(*m_mock_protocol, recv_ok()).WillOnce(Return(XError{}));
+    EXPECT_CALL(m_mock_connection, close());
   }
 
   bool encode_session_state_change(

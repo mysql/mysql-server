@@ -394,3 +394,16 @@ id
 15460588431078774149
 DROP FUNCTION crc;
 DROP TABLE t1;
+# Bug#25398451: Segmentation fault in prepare_inner() at sql_call.cc
+CREATE TABLE t1(a INTEGER, b INTEGER);
+CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW
+BEGIN
+CALL proc(NEW.a,NEW.b);
+END |
+CREATE PROCEDURE proc(IN aa INTEGER)
+BEGIN
+END |
+INSERT INTO t1 VALUES (1,10);
+ERROR 42000: Incorrect number of arguments for PROCEDURE test.proc; expected 1, got 2
+DROP PROCEDURE proc;
+DROP TABLE t1;

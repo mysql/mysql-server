@@ -1,6 +1,7 @@
 --echo Preamble
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 --disable_query_log
 --disable_result_log
 
@@ -55,11 +56,11 @@ EOF
 EOF
 
 --echo Test
---exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx-capabilities-set-all-message.tmp -n 2>&1
+--exec $MYSQLXTEST -u x_root --file=$MYSQL_TMP_DIR/mysqlx-capabilities-set-all-message.tmp -n 2>&1
 --let $send_in_single_call= query_get_value(SHOW STATUS LIKE 'Mysqlx_bytes_received', Value, 1)
 UNINSTALL PLUGIN mysqlx;
 --source include/xplugin_install_and_wait.inc
---exec $MYSQLXTEST -u root --file=$MYSQL_TMP_DIR/mysqlx-capabilities-set-parts-message.tmp -n 2>&1
+--exec $MYSQLXTEST -u x_root --file=$MYSQL_TMP_DIR/mysqlx-capabilities-set-parts-message.tmp -n 2>&1
 --let $send_in_two_calls= query_get_value(SHOW STATUS LIKE 'Mysqlx_bytes_received', Value, 1)
 
 SHOW STATUS LIKE 'Mysqlx_bytes_received';
@@ -75,6 +76,7 @@ if ( $send_in_two_calls != $send_in_single_call) {
 } 
 --echo Message sizes match
 --echo Postamble
+--source include/xplugin_drop_user.inc
 UNINSTALL PLUGIN mysqlx;
 
 --remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-set-all-message.tmp

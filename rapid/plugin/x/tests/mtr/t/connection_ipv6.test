@@ -1,5 +1,5 @@
 --echo Preamble
---source include/check_ipv4_mapped.inc
+--source include/have_ipv4_mapped.inc
 --source include/check_ipv6.inc
 --source include/xplugin_preamble.inc
 
@@ -10,7 +10,6 @@
 #   user_0000:0000:0000:0000:0000:0000:0000:0001  - before
 #               user_0::0000:0000:0000:0000:0001  - after
 #
-call mtr.add_suppression("Plugin mysqlx reported: .+: Unsuccessful login attempt: Invalid user or password");
 CREATE USER `user_localhost`@`localhost`;
 CREATE USER `user_127_0_0_1`@`127.0.0.1`;
 CREATE USER `user_::1`@`::1`;

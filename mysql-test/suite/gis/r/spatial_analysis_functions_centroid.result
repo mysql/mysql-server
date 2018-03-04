@@ -320,27 +320,15 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center,0)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_top_to_center,0)))
 POINT(15 17.5)
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical,1000)))
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical,2000)));
+ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_lines_near_vertical,2000)))
 POINT(7.5 18.75)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 1000. Calculations in function st_centroid will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 1000. The axis order is unknown.
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,123456789)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,123456789)))
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,0)));
+ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star,0)))
 POINT(14.768115942028986 10.797101449275363)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 123456789. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 123456789. Calculations in function st_centroid will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 123456789. The axis order is unknown.
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295)))
+SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,0)));
+ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_elem_vertical,0)))
 POINT(15 10)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 4294967295. Calculations in function st_centroid will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 4294967295. The axis order is unknown.
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_of_elems,4294967296)));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000)));
@@ -440,22 +428,12 @@ POINT(0 0)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
 ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 2000)))
 POINT(0 0)
-# Geographic SRS (should pass)
+# Geographic SRS (should fail)
 SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 4326)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 4326)))
-POINT(0 0)
-# Undefined SRS (should pass with warning)
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 7000000)));
-ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 7000000)))
-POINT(0 0)
-Warnings:
-Warning	3565	There's no spatial reference system with SRID 7000000. The axis order is unknown.
-Warning	3519	There's no spatial reference system with SRID 7000000. Calculations in function st_centroid will be done in SRID 0.
-Warning	3565	There's no spatial reference system with SRID 7000000. The axis order is unknown.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (7000001, 1, 'TEST7000001', 'Foo', 7000001, 'FOOBAR', '');
-SELECT ST_ASTEXT(ST_CENTROID(ST_GEOMFROMTEXT('POINT(0 0)', 7000001)));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 7000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 7000001;
+ERROR 22S00: st_centroid(POINT) has not been implemented for geographic spatial reference systems.
+#
+# WL#11096 Don't do Cartesian computations on geographic geometries
+#
+# Assume SRID 10 is not defined.
+DO ST_CENTROID(x'0A000000010100000000000000000000000000000000000000');
+ERROR SR001: There's no spatial reference system with SRID 10.

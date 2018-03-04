@@ -1038,15 +1038,15 @@ cast(cast('10101abcde' as binary) as json)
 "base64:type15:MTAxMDFhYmNkZQ=="
 select cast(ST_GeomFromText('POINT(1 1)') as json);
 cast(ST_GeomFromText('POINT(1 1)') as json)
-{"type": "Point", "coordinates": [1, 1]}
+{"type": "Point", "coordinates": [1.0, 1.0]}
 select cast(ST_GeomFromText('LINESTRING(0 0,1 1,2 2)') as json);
 cast(ST_GeomFromText('LINESTRING(0 0,1 1,2 2)') as json)
-{"type": "LineString", "coordinates": [[0, 0], [1, 1], [2, 2]]}
+{"type": "LineString", "coordinates": [[0.0, 0.0], [1.0, 1.0], [2.0, 2.0]]}
 select cast(ST_GeomFromText('POLYGON((0 0,10 0,10 10,0 10,0 0),
                                      (5 5,7 5,7 7,5 7, 5 5))') as json);
 cast(ST_GeomFromText('POLYGON((0 0,10 0,10 10,0 10,0 0),
                                      (5 5,7 5,7 7,5 7, 5 5))') as json)
-{"type": "Polygon", "coordinates": [[[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]], [[5, 5], [7, 5], [7, 7], [5, 7], [5, 5]]]}
+{"type": "Polygon", "coordinates": [[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0], [0.0, 0.0]], [[5.0, 5.0], [7.0, 5.0], [7.0, 7.0], [5.0, 7.0], [5.0, 5.0]]]}
 select cast(null as json);
 cast(null as json)
 NULL
@@ -2824,10 +2824,10 @@ json_unquote(cast(cast('2015-01-15 23:24:25' as datetime) as json))
 2015-01-15 23:24:25.000000
 select cast(st_geomfromtext('point(1 1)') as json);
 cast(st_geomfromtext('point(1 1)') as json)
-{"type": "Point", "coordinates": [1, 1]}
+{"type": "Point", "coordinates": [1.0, 1.0]}
 select json_unquote(cast(st_geomfromtext('point(1 1)') as json));
 json_unquote(cast(st_geomfromtext('point(1 1)') as json))
-{"type": "Point", "coordinates": [1, 1]}
+{"type": "Point", "coordinates": [1.0, 1.0]}
 SELECT JSON_UNQUOTE( '"abc"' );
 JSON_UNQUOTE( '"abc"' )
 abc
@@ -3344,16 +3344,16 @@ JSON_ARRAY(CASE WHEN 1 THEN NULL ELSE NULL END)
 #
 SELECT JSON_EXTRACT('-1E-36181012216111515851075235238', '$');
 JSON_EXTRACT('-1E-36181012216111515851075235238', '$')
--0
+-0.0
 SELECT JSON_EXTRACT('1E-36181012216111515851075235238', '$');
 JSON_EXTRACT('1E-36181012216111515851075235238', '$')
-0
+0.0
 SELECT JSON_EXTRACT('1E-325', '$');
 JSON_EXTRACT('1E-325', '$')
-0
+0.0
 SELECT JSON_EXTRACT('1E-324', '$');
 JSON_EXTRACT('1E-324', '$')
-0
+0.0
 SELECT JSON_EXTRACT('1E-323', '$');
 JSON_EXTRACT('1E-323', '$')
 1e-323
@@ -3811,3 +3811,56 @@ JSON_INSERT('{"a":1}', '$[0].a[1]', 123) AS c2,
 JSON_INSERT('{"a":1}', '$.a[0][1]', 123) AS c3;
 c1	c2	c3
 {"a": [1, 123]}	{"a": [1, 123]}	{"a": [1, 123]}
+#
+# Bug#26649978: JSON_INSERT: ASSERTION FAILED: PARENT
+#
+# c1, c2 and c3 should have the same result due to auto-wrapping,
+# but the expressions in c2, c3 and c4 used to hit an assert.
+SELECT JSON_INSERT('{"a":1}', '$[1]', 2) AS c1,
+JSON_INSERT('{"a":1}', '$[0][1]', 2) AS c2,
+JSON_INSERT('{"a":1}', '$[0][0][1]', 2) AS c3,
+JSON_INSERT('{"a":1}', '$[last][1]', 2) AS c4;
+c1	c2	c3	c4
+[{"a": 1}, 2]	[{"a": 1}, 2]	[{"a": 1}, 2]	[{"a": 1}, 2]
+#
+# Bug#27028889: MYSQL NORMALIZES DECIMAL NUMBERS WITH
+#               ZERO FRACTIONAL PART TO INTEGERS
+#
+SET @floating_points = '[0.0, -0.0, 1.0, -1.0, 3.14,
+                         999999999999999.0, -999999999999999.0,
+                         1000000000000000.0, -1000000000000000.0,
+                         1e200, -1e200]';
+SELECT CAST(CAST(@floating_points AS JSON) AS CHAR) AS x;
+x
+[0.0, -0.0, 1.0, -1.0, 3.14, 999999999999999.0, -999999999999999.0, 1e15, -1e15, 1e200, -1e200]
+SELECT JSON_PRETTY(@floating_points);
+JSON_PRETTY(@floating_points)
+[
+  0.0,
+  -0.0,
+  1.0,
+  -1.0,
+  3.14,
+  999999999999999.0,
+  -999999999999999.0,
+  1e15,
+  -1e15,
+  1e200,
+  -1e200
+]
+SELECT j, JSON_TYPE(j) FROM
+JSON_TABLE(CAST(CAST(CAST(@floating_points AS JSON) AS CHAR) AS JSON),
+'$[*]' COLUMNS (o FOR ORDINALITY, j JSON PATH '$')) AS jt
+ORDER BY o;
+j	JSON_TYPE(j)
+0.0	DOUBLE
+-0.0	DOUBLE
+1.0	DOUBLE
+-1.0	DOUBLE
+3.14	DOUBLE
+999999999999999.0	DOUBLE
+-999999999999999.0	DOUBLE
+1e15	DOUBLE
+-1e15	DOUBLE
+1e200	DOUBLE
+-1e200	DOUBLE

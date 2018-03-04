@@ -1,6 +1,13 @@
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+UPDATE performance_schema.setup_threads SET ENABLED='NO';
+UPDATE performance_schema.threads SET INSTRUMENTED='NO';
+UPDATE performance_schema.threads
+SET INSTRUMENTED='YES' WHERE PROCESSLIST_ID = connection_id();
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'NO'
   where NAME='wait/io/table/sql/handler';
+TRUNCATE TABLE performance_schema.events_waits_current;
+TRUNCATE TABLE performance_schema.events_waits_history;
+TRUNCATE TABLE performance_schema.events_waits_history_long;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
 ENGINE=MyISAM;
@@ -68,7 +75,6 @@ ON COMPLETION PRESERVE
 DO INSERT INTO t_event
 SELECT DISTINCT EVENT_ID
 FROM performance_schema.events_waits_current
-JOIN performance_schema.events_waits_history USING (EVENT_ID)
 ORDER BY EVENT_ID
 LIMIT 1;
 ALTER TABLE t1 ADD COLUMN c INT;
@@ -112,4 +118,6 @@ DROP FUNCTION t_ps_func;
 DROP EVENT t_ps_event;
 DROP TABLE t1;
 DROP TABLE t_event;
+UPDATE performance_schema.setup_threads SET ENABLED='YES';
+UPDATE performance_schema.threads SET INSTRUMENTED='YES';
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';

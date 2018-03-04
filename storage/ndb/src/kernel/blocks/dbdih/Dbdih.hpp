@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -143,19 +150,6 @@ class Dbdih: public SimulatedBlock {
 public:
 
   // Records
-
-  /**
-   * THE API CONNECT RECORD IS THE SAME RECORD POINTER AS USED IN THE TC BLOCK
-   *
-   * IT KEEPS TRACK OF ALL THE OPERATIONS CONNECTED TO THIS TRANSACTION.
-   * IT IS LINKED INTO A QUEUE IN CASE THE GLOBAL CHECKPOINT IS CURRENTLY
-   * ONGOING
-   */
-  struct ApiConnectRecord {
-    Uint64 apiGci;
-    Uint32 senderData;
-  };
-  typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
 
   /*############## CONNECT_RECORD ##############*/
   /**
@@ -621,7 +615,7 @@ public:
   };
   typedef Ptr<ReplicaRecord> ReplicaRecordPtr;
   typedef ArrayPool<ReplicaRecord> ReplicaRecord_pool;
-  typedef DLFifoList<ReplicaRecord, ReplicaRecord_pool> ReplicaRecord_fifo;
+  typedef DLFifoList<ReplicaRecord_pool> ReplicaRecord_fifo;
 
   ReplicaRecord_pool c_replicaRecordPool;
   ReplicaRecord_fifo c_queued_lcp_frag_rep;
@@ -911,8 +905,8 @@ public:
   };
   typedef Ptr<TakeOverRecord> TakeOverRecordPtr;
   typedef ArrayPool<TakeOverRecord> TakeOverRecord_pool;
-  typedef DLList<TakeOverRecord, TakeOverRecord_pool> TakeOverRecord_list;
-  typedef SLFifoList<TakeOverRecord, TakeOverRecord_pool> TakeOverRecord_fifo;
+  typedef DLList<TakeOverRecord_pool> TakeOverRecord_list;
+  typedef SLFifoList<TakeOverRecord_pool> TakeOverRecord_fifo;
 
 
   virtual bool getParam(const char * param, Uint32 * retVal) { 
@@ -1280,6 +1274,7 @@ private:
   void execNDB_STARTREQ(Signal *);
   void execGETGCIREQ(Signal *);
   void execGET_LATEST_GCI_REQ(Signal*);
+  void execSET_LATEST_LCP_ID(Signal*);
   void execDIH_RESTARTREQ(Signal *);
   void execSTART_RECCONF(Signal *);
   void execSTART_FRAGREF(Signal *);
@@ -1789,8 +1784,6 @@ private:
 
   // Variables to support record structures and their free lists
 
-  Uint32 capiConnectFileSize;
-
   ConnectRecord *connectRecord;
   Uint32 cfirstconnect;
   Uint32 cconnectFileSize;
@@ -2109,10 +2102,8 @@ private:
     DIVERIFY_queue() {
       m_ref = 0;
       cfirstVerifyQueue = clastVerifyQueue = 0;
-      apiConnectRecord = 0;
       m_empty_done = 1;
     }
-    ApiConnectRecord *apiConnectRecord;
     Uint32 cfirstVerifyQueue;
     Uint32 clastVerifyQueue;
     Uint32 m_empty_done;
@@ -2121,8 +2112,8 @@ private:
   };
 
   bool isEmpty(const DIVERIFY_queue&);
-  void enqueue(DIVERIFY_queue&, Uint32 senderData, Uint64 gci);
-  void dequeue(DIVERIFY_queue&, ApiConnectRecord &);
+  void enqueue(DIVERIFY_queue&);
+  void dequeue(DIVERIFY_queue&);
   void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
   void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 
@@ -2319,6 +2310,8 @@ private:
     Uint32 lcpStopGcp; 
     Uint32 keepGci;      /* USED TO CALCULATE THE GCI TO KEEP AFTER A LCP  */
     Uint32 oldestRestorableGci;
+
+    bool lcpManualStallStart; /* User requested stall of start (testing only) */
     
     NDB_TICKS m_start_time; // When last LCP was started
     Uint64    m_lcp_time;   // How long last LCP took
@@ -2555,7 +2548,7 @@ private:
   };
   typedef Ptr<WaitGCPProxyRecord> WaitGCPProxyPtr;
   typedef ArrayPool<WaitGCPProxyRecord> WaitGCPProxyRecord_pool;
-  typedef DLList<WaitGCPProxyRecord, WaitGCPProxyRecord_pool> WaitGCPProxyRecord_list;
+  typedef DLList<WaitGCPProxyRecord_pool> WaitGCPProxyRecord_list;
   /**
    * Wait GCP (master)
    */
@@ -2580,7 +2573,7 @@ private:
    * Pool/list of WaitGCPMasterRecord record
    */
   WaitGCPMasterRecord_pool waitGCPMasterPool;
-  typedef DLList<WaitGCPMasterRecord, WaitGCPMasterRecord_pool> WaitGCPList;
+  typedef DLList<WaitGCPMasterRecord_pool> WaitGCPList;
   WaitGCPList c_waitGCPMasterList;
   WaitGCPList c_waitEpochMasterList;
 

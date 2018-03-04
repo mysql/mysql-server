@@ -78,6 +78,11 @@ SELECT * FROM test_wl5522.t1;
 --error 2013
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -708,20 +713,21 @@ set global innodb_monitor_reset_all = default;
 -- enable_warnings
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Unsupported tablespace format");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Ignoring tablespace `test_wl5522/t1` because it could not be opened.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges is already enabled");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Monitor ibuf_merges_insert is already enabled");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace for table .* is set as discarded.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 32 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means that another program is using InnoDB's files.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Unsupported tablespace format");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace `test_wl5522/t1` because it could not be opened.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Monitor ibuf_merges is already enabled");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Monitor ibuf_merges_insert is already enabled");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace for table .* is set as discarded.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number 32 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means that another program is using InnoDB's files.");
 --enable_query_log
 
 #cleanup

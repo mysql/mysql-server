@@ -1,0 +1,330 @@
+# *************************************************************************
+# wl#8619 : Test the functionality of portability to a different OS
+# Test windows --datadir and tablespaces runs on Linx (posix compliant) OS
+# In order to run this testcase tablespace_portable_win.zip file should
+# exist in the mysql-test/std_data
+# Note :This testcase is valid for the current trunk(9.0) release only,
+# so for the future versions,this testcase has to modify and update the zip
+# file with latest version of --datadir. As per the wl feature ,the upgrade
+# script can not run with --datadir of zip file, it should be 1st upgraded
+# the --datadir and tablespaces and then take the zip file and unzip in target
+# location and then test the functionality. Hence intentionally upgrade
+# step was not added in this testcase.
+# How to create zip file:mysql-test/std_data/README_tablespace_portable_win.txt
+# *************************************************************************
+--source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
+--source include/linux.inc
+--source include/not_windows.inc
+# Added below inc file due to Bug#22740362
+--source include/have_64bit.inc
+
+let $MYSQLD_OLD_DATADIR = `select @@datadir`;
+
+CREATE TABLE tab(c1 int);
+
+INSERT INTO tab VALUES(10);
+
+--echo # copy the win datadir zip into destination location
+--copy_file $MYSQL_TEST_DIR/std_data/tablespace_portable_win.zip $MYSQL_TMP_DIR/tablespace_portable_win.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/tablespace_portable_win.zip -d $MYSQL_TMP_DIR
+
+--echo ## Stop DB server
+--source include/shutdown_mysqld.inc
+
+--echo ## Start winDB with --innodb-directories
+let $innodb_dirs='$MYSQL_TMP_DIR/datadir1;$MYSQL_TMP_DIR/undo_files;$MYSQL_TMP_DIR/part0;$MYSQL_TMP_DIR/part1;$MYSQL_TMP_DIR/part2;$MYSQL_TMP_DIR/part3';
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/win-DB --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_undo_tablespaces=5 --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
+--source include/start_mysqld_no_echo.inc
+
+--echo ## Check new datadir
+--replace_result $MYSQL_TMP_DIR NEW_DATADIR
+SELECT @@datadir;
+
+--replace_result $MYSQL_TMP_DIR UNDO_FILES
+SELECT @@innodb_undo_directory;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME
+SELECT @@innodb_data_home_dir;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_log_group_home_dir;
+
+SELECT @@innodb_data_file_path;
+
+SELECT @@innodb_undo_tablespaces;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE tab3;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE purchase;
+
+--disable_warnings
+
+# server was crashing here with ha_innodb.cc != nullptr
+--replace_column 1 #
+SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
+
+--echo ## Stop DB server
+--source include/shutdown_mysqld.inc
+
+--echo ## restart the server with --datadir and without scan DIR option
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/win-DB --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_undo_tablespaces=5 --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1
+--source include/start_mysqld_no_echo.inc
+
+--echo ## Check new datadir
+--replace_result $MYSQL_TMP_DIR NEW_DATADIR
+SELECT @@datadir;
+
+--replace_result $MYSQL_TMP_DIR UNDO_FILES
+SELECT @@innodb_undo_directory;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME
+SELECT @@innodb_data_home_dir;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_log_group_home_dir;
+
+SELECT @@innodb_data_file_path;
+
+SELECT @@innodb_undo_tablespaces;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE tab3;
+
+SHOW CREATE TABLE tab4;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE purchase;
+
+--echo ## Check with DML & DDL operations
+SELECT * FROM tab1;
+
+SELECT * FROM tab2;
+
+SELECT * FROM tab3;
+
+DELETE FROM tab1;
+
+DELETE FROM tab2;
+
+DELETE FROM tab3;
+
+DELETE FROM tab4;
+
+DELETE FROM purchase;
+
+# Server throws error Got error 44 - 'InnoDB error' to be fixed
+#ALTER TABLE tab3 ADD COLUMN c3 VARCHAR(15);
+
+ALTER TABLE tab4 ADD COLUMN c3 VARCHAR(15);
+
+INSERT INTO tab1 VALUES(1, 'VISH');
+
+INSERT INTO tab2 VALUES(2, 'VISH');
+
+INSERT INTO tab3 VALUES (100,'VISWANATH',100);
+
+INSERT INTO tab3 VALUES (300,'VISWANATH',100);
+
+INSERT INTO tab4 VALUES(2, 'VISH', 'NATH');
+
+INSERT INTO purchase VALUES(1,'1980-05-31');
+INSERT INTO purchase VALUES(2,'1999-05-31');
+INSERT INTO purchase VALUES(3,'1998-05-31');
+INSERT INTO purchase VALUES(4,'1979-05-31');
+INSERT INTO purchase VALUES(5,'1978-05-31');
+INSERT INTO purchase VALUES(6,'1997-05-31');
+
+SELECT * FROM tab1;
+
+SELECT * FROM tab2;
+
+SELECT * FROM tab3;
+
+SELECT * FROM tab4;
+
+SELECT * FROM purchase;
+
+--echo ## Stop DB server for moving tablespaces around
+--source include/shutdown_mysqld.inc
+
+--echo ## Moving tablespace files in criss-cross form 
+--move_file $MYSQL_TMP_DIR/part0/test/purchase#p#p0#sp#s0.ibd  $MYSQL_TMP_DIR/datadir1/test/purchase#p#p0#sp#s0.ibd
+--move_file $MYSQL_TMP_DIR/part1/test/purchase#p#p0#sp#s1.ibd  $MYSQL_TMP_DIR/datadir1/test/purchase#p#p0#sp#s1.ibd
+--move_file $MYSQL_TMP_DIR/datadir1/test/tab3#p#p0.ibd $MYSQL_TMP_DIR/part0/test/tab3#p#p0.ibd
+--move_file $MYSQL_TMP_DIR/datadir1/test/tab3#p#p1.ibd $MYSQL_TMP_DIR/part1/test/tab3#p#p1.ibd
+--move_file $MYSQL_TMP_DIR/undo_files/ts2.ibd $MYSQL_TMP_DIR/data_home/ts2.ibd
+
+--echo ## Start winDB with --innodb-directories
+let $innodb_dirs='$MYSQL_TMP_DIR/win-DB/../datadir1;$MYSQL_TMP_DIR/win-DB/../undo_files;$MYSQL_TMP_DIR/win-DB/../part0;$MYSQL_TMP_DIR/win-DB/../part1;$MYSQL_TMP_DIR/part2;$MYSQL_TMP_DIR/part3';
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/win-DB --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_undo_tablespaces=5 --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --lower_case_table_names=1 --log_error_verbosity=3 --innodb-directories=$innodb_dirs
+--source include/start_mysqld_no_echo.inc
+
+--echo ## Check new datadir
+--replace_result $MYSQL_TMP_DIR NEW_DATADIR
+SELECT @@datadir;
+
+--replace_result $MYSQL_TMP_DIR UNDO_FILES
+SELECT @@innodb_undo_directory;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME
+SELECT @@innodb_data_home_dir;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_log_group_home_dir;
+
+SELECT @@innodb_data_file_path;
+
+SELECT @@innodb_undo_tablespaces;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE tab3;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE purchase;
+
+SHOW CREATE TABLE tab4;
+
+--echo ## Stop DB server after scan DIR
+--source include/shutdown_mysqld.inc
+
+--echo ## restart the server with --datadir and without scan DIR option
+--let $restart_parameters=restart: --datadir=$MYSQL_TMP_DIR/win-DB --innodb_undo_directory=$MYSQL_TMP_DIR/undo_files --innodb_data_home_dir=$MYSQL_TMP_DIR/data_home --innodb_undo_tablespaces=5 --innodb_log_files_in_group=4 --innodb_log_group_home_dir=$MYSQL_TMP_DIR/data_home --innodb_data_file_path=data01:20M;data02:20M:autoextend --log_error_verbosity=3 --lower_case_table_names=1
+--source include/start_mysqld_no_echo.inc
+
+--echo ## Check new datadir
+--replace_result $MYSQL_TMP_DIR NEW_DATADIR
+SELECT @@datadir;
+
+--replace_result $MYSQL_TMP_DIR UNDO_FILES
+SELECT @@innodb_undo_directory;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME
+SELECT @@innodb_data_home_dir;
+
+--replace_result $MYSQL_TMP_DIR DATA_HOME_DIR
+SELECT @@innodb_log_group_home_dir;
+
+SELECT @@innodb_data_file_path;
+
+SELECT @@innodb_undo_tablespaces;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE tab3;
+
+--replace_result $MYSQL_TMP_DIR db_directory1
+SHOW CREATE TABLE purchase;
+
+SHOW CREATE TABLE tab4;
+
+--echo ## Check with DML operations
+DELETE FROM tab1;
+
+DELETE FROM tab2;
+
+DELETE FROM tab3;
+
+DELETE FROM tab4;
+
+DELETE FROM purchase;
+
+# Server throws error Got error 44 - 'InnoDB error' to be fixed
+#ALTER TABLE tab3 ADD COLUMN c3 VARCHAR(15);
+
+ALTER TABLE tab4 DROP COLUMN c3;
+
+# Server throws error Got error 44 - 'InnoDB error' to be fixed
+#ALTER TABLE purchase ADD COLUMN c3 VARCHAR(15); 
+
+INSERT INTO tab1 VALUES(1, 'VISH');
+
+INSERT INTO tab2 VALUES(2, 'VISH');
+
+INSERT INTO tab3 VALUES (100,'VISWANATH',100);
+
+INSERT INTO tab3 VALUES (300,'VISWANATH',100);
+
+INSERT INTO tab4 VALUES(2, 'VISH');
+
+INSERT INTO purchase VALUES(1,'1980-05-31');
+INSERT INTO purchase VALUES(2,'1999-05-31');
+INSERT INTO purchase VALUES(3,'1998-05-31');
+INSERT INTO purchase VALUES(4,'1979-05-31');
+INSERT INTO purchase VALUES(5,'1978-05-31');
+INSERT INTO purchase VALUES(6,'1997-05-31');
+
+SELECT * FROM tab1;
+
+SELECT * FROM tab2;
+
+SELECT * FROM tab3;
+
+SELECT * FROM tab4;
+
+# clean up
+DROP TABLE tab1;
+
+DROP TABLE tab2;
+
+DROP TABLE tab3;
+
+DROP TABLE tab4;
+
+DROP TABLE purchase;
+
+DROP TABLESPACE ts2;
+
+--echo ## Stop DB server for clean up
+--source include/shutdown_mysqld.inc
+
+--echo ## Cleanup the Windows --datadir location and its *.ibd file location
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home/ data*
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home/ ib_buffer*
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home/ ib_log*
+--remove_files_wildcard $MYSQL_TMP_DIR/data_home/ ibtmp*
+--rmdir $MYSQL_TMP_DIR/data_home
+
+--remove_files_wildcard $MYSQL_TMP_DIR/undo_files/ undo*
+--rmdir  $MYSQL_TMP_DIR/undo_files
+
+--rmdir $MYSQL_TMP_DIR/datadir1/test
+--rmdir $MYSQL_TMP_DIR/datadir1
+--rmdir $MYSQL_TMP_DIR/part0/test
+--rmdir $MYSQL_TMP_DIR/part1/test
+--rmdir $MYSQL_TMP_DIR/part2/test
+--rmdir $MYSQL_TMP_DIR/part3/test
+--rmdir $MYSQL_TMP_DIR/part0
+--rmdir $MYSQL_TMP_DIR/part1
+--rmdir $MYSQL_TMP_DIR/part2
+--rmdir $MYSQL_TMP_DIR/part3
+
+--remove_files_wildcard $MYSQL_TMP_DIR/win-DB/test/ *
+--remove_files_wildcard $MYSQL_TMP_DIR/win-DB/sys/ *
+--remove_files_wildcard $MYSQL_TMP_DIR/win-DB/mysql/ *
+--remove_files_wildcard $MYSQL_TMP_DIR/win-DB/performance_schema/ *
+--rmdir $MYSQL_TMP_DIR/win-DB/mysql
+--rmdir $MYSQL_TMP_DIR/win-DB/sys
+--rmdir $MYSQL_TMP_DIR/win-DB/test
+--rmdir $MYSQL_TMP_DIR/win-DB/performance_schema
+--remove_files_wildcard $MYSQL_TMP_DIR/win-DB/ *
+--rmdir $MYSQL_TMP_DIR/win-DB
+--remove_files_wildcard $MYSQL_TMP_DIR/ tablespace_portable_win.zip
+
+--echo ## Restart the server with MTR default location
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
+--let $restart_parameters="restart: --datadir=$MYSQLD_OLD_DATADIR"
+--source include/start_mysqld.inc
+
+--replace_result $MYSQLD_OLD_DATADIR OLD_DATADIR
+SELECT @@datadir;
+
+SELECT * FROM tab;
+
+DROP TABLE tab;
+
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace 'innodb_system' filename is unknown. Use \\--innodb-directories to locate of the file.");
+

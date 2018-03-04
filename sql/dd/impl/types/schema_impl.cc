@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/types/schema_impl.h"
 
@@ -62,23 +69,6 @@ using dd::tables::Tables;
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-// Schema implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Schema::OBJECT_TABLE()
-{
-  return Schemata::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Schema::TYPE()
-{
-  static Schema_type s_instance;
-  return s_instance;
-}
-
-///////////////////////////////////////////////////////////////////////////
 // Schema_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
@@ -88,7 +78,7 @@ bool Schema_impl::validate() const
   {
     my_error(ER_INVALID_DD_OBJECT,
              MYF(0),
-             Schema_impl::OBJECT_TABLE().name().c_str(),
+             DD_table::instance().name().c_str(),
              "Default collation ID is not set");
     return true;
   }
@@ -129,34 +119,8 @@ bool Schema_impl::store_attributes(Raw_record *r)
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(Schemata::FIELD_LAST_ALTERED==5,
-              "Schemata definition has changed. Review (de)ser memfuns!");
-void
-Schema_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const
-{
-  w->StartObject();
-  Entity_object_impl::serialize(wctx, w);
-  write(w, m_default_collation_id, STRING_WITH_LEN("default_collation_id"));
-  write(w, m_created, STRING_WITH_LEN("created"));
-  write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
-  w->EndObject();
-}
 
-///////////////////////////////////////////////////////////////////////////
-
-bool
-Schema_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val)
-{
-  Entity_object_impl::deserialize(rctx, val);
-  read(&m_default_collation_id, val, "default_collation_id");
-  read(&m_created, val, "created");
-  read(&m_last_altered, val, "last_altered");
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Schema::update_id_key(id_key_type *key, Object_id id)
+bool Schema::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -164,7 +128,7 @@ bool Schema::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Schema::update_name_key(name_key_type *key,
+bool Schema::update_name_key(Name_key *key,
                              const String_type &name)
 {
   return Schemata::update_object_key(key,
@@ -318,10 +282,15 @@ View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const
 }
 
 ///////////////////////////////////////////////////////////////////////////
-//Schema_type implementation.
+
+const Object_table &Schema_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Schema_type::register_tables(Open_dictionary_tables_ctx *otx) const
+void Schema_impl::register_tables(Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Schemata>();
 }

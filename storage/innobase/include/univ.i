@@ -10,16 +10,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -34,7 +42,7 @@ Created 1/20/1994 Heikki Tuuri
 #define univ_i
 
 #ifdef UNIV_HOTBACKUP
-#include "hb_univ.i"
+# include "hb_univ.i"
 #endif /* UNIV_HOTBACKUP */
 
 /* aux macros to convert M into "123" (string) if M is defined like
@@ -80,14 +88,13 @@ the virtual method table (vtable) in GCC 3. */
 
 /* The defines used with MySQL */
 
-#ifndef UNIV_HOTBACKUP
-
 /* Include a minimum number of SQL header files so that few changes
 made in SQL code cause a complete InnoDB rebuild.  These headers are
 used throughout InnoDB but do not include too much themselves.  They
 support cross-platform development and expose comonly used SQL names. */
 
-# include <m_string.h>
+#include <m_string.h>
+#ifndef UNIV_HOTBACKUP
 # include <my_thread.h>
 # include <mysqld_error.h>
 #endif /* !UNIV_HOTBACKUP  */
@@ -106,14 +113,16 @@ support cross-platform development and expose comonly used SQL names. */
 #ifndef _WIN32
 # ifndef UNIV_HOTBACKUP
 #  include "my_config.h"
-# endif /* UNIV_HOTBACKUP */
+# endif /* !UNIV_HOTBACKUP */
 #endif
 
-#include <inttypes.h>
-#include <stdint.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
+#ifndef UNIV_HOTBACKUP
+# include <inttypes.h>
+# include <stdint.h>
+# ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+# endif
+#endif /* !UNIV_HOTBACKUP */
 
 /* Following defines are to enable performance schema
 instrumentation in each of five InnoDB modules if
@@ -130,7 +139,7 @@ defined, the rwlocks are simply not tracked. */
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
 #ifdef HAVE_PSI_FILE_INTERFACE
-#  define UNIV_PFS_IO
+# define UNIV_PFS_IO
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -152,7 +161,7 @@ defined, the rwlocks are simply not tracked. */
 /* For PSI_MUTEX_CALL() and similar. */
 #include "pfs_thread_provider.h"
 
-#endif /* HAVE_PSI_INTERFACE */
+#endif /* HAVE_PSI_INTERFACE && !UNIV_LIBRARY */
 
 #ifdef _WIN32
 # define YY_NO_UNISTD_H 1
@@ -260,7 +269,11 @@ rarely invoked function for size instead for speed. */
 # define UNIV_COLD /* empty */
 #endif
 
-#define UNIV_INLINE static inline
+#ifdef UNIV_HOTBACKUP
+# define UNIV_INLINE inline
+#else /* UNIV_HOTBACKUP */
+# define UNIV_INLINE static inline
+#endif /* UNIV_HOTBACKUP */
 
 #ifdef _WIN32
 # ifdef _WIN64
@@ -315,7 +328,7 @@ limit both with this same constant. */
 /** Minimum page size InnoDB currently supports. */
 #define UNIV_PAGE_SIZE_MIN	(1 << UNIV_PAGE_SIZE_SHIFT_MIN)
 /** Maximum page size InnoDB currently supports. */
-#define UNIV_PAGE_SIZE_MAX	(1 << UNIV_PAGE_SIZE_SHIFT_MAX)
+constexpr size_t UNIV_PAGE_SIZE_MAX = (1 << UNIV_PAGE_SIZE_SHIFT_MAX);
 /** Default page size for InnoDB tablespaces. */
 #define UNIV_PAGE_SIZE_DEF	(1 << UNIV_PAGE_SIZE_SHIFT_DEF)
 /** Original 16k page size for InnoDB tablespaces. */
@@ -446,8 +459,9 @@ typedef long int		lint;
 
 /** The bitmask of 32-bit unsigned integer */
 #define ULINT32_MASK		0xFFFFFFFF
+
 /** The undefined 32-bit unsigned integer */
-#define	ULINT32_UNDEFINED	ULINT32_MASK
+constexpr uint32_t ULINT32_UNDEFINED = ULINT32_MASK;
 
 /** Maximum value for a ulint */
 #define ULINT_MAX		((ulint)(-2))
@@ -668,4 +682,20 @@ constexpr auto to_int(T v) -> typename std::underlying_type<T>::type
 {
         return(static_cast<typename std::underlying_type<T>::type>(v));
 }
+
+/** If we are doing something that takes longer than this many seconds then
+print an informative message. Type should be return type of ut_time(). */
+static constexpr ib_time_t PRINT_INTERVAL_SECS = 10;
+
+constexpr size_t PART_SEPARATOR_LEN = 3;
+constexpr size_t SUB_PART_SEPARATOR_LEN = 4;
+
+#ifdef _WIN32
+constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#p#";
+constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#sp#";
+#else
+constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#P#";
+constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#SP#";
+#endif /* _WIN32 */
+
 #endif

@@ -1,0 +1,32 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Bug#26787468: REPLICATION DOES NOT HANDLE NULL INSERTED
+#               IN JSON NOT NULL COLUMN CORRECTLY
+#
+CREATE TABLE t (i INT, j JSON NOT NULL);
+SET SESSION binlog_row_value_options = 'PARTIAL_JSON';
+Warnings:
+Warning	3647	When binlog_row_image=FULL, the option binlog_row_value_options=PARTIAL_JSON will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%.
+include/save_binlog_position.inc
+INSERT IGNORE INTO t VALUES (1, NULL);
+Warnings:
+Warning	1048	Column 'j' cannot be null
+SELECT * FROM t;
+i	j
+1	null
+# mysqlbinlog used to show 'Invalid JSON' for the second column.
+include/mysqlbinlog.inc
+### INSERT INTO `test`.`t`
+### SET
+###   @1=1
+###   @2='null'
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t;
+i	j
+1	null
+DROP TABLE t;
+include/rpl_end.inc

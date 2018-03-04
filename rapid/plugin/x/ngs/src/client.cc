@@ -1,27 +1,31 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "ngs/client.h"
-#include "ngs/protocol_encoder.h"
+#include "plugin/x/ngs/include/ngs/client.h"
 
-
-#include "ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #ifndef WIN32
 #include <arpa/inet.h>
 #endif
@@ -30,21 +34,24 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <functional>
+#include <sstream>
 
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "ngs/capabilities/handler_readonly_value.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "ngs/interface/server_interface.h"
-#include "ngs/interface/session_interface.h"
-#include "ngs/interface/protocol_monitor_interface.h"
-#include "ngs/log.h"
-#include "ngs/ngs_error.h"
-#include "ngs/protocol/protocol_config.h"
-#include "ngs/scheduler.h"
-#include "ngs_common/operations_factory.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_client_interactive.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_readonly_value.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/session_interface.h"
+#include "plugin/x/ngs/include/ngs/log.h"
+#include "plugin/x/ngs/include/ngs/ngs_error.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/scheduler.h"
+#include "plugin/x/ngs/include/ngs_common/operations_factory.h"
+
+#include "plugin/x/src/xpl_global_status_variables.h"
 
 #undef ERROR // Needed to avoid conflict with ERROR in mysqlx.pb.h
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
 
 using namespace ngs;
@@ -52,7 +59,8 @@ using namespace ngs;
 Client::Client(Connection_ptr connection,
                Server_interface &server,
                Client_id client_id,
-               Protocol_monitor_interface &pmon)
+               Protocol_monitor_interface &pmon,
+               const Global_timeouts &timeouts)
 : m_client_id(client_id),
   m_server(server),
   m_connection(connection),
@@ -67,6 +75,9 @@ Client::Client(Connection_ptr connection,
   m_supports_expired_passwords(false)
 {
   my_snprintf(m_id, sizeof(m_id), "%llu", static_cast<ulonglong>(client_id));
+  m_wait_timeout = timeouts.wait_timeout;
+  m_read_timeout = timeouts.read_timeout;
+  m_write_timeout = timeouts.write_timeout;
 }
 
 
@@ -97,10 +108,13 @@ void Client::activate_tls()
 {
   log_debug("%s: enabling TLS for client", client_id());
 
-  const auto connection_timeout = static_cast<int>(
-      chrono::to_seconds(m_server.get_config()->connect_timeout));
+  const auto connect_timeout = chrono::to_seconds(
+      m_server.get_config()->connect_timeout);
 
-  if (m_server.ssl_context()->activate_tls(connection(), connection_timeout))
+  const auto real_connect_timeout = std::min<uint32_t>(connect_timeout,
+      m_read_timeout);
+
+  if (m_server.ssl_context()->activate_tls(connection(), real_connect_timeout))
   {
     if (connection().options()->active_tls())
       session()->mark_as_tls_session();
@@ -130,6 +144,8 @@ Capabilities_configurator *Client::capabilities_configurator()
   handlers.push_back(ngs::allocate_shared<Capability_auth_mech>(ngs::ref(*this)));
 
   handlers.push_back(ngs::allocate_shared<Capability_readonly_value>("doc.formats", "text"));
+
+  handlers.push_back(ngs::allocate_shared<Capability_client_interactive>(ngs::ref(*this)));
 
   return ngs::allocate_object<Capabilities_configurator>(handlers);
 }
@@ -231,12 +247,32 @@ void Client::disconnect_and_trigger_close()
   shutdown_connection();
 }
 
+void Client::on_read_timeout(int error_code, const std::string &message) {
+  Mysqlx::Notice::Warning warning;
+  const bool force_flush = true;
+
+  m_close_reason = Close_read_timeout;
+  warning.set_level(Mysqlx::Notice::Warning::ERROR);
+  warning.set_code(ER_IO_READ_ERROR);
+  warning.set_msg("IO Read error: (" + std::to_string(error_code) +
+      ", " + message + ") read_timeout exceeded");
+  std::string warning_data;
+  warning.SerializeToString(&warning_data);
+  m_encoder->send_notice(Frame_type::WARNING, Frame_scope::GLOBAL,
+      warning_data, force_flush);
+}
 
 // this will be called on socket errors, but also when halt_and_wait() is called
 // which will shutdown the socket for reading and trigger a eof
 // (meaning, closed for reads, but writes would still be ok)
 void Client::on_network_error(int error)
 {
+  if (error == SOCKET_ETIMEDOUT || error == SOCKET_EAGAIN)
+  {
+    ++xpl::Global_status_variables::instance().m_aborted_clients;
+    if (m_close_reason != Close_read_timeout)
+      m_close_reason = Close_write_timeout;
+  }
   if (error == 0)
     log_debug("%s: peer disconnected (state %i)", client_id(), m_state.load());
   else
@@ -318,7 +354,9 @@ void Client::on_accept()
   // it can be accessed directly (no other thread access thus object)
   m_state = Client_accepted;
 
-  m_encoder.reset(ngs::allocate_object<Protocol_encoder>(m_connection, ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1), ngs::ref(m_protocol_monitor)));
+  set_encoder(ngs::allocate_object<Protocol_encoder>(m_connection,
+        ngs::bind(&Client::on_network_error, this, ngs::placeholders::_1),
+        ngs::ref(m_protocol_monitor)));
 
   // pre-allocate the initial session
   // this is also needed for the srv_session to correctly report us to the audit.log as in the Pre-authenticate state
@@ -414,12 +452,18 @@ Protocol_monitor_interface &Client::get_protocol_monitor()
   return m_protocol_monitor;
 }
 
-void Client::get_last_error(int &error_code, std::string &message)
+void Client::set_encoder(ngs::Protocol_encoder_interface* enc) {
+  m_encoder =
+      ngs::Memory_instrumented<Protocol_encoder_interface>::Unique_ptr(enc);
+  m_encoder->set_write_timeout(m_write_timeout);
+}
+
+void Client::get_last_error(int *out_error_code, std::string *out_message)
 {
   ngs::Operations_factory operations_factory;
   System_interface::Shared_ptr system_interface(operations_factory.create_system_interface());
 
-  system_interface->get_socket_error_and_message(error_code, message);
+  system_interface->get_socket_error_and_message(*out_error_code, *out_message);
 }
 
 void Client::shutdown_connection()
@@ -428,11 +472,14 @@ void Client::shutdown_connection()
 
   if (m_connection->shutdown(Connection_vio::Shutdown_recv) < 0)
   {
-    int err;
-    std::string strerr;
+    int out_err;
+    std::string out_strerr;
 
-    get_last_error(err, strerr);
-    log_debug("%s: connection shutdown error %s (%i)", client_id(), strerr.c_str(), err);
+    get_last_error(&out_err, &out_strerr);
+    log_debug("%s: connection shutdown error %s (%i)",
+              client_id(),
+              out_strerr.c_str(),
+              out_err);
   }
 }
 
@@ -447,8 +494,9 @@ Request *Client::read_one_message(Error_code &ret_error)
 
   // untill we get another message to process we mark the connection as idle (for PSF)
   m_connection->mark_idle();
+
   // read the frame
-  ssize_t nread = m_connection->read(buffer, 4);
+  ssize_t nread = m_connection->read(buffer, 4, m_wait_timeout);
   m_connection->mark_active();
 
   if (nread == 0) // EOF
@@ -458,13 +506,22 @@ Request *Client::read_one_message(Error_code &ret_error)
   }
   if (nread < 0)
   {
-    int err;
-    std::string strerr;
-    get_last_error(err, strerr);
-    if (!(err == EBADF && m_close_reason == Close_connect_timeout))
+    int out_err;
+    std::string out_strerr;
+    get_last_error(&out_err, &out_strerr);
+
+    if (out_err == SOCKET_ETIMEDOUT || out_err == SOCKET_EAGAIN)
     {
-      log_info("%s: ERROR reading from socket %s (%i) %i", client_id(), strerr.c_str(), err, m_close_reason);
-      on_network_error(err);
+      on_read_timeout(out_err, out_strerr);
+    }
+
+    if (!(out_err == EBADF && m_close_reason == Close_connect_timeout))
+    {
+      log_info("%s: ERROR reading from socket %s (%i)",
+               client_id(),
+               out_strerr.c_str(),
+               out_err);
+      on_network_error(out_err);
     }
     return NULL;
   }
@@ -499,7 +556,7 @@ Request *Client::read_one_message(Error_code &ret_error)
     ngs::reallocate_array(m_msg_buffer, m_msg_buffer_size, KEY_memory_x_recv_buffer);
   }
 
-  nread = m_connection->read(&m_msg_buffer[0], msg_size);
+  nread = m_connection->read(&m_msg_buffer[0], msg_size, m_read_timeout);
   if (nread == 0) // EOF
   {
     log_info("%s: peer disconnected while reading message body", client_id());
@@ -509,12 +566,20 @@ Request *Client::read_one_message(Error_code &ret_error)
 
   if (nread < 0)
   {
-    int err;
-    std::string strerr;
+    int out_err;
+    std::string out_strerr;
 
-    get_last_error(err, strerr);
-    log_info("%s: ERROR reading from socket %s (%i)", client_id(), strerr.c_str(), err);
-    on_network_error(err);
+    get_last_error(&out_err, &out_strerr);
+    if (out_err == SOCKET_ETIMEDOUT || out_err == SOCKET_EAGAIN)
+    {
+      on_read_timeout(out_err, out_strerr);
+    }
+
+    log_info("client_id:%s - %s while reading from socket, closing connection",
+             client_id(),
+             out_strerr.c_str());
+
+    on_network_error(out_err);
     return NULL;
   }
 
@@ -571,4 +636,16 @@ void Client::run(const bool skip_name_resolve)
 
     remove_client_from_server();
   }
+}
+
+void Client::set_write_timeout(const uint32_t write_timeout) {
+  m_encoder->set_write_timeout(write_timeout);
+}
+
+void Client::set_read_timeout(const uint32_t read_timeout) {
+  m_read_timeout = read_timeout;
+}
+
+void Client::set_wait_timeout(const uint32_t wait_timeout) {
+  m_wait_timeout = wait_timeout;
 }

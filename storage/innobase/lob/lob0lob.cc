@@ -3,16 +3,24 @@
 Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -20,12 +28,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "btr0pcur.h"
 #include "fil0fil.h"
-#include "lob0fit.h"
 #include "lob0lob.h"
 #include "lob0zip.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "row0upd.h"
+#include "lob0inf.h"
+#include "lob0first.h"
+#include "zlob0first.h"
 
 namespace lob {
 
@@ -47,6 +57,28 @@ btr_rec_get_field_ref_offs(
 	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
 	return(field_ref_offs + local_len - BTR_EXTERN_FIELD_REF_SIZE);
+}
+
+/** Marks non-updated off-page fields as disowned by this record.
+The ownership must be transferred to the updated record which is
+inserted elsewhere in the index tree. In purge only the owner of
+externally stored field is allowed to free the field.
+@param[in]	update		update vector. */
+void BtrContext::disown_inherited_fields(const upd_t* update)
+{
+	ut_ad(rec_offs_validate());
+	ut_ad(!rec_offs_comp(m_offsets)
+	      || !rec_get_node_ptr_flag(m_rec));
+	ut_ad(rec_offs_any_extern(m_offsets));
+	ut_ad(m_mtr);
+
+	for (ulint i = 0; i < rec_offs_n_fields(m_offsets); i++) {
+
+		if (rec_offs_nth_extern(m_offsets, i)
+		    && !upd_get_field_by_field_no(update, i, false)) {
+			set_ownership_of_extern_field(i, FALSE);
+		}
+	}
 }
 
 /** When bulk load is being done, check if there is enough space in redo
@@ -71,55 +103,6 @@ BtrContext::check_redolog_bulk()
 
 	rec_block_unfix();
 	ut_ad(validate());
-}
-
-/** Allocate one BLOB page.
-@return the allocated block of the BLOB page. */
-buf_block_t*
-BaseInserter::alloc_blob_page()
-{
-	ulint	r_extents;
-	mtr_t	mtr_bulk;
-	mtr_t*	alloc_mtr;
-
-	ut_ad(fsp_check_tablespace_size(m_ctx->space()));
-
-	if (m_ctx->is_bulk()) {
-		mtr_start(&mtr_bulk);
-
-		alloc_mtr = &mtr_bulk;
-	} else {
-		alloc_mtr = &m_blob_mtr;
-	}
-
-	page_no_t	hint_page_no = m_prev_page_no + 1;
-
-	bool	success = fsp_reserve_free_extents(
-		&r_extents, m_ctx->space(), 1, FSP_BLOB, alloc_mtr, 1);
-
-	if (!success) {
-
-		alloc_mtr->commit();
-		m_status = DB_OUT_OF_FILE_SPACE;
-		return(NULL);
-	}
-
-	m_cur_blob_block = btr_page_alloc(
-		m_ctx->index(), hint_page_no, FSP_NO_DIR, 0,
-		alloc_mtr, &m_blob_mtr);
-
-	fil_space_t*	space = fil_space_get(m_ctx->space());
-
-	space->release_free_extents(r_extents);
-
-	if (m_ctx->is_bulk()) {
-		alloc_mtr->commit();
-	}
-
-	m_cur_blob_page_no = page_get_page_no(
-		buf_block_get_frame(m_cur_blob_block));
-
-	return(m_cur_blob_block);
 }
 
 /** Check if there is enough space in log file. Commit and re-start the
@@ -147,353 +130,6 @@ BtrContext::check_redolog_normal()
 	restore_position();
 
 	ut_ad(validate());
-}
-
-#ifdef UNIV_DEBUG
-/** Write first blob page.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@return code as returned by the zlib. */
-int
-zInserter::write_first_page(
-	size_t			blob_j,
-	big_rec_field_t&	field)
-{
-	buf_block_t*	rec_block	= m_ctx->block();
-	mtr_t*		mtr		= start_blob_mtr();
-
-	buf_page_get(rec_block->page.id,
-		     rec_block->page.size, RW_X_LATCH, mtr);
-
-	buf_block_t*	blob_block = alloc_blob_page();
-
-	if (dict_index_is_online_ddl(m_ctx->index())) {
-		row_log_table_blob_alloc(m_ctx->index(),
-					 m_cur_blob_page_no);
-	}
-
-	page_t*	blob_page  = buf_block_get_frame(blob_block);
-
-	log_page_type(blob_page, 0);
-
-	int	err = write_into_single_page();
-
-	ut_ad(!dict_index_is_spatial(m_ctx->index()));
-
-	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(
-		m_ctx->rec(), m_ctx->get_offsets(), field_no);
-	ref_t	blobref(field_ref);
-
-	if (err == Z_OK) {
-		blobref.set_length(0, nullptr);
-	} else if (err == Z_STREAM_END) {
-		blobref.set_length(m_stream.total_in, nullptr);
-	} else {
-		ut_ad(0);
-		return(err);
-	}
-
-	blobref.update(m_ctx->space(), m_cur_blob_page_no,
-		       FIL_PAGE_NEXT, NULL);
-
-	/* After writing the first blob page, update the blob reference. */
-	if (!m_ctx->is_bulk()) {
-		m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);
-	}
-
-	m_prev_page_no = page_get_page_no(blob_page);
-
-	/* Commit mtr and release uncompressed page frame to save memory.*/
-	blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
-
-	return(err);
-}
-
-/** For the given blob field, update its length in the blob reference
-which is available in the clustered index record.
-@param[in]	field	the concerned blob field. */
-void
-zInserter::update_length_in_blobref(big_rec_field_t& field)
-{
-	/* After writing the last blob page, update the blob reference
-	with the correct length. */
-
-	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(
-		m_ctx->rec(), m_ctx->get_offsets(), field_no);
-
-	ref_t	blobref(field_ref);
-	blobref.set_length(m_stream.total_in, nullptr);
-
-	if (!m_ctx->is_bulk()) {
-		m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);
-	}
-}
-
-/** Write one blob field data.
-@param[in]	blob_j	the blob field number
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t
-zInserter::write_one_blob(size_t blob_j)
-{
-	const big_rec_t*	vec = m_ctx->get_big_rec_vec();
-	big_rec_field_t&	field = vec->fields[blob_j];
-
-	int     err = deflateReset(&m_stream);
-	ut_a(err == Z_OK);
-
-	m_stream.next_in = (Bytef*) field.data;
-	m_stream.avail_in = static_cast<uInt>(field.len);
-
-	m_ctx->check_redolog();
-
-	err = write_first_page(blob_j, field);
-
-	for (ulint nth_blob_page = 1; err == Z_OK; ++nth_blob_page) {
-
-		const ulint	commit_freq = 4;
-
-		err = write_single_blob_page(blob_j, field, nth_blob_page);
-
-		if (nth_blob_page % commit_freq == 0) {
-			m_ctx->check_redolog();
-		}
-	}
-
-	ut_ad(err == Z_STREAM_END);
-	m_ctx->make_nth_extern(field.field_no);
-	return(DB_SUCCESS);
-}
-
-/** Write contents into a single BLOB page.
-@return code as returned by zlib. */
-int
-zInserter::write_into_single_page()
-{
-	const uint in_before = m_stream.avail_in;
-
-	mtr_t*	const	mtr = &m_blob_mtr;
-
-	/* Space available in compressed page to carry blob data */
-	const page_size_t page_size = m_ctx->page_size();
-	const uint payload_size_zip = page_size.physical() - FIL_PAGE_DATA;
-
-	page_t*	blob_page = buf_block_get_frame(m_cur_blob_block);
-
-	m_stream.next_out = blob_page + FIL_PAGE_DATA;
-	m_stream.avail_out = static_cast<uInt>(payload_size_zip);
-
-	int err = deflate(&m_stream, Z_FINISH);
-	ut_a(err == Z_OK || err == Z_STREAM_END);
-	ut_a(err == Z_STREAM_END || m_stream.avail_out == 0);
-
-	const blob_page_info_t page_info(
-		m_cur_blob_page_no,
-		in_before - m_stream.avail_in,
-		payload_size_zip - m_stream.avail_out);
-
-	add_to_blob_dir(page_info);
-
-	/* Write the "next BLOB page" pointer */
-	mlog_write_ulint(blob_page + FIL_PAGE_NEXT, FIL_NULL,
-			 MLOG_4BYTES, mtr);
-
-	/* Initialize the unused "prev page" pointer */
-	mlog_write_ulint(blob_page + FIL_PAGE_PREV, FIL_NULL,
-			 MLOG_4BYTES, mtr);
-
-	/* Write a back pointer to the record into the otherwise unused area.
-	This information could be useful in debugging.  Later, we might want
-	to implement the possibility to relocate BLOB pages.  Then, we would
-	need to be able to adjust the BLOB pointer in the record.  We do not
-	store the heap number of the record, because it can change in
-	page_zip_reorganize() or btr_page_reorganize().  However, also the
-	page number of the record may change when B-tree nodes are split or
-	merged. */
-	mlog_write_ulint(blob_page + FIL_PAGE_FILE_FLUSH_LSN,
-			 m_ctx->space(), MLOG_4BYTES, mtr);
-
-	mlog_write_ulint(blob_page + FIL_PAGE_FILE_FLUSH_LSN + 4,
-			 m_ctx->get_page_no(), MLOG_4BYTES, mtr);
-
-	if (m_stream.avail_out > 0) {
-		/* Zero out the unused part of the page. */
-		memset(blob_page + page_zip_get_size(m_ctx->get_page_zip())
-		       - m_stream.avail_out, 0, m_stream.avail_out);
-	}
-
-	/* Redo log the page contents (the page is not modified). */
-	mlog_log_string(blob_page + FIL_PAGE_FILE_FLUSH_LSN,
-			page_zip_get_size(m_ctx->get_page_zip())
-			- FIL_PAGE_FILE_FLUSH_LSN, mtr);
-
-	/* Copy the page to compressed storage, because it will be flushed
-	to disk from there. */
-	page_zip_des_t* blob_page_zip = buf_block_get_page_zip(m_cur_blob_block);
-
-	ut_ad(blob_page_zip);
-	ut_ad(page_zip_get_size(blob_page_zip)
-	      == page_zip_get_size(m_ctx->get_page_zip()));
-
-	page_zip_des_t* page_zip = buf_block_get_page_zip(m_ctx->block());
-	memcpy(blob_page_zip->data, blob_page, page_zip_get_size(page_zip));
-
-	return(err);
-}
-
-/** Write one blob page.  This function will be repeatedly called
-with an increasing nth_blob_page to completely write a BLOB.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
-@return code as returned by the zlib. */
-int
-zInserter::write_single_blob_page(
-	size_t			blob_j,
-	big_rec_field_t&	field,
-	ulint			nth_blob_page)
-{
-	ut_ad(nth_blob_page > 0);
-
-	buf_block_t*	rec_block	= m_ctx->block();
-	mtr_t*		mtr		= start_blob_mtr();
-
-	buf_page_get(rec_block->page.id,
-		     rec_block->page.size, RW_X_LATCH, mtr);
-
-	buf_block_t*	blob_block = alloc_blob_page();
-	page_t*		blob_page  = buf_block_get_frame(blob_block);
-
-	set_page_next();
-
-	m_prev_page_no = page_get_page_no(blob_page);
-
-	log_page_type(blob_page, nth_blob_page);
-
-	int err = write_into_single_page();
-
-	ut_ad(!dict_index_is_spatial(m_ctx->index()));
-
-	if (err == Z_STREAM_END) {
-		update_length_in_blobref(field);
-	}
-
-	/* Commit mtr and release uncompressed page frame to save memory.*/
-	blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
-
-	return(err);
-}
-
-/** Prepare to write a compressed BLOB. Setup the zlib
-compression stream.
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t zInserter::prepare()
-{
-	/* Zlib deflate needs 128 kilobytes for the default
-	window size, plus 512 << memLevel, plus a few
-	kilobytes for small objects.  We use reduced memLevel
-	to limit the memory consumption, and preallocate the
-	heap, hoping to avoid memory fragmentation. */
-	m_heap = mem_heap_create(250000);
-
-	if (m_heap == NULL) {
-		return(DB_OUT_OF_MEMORY);
-	}
-
-	page_zip_set_alloc(&m_stream, m_heap);
-	int ret = deflateInit2(&m_stream, page_zip_level,
-			       Z_DEFLATED, 15, 7, Z_DEFAULT_STRATEGY);
-	if (ret != Z_OK) {
-		return(DB_FAIL);
-	}
-
-	return(DB_SUCCESS);
-}
-
-/** Write all the BLOBs of the clustered index record.
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t
-zInserter::write()
-{
-	/* Loop through each blob field of the record and write one blob
-	at a time.*/
-	for (ulint i = 0;
-	     i < m_ctx->get_big_rec_vec_size() && m_status == DB_SUCCESS;
-	     i++) {
-
-		ut_d(m_dir.clear(););
-		m_status = write_one_blob(i);
-	}
-
-	return(m_status);
-}
-
-/** Make the current page as next page of previous page.  In other
-words, make the page m_cur_blob_page_no as the next page
-(FIL_PAGE_NEXT) of page m_prev_page_no.
-@return DB_SUCCESS on success, or error code on failure. */
-dberr_t
-zInserter::set_page_next()
-{
-	buf_block_t*	prev_block = get_previous_blob_block();
-	page_t*	prev_page = buf_block_get_frame(prev_block);
-
-	mlog_write_ulint(prev_page + FIL_PAGE_NEXT, m_cur_blob_page_no,
-			 MLOG_4BYTES, &m_blob_mtr);
-
-	memcpy(buf_block_get_page_zip(prev_block)->data + FIL_PAGE_NEXT,
-	       prev_page + FIL_PAGE_NEXT, 4);
-
-	return(m_status);
-}
-#endif /* UNIV_DEBUG */
-
-/** Get the previous BLOB page frame.  This will return a BLOB page.
-It should not be called for the first BLOB page, because it will not
-have a previous BLOB page.
-@return	the previous BLOB page frame. */
-page_t*
-BaseInserter::get_previous_blob_page()
-{
-	ut_ad(m_prev_page_no != m_ctx->get_page_no());
-
-	space_id_t	space_id	= m_ctx->space();
-	buf_block_t*	rec_block	= m_ctx->block();
-
-	buf_block_t*	prev_block = buf_page_get(
-		page_id_t(space_id, m_prev_page_no),
-		rec_block->page.size,
-		RW_X_LATCH, &m_blob_mtr);
-
-	buf_block_dbg_add_level(prev_block, SYNC_EXTERN_STORAGE);
-
-	return(buf_block_get_frame(prev_block));
-}
-
-/** Get the previous BLOB page block.  This will return a BLOB block.
-It should not be called for the first BLOB page, because it will not
-have a previous BLOB page.
-@return	the previous BLOB block. */
-buf_block_t*
-BaseInserter::get_previous_blob_block()
-{
-	DBUG_ENTER("BaseInserter::get_previous_blob_block");
-
-	DBUG_LOG("lob", "m_prev_page_no=" << m_prev_page_no);
-	ut_ad(m_prev_page_no != m_ctx->get_page_no());
-
-	space_id_t	space_id	= m_ctx->space();
-	buf_block_t*	rec_block	= m_ctx->block();
-
-	buf_block_t*	prev_block = buf_page_get(
-		page_id_t(space_id, m_prev_page_no),
-		rec_block->page.size,
-		RW_X_LATCH, &m_blob_mtr);
-
-	buf_block_dbg_add_level(prev_block, SYNC_EXTERN_STORAGE);
-
-	DBUG_RETURN(prev_block);
 }
 
 /** Print this blob directory into the given output stream.
@@ -624,17 +260,6 @@ zReader::assert_empty_local_prefix()
 	ut_ad(m_rctx.m_local_len == BTR_EXTERN_FIELD_REF_SIZE);
 	return(true);
 }
-
-/** Assert that the local prefix is empty.  For compressed row format,
-there is no local prefix stored.  This function doesn't return if the
-local prefix is non-empty.
-@return true if local prefix is empty*/
-bool
-CompressedReader::assert_empty_local_prefix()
-{
-	ut_ad(m_rctx.m_local_len == BTR_EXTERN_FIELD_REF_SIZE);
-	return(true);
-}
 #endif /* UNIV_DEBUG */
 
 dberr_t
@@ -671,7 +296,8 @@ TODO: If the allocation extends the tablespace, it will not be redo logged, in
 any mini-transaction.  Tablespace extension should be redo-logged, so that
 recovery will not fail when the big_rec was written to the extended portion of
 the file, in case the file was somehow truncated in the crash.
-
+@param[in]	trx		the trx doing LOB store. If unavailable it
+				could be nullptr.
 @param[in,out]	pcur		a persistent cursor. if btr_mtr is restarted,
 				then this can be repositioned.
 @param[in]	upd		update vector
@@ -687,6 +313,7 @@ the file, in case the file was somehow truncated in the crash.
 @return DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 dberr_t
 btr_store_big_rec_extern_fields(
+	trx_t*			trx,
 	btr_pcur_t*		pcur,
 	const upd_t*		upd,
 	ulint*			offsets,
@@ -699,6 +326,7 @@ btr_store_big_rec_extern_fields(
 	page_zip_des_t*	page_zip;
 	dberr_t		error		= DB_SUCCESS;
 	dict_index_t*	index		= pcur->index();
+	dict_table_t*	table		= index->table;
 	buf_block_t*	rec_block	= btr_pcur_get_block(pcur);
 	rec_t*		rec		= btr_pcur_get_rec(pcur);
 
@@ -714,16 +342,11 @@ btr_store_big_rec_extern_fields(
 	ut_ad(buf_block_get_frame(rec_block) == page_align(rec));
 	ut_a(index->is_clustered());
 
-	ut_a(dict_table_page_size(index->table)
-		.equals_to(rec_block->page.size));
+	ut_a(dict_table_page_size(table).equals_to(rec_block->page.size));
 
 	/* Create a blob operation context. */
 	BtrContext btr_ctx(btr_mtr, pcur, index, rec, offsets, rec_block, op);
 	InsertContext ctx(btr_ctx, big_rec_vec);
-
-	page_zip = buf_block_get_page_zip(rec_block);
-	ut_a(fil_page_index_page_check(page_align(rec))
-	     || op == OPCODE_INSERT_BULK);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 	/* All pointers to externally stored columns in the record
@@ -735,35 +358,171 @@ btr_store_big_rec_extern_fields(
 
 		ref_t	blobref(field_ref);
 
+		/* Make a in-memory copy of the LOB ref. */
+		ref_mem_t	ref_mem;
+		blobref.parse(ref_mem);
+
 		ut_a(blobref.is_owner());
 		/* Either this must be an update in place,
 		or the BLOB must be inherited, or the BLOB pointer
 		must be zero (will be written in this function). */
 		ut_a(op == OPCODE_UPDATE
+		     || op == OPCODE_INSERT_UPDATE
 		     || blobref.is_inherited()
 		     || blobref.is_null());
 	}
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
-	/* Refactored compressed BLOB code */
-	if (page_zip != NULL) {
+	/* The pcur could be re-positioned.  Commit and restart btr_mtr. */
+	ctx.check_redolog();
+	rec_block	= btr_pcur_get_block(pcur);
+	rec		= btr_pcur_get_rec(pcur);
 
+	page_zip = buf_block_get_page_zip(rec_block);
+	ut_a(fil_page_index_page_check(page_align(rec))
+	     || op == OPCODE_INSERT_BULK);
+
+
+	if (page_zip != NULL) {
 		DBUG_EXECUTE_IF("lob_insert_single_zstream",
 				{goto insert_single_zstream;});
 
-		CompressedInserter	zblob_writer(&ctx);
-		error = zblob_writer.prepare();
-		if (error == DB_SUCCESS) {
-			zblob_writer.write();
-			error = zblob_writer.finish();
+		if (dict_index_is_sdi(index)) {
+			goto insert_single_zstream;
 		}
-	} else {
 
-		Inserter	blob_writer(&ctx);
-		error = blob_writer.write();
+	} else {
+		/* Uncompressed LOB */
+
+		DBUG_EXECUTE_IF("lob_insert_noindex",
+				{goto insert_noindex;});
+
+		if (dict_index_is_sdi(index)) {
+			goto insert_noindex;
+		}
+	}
+
+	for (uint i = 0; i < big_rec_vec->n_fields; i++) {
+		ulint field_no = big_rec_vec->fields[i].field_no;
+
+		/* Cursor could have changed position. */
+		rec	= btr_pcur_get_rec(pcur);
+		rec_offs_make_valid(rec, index, offsets);
+		ut_ad(rec_offs_validate(rec, index, offsets));
+
+		byte*	field_ref = btr_rec_get_field_ref(
+			rec, offsets, field_no);
+
+		ref_t	blobref(field_ref);
+		ut_ad(blobref.validate(btr_mtr));
+
+		bool can_do_partial_update = false;
+
+		if (op == lob::OPCODE_UPDATE && upd != nullptr
+		    && big_rec_vec->fields[i].ext_in_old) {
+
+			can_do_partial_update
+				= blobref.is_lob_partially_updatable(index);
+		}
+
+		if (page_zip != nullptr) {
+
+			bool do_insert = true;
+
+			if (op == lob::OPCODE_UPDATE
+			    && upd != nullptr
+			    && blobref.is_big(rec_block->page.size)
+			    && can_do_partial_update) {
+
+				if (upd->is_partially_updated(field_no)) {
+					/* Do partial update. */
+					error = lob::z_update(
+						ctx, trx, index, upd,
+						field_no, blobref);
+					switch (error) {
+					case DB_SUCCESS:
+						do_insert = false;
+						break;
+					case DB_FAIL:
+						break;
+					default:
+						ut_error;
+					}
+				} else {
+
+					/* This is to inform the purge thread that
+					the older version LOB in this update operation
+					can be freed. */
+					blobref.mark_not_partially_updatable(
+						trx, btr_mtr, index,
+						dict_table_page_size(table));
+				}
+			}
+
+			if (do_insert) {
+				error = lob::z_insert(&ctx, trx, blobref,
+					&big_rec_vec->fields[i], i);
+			}
+
+		} else {
+			/* Uncompressed LOB */
+			bool do_insert = true;
+
+			if (op == lob::OPCODE_UPDATE
+			    && upd != nullptr
+			    && blobref.is_big(rec_block->page.size)
+			    && can_do_partial_update) {
+
+				if (upd->is_partially_updated(field_no)) {
+					/* Do partial update. */
+					error = lob::update(
+						ctx, trx, index, upd,
+						field_no, blobref);
+					switch (error) {
+					case DB_SUCCESS:
+						do_insert = false;
+						break;
+					case DB_FAIL:
+						break;
+					default:
+						ut_error;
+					}
+
+				} else {
+
+					/* This is to inform the purge thread that
+					the older version LOB in this update operation
+					can be freed. */
+					blobref.mark_not_partially_updatable(
+						trx, btr_mtr, index,
+						dict_table_page_size(table));
+				}
+
+			}
+
+			if (do_insert) {
+
+				error = lob::insert(&ctx, trx, blobref,
+						    &big_rec_vec->fields[i], i);
+			}
+		}
+
+		if (error != DB_SUCCESS) {
+			break;
+		}
+
+#ifdef UNIV_DEBUG
+		/* Ensure that the LOB references are valid now. */
+		rec	= btr_pcur_get_rec(pcur);
+		rec_offs_make_valid(rec, index, offsets);
+		field_ref = btr_rec_get_field_ref(
+			rec, offsets, big_rec_vec->fields[i].field_no);
+		ref_t lobref(field_ref);
+		ut_ad(!lobref.is_null());
+#endif /* UNIV_DEBUG */
 	}
 	return(error);
-#ifdef UNIV_DEBUG
+
 	{
 insert_single_zstream:
 		/* Insert the LOB as a single zlib stream spanning multiple
@@ -776,7 +535,13 @@ insert_single_zstream:
 		}
 		return(error);
 	}
-#endif /* UNIV_DEBUG */
+	{
+insert_noindex:
+		/* Insert the uncompressed LOB without LOB index. */
+		Inserter	blob_writer(&ctx);
+		error = blob_writer.write();
+		return(error);
+	}
 }
 
 /** Copies an externally stored field of a record to mem heap.
@@ -791,6 +556,7 @@ insert_single_zstream:
 @return the field copied to heap, or NULL if the field is incomplete */
 byte*
 btr_rec_copy_externally_stored_field_func(
+	const dict_index_t*	index,
 	const rec_t*		rec,
 	const ulint*		offsets,
 	const page_size_t&	page_size,
@@ -816,191 +582,26 @@ btr_rec_copy_externally_stored_field_func(
 	the extern bit is available in those two bytes. */
 
 	data = rec_get_nth_field(rec, offsets, no, &local_len);
+	const byte* field_ref = data + local_len - BTR_EXTERN_FIELD_REF_SIZE;
+
+	lob::ref_t ref(const_cast<byte*>(field_ref));
 
 	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-	if (UNIV_UNLIKELY
-	    (!memcmp(data + local_len - BTR_EXTERN_FIELD_REF_SIZE,
-		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+	if (ref.is_null()) {
 		/* The externally stored field was not written yet.
 		This record should only be seen by
 		trx_rollback_or_clean_all_recovered() or any
 		TRX_ISO_READ_UNCOMMITTED transactions. */
 
+		lob::ref_mem_t ref_mem;
+		ref.parse(ref_mem);
 		return(NULL);
 	}
 
 	return(btr_copy_externally_stored_field(
-			len, data, page_size, local_len, is_sdi, heap));
-}
-
-/** Write all the BLOBs of the clustered index record.
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t
-Inserter::write()
-{
-	/* Loop through each blob field of the record and write one blob
-	at a time. */
-	for (ulint i = 0;
-	     i < m_ctx->get_big_rec_vec_size() && m_status == DB_SUCCESS;
-	     i++) {
-
-		ut_d(m_dir.clear(););
-		m_status = write_one_blob(i);
-
-		DBUG_EXECUTE_IF("btr_store_big_rec_extern",
-				m_status = DB_OUT_OF_FILE_SPACE;);
-	}
-
-	ut_ad(m_status != DB_SUCCESS || m_ctx->are_all_blobrefs_valid());
-
-	return(m_status);
-}
-
-/** Write one blob field data.
-@param[in]	blob_j	the blob field number
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t
-Inserter::write_one_blob(size_t blob_j)
-{
-	const big_rec_t*	vec = m_ctx->get_big_rec_vec();
-	big_rec_field_t&	field = vec->fields[blob_j];
-
-	m_ctx->check_redolog();
-
-	m_status = write_first_page(blob_j, field);
-
-	for (ulint nth_blob_page = 1;
-	     is_ok() && m_remaining > 0; ++nth_blob_page) {
-
-		const ulint	commit_freq = 4;
-
-		if (nth_blob_page % commit_freq == 0) {
-			m_ctx->check_redolog();
-		}
-
-		m_status = write_single_blob_page(blob_j, field, nth_blob_page);
-	}
-
-	m_ctx->make_nth_extern(field.field_no);
-
-	ut_ad(m_remaining == 0);
-
-	return(m_status);
-}
-
-/** Make the current page as next page of previous page.  In other
-words, make the page m_cur_blob_page_no as the next page of page
-m_prev_page_no. */
-void
-Inserter::set_page_next()
-{
-	page_t*	prev_page = get_previous_blob_page();
-
-	mlog_write_ulint(
-		prev_page + FIL_PAGE_DATA + LOB_HDR_NEXT_PAGE_NO,
-		m_cur_blob_page_no, MLOG_4BYTES, &m_blob_mtr);
-}
-
-/** Write first blob page.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@return DB_SUCCESS on success. */
-dberr_t
-Inserter::write_first_page(
-	size_t			blob_j,
-	big_rec_field_t&	field)
-{
-	buf_block_t*	rec_block	= m_ctx->block();
-	mtr_t*		mtr		= start_blob_mtr();
-
-	buf_page_get(rec_block->page.id,
-		     rec_block->page.size, RW_X_LATCH, mtr);
-
-	alloc_blob_page();
-
-	if (dict_index_is_online_ddl(m_ctx->index())) {
-		row_log_table_blob_alloc(m_ctx->index(),
-					 m_cur_blob_page_no);
-	}
-
-	log_page_type();
-
-	m_remaining = field.len;
-	write_into_single_page(field);
-
-	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(
-		m_ctx->rec(), m_ctx->get_offsets(), field_no);
-	ref_t	blobref(field_ref);
-
-	blobref.set_length(field.len - m_remaining, mtr);
-	blobref.update(m_ctx->space(), m_cur_blob_page_no,
-		       FIL_PAGE_DATA, mtr);
-
-	m_prev_page_no = m_cur_blob_page_no;
-
-	mtr->commit();
-
-	return(m_status);
-}
-
-/** Write one blob page.  This function will be repeatedly called
-with an increasing nth_blob_page to completely write a BLOB.
-@param[in]	blob_j		the jth blob object in big fields vector.
-@param[in]	field		the big record field.
-@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
-@return DB_SUCCESS or DB_FAIL. */
-dberr_t
-Inserter::write_single_blob_page(
-	size_t			blob_j,
-	big_rec_field_t&	field,
-	ulint			nth_blob_page)
-{
-	buf_block_t*	rec_block	= m_ctx->block();
-	mtr_t*		mtr		= start_blob_mtr();
-	ut_a(nth_blob_page > 0);
-
-	buf_page_get(rec_block->page.id,
-		     rec_block->page.size, RW_X_LATCH, mtr);
-
-	alloc_blob_page();
-	set_page_next();
-	log_page_type();
-	write_into_single_page(field);
-	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(
-		m_ctx->rec(), m_ctx->get_offsets(), field_no);
-	ref_t	blobref(field_ref);
-	blobref.set_length(field.len - m_remaining, mtr);
-	m_prev_page_no = m_cur_blob_page_no;
-	mtr->commit();
-
-	return(m_status);
-}
-
-/** Write contents into a single BLOB page.
-@param[in]	field		the big record field. */
-void
-Inserter::write_into_single_page(big_rec_field_t&	field)
-{
-	const ulint	payload_size = payload();
-	const ulint	store_len
-		= (m_remaining > payload_size) ? payload_size : m_remaining;
-
-	page_t*	page = buf_block_get_frame(m_cur_blob_block);
-
-	mlog_write_string(page + FIL_PAGE_DATA + LOB_HDR_SIZE,
-			  (const byte*) field.data + field.len - m_remaining,
-			  store_len, &m_blob_mtr);
-
-	mlog_write_ulint(page + FIL_PAGE_DATA + LOB_HDR_PART_LEN,
-			 store_len, MLOG_4BYTES, &m_blob_mtr);
-
-	mlog_write_ulint(page + FIL_PAGE_DATA + LOB_HDR_NEXT_PAGE_NO,
-			 FIL_NULL, MLOG_4BYTES, &m_blob_mtr);
-
-	m_remaining -= store_len;
+			index, len, data, page_size, local_len, is_sdi,
+			heap));
 }
 
 /** Returns the page number where the next BLOB part is stored.
@@ -1012,130 +613,6 @@ page_no_t
 btr_blob_get_next_page_no(const byte* blob_header)
 {
 	return(mach_read_from_4(blob_header + LOB_HDR_NEXT_PAGE_NO));
-}
-
-/* Obtain an x-latch on the clustered index record page.*/
-void Deleter::x_latch_rec_page()
-{
-	bool		found;
-	page_t*		rec_page = m_ctx.m_blobref.page_align();
-	page_no_t	rec_page_no = page_get_page_no(rec_page);
-	space_id_t	rec_space_id = page_get_space_id(rec_page);
-
-	const page_size_t& rec_page_size = fil_space_get_page_size(
-			rec_space_id, &found);
-	ut_ad(found);
-
-	buf_page_get(
-		page_id_t(rec_space_id, rec_page_no),
-		rec_page_size, RW_X_LATCH, &m_mtr);
-}
-
-/** Free the first page of the BLOB and update the BLOB reference
-in the clustered index.
-@return DB_SUCCESS on pass, error code on failure. */
-dberr_t	Deleter::free_first_page()
-{
-	dberr_t	err(DB_SUCCESS);
-	page_no_t	next_page_no;
-
-	mtr_start(&m_mtr);
-
-	m_mtr.set_log_mode(m_ctx.m_mtr->get_log_mode());
-
-	ut_ad(m_ctx.m_pcur == nullptr
-	      || !m_ctx.table()->is_temporary()
-	      || m_ctx.m_mtr->get_log_mode() == MTR_LOG_NO_REDO);
-
-	page_no_t	page_no = m_ctx.m_blobref.page_no();
-	space_id_t	space_id = m_ctx.m_blobref.space_id();
-
-	x_latch_rec_page();
-
-	buf_block_t*	blob_block = buf_page_get(
-		page_id_t(space_id, page_no),
-		m_ctx.m_page_size,
-		RW_X_LATCH, &m_mtr);
-
-	buf_block_dbg_add_level(blob_block, SYNC_EXTERN_STORAGE);
-	page_t*	page = buf_block_get_frame(blob_block);
-
-	ut_a(validate_page_type(page));
-
-	if (m_ctx.is_compressed()) {
-		next_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
-	} else {
-		next_page_no = btr_blob_get_next_page_no(
-			page + FIL_PAGE_DATA);
-	}
-
-	btr_page_free_low(m_ctx.m_index, blob_block, ULINT_UNDEFINED,
-			  &m_mtr);
-
-	if (m_ctx.is_compressed() && m_ctx.get_page_zip() != nullptr) {
-		m_ctx.m_blobref.set_page_no(next_page_no, nullptr);
-		m_ctx.m_blobref.set_length(0, nullptr);
-		page_zip_write_blob_ptr(
-			m_ctx.get_page_zip(), m_ctx.m_rec, m_ctx.m_index,
-			m_ctx.m_offsets, m_ctx.m_field_no, &m_mtr);
-	} else {
-		m_ctx.m_blobref.set_page_no(next_page_no, &m_mtr);
-		m_ctx.m_blobref.set_length(0, &m_mtr);
-	}
-
-	/* Commit mtr and release the BLOB block to save memory. */
-	blob_free(m_ctx.m_index, blob_block, TRUE, &m_mtr);
-
-	return(err);
-}
-
-/** Free the LOB object.
-@return DB_SUCCESS on success. */
-dberr_t	Deleter::destroy()
-{
-	dberr_t	err(DB_SUCCESS);
-
-	if (!can_free()) {
-		return(DB_SUCCESS);
-	}
-
-	if (dict_index_is_online_ddl(m_ctx.index())) {
-		row_log_table_blob_free(m_ctx.index(),
-					m_ctx.m_blobref.page_no());
-	}
-
-	while (m_ctx.m_blobref.page_no() != FIL_NULL) {
-		ut_ad(m_ctx.m_blobref.page_no() > 0);
-
-		err = free_first_page();
-		if (err != DB_SUCCESS) {
-			break;
-		}
-	}
-
-	return(err);
-}
-
-/** Check if the BLOB can be freed.
-@return true if the BLOB can be freed, false otherwise. */
-bool
-Deleter::can_free() const
-{
-	if (m_ctx.m_blobref.is_null()) {
-		/* In the rollback, we may encounter a clustered index
-		record with some unwritten off-page columns. There is
-		nothing to free then. */
-		ut_a(m_ctx.m_rollback);
-		return(false);
-	}
-
-	if (!m_ctx.m_blobref.is_owner()
-	    || m_ctx.m_blobref.page_no() == FIL_NULL
-	    || (m_ctx.m_rollback && m_ctx.m_blobref.is_inherited())) {
-		return(false);
-	}
-
-	return(true);
 }
 
 /** Check the FIL_PAGE_TYPE on an uncompressed BLOB page.
@@ -1259,18 +736,21 @@ ulint	Reader::fetch()
 
 /** Copies the prefix of an externally stored field of a record.
 The clustered index record must be protected by a lock or a page latch.
+@param[in]	index		the clust index in which lob is read.
 @param[out]	buf		the field, or a prefix of it
 @param[in]	len		length of buf, in bytes
 @param[in]	page_size	BLOB page size
 @param[in]	data		'internally' stored part of the field
-containing also the reference to the external part; must be protected by
-a lock or a page latch
+				containing also the reference to the external
+				part; must be protected by a lock or a page
+				latch.
 @param[in]	is_sdi		true for SDI indexes
 @param[in]	local_len	length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
 ulint
 btr_copy_externally_stored_field_prefix_func(
+	const dict_index_t*	index,
 	byte*			buf,
 	ulint			len,
 	const page_size_t&	page_size,
@@ -1284,18 +764,35 @@ btr_copy_externally_stored_field_prefix_func(
 
 	if (page_size.is_compressed()) {
 		ut_a(local_len == BTR_EXTERN_FIELD_REF_SIZE);
+
 		ReadContext	rctx(page_size, data, local_len,
 				     buf, len
 #ifdef UNIV_DEBUG
 				     , is_sdi
 #endif /* UNIV_DEBUG */
 				     );
-		if (!rctx.is_valid_blob()) {
+
+		rctx.m_index = const_cast<dict_index_t*>(index);
+
+		/* Obtain length of LOB available in clustered index.*/
+		ulint avail_lob = rctx.m_blobref.length();
+
+		if (avail_lob == 0) {
+			/* No LOB data available. */
 			return(0);
 		}
-		CompressedReader	reader(rctx);
-		reader.fetch();
-		return(reader.length());
+
+		/* Read the LOB data. */
+		ulint fetch_len = lob::z_read(&rctx, rctx.m_blobref, 0,
+			len, buf);
+
+		/* Either fetch the requested length or fetch the complete
+		LOB. If complete LOB is fetched, then it means that requested
+		length is bigger than the available length. */
+		ut_a(fetch_len == 0 || fetch_len == len ||
+		     (fetch_len == avail_lob && avail_lob < len));
+
+		return(fetch_len);
 	}
 
 	local_len -= BTR_EXTERN_FIELD_REF_SIZE;
@@ -1326,17 +823,21 @@ btr_copy_externally_stored_field_prefix_func(
 #endif /* UNIV_DEBUG */
 		);
 
-	Reader	reader(rctx);
-	ulint fetch_len = reader.fetch();
+	rctx.m_index = (dict_index_t*) index;
+
+	ulint fetch_len = lob::read(&rctx, rctx.m_blobref, 0, len,
+				    buf + local_len);
 	return(local_len + fetch_len);
 }
 
 /** Copies an externally stored field of a record to mem heap.
 The clustered index record must be protected by a lock or a page latch.
+@param[in]	index		the clust index in which lob is read.
 @param[out]	len		length of the whole field
 @param[in]	data		'internally' stored part of the field
-containing also the reference to the external part; must be protected by
-a lock or a page latch
+				containing also the reference to the external
+				part; must be protected by a lock or a page
+				latch.
 @param[in]	page_size	BLOB page size
 @param[in]	local_len	length of data
 @param[in]	is_sdi		true for SDI Indexes
@@ -1344,6 +845,7 @@ a lock or a page latch
 @return the whole field copied to heap */
 byte*
 btr_copy_externally_stored_field_func(
+	const dict_index_t*	index,
 	ulint*			len,
 	const byte*		data,
 	const page_size_t&	page_size,
@@ -1355,6 +857,8 @@ btr_copy_externally_stored_field_func(
 {
 	uint32_t	extern_len;
 	byte*		buf;
+
+	ut_a(index->is_clustered());
 
 	ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
@@ -1375,16 +879,24 @@ btr_copy_externally_stored_field_func(
 #endif /* UNIV_DEBUG */
 			     );
 
+	rctx.m_index = (dict_index_t*) index;
+
 	if (page_size.is_compressed()) {
 		ut_ad(local_len == 0);
-		CompressedReader	reader(rctx);
-		reader.fetch();
-		*len = reader.length();
+		*len = lob::z_read(&rctx, rctx.m_blobref, 0, extern_len,
+				   buf + local_len);
 		return(buf);
 	} else {
+
 		memcpy(buf, data, local_len);
-		Reader	reader(rctx);
-		ulint fetch_len = reader.fetch();
+
+		ulint fetch_len = 0;
+
+		if (extern_len > 0) {
+			fetch_len = lob::read(&rctx, rctx.m_blobref, 0,
+					      extern_len, buf + local_len);
+		}
+
 		*len = local_len + fetch_len;
 		return(buf);
 	}
@@ -1394,14 +906,20 @@ btr_copy_externally_stored_field_func(
 
 /** Frees the externally stored fields for a record, if the field
 is mentioned in the update vector.
+@param[in]	trx_id		the transaction identifier.
+@param[in]	undo_no		undo number within a transaction whose
+				LOB is being freed.
 @param[in]	update		update vector
 @param[in]	rollback	performing rollback? */
 void BtrContext::free_updated_extern_fields(
+	trx_id_t	trx_id,
+	undo_no_t	undo_no,
 	const upd_t*	update,
 	bool		rollback)
 {
 	ulint	n_fields;
 	ulint	i;
+	ut_ad(rollback);
 
 	ut_ad(rec_offs_validate());
 	ut_ad(mtr_is_page_fix(m_mtr, m_rec, MTR_MEMO_PAGE_X_FIX, m_index->table));
@@ -1424,8 +942,9 @@ void BtrContext::free_updated_extern_fields(
 
 			DeleteContext ctx(*this, field_ref,
 					  ufield->field_no, rollback);
-			Deleter	free_blob(ctx);
-			free_blob.destroy();
+
+			ref_t  lobref(field_ref);
+			lob::purge(&ctx, m_index, trx_id, undo_no, lobref, 0);
 		}
 	}
 }
@@ -1493,9 +1012,11 @@ btr_push_update_extern_fields(
 	const upd_t*	update,
 	mem_heap_t*	heap)
 {
-	ulint			n_pushed	= 0;
-	ulint			n;
-	const upd_field_t*	uf;
+	DBUG_ENTER("btr_push_update_extern_fields");
+
+	ulint		n_pushed	= 0;
+	ulint		n;
+	upd_field_t*	uf;
 
 	ut_ad(tuple);
 	ut_ad(update);
@@ -1508,7 +1029,10 @@ btr_push_update_extern_fields(
 			dfield_t*	field
 				= dtuple_get_nth_field(tuple, uf->field_no);
 
-			if (!dfield_is_ext(field)) {
+			if (dfield_is_ext(field)) {
+				uf->ext_in_old = true;
+			} else {
+				uf->ext_in_old = false;
 				dfield_set_ext(field);
 				n_pushed++;
 			}
@@ -1559,7 +1083,7 @@ btr_push_update_extern_fields(
 		}
 	}
 
-	return(n_pushed);
+	DBUG_RETURN(n_pushed);
 }
 
 /** Gets the externally stored size of a record, in units of a database page.
@@ -1599,8 +1123,17 @@ btr_rec_get_externally_stored_len(
 }
 
 /** Frees the externally stored fields for a record.
-@param[in]	rollback	performing rollback? */
-void BtrContext::free_externally_stored_fields(bool rollback)
+@param[in]	trx_id		transaction identifier whose LOB is
+				being freed.
+@param[in]	undo_no		undo number within a transaction whose
+				LOB is being freed.
+@param[in]	rollback	performing rollback?
+@param[in]	rec_type	undo record type.*/
+void BtrContext::free_externally_stored_fields(
+	trx_id_t	trx_id,
+	undo_no_t	undo_no,
+	bool		rollback,
+	ulint		rec_type)
 {
 	ut_ad(rec_offs_validate());
 	ut_ad(mtr_is_page_fix(m_mtr, m_rec, MTR_MEMO_PAGE_X_FIX,
@@ -1618,412 +1151,159 @@ void BtrContext::free_externally_stored_fields(bool rollback)
 
 			DeleteContext ctx(*this, field_ref,
 					  i, rollback);
-
-			Deleter	free_blob(ctx);
-			free_blob.destroy();
+			ref_t  lobref(field_ref);
+			lob::purge(&ctx, m_index, trx_id, undo_no, lobref,
+				   rec_type);
 		}
 	}
 }
 
-/** Prepare to write a compressed BLOB. Setup the zlib
-compression stream.
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t CompressedInserter::prepare()
+/** Load the first page of LOB and read its page type.
+@param[in]	index			the index object.
+@param[in]	page_size		the page size of LOB.
+@param[out]	is_partially_updatable	is the LOB partially updatable.
+@return the page type of first page of LOB.*/
+ulint
+ref_t::get_lob_page_info(
+	const dict_index_t*	index,
+	const page_size_t&	page_size,
+	bool&			is_partially_updatable) const
 {
-	int ret = m_fitblk.init(page_zip_level);
+	mtr_t		mtr;
+	buf_block_t*	block;
+	ref_mem_t	ref_mem;
 
-	if (ret != 0) {
-		return(DB_FAIL);
+	parse(ref_mem);
+
+	mtr_start(&mtr);
+
+	block = buf_page_get(
+		page_id_t(ref_mem.m_space_id, ref_mem.m_page_no),
+		page_size, RW_S_LATCH, &mtr);
+
+	ulint page_type = block->get_page_type();
+
+	switch (page_type) {
+	case FIL_PAGE_TYPE_LOB_FIRST:
+	{
+		first_page_t	first_page(block, &mtr, (dict_index_t*) index);
+		is_partially_updatable = first_page.can_be_partially_updated();
+		break;
+	}
+	case FIL_PAGE_TYPE_ZLOB_FIRST:
+	{
+		z_first_page_t	z_first_page(block, &mtr, (dict_index_t*) index);
+		is_partially_updatable = z_first_page.can_be_partially_updated();
+		break;
+	}
+	default:
+		is_partially_updatable = false;
 	}
 
-	return(DB_SUCCESS);
+	mtr_commit(&mtr);
+
+	return(page_type);
 }
 
-/** Write all the BLOBs of the clustered index record.
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t
-CompressedInserter::write()
+/** Load the first page of the LOB and mark it as not partially
+updatable anymore.
+@param[in]	trx		the current transaction
+@param[in]	mtr		the mini transaction context.
+@param[in]	index		the index dictionary object.
+@param[in]	page_size	the page size information. */
+void
+ref_t::mark_not_partially_updatable(
+	trx_t*			trx,
+	mtr_t*			mtr,
+	dict_index_t*		index,
+	const page_size_t&	page_size)
 {
-	/* loop through each of the blob and write one blob at a time. */
-	for (ulint i = 0;
-	     i < m_ctx->get_big_rec_vec_size() && m_status == DB_SUCCESS;
-	     i++) {
+	buf_block_t*	block;
+	ref_mem_t	ref_mem;
 
-		ut_d(m_dir.clear(););
-		m_status = write_one_blob(i);
+	parse(ref_mem);
+
+	block = buf_page_get(
+		page_id_t(ref_mem.m_space_id, ref_mem.m_page_no),
+		page_size, RW_X_LATCH, mtr);
+
+	ulint page_type = block->get_page_type();
+
+	switch (page_type) {
+	case FIL_PAGE_TYPE_LOB_FIRST:
+	{
+		first_page_t	first_page(block, mtr, (dict_index_t*) index);
+		first_page.mark_cannot_be_partially_updated(trx);
+		break;
+	}
+	case FIL_PAGE_TYPE_ZLOB_FIRST:
+	{
+		z_first_page_t	z_first_page(block, mtr, (dict_index_t*) index);
+		z_first_page.mark_cannot_be_partially_updated(trx);
+		break;
+	}
+	default:
+		/* do nothing */
+		break;
+	}
+}
+
+/** Check if the LOB can be partially updated. This is done by loading
+the first page of LOB and looking at the flags.
+@param[in]	index	the index to which LOB belongs.
+@return true if LOB is partially updatable, false otherwise.*/
+bool
+ref_t::is_lob_partially_updatable(
+	const dict_index_t*	index) const
+{
+	if (is_null()) {
+		return(false);
 	}
 
-	return(m_status);
+	const	page_size_t page_size = dict_table_page_size(index->table);
+	bool	can_do_partial_update = false;
+	ulint	page_type = get_lob_page_info(index, page_size,
+				can_do_partial_update);
+
+	bool	page_type_ok = (page_type == FIL_PAGE_TYPE_LOB_FIRST
+				|| page_type == FIL_PAGE_TYPE_ZLOB_FIRST);
+
+	return(page_type_ok && can_do_partial_update);
 }
 
-
-/** Write one blob field data.
-@param[in]	blob_j	the blob field number
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t
-CompressedInserter::write_one_blob(size_t blob_j)
+std::ostream& ref_t::print(std::ostream& out) const
 {
-	const big_rec_t*	vec = m_ctx->get_big_rec_vec();
-	big_rec_field_t&	field = vec->fields[blob_j];
-
-	m_ctx->check_redolog();
-
-	m_bytes_written = 0;
-
-	m_fitblk.setInputBuffer(field.ptr(), static_cast<uint>(field.len));
-
-	int err = write_first_page(blob_j, field);
-	ut_a(err == Z_OK || err == Z_STREAM_END);
-
-	ulint nth_blob_page;
-	for (nth_blob_page = 1;
-	     m_bytes_written < field.len; ++nth_blob_page) {
-
-		const ulint	commit_freq = 4;
-
-		err = write_single_blob_page(blob_j, field, nth_blob_page);
-		ut_a(err == Z_OK || err == Z_STREAM_END);
-
-		if (nth_blob_page % commit_freq == 0) {
-			m_ctx->check_redolog();
-		}
-	}
-
-	// std::cout << "nth_blob_page: " << nth_blob_page << std::endl;
-	ut_a(m_bytes_written == field.len);
-	m_ctx->make_nth_extern(field.field_no);
-	return(DB_SUCCESS);
+	out << "[ref_t: m_ref=" << (void*) m_ref << ", space_id="
+		<< space_id() << ", page_no=" << page_no()
+		<< ", offset=" << offset() << ", length="
+		<< length() << "]";
+	return(out);
 }
 
-/** Write one blob page.  This function will be repeatedly called
-with an increasing nth_blob_page to completely write a BLOB.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@param[in]	nth_blob_page	count of the BLOB page (starting from 1).
-@return code as returned by the zlib. */
-int
-CompressedInserter::write_single_blob_page(
-	size_t			blob_j,
-	big_rec_field_t&	field,
-	ulint			nth_blob_page)
+/** Acquire an x-latch on the index page containing the clustered
+index record, in the given mini transaction context.
+@param[in]	mtr	the mini-transaction context. */
+void
+DeleteContext::x_latch_rec_page(
+	mtr_t*			mtr)
 {
-	DBUG_ENTER("CompressedInserter::write_single_blob_page");
+	bool		found;
+	page_t*		rec_page = m_blobref.page_align();
+	page_no_t	rec_page_no = page_get_page_no(rec_page);
+	space_id_t	rec_space_id = page_get_space_id(rec_page);
 
-	ut_ad(nth_blob_page > 0);
-
-	buf_block_t*	rec_block = m_ctx->block();
-	mtr_t*		mtr = start_blob_mtr();
-
-	buf_page_get(rec_block->page.id,
-		     rec_block->page.size, RW_X_LATCH, mtr);
-
-	buf_block_t*	blob_block = alloc_blob_page();
-	page_t*		blob_page  = buf_block_get_frame(blob_block);
-
-	set_page_next();
-
-	m_prev_page_no = page_get_page_no(blob_page);
-
-	log_page_type(blob_page);
-
-	int err = write_into_single_page(field);
-
-	ut_ad(!dict_index_is_spatial(m_ctx->index()));
-
-	DBUG_LOG("lob", "m_bytes_written=" << m_bytes_written);
-	DBUG_LOG("lob", "field.len=" << field.len);
-
-	if (m_bytes_written == field.len) {
-		update_length_in_blobref(field);
-	}
-
-	/* Commit mtr and release uncompressed page frame to save memory.*/
-	blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
-
-	DBUG_RETURN(err);
-}
-
-/** Write contents into a single BLOB page.
-@param[in]	field	the big record field that is begin written.
-@return code as returned by zlib. */
-int
-CompressedInserter::write_into_single_page(
-	big_rec_field_t&	field)
-{
-	DBUG_ENTER("CompressedInserter::write_into_single_page");
-	mtr_t*	const	mtr = &m_blob_mtr;
-
-	/* Space available in compressed page to carry blob data */
-	const page_size_t page_size = m_ctx->page_size();
-
-	page_t*	blob_page = buf_block_get_frame(m_cur_blob_block);
-	byte*	out = blob_page + ZLOB_PAGE_DATA;
-	uint	size = page_size.physical() - ZLOB_PAGE_DATA;
-
-	m_fitblk.fit(out, size);
-
-	m_bytes_written = m_fitblk.getInputBytes();
-
-	const blob_page_info_t page_info(
-		m_cur_blob_page_no,
-		m_fitblk.getInputBytes(),
-		m_fitblk.getOutputBytes());
+	const page_size_t& rec_page_size = fil_space_get_page_size(
+			rec_space_id, &found);
+	ut_ad(found);
 
 #ifdef UNIV_DEBUG
-	add_to_blob_dir(page_info);
+	buf_block_t* block =
 #endif /* UNIV_DEBUG */
+		buf_page_get(
+			page_id_t(rec_space_id, rec_page_no),
+			rec_page_size, RW_X_LATCH, mtr);
 
-	/* Write the "next BLOB page" pointer */
-	mlog_write_ulint(blob_page + FIL_PAGE_NEXT, FIL_NULL,
-			 MLOG_4BYTES, mtr);
-
-	/* Initialize the unused "prev page" pointer */
-	mlog_write_ulint(blob_page + FIL_PAGE_PREV, FIL_NULL,
-			 MLOG_4BYTES, mtr);
-
-	/* Write a back pointer to the record into the otherwise unused area.
-	This information could be useful in debugging.  Later, we might want
-	to implement the possibility to relocate BLOB pages.  Then, we would
-	need to be able to adjust the BLOB pointer in the record.  We do not
-	store the heap number of the record, because it can change in
-	page_zip_reorganize() or btr_page_reorganize().  However, also the
-	page number of the record may change when B-tree nodes are split or
-	merged. */
-	mlog_write_ulint(blob_page + FIL_PAGE_FILE_FLUSH_LSN,
-			 m_ctx->space(), MLOG_4BYTES, mtr);
-
-	mlog_write_ulint(blob_page + FIL_PAGE_FILE_FLUSH_LSN + 4,
-			 m_ctx->get_page_no(), MLOG_4BYTES, mtr);
-
-	mlog_log_string(blob_page + FIL_PAGE_FILE_FLUSH_LSN,
-			page_zip_get_size(m_ctx->get_page_zip())
-			- FIL_PAGE_FILE_FLUSH_LSN, mtr);
-
-	/* Copy the page to compressed storage, because it will be flushed
-	to disk from there. */
-	page_zip_des_t* blob_page_zip = buf_block_get_page_zip(m_cur_blob_block);
-
-	ut_ad(blob_page_zip);
-	ut_ad(page_zip_get_size(blob_page_zip)
-	      == page_zip_get_size(m_ctx->get_page_zip()));
-
-	page_zip_des_t* page_zip = buf_block_get_page_zip(m_ctx->block());
-	memcpy(blob_page_zip->data, blob_page, page_zip_get_size(page_zip));
-
-	DBUG_RETURN(Z_OK);
-}
-
-/** Write first blob page.
-@param[in]	blob_j		the jth blob object of the record.
-@param[in]	field		the big record field.
-@return code as returned by the zlib. */
-int
-CompressedInserter::write_first_page(
-	size_t			blob_j,
-	big_rec_field_t&	field)
-{
-	DBUG_ENTER("CompressedInserter::write_first_page");
-
-	buf_block_t*	rec_block = m_ctx->block();
-	mtr_t*		mtr = start_blob_mtr();
-
-	buf_page_get(rec_block->page.id,
-		     rec_block->page.size, RW_X_LATCH, mtr);
-
-	buf_block_t*	blob_block = alloc_blob_page();
-
-	if (dict_index_is_online_ddl(m_ctx->index())) {
-		row_log_table_blob_alloc(m_ctx->index(),
-					 m_cur_blob_page_no);
-	}
-
-	page_t*	blob_page  = buf_block_get_frame(blob_block);
-
-	log_page_type(blob_page);
-
-	int	err = write_into_single_page(field);
-
-	ut_ad(!dict_index_is_spatial(m_ctx->index()));
-
-	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(
-		m_ctx->rec(), m_ctx->get_offsets(), field_no);
-	ref_t	blobref(field_ref);
-
-	if (m_bytes_written == field.len) {
-		blobref.set_length(m_bytes_written, nullptr);
-	} else {
-		blobref.set_length(0, nullptr);
-	}
-
-	blobref.update(m_ctx->space(), m_cur_blob_page_no,
-		       ZLOB_PAGE_DATA, NULL);
-
-	/* After writing the first blob page, update the blob reference. */
-	if (!m_ctx->is_bulk()) {
-		m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);
-	}
-
-	m_prev_page_no = page_get_page_no(blob_page);
-
-	/* Commit mtr and release uncompressed page frame to save memory.*/
-	blob_free(m_ctx->index(), m_cur_blob_block, FALSE, mtr);
-
-	DBUG_LOG("CompressedInserter", "err=" << err);
-
-	DBUG_RETURN(err);
-}
-
-/** Make the current page as next page of previous page.  In other
-words, make the page m_cur_blob_page_no as the next page
-(FIL_PAGE_NEXT) of page m_prev_page_no.
-@return DB_SUCCESS on success, or error code on failure. */
-dberr_t
-CompressedInserter::set_page_next()
-{
-	buf_block_t*	prev_block = get_previous_blob_block();
-	page_t*		prev_page = buf_block_get_frame(prev_block);
-
-	mlog_write_ulint(prev_page + FIL_PAGE_NEXT, m_cur_blob_page_no,
-			 MLOG_4BYTES, &m_blob_mtr);
-
-	memcpy(buf_block_get_page_zip(prev_block)->data + FIL_PAGE_NEXT,
-	       prev_page + FIL_PAGE_NEXT, 4);
-
-	return(m_status);
-}
-
-/** For the given blob field, update its length in the blob reference
-which is available in the clustered index record.
-@param[in]	field	the concerned blob field. */
-void
-CompressedInserter::update_length_in_blobref(big_rec_field_t& field)
-{
-	DBUG_ENTER("CompressedInserter::update_length_in_blobref");
-
-	/* After writing the last blob page, update the blob reference
-	with the correct length. */
-
-	const ulint	field_no = field.field_no;
-	byte*	field_ref = btr_rec_get_field_ref(
-		m_ctx->rec(), m_ctx->get_offsets(), field_no);
-
-	ref_t	blobref(field_ref);
-	blobref.set_length(m_bytes_written, nullptr);
-
-	DBUG_LOG("lob", blobref);
-
-	if (!m_ctx->is_bulk()) {
-		m_ctx->zblob_write_blobref(field_no, &m_blob_mtr);
-	}
-
-	DBUG_VOID_RETURN;
-}
-
-/** Cleanup after completing the write of compressed BLOB.
-@return DB_SUCCESS on success, error code on failure. */
-dberr_t	CompressedInserter::finish()
-{
-	m_fitblk.destroy();
-	return(m_status);
-}
-
-/** Fetch the BLOB.
-@return DB_SUCCESS on success, DB_FAIL on error. */
-dberr_t
-CompressedReader::fetch()
-{
-	DBUG_ENTER("CompressedReader::fetch");
-
-	dberr_t	err = DB_SUCCESS;
-	ut_ad(assert_empty_local_prefix());
-
-	ut_d(m_page_type_ex = m_rctx.is_sdi() ? FIL_PAGE_SDI_ZBLOB : FIL_PAGE_TYPE_ZBLOB3);
-
-	m_remaining = length();
-
-	if (m_remaining > m_rctx.m_blobref.length()) {
-		m_remaining = m_rctx.m_blobref.length();
-		set_length(m_remaining);
-	}
-
-	if (m_remaining == 0) {
-		DBUG_RETURN(DB_SUCCESS);
-	}
-
-	if (is_single_zstream()) {
-		zReader	reader(m_rctx);
-		err = reader.fetch();
-		ut_ad(length() == reader.length());
-		DBUG_RETURN(err);
-	}
-
-	m_unfit.init();
-	m_unfit.setOutput(m_rctx.m_buf, static_cast<uint>(m_rctx.m_len));
-
-	while (m_unfit.m_total_out < m_rctx.m_len) {
-
-		if (m_rctx.m_page_no == FIL_NULL) {
-			break;
-		}
-
-		err = fetch_page();
-		if (err != DB_SUCCESS) {
-			break;
-		}
-		byte*	ptr = m_bpage->zip.data + ZLOB_PAGE_DATA;
-		uint	payload = getPayloadSize();
-
-		m_unfit.unfit(ptr, payload);
-
-		buf_page_release_zip(m_bpage);
-		ut_d(if (!m_rctx.m_is_sdi) m_page_type_ex = FIL_PAGE_TYPE_ZBLOB3);
-	}
-
-	UNIV_MEM_ASSERT_RW(m_rctx.m_buf, m_rctx.m_len);
-	DBUG_RETURN(err);
-}
-
-/** Check if the LOB is stored as a single zlib stream.  In the older
-approach, the LOB was stored as a single zlib stream.
-@return true if stored as a single stream, false otherwise. */
-bool
-CompressedReader::is_single_zstream()
-{
-	bool	single = false;
-
-	buf_page_t*	bpage = buf_page_get_zip(
-		page_id_t(m_rctx.m_space_id, m_rctx.m_page_no),
-		m_rctx.m_page_size);
-
-	if (fil_page_get_type(bpage->zip.data) == FIL_PAGE_TYPE_ZBLOB) {
-		/* The LOB is stored as a single zlib stream.  This is the
-		old way of storing LOB.  Use zReader. */
-		single = true;
-	}
-
-	buf_page_release_zip(bpage);
-
-	return(single);
-}
-
-dberr_t
-CompressedReader::fetch_page()
-{
-	dberr_t	err(DB_SUCCESS);
-
-	m_bpage = buf_page_get_zip(
-		page_id_t(m_rctx.m_space_id, m_rctx.m_page_no),
-		m_rctx.m_page_size);
-
-	ut_a(m_bpage != NULL);
-	ut_ad(fil_page_get_type(m_bpage->zip.data) == m_page_type_ex);
-	m_rctx.m_page_no = mach_read_from_4(m_bpage->zip.data + FIL_PAGE_NEXT);
-
-	DBUG_LOG("lob", "Reading LOB from: " << (void *) m_bpage->zip.data);
-
-	m_rctx.m_offset = ZLOB_PAGE_DATA;
-	return(err);
+	ut_ad(block != nullptr);
 }
 
 } // namespace lob

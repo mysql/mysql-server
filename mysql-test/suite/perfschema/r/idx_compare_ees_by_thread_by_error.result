@@ -131,54 +131,6 @@ OK: Handler_read_key
 OK: Result set: Non-empty  Expected: Non-empty
 
 OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id = 9999999 OR error_number != 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id = 9999999 ORDER BY thread_id
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id > 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id < 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id >= 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Empty  Expected: Empty
-
-OK: Extra rows: 0  Missing rows: 0
-========
-SELECT THREAD_ID, ERROR_NUMBER FROM performance_schema.events_errors_summary_by_thread_by_error WHERE thread_id <= 9999999
-
-OK: Handler_read_key
-
-OK: Result set: Non-empty  Expected: Non-empty
-
-OK: Extra rows: 0  Missing rows: 0
 
 ===== CLEAN UP =====
 ## Default connection

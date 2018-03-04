@@ -3,6 +3,10 @@
 #
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET NAMES utf8;
+# restart:--innodb-directories=MYSQL_TMP_DIR
+SHOW VARIABLES LIKE 'innodb_directories';
+Variable_name	Value
+innodb_directories	MYSQL_TMP_DIR
 # Strict-mode has no effect on CREATE TABLESPACE.
 # It rejects all invalid input, as if strict mode is always ON.
 SHOW VARIABLES LIKE 'innodb_strict_mode';
@@ -43,9 +47,14 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '/s_bad ADD DATAFILE 's_bad.ibd'' at line 1
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 ERROR 42000: InnoDB: A general tablespace name cannot contain '/'.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'delete' returned OS error .*");
 CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd';
-ERROR HY000: Failed to create TABLESPACE s_too_long_file_name
+ERROR HY000: Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
+SHOW WARNINGS;
+Level	Code	Message
+Error	3121	Incorrect File Name '../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ibd'.
+Error	3121	CREATE TABLESPACE data file must be in one of these directories './;MYSQL_TMP_DIR/'.
+Error	1528	Failed to create TABLESPACE s_too_long_file_name
+Error	1031	Table storage engine for 's_too_long_file_name' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_SIZE=2k;
 ERROR HY000: It is not allowed to specify FILE_BLOCK_SIZE more than once
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=3k;
@@ -273,10 +282,9 @@ Error	3121	Incorrect File Name 's_dir/s_subdir/.ibd'.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	1031	Table storage engine for 's_bad' doesn't have this option
 CREATE TABLESPACE s_bad ADD DATAFILE 's_dir/s_bad.ibs';
-ERROR HY000: Incorrect File Name 's_dir/s_bad.ibs'.
+ERROR HY000: An IBD filepath must end with `.ibd`.
 SHOW WARNINGS;
 Level	Code	Message
-Error	3121	Incorrect File Name 's_dir/s_bad.ibs'.
 Error	3121	An IBD filepath must end with `.ibd`.
 Error	1528	Failed to create TABLESPACE s_bad
 Error	1031	Table storage engine for 's_bad' doesn't have this option
@@ -1127,7 +1135,7 @@ t_system	CREATE TABLE `t_system` (
   `b` text,
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4
 === information_schema.innodb_tables  and innodb_tablespaces ===
 Table Name	Tablespace	Table Flags	Columns	Row Format	Zip Size	Space Type
 test/t_system	innodb_system	33	5	Dynamic	0	System
@@ -1599,7 +1607,7 @@ DROP TABLESPACE s1;
 #
 USE test;
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
-CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a)) ENGINE=InnoDB;
+CREATE TABLE t1 (a geometry NOT NULL SRID 0, SPATIAL (a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (st_GeomFromText("LINESTRING(100 100, 200 200, 300 300)")) ;
 CREATE PROCEDURE p1()
 BEGIN
@@ -1641,7 +1649,7 @@ SET GLOBAL innodb_strict_mode=default;
 #
 # Check CREATE TABLESPACE is handled properly in read-only mode
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
-# restart: --innodb_read_only
+# restart: --innodb_read_only --innodb-directories=MYSQL_TMP_DIR
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
 ERROR HY000: Table 'tablespaces' is read only
 SHOW WARNINGS;
@@ -1655,5 +1663,271 @@ Level	Code	Message
 Error	1529	Failed to drop TABLESPACE s1
 Error	1874	InnoDB is in read only mode.
 # Restart in normal mode for cleanup.
-# restart
+# restart --innodb-directories=MYSQL_TMP_DIR
 DROP TABLESPACE s1;
+#
+# Bug#26199233 create like ignores innodb_file_per_table
+#
+# - Verify if table picks correct tablespace based on
+# innodb_file_per_table settings.
+# - Check if SHOW CREATE displays correct tablespace name.
+CREATE DATABASE db1;
+SET @@global.innodb_file_per_table = OFF;
+# Case 1
+# SHOW CREATE should not show TABLESPACE clause after the fix.
+# Because it was not explicitly specified by user.
+CREATE TABLE db1.t1 (c1 INT) ENGINE=InnoDB;
+SHOW CREATE TABLE db1.t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SET @@global.innodb_file_per_table = ON;
+# Case 2
+# After the fix table, t2 should use innodb_file_per_table tablespace.
+CREATE TABLE db1.t2 LIKE db1.t1;
+SHOW CREATE TABLE db1.t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# Verify the same by listing the .ibd file.
+t2.ibd
+# Case 3
+# db1.tables TABLESPACE clause should show 'ts0' after the fix.
+CREATE TABLESPACE ts0 ADD DATAFILE 'df0.ibd';
+CREATE TABLE db1.tables (c1 INT) ENGINE=InnoDB tablespace=ts0;
+SHOW CREATE TABLE db1.tables;
+Table	Create Table
+tables	CREATE TABLE `tables` (
+  `c1` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `ts0` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE db1.tables;
+DROP TABLESPACE ts0;
+# Cleanup
+DROP DATABASE db1;
+# Additional test cases for Bug#26199233 to
+# test various combinations.
+CREATE SCHEMA s1;
+USE s1;
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
+#
+# Tables with explicitly assigned tablespaces.
+#
+# Table with an explicitly assigned user tablespace.
+CREATE TABLE t_expl_usr (i INT) TABLESPACE s1;
+SHOW CREATE TABLE t_expl_usr;
+Table	Create Table
+t_expl_usr	CREATE TABLE `t_expl_usr` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+#
+# Table with an explicitly assigned system tablespace.
+CREATE TABLE t_expl_sys (i INT) TABLESPACE innodb_system;
+SHOW CREATE TABLE t_expl_sys;
+Table	Create Table
+t_expl_sys	CREATE TABLE `t_expl_sys` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+#
+# Table with an explicitly assigned f_p_t tablespace.
+CREATE TABLE t_expl_fpt (i INT) TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t_expl_fpt;
+Table	Create Table
+t_expl_fpt	CREATE TABLE `t_expl_fpt` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+#
+# Temporary table with an explicitly assigned tmp tablespace.
+CREATE TEMPORARY TABLE t_expl_tmp (i INT) TABLESPACE innodb_temporary;
+SHOW CREATE TABLE t_expl_tmp;
+Table	Create Table
+t_expl_tmp	CREATE TEMPORARY TABLE `t_expl_tmp` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+#
+# Tables with implicitly assigned tablespaces.
+#
+# Table with an implicitly assigned system tablespace.
+SET GLOBAL innodb_file_per_table= OFF;
+CREATE TABLE t_impl_sys (i INT);
+SHOW CREATE TABLE t_impl_sys;
+Table	Create Table
+t_impl_sys	CREATE TABLE `t_impl_sys` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+#
+# Table with an implicitly assigned f_p_t tablespace.
+SET GLOBAL innodb_file_per_table= ON;
+CREATE TABLE t_impl_fpt (i INT);
+SHOW CREATE TABLE t_impl_fpt;
+Table	Create Table
+t_impl_fpt	CREATE TABLE `t_impl_fpt` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+#
+# Temporary table with an implicitly assigned tmp tablespace.
+CREATE TEMPORARY TABLE t_impl_tmp (i INT);
+SHOW CREATE TABLE t_impl_tmp;
+Table	Create Table
+t_impl_tmp	CREATE TEMPORARY TABLE `t_impl_tmp` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+#
+# CREATE LIKE when innodb_file_per_table is ON.
+#
+# Tablespace preserved for all source tables that
+# had an explicitly assigned tablesapce.
+SET GLOBAL innodb_file_per_table= ON;
+CREATE TABLE fpt_on_like_t_expl_usr LIKE t_expl_usr;
+SHOW CREATE TABLE fpt_on_like_t_expl_usr;
+Table	Create Table
+fpt_on_like_t_expl_usr	CREATE TABLE `fpt_on_like_t_expl_usr` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TABLE fpt_on_like_t_expl_sys LIKE t_expl_sys;
+SHOW CREATE TABLE fpt_on_like_t_expl_sys;
+Table	Create Table
+fpt_on_like_t_expl_sys	CREATE TABLE `fpt_on_like_t_expl_sys` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TABLE fpt_on_like_t_expl_fpt LIKE t_expl_fpt;
+SHOW CREATE TABLE fpt_on_like_t_expl_fpt;
+Table	Create Table
+fpt_on_like_t_expl_fpt	CREATE TABLE `fpt_on_like_t_expl_fpt` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TEMPORARY TABLE fpt_on_like_t_expl_tmp LIKE t_expl_tmp;
+SHOW CREATE TABLE fpt_on_like_t_expl_tmp;
+Table	Create Table
+fpt_on_like_t_expl_tmp	CREATE TEMPORARY TABLE `fpt_on_like_t_expl_tmp` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# Tablespace not preserved for all source tables that
+# had an implicitly assigned tablesapce.
+CREATE TABLE fpt_on_like_t_impl_sys LIKE t_impl_sys;
+SHOW CREATE TABLE fpt_on_like_t_impl_sys;
+Table	Create Table
+fpt_on_like_t_impl_sys	CREATE TABLE `fpt_on_like_t_impl_sys` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TABLE fpt_on_like_t_impl_fpt LIKE t_impl_fpt;
+SHOW CREATE TABLE fpt_on_like_t_impl_fpt;
+Table	Create Table
+fpt_on_like_t_impl_fpt	CREATE TABLE `fpt_on_like_t_impl_fpt` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TEMPORARY TABLE fpt_on_like_t_impl_tmp LIKE t_impl_tmp;
+SHOW CREATE TABLE fpt_on_like_t_impl_tmp;
+Table	Create Table
+fpt_on_like_t_impl_tmp	CREATE TEMPORARY TABLE `fpt_on_like_t_impl_tmp` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+#
+# CREATE LIKE when innodb_file_per_table is OFF.
+#
+# Tablespace preserved for all source tables that
+# had an explicitly assigned tablesapce.
+SET GLOBAL innodb_file_per_table= OFF;
+CREATE TABLE fpt_off_like_t_expl_usr LIKE t_expl_usr;
+SHOW CREATE TABLE fpt_off_like_t_expl_usr;
+Table	Create Table
+fpt_off_like_t_expl_usr	CREATE TABLE `fpt_off_like_t_expl_usr` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TABLE fpt_off_like_t_expl_sys LIKE t_expl_sys;
+SHOW CREATE TABLE fpt_off_like_t_expl_sys;
+Table	Create Table
+fpt_off_like_t_expl_sys	CREATE TABLE `fpt_off_like_t_expl_sys` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TABLE fpt_off_like_t_expl_fpt LIKE t_expl_fpt;
+SHOW CREATE TABLE fpt_off_like_t_expl_fpt;
+Table	Create Table
+fpt_off_like_t_expl_fpt	CREATE TABLE `fpt_off_like_t_expl_fpt` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TEMPORARY TABLE fpt_off_like_t_expl_tmp LIKE t_expl_tmp;
+SHOW CREATE TABLE fpt_off_like_t_expl_tmp;
+Table	Create Table
+fpt_off_like_t_expl_tmp	CREATE TEMPORARY TABLE `fpt_off_like_t_expl_tmp` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# Tablespace not preserved for all source tables that
+# had an implicitly assigned tablesapce.
+CREATE TABLE fpt_off_like_t_impl_sys LIKE t_impl_sys;
+SHOW CREATE TABLE fpt_off_like_t_impl_sys;
+Table	Create Table
+fpt_off_like_t_impl_sys	CREATE TABLE `fpt_off_like_t_impl_sys` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TABLE fpt_off_like_t_impl_fpt LIKE t_impl_fpt;
+SHOW CREATE TABLE fpt_off_like_t_impl_fpt;
+Table	Create Table
+fpt_off_like_t_impl_fpt	CREATE TABLE `fpt_off_like_t_impl_fpt` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TEMPORARY TABLE fpt_off_like_t_impl_tmp LIKE t_impl_tmp;
+SHOW CREATE TABLE fpt_off_like_t_impl_tmp;
+Table	Create Table
+fpt_off_like_t_impl_tmp	CREATE TEMPORARY TABLE `fpt_off_like_t_impl_tmp` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# The end result should be that we have .ibd files for:
+#   fpt_off_like_t_expl_fpt.ibd
+#   fpt_on_like_t_expl_fpt.ibd
+#   fpt_on_like_t_impl_fpt.ibd
+#   fpt_on_like_t_impl_sys.ibd
+#   t_expl_fpt.ibd
+#   t_impl_fpt.ibd
+fpt_off_like_t_expl_fpt.ibd
+fpt_on_like_t_expl_fpt.ibd
+fpt_on_like_t_impl_fpt.ibd
+fpt_on_like_t_impl_sys.ibd
+t_expl_fpt.ibd
+t_impl_fpt.ibd
+# Now, we can ALTER the tables that have implicitly
+# assigned tablespaces to instead assign the spaces
+# explicitly. This will make SHOW CREATE show the
+# tablespace names.
+ALTER TABLE t_impl_sys TABLESPACE innodb_system;
+SHOW CREATE TABLE t_impl_sys;
+Table	Create Table
+t_impl_sys	CREATE TABLE `t_impl_sys` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+ALTER TABLE t_impl_fpt TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t_impl_fpt;
+Table	Create Table
+t_impl_fpt	CREATE TABLE `t_impl_fpt` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+ALTER TABLE t_impl_tmp TABLESPACE innodb_temporary;
+SHOW CREATE TABLE t_impl_tmp;
+Table	Create Table
+t_impl_tmp	CREATE TEMPORARY TABLE `t_impl_tmp` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+# And CREATE TABLE LIKE will now preserve the
+# tablespace name of the above tables.
+CREATE TABLE after_alter_like_t_impl_sys LIKE t_impl_sys;
+SHOW CREATE TABLE after_alter_like_t_impl_sys;
+Table	Create Table
+after_alter_like_t_impl_sys	CREATE TABLE `after_alter_like_t_impl_sys` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TABLE after_alter_like_t_impl_fpt LIKE t_impl_fpt;
+SHOW CREATE TABLE after_alter_like_t_impl_fpt;
+Table	Create Table
+after_alter_like_t_impl_fpt	CREATE TABLE `after_alter_like_t_impl_fpt` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+CREATE TEMPORARY TABLE after_alter_like_t_impl_tmp LIKE t_impl_tmp;
+SHOW CREATE TABLE after_alter_like_t_impl_tmp;
+Table	Create Table
+after_alter_like_t_impl_tmp	CREATE TEMPORARY TABLE `after_alter_like_t_impl_tmp` (
+  `i` int(11) DEFAULT NULL
+) /*!50100 TABLESPACE `innodb_temporary` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP SCHEMA s1;
+DROP TABLESPACE s1;
+SET GLOBAL innodb_file_per_table= DEFAULT;

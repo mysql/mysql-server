@@ -1,13 +1,20 @@
 -- Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
--- it under the terms of the GNU General Public License as published by
--- the Free Software Foundation; version 2 of the License.
+-- it under the terms of the GNU General Public License, version 2.0,
+-- as published by the Free Software Foundation.
+--
+-- This program is also distributed with certain software (including
+-- but not limited to OpenSSL) that is licensed under separate terms,
+-- as designated in a particular file or component or in included license
+-- documentation.  The authors of MySQL hereby grant you an additional
+-- permission to link the program and your derivative works with the
+-- separately licensed software that they have included with MySQL.
 --
 -- This program is distributed in the hope that it will be useful,
 -- but WITHOUT ANY WARRANTY; without even the implied warranty of
 -- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
--- GNU General Public License for more details.
+-- GNU General Public License, version 2.0, for more details.
 --
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
@@ -104,7 +111,7 @@ max_questions int(11) unsigned DEFAULT 0  NOT NULL,
 max_updates int(11) unsigned DEFAULT 0  NOT NULL,
 max_connections int(11) unsigned DEFAULT 0  NOT NULL,
 max_user_connections int(11) unsigned DEFAULT 0  NOT NULL,
-plugin char(64) DEFAULT 'mysql_native_password' NOT NULL,
+plugin char(64) DEFAULT 'caching_sha2_password' NOT NULL,
 authentication_string TEXT,
 password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 password_last_changed timestamp NULL DEFAULT NULL,
@@ -254,6 +261,8 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_master_info (
   Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
   Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   Tls_version TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Tls version',
+  Public_key_path TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file containing public key of master server.',
+  Get_public_key BOOLEAN NOT NULL COMMENT 'Preference to get public key from master.',
   PRIMARY KEY(Channel_name)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Master Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB TABLESPACE=mysql;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));

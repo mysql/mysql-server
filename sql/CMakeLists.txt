@@ -1,27 +1,31 @@
 # Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
-# 
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-# 
+# GNU General Public License, version 2.0, for more details.
+#
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
-  ${CMAKE_SOURCE_DIR}/extra/regex
-  ${SSL_INCLUDE_DIRS}
-  ${LZ4_INCLUDE_DIR}
 )
+
+INCLUDE_DIRECTORIES(SYSTEM ${ICU_INCLUDE_DIRS})
 
 SET(CONF_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc 
@@ -31,7 +35,7 @@ SET(GEN_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.h 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
 )
 SET(GEN_DIGEST_SOURCES
   ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h 
@@ -69,6 +73,7 @@ SET(DD_SOURCES
   dd/dd_trigger.cc
   dd/dd_view.cc
 
+  dd/impl/bootstrap_ctx.cc
   dd/impl/bootstrapper.cc
   dd/impl/dd.cc
   dd/impl/dictionary_impl.cc
@@ -166,6 +171,7 @@ SET(DD_SOURCES
   dd/impl/types/function_impl.cc
   dd/impl/types/index_element_impl.cc
   dd/impl/types/index_impl.cc
+  dd/impl/types/object_table_impl.cc
   dd/impl/types/parameter_impl.cc
   dd/impl/types/parameter_type_element_impl.cc
   dd/impl/types/partition_impl.cc
@@ -208,10 +214,14 @@ SET(SQL_GIS_SOURCES
   gis/difference.cc
   gis/disjoint.cc
   gis/distance.cc
+  gis/distance_sphere.cc
   gis/equals.cc
   gis/gc_utils.cc
   gis/geometries.cc
   gis/intersects.cc
+  gis/is_simple.cc
+  gis/is_valid.cc
+  gis/length.cc
   gis/mbr_utils.cc
   gis/overlaps.cc
   gis/ring_flip_visitor.cc
@@ -237,6 +247,7 @@ SET(MYSQL_SERVER_SUB_COMPONENT_SOURCES
   server_component/component_sys_var_service.cc
   server_component/component_status_var_service.cc
   server_component/system_variable_source_imp.cc
+  server_component/security_context_imp.cc
   )
 
 SET(SQL_SHARED_SOURCES
@@ -291,6 +302,7 @@ SET(SQL_SHARED_SOURCES
   item_create.cc
   item_func.cc
   item_json_func.cc
+  item_regexp_func.cc
   item_row.cc 
   item_strfunc.cc
   item_subselect.cc
@@ -310,6 +322,7 @@ SET(SQL_SHARED_SOURCES
   locking_service.cc
   log.cc
   mdl.cc
+  migrate_keyring.cc
   my_decimal.cc
   mysqld.cc
   mysqld_thd_manager.cc
@@ -328,6 +341,7 @@ SET(SQL_SHARED_SOURCES
   opt_trace2server.cc
   options_parser.cc
   parse_file.cc
+  parse_tree_handler.cc
   parse_tree_helpers.cc
   parse_tree_hints.cc
   parse_tree_items.cc
@@ -344,6 +358,9 @@ SET(SQL_SHARED_SOURCES
   psi_memory_key.cc
   query_result.cc
   records.cc
+  regexp/errors.cc
+  regexp/regexp_engine.cc
+  regexp/regexp_facade.cc
   resourcegroups/thread_resource_control.cc
   resourcegroups/platform/thread_attrs_api_common.cc
   resourcegroups/resource_group_mgr.cc
@@ -379,6 +396,7 @@ SET(SQL_SHARED_SOURCES
   sql_class.cc
   sql_component.cc
   sql_cmd_ddl_table.cc
+  sql_cmd_srs.cc
   sql_connect.cc
   sql_cursor.cc
   sql_data_change.cc
@@ -416,6 +434,7 @@ SET(SQL_SHARED_SOURCES
   sql_reload.cc
   sql_rename.cc
   sql_resolver.cc
+  sql_restart_server.cc
   sql_rewrite.cc
   sql_select.cc
   sql_servers.cc
@@ -444,6 +463,7 @@ SET(SQL_SHARED_SOURCES
   system_variables.cc
   table.cc
   table_cache.cc
+  table_function.cc
   table_trigger_dispatcher.cc
   tc_log.cc
   thr_malloc.cc 
@@ -458,6 +478,7 @@ SET(SQL_SHARED_SOURCES
   ${DD_SOURCES}
   ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
+
 
 # Needed so that IDEs (e.g. Xcode) can see all sources when searching
 FILE(GLOB_RECURSE SQL_HEADERS
@@ -493,8 +514,6 @@ IF(WIN32)
   LIST(APPEND SQL_SHARED_SOURCES resourcegroups/platform/thread_attrs_api_win.cc)
 ENDIF()
 
-SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} ${SQL_GIS_SOURCES} PARENT_SCOPE)
-
 SET(SQL_SOURCE
   ${GEN_SOURCES}
   ${GEN_DIGEST_SOURCES}
@@ -506,6 +525,8 @@ SET(SQL_SOURCE
   ../sql-common/client.cc
   ../sql-common/client_plugin.c
   ../sql-common/client_authentication.cc
+  ../sql-common/get_password.cc
+  ../sql-common/my_path_permissions.cc
   ../sql-common/net_serv.cc
   ../sql-common/sql_string.cc 
   command_service.cc
@@ -536,9 +557,10 @@ ENDIF()
 
 IF(WIN32)
   LIST(APPEND SQL_SOURCE
-              named_pipe.cc
               conn_handler/named_pipe_connection.cc
               conn_handler/shared_memory_connection.cc
+              named_pipe.cc
+              restart_monitor_win.cc
       )
 ENDIF()
 
@@ -617,8 +639,10 @@ IF(WIN32)
   ADD_COMPILE_FLAGS(
     gis/difference.cc
     gis/touches.cc
+    gis/union.cc
     gis/within.cc
     item_geofunc.cc
+    item_geofunc_relchecks.cc
     item_geofunc_setops.cc
     COMPILE_FLAGS "/bigobj")
 ENDIF()
@@ -682,6 +706,13 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
                       COMPILE_FLAGS "-Wno-maybe-uninitialized")
   ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" HAVE_MAYBE_UNUSED)
+  IF(HAVE_MAYBE_UNUSED)
+    # Boost Geometry has unused variables
+    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
+                      COMPILE_FLAGS "-Wno-unused-variable")
+  ENDIF()
 ENDIF()
 
 
@@ -694,22 +725,14 @@ IF(HAVE_NO_BUILTIN_MEMCMP)
   )
 ENDIF()
 
-IF (WIN32 AND OPENSSL_APPLINK_C)
-  LIST(APPEND SQL_SOURCE "${OPENSSL_APPLINK_C}")
-ENDIF()
-
-ADD_CONVENIENCE_LIBRARY(sql_rtree gis/rtree_support.cc)
-ADD_DEPENDENCIES(sql_rtree GenError)
-ADD_DEPENDENCIES(sql_rtree GenServerSource)
-ADD_DEPENDENCIES(sql_rtree sql_gis)
 ADD_CONVENIENCE_LIBRARY(sql_main ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql_main GenServerSource)
 ADD_DEPENDENCIES(sql_main GenDigestServerSource)
 ADD_DEPENDENCIES(sql_main GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_main GenSysSchema)
 TARGET_LINK_LIBRARIES(sql_main ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio regex
-  binlogevents_static sql_rtree ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
+  ${MYSQLD_STATIC_COMPONENT_LIBS}  mysys mysys_ssl dbug strings vio
+  binlogevents_static ${LIBWRAP} ${LIBCRYPT} ${LIBDL} ${SSL_LIBRARIES})
 
 ADD_CONVENIENCE_LIBRARY(sql_gis ${SQL_GIS_SOURCES})
 ADD_DEPENDENCIES(sql_gis GenServerSource)
@@ -725,6 +748,11 @@ ADD_DEPENDENCIES(sql_gis GenError)
 IF(WIN32)
   ADD_DEFINITIONS(-DAUTHENTICATION_WIN)
   TARGET_LINK_LIBRARIES(sql_main auth_win_client)
+  IF(OPENSSL_APPLINK_C)
+    ADD_COMPILE_FLAGS(
+      ../sql-common/client_authentication.cc
+      COMPILE_FLAGS -DHAVE_OPENSSL_APPLINK_C)
+  ENDIF()
 ENDIF()
 
 SET (BINLOG_SOURCE rpl_gtid_misc.cc
@@ -754,7 +782,6 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_slave_until_options.cc)
 ADD_CONVENIENCE_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-
 
 IF(WIN32)
   SET(MYSQLD_SOURCE main.cc nt_servc.cc nt_servc.h message.rc)
@@ -791,23 +818,23 @@ IF(NOT DISABLE_SHARED)
   ENDIF()
   IF(MSVC)
     # Set module definition file.
-    SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def")
+    SET_TARGET_PROPERTIES(mysqld
+      PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:${CMAKE_CURRENT_BINARY_DIR}/mysqld.def")
 
-    FOREACH (CORELIB sql_main binlog slave mysys mysys_ssl dbug regex strings
-        vio binlogevents_static)
-      GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
-      IF (NOT LOC)
-        GET_TARGET_PROPERTY(LOC ${CORELIB} IMPORTED_LOCATION)
-      ENDIF()
-
-
-      FILE(TO_NATIVE_PATH ${LOC} LOC)
-      SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
-    ENDFOREACH (CORELIB ${MYSQLD_CORE_LIBS})
     SET(_PLATFORM  x64)
     ADD_CUSTOM_COMMAND(TARGET mysqld PRE_LINK
       COMMAND echo ${_PLATFORM} && cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
-                  ${_PLATFORM}  ${LIB_LOCATIONS} > mysqld.def 
+      ${_PLATFORM}
+      "$<TARGET_FILE:binlog>"
+      "$<TARGET_FILE:binlogevents_static>"
+      "$<TARGET_FILE:dbug>"
+      "$<TARGET_FILE:mysys>"
+      "$<TARGET_FILE:mysys_ssl>"
+      "$<TARGET_FILE:slave>"
+      "$<TARGET_FILE:sql_main>"
+      "$<TARGET_FILE:strings>"
+      "$<TARGET_FILE:vio>"
+      > mysqld.def
       WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     ADD_DEPENDENCIES(sql_main GenError)
   ENDIF()
@@ -816,7 +843,8 @@ ENDIF()
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld
   sql_main sql_gis binlog rpl master slave sql_main sql_gis mysys mysys_ssl
-  binlogevents_static)
+  binlogevents_static ${ICU_LIBRARIES}
+)
 
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
@@ -832,18 +860,12 @@ IF(WITH_MYSQLD_LDFLAGS)
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
 
-IF(DEBUG_EXTNAME)
-  INSTALL_DEBUG_TARGET(mysqld 
-    DESTINATION ${INSTALL_SBINDIR} 
-    PDB_DESTINATION ${INSTALL_SBINDIR}
-    SUFFIX "-debug")
-ELSE()
-  INSTALL_DEBUG_TARGET(mysqld 
-    DESTINATION ${INSTALL_SBINDIR} 
-    PDB_DESTINATION ${INSTALL_SBINDIR}/debug
-    RENAME mysqld-debug)
-ENDIF()
-
+# See DEBUG_EXTNAME above: mysqld may already have name mysqld-debug,
+# and the rename is a no-op. If it is called 'mysqld' we rename it.
+INSTALL_DEBUG_TARGET(mysqld
+  DESTINATION ${INSTALL_SBINDIR}
+  RENAME mysqld-debug${CMAKE_EXECUTABLE_SUFFIX}
+)
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
@@ -909,7 +931,7 @@ ADD_CUSTOM_TARGET(
 
 
 MYSQL_ADD_PLUGIN(udf_example udf_example.cc
-                 MODULE_ONLY SKIP_INSTALL MODULE_OUTPUT_NAME "udf_example")
+                 MODULE_ONLY TEST_ONLY MODULE_OUTPUT_NAME "udf_example")
 IF(NOT DISABLE_SHARED)
   IF(WIN32)
     SET_TARGET_PROPERTIES(udf_example

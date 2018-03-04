@@ -1,0 +1,101 @@
+# ==== Purpose ====
+#
+# Verify that changing Master_public_key in CHANGE SLAVE
+# takes effect immedietly
+#
+# ==== Method ====
+#
+# We do the following steps:
+# - Create a new replication user on master
+# - Connect to slave and start replication as this user.
+# - Verify that replication works
+# - Stop slave
+# - Change Master_public_key file on slave
+# - Execute FLUSH PRIVILEGES on master
+# - start slave and expect timeout
+
+--echo #
+--echo # Bug#27122947: RSA PUBLIC KEY GETS CACHED ON SLAVE
+--echo #               WHICH IS USED BY SUBSEQUENT LOGINS
+--echo #
+
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+--echo ==== Create new replication user ====
+--source include/rpl_connection_master.inc
+CREATE USER u27122947 IDENTIFIED WITH 'caching_sha2_password' BY 'pwd';
+GRANT REPLICATION SLAVE ON *.* TO u27122947;
+
+--echo ==== Start using new replication user on slave ====
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_column 2 ###
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+--source include/start_slave.inc
+
+--echo ==== Make sure that replication works ====
+--source include/rpl_connection_master.inc
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+--source include/sync_slave_sql_with_master.inc
+--source include/rpl_connection_slave.inc
+SELECT * FROM t1;
+
+--echo ==== Stop slave and used empty values for master_public_key_path ====
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_column 2 ###
+CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
+
+--echo ==== Remove cached password from master ====
+--source include/rpl_connection_master.inc
+FLUSH PRIVILEGES;
+# Also update t1 to verify replication a later stage
+INSERT INTO t1 VALUES (2);
+
+--echo ==== Try START SLAVE on slave : I/O thread should throw error ====
+--source include/rpl_connection_slave.inc
+START SLAVE;
+# 2061 : CR_AUTH_PLUGIN_ERR
+--let $slave_io_errno= 2061
+--let $slow_slave_io_error= 1
+--source include/wait_for_slave_io_error.inc
+
+--echo ==== Try setting correct public key ====
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_column 2 ###
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+eval CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+--source include/start_slave.inc
+
+--echo ==== Try setting master_public_key_path to '' ====
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_column 2 ###
+CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
+
+--echo ==== IO thread should start without issues because password is still cached ====
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+SELECT * FROM t1;
+
+--echo ==== Reset and cleanup ====
+--source include/rpl_connection_slave.inc
+--source include/stop_slave.inc
+--replace_column 2 ####
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+DROP USER u27122947;
+
+--source include/sync_slave_sql_with_master.inc
+
+--source include/rpl_end.inc
+--source include/force_restart.inc

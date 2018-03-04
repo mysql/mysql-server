@@ -3,16 +3,24 @@
 Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -44,7 +52,18 @@ class PersistentTableMetadata;
 
 #ifdef UNIV_HOTBACKUP
 
-extern bool	recv_replay_file_ops;
+struct recv_addr_t;
+
+/** This is set to FALSE if the backup was originally taken with the
+mysqlbackup --include regexp option: then we do not want to create tables in
+directories which were not included */
+extern bool		meb_replay_file_ops;
+/** true if the redo log is copied during an online backup */
+extern volatile bool	is_online_redo_copy;
+/** the last redo log flush len as seen by MEB */
+extern volatile lsn_t	backup_redo_log_flushed_lsn;
+/** TRUE when the redo log is being backed up */
+extern bool		recv_is_making_a_backup;
 
 /** Reads the checkpoint info needed in hot backup.
 @param[in]	hdr		buffer containing the log group header
@@ -54,7 +73,7 @@ extern bool	recv_replay_file_ops;
 @param[out]	first_header_lsn lsn of of the start of the first log file
 @return true if success */
 bool
-recv_read_checkpoint_info_for_backup(
+meb_read_checkpoint_info(
 	const byte*	hdr,
 	lsn_t*		lsn,
 	lsn_t*		offset,
@@ -64,33 +83,21 @@ recv_read_checkpoint_info_for_backup(
 
 /** Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned.
-@param[in]	buf		buffer containing log data
-@param[in]	buf_len		data length in that buffer
-@param[in,out]	scanned_lsn	LSN of buffer start, we return scanned lsn
+@param[in]	buf			buffer containing log data
+@param[in]	buf_len			data length in that buffer
+@param[in,out]	scanned_lsn		lsn of buffer start, we return scanned
+lsn
 @param[in,out]	scanned_checkpoint_no	4 lowest bytes of the highest scanned
-				checkpoint number so far
-@param[out]	n_bytes_scanned	how much we were able to scan, smaller than
-				buf_len if log data ended here */
+checkpoint number so far
+@param[out]	n_bytes_scanned		how much we were able to scan, smaller
+than buf_len if log data ended here */
 void
-recv_scan_log_seg_for_backup(
+meb_scan_log_seg(
 	byte*		buf,
 	ulint		buf_len,
 	lsn_t*		scanned_lsn,
 	ulint*		scanned_checkpoint_no,
 	ulint*		n_bytes_scanned);
-
-/** Creates new log files after a backup has been restored.
-@param[in]	log_dir		log file directory path
-@param[in]	n_log_files	number of log files
-@param[in]	log_file_size	log file size
-@param[in]	lsn		new start lsn, must be divisible
-				by OS_FILE_LOG_BLOCK_SIZE */
-void
-recv_reset_log_files_for_backup(
-	const char*	log_dir,
-	ulint		n_log_files,
-	lsn_t		log_file_size,
-	lsn_t		lsn);
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
@@ -111,11 +118,64 @@ a freshly read page)
 
 /** Applies log records in the hash table to a backup. */
 void
-recv_apply_log_recs_for_backup();
+meb_apply_log_recs(void);
 
-/** TRUE when the redo log is being backed up */
-extern bool		recv_is_making_a_backup;
+/** Applies log records in the hash table to a backup using a callback
+functions.
+@param[in]	function		function for apply
+@param[in]	wait_till_finished	function for wait */
+void
+meb_apply_log_recs_via_callback(
+	void (*apply_log_record_function)(recv_addr_t*),
+        void (*wait_till_done_function)()
+);
 
+/** Applies a log record in the hash table to a backup.
+@param[in]	recv_addr	chain of log records
+@param[in,out]	block		buffer block to apply the records to */
+void
+meb_apply_log_record(
+	recv_addr_t*	recv_addr,
+	buf_block_t*	block);
+
+/** Process a file name passed as an input
+@param[in]	name		absolute path of tablespace file
+@param[in]	space_id	the tablespace ID
+@retval		true		if able to process file successfully.
+@retval		false		if unable to process the file */
+void
+meb_fil_name_process(
+	const char*	name,
+	space_id_t	space_id);
+
+/** Scans log from a buffer and stores new log data to the parsing buffer.
+Parses and hashes the log records if new data found.  Unless
+UNIV_HOTBACKUP is defined, this function will apply log records
+automatically when the hash table becomes full.
+@param[in]	available_memory	we let the hash table of recs
+to grow to this size, at the maximum
+@param[in]	buf			buffer containing a log
+segment or garbage
+@param[in]	len			buffer length
+@param[in]	checkpoint_lsn		latest checkpoint LSN
+@param[in]	start_lsn		buffer start lsn
+@param[in]	contiguous_lsn		it is known that all log
+groups contain contiguous log data up to this lsn
+@param[out]	group_scanned_lsn	scanning succeeded up to this lsn
+@retval	true	if limit_lsn has been reached, or not able to scan any
+more in this log group
+@retval	false	otherwise */
+bool
+meb_scan_log_recs(
+	ulint		available_memory,
+	const byte*	buf,
+	ulint		len,
+	lsn_t		checkpoint_lsn,
+	lsn_t		start_lsn,
+	lsn_t*		contiguous_lsn,
+	lsn_t*		group_scanned_lsn);
+
+bool recv_check_log_header_checksum(const byte* buf);
 #else /* UNIV_HOTBACKUP */
 
 /** Applies the hashed log records to the page, if the page lsn is less than the
@@ -147,6 +207,13 @@ recv_sys_free();
 void
 recv_sys_var_init();
 
+#endif /* UNIV_HOTBACKUP */
+
+#ifdef UNIV_HOTBACKUP
+/** Get the number of bytes used by all the heaps
+@return number of bytes used */
+size_t
+meb_heap_used();
 #endif /* UNIV_HOTBACKUP */
 
 /** Returns true if recovery is currently running.
@@ -214,6 +281,14 @@ pages.
 				own the log mutex */
 void
 recv_apply_hashed_log_recs(bool allow_ibuf);
+
+#if defined(UNIV_DEBUG) || defined(UNIV_HOTBACKUP)
+/** Return string name of the redo log record type.
+@param[in]	type	record log record enum
+@return string name of record log record */
+const char*
+get_mlog_string(mlog_id_t type);
+#endif /* UNIV_DEBUG || UNIV_HOTBACKUP */
 
 /** Block of log record data */
 struct recv_data_t {

@@ -47,7 +47,6 @@ connection master;
 # Bug #26418: Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK
 # on master
 #
-#Note Matthias: to be merged to rpl_ddl.test
 
 --source include/not_ndb_default.inc
 
@@ -71,8 +70,8 @@ sync_slave_with_master;
 connection slave;
 
 # We want to verify that the following transactions are written to the
-# binlog, despite the transaction is rolled back. (They should be
-# written to the binlog since they contain non-transactional DROP
+# binlog in SBR, despite the transaction is rolled back. (They should be
+# written to the binlog since they contain non-transactional CREATE
 # TEMPORARY TABLE).  To see that, we use the auxiliary table t1, which
 # is transactional (InnoDB) on master and MyISAM on slave. t1 should
 # be transactional on master so that the insert into t1 does not cause
@@ -108,7 +107,8 @@ connection slave;
 SHOW CREATE TABLE mysqltest1.tmp;
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE mysqltest1.tmp2;
---echo ######### t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
+--echo ######### for SBR, t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
+--echo ######### for MBR, t1 has zero rows here, as CREATE/DROP TEMPORARY TABLE were not binlogged  #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 FLUSH LOGS;
 

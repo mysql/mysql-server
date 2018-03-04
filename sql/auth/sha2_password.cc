@@ -1,36 +1,54 @@
 /*
-   Copyright (c) 2017 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "i_sha2_password.h"            /* Internal classes            */
-#include "auth_internal.h"              /* Rsa_authentication_keys     */
-#include "sql_auth_cache.h"             /* ACL_USER                    */
-#include "sql_authentication.h"
-#include "my_inttypes.h"                /* typedefs                    */
-#include "my_dbug.h"                    /* DBUG instrumentation        */
-#include "mysql/plugin_auth_common.h"   /* MYSQL_PLUGIN_VIO            */
-#include "mysql/plugin_auth.h"          /* MYSQL_SERVER_AUTH_INFO      */
-#include "mysql/service_my_plugin_log.h"/* plugin_log_level            */
-#include "mysql/service_mysql_password_policy.h"
-                                        /* my_validate_password_policy */
-#include <sstream>                      /* std::stringstream           */
+#define LOG_SUBSYSTEM_TAG "caching_sha2_password"
+
 #include <iomanip>                      /* std::setfill(), std::setw() */
 #include <iostream>                     /* For debugging               */
-#include <sql/sql_const.h>              /* MAX_FIELD_WIDTH             */
-#include <sql/protocol_classic.h>       /* Protocol_classic            */
+                                        /* my_validate_password_policy */
+#include <sstream>                      /* std::stringstream           */
+
+#include "my_dbug.h"                    /* DBUG instrumentation        */
+#include "my_inttypes.h"                /* typedefs                    */
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/plugin_auth.h"          /* MYSQL_SERVER_AUTH_INFO      */
+#include "mysql/plugin_auth_common.h"   /* MYSQL_PLUGIN_VIO            */
+#include "mysql/service_my_plugin_log.h"/* plugin_log_level            */
+#include "mysql/service_mysql_password_policy.h"
+#include "mysqld_error.h"               /* ER_*                        */
 #include "rwlock_scoped_lock.h"         /* rwlock_scoped_lock          */
+#include "sql/auth/auth_internal.h"     /* Rsa_authentication_keys     */
+#include "sql/auth/i_sha2_password.h"   /* Internal classes            */
+#include "sql/auth/sql_auth_cache.h"    /* ACL_USER                    */
+#include "sql/auth/sql_authentication.h"
+#include "sql/protocol_classic.h"       /* Protocol_classic            */
+#include "sql/sql_const.h"              /* MAX_FIELD_WIDTH             */
 
 #if defined(HAVE_YASSL)
 #include <openssl/ssl.h>
@@ -38,6 +56,9 @@
 
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
+#if !defined(HAVE_YASSL)
+bool caching_sha2_auto_generate_rsa_keys= TRUE;
+#endif
 Rsa_authentication_keys *g_caching_sha2_rsa_keys= 0;
 
 namespace sha2_password
@@ -221,6 +242,13 @@ namespace sha2_password
                                            const std::string &plaintext_password)
   {
     DBUG_ENTER("Caching_sha2_password::authenticate");
+
+    /* Don't process the password if it is longer than maximum limit */
+    if (plaintext_password.length() > CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
+    {
+      DBUG_RETURN(true);
+    }
+
     /* Empty authentication string */
     if (!serialized_string.length())
       DBUG_RETURN(plaintext_password.length() ? true : false);
@@ -239,10 +267,8 @@ namespace sha2_password
                     random, digest, iterations))
     {
       if (m_plugin_info)
-        my_plugin_log_message(&m_plugin_info, MY_ERROR_LEVEL,
-          "Failed to parse stored authentication string for %s."
-          "Please check if mysql.user table not corrupted.",
-          authorization_id.c_str());
+	LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_FAILED_TO_PARSE_AUTH_STRING,
+                     authorization_id.c_str());
       DBUG_RETURN(true);
     }
 
@@ -256,11 +282,9 @@ namespace sha2_password
                                        m_stored_digest_rounds))
     {
       if (m_plugin_info)
-        my_plugin_log_message(&m_plugin_info, MY_ERROR_LEVEL,
-          "Error in generating multi-round hash for %s."
-          "Plugin can not perform authentication without it."
-          "This may be a transient problem.",
-          authorization_id.c_str());
+	LogPluginErr(ERROR_LEVEL,
+                     ER_SHA_PWD_FAILED_TO_GENERATE_MULTI_ROUND_HASH,
+                     authorization_id.c_str());
       DBUG_RETURN(true);
     }
 
@@ -655,6 +679,7 @@ namespace sha2_password
       {
         char buffer[CRYPT_MAX_PASSWORD_SIZE + 1];
         memset(buffer, 0, sizeof(buffer));
+        DBUG_ASSERT(source.length() <= CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
         my_crypt_genhash(buffer, CRYPT_MAX_PASSWORD_SIZE,
                          source.c_str(), source.length(),
                          random.c_str(), nullptr, &iterations);
@@ -1038,17 +1063,16 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     if (private_key == NULL || public_key == NULL)
     {
       if (caching_sha2_auth_plugin_ref)
-        my_plugin_log_message(&caching_sha2_auth_plugin_ref, MY_ERROR_LEVEL,
-          "Authentication requires either RSA keys or SSL encryption");
+	LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_AUTH_REQUIRES_RSA_OR_SSL);
       DBUG_RETURN(CR_ERROR);
     }
 
     if ((cipher_length= g_caching_sha2_rsa_keys->get_cipher_length()) > MAX_CIPHER_LENGTH)
     {
       if (caching_sha2_auth_plugin_ref)
-        my_plugin_log_message(&caching_sha2_auth_plugin_ref, MY_ERROR_LEVEL,
-          "RSA key cipher length of %u is too long. Max value is %u.",
-          g_caching_sha2_rsa_keys->get_cipher_length(), MAX_CIPHER_LENGTH);
+	LogPluginErr(ERROR_LEVEL, ER_SHA_PWD_RSA_KEY_TOO_LONG,
+                     g_caching_sha2_rsa_keys->get_cipher_length(),
+                     MAX_CIPHER_LENGTH);
       DBUG_RETURN(CR_ERROR);
     }
 
@@ -1093,10 +1117,6 @@ static int caching_sha2_password_authenticate(MYSQL_PLUGIN_VIO *vio,
       DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
   } // if(!my_vio_is_encrypted())
 
-  /* A password was sent to an account without a password */
-  if (info->auth_string_length == 0)
-    DBUG_RETURN(CR_AUTH_USER_CREDENTIALS);
-
   /* Fetch user authentication_string and extract the password salt */
   std::string serialized_string(info->auth_string, info->auth_string_length);
   std::string plaintext_password((char*)pkt, pkt_len-1);
@@ -1137,7 +1157,8 @@ static int caching_sha2_password_generate(char *outbuf,
   std::string random;
   std::string serialized_string;
 
-  if (my_validate_password_policy(inbuf, inbuflen))
+  if (inbuflen > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH ||
+      my_validate_password_policy(inbuf, inbuflen))
     DBUG_RETURN(1);
 
   if (inbuflen == 0)
@@ -1296,6 +1317,10 @@ compare_caching_sha2_password_with_hash(
   sha2_password::Digest_info digest_type;
   size_t iterations;
 
+  DBUG_ASSERT(cleartext_length <= sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH);
+  if (cleartext_length > sha2_password::CACHING_SHA2_PASSWORD_MAX_PASSWORD_LENGTH)
+    DBUG_RETURN(-1);
+
   if (g_caching_sha2_password->deserialize(serialized_string,
         digest_type, random, digest, iterations))
   {
@@ -1316,6 +1341,24 @@ compare_caching_sha2_password_with_hash(
                      sha2_password::STORED_SHA256_DIGEST_LENGTH);
 
   DBUG_RETURN(result);
+}
+
+
+/**
+  Function to display value for status variable : Caching_sha2_password_rsa_public_key
+
+  @param [in]  thd MYSQL_THD handle. Unused.
+  @param [out] var Status variable structure
+  @param [in]  buff Value buffer. Unused.
+*/
+static int show_caching_sha2_password_rsa_public_key(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                                                     struct st_mysql_show_var *var,
+                                                     char * buff MY_ATTRIBUTE((unused)))
+{
+  var->type= SHOW_CHAR;
+  var->value=
+    const_cast<char *>(g_caching_sha2_rsa_keys->get_public_key_as_pem());
+  return 0;
 }
 
 
@@ -1343,10 +1386,34 @@ static MYSQL_SYSVAR_STR(public_key_path, caching_sha2_rsa_public_key_path,
   "A fully qualified path to the public RSA key used for authentication.",
   NULL, NULL, AUTH_DEFAULT_RSA_PUBLIC_KEY);
 
+#if !defined(HAVE_YASSL)
+static MYSQL_SYSVAR_BOOL(auto_generate_rsa_keys, caching_sha2_auto_generate_rsa_keys,
+  PLUGIN_VAR_READONLY | PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOPERSIST,
+  "Auto generate RSA keys at server startup if correpsonding "
+  "system variables are not specified and key files are not present "
+  "at the default location.",
+  NULL, NULL, TRUE);
+#endif
+
+/** Array of system variables. Used in plugin declaration. */
 static struct st_mysql_sys_var* caching_sha2_password_sysvars[]= {
   MYSQL_SYSVAR(private_key_path),
   MYSQL_SYSVAR(public_key_path),
+#if !defined(HAVE_YASSL)
+  MYSQL_SYSVAR(auto_generate_rsa_keys),
+#endif
   0
+};
+
+/** Array of status variables. Used in plugin declaration. */
+static struct st_mysql_show_var
+caching_sha2_password_status_variables[]={
+  {
+    "Caching_sha2_password_rsa_public_key",
+    (char *)&show_caching_sha2_password_rsa_public_key,
+    SHOW_FUNC, SHOW_SCOPE_GLOBAL
+  },
+  {0, 0, enum_mysql_show_type(0),  enum_mysql_show_scope(0)}
 };
 
 /**
@@ -1455,7 +1522,7 @@ mysql_declare_plugin(caching_sha2_password)
   NULL,                                            /* Uninstall notifier            */
   caching_sha2_authentication_deinit,              /* plugin deinitializer          */
   0x0100,                                          /* version (1.0)                 */
-  NULL,                                            /* status variables              */
+  caching_sha2_password_status_variables,          /* status variables              */
   caching_sha2_password_sysvars,                   /* system variables              */
   NULL,                                            /* reserverd                     */
   0,                                               /* flags                         */

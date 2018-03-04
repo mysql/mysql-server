@@ -1,27 +1,34 @@
 /*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
-    This program is free software; you can redistribute it and/or modify it
-    under the terms of the GNU General Public License as published by the
-    Free Software Foundation; version 2 of the License.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+    as published by the Free Software Foundation.
 
-    This program is distributed in the hope that it will be useful, but
-    WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-    General Public License for more details.
+    This program is also distributed with certain software (including
+    but not limited to OpenSSL) that is licensed under separate terms,
+    as designated in a particular file or component or in included license
+    documentation.  The authors of MySQL hereby grant you an additional
+    permission to link the program and your derivative works with the
+    separately licensed software that they have included with MySQL.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License, version 2.0, for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-    02110-1301  USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#define LOG_SUBSYSTEM_TAG "Rewriter"
+
+#include "plugin/rewriter/rewriter_plugin.h"
 
 #include "my_config.h"
 
-#include <my_sys.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
-#include <mysql/service_my_plugin_log.h>
 #include <stddef.h>
-
 #include <algorithm>
 #include <atomic>
 #include <new>
@@ -29,11 +36,13 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
+#include "my_sys.h"
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include "mysqld_error.h"
-#include "rewriter.h"
-#include "rewriter_plugin.h"
-#include "rule.h" // Rewrite_result
-#include "services.h"
+#include "plugin/rewriter/rewriter.h"
+#include "plugin/rewriter/rule.h" // Rewrite_result
+#include "plugin/rewriter/services.h"
 #include "template_utils.h"
 
 using std::string;
@@ -106,6 +115,10 @@ static int sys_var_verbose;
 
 /// Enabled.
 static bool sys_var_enabled;
+
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
 
 /// Updater function for the status variable ..._verbose.
 static void update_verbose(MYSQL_THD, struct st_mysql_sys_var *, void *,
@@ -234,6 +247,11 @@ static int rewriter_plugin_init(MYSQL_PLUGIN plugin_ref)
     by a single thread when loading the plugin or starting up the server.
   */
   needs_initial_load= true;
+
+  // Initialize error logging service.
+  if (init_logging_service_for_plugin(&reg_srv))
+    return 1;
+
   return 0;
 }
 
@@ -242,6 +260,7 @@ static int rewriter_plugin_deinit(void*)
   plugin_info= NULL;
   delete rewriter;
   mysql_rwlock_destroy(&LOCK_table);
+  deinit_logging_service_for_plugin(&reg_srv);
   return 0;
 }
 
@@ -274,7 +293,7 @@ static bool reload(MYSQL_THD thd)
     message= MESSAGE_OOM;
   }
   DBUG_ASSERT(message != NULL);
-  my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, "%s", message);
+  LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_ERROR_MSG, message);
   return true;
 }
 
@@ -332,7 +351,8 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
                      "literals.");
     else
       message.append("did not match any rule.");
-    my_plugin_log_message(&plugin_info, MY_INFORMATION_LEVEL, "%s", message.c_str());
+    LogPluginErr(INFORMATION_LEVEL, ER_REWRITER_QUERY_ERROR_MSG,
+                 message.c_str());
   }
 }
 
@@ -373,7 +393,7 @@ int rewrite_query_notify(MYSQL_THD thd,
   }
   catch (std::bad_alloc &ba)
   {
-    my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL, "%s", MESSAGE_OOM);
+    LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_ERROR_MSG, MESSAGE_OOM);
   }
 
   mysql_rwlock_unlock(&LOCK_table);
@@ -390,9 +410,8 @@ int rewrite_query_notify(MYSQL_THD thd,
 
     parse_error= services::parse(thd, rewrite_result.new_query, is_prepared);
     if (parse_error != 0)
-      my_plugin_log_message(&plugin_info, MY_ERROR_LEVEL,
-                            "Rewritten query failed to parse:%s\n",
-                            mysql_parser_get_query(thd).str);
+      LogPluginErr(ERROR_LEVEL, ER_REWRITER_QUERY_FAILED,
+                   mysql_parser_get_query(thd).str);
 
     ++status_var_number_rewritten_queries;
   }

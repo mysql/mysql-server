@@ -1,10 +1,5 @@
 --source include/have_ndb.inc
 
---disable_warnings
-drop table if exists t1;
-drop database if exists test2;
---enable_warnings
-
 #
 # Minimal NDB blobs test.
 #

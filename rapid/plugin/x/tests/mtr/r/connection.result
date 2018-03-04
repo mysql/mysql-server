@@ -1,14 +1,6 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Invalid user or password'");
-call mtr.add_suppression("Plugin mysqlx reported: '3.1: Unsuccessful login attempt: Invalid user or password'");
-call mtr.add_suppression("Plugin mysqlx reported: '4.1: Unsuccessful login attempt: Your password has expired. To log in you must change it using a client that supports expired passwords.'");
-call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unsuccessful login attempt: Account is locked.'");
-call mtr.add_suppression("Plugin mysqlx reported: '16.1: Unsuccessful login attempt: Account is locked.'");
-call mtr.add_suppression("Plugin mysqlx reported: '6.1: Unsuccessful login attempt: Invalid user or password'");
-call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt: Server works in offline mode.'");
-call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to user mysql.session'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Unable to accept connection, disconnecting client'");
 call mtr.add_suppression("Plugin mysqlx reported: 'Could not open internal MySQL session'");
@@ -222,7 +214,7 @@ Variable_name	Value
 # restart: --plugin-load=mysqlx.so
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
-root@localhost	root@localhost	*
+x_root@localhost	x_root@localhost	*
 0 rows affected
 Got expected error (code 0)
 RUN show status like 'Mysqlx_connections_closed'
@@ -735,7 +727,7 @@ Mysqlx_sessions_killed	0
 Mysqlx_sessions_rejected	1
 RUN select user(),current_user(),@@bind_address
 user()	current_user()	@@bind_address
-root@localhost	root@localhost	*
+x_root@localhost	x_root@localhost	*
 0 rows affected
 Got expected error (code 0)
 RUN show status like 'Mysqlx_connections_closed'
@@ -923,7 +915,7 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
@@ -950,7 +942,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 2	con1	localhost
 command ok
 RUN show status like 'Mysqlx_connections_closed'
@@ -1003,7 +995,7 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
@@ -1028,7 +1020,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 2	con1	localhost
 3	con2	localhost
 command ok
@@ -1084,7 +1076,7 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-4	root	localhost
+4	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
@@ -1137,7 +1129,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-4	root	localhost
+4	x_root	localhost
 5	xcon1	localhost
 command ok
 RUN set @@global.mysqlx_max_connections=3
@@ -1163,7 +1155,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-4	root	localhost
+4	x_root	localhost
 5	xcon1	localhost
 7	xcon2	localhost
 command ok
@@ -1226,7 +1218,7 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-8	root	localhost
+8	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 RUN show status like 'Mysqlx_connections_closed'
@@ -1292,7 +1284,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-8	root	localhost
+8	x_root	localhost
 9	xcon1	localhost
 10	xcon2	localhost
 command ok
@@ -1316,7 +1308,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-8	root	localhost
+8	x_root	localhost
 9	xcon1	localhost
 10	xcon2	localhost
 11	xcon2	localhost
@@ -1347,7 +1339,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-8	root	localhost
+8	x_root	localhost
 10	xcon2	localhost
 11	xcon2	localhost
 command ok
@@ -1402,7 +1394,7 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-12	root	localhost
+12	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
@@ -1436,7 +1428,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-12	root	localhost
+12	x_root	localhost
 13	mysqlcon1	localhost
 command ok
 RUN show status like 'Mysqlx_connections_closed'

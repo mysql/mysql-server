@@ -1,29 +1,37 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include <gtest/gtest.h>
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "ngs/protocol/message_builder.h"
-#include "ngs/protocol/metadata_builder.h"
-#include "ngs/protocol/notice_builder.h"
-#include "ngs/protocol/output_buffer.h"
-#include "ngs_common/protocol_protobuf.h"
-#include "protobuf_message.h"
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/notice_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/output_buffer.h"
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "unittest/gunit/xplugin/xpl/protobuf_message.h"
 
 namespace xpl
 {
@@ -85,13 +93,21 @@ TEST(message_builder, encode_compact_metadata)
   ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   const uint64 COLLATION = 1u;
-  const int TYPE = Mysqlx::Resultset::ColumnMetaData::SINT;
+  const auto TYPE = Mysqlx::Resultset::ColumnMetaData::SINT;
   const int DECIMALS = 3;
   const uint32 FLAGS = 0xabcdu;
   const uint32 LENGTH = 20u;
   const uint32 CONTENT_TYPE = 7u;
 
-  mb.encode_metadata(obuffer.get(), COLLATION, TYPE, DECIMALS, FLAGS, LENGTH, CONTENT_TYPE);
+  ::ngs::Column_info_builder column_info;
+
+  column_info.set_collation(COLLATION);
+  column_info.set_decimals(DECIMALS);
+  column_info.set_flags(FLAGS);
+  column_info.set_length(LENGTH);
+  column_info.set_type(TYPE);
+  column_info.set_content_type(CONTENT_TYPE);
+  mb.encode_metadata(obuffer.get(), &column_info.get());
 
   ngs::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(obuffer.get()));
 
@@ -125,7 +141,7 @@ TEST(message_builder, encode_full_metadata)
   ngs::unique_ptr<Output_buffer> obuffer(new Output_buffer(*page_pool));
 
   const uint64 COLLATION = 2u;
-  const int TYPE = Mysqlx::Resultset::ColumnMetaData::BYTES;
+  const auto TYPE = Mysqlx::Resultset::ColumnMetaData::BYTES;
   const int DECIMALS = 4;
   const uint32 FLAGS = 0x89abu;
   const uint32 LENGTH = 0u;
@@ -137,8 +153,23 @@ TEST(message_builder, encode_full_metadata)
   const std::string COLUM_NAME = "COLUMN_NAME";
   const std::string ORG_COLUM_NAME = "ORG_COLUMN_NAME";
 
-  mb.encode_metadata(obuffer.get(), CATALOG, SCHEMA, TABLE_NAME, ORG_TABLE_NAME,
-    COLUM_NAME, ORG_COLUM_NAME, COLLATION, TYPE, DECIMALS, FLAGS, LENGTH, CONTENT_TYPE);
+  ::ngs::Column_info_builder column_info;
+
+  column_info.set_non_compact_data(
+      CATALOG.c_str(),
+      COLUM_NAME.c_str(),
+      TABLE_NAME.c_str(),
+      SCHEMA.c_str(),
+      ORG_COLUM_NAME.c_str(),
+      ORG_TABLE_NAME.c_str());
+  column_info.set_collation(COLLATION);
+  column_info.set_decimals(DECIMALS);
+  column_info.set_flags(FLAGS);
+  column_info.set_length(LENGTH);
+  column_info.set_type(TYPE);
+  column_info.set_content_type(CONTENT_TYPE);
+
+  mb.encode_metadata(obuffer.get(), &column_info.get());
 
   ngs::unique_ptr<Mysqlx::Resultset::ColumnMetaData> msg(message_from_buffer<Mysqlx::Resultset::ColumnMetaData>(obuffer.get()));
 

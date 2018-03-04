@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -43,9 +50,8 @@ bool Thread_resource_control::validate(const Type &type) const
 
     if (m_priority < min || m_priority > max)
     {
-      sql_print_warning("Invalid thread priority %d for a %s resource group."
-                        "Allowed range is [%d, %d].", m_priority,
-                        mgr_ptr->resource_group_type_str(type), min, max);
+      LogErr(WARNING_LEVEL, ER_RES_GRP_INVALID_THREAD_PRIORITY, m_priority,
+             mgr_ptr->resource_group_type_str(type), min, max);
       result= true;
     }
   }
@@ -56,15 +62,15 @@ bool Thread_resource_control::validate(const Type &type) const
   {
     if (vcpu_range.m_start > vcpu_range.m_end)
     {
-      sql_print_warning("Invalid VCPU range specification: %d-%d.",
-                        vcpu_range.m_start, vcpu_range.m_end);
+      LogErr(WARNING_LEVEL, ER_RES_GRP_INVALID_VCPU_RANGE,
+             vcpu_range.m_start, vcpu_range.m_end);
       result= true;
     }
 
     if ((vcpu_id= vcpu_range.m_start) >= num_vcpus ||
         (vcpu_id= vcpu_range.m_end) >= num_vcpus)
     {
-      sql_print_warning("Invalid VCPU ID %d.", vcpu_id);
+      LogErr(WARNING_LEVEL, ER_RES_GRP_INVALID_VCPU_ID, vcpu_id);
       result= true;
     }
   }

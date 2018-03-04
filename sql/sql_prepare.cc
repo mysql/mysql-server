@@ -1,13 +1,20 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -315,6 +322,7 @@ class Statement_backup
 {
   LEX *m_lex;
   LEX_CSTRING m_query_string;
+  String m_rewritten_query;
 
 public:
   LEX *lex() const { return m_lex; }
@@ -328,7 +336,7 @@ public:
     DBUG_ENTER("Statement_backup::set_thd_to_ps");
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
-    m_lex=    thd->lex;
+    m_lex= thd->lex;
     thd->lex= stmt->lex;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
@@ -337,7 +345,6 @@ public:
 
     DBUG_VOID_RETURN;
   }
-
 
   /**
     Restore the THD statement state after the prepared
@@ -349,11 +356,49 @@ public:
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
     stmt->lex= thd->lex;
-    thd->lex=  m_lex;
+    thd->lex= m_lex;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
     stmt->m_query_string= thd->query();
     thd->set_query(m_query_string);
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Save the current rewritten query prior to
+    rewriting the prepared statement.
+  */
+  void save_rlb(THD *thd)
+  {
+    DBUG_ENTER("Statement_backup::save_rlb");
+
+    if (thd->rewritten_query.length() > 0)
+    {
+      /* Duplicate the original rewritten query. */
+      m_rewritten_query.copy(thd->rewritten_query);
+      /* Swap the duplicate with the original. */
+      thd->rewritten_query.swap(m_rewritten_query);
+    }
+
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Restore the rewritten query after the prepared
+    statement has finished executing.
+  */
+  void restore_rlb(THD *thd)
+  {
+    DBUG_ENTER("Statement_backup::restore_rlb");
+
+    if (m_rewritten_query.length() > 0)
+    {
+      /* Restore with swap() instead of '='. */
+      thd->rewritten_query.swap(m_rewritten_query);
+      /* Free the rewritten prepared statement. */
+      m_rewritten_query.mem_free();
+    }
 
     DBUG_VOID_RETURN;
   }
@@ -953,7 +998,7 @@ bool mysql_test_show(Prepared_statement *stmt, TABLE_LIST *tables)
 
   DBUG_ASSERT(lex->result == NULL);
   DBUG_ASSERT(lex->sql_command != SQLCOM_DO);
-  DBUG_ASSERT(!lex->describe);
+  DBUG_ASSERT(!lex->is_explain());
 
   if (!lex->result)
   {
@@ -1386,7 +1431,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   uint no_columns= 0;
 
   if ((sql_command_flags[lex->sql_command] & CF_HAS_RESULT_SET) &&
-      !lex->describe)
+      !lex->is_explain())
   {
     SELECT_LEX_UNIT *unit = lex->unit;
     result= unit->query_result();
@@ -1481,10 +1526,12 @@ void mysqld_stmt_prepare(THD *thd, const char *query, uint length,
         thd->get_protocol()->get_client_capabilities());
     thd->push_protocol(&thd->protocol_binary);
   }
+
+  /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name().str, stmt->name().length,
-                                         query, length);
+                                         NULL, 0);
 
   if (stmt->prepare(query, length))
   {
@@ -1758,10 +1805,11 @@ void mysql_sql_stmt_prepare(THD *thd)
     DBUG_VOID_RETURN;
   }
 
+  /* Create PS table entry, set query text after rewrite. */
   stmt->m_prepared_stmt= MYSQL_CREATE_PS(stmt, stmt->id,
                                          thd->m_statement_psi,
                                          stmt->name().str, stmt->name().length,
-                                         query, query_len);
+                                         NULL, 0);
 
   if (stmt->prepare(query, query_len))
   {
@@ -1916,6 +1964,8 @@ bool reinit_stmt_before_use(THD *thd, LEX *lex)
   lex->allow_sum_func= 0;
   lex->m_deny_window_func= 0;
   lex->in_sum_func= NULL;
+
+  lex->reset_exec_started();
 
   if (unlikely(lex->is_broken()))
   {
@@ -2451,7 +2501,7 @@ void Prepared_statement::setup_set_params()
       opt_general_log || opt_slow_log ||
       (lex->sql_command == SQLCOM_SELECT &&
        lex->safe_to_cache_query &&
-       !lex->describe))
+       !lex->is_explain()))
   {
     with_log= true;
   }
@@ -2596,11 +2646,13 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   */
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
+  stmt_backup.save_rlb(thd);
   thd->set_n_backup_active_arena(this, &arena_backup);
 
   if (alloc_query(thd, query_str, query_length))
   {
     stmt_backup.restore_thd(thd, this);
+    stmt_backup.restore_rlb(thd);
     thd->restore_active_arena(this, &arena_backup);
     DBUG_RETURN(TRUE);
   }
@@ -2617,6 +2669,7 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
   if (parser_state.init(thd, thd->query().str, thd->query().length))
   {
     stmt_backup.restore_thd(thd, this);
+    stmt_backup.restore_rlb(thd);
     thd->restore_active_arena(this, &arena_backup);
     thd->stmt_arena= old_stmt_arena;
     DBUG_RETURN(TRUE);
@@ -2738,6 +2791,19 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
 
   rewrite_query_if_needed(thd);
 
+  if (thd->rewritten_query.length())
+  {
+    MYSQL_SET_PS_TEXT(m_prepared_stmt,
+                      thd->rewritten_query.c_ptr_safe(),
+                      thd->rewritten_query.length());
+  }
+  else
+  {
+    MYSQL_SET_PS_TEXT(m_prepared_stmt,
+                      thd->query().str,
+                      thd->query().length);
+  }
+
   cleanup_stmt();
   stmt_backup.restore_thd(thd, this);
   thd->stmt_arena= old_stmt_arena;
@@ -2791,8 +2857,11 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length)
       error |= thd->is_error();
     }
   }
-  thd->m_digest= parent_digest;
 
+  /* Restore the original rewritten query. */
+  stmt_backup.restore_rlb(thd);
+
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   DBUG_RETURN(error);
@@ -2970,6 +3039,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
 
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
+  stmt_backup.save_rlb(thd);
   thd->set_n_backup_active_arena(this, &arena_backup);
   thd->stmt_arena= this;
 
@@ -2979,6 +3049,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
 
   thd->restore_active_arena(this, &arena_backup);
   stmt_backup.restore_thd(thd, this);
+  stmt_backup.restore_rlb(thd);
   thd->stmt_arena= save_stmt_arena;
 
   save_change_list.move_elements_to(&thd->change_list);
@@ -3075,7 +3146,7 @@ bool Prepared_statement::validate_metadata(Prepared_statement *copy)
     return FALSE -- the metadata of the original SELECT,
     if any, has not been sent to the client.
   */
-  if (is_sql_prepare() || lex->describe)
+  if (is_sql_prepare() || lex->is_explain())
     return FALSE;
 
   if (lex->select_lex->item_list.elements !=
@@ -3223,6 +3294,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   Statement_backup stmt_backup;
   stmt_backup.set_thd_to_ps(thd, this);
+  stmt_backup.save_rlb(thd);
 
   /*
     Change the current database (if needed).
@@ -3236,6 +3308,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   {
     flags&= ~ (uint) IS_IN_USE;
     stmt_backup.restore_thd(thd, this);
+    stmt_backup.restore_rlb(thd);
     return TRUE;
   }
 
@@ -3248,6 +3321,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), expanded_query->length());
     flags&= ~ (uint) IS_IN_USE;
     stmt_backup.restore_thd(thd, this);
+    stmt_backup.restore_rlb(thd);
     return TRUE;
   }
 
@@ -3314,6 +3388,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       */
       rewrite_query_if_needed(thd);
       log_execute_line(thd);
+
       thd->binlog_need_explicit_defaults_ts= lex->binlog_need_explicit_defaults_ts;
       resourcegroups::Resource_group *src_res_grp= nullptr;
       resourcegroups::Resource_group *dest_res_grp= nullptr;
@@ -3369,6 +3444,9 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   alloc_query(thd, thd->query().str, thd->query().length);
 
   thd->stmt_arena= old_stmt_arena;
+
+  /* Restore the original rewritten query. */
+  stmt_backup.restore_rlb(thd);
 
   if (state == Query_arena::STMT_PREPARED)
     state= Query_arena::STMT_EXECUTED;

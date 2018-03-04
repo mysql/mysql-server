@@ -3,7 +3,7 @@
 ##
 
 --source include/xplugin_preamble.inc
-call mtr.add_suppression("Unsuccessful login attempt");
+--source include/xplugin_create_user.inc
 
 --echo # System Variables Testing
 #
@@ -186,6 +186,146 @@ SET GLOBAL mysqlx_connect_timeout='gduges7';
 show variables like 'mysqlx_connect_timeout';
 SET GLOBAL mysqlx_connect_timeout=300;
 
+# Variable: mysqlx_wait_timeout
+# Default : 28800
+# Scope   : SESSION
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_wait_timeout=20;
+SET @@global.mysqlx_wait_timeout=500;
+
+SET mysqlx_wait_timeout=30;
+SET @@local.mysqlx_wait_timeout=40;
+SET @@mysqlx_wait_timeout=50;
+SET @@session.mysqlx_wait_timeout=60;
+SET SESSION mysqlx_wait_timeout=70;
+
+#Max valid value
+SET @@global.mysqlx_wait_timeout=2147483;
+show variables like 'mysqlx_wait_timeout';
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_wait_timeout=0;
+
+SET GLOBAL mysqlx_wait_timeout=1;
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_wait_timeout=-4686234;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_wait_timeout='gduges7';
+
+show variables like 'mysqlx_wait_timeout';
+SET GLOBAL mysqlx_wait_timeout=28800;
+SET SESSION mysqlx_wait_timeout=28800;
+
+# Variable: mysqlx_interactive_timeout
+# Default : 28800
+# Scope   : GLOBAL
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_interactive_timeout=20;
+SET @@global.mysqlx_interactive_timeout=500;
+
+--error ER_GLOBAL_VARIABLE
+SET mysqlx_interactive_timeout=30;
+--error ER_GLOBAL_VARIABLE
+SET @@local.mysqlx_interactive_timeout=40;
+--error ER_GLOBAL_VARIABLE
+SET @@mysqlx_interactive_timeout=50;
+--error ER_GLOBAL_VARIABLE
+SET @@session.mysqlx_interactive_timeout=60;
+--error ER_GLOBAL_VARIABLE
+SET SESSION mysqlx_interactive_timeout=70;
+
+#Max valid value
+SET @@global.mysqlx_interactive_timeout=2147483;
+show variables like 'mysqlx_interactive_timeout';
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_interactive_timeout=0;
+
+SET GLOBAL mysqlx_interactive_timeout=1;
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_interactive_timeout=-4686234;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_interactive_timeout='gduges7';
+
+show variables like 'mysqlx_interactive_timeout';
+SET GLOBAL mysqlx_interactive_timeout=28800;
+
+# Variable: mysqlx_read_timeout
+# Default : 30
+# Scope   : SESSION
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_read_timeout=20;
+SET @@global.mysqlx_read_timeout=500;
+
+SET mysqlx_read_timeout=30;
+SET @@local.mysqlx_read_timeout=40;
+SET @@mysqlx_read_timeout=50;
+SET @@session.mysqlx_read_timeout=60;
+SET SESSION mysqlx_read_timeout=70;
+
+#Max valid value
+SET @@global.mysqlx_read_timeout=2147483;
+show variables like 'mysqlx_read_timeout';
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_read_timeout=0;
+
+SET GLOBAL mysqlx_read_timeout=1;
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_read_timeout=-4686234;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_read_timeout='gduges7';
+
+show variables like 'mysqlx_read_timeout';
+SET GLOBAL mysqlx_read_timeout=30;
+SET SESSION mysqlx_read_timeout=30;
+
+# Variable: mysqlx_write_timeout
+# Default : 60
+# Scope   : SESSION
+# Dynamic : Yes
+
+## Valid cases
+SET GLOBAL mysqlx_write_timeout=20;
+SET @@global.mysqlx_write_timeout=500;
+
+SET mysqlx_write_timeout=300;
+SET @@local.mysqlx_write_timeout=400;
+SET @@mysqlx_write_timeout=500;
+SET @@session.mysqlx_write_timeout=600;
+SET SESSION mysqlx_write_timeout=700;
+
+#Max valid value
+SET @@global.mysqlx_write_timeout=2147483;
+show variables like 'mysqlx_write_timeout';
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_write_timeout=0;
+
+SET GLOBAL mysqlx_write_timeout=1;
+
+# Warning: truncated incorrect value. It will set value to 1
+SET GLOBAL mysqlx_write_timeout=-4686234;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL mysqlx_write_timeout='gduges7';
+
+show variables like 'mysqlx_write_timeout';
+SET GLOBAL mysqlx_write_timeout=60;
+SET SESSION mysqlx_write_timeout=60;
+
 # Variable: mysqlx_port
 # Default : 33060
 # Scope   : GLOBAL
@@ -212,7 +352,9 @@ SET @@global.mysqlx_connect_timeout=500;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-variables.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-variables.tmp 2>&1
+
+--source include/xplugin_drop_user.inc
 
 # Postamble
 UNINSTALL PLUGIN mysqlx;

@@ -17,8 +17,14 @@ lock table explain_test_db.explain_test_table write;
 
 select OBJECT_INSTANCE_BEGIN, OWNER_THREAD_ID, OWNER_EVENT_ID
    from performance_schema.metadata_locks
-   limit 1
+   where OBJECT_TYPE = 'TABLE'
+   and OBJECT_SCHEMA = 'explain_test_db'
+   and OBJECT_NAME = 'explain_test_table'
+   and LOCK_STATUS = 'GRANTED'
    into @oib, @o_tid, @o_eid;
+
+# Make sure we found the metadata lock to test.
+select @oib is not null, @o_tid is not null, @o_eid is not null;
 
 ###########################################################################
 # Test index on OBJECT_INSTANCE_BEGIN
@@ -34,13 +40,15 @@ let $col1_act = @oib;
 # Test index on OBJECT_TYPE, OBJECT_SCHEMA, OBJECT_NAME
 ###########################################################################
 
-let $column_count = 3;
+let $column_count = 4;
 let $col1 = OBJECT_TYPE;
 let $col2 = OBJECT_SCHEMA;
 let $col3 = OBJECT_NAME;
+let $col4 = COLUMN_NAME;
 let $col1_act = "TABLE";
 let $col2_act = "explain_test_db";
 let $col3_act = "explain_test_table";
+let $col4_act = "a";
 
 --source ../include/idx_explain_test.inc
 

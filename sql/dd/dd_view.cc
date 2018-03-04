@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -424,8 +431,13 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
   for (const TABLE_LIST *table= query_tables; table != nullptr;
        table= table->next_global)
   {
-    // Skip tables which are not diectly referred by the view and not
-    // a non-temporary user table.
+    /*
+      Skip tables if
+        - It is not directly referred by the view OR
+        - It is a temporary table OR
+        - It is a data-directly table OR
+        - If it is not a user or information_schema schema table.
+    */
     {
       if (table->referencing_view && table->referencing_view != view)
         continue;
@@ -435,19 +447,27 @@ static void fill_dd_view_tables(View *view_obj, const TABLE_LIST *view,
         continue;
       else
       {
-        LEX_STRING db_name= { const_cast<char*>(table->get_db_name()),
-                               strlen(table->get_db_name()) };
-        LEX_STRING table_name= { const_cast<char*>(table->get_table_name()),
+        LEX_STRING db_name= { const_cast<char *>(table->get_db_name()),
+                              strlen(table->get_db_name()) };
+        LEX_STRING table_name= { const_cast<char *>(table->get_table_name()),
                                  strlen(table->get_table_name()) };
 
-        if (get_table_category(db_name, table_name) != TABLE_CATEGORY_USER)
+        TABLE_CATEGORY table_category= get_table_category(db_name, table_name);
+        if (table_category != TABLE_CATEGORY_USER &&
+            table_category != TABLE_CATEGORY_INFORMATION)
           continue;
       }
     }
 
     LEX_CSTRING db_name;
     LEX_CSTRING table_name;
-    if (table->is_view())
+    if (table->schema_table_name)
+    {
+      db_name= { table->db, table->db_length };
+      table_name= { table->schema_table_name,
+                    strlen(table->schema_table_name) };
+    }
+    else if (table->is_view())
     {
       db_name= table->view_db;
       table_name= table->view_name;

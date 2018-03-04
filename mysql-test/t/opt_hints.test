@@ -1,6 +1,3 @@
-# Skipping the test when log-bin is enabled due to Bug#22508362
---source include/not_log_bin.inc
-
 --echo # WL#8017 Infrastructure for Optimizer Hints
 
 CREATE TABLE t1(f1 INT, f2 INT);

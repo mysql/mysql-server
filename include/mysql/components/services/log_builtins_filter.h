@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -20,7 +27,8 @@
 #include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/log_shared.h>
-#include <rwlock_scoped_lock.h>
+
+#include "rwlock_scoped_lock.h"
 
 
 /*
@@ -29,22 +37,19 @@
 
 typedef enum enum_log_filter_verb
 {
-  LOG_FILTER_NOP=        0,      /**< no action */
-  LOG_FILTER_GAG=        1,      /**< gag this line */
-  LOG_FILTER_PRIO_ABS=   2,      /**< set priority to absolute value */
-  LOG_FILTER_PRIO_REL=   3,      /**< adjust priority by value */
-  LOG_FILTER_THROTTLE=   4,      /**< rate-limit this line class */
-  LOG_FILTER_ITEM_ADD=   5,      /**< add field */
-  LOG_FILTER_ITEM_DEL=   6,      /**< remove field */
+  LOG_FILTER_UNDEF=      0,      /**< not set */
+  LOG_FILTER_DROP=       1,      /**< drop this log event */
+  LOG_FILTER_THROTTLE=   2,      /**< rate-limit this line class */
+  LOG_FILTER_ITEM_SET=   3,      /**< add field */
+  LOG_FILTER_ITEM_DEL=   4,      /**< remove field */
 
-  /* reserved: */
   LOG_FILTER_CHAIN_AND=  4096,   /**< no verb yet, part of a condition chain */
-  LOG_FILTER_CHAIN_OR=   8192    /**< no verb yet, part of a condition chain */
+  LOG_FILTER_CHAIN_OR=   4097    /**< no verb yet, part of a condition chain */
 } log_filter_verb;
 
 typedef enum enum_log_filter_cond
 {
-  LOG_FILTER_COND_NONE=      0,  /**< condition type unknown */
+  LOG_FILTER_COND_NONE=      0,  /**< not set / unconditional */
   LOG_FILTER_COND_EQ=        1,  /**< equal */
   LOG_FILTER_COND_NE=        2,  /**< not equal */
   LOG_FILTER_COND_LT=        3,  /**< less than */
@@ -53,7 +58,6 @@ typedef enum enum_log_filter_cond
   LOG_FILTER_COND_GT=        6,  /**< greater than */
   LOG_FILTER_COND_PRESENT=   7,  /**< field present */
   LOG_FILTER_COND_ABSENT=    8,  /**< field absent */
-  LOG_FILTER_COND_COMPOUND=  9   /**< previous rule applied (chain actions) */
 } log_filter_cond;
 
 /**
@@ -103,9 +107,26 @@ typedef enum enum_log_filter_flags
   LOG_FILTER_FLAG_DISABLED=                 2
 } log_filter_flags;
 
+typedef struct _log_filter_tag
+{
+  const char *filter_name; /**< name of the service that created this rule */
+  void       *filter_data; /**< for ad lib use by said service. instance etc. */
+} log_filter_tag;
+
 typedef struct _log_filter_rule
 {
   ulong             id;    /**< index may change; this will not */
+  ulong             jump;  /**< default: 0.
+                                action of an IF/ELSEIF/ELSE branch:
+                                  points behind last branch of this
+                                  IF-construct (we successfully matched
+                                  a condition, and executed its statement,
+                                  so leave this IF-construct as nothing
+                                  else will apply).
+                                condition of an IF/ELSEIF:
+                                  points to next ELSEIF/ELSE, so we can
+                                  jump there if the condition fails.
+                           */
   log_item          match; /**< compare to this item type/class/key/value etc */
   log_filter_cond   cond;  /**< how to compare: < > == regex etc */
   log_filter_verb   verb;  /**< what to do: drop, upvote, etc */
@@ -115,6 +136,8 @@ typedef struct _log_filter_rule
 
   /** for rate-limiting: at what time will current window end? */
   ulonglong         throttle_window_end;
+  /** for rate-limiting: window-size (in seconds) */
+  ulong             throttle_window_size;
   /** how many lines in this window matched? (both suppressed and not) */
   ulong             throttle_matches;
 
@@ -128,14 +151,19 @@ typedef struct _log_filter_rule
   mysql_rwlock_t    rule_lock;
 } log_filter_rule;
 
-#define LOG_FILTER_MAX 64
+#define LOG_FILTER_RULE_MAX 64
 
 typedef struct _log_filter_ruleset
 {
+  /** creator of this rule */
+  log_filter_tag *tag;
+
   /** number of rules currently in ruleset */
   uint32          count;
+  /** maximum number of rules in this ruleset */
+  uint32          alloc;
   /** rules in this ruleset */
-  log_filter_rule rule[LOG_FILTER_MAX];
+  log_filter_rule rule[LOG_FILTER_RULE_MAX];
   /**
     lock for whole ruleset.
 
@@ -161,34 +189,65 @@ BEGIN_SERVICE_DEFINITION(log_builtins_filter)
   // run built-in filter, get/set its configuration
 
   /**
-    Apply all matching rules from a filter rule set to a given log line.
+    Create a new set of filter rules.
 
-    @param           instance             instance
-    @param           ll                   the current log line
+    @param   tag       tag for this ruleset
+    @param   count     number of rules to allocate
 
-    @retval          int                  number of matched rules
+    @retval            a pointer to a ruleset structure, or nullptr on failure
   */
-  DECLARE_METHOD(int,              filter_run, (void *instance, log_line *ll));
+  DECLARE_METHOD(log_filter_ruleset *,           filter_ruleset_new,
+                                                   (log_filter_tag *tag,
+                                                    size_t count));
 
   /**
     Lock and get the filter rules.
 
+    @param  ruleset    a ruleset (usually allocated with filter_ruleset_new())
     @param  locktype   LOG_BUILTINS_LOCK_SHARED     lock for reading
                        LOG_BUILTINS_LOCK_EXCLUSIVE  lock for writing
-    @return            a pointer to a ruleset structure
-  */
-  DECLARE_METHOD(void *,           filter_ruleset_get,
-                                     (log_builtins_filter_lock locktype));
 
-  /**
-    Drop an entire filter rule-set. Must hold lock.
+    @retval  0         lock acquired
+    @retval !0         failed to acquire lock
   */
-  DECLARE_METHOD(void,             filter_ruleset_drop, ());
+  DECLARE_METHOD(int,              filter_ruleset_lock,
+                                     (log_filter_ruleset *ruleset,
+                                      log_builtins_filter_lock locktype));
 
   /**
     Release lock on filter rules.
+
+    @param  ruleset    a ruleset (usually allocated with filter_ruleset_new())
   */
-  DECLARE_METHOD(void,             filter_ruleset_release, ());
+  DECLARE_METHOD(void,             filter_ruleset_unlock,
+                                     (log_filter_ruleset *ruleset));
+
+  /**
+    Drop an entire filter rule-set. Must hold lock.
+
+    @param  ruleset    a ruleset * (usually allocated with filter_ruleset_new())
+  */
+  DECLARE_METHOD(void,             filter_ruleset_drop,
+                                     (log_filter_ruleset *ruleset));
+
+  /**
+    Free an entire filter rule-set. Must hold lock. Lock will be destroyed.
+
+    @param  ruleset    a ruleset * (usually allocated with filter_ruleset_new())
+                       the pointer pointed to will be a nullptr on return.
+  */
+  DECLARE_METHOD(void,             filter_ruleset_free,
+                                     (log_filter_ruleset **ruleset));
+
+  /**
+    Move rules from one ruleset to another. Origin will be empty afterwards.
+
+    @param  from   source      ruleset
+    @param  to     destination ruleset
+  */
+  DECLARE_METHOD(int,              filter_ruleset_move,
+                                     (log_filter_ruleset *from,
+                                      log_filter_ruleset *to));
 
   /**
     Initialize a new rule.
@@ -197,12 +256,36 @@ BEGIN_SERVICE_DEFINITION(log_builtins_filter)
     the rule to its satisfaction. If the caller fails, it should
     log_builtins_filter_rule_free() the incomplete rule.
 
-    @return  NULL: could not initialize rule. Do not call rule_free.
-            !NULL: the address of the rule. fill in. on success,
-                   caller must increase rule count.  on failure,
-                   it must call rule_free.
+    @param   ruleset  a ruleset (usually allocated with filter_ruleset_new())
+
+    @return  nullptr: could not initialize rule. Do not call rule_free.
+            !nullptr: the address of the rule. fill in. on success,
+                      caller must increase rule count.  on failure,
+                      it must call rule_free.
   */
-  DECLARE_METHOD(void *,           filter_rule_init, ());
+  DECLARE_METHOD(void *,           filter_rule_init,
+                                     (log_filter_ruleset *ruleset));
+
+  /**
+    Apply all matching rules from a filter rule set to a given log line.
+
+    @param           ll                   the current log line
+
+    @retval          int                  number of matched rules
+  */
+  DECLARE_METHOD(int,              filter_run,
+                                    (log_filter_ruleset *ruleset,
+                                     log_line *ll));
+
 END_SERVICE_DEFINITION(log_builtins_filter)
+
+
+/**
+  Temporary primitives for logging services.
+*/
+BEGIN_SERVICE_DEFINITION(log_builtins_filter_debug)
+  DECLARE_METHOD(log_filter_ruleset *, filter_debug_ruleset_get, (void));
+END_SERVICE_DEFINITION(log_builtins_filter_debug)
+
 
 #endif

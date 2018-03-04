@@ -3,16 +3,24 @@
 Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -99,32 +107,43 @@ Clone_Snapshot::add_file_from_desc(
 	ptr += dir_len;
 	name_len += dir_len;
 
-	const char*	name_ptr;
+	std::string	name;
 	char		name_buf[MAX_LOG_FILE_NAME];
 
 	if (m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY) {
 
-		name_ptr = file_desc->m_file_name;
+		name.assign(file_desc->m_file_name);
 
 		/* For absolute path, we must ensure that the file is not
 		present. This would always fail for local clone. */
-		if (is_absolute_path(file_desc->m_file_name)) {
+		if (Fil_path::is_absolute_path(name)) {
 
-			os_file_type_t	type;
-			bool		exists = false;
+			auto	type = Fil_path::get_file_type(name);
 
-			os_file_status(file_desc->m_file_name, &exists, &type);
+			if (type != OS_FILE_TYPE_MISSING) {
 
-			if (exists) {
+				if (type == OS_FILE_TYPE_FILE) {
 
-				my_error(ER_FILE_EXISTS_ERROR, MYF(0),
-					 file_desc->m_file_name);
-				return(DB_TABLESPACE_EXISTS);
+					my_error(ER_FILE_EXISTS_ERROR, MYF(0),
+						 name.c_str());
+
+					return(DB_TABLESPACE_EXISTS);
+				} else {
+
+					/* Either the stat() call failed or
+					the name is a directory/block device,
+					or permission error etc. */
+
+					my_error(ER_INTERNAL_ERROR, MYF(0),
+						 name.c_str());
+
+					return(DB_ERROR);
+				}
 			}
 
-		} else if (name_ptr[0] == '.' && name_ptr[1] == OS_PATH_SEPARATOR) {
+		} else if (Fil_path::has_prefix(name, Fil_path::DOT_SLASH)) {
 
-			name_ptr += 2;
+			name.erase(0, 2);
 		}
 	} else {
 
@@ -134,13 +153,14 @@ Clone_Snapshot::add_file_from_desc(
 		snprintf(name_buf, MAX_LOG_FILE_NAME, "%s%u",
 			 ib_logfile_basename, idx);
 
-		name_ptr = const_cast<const char*>(name_buf);
+		name.assign(name_buf);
 	}
 
-	strcpy(ptr, name_ptr);
+	strcpy(ptr, name.c_str());
 
-	name_len += strlen(name_ptr);
-	name_len++;
+	name_len += name.length();
+
+	++name_len;
 
 	file_meta->m_file_name_len = name_len;
 
@@ -283,14 +303,16 @@ Clone_Handle::apply_file_metadata(
 /** Receive data from callback and apply
 @param[in]	task		task that is receiving the information
 @param[in]	offset		file offset for applying data
+@param[in]	file_size	updated file size
 @param[in]	size		data length in bytes
 @param[in]	callback	callback interface
 @return error code */
 dberr_t
 Clone_Handle::receive_data(
 	Clone_Task*	task,
-	ib_uint64_t	offset,
-	uint		size,
+	uint64_t	offset,
+	uint64_t	file_size,
+	uint32_t	size,
 	Ha_clone_cbk*	callback)
 {
 	dberr_t			err;
@@ -302,6 +324,14 @@ Clone_Handle::receive_data(
 	snapshot = m_clone_task_manager.get_snapshot();
 
 	file_meta = snapshot->get_file_by_index(task->m_current_file_index);
+
+	/* Check and update file size for space header page */
+	if (snapshot->get_state() == CLONE_SNAPSHOT_PAGE_COPY
+	    && offset == 0
+	    && file_meta->m_file_size < file_size) {
+
+		file_meta->m_file_size = file_size;
+	}
 
 	/* Open destination file for first block. */
 	if (task->m_current_file_des.m_file == OS_FILE_CLOSED) {
@@ -327,7 +357,7 @@ Clone_Handle::receive_data(
 	success = os_file_seek(nullptr, file_hdl, offset);
 	if (!success) {
 
-		my_error(ER_ERROR_ON_READ, MYF(0), file_meta->m_file_name, errno,
+		my_error(ER_ERROR_ON_READ, MYF(0),file_meta->m_file_name, errno,
 			 my_strerror(errbuf, sizeof(errbuf), errno));
 		return(DB_ERROR);
 	}
@@ -380,8 +410,8 @@ Clone_Handle::apply_data(
 	}
 
 	/* Receive data from callback and apply. */
-	err = receive_data(task, data_desc.m_file_offset, data_desc.m_data_len,
-			   callback);
+	err = receive_data(task, data_desc.m_file_offset, data_desc.m_file_size,
+			   data_desc.m_data_len, callback);
 
 	task->m_task_meta = *task_meta;
 
@@ -395,9 +425,9 @@ dberr_t
 Clone_Handle::apply(
 	Ha_clone_cbk*	callback)
 {
-	dberr_t		err = DB_SUCCESS;
+	dberr_t			err = DB_SUCCESS;
 	Clone_Desc_Header	header;
-	byte*		clone_desc;
+	byte*			clone_desc;
 
 	clone_desc = callback->get_data_desc(nullptr);
 	ut_ad(clone_desc != nullptr);
@@ -431,4 +461,75 @@ Clone_Handle::apply(
 	}
 
 	return(err);
+}
+
+/** Extend files after copying pages, if needed
+@return error code */
+dberr_t
+Clone_Snapshot::extend_files()
+{
+	bool	success;
+	bool	check_redo_files = false;
+
+	if (m_snapshot_state == CLONE_SNAPSHOT_DONE) {
+
+		/* flush redo files after clone is over. */
+		check_redo_files = true;
+
+	} else if (m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY) {
+
+		/* extend and flush data files after page copy */
+		check_redo_files = false;
+	} else {
+
+		return(DB_SUCCESS);
+	}
+
+	auto&	file_vector = (check_redo_files)
+			? m_redo_file_vector
+			: m_data_file_vector;
+
+	for (auto file_meta : file_vector) {
+
+		char	errbuf[MYSYS_STRERROR_SIZE];
+
+		auto	file = os_file_create(innodb_clone_file_key,
+				file_meta->m_file_name, OS_FILE_OPEN,
+				OS_FILE_NORMAL, OS_CLONE_LOG_FILE,
+				false, &success);
+
+	        if (!success) {
+
+			my_error(ER_CANT_OPEN_FILE, MYF(0),
+				file_meta->m_file_name, errno,
+				my_strerror(errbuf, sizeof(errbuf), errno));
+
+			return(DB_CANNOT_OPEN_FILE);
+		}
+
+		auto	file_size = os_file_get_size(file);
+
+		if (!check_redo_files && file_size < file_meta->m_file_size) {
+
+			success = os_file_set_size(file_meta->m_file_name,
+				file, file_size,
+				file_meta->m_file_size, false, true);
+		} else {
+
+			success = os_file_flush(file);
+		}
+
+		os_file_close(file);
+
+		if (!success) {
+
+			my_error(ER_ERROR_ON_WRITE, MYF(0),
+				file_meta->m_file_name, errno,
+				my_strerror(errbuf, sizeof(errbuf), errno));
+
+			return(DB_IO_ERROR);
+		}
+        }
+
+	return(DB_SUCCESS);
 }

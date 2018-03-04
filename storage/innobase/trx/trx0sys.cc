@@ -3,16 +3,24 @@
 Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -49,7 +57,6 @@ Created 3/26/1996 Heikki Tuuri
 
 /** The transaction system */
 trx_sys_t*		trx_sys		= NULL;
-#endif /* !UNIV_HOTBACKUP */
 
 /** Check whether transaction id is valid.
 @param[in]	id              transaction id to check
@@ -92,7 +99,6 @@ ReadView::check_trx_id_sanity(
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
 # ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 uint	trx_rseg_n_slots_debug = 0;
@@ -420,6 +426,8 @@ trx_sys_init_at_db_start(void)
 		ib::info() << "Trx id counter is " << trx_sys->max_trx_id;
 	}
 
+	trx_sys->found_prepared_trx = trx_sys->n_prepared_trx > 0;
+
 	trx_sys_mutex_exit();
 
 	return(purge_queue);
@@ -487,7 +495,8 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-		ib::info() << "mysqlbackup: Last MySQL binlog file position "
+		ib::info()
+			<< "Last MySQL binlog file position "
 			<< mach_read_from_4(
 				sys_header + TRX_SYS_MYSQL_LOG_INFO
 				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH) << " "
@@ -684,6 +693,7 @@ trx_sys_validate_trx_list()
 	return(true);
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 /** A list of undo tablespace IDs found in the TRX_SYS page. These are the
 old type of undo tablespaces that do not have space_IDs in the reserved
@@ -711,4 +721,3 @@ trx_sys_undo_spaces_deinit()
 
 	trx_sys_undo_spaces = nullptr;
 }
-#endif /* !UNIV_HOTBACKUP */

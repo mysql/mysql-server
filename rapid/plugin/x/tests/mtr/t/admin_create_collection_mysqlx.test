@@ -2,6 +2,7 @@
 ## Simple collection
 
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 create schema xtest default charset 'utf8mb4';
 create database xtest_1 default charset 'utf8mb4';
@@ -76,10 +77,11 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->endsql
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$xtest_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Postamble
 --remove_file $xtest_file
+--source include/xplugin_drop_user.inc
 drop schema if exists xtest;
 drop database if exists xtest_1;
 uninstall plugin mysqlx;

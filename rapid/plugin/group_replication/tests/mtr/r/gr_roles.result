@@ -34,16 +34,26 @@ SET GLOBAL group_replication_bootstrap_group= 0;
 [connection server1]
 # Wait until server1 is ONLINE
 [connection server2]
+SET @group_replication_recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
+SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
 set sql_log_bin=0;
 call mtr.add_suppression(".*Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed.*");
 call mtr.add_suppression(".*Slave I/O thread couldn't register on master");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 set sql_log_bin=1;
 SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET GLOBAL group_replication_recovery_retry_count= 1;
+# Set the reconnect interval to one. To prevent timeout on recovery.
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 CHANGE MASTER TO MASTER_USER='alpha', MASTER_PASSWORD='alpha' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-START GROUP_REPLICATION;
+include/start_group_replication.inc
 Pattern found.
 Pattern found.
 include/stop_group_replication.inc
@@ -71,7 +81,7 @@ GRANT `gr_recovery_user`@`%`,`gr_user`@`%` TO `alpha`@`%`
 CREATE DATABASE newtest;
 ERROR 42000: Access denied for user 'alpha'@'%' to database 'newtest'
 [connection server2]
-START GROUP_REPLICATION;
+include/start_group_replication.inc
 GRANT ALL ON newtest.* TO gr_recovery_user;
 [connection alpha]
 CREATE DATABASE newtest;
@@ -81,6 +91,8 @@ INSERT INTO t1 VALUES (1),(2);
 UPDATE t1 SET a=4 WHERE a=1;
 DELETE FROM t1;
 [connection server2]
+SET GLOBAL group_replication_recovery_retry_count= @group_replication_recovery_retry_count_save;
+SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
 DROP TABLE newtest.t1;
 DROP DATABASE newtest;
 DROP ROLE gr_user, gr_recovery_user;

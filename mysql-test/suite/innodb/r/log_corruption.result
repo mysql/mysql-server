@@ -1,37 +1,37 @@
-# redo log from before MySQL 5.7.9
-Pattern "InnoDB: Unsupported redo log format\. The redo log was created before MySQL 5\.7\.9\." found
-# redo log from MySQL 5.7.9, with corrupted log block
-Pattern "InnoDB: Upgrade after a crash is not supported. This redo log was created with malicious intentions, or perhaps, and it appears corrupted" found
-# redo log from "after" MySQL 5.7.9, but with invalid header checksum
+# redo log from before we started versioning in MySQL 5.7.9
+Pattern "InnoDB: Unsupported redo log format \(0\). The redo log was created before MySQL 5\.7\.9.*" found
+# redo log from before MySQL 8.0.3, with corrupted log block
+Pattern "InnoDB: Upgrade after a crash is not supported.*" found
+# redo log from MySQL 8.0.3, but with invalid header checksum
 Pattern "InnoDB: Invalid redo log header checksum" found
 # distant future redo log format, with valid header checksum
-Pattern "InnoDB: Unsupported redo log format. The redo log was created with malicious intentions, or perhaps\. Please follow the instructions at http://dev.mysql.com/doc/refman/8.0/en/upgrading-downgrading.html" found
-# redo log from MySQL 5.7.9, with corrupted log checkpoint
-Pattern "InnoDB: No valid checkpoint found .corrupted redo log" found
+Pattern "InnoDB: Unknown redo log format \(4294967295\).*" found
+# redo log from MySQL 8.0.3, with corrupted log checkpoint
+Pattern "InnoDB: No valid checkpoint found.*corrupted redo log" found
 # valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2,
-# invalid block checksum (MLOG_CHECKPOINT cannot be read),
+# invalid block checksum,
 # thus we cannot determine if the redo log is logically clean.
-Pattern "InnoDB: Upgrade after a crash is not supported\. This redo log was created with malicious intentions, or perhaps, and it appears corrupted\." found
+Pattern "InnoDB: Database upgrade cannot be accomplished with innodb_force_recovery > 0" found
 # --innodb-force-recovery=6 (skip the entire redo log)
 Pattern "InnoDB: Database upgrade cannot be accomplished in read-only mode" found
-# valid header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
+# valid 5.7.9 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block number
 # Start with innodb-force-recovery=5
-Pattern "Cannot continue InnoDB startup in force_recovery mode because there are no existing undo tablespaces found" found
+Pattern "InnoDB: Database upgrade cannot be accomplished with innodb_force_recovery > 0" found
 # Start with --innodb-force-recovery=6 (skip the entire redo log)
 Pattern "InnoDB: Database upgrade cannot be accomplished in read-only mode" found
-# valid 8.0.0 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
+# valid 8.0.3 header, valid checkpoint 1, all-zero (invalid) checkpoint 2, invalid block checksum
 Pattern "InnoDB: Log block 2372 at lsn 1213952 has valid header, but checksum field contains 144444122, should be 3362026715" found
 Pattern "Data Dictionary initialization failed" found
 # --innodb-force-recovery=6 (skip the entire redo log)
 Pattern "InnoDB: Database upgrade cannot be accomplished in read-only mode" found
 # valid 5.7.9 header, valid checkpoint 1, no matching MLOG_CHECKSUM
-Pattern "InnoDB: Upgrade after a crash is not supported\. This redo log was created with malicious intentions, or perhaps\." found
+Pattern "InnoDB: Upgrade after a crash is not supported\. This redo log was created with malicious intentions, or perhaps\." not found
 Pattern "Data Dictionary initialization failed" found
 # --innodb-force-recovery=6 (skip the entire redo log)
 Pattern "InnoDB: Database upgrade cannot be accomplished in read-only mode" found
 # upgrade: valid 5.7.9 header, valid checkpoint 1, logically non empty
 # redo log
-Pattern "InnoDB: Upgrade after a crash is not supported\. This redo log was created with malicious intentions, or perhaps\." found
+Pattern "InnoDB: Upgrade after a crash is not supported.*" found
 # Test a corrupted record.
 # current header, valid checkpoint 1, all-zero (invalid) checkpoint 2
 Pattern "InnoDB: ############### CORRUPT LOG RECORD FOUND ###############" found
@@ -40,7 +40,7 @@ Pattern "len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8        
 Pattern "InnoDB: Set innodb_force_recovery to ignore this error" found
 # Test a corrupted record.
 # valid header, invalid checkpoint 1, valid checkpoint 2
-Pattern "InnoDB: The log file was created by mysqlbackup --apply-log at ibbackup was here!!!1!\. The following crash recovery is part of a normal restore\." found
+Pattern "InnoDB: The log file was created by mysqlbackup --apply-log at MEB      was here!!!1!\. The following crash recovery is part of a normal restore\." found
 Pattern "InnoDB: ############### CORRUPT LOG RECORD FOUND ###############" found
 Pattern "InnoDB: Log record type 56, page 0:0\. Log parsing proceeded successfully up to 1213964\. Previous log record type 128, is multi 0 Recv offset 0, prev 0" found
 Pattern "InnoDB: Hex dump starting 0 bytes before and ending 22 bytes after the corrupted record" found
@@ -48,4 +48,4 @@ Pattern "len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8        
 Pattern "InnoDB: Set innodb_force_recovery to ignore this error" found
 # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
 # redo log
-Pattern "InnoDB: Upgrading redo log: 2\*.* pages, LSN=1213973" found
+Pattern "InnoDB: Upgrading redo log: 2\*.* pages, LSN=1319985" found

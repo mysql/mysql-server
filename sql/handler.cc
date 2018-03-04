@@ -1,17 +1,24 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   Inc., 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /** @file sql/handler.cc
 
@@ -752,6 +759,7 @@ int ha_init_errors(void)
   SETMSG(HA_ERR_WRONG_FILE_NAME,		ER_DEFAULT(ER_WRONG_FILE_NAME));
   SETMSG(HA_ERR_NOT_ALLOWED_COMMAND,		ER_DEFAULT(ER_NOT_ALLOWED_COMMAND));
   SETMSG(HA_ERR_COMPUTE_FAILED,		"Compute virtual column value failed");
+  SETMSG(HA_ERR_DISK_FULL_NOWAIT,	ER_DEFAULT(ER_DISK_FULL_NOWAIT));
   /* Register the error messages for use with my_error(). */
   return my_error_register(get_handler_errmsg, HA_ERR_FIRST, HA_ERR_LAST);
 }
@@ -1423,7 +1431,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == NULL &&
-      ht_arg->db_type != DB_TYPE_BINLOG)
+      ht_arg->db_type != DB_TYPE_BINLOG &&
+      !thd->is_attachable_transaction_active())
   {
     const XID *xid= trn_ctx->xid_state()->get_xid();
     bool autocommit= !thd->in_multi_stmt_transaction_mode();
@@ -1811,13 +1820,14 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
       release_mdl= true;
 
       DEBUG_SYNC(thd, "ha_commit_trans_after_acquire_commit_lock");
+    }
 
-      if (stmt_has_updated_trans_table(ha_info) && check_readonly(thd, true))
-      {
-        ha_rollback_trans(thd, all);
-        error= 1;
-        goto end;
-      }
+    if (rw_trans && stmt_has_updated_trans_table(ha_info)
+        && check_readonly(thd, true))
+    {
+      ha_rollback_trans(thd, all);
+      error= 1;
+      goto end;
     }
 
     if (!trn_ctx->no_2pc(trx_scope) && (trn_ctx->rw_ha_count(trx_scope) > 1))
@@ -4358,6 +4368,13 @@ void handler::print_error(int error, myf errflag)
     errflag|= ME_ERRORLOG;
     break;
   }
+  case HA_ERR_DISK_FULL_NOWAIT:
+  {
+    textno=ER_DISK_FULL_NOWAIT;
+    /* Write the error message to error log */
+    errflag|= ME_ERRORLOG;
+    break;
+  }
   case HA_ERR_LOCK_WAIT_TIMEOUT:
     textno=ER_LOCK_WAIT_TIMEOUT;
     break;
@@ -4623,7 +4640,7 @@ int check_table_for_old_types(const TABLE *table)
     if (table->s->mysql_version == 0) // prior to MySQL 5.0
     {
       /* check for bad DECIMAL field */
-      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL) // TODO: error? MYSQL_TYPE_DECIMAL?
+      if ((*field)->type() == MYSQL_TYPE_NEWDECIMAL)
       {
         return HA_ADMIN_NEEDS_ALTER;
       }
@@ -4632,6 +4649,19 @@ int check_table_for_old_types(const TABLE *table)
         return HA_ADMIN_NEEDS_ALTER;
       }
     }
+
+    /*
+      Check for old DECIMAL field.
+
+      Above check does not take into account for pre 5.0 decimal types which can
+      be present in the data directory if user did in-place upgrade from
+      mysql-4.1 to mysql-5.0.
+    */
+    if ((*field)->type() == MYSQL_TYPE_DECIMAL)
+    {
+      return HA_ADMIN_NEEDS_DUMP_UPGRADE;
+    }
+
     if ((*field)->type() == MYSQL_TYPE_YEAR && (*field)->field_length == 2)
       return HA_ADMIN_NEEDS_ALTER; // obsolete YEAR(2) type
 
@@ -5226,9 +5256,9 @@ handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info,
   @sa handler::get_se_private_data()
 */
 bool
-handler::ha_get_se_private_data(dd::Table *dd_table, uint dd_version)
+handler::ha_get_se_private_data(dd::Table *dd_table, bool reset)
 {
-  return get_se_private_data(dd_table, dd_version);
+  return get_se_private_data(dd_table, reset);
 }
 
 
@@ -5433,10 +5463,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   int error;
   uchar *sdi_blob;
   size_t sdi_len;
-  char path[FN_REFLEN + 1];
-  HA_CREATE_INFO create_info;
-  TABLE table;
-  TABLE_SHARE share;
   DBUG_ENTER("ha_create_table_from_engine");
   DBUG_PRINT("enter", ("name '%s'.'%s'", db, name));
 
@@ -5447,18 +5473,20 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   }
 
   /*
-    The table exists in the handler and could be discovered.
-    Import the SDI based on the sdi_blob and sdi_len, which are set.
+    Table was successfully discovered from SE, check if SDI need
+    to be installed or if that has already been done by SE.
+    No SDI blob returned from SE indicates it has installed
+    the table definition for this table into DD itself.
+    Otherwise, import the SDI based on the sdi_blob and sdi_len,
+    which are set.
   */
-
-  // Import the SDI
-  error= import_serialized_meta_data(sdi_blob, sdi_len, true);
-  my_free(sdi_blob);
-  if (error)
-    DBUG_RETURN(2);
-
-  build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
-  init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
+  if (sdi_blob)
+  {
+    error= import_serialized_meta_data(sdi_blob, sdi_len, true);
+    my_free(sdi_blob);
+    if (error)
+      DBUG_RETURN(2);
+  }
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_def= nullptr;
@@ -5471,9 +5499,16 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(3);
   }
 
+  char path[FN_REFLEN + 1];
+  build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
+
+  TABLE_SHARE share;
+  init_tmp_table_share(thd, &share, db, 0, name, path, nullptr);
+
   if (open_table_def(thd, &share, *table_def))
     DBUG_RETURN(3);
 
+  TABLE table;
   // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
   if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE, nullptr))
   {
@@ -5481,11 +5516,18 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
     DBUG_RETURN(3);
   }
 
+  HA_CREATE_INFO create_info;
   update_create_info_from_table(&create_info, &table);
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   get_canonical_filename(table.file, path, path);
-  error=table.file->ha_create(path, &table, &create_info, NULL);
+  std::unique_ptr<dd::Table> table_def_clone(table_def->clone());
+  error=table.file->ha_create(path, &table, &create_info, table_def_clone.get());
+  /*
+    Note that the table_def_clone is not stored into the DD,
+    necessary changes to the table_def should already have
+    been done in ha_discover/import_serialized_meta_data.
+  */
   (void) closefrm(&table, 1);
 
   DBUG_RETURN(error != 0);
@@ -5853,12 +5895,23 @@ int ha_change_key_cache(KEY_CACHE *old_key_cache,
 /**
   Try to discover one table from handler(s).
 
+  @param[in]      thd     Thread context.
+  @param[in]      db      Schema of table
+  @param[in]      name    Name of table
+  @param[out]     frmblob Pointer to blob with table defintion.
+  @param[out]     frmlen  Length of the returned table definition blob
+
   @retval
     -1   Table did not exists
   @retval
-    0   OK. In this case *frmblob and *frmlen are set
+    0   OK. Table could be discovered from SE.
+        The *frmblob and *frmlen may be set if returning a blob
+        which should be installed into data dictionary
+        by the caller.
+
   @retval
     >0   error.  frmblob and frmlen may not be set
+
 */
 struct st_discover_args
 {
@@ -7743,6 +7796,23 @@ int handler::read_range_next()
 }
 
 
+/**
+  Check if one of the columns in a key is a virtual generated column.
+
+  @param part    the first part of the key to check
+  @param length  the length of the key
+  @retval true   if the key contains a virtual generated column
+  @retval false  if the key does not contain a virtual generated column
+*/
+static bool key_has_vcol(const KEY_PART_INFO *part, uint length)
+{
+  for (uint len= 0; len < length; len+= part->store_length, ++part)
+    if (part->field->is_virtual_gcol())
+      return true;
+  return false;
+}
+
+
 void handler::set_end_range(const key_range* range,
                             enum_range_scan_direction direction)
 {
@@ -7753,6 +7823,7 @@ void handler::set_end_range(const key_range* range,
     range_key_part= table->key_info[active_index].key_part;
     key_compare_result_on_equal= ((range->flag == HA_READ_BEFORE_KEY) ? 1 :
                                   (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+    m_virt_gcol_in_end_range= key_has_vcol(range_key_part, range->length);
   }
   else
     end_range= NULL;
@@ -8123,12 +8194,7 @@ static int write_locked_table_maps(THD *thd)
 
   if (thd->get_binlog_table_maps() == 0)
   {
-    MYSQL_LOCK *locks[2];
-    locks[0]= thd->extra_lock;
-    locks[1]= thd->lock;
-    for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
-    {
-      MYSQL_LOCK const *const lock= locks[i];
+    for (MYSQL_LOCK *lock : { thd->extra_lock, thd->lock }) {
       if (lock == NULL)
         continue;
 
@@ -9188,17 +9254,20 @@ std::string row_to_string(const uchar* mysql_row, TABLE* mysql_table) {
   }
 
   const uint number_of_fields = mysql_table->s->fields;
-  DBUG_ASSERT(number_of_fields > 0);
 
   /* See where the fields currently point to. */
   uchar* fields_orig_buf;
-  Field* first_field = mysql_table->field[0];
-  if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
-    fields_orig_buf = buf0;
+  if (number_of_fields == 0) {
+    fields_orig_buf = buf_used_by_mysql;
   } else {
-    DBUG_ASSERT(first_field->ptr >= buf1);
-    DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
-    fields_orig_buf = buf1;
+    Field* first_field = mysql_table->field[0];
+    if (first_field->ptr >= buf0 && first_field->ptr < buf0 + mysql_row_length) {
+      fields_orig_buf = buf0;
+    } else {
+      DBUG_ASSERT(first_field->ptr >= buf1);
+      DBUG_ASSERT(first_field->ptr < buf1 + mysql_row_length);
+      fields_orig_buf = buf1;
+    }
   }
 
   /* Repoint if necessary. */

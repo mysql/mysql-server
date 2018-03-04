@@ -1,17 +1,24 @@
 /* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #define LOG_SUBSYSTEM_TAG "event"
 
@@ -476,7 +483,7 @@ Event_queue::recalculate_activation_times(THD *thd)
                                           element->m_schema_name,
                                           element->m_event_name)))
         {
-         sql_print_warning("Unable to construct DROP EVENT SQL query string");
+         LogErr(WARNING_LEVEL, ER_FAILED_TO_CONSTRUCT_DROP_EVENT_QUERY);
         }
         else
         {
@@ -485,9 +492,9 @@ Event_queue::recalculate_activation_times(THD *thd)
           if((ret= write_bin_log(thd, true, sp_sql.c_ptr_safe(),
                                  sp_sql.length(), event_exists)))
           {
-            sql_print_warning("Unable to binlog drop event %s.%s.",
-                              element->m_schema_name.str,
-                              element->m_event_name.str);
+            LogErr(WARNING_LEVEL, ER_FAILED_TO_BINLOG_DROP_EVENT,
+                   element->m_schema_name.str,
+                   element->m_event_name.str);
           }
         }
       }

@@ -1,17 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/types/spatial_reference_system_impl.h"
 
@@ -37,23 +44,6 @@ class Sdi_wcontext;
 using dd::tables::Spatial_reference_systems;
 
 namespace dd {
-
-///////////////////////////////////////////////////////////////////////////
-// Spatial reference system implementation.
-///////////////////////////////////////////////////////////////////////////
-
-const Entity_object_table &Spatial_reference_system::OBJECT_TABLE()
-{
-  return Spatial_reference_systems::instance();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-const Object_type &Spatial_reference_system::TYPE()
-{
-  static Spatial_reference_system_type s_instance;
-  return s_instance;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 // Spatial_reference_system_impl implementation.
@@ -85,11 +75,14 @@ bool Spatial_reference_system_impl::restore_attributes(const Raw_record &r)
 
   m_last_altered= r.read_int(Spatial_reference_systems::FIELD_LAST_ALTERED);
   m_created= r.read_int(Spatial_reference_systems::FIELD_CREATED);
-  m_organization= r.read_str(Spatial_reference_systems::FIELD_ORGANIZATION);
-  m_organization_coordsys_id= r.read_int(
-                     Spatial_reference_systems::FIELD_ORGANIZATION_COORDSYS_ID);
+  if (!r.is_null(Spatial_reference_systems::FIELD_ORGANIZATION))
+    m_organization= r.read_str(Spatial_reference_systems::FIELD_ORGANIZATION);
+  if (!r.is_null(Spatial_reference_systems::FIELD_ORGANIZATION_COORDSYS_ID))
+    m_organization_coordsys_id=
+        r.read_int(Spatial_reference_systems::FIELD_ORGANIZATION_COORDSYS_ID);
   m_definition= r.read_str(Spatial_reference_systems::FIELD_DEFINITION);
-  m_description= r.read_str(Spatial_reference_systems::FIELD_DESCRIPTION);
+  if (!r.is_null(Spatial_reference_systems::FIELD_DESCRIPTION))
+    m_description= r.read_str(Spatial_reference_systems::FIELD_DESCRIPTION);
 
   return parse_definition();
 }
@@ -107,12 +100,20 @@ bool Spatial_reference_system_impl::store_attributes(Raw_record *r)
          r->store(Spatial_reference_systems::FIELD_LAST_ALTERED,
                   m_last_altered) ||
          r->store(Spatial_reference_systems::FIELD_CREATED, m_created) ||
-         r->store(Spatial_reference_systems::FIELD_ORGANIZATION,
-                  m_organization) ||
+         r->store(
+             Spatial_reference_systems::FIELD_ORGANIZATION,
+             m_organization.has_value() ? m_organization.value() : "",
+             !m_organization.has_value()) ||
          r->store(Spatial_reference_systems::FIELD_ORGANIZATION_COORDSYS_ID,
-                  m_organization_coordsys_id) ||
+                  m_organization_coordsys_id.has_value()
+                      ? m_organization_coordsys_id.value()
+                      : 0,
+                  !m_organization_coordsys_id.has_value()) ||
          r->store(Spatial_reference_systems::FIELD_DEFINITION, m_definition) ||
-         r->store(Spatial_reference_systems::FIELD_DESCRIPTION, m_description);
+         r->store(
+             Spatial_reference_systems::FIELD_DESCRIPTION,
+             m_description.has_value() ? m_description.value() : "",
+             !m_description.has_value());
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -124,11 +125,20 @@ void Spatial_reference_system_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w)
   Entity_object_impl::serialize(wctx, w);
   write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
   write(w, m_created, STRING_WITH_LEN("created"));
-  write(w, m_organization, STRING_WITH_LEN("organization"));
-  write(w, m_organization_coordsys_id,
+  write(w, !m_organization.has_value(), STRING_WITH_LEN("organization_null"));
+  write(w, m_organization.has_value() ? m_organization.value() : "",
+        STRING_WITH_LEN("organization"));
+  write(w, !m_organization_coordsys_id.has_value(),
+        STRING_WITH_LEN("organization_coordsys_id_null"));
+  write(w,
+        m_organization_coordsys_id.has_value()
+            ? m_organization_coordsys_id.value()
+            : 0,
         STRING_WITH_LEN("organization_coordsys_id"));
   write(w, m_definition, STRING_WITH_LEN("definition"));
-  write(w, m_description, STRING_WITH_LEN("description"));
+  write(w, !m_description.has_value(), STRING_WITH_LEN("description_null"));
+  write(w, m_description.has_value() ? m_description.value() : "",
+        STRING_WITH_LEN("description"));
   w->EndObject();
 }
 
@@ -140,10 +150,29 @@ bool Spatial_reference_system_impl::deserialize(Sdi_rcontext *rctx,
   Entity_object_impl::deserialize(rctx, val);
   read(&m_last_altered, val, "last_altered");
   read(&m_created, val, "created");
-  read(&m_organization, val, "organization");
-  read(&m_organization_coordsys_id, val, "organization_coordsys_id");
+  bool is_null;
+  read(&is_null, val, "organization_null");
+  if (!is_null)
+  {
+    String_type s;
+    read(&s, val, "organization");
+    m_organization= Mysql::Nullable<String_type>(s);
+  }
+  read(&is_null, val, "organization_coordsys_id_null");
+  if (!is_null)
+  {
+    gis::srid_t id= 0;
+    read(&id, val, "organization_coordsys_id");
+    m_organization_coordsys_id= Mysql::Nullable<gis::srid_t>(id);
+  }
   read(&m_definition, val, "definition");
-  read(&m_description, val, "description");
+  read(&is_null, val, "description_null");
+  if (!is_null)
+  {
+    String_type s;
+    read(&s, val, "description");
+    m_description= Mysql::Nullable<String_type>(s);
+  }
 
   return parse_definition();
 }
@@ -168,7 +197,7 @@ bool Spatial_reference_system_impl::parse_definition()
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Spatial_reference_system::update_id_key(id_key_type *key, Object_id id)
+bool Spatial_reference_system::update_id_key(Id_key *key, Object_id id)
 {
   key->update(id);
   return false;
@@ -176,7 +205,7 @@ bool Spatial_reference_system::update_id_key(id_key_type *key, Object_id id)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Spatial_reference_system::update_name_key(name_key_type *key,
+bool Spatial_reference_system::update_name_key(Name_key *key,
                                                const String_type &name)
 {
   return Spatial_reference_systems::update_object_key(key,
@@ -185,11 +214,16 @@ bool Spatial_reference_system::update_name_key(name_key_type *key,
 }
 
 ///////////////////////////////////////////////////////////////////////////
-// Spatial_reference_system_type implementation.
+
+const Object_table &Spatial_reference_system_impl::object_table() const
+{
+  return DD_table::instance();
+}
+
 ///////////////////////////////////////////////////////////////////////////
 
-void Spatial_reference_system_type::register_tables(
-                      Open_dictionary_tables_ctx *otx) const
+void Spatial_reference_system_impl::register_tables(
+                      Open_dictionary_tables_ctx *otx)
 {
   otx->add_table<Spatial_reference_systems>();
 }

@@ -44,7 +44,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 count(*) > 0
 1
-call mtr.add_suppression("\\[ERROR\\] InnoDB: buffer pool 0 : failed to allocate new memory.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: buffer pool 0 : failed to allocate new memory.");
 set global DEBUG="+d,ib_buf_chunk_init_fails";
 set global innodb_buffer_pool_size = 16*1024*1024;
 set global DEBUG="-d,ib_buf_chunk_init_fails";
@@ -56,3 +56,15 @@ drop table t2;
 drop table t3;
 drop table t0;
 drop table t6;
+#
+# BUG#23590280 NO WARNING WHEN REDUCING INNODB_BUFFER_POOL_SIZE INSIZE THE FIRST CHUNK
+#
+SET GLOBAL innodb_fast_shutdown = 0;
+# restart: --innodb-buffer-pool-size=24M --innodb-buffer-pool-chunk-size=24M
+set @before_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
+set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size div 2;
+Warnings:
+Warning	1210	InnoDB: Cannot resize buffer pool to lesser than chunk size of 25165824 bytes.
+set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size * 2;
+set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size;
+set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size;

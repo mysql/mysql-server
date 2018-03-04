@@ -1,4 +1,8 @@
 # Tests for WL#8131
+# The test includes show_binlog_events.inc, which requires that
+# binlog is endabled. So we just run it when binlog is enabled.
+--source include/have_log_bin.inc
+
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 call mtr.add_suppression("ACL table mysql.global_grants missing. Some operations may fail.");
 
@@ -520,5 +524,83 @@ GRANT XA_RECOVER_ADMIN ON *.* TO u3;
 DROP USER u1;
 DROP USER u2;
 DROP USER u3;
-
 --echo # End of test for WL#7194
+
+--echo # REVOKE ALL IS NOT REVOKING ALL PRIVILEGE WHEN CURRENT_USER() IS USED
+CREATE USER u1@localhost IDENTIFIED BY 'foo';
+GRANT ALL ON *.* TO u1@localhost;
+connect (con2,localhost,u1,foo,,);
+connection con2;
+SHOW GRANTS;
+REVOKE ALL ON *.* FROM CURRENT_USER();
+SHOW GRANTS;
+connection default;
+disconnect con2;
+DROP USER u1@localhost;
+
+--echo #
+--echo # Bug#26191109: GRANT GRANT OPTION ON *.* APPLIES TO A USER'S STATIC PRIVS BUT
+--echo #               NOT DYNAMIC ONES
+--echo #
+CREATE USER u1;
+GRANT BINLOG_ADMIN ON *.* TO u1;
+GRANT INSERT ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+# grant grant option with existing dynamic privileges
+GRANT GRANT OPTION ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT SYSTEM_VARIABLES_ADMIN, RESOURCE_GROUP_ADMIN ON *.* TO u1;
+SHOW GRANTS FOR u1;
+# check grant option is not apploied for future dynamic privileges
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT GRANT OPTION ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT XA_RECOVER_ADMIN ON *.* TO u1;
+GRANT CONNECTION_ADMIN ON *.* TO u1 WITH GRANT OPTION;
+SHOW GRANTS FOR u1;
+# check XA_RECOVER_ADMIN "WITH_GRANT_OPTION" set to NO
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+# combination of static privilege and WITH GRANT OPTION
+GRANT SELECT ON *.* TO u1 WITH GRANT OPTION;
+SHOW GRANTS FOR u1;
+# should not affect dynamic privileges
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+# combination of static privilege and GRANT OPTION
+GRANT DELETE, GRANT OPTION ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT PERSIST_RO_VARIABLES_ADMIN ON *.* TO u1;
+SHOW GRANTS FOR u1;
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT REPLICATION_SLAVE_ADMIN ON *.* TO u1 WITH GRANT OPTION;
+SHOW GRANTS FOR u1;
+# only PERSIST_RO_VARIABLES_ADMIN privilege should have "WITH_GRANT_OPTION" set to NO
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+GRANT GRANT OPTION ON *.* TO u1 WITH GRANT OPTION;
+SHOW GRANTS FOR u1;
+# all dynamic privilege should have "WITH_GRANT_OPTION" set to YES
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+REVOKE RESOURCE_GROUP_ADMIN ON *.* FROM u1;
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1;
+# there should be no RESOURCE_GROUP_ADMIN privilege
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+REVOKE PERSIST_RO_VARIABLES_ADMIN, GRANT OPTION ON *.* FROM u1;
+FLUSH PRIVILEGES;
+SHOW GRANTS FOR u1;
+# all dynamic privilege should have "WITH_GRANT_OPTION" set to NO
+SELECT * FROM mysql.global_grants WHERE USER='u1';
+# check for binlog events
+RESET MASTER;
+--source include/show_binlog_events.inc
+GRANT SELECT ON *.* TO u1;
+--source include/show_binlog_events.inc
+GRANT PERSIST_RO_VARIABLES_ADMIN, DELETE ON *.* TO u1 WITH GRANT OPTION;
+--source include/show_binlog_events.inc
+GRANT GRANT OPTION ON *.* TO u1;
+--source include/show_binlog_events.inc
+RESET MASTER;
+DROP USER u1;

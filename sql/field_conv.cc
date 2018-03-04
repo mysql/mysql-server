@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -259,12 +266,21 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     // There's no valid conversion for geometry values.
     if (field->type() == MYSQL_TYPE_GEOMETRY)
     {
-      my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);
+      my_error(ER_BAD_NULL_ERROR_NOT_IGNORED, MYF(0), field->field_name);
       return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
     }
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
+    if (field->type() == MYSQL_TYPE_BLOB)
+    {
+      /*
+        BLOB/TEXT fields only store a pointer to their actual contents
+        in the record. Make this a valid pointer to an empty string
+        instead of nullptr.
+      */
+      return field->store("", 0, field->charset());
+    }
     return TYPE_OK;
   case CHECK_FIELD_ERROR_FOR_NULL:
     my_error(ER_BAD_NULL_ERROR, MYF(0), field->field_name);

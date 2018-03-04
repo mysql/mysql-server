@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -515,7 +522,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd)
   DEBUG_SYNC(thd, "planned_single_insert");
 
  
-  if (lex->describe)
+  if (lex->is_explain())
   {
     bool err= explain_single_table_modification(thd, &plan, select_lex);
     DBUG_RETURN(err);
@@ -1397,6 +1404,19 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd)
     ctx_state.restore_state(context, table_list);
   }
 
+  if (insert_table->triggers)
+  {
+    /*
+      We don't need to mark columns which are used by ON DELETE and
+      ON UPDATE triggers, which may be invoked in case of REPLACE or
+      INSERT ... ON DUPLICATE KEY UPDATE, since before doing actual
+      row replacement or update write_record() will mark all table
+      fields as used.
+    */
+    if (insert_table->triggers->mark_fields(TRG_EVENT_INSERT))
+      DBUG_RETURN(true);
+  }
+
   if (!select_insert && insert_table->part_info)
   {
     uint num_partitions= 0;
@@ -1888,12 +1908,13 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             handled separately by THD::arg_of_last_insert_id_function.
           */
           insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
-          trg_error= (table->triggers &&
-                      table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                        TRG_ACTION_AFTER, TRUE));
           info->stats.copied++;
         }
 
+        // Execute the 'AFTER, ON UPDATE' trigger
+        trg_error= (table->triggers &&
+                    table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                                      TRG_ACTION_AFTER, TRUE));
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
@@ -2092,13 +2113,32 @@ bool check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
         view= table_list->is_view();
       }
       if (view)
-        (*field)->set_warning(Sql_condition::SL_WARNING,
-                              ER_NO_DEFAULT_FOR_VIEW_FIELD, 1,
-                              table_list->view_db.str,
-                              table_list->view_name.str);
+      {
+        if ((*field)->type() == MYSQL_TYPE_GEOMETRY)
+        {
+          my_error(ER_NO_DEFAULT_FOR_VIEW_FIELD, MYF(0),
+                   table_list->view_db.str, table_list->view_name.str);
+        }
+        else
+        {
+          (*field)->set_warning(Sql_condition::SL_WARNING,
+                                ER_NO_DEFAULT_FOR_VIEW_FIELD, 1,
+                                table_list->view_db.str,
+                                table_list->view_name.str);
+        }
+      }
       else
-        (*field)->set_warning(Sql_condition::SL_WARNING,
-                              ER_NO_DEFAULT_FOR_FIELD, 1);
+      {
+        if ((*field)->type() == MYSQL_TYPE_GEOMETRY)
+        {
+          my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), (*field)->field_name);
+        }
+        else
+        {
+          (*field)->set_warning(Sql_condition::SL_WARNING,
+                                ER_NO_DEFAULT_FOR_FIELD, 1);
+        }
+      }
     }
   }
   bitmap_clear_all(write_set);
@@ -2172,7 +2212,7 @@ bool Query_result_insert::start_execution()
 {
   DBUG_ENTER("Query_result_insert::start_execution");
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-      !thd->lex->describe)
+      !thd->lex->is_explain())
   {
     DBUG_ASSERT(!bulk_insert_started);
     // TODO: Is there no better estimation than 0 == Unknown number of rows?
@@ -2290,16 +2330,22 @@ void Query_result_insert::send_error(uint errcode,const char *err)
 }
 
 
+bool Query_result_insert::stmt_binlog_is_trans() const
+{
+  return table->file->has_transactions();
+}
+
+
 bool Query_result_insert::send_eof()
 {
   int error;
-  bool const trans_table= table->file->has_transactions();
   ulonglong id, row_count;
   bool changed MY_ATTRIBUTE((unused));
   THD::killed_state killed_status= thd->killed;
   DBUG_ENTER("Query_result_insert::send_eof");
   DBUG_PRINT("enter", ("trans_table=%d, table_type='%s'",
-                       trans_table, table->file->table_type()));
+                       table->file->has_transactions(),
+                       table->file->table_type()));
 
   error= (bulk_insert_started ?
           table->file->ha_end_bulk_insert() : 0);
@@ -2307,7 +2353,12 @@ bool Query_result_insert::send_eof()
     error= thd->get_stmt_da()->mysql_errno();
 
   changed= (info.stats.copied || info.stats.deleted || info.stats.updated);
-  DBUG_ASSERT(trans_table || !changed || 
+
+  /*
+    INSERT ... SELECT on non-transactional table which changes any rows
+    must be marked as unsafe to rollback.
+  */
+  DBUG_ASSERT(table->file->has_transactions() || !changed ||
               thd->get_transaction()->cannot_safely_rollback(
                 Transaction_ctx::STMT));
 
@@ -2328,7 +2379,7 @@ bool Query_result_insert::send_eof()
       errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
     if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                           thd->query().str, thd->query().length,
-                          trans_table, false, false, errcode))
+                          stmt_binlog_is_trans(), false, false, errcode))
     {
       table->file->ha_release_auto_increment();
       DBUG_RETURN(1);
@@ -2885,6 +2936,10 @@ int Query_result_create::binlog_show_create_table()
   if (error)
     DBUG_RETURN(error);
 
+  create_table->table->set_binlog_drop_if_temp(
+    !thd->is_current_stmt_binlog_disabled()
+    && !thd->is_current_stmt_binlog_format_row());
+
   if (!thd->is_current_stmt_binlog_format_row() ||
       table->s->tmp_table)
     DBUG_RETURN(0);
@@ -2983,6 +3038,16 @@ void Query_result_create::send_error(uint errcode,const char *err)
 }
 
 
+bool Query_result_create::stmt_binlog_is_trans() const
+{
+  /*
+    Binary logging code assumes that CREATE TABLE statements are
+    written to transactional cache iff they support atomic DDL.
+  */
+  return (table->s->db_type()->flags & HTON_SUPPORTS_ATOMIC_DDL);
+}
+
+
 bool Query_result_create::send_eof()
 {
   /*
@@ -3045,7 +3110,7 @@ bool Query_result_create::send_eof()
                                                        create_table->db,
                                                        create_table->table_name,
                                                        create_info->db_type,
-                                                       new_table) ||
+                                                       new_table, nullptr) ||
             adjust_fk_parents(thd, create_table->db, create_table->table_name,
                               true, nullptr))
           error= true;
@@ -3056,10 +3121,19 @@ bool Query_result_create::send_eof()
   {
     Uncommitted_tables_guard uncommitted_tables(thd);
 
+    /*
+      We can rollback target table creation by dropping it even for SEs which
+      don't support atomic DDL. So there is no need to commit changes to
+      metadata of dependent views below.
+      Moreover, doing these intermediate commits can be harmful as in RBR mode
+      they will flush CREATE TABLE event and row events to the binary log
+      which, in case of later error, will create discrepancy with rollback of
+      statement by target table removal.
+      Such intermediate commits also wipe out transaction's unsafe-to-rollback
+      flags which leads to broken assertions in Query_result_insert::send_eof().
+    */
     if (!error)
-      error= update_referencing_views_metadata(thd, create_table,
-                                               !(table->s->db_type()->flags &
-                                                 HTON_SUPPORTS_ATOMIC_DDL),
+      error= update_referencing_views_metadata(thd, create_table, false,
                                                &uncommitted_tables);
   }
 
@@ -3130,7 +3204,21 @@ void Query_result_create::drop_open_table()
   DBUG_ENTER("Query_result_create::drop_open_table");
 
   if (table->s->tmp_table)
+  {
+    /*
+      Call reset here since SE may depend on this to reset its state
+      properly. Normally this is done when calling
+      mark_tmp_table_for_reuse(table); at the end of a statement using
+      temporary tables. In a Query_result_set_insert object it is done
+      by the cleanup() member function.  For a non-temporary table
+      this is done by close_thread_table(). Calling ha_reset() from
+      close_temporary_table() is not an options since this function
+      gets called at times (boot) when is data structures needed by
+      handler::reset() have not yet been initialized.
+    */
+    table->file->ha_reset();
     close_temporary_table(thd, table, 1, 1);
+  }
   else
   {
     DBUG_ASSERT(table == thd->open_tables);

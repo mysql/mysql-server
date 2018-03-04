@@ -1,17 +1,24 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_BASE_INCLUDED
 #define SQL_BASE_INCLUDED
@@ -267,6 +274,11 @@ void update_non_unique_table_error(TABLE_LIST *update,
 int setup_ftfuncs(const THD *thd, SELECT_LEX* select);
 bool init_ftfuncs(THD *thd, SELECT_LEX* select);
 int run_before_dml_hook(THD *thd);
+bool get_and_lock_tablespace_names(THD *thd,
+                                   TABLE_LIST *tables_start,
+                                   TABLE_LIST *tables_end,
+                                   ulong lock_wait_timeout,
+                                   uint flags);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       TABLE_LIST *table_list_end, ulong lock_wait_timeout,
                       uint flags);
@@ -318,7 +330,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
   @param  share       Table share, but is just a handy way to
                       access the table cache key.
   @param  remove_from_locked_tables
-                      True if the table is being dropped or renamed.
+                      True if the table is being dropped.
                       In that case the documented behaviour is to
                       implicitly remove the table from LOCK TABLES list.
   @param  skip_table  TABLE instance that should be kept open.
@@ -340,7 +352,7 @@ void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
   @param  db          Database name.
   @param  table_name  Table name.
   @param  remove_from_locked_tables
-                      True if the table is being dropped or renamed.
+                      True if the table is being dropped.
                       In that case the documented behaviour is to
                       implicitly remove the table from LOCK TABLES list.
 

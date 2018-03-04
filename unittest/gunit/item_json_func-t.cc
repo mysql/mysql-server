@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -16,12 +23,12 @@
 #include <gtest/gtest.h>
 #include <cstring>
 
-#include "base_mock_field.h"
-#include "fake_table.h"
 #include "sql/item_json_func.h"
 #include "sql/json_diff.h"
 #include "sql/json_dom.h"
-#include "test_utils.h"
+#include "unittest/gunit/base_mock_field.h"
+#include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace item_json_func_unittest
 {
@@ -215,6 +222,15 @@ TEST_F(ItemJsonFuncTest, PartialUpdate)
     SCOPED_TRACE("");
     do_partial_update(json_set, &m_field, "[4,\"XYZ\",5]", "[4,\"abc\",100]",
                       true, true);
+  }
+
+  // No-op update.
+  {
+    SCOPED_TRACE("");
+    do_partial_update(json_set, &m_field, "[0,\"abc\",100]", "[0,\"abc\",100]",
+                      true, true);
+    EXPECT_EQ(0U, m_table.get_binary_diffs(&m_field)->size());
+    EXPECT_EQ(0U, m_table.get_logical_diffs(&m_field)->size());
   }
 
   // The array grows, so only logical update is OK.

@@ -1,17 +1,24 @@
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
-// This program is free software; you can redistribute it and/or modify it under
-// the terms of the GNU General Public License as published by the Free Software
-// Foundation; version 2 of the License.
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
 //
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-// details.
+// This program is also distributed with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have included with MySQL.
 //
-// You should have received a copy of the GNU General Public License along with
-// this program; if not, write to the Free Software Foundation, 51 Franklin
-// Street, Suite 500, Boston, MA 02110-1335 USA.
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 /// @file
 ///
@@ -19,16 +26,16 @@
 
 #include <boost/geometry.hpp>
 
-#include "box.h"
-#include "box_traits.h"
-#include "disjoint_functor.h"
-#include "geometries.h"
-#include "geometries_traits.h"
-#include "intersects_functor.h"
-#include "mbr_utils.h"
-#include "relops.h"
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
-#include "sql/sql_exception_handler.h" // handle_gis_exception
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/gis/box.h"
+#include "sql/gis/box_traits.h"
+#include "sql/gis/disjoint_functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/gis/intersects_functor.h"
+#include "sql/gis/mbr_utils.h"
+#include "sql/gis/relops.h"
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
 
@@ -68,8 +75,8 @@ static bool geometry_collection_apply_intersects(const Intersects &f,
 Intersects::Intersects(double semi_major, double semi_minor)
     : m_semi_major(semi_major),
       m_semi_minor(semi_minor),
-      m_geographic_pl_pa_strategy(bg::strategy::side::geographic<>(
-          bg::srs::spheroid<double>(semi_major, semi_minor))),
+      m_geographic_pl_pa_strategy(
+          bg::srs::spheroid<double>(semi_major, semi_minor)),
       m_geographic_ll_la_aa_strategy(
           bg::srs::spheroid<double>(semi_major, semi_minor)) {}
 
@@ -95,8 +102,7 @@ bool Intersects::operator()(const Box *b1, const Box *b2) const {
 bool Intersects::eval(const Geometry *g1, const Geometry *g2) const {
   // All parameter type combinations have been implemented.
   DBUG_ASSERT(false);
-  throw not_implemented_exception(g1->coordinate_system(), g1->type(),
-                                  g2->type());
+  throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
 //////////////////////////////////////////////////////////////////////////////

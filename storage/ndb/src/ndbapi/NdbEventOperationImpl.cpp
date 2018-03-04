@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1843,19 +1850,21 @@ NdbEventBuffer::isConsistentGCI(Uint64 gci)
 }
 
 NdbEventOperationImpl*
-NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
+NdbEventBuffer::getEpochEventOperations(Uint32* iter, Uint32* event_types, Uint32* cumulative_any_value)
 {
-  DBUG_ENTER("NdbEventBuffer::getGCIEventOperations");
+  DBUG_ENTER("NdbEventBuffer::getEpochEventOperations");
   EpochData *epoch = m_event_queue.first_epoch();
   if (*iter < epoch->m_gci_op_count)
   {
     Gci_op g = epoch->m_gci_op_list[(*iter)++];
     if (event_types != NULL)
       *event_types = g.event_types;
-    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx 0x%x %s",
+    if (cumulative_any_value != NULL)
+      *cumulative_any_value = g.cumulative_any_value;
+    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx g.cumulative_any_value: 0x%lx 0x%x %s",
                         (unsigned)epoch->m_gci.getGCI(), (long) g.op,
-                        (long) g.event_types, m_ndb->getReference(),
-                        m_ndb->getNdbObjectName()));
+                        (long) g.event_types, (long) g.cumulative_any_value,
+                        m_ndb->getReference(), m_ndb->getNdbObjectName()));
     DBUG_RETURN(g.op);
   }
   DBUG_RETURN(NULL);
@@ -3275,12 +3284,14 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
         // since the flags represent multiple ops on multiple PKs
         // XXX fix by doing merge at end of epoch (extra mem cost)
         {
-          Gci_op g = { op, (1U << operation) };
+          Uint32 any_value = sdata->anyValue;
+          Gci_op g = { op, (1U << operation), any_value };
           bucket->add_gci_op(g);
         }
         {
+          Uint32 any_value = data->sdata->anyValue;
           Gci_op g = { op, 
-                       (1U << SubTableData::getOperation(data->sdata->requestInfo))};
+                       (1U << SubTableData::getOperation(data->sdata->requestInfo)), any_value};
           bucket->add_gci_op(g);
         }
       }
@@ -4038,7 +4049,8 @@ void
 Gci_container::append_data(EventBufData *data)
 {
   Gci_op g = {data->m_event_op,
-              1U << SubTableData::getOperation(data->sdata->requestInfo)};
+              1U << SubTableData::getOperation(data->sdata->requestInfo),
+              data->sdata->anyValue};
   add_gci_op(g);
 
   data->m_next = NULL;
@@ -4054,7 +4066,7 @@ void
 Gci_container::add_gci_op(Gci_op g)
 {
   DBUG_ENTER_EVENT("Gci_container::add_gci_op");
-  DBUG_PRINT_EVENT("info", ("p.op: %p  g.event_types: %x", g.op, g.event_types));
+  DBUG_PRINT_EVENT("info", ("p.op: %p  g.event_types: %x g.cumulative_any_value: %x", g.op, g.event_types, g.cumulative_any_value));
   assert(g.op != NULL && g.op->theMainOp == NULL); // as in nextEvent
   Uint32 i;
   for (i = 0; i < m_gci_op_count; i++) {
@@ -4063,6 +4075,7 @@ Gci_container::add_gci_op(Gci_op g)
   }
   if (i < m_gci_op_count) {
     m_gci_op_list[i].event_types |= g.event_types;
+    m_gci_op_list[i].cumulative_any_value &= g.cumulative_any_value;
   } else {
     if (m_gci_op_count == m_gci_op_alloc) {
       Uint32 n = 1 + 2 * m_gci_op_alloc;

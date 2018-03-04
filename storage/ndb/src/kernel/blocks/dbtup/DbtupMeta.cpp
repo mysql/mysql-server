@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -38,7 +45,7 @@
 #include <signaldata/CreateFilegroupImpl.hpp>
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
-#include <my_sys.h>
+#include "my_sys.h"
 #include <signaldata/LqhFrag.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include "../dblqh/Dblqh.hpp"
@@ -776,8 +783,10 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_restore_lcp_id = RNIL;
   regFragPtr.p->m_restore_local_lcp_id = 0;
   regFragPtr.p->m_fixedElemCount = 0;
+  regFragPtr.p->m_row_count = 0;
   regFragPtr.p->m_lcp_start_gci = 0;
   regFragPtr.p->m_varElemCount = 0;
+  regFragPtr.p->m_committed_changes = 0;
   for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
@@ -3106,6 +3115,7 @@ Dbtup::complete_restore_lcp(Signal* signal,
   set_lcp_start_gci(fragPtr.i, lcp_start_gci);
 
   fragOpPtr.p->fragPointer = fragPtr.i;
+  fragPtr.p->m_free_page_id_list = FREE_PAGE_RNIL;
 
   signal->theData[0] = ZREBUILD_FREE_PAGE_LIST;
   signal->theData[1] = fragOpPtr.i;
@@ -3157,6 +3167,8 @@ Dbtup::get_frag_stats(Uint32 fragId) const
   
   const Uint32 fixedWords = tabPtr.p->m_offsets[MM].m_fix_header_size;
   FragStats fs;
+  fs.committedRowCount      = fragptr.p->m_row_count;
+  fs.committedChanges       = fragptr.p->m_committed_changes;
   fs.fixedRecordBytes       = static_cast<Uint32>(fixedWords * sizeof(Uint32));
   fs.pageSizeBytes          = File_formats::NDB_PAGE_SIZE; /* 32768 */
   // Round downwards.
@@ -3178,6 +3190,17 @@ Dbtup::get_frag_stats(Uint32 fragId) const
   fs.logToPhysMapAllocBytes = fragptr.p->m_page_map.getByteSize();
 
   return fs;
+}
+
+Uint64
+Dbtup::get_restore_row_count(Uint32 tableId, Uint32 fragId)
+{
+  TablerecPtr tabPtr;
+  Ptr<Fragrecord> fragPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  getFragmentrec(fragPtr, fragId, tabPtr.p);
+  return fragPtr.p->m_row_count;
 }
 
 void
@@ -3258,7 +3281,7 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
   FragrecordPtr fragptr;
   fragptr.i = fragPtrI;
   ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
-  row_count = fragptr.p->m_fixedElemCount;
+  row_count = fragptr.p->m_row_count;
   row_change_count = fragptr.p->m_lcp_changed_rows;
   maxPageCount = fragptr.p->m_max_page_cnt;
 

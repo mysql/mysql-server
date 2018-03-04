@@ -1,13 +1,20 @@
 /* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -80,11 +87,8 @@ static const uint NO_FK_CHECKS=    1 << 2;
 static const uint NO_DD_COMMIT=    1 << 3;
 
 
-size_t filename_to_tablename(const char *from, char *to, size_t to_length
-#ifndef DBUG_OFF
-                           , bool stay_quiet = false
-#endif /* DBUG_OFF */
-                           );
+size_t filename_to_tablename(const char *from, char *to, size_t to_length,
+                             bool stay_quiet = false);
 size_t tablename_to_filename(const char *from, char *to, size_t to_length);
 size_t build_table_filename(char *buff, size_t bufflen, const char *db,
                             const char *table, const char *ext,
@@ -163,6 +167,9 @@ adjust_fk_parents(THD *thd, const char *db, const char *name, bool reload_self,
   @param parent_table_name    Parent table name.
   @param hton                 Handlerton for table's storage engine.
   @param parent_table_def     Table object representing the referenced table.
+  @param parent_alter_info    Alter_info containing information about renames
+                              of parent columns. Can be nullptr if there are
+                              no such renames.
   @param invalidate_tdc       Indicates whether we need to invalidate TDC for
                               referencing tables after updating their
                               definitions.
@@ -175,6 +182,7 @@ adjust_fk_children_after_parent_def_change(THD *thd,
                                            const char *parent_table_name,
                                            handlerton *hton,
                                            const dd::Table *parent_table_def,
+                                           Alter_info *parent_alter_info,
                                            bool invalidate_tdc)
                                            MY_ATTRIBUTE((warn_unused_result));
 
@@ -188,12 +196,15 @@ adjust_fk_children_after_parent_def_change(THD *thd,
                                            const char *parent_table_db,
                                            const char *parent_table_name,
                                            handlerton *hton,
-                                           const dd::Table *parent_table_def)
+                                           const dd::Table *parent_table_def,
+                                           Alter_info *parent_alter_info)
 {
   return adjust_fk_children_after_parent_def_change(thd,
                                                     parent_table_db,
                                                     parent_table_name,
-                                                    hton, parent_table_def,
+                                                    hton,
+                                                    parent_table_def,
+                                                    parent_alter_info,
                                                     true);
 }
 

@@ -273,6 +273,10 @@ SET @@character_set_client = true;
 SELECT @@character_set_client AS res_with_true;
 --Error ER_UNKNOWN_CHARACTER_SET
 SET @@character_set_client = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_client = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@character_set_client = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_010_11-------------------------#'
 ###############################################################################
@@ -296,6 +300,10 @@ SET @@global.character_set_client = 'utf';
 SET @@global.character_set_client = true;
 --Error ER_UNKNOWN_CHARACTER_SET
 SET @@global.character_set_client = ON;
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_client = repeat('e', 256);
+--Error ER_UNKNOWN_CHARACTER_SET
+SET @@global.character_set_client = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_010_12-------------------------#'
 ##########################################################################

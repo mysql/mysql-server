@@ -1,17 +1,24 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/sp_rcontext.h"
 
@@ -32,7 +39,7 @@
 #include "sql/sql_class.h"     // THD
 #include "sql/sql_cursor.h"    // mysql_open_cursor
 #include "sql/sql_list.h"
-#include "sql/sql_tmp_table.h" // create_virtual_tmp_table
+#include "sql/sql_tmp_table.h" // create_tmp_table_from_fields
 #include "template_utils.h"    // delete_container_pointers
 
 class SELECT_LEX_UNIT;
@@ -130,7 +137,7 @@ bool sp_rcontext::init_var_table(THD *thd)
 
   DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->max_var_index());
 
-  if (!(m_var_table= create_virtual_tmp_table(thd, field_def_lst)))
+  if (!(m_var_table= create_tmp_table_from_fields(thd, field_def_lst)))
     return true;
 
   m_var_table->copy_blobs= true;

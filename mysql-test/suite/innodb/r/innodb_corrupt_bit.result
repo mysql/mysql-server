@@ -164,7 +164,7 @@ b INT,
 c CHAR(10),
 v VARCHAR(100),
 t TEXT,
-p POINT NOT NULL);
+p POINT NOT NULL SRID 0);
 CREATE INDEX idx_b ON t3(b);
 INSERT INTO t3 VALUES (1, 2, 'aaa', 'abcdefghij', 'This is a', st_pointfromtext('POINT(0 0)')),
 (2, 4, 'bb', 'qwerty', 'test case', st_pointfromtext('POINT(1 1)')),

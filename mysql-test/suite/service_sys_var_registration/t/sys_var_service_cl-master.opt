@@ -1,1 +1,1 @@
-$SYS_VAR_SERVICE_OPT --log-bin=binlog
+$SYS_VAR_SERVICE_OPT

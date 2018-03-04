@@ -36,7 +36,6 @@ SET @@GLOBAL.group_replication_ip_whitelist= default;
 --source include/stop_group_replication.inc
 
 --echo # Take backup of group replication variables
---let $saved_gr_allow_local_disjoint_gtids_join = `SELECT @@GLOBAL.group_replication_allow_local_disjoint_gtids_join;`
 --let $saved_gr_allow_local_lower_version_join = `SELECT @@GLOBAL.group_replication_allow_local_lower_version_join;`
 --let $saved_gr_auto_increment_increment = `SELECT @@GLOBAL.group_replication_auto_increment_increment;`
 --let $saved_gr_bootstrap_group = `SELECT @@GLOBAL.group_replication_bootstrap_group;`
@@ -69,17 +68,19 @@ SET @@GLOBAL.group_replication_ip_whitelist= default;
 --let $saved_gr_communication_debug_options = `SELECT @@GLOBAL.group_replication_communication_debug_options;`
 --let $saved_gr_unreachable_majority_timeout = `SELECT @@GLOBAL.group_replication_unreachable_majority_timeout`
 --let $saved_gr_member_weight = `SELECT @@GLOBAL.group_replication_member_weight;`
+--let $saved_gr_recovery_public_key_path = `SELECT @@GLOBAL.group_replication_recovery_public_key_path;`
+--let $saved_gr_recovery_get_public_key = `SELECT @@GLOBAL.group_replication_recovery_get_public_key;`
 
 --echo #
 --echo # Test Unit#1
 --echo # Set global group replication variables to default.
---echo # Curently there are 43 group replication variables.
+--echo # Curently there are 44 group replication variables.
 --echo #
 
 # Note: If a new GR variable is added or an old GR variable is removed, then
 # update this testcase for the sanity check.
---let $assert_text= There are 43 GR variables at present.
---let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 43
+--let $assert_text= There are 44 GR variables at present.
+--let $assert_cond= "[SELECT COUNT(*) FROM performance_schema.global_variables WHERE VARIABLE_NAME LIKE \\'group_replication%\']" = 44
 --source include/assert.inc
 
 --error ER_WRONG_VALUE_FOR_VAR
@@ -97,7 +98,6 @@ SET @@GLOBAL.group_replication_gtid_assignment_block_size= default;
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@GLOBAL.group_replication_ip_whitelist= default;
 
-SET @@GLOBAL.group_replication_allow_local_disjoint_gtids_join= default;
 SET @@GLOBAL.group_replication_allow_local_lower_version_join= default;
 SET @@GLOBAL.group_replication_bootstrap_group= default;
 SET @@GLOBAL.group_replication_components_stop_timeout= default;
@@ -123,16 +123,13 @@ SET @@GLOBAL.group_replication_communication_debug_options= default;
 SET @@GLOBAL.group_replication_transaction_size_limit= default;
 SET @@GLOBAL.group_replication_unreachable_majority_timeout= default;
 SET @@GLOBAL.group_replication_member_weight= default;
+SET @@GLOBAL.group_replication_recovery_public_key_path= default;
+SET @@GLOBAL.group_replication_recovery_get_public_key= default;
 
 --echo #
 --echo # Test Unit#2
 --echo # Verify default values of the group replication variables.
 --echo #
-
-# group_replication_allow_local_disjoint_gtids_join
---let $assert_text= Default group_replication_allow_local_disjoint_gtids_join is OFF/0
---let $assert_cond= "[SELECT @@GLOBAL.group_replication_allow_local_disjoint_gtids_join]" = 0
---source include/assert.inc
 
 # group_replication_allow_local_lower_version_join
 --let $assert_text= Default group_replication_allow_local_lower_version_join is OFF/0
@@ -274,6 +271,16 @@ SET @@GLOBAL.group_replication_member_weight= default;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_member_weight]" = 50
 --source include/assert.inc
 
+#group_replication_recovery_public_key_path
+--let $assert_text= Default group_replication_recovery_public_key_path is ""(EMPTY)
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_public_key_path]" = ""
+--source include/assert.inc
+
+#group_replication_recovery_get_public_key
+--let $assert_text= Default group_replication_recovery_get_public_key is OFF/0
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_recovery_get_public_key]" = 0
+--source include/assert.inc
+
 --echo #
 --echo # Clean up
 --echo #
@@ -281,7 +288,6 @@ SET @@GLOBAL.group_replication_member_weight= default;
 # No need to print this into result file.
 
 --disable_query_log
---eval SET @@GLOBAL.group_replication_allow_local_disjoint_gtids_join= $saved_gr_allow_local_disjoint_gtids_join
 --eval SET @@GLOBAL.group_replication_allow_local_lower_version_join= $saved_gr_allow_local_lower_version_join
 --eval SET @@GLOBAL.group_replication_auto_increment_increment= $saved_gr_auto_increment_increment
 --eval SET @@GLOBAL.group_replication_bootstrap_group= $saved_gr_bootstrap_group
@@ -314,6 +320,8 @@ SET @@GLOBAL.group_replication_member_weight= default;
 --eval SET @@GLOBAL.group_replication_communication_debug_options= "$saved_gr_communication_debug_options"
 --eval SET @@GLOBAL.group_replication_unreachable_majority_timeout= $saved_gr_unreachable_majority_timeout
 --eval SET @@GLOBAL.group_replication_member_weight= $saved_gr_member_weight
+--eval SET @@GLOBAL.group_replication_recovery_public_key_path= "$saved_gr_recovery_public_key_path"
+--eval SET @@GLOBAL.group_replication_recovery_get_public_key= $saved_gr_recovery_get_public_key
 --enable_query_log
 
 --source ../inc/group_replication_end.inc

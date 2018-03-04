@@ -73,7 +73,7 @@ Got expected error (code 0)
 # Verification of JSON patch [{"_id": 1} patch PROTOBUF_EXPR = {"_id": 1, "my_value_as_int": 10, "my_value_as_string": "ten"}]
 Got expected error (code 0)
 
-# Verification of JSON patch [{"a":20, "_id": 1} patch PROTOBUF_EXPR = {"a": 20, "b": 10, "c": 40, "_id": 1}]
+# Verification of JSON patch [{"a":20, "_id": 1} patch PROTOBUF_EXPR = {"a": 20, "b": 10, "c": 40.0, "_id": 1}]
 Got expected error (code 0)
 
 # Verification of JSON patch [{"_id": 1, "old_field_name": {"field": "fields value"}, "other_fields": {"a": 1}} patch PROTOBUF_EXPR = {"_id": 1, "other_fields": {"a": 1}, "new_field_name": {"field": "fields value"}}]
@@ -182,7 +182,7 @@ Got expected error (code 0)
 # Verification of JSON patch [{"_id": 1} patch PROTOBUF_EXPR = {"_id": 1, "my_value_as_int": 10, "my_value_as_string": "ten"}]
 Got expected error (code 0)
 
-# Verification of JSON patch [{"a":20, "_id": 1} patch PROTOBUF_EXPR = {"a": 20, "b": 10, "c": 40, "_id": 1}]
+# Verification of JSON patch [{"a":20, "_id": 1} patch PROTOBUF_EXPR = {"a": 20, "b": 10, "c": 40.0, "_id": 1}]
 Got expected error (code 0)
 
 # Verification of JSON patch [{"_id": 1, "old_field_name": {"field": "fields value"}, "other_fields": {"a": 1}} patch PROTOBUF_EXPR = {"_id": 1, "other_fields": {"a": 1}, "new_field_name": {"field": "fields value"}}]

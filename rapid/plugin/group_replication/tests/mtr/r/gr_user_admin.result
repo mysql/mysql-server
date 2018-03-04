@@ -68,13 +68,13 @@ server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Query	#	#	COMMIT
 server-binary-log.000001	#	Query	#	#	BEGIN
 server-binary-log.000001	#	Query	#	#	COMMIT
-server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost' IDENTIFIED WITH 'mysql_native_password'
-server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'foo1'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*6EAC5249D53050AE649BDB0CC4B85D1AE90CA16E','foo2'@'fakehost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111','foo3'@'fakehost' IDENTIFIED WITH 'mysql_native_password'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'foo1'@'fakehost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 server-binary-log.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
 server-binary-log.000001	#	Query	#	#	use `test`; drop user 'foofoo'@'fakehost'
 server-binary-log.000001	#	Query	#	#	use `test`; drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost'
-server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'must_change2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*B4AD7521513E598788362B069D1AEA3C8837A221'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'must_change2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 server-binary-log.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' PASSWORD EXPIRE
-server-binary-log.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*F827ACC9688DECC68F54398510B5B921E9725DE1'
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 server-binary-log.000001	#	Query	#	#	use `test`; DROP USER must_change2@localhost
 include/group_replication_end.inc

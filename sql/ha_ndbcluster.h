@@ -2,41 +2,47 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifndef SQL_HA_NDBCLUSTER_INCLUDED
+#define SQL_HA_NDBCLUSTER_INCLUDED
+
 /*
   This file defines the NDB Cluster handler: the interface between MySQL and
   NDB Cluster
 */
 
-#include "sql_base.h"
+#include "sql/sql_base.h"
 
 /* DDL names have to fit in system table ndb_schema */
 #define NDB_MAX_DDL_NAME_BYTESIZE 63
 #define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
 
-/* Blob tables and events are internal to NDB and must never be accessed */
-#define IS_NDB_BLOB_PREFIX(A) is_prefix(A, "NDB$BLOB")
-
-#include <kernel/ndb_limits.h>
-#include <ndbapi/NdbApi.hpp>
-#include <ndbapi/ndbapi_limits.h>
-
-#include "ndb_conflict.h"
-#include "ndb_table_map.h"
-#include "partitioning/partition_handler.h"
-#include "table.h"
+#include "sql/ndb_conflict.h"
+#include "sql/ndb_table_map.h"
+#include "sql/partitioning/partition_handler.h"
+#include "sql/table.h"
+#include "storage/ndb/include/kernel/ndb_limits.h"
+#include "storage/ndb/include/ndbapi/NdbApi.hpp"
+#include "storage/ndb/include/ndbapi/ndbapi_limits.h"
 
 #define NDB_IGNORE_VALUE(x) (void)x
 
@@ -100,8 +106,8 @@ public:
 };
 
 
-#include "ndb_ndbapi_util.h"
-#include "ndb_share.h"
+#include "sql/ndb_ndbapi_util.h"
+#include "sql/ndb_share.h"
 
 struct Ndb_local_table_statistics {
   int no_uncommitted_rows_count;
@@ -109,7 +115,7 @@ struct Ndb_local_table_statistics {
   ha_rows records;
 };
 
-#include "ndb_thd_ndb.h"
+#include "sql/ndb_thd_ndb.h"
 
 struct st_ndb_status {
   st_ndb_status() { memset(this, 0, sizeof(struct st_ndb_status)); }
@@ -205,8 +211,6 @@ private:
   uint first_running_range;
   uint first_range_in_batch;
   uint first_unstarted_range;
-  /* TRUE <=> need range association */
-  bool mrr_need_range_assoc;
 
   int multi_range_start_retrievals(uint first_range);
 
@@ -450,8 +454,7 @@ private:
   static int recreate_fk_for_truncate(THD*, Ndb*, const char*,
                                       Ndb_fk_list&);
   int check_default_values(const NdbDictionary::Table* ndbtab);
-  int get_metadata(THD *thd, const char* tablespace_name,
-                   const dd::Table* table_def);
+  int get_metadata(THD *thd, const dd::Table* table_def);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;
   NDB_INDEX_TYPE get_index_type_from_table(uint index_no) const;
@@ -479,7 +482,7 @@ private:
                       const key_range *start_key,
                       const key_range *end_key,
                       uchar *buf);
-  int flush_bulk_insert(bool allow_batch= FALSE);
+  int flush_bulk_insert(bool allow_batch= false);
   int ndb_write_row(uchar *record, bool primary_key_update,
                     bool batched_update);
 
@@ -558,7 +561,6 @@ private:
   int read_multi_range_fetch_next();
   
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
-  void print_results();
 
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
                                   ulonglong nb_desired_values,
@@ -740,7 +742,7 @@ private:
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
   int rename_table_impl(THD* thd, Ndb* ndb,
                         const NdbDictionary::Table* orig_tab,
-                        const dd::Table* to_table_def,
+                        dd::Table* to_table_def,
                         const char* from, const char* to,
                         const char* old_dbname, const char* old_tabname,
                         const char* new_dbname, const char* new_tabname,
@@ -753,14 +755,15 @@ private:
                         bool commit_alter);
 };
 
-static const char ndbcluster_hton_name[]= "ndbcluster";
-static const int ndbcluster_hton_name_length=sizeof(ndbcluster_hton_name)-1;
-
 // Global handler synchronization
 extern mysql_mutex_t ndbcluster_mutex;
 extern mysql_cond_t  ndbcluster_cond;
 
 extern int ndb_setup_complete;
 
+static const int NDB_INVALID_SCHEMA_OBJECT = 241;
+
 
 int ndb_to_mysql_error(const NdbError *ndberr);
+
+#endif

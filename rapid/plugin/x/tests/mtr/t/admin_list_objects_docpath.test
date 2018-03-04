@@ -1,0 +1,149 @@
+## Validate a collection definition by creating collection index
+#  with various form of  document members
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test starts here
+--let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_docpath.tmp
+--write_file $xtest_file
+-->quiet
+## Test data
+-->macro Create_index  %MEMBER%
+-->title =Member: %MEMBER%
+-->stmtadmin create_collection_index	{"schema":"xtest", "collection":"books", "name": "index", "unique": true, "constraint":{"member": "%MEMBER%", "type": "text(20)", "required": false}}
+-->recvresult be-quiet
+-->endmacro
+
+-->macro Correct_path_to_member  %MEMBER%
+-->callmacro Create_index	%MEMBER%
+-->stmtadmin list_objects	{"schema":"xtest"}
+-->recvtovar %TYPE% type
+-->assert_eq COLLECTION	%TYPE%
+-->stmtsql select generation_expression from information_schema.columns where column_name like '$%'
+-->recvresult
+-->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"books", "name": "index"}
+-->recvresult be-quiet
+-->endmacro
+
+-->macro Incorrect_path_to_member  %MEMBER%
+-->expecterror ER_X_CMD_ARGUMENT_VALUE
+-->callmacro Create_index	%MEMBER%
+-->endmacro
+
+
+-->stmtadmin create_collection	{"schema":"xtest", "name":"books"}
+-->recvresult
+
+-->callmacro Correct_path_to_member	$
+-->callmacro Correct_path_to_member	$.path
+-->callmacro Correct_path_to_member	$.path.to.member
+-->callmacro Correct_path_to_member	$.p1ath
+-->callmacro Correct_path_to_member	$.path1
+-->callmacro Correct_path_to_member	$.$
+-->callmacro Correct_path_to_member	$.$$
+-->callmacro Correct_path_to_member	$.$$$
+-->callmacro Correct_path_to_member	$.$.path
+-->callmacro Correct_path_to_member	$.path.$
+-->callmacro Correct_path_to_member	$.$path
+-->callmacro Correct_path_to_member	$.pa$th
+-->callmacro Correct_path_to_member	$.path$
+-->callmacro Correct_path_to_member	$.$pa$th$
+-->callmacro Correct_path_to_member	$._
+-->callmacro Correct_path_to_member	$.__
+-->callmacro Correct_path_to_member	$.___
+-->callmacro Correct_path_to_member	$._.path
+-->callmacro Correct_path_to_member	$.path._
+-->callmacro Correct_path_to_member	$._path
+-->callmacro Correct_path_to_member	$.pa_th
+-->callmacro Correct_path_to_member	$.path_
+-->callmacro Correct_path_to_member	$._pa_th_
+-->callmacro Correct_path_to_member	$.*
+-->callmacro Correct_path_to_member	$.*.path
+-->callmacro Correct_path_to_member	$.path.*
+-->callmacro Correct_path_to_member	$.path[1]
+-->callmacro Correct_path_to_member	$.path[123]
+-->callmacro Correct_path_to_member	$.path[1].path[2]
+-->callmacro Correct_path_to_member	$.path[1].path
+-->callmacro Correct_path_to_member	$.path[1].*
+-->callmacro Correct_path_to_member	$.*.path[1]
+-->callmacro Correct_path_to_member	$.path[*]
+-->callmacro Correct_path_to_member	$[1]
+-->callmacro Correct_path_to_member	$[1][2]
+-->callmacro Correct_path_to_member	$[1].path[2]
+-->callmacro Correct_path_to_member	$[1][2].path
+-->callmacro Correct_path_to_member	$.path[1][2]
+-->callmacro Correct_path_to_member	$.\"pa th\"
+-->callmacro Correct_path_to_member	$.\"pa\tth\"
+-->callmacro Correct_path_to_member	$.\"\"\"
+-->callmacro Correct_path_to_member	$.\"\"path\"
+-->callmacro Correct_path_to_member	$.\"path\"\"
+-->callmacro Correct_path_to_member	$.\"#\"
+-->callmacro Correct_path_to_member	$.\"path#\"
+-->callmacro Correct_path_to_member	$.\"#path\"
+-->callmacro Correct_path_to_member	$.\"#\"[1]
+-->callmacro Correct_path_to_member	$.\"\"
+-->callmacro Correct_path_to_member	$**.path
+-->callmacro Correct_path_to_member	$**[1]
+-->callmacro Correct_path_to_member	$.path**.path
+-->callmacro Correct_path_to_member	$.path**[1]
+-->callmacro Correct_path_to_member	$[1]**.path
+-->callmacro Correct_path_to_member	$[1]**[1]
+-->callmacro Correct_path_to_member	$.***.path
+-->callmacro Correct_path_to_member	$.\"**\"
+-->callmacro Correct_path_to_member	$.\"***\"
+-->callmacro Correct_path_to_member	$.\"pa.th\"
+
+-->callmacro Incorrect_path_to_member	$.
+-->callmacro Incorrect_path_to_member	.path
+-->callmacro Incorrect_path_to_member	path
+-->callmacro Incorrect_path_to_member	$.1
+-->callmacro Incorrect_path_to_member	$.1path
+-->callmacro Incorrect_path_to_member	$.**
+-->callmacro Incorrect_path_to_member	$.***
+-->callmacro Incorrect_path_to_member	$.*path
+-->callmacro Incorrect_path_to_member	$.pa*th
+-->callmacro Incorrect_path_to_member	$.path*
+-->callmacro Incorrect_path_to_member	$.*pa*th*
+-->callmacro Incorrect_path_to_member	$.path[-1]
+-->callmacro Incorrect_path_to_member	$.path[a]
+-->callmacro Incorrect_path_to_member	$.path[]
+-->callmacro Incorrect_path_to_member	$.path[
+-->callmacro Incorrect_path_to_member	$.path]
+-->callmacro Incorrect_path_to_member	$.[path]
+-->callmacro Incorrect_path_to_member	$.[1]
+-->callmacro Incorrect_path_to_member	$.path[**]
+-->callmacro Incorrect_path_to_member	$.path[*1]
+-->callmacro Incorrect_path_to_member	$.path[1*]
+-->callmacro Incorrect_path_to_member	$.path[1*1]
+-->callmacro Incorrect_path_to_member	$.pa th
+-->callmacro Incorrect_path_to_member	$.pa\th
+-->callmacro Incorrect_path_to_member	$.\"
+-->callmacro Incorrect_path_to_member	$.\"path
+-->callmacro Incorrect_path_to_member	$.path\"
+-->callmacro Incorrect_path_to_member	$.#
+-->callmacro Incorrect_path_to_member	$.path#
+-->callmacro Incorrect_path_to_member	$.#path
+-->callmacro Incorrect_path_to_member	$**
+-->callmacro Incorrect_path_to_member	$.path**
+-->callmacro Incorrect_path_to_member	$[1]**
+-->callmacro Incorrect_path_to_member	$***
+-->callmacro Incorrect_path_to_member	$.path***
+-->callmacro Incorrect_path_to_member	$[1]***
+-->callmacro Incorrect_path_to_member	$.**.path
+-->callmacro Incorrect_path_to_member	$*
+EOF
+
+
+CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
+
+exec $MYSQLXTEST
+  -ux_root
+  --password=''
+  --file=$xtest_file 2>&1;
+
+## Postamble
+--remove_file $xtest_file
+DROP SCHEMA IF EXISTS xtest;
+--source include/xplugin_drop_user.inc
+UNINSTALL PLUGIN mysqlx;

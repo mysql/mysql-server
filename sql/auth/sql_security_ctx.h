@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef SQL_SECURITY_CTX_INCLUDED
 #define SQL_SECURITY_CTX_INCLUDED
 #include <string.h>
@@ -545,6 +552,7 @@ void Security_context::assign_user(const char *user_arg,
   Setter method for member m_host.
   Function just sets the host_arg pointer value to the
   m_host, host_arg value is *not* copied.
+  host_arg value must not be NULL.
 
   @param[in]    host_arg         New user value for m_host.
   @param[in]    host_arg_length  Length of "host_arg" param.
@@ -553,6 +561,8 @@ void Security_context::assign_user(const char *user_arg,
 void Security_context::set_host_ptr(const char *host_arg, const size_t host_arg_length)
 {
   DBUG_ENTER("Security_context::set_host_ptr");
+
+  DBUG_ASSERT(host_arg != nullptr);
 
   if (host_arg == m_host.ptr())
     DBUG_VOID_RETURN;
@@ -568,25 +578,34 @@ void Security_context::set_host_ptr(const char *host_arg, const size_t host_arg_
   Setter method for member m_host.
 
   Copies host_arg value to the m_host if it is not null else m_user is set
-  to NULL.
+  to empty string.
 
 
   @param[in]    host_arg         New user value for m_host.
   @param[in]    host_arg_length  Length of "host_arg" param.
 */
 
-void Security_context::assign_host(const char *host_arg, const size_t host_arg_length)
+void Security_context::assign_host(const char *host_arg,
+                                   const size_t host_arg_length)
 {
   DBUG_ENTER("Security_context::assign_host");
 
-  if (host_arg == m_host.ptr())
-    DBUG_VOID_RETURN;
-
-  if (host_arg)
+  if (host_arg == nullptr)
+  {
+    m_host.set("", 0, system_charset_info);
+    goto end;
+  }
+  else if (host_arg == m_host.ptr())
+  {
+    goto end;
+  }
+  else if (*host_arg)
+  {
     m_host.copy(host_arg, host_arg_length, system_charset_info);
-  else
-    m_host.set((const char *) 0, 0, system_charset_info);
+    goto end;
+  }
 
+end:
   DBUG_VOID_RETURN;
 }
 

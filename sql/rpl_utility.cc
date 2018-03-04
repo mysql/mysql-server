@@ -1,13 +1,20 @@
 /* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -56,10 +63,11 @@
 #include "sql/sql_const.h"
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
-#include "sql/sql_tmp_table.h"           // create_virtual_tmp_table
+#include "sql/sql_tmp_table.h"           // create_tmp_table_from_fields
 #include "sql_string.h"
 #include "template_utils.h"              // delete_container_pointers
 #include "typelib.h"
+#include "sql_show.h"                    // show_sql_type
 
 using std::min;
 using std::max;
@@ -123,177 +131,6 @@ static int compare_lengths(Field *field, enum_field_types source_type,
   int result= compare(source_length, target_length);
   DBUG_PRINT("result", ("%d", result));
   DBUG_RETURN(result);
-}
-
-static void show_sql_type(enum_field_types type, uint16 metadata, String *str)
-{
-  DBUG_ENTER("show_sql_type");
-  DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
-
-  switch (type)
-  {
-  case MYSQL_TYPE_TINY:
-    str->set_ascii(STRING_WITH_LEN("tinyint"));
-    break;
-
-  case MYSQL_TYPE_SHORT:
-    str->set_ascii(STRING_WITH_LEN("smallint"));
-    break;
-
-  case MYSQL_TYPE_LONG:
-    str->set_ascii(STRING_WITH_LEN("int"));
-    break;
-
-  case MYSQL_TYPE_FLOAT:
-    str->set_ascii(STRING_WITH_LEN("float"));
-    break;
-
-  case MYSQL_TYPE_DOUBLE:
-    str->set_ascii(STRING_WITH_LEN("double"));
-    break;
-
-  case MYSQL_TYPE_NULL:
-    str->set_ascii(STRING_WITH_LEN("null"));
-    break;
-
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_TIMESTAMP2:
-    str->set_ascii(STRING_WITH_LEN("timestamp"));
-    break;
-
-  case MYSQL_TYPE_LONGLONG:
-    str->set_ascii(STRING_WITH_LEN("bigint"));
-    break;
-
-  case MYSQL_TYPE_INT24:
-    str->set_ascii(STRING_WITH_LEN("mediumint"));
-    break;
-
-  case MYSQL_TYPE_NEWDATE:
-  case MYSQL_TYPE_DATE:
-    str->set_ascii(STRING_WITH_LEN("date"));
-    break;
-
-  case MYSQL_TYPE_TIME:
-  case MYSQL_TYPE_TIME2:
-    str->set_ascii(STRING_WITH_LEN("time"));
-    break;
-
-  case MYSQL_TYPE_DATETIME:
-  case MYSQL_TYPE_DATETIME2:
-    str->set_ascii(STRING_WITH_LEN("datetime"));
-    break;
-
-  case MYSQL_TYPE_YEAR:
-    str->set_ascii(STRING_WITH_LEN("year"));
-    break;
-
-  case MYSQL_TYPE_VAR_STRING:
-  case MYSQL_TYPE_VARCHAR:
-    {
-      const CHARSET_INFO *cs= str->charset();
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "varchar(%u(bytes))", metadata);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_BIT:
-    {
-      const CHARSET_INFO *cs= str->charset();
-      int bit_length= 8 * (metadata >> 8) + (metadata & 0xFF);
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "bit(%d)", bit_length);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_DECIMAL:
-    {
-      const CHARSET_INFO *cs= str->charset();
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "decimal(%d,?)", metadata);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_NEWDECIMAL:
-    {
-      const CHARSET_INFO *cs= str->charset();
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "decimal(%d,%d)", metadata >> 8, metadata & 0xff);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_ENUM:
-    str->set_ascii(STRING_WITH_LEN("enum"));
-    break;
-
-  case MYSQL_TYPE_SET:
-    str->set_ascii(STRING_WITH_LEN("set"));
-    break;
-
-  case MYSQL_TYPE_BLOB:
-    /*
-      Field::real_type() lies regarding the actual type of a BLOB, so
-      it is necessary to check the pack length to figure out what kind
-      of blob it really is.
-     */
-    switch (metadata)
-    {
-    case 1:
-      str->set_ascii(STRING_WITH_LEN("tinyblob"));
-      break;
-
-    case 2:
-      str->set_ascii(STRING_WITH_LEN("blob"));
-      break;
-
-    case 3:
-      str->set_ascii(STRING_WITH_LEN("mediumblob"));
-      break;
-
-    case 4:
-      str->set_ascii(STRING_WITH_LEN("longblob"));
-      break;
-
-    default:
-      DBUG_ASSERT(0);
-      break;
-    }
-    break;
-
-  case MYSQL_TYPE_STRING:
-    {
-      /*
-        This is taken from Field_string::unpack.
-      */
-      const CHARSET_INFO *cs= str->charset();
-      uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
-      size_t length=
-        cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "char(%d(bytes))", bytes);
-      str->length(length);
-    }
-    break;
-
-  case MYSQL_TYPE_GEOMETRY:
-    str->set_ascii(STRING_WITH_LEN("geometry"));
-    break;
-
-  case MYSQL_TYPE_JSON:
-    str->set_ascii(STRING_WITH_LEN("json"));
-    break;
-
-  default:
-    str->set_ascii(STRING_WITH_LEN("<unknown type>"));
-  }
-  DBUG_VOID_RETURN;
 }
 
 
@@ -897,7 +734,7 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
     field_def->interval= interval;
   }
 
-  conv_table= create_virtual_tmp_table(thd, field_list);
+  conv_table= create_tmp_table_from_fields(thd, field_list);
 
 err:
   if (conv_table == NULL)
@@ -1309,7 +1146,9 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
     /*
       Field is set in the read_set and is isn't NULL.
      */
-    if (bitmap_is_set(cols, f->field_index) && !f->is_null())
+    if (bitmap_is_set(cols, f->field_index) &&
+        !f->is_virtual_gcol() && // Avoid virtual generated columns on hashes
+        !f->is_null())
     {
       /*
         BLOB and VARCHAR have pointers in their field, we must convert

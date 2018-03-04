@@ -146,20 +146,20 @@ Warnings:
 Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET SQL_LOG_BIN=1;
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='012345678901234567890123456789ab';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='012345678901234567890123456789ab', master_ssl=1;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave_io.inc
 include/check_slave_param.inc [Slave_IO_Running]
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='x012345678901234567890123456789ab';
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='x012345678901234567890123456789ab', master_ssl=1;
 ERROR HY000: The password provided for the replication user exceeds the maximum length of 32 characters
 SET SQL_LOG_BIN=0;
 DROP USER rpl@127.0.0.1;
 FLUSH PRIVILEGES;
 SET SQL_LOG_BIN=1;
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', MASTER_SSL=0;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

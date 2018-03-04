@@ -2,13 +2,20 @@
    Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -53,7 +60,7 @@ typedef NdbImport::Error Error;
 
 #define logN(x, n) \
   do { \
-    if (unlikely(m_util.c_opt.m_verbose >= n)) \
+    if (unlikely(m_util.c_opt.m_log_level >= n)) \
     { \
       NdbMutex_Lock(m_util.c_logmutex); \
       m_util.c_logtimer.stop(); \
@@ -181,9 +188,11 @@ public:
     void set_stats(Stats& stats, const char* name);
     void push_back(ListEnt* ent);
     void push_front(ListEnt* ent);
+    void push_after(ListEnt* ent1, ListEnt* ent2);
+    void push_before(ListEnt* ent1, ListEnt* ent2);
     ListEnt* pop_front();
     void remove(ListEnt* ent);
-    void push_back(List& list2);
+    void push_back_from(List& src);
 #if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
     void validate() const;
 #else
@@ -261,7 +270,7 @@ public:
     const NdbDictionary::Table* m_tab;
     const NdbRecord* m_rec;
     const NdbRecord* m_keyrec;
-    uint m_rowsize;
+    uint m_recsize;     // size of main record
     bool m_has_hidden_pk;
     Attrs m_attrs;
     std::vector<uint> m_blobids;
@@ -286,12 +295,30 @@ public:
 
   struct Blob;
 
+  struct RowCtl {
+    RowCtl(uint timeout) {
+      m_timeout = timeout;
+      m_retries = timeout == 0 ? 0 : 1;
+      m_dosignal = (timeout != 0);
+      m_dowait = (timeout != 0);
+      m_cnt_out = 0;
+      m_bytes_out = 0;
+    };
+    uint m_timeout;
+    uint m_retries;
+    bool m_dosignal;
+    bool m_dowait;
+    uint m_cnt_out;
+    uint m_bytes_out;
+  };
+
   struct Row : ListEnt {
     Row();
     virtual ~Row();
     void init(const Table& table);
     uint m_tabid;
-    uint m_rowsize;
+    uint m_recsize;     // fixed
+    uint m_rowsize;     // includes blobs, used to compute batches
     uint m_allocsize;
     uint64 m_rowid;
     uint64 m_linenr;    // file line number starting at 1
@@ -308,14 +335,38 @@ public:
     bool push_back(Row* row);
     void push_back_force(Row* row);
     bool push_front(Row* row);
+    void push_front_force(Row* row);
     Row* pop_front();
     void remove(Row* row);
+    void push_back_from(RowList& src);
+    // here signal/wait can be used on a locked argument list
+    void push_back_from(RowList& src, RowCtl& ctl);
+    void pop_front_to(RowList& dst, RowCtl& ctl);
     uint cnt() const {
       return m_cnt;
     }
     uint64 totcnt() const {
       return m_totcnt;
     }
+    bool empty() const {
+      return m_cnt == 0;
+    }
+    bool full() const {
+      return m_cnt >= m_rowbatch || m_rowsize >= m_rowbytes;
+    } 
+    void lock() {
+      Lockable::lock();
+      if (m_stat_locks != 0)
+        m_stat_locks->add(1);
+    }
+    void unlock() {
+      Lockable::unlock();
+    }
+#if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
+    void validate() const;
+#else
+    void validate() const {}
+#endif
     uint m_rowsize;     // sum from row entries
     uint m_rowbatch;    // limit m_cnt
     uint m_rowbytes;    // limit m_rowsize
@@ -325,10 +376,15 @@ public:
     uint64 m_underflow;
     Stat* m_stat_overflow;      // failed to push due to size limit
     Stat* m_stat_underflow;     // failed to pop due to empty
+    Stat* m_stat_locks;         // locks taken
   };
 
-  Row* alloc_row(const Table& Table);
+  // alloc and free shared rows
+
+  Row* alloc_row(const Table& Table, bool dolock = true);
+  void alloc_rows(const Table& table, uint cnt, RowList& dst);
   void free_row(Row* row);
+  void free_rows(RowList& src);
 
   RowList* c_rows_free;
 
@@ -369,26 +425,113 @@ public:
    * should have private row maps merged periodically to a global
    * row map.  Contents of the row map are written to t1.map etc and
    * are used to implement a --resume function.
+   *
+   * Implementation uses an ordered list.  The main operation is
+   * merge.  Lookup is used only when a resume is starting.  Change
+   * to a skip list later if necessary.
    */
+
+  struct Range : ListEnt {
+    Range();
+    virtual ~Range();
+    void copy(const Range& range2);
+    bool equal(const Range& range2) const {
+      return
+        m_start == range2.m_start &&
+        m_end == range2.m_end &&
+        m_startpos == range2.m_startpos &&
+        m_endpos == range2.m_endpos &&
+        m_reject == range2.m_reject;
+    }
+    Range* next() {
+      return static_cast<Range*>(m_next);
+    }
+    const Range* next() const {
+      return static_cast<const Range*>(m_next);
+    }
+    Range* prev() {
+      return static_cast<Range*>(m_prev);
+    }
+    const Range* prev() const {
+      return static_cast<const Range*>(m_prev);
+    }
+    uint64 m_start;           // starting rowid
+    uint64 m_end;             // next rowid after
+    uint64 m_startpos;        // byte offset of start in input
+    uint64 m_endpos;          // byte offset of end in input
+    uint64 m_reject;          // rejected rows (info only)
+  };
+
+  struct RangeList : private List, Lockable {
+    Range* front() {
+      return static_cast<Range*>(m_front);
+    }
+    const Range* front() const {
+      return static_cast<const Range*>(m_front);
+    }
+    Range* back() {
+      return static_cast<Range*>(m_back);
+    }
+    const Range* back() const {
+      return static_cast<const Range*>(m_back);
+    }
+    void push_back(Range* range) {
+      List::push_back(range);
+    }
+    void push_front(Range* range) {
+      List::push_front(range);
+    }
+    void push_after(Range* range1, Range* range2) {
+      List::push_after(range1, range2);
+    }
+    void push_before(Range* range1, Range* range2) {
+      List::push_before(range1, range2);
+    }
+    Range* pop_front() {
+      return static_cast<Range*>(List::pop_front());
+    }
+    void remove(Range* r) {
+      List::remove(r);
+    }
+    void push_back_from(RangeList& src) {
+      List::push_back_from(src);
+    }
+    uint cnt() const {
+      return m_cnt;
+    }
+    bool empty() const {
+      return m_cnt == 0;
+    }
+    void validate() const {
+      List::validate();
+    }
+  };
+
   struct RowMap : Lockable {
-    struct Range {
-      bool operator<(const Range& r2) const {
-        return m_start < r2.m_start;
-      }
-      uint64 m_start;           // starting rowid
-      uint64 m_end;             // next rowid after
-      uint64 m_startpos;        // byte offset of start in input
-      uint64 m_endpos;          // byte offset of end in input
-      uint64 m_reject;          // rejected rows (info only)
-    };
-    typedef std::vector<Range> Ranges;
-    typedef Ranges::iterator Iterator;
-    typedef Ranges::const_iterator ConstIterator;
-    bool empty() {
+    RowMap(NdbImportUtil& util);
+    bool empty() const {
       return m_ranges.empty();
     }
+    uint size() const {
+      return m_ranges.cnt();
+    }
     void clear() {
-      m_ranges.clear();
+      m_ranges_free.push_back_from(m_ranges);
+    }
+    bool equal(const RowMap& map2) const {
+      if (size() != map2.size())
+        return false;
+      const Range* r = m_ranges.front();
+      const Range* r2 = map2.m_ranges.front();
+      for (uint i = 0; i < size(); i++) {
+        require(r != 0 && r2 != 0);
+        if (!r->equal(*r2))
+          return false;
+        r = r->next();
+        r2 = r2->next();
+      }
+      require(r == 0 && r2 == 0);
+      return true;
     }
     void add(const Row* row, bool reject) {
       Range r;
@@ -399,35 +542,62 @@ public:
       r.m_reject = (uint)reject;
       add(r);
     }
-    void add(const Range r);
-    void add(const RowMap& m);
-    bool find(uint64 rowid, Iterator& itout);
+    void add(Range range2);
+    void add(const RowMap& map2);
+    Range* find(uint64 rowid);
     bool remove(uint64 rowid);
-    bool merge_down(Range& rprev, Range r) {
-      if (rprev.m_end == r.m_start)
+    // try to extend r upwards by r2
+    static bool merge_up(Range* r, const Range* r2) {
+      if (r->m_end == r2->m_start)
       {
-        rprev.m_end = r.m_end;
-        rprev.m_endpos = r.m_endpos;
-        rprev.m_reject += r.m_reject;
+        r->m_end = r2->m_end;
+        r->m_endpos = r2->m_endpos;
+        r->m_reject += r2->m_reject;
         return true;
       }
-      require(rprev.m_end < r.m_start);
+      require(r->m_end < r2->m_start);
       return false;
     }
-    bool merge_up(Range& rnext, Range r) {
-      if (rnext.m_start == r.m_end)
+    // try to extend r downwards by r2
+    static bool merge_down(Range* r, const Range* r2) {
+      if (r->m_start == r2->m_end)
       {
-        rnext.m_start = r.m_start;
-        rnext.m_startpos = r.m_startpos;
-        rnext.m_reject += r.m_reject;
+        r->m_start = r2->m_start;
+        r->m_startpos = r2->m_startpos;
+        r->m_reject += r2->m_reject;
         return true;
       }
-      require(rnext.m_start > r.m_end);
+      require(r->m_start > r2->m_end);
       return false;
     }
     void get_total(uint64& rows, uint64& reject) const;
-    Ranges m_ranges;
+    Range* alloc_range() {
+      if (unlikely(m_ranges_free.empty())) {
+        Range* r = m_util.alloc_range(true);
+        m_ranges_free.push_back(r);
+      }
+      return m_ranges_free.pop_front();
+    }
+    void free_range(Range* r) {
+      m_ranges_free.push_back(r);
+    }
+#if defined(VM_TRACE) || defined(TEST_NDBIMPORTUTIL)
+    void validate() const;
+#else
+    void validate() const {}
+#endif
+    NdbImportUtil& m_util;
+    RangeList m_ranges;
+    // store free ranges locally to avoid mutexing
+    RangeList m_ranges_free;
   };
+
+  Range* alloc_range(bool dolock);
+  void alloc_ranges(uint cnt, RangeList& dst);
+  void free_range(Range* r);
+  void free_ranges(RangeList& src);
+
+  RangeList* c_ranges_free;
 
   // errormap
 
@@ -472,16 +642,19 @@ public:
   static const uint g_result_tabid = 0xffff0000;
   static const uint g_reject_tabid = 0xffff0001;
   static const uint g_rowmap_tabid = 0xffff0002;
-  static const uint g_stats_tabid = 0xffff0003;
+  static const uint g_stopt_tabid = 0xffff0003;
+  static const uint g_stats_tabid = 0xffff0004;
   Table c_result_table;
   Table c_reject_table;
   Table c_rowmap_table;
+  Table c_stopt_table;
   Table c_stats_table;
 
   void add_pseudo_tables();
   void add_result_table();
   void add_reject_table();
   void add_rowmap_table();
+  void add_stopt_table();
   void add_stats_table();
 
   void add_error_attrs(Table& table);
@@ -505,11 +678,17 @@ public:
 
   void set_rowmap_row(Row* row,
                       uint32 runno,
-                      const RowMap::Range& range);
+                      const Range& range);
+
+  void set_stopt_row(Row* row,
+                     uint32 runno,
+                     const char* option,
+                     uint32 value);
 
   void set_stats_row(Row* row,
                      uint32 runno,
-                     const Stat& stat);
+                     const Stat& stat,
+                     bool global);
 
   void set_error_attrs(Row* row,
                        const Table& table,
@@ -734,7 +913,7 @@ public:
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil& util);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Name& name);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::RowMap& rowmap);
-NdbOut& operator<<(NdbOut& out, const NdbImportUtil::RowMap::Range& range);
+NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Range& range);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Buf& buf);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Stats& stats);
 NdbOut& operator<<(NdbOut& out, const NdbImportUtil::Timer& timer);

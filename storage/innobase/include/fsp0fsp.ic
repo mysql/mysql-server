@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -279,18 +287,17 @@ xdes_calc_descriptor_page(
 	const page_size_t&	page_size,
 	page_no_t		offset)
 {
-#ifndef DOXYGEN /* Doxygen gets confused by these */
-# if UNIV_PAGE_SIZE_MAX <= XDES_ARR_OFFSET				\
-			   + (UNIV_PAGE_SIZE_MAX / FSP_EXTENT_SIZE_MAX)	\
-			   * XDES_SIZE_MAX
-#  error
-# endif
-# if UNIV_ZIP_SIZE_MIN <= XDES_ARR_OFFSET				\
-			  + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE_MIN)	\
-			  * XDES_SIZE_MIN
-#  error
-# endif
-#endif /* !DOXYGEN */
+	static_assert(
+		UNIV_PAGE_SIZE_MAX
+		> XDES_ARR_OFFSET
+		   + (UNIV_PAGE_SIZE_MAX / FSP_EXTENT_SIZE_MAX)
+		   * XDES_SIZE_MAX, "Extent descriptor won't fit on a page");
+
+	static_assert(
+		UNIV_ZIP_SIZE_MIN
+		> XDES_ARR_OFFSET
+		   + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE_MIN)
+		   * XDES_SIZE_MIN, "Extent descriptor won't fit on a page");
 
 	ut_ad(UNIV_PAGE_SIZE > XDES_ARR_OFFSET
 	      + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE)
@@ -342,7 +349,7 @@ fsp_is_inode_page(page_no_t page)
 
 	/* Number of all hard-coded DD table indexes. Please sync it with
 	innodb_dd_table array. */
-	static const uint		indexes = 91;
+	static const uint		indexes = 92;
 
 	/* Max page number for index root pages of hard-coded DD tables. */
 	static const uint		max_page_no =
@@ -413,7 +420,7 @@ fsp_flags_is_valid(
 		return(false);
 	}
 
-	/* The actual page size must be within 4k and 16K (3 =< ssize =< 5). */
+	/* The actual page size must be within 4k and 64K (3 =< ssize =< 7). */
 	if (page_ssize != 0
 	    && (page_ssize < UNIV_PAGE_SSIZE_MIN
 	        || page_ssize > UNIV_PAGE_SSIZE_MAX)) {
@@ -461,4 +468,34 @@ fsp_header_get_sdi_offset(
 	ut_ad(left_size >= FSP_SDI_HEADER_LEN);
 #endif
 	return(offset);
+}
+
+/** Reads the server space version from the first page of a tablespace.
+@param[in]      page            first page of a tablespace
+@return space server version */
+UNIV_INLINE
+uint32
+fsp_header_get_server_version(
+        const page_t*   page)
+{
+        uint32  version;
+
+        version = mach_read_from_4(page + FIL_PAGE_SRV_VERSION);
+
+        return(version);
+}
+
+/** Reads the server space version from the first page of a tablespace.
+@param[in]      page            first page of a tablespace
+@return space server version */
+UNIV_INLINE
+uint32
+fsp_header_get_space_version(
+        const page_t*   page)
+{
+        uint32  version;
+
+        version = mach_read_from_4(page + FIL_PAGE_SPACE_VERSION);
+
+        return(version);
 }

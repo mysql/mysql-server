@@ -20,8 +20,5 @@
 datadir=@INSTALL_MYSQLDATADIR@
 socket=@MYSQL_UNIX_ADDR@
 
-# Disabling symbolic-links is recommended to prevent assorted security risks
-symbolic-links=0
-
 log-error=@LOGFILE_RPM@
 pid-file=@PIDFILE_RPM@

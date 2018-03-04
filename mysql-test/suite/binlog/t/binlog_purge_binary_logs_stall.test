@@ -32,9 +32,9 @@ DROP TABLE t1;
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/binlog_purge_stall.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] .* mysqld: ready for connections
+--let $assert_only_after=.* \[Note\] \[[^]]*\] .* mysqld: ready for connections
 # Assert that there is an expected [Note] log line about reading binary log events
 --let $assert_count= 1
---let $assert_select=.* \[Note\] Read 2 events from binary log file .*$binlog_file
+--let $assert_select=.* \[Note\] \[[^]]*\] Read 2 events from binary log file .*$binlog_file
 --let $assert_text= Only two events were read from the binary log file (binlog_gtid_simple_recovery=TRUE).
 --source include/assert_grep.inc

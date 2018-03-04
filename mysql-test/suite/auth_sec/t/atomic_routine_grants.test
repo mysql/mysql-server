@@ -78,9 +78,9 @@ SHOW GRANTS FOR userA;
 SHOW GRANTS FOR userB;
 
 --echo # Must show password for both users
---replace_regex /AS .* REQUIRE$/AS '<non-deterministic-password-hash>' REQUIRE/g
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/g
 SHOW CREATE USER userA;
---replace_regex /AS .* REQUIRE$/AS '<non-deterministic-password-hash>' REQUIRE/g
+--replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/g
 SHOW CREATE USER userB;
 
 --let $event= !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userA.*IDENTIFIED WITH.*AS.*,.*userB.*IDENTIFIED WITH.*AS.*)

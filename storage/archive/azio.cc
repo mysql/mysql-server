@@ -19,7 +19,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-#include "azlib.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -27,6 +26,7 @@
 #include "my_psi_config.h"
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_file.h"
+#include "storage/archive/azlib.h"
 
 static int const gz_magic[2] = {0x1f, 0x8b}; /* gzip magic header */
 static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */

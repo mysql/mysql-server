@@ -195,6 +195,10 @@ SELECT @@collation_database AS res_with_true;
 
 --Error ER_UNKNOWN_COLLATION
 SET @@collation_database = ON;
+--Error ER_UNKNOWN_COLLATION
+SET @@collation_database = repeat('e', 256);
+--Error ER_UNKNOWN_COLLATION
+SET @@collation_database = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_016_11-------------------------#'
 ###############################################################################
@@ -219,6 +223,10 @@ SET @@global.collation_database = true;
 
 --Error ER_UNKNOWN_COLLATION
 SET @@global.collation_database = ON;
+--Error ER_UNKNOWN_COLLATION
+SET @@global.collation_database = repeat('e', 256);
+--Error ER_UNKNOWN_COLLATION
+SET @@global.collation_database = repeat('e', 1024);
 
 --echo '#--------------------FN_DYNVARS_016_12-------------------------#'
 ###############################################################################

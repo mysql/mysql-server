@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file include/mysql/psi/mysql_file.h
@@ -32,14 +39,14 @@
 #ifndef MYSQL_FILE_H
 #define MYSQL_FILE_H
 
-/* For MY_STAT */
-#include <my_dir.h>
-/* For my_chsize */
-#include <my_sys.h>
 /* For strlen() */
 #include <string.h>
 
 #include "my_dbug.h"
+/* For MY_STAT */
+#include "my_dir.h"
+/* For my_chsize */
+#include "my_sys.h"
 #include "mysql/psi/psi_file.h"
 #include "mysql/service_mysql_alloc.h"
 #include "pfs_file_provider.h"
@@ -1412,12 +1419,12 @@ inline_mysql_file_rename(
   struct PSI_file_locker *locker;
   PSI_file_locker_state state;
   locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-    &state, key, PSI_FILE_RENAME, to, &locker);
+    &state, key, PSI_FILE_RENAME, from, &locker);
   if (likely(locker != NULL))
   {
     PSI_FILE_CALL(start_file_wait)(locker, (size_t)0, src_file, src_line);
     result = my_rename(from, to, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t)0);
+    PSI_FILE_CALL(end_file_rename_wait)(locker, from, to, result);
     return result;
   }
 #endif
@@ -1505,12 +1512,12 @@ inline_mysql_file_rename_with_symlink(
   struct PSI_file_locker *locker;
   PSI_file_locker_state state;
   locker = PSI_FILE_CALL(get_thread_file_name_locker)(
-    &state, key, PSI_FILE_RENAME, to, &locker);
+    &state, key, PSI_FILE_RENAME, from, &locker);
   if (likely(locker != NULL))
   {
     PSI_FILE_CALL(start_file_wait)(locker, (size_t)0, src_file, src_line);
     result = my_rename_with_symlink(from, to, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t)0);
+    PSI_FILE_CALL(end_file_rename_wait)(locker, from, to, result);
     return result;
   }
 #endif

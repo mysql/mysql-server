@@ -1,17 +1,29 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file mysys_ssl/my_default.cc
@@ -40,27 +52,27 @@
 #include "my_config.h"
 
 #include <fcntl.h>
-#include <my_aes.h>
-#include <my_dir.h>
-#include <my_getopt.h>
 #include <stdlib.h>
 #include <sys/types.h>
 
-#include "../mysys/mysys_priv.h"
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_aes.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_default.h"
-#include "my_default_priv.h"
+#include "my_dir.h"
+#include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
-#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
 #include "mysql/psi/mysql_file.h"
 #include "mysql/service_my_snprintf.h"
+#include "mysql_version.h"             // MYSQL_PERSIST_CONFIG_NAME
+#include "mysys/mysys_priv.h"
+#include "mysys_ssl/my_default_priv.h"
 #include "typelib.h"
 #ifdef _WIN32
 #include <winbase.h>
@@ -341,7 +353,7 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
                                       (char **) &my_login_path, found_no_defaults);
 
     if (! my_defaults_group_suffix)
-      my_defaults_group_suffix= getenv(STRINGIFY_ARG(DEFAULT_GROUP_SUFFIX_ENV));
+      my_defaults_group_suffix= getenv("MYSQL_GROUP_SUFFIX");
 
     if (forced_extra_defaults && !defaults_already_read)
     {

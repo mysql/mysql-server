@@ -1,2 +1,3 @@
 --secure-file-priv=null
 --local-infile=true
+--log-error-verbosity=3

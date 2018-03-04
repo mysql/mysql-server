@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -100,6 +107,13 @@ extern EventLogger * g_eventLogger;
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_COMP 1
+#ifdef DEBUG_LCP_COMP
+#define DEB_LCP_COMP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_COMP(arglist) do { } while (0)
 #endif
 
 #define SYSFILE ((Sysfile *)&sysfileData[0])
@@ -1314,11 +1328,6 @@ void Dbdih::execREAD_CONFIG_REQ(Signal* signal)
 
   cconnectFileSize = 256; // Only used for DDL
 
-  ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_API_CONNECT, 
-					   &capiConnectFileSize),
-		NDBD_EXIT_INVALID_CONFIG);
-  capiConnectFileSize++; // Increase by 1...so that srsw queue never gets full
-
   ndbrequireErr(!ndb_mgm_get_int_parameter(p, CFG_DIH_FRAG_CONNECT, 
 					   &cfragstoreFileSize),
 		NDBD_EXIT_INVALID_CONFIG);
@@ -1563,6 +1572,22 @@ void Dbdih::execDIH_RESTARTREQ(Signal* signal)
   return;
 }//Dbdih::execDIH_RESTARTREQ()
 
+void Dbdih::execSET_LATEST_LCP_ID(Signal *signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  Uint32 latestLcpId = signal->theData[1];
+  if (latestLcpId > SYSFILE->latestLCP_ID)
+  {
+    jam();
+    g_eventLogger->info("Node %u saw more recent LCP id = %u, previously = %u",
+                        nodeId,
+                        latestLcpId,
+                        SYSFILE->latestLCP_ID);
+    ndbrequire(latestLcpId == (SYSFILE->latestLCP_ID + 1));
+    SYSFILE->latestLCP_ID = latestLcpId;
+  }
+}
+
 void Dbdih::execGET_LATEST_GCI_REQ(Signal *signal)
 {
   Uint32 nodeId = signal->theData[0];
@@ -1652,6 +1677,7 @@ void Dbdih::execNDB_STTOR(Signal* signal)
     clocallqhblockref = calcLqhBlockRef(ownNodeId);
     cdictblockref = calcDictBlockRef(ownNodeId);
     c_lcpState.lcpStallStart = 0;
+    c_lcpState.lcpManualStallStart = false;
     NdbTick_Invalidate(&c_lcpState.m_start_lcp_check_time);
     ndbsttorry10Lab(signal, __LINE__);
     break;
@@ -8682,7 +8708,7 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   ndbrequire(conf->sendingNodeId == takeOverPtr.p->toCopyNode);
   ndbrequire(takeOverPtr.p->toSlaveStatus == TakeOverRecord::TO_COPY_FRAG);
 
-  g_eventLogger->debug("COPY_FRAGCONF: thread: %u, tab: %u, frag: %u",
+  g_eventLogger->debug("COPY_FRAGCONF: thread: %u, tab(%u,%u)",
     takeOverPtr.i,
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid);
@@ -8718,7 +8744,7 @@ void Dbdih::execCOPY_FRAGCONF(Signal* signal)
   
   sendSignal(lqhRef, GSN_COPY_ACTIVEREQ, signal,
              CopyActiveReq::SignalLength, JBB);
-  g_eventLogger->debug("COPY_ACTIVEREQ: thread: %u, tab: %u, frag: %u",
+  g_eventLogger->debug("COPY_ACTIVEREQ: thread: %u, tab(%u,%u)",
     takeOverPtr.i,
     takeOverPtr.p->toCurrentTabref,
     takeOverPtr.p->toCurrentFragid);
@@ -9091,7 +9117,7 @@ void Dbdih::releaseTakeOver(TakeOverRecordPtr takeOverPtr,
         }
         else
         {
-          ndbrequire(NGPtr.p->activeTakeOver != startingNode);
+          ndbrequire(NGPtr.p->activeTakeOver == startingNode);
           NGPtr.p->activeTakeOver = 0;
           NGPtr.p->activeTakeOverCount = 0;
         }
@@ -9244,6 +9270,7 @@ void Dbdih::selectMasterCandidateAndSend(Signal* signal)
   DihRestartConf * conf = CAST_PTR(DihRestartConf, signal->getDataPtrSend());
   conf->unused = getOwnNodeId();
   conf->latest_gci = SYSFILE->lastCompletedGCI[getOwnNodeId()];
+  conf->latest_lcp_id = SYSFILE->latestLCP_ID;
   no_nodegroup_mask.copyto(NdbNodeBitmask::Size, conf->no_nodegroup_mask);
   sendSignal(cntrlblockref, GSN_DIH_RESTARTCONF, signal,
              DihRestartConf::SignalLength, JBB);
@@ -9560,6 +9587,18 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
   }//for
   if(masterTakeOver){
     jam();
+    NodeRecordPtr nodePtr;
+    g_eventLogger->info("Master takeover started from %u", oldMasterId);
+    for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+    {
+      ptrAss(nodePtr, nodeRecord);
+      if (nodePtr.p->nodeStatus == NodeRecord::ALIVE)
+      {
+        jamLine(nodePtr.i);
+        ndbrequire(nodePtr.p->noOfStartedChkpt == 0);
+        ndbrequire(nodePtr.p->noOfQueuedChkpt == 0);
+      }
+    }
     startLcpMasterTakeOver(signal, oldMasterId);
     startGcpMasterTakeOver(signal, oldMasterId);
 
@@ -11523,6 +11562,8 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   if (c_lcpState.lcpStatus == LCP_INIT_TABLES)
   {
     jam();
+    c_lcpState.m_participatingDIH.clear();
+    c_lcpState.m_participatingLQH.clear();
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
   }
   sendMASTER_LCPCONF(signal, __LINE__);
@@ -11589,6 +11630,8 @@ err7230:
     //Uint32 lcpId = SYSFILE->latestLCP_ID;
     SYSFILE->latestLCP_ID--;
     Sysfile::clearLCPOngoing(SYSFILE->systemRestartBits);
+    c_lcpState.m_participatingDIH.clear();
+    c_lcpState.m_participatingLQH.clear();
     c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
 #if 0
     if(c_copyGCISlave.m_copyReason == CopyGCIReq::LOCAL_CHECKPOINT){
@@ -16276,12 +16319,14 @@ inline
 bool
 Dbdih::isEmpty(const DIVERIFY_queue & q)
 {
+  /* read barrier, not for ordering but to try force fresh read */
+  rmb();
   return q.cfirstVerifyQueue == q.clastVerifyQueue;
 }
 
 inline
 void
-Dbdih::enqueue(DIVERIFY_queue & q, Uint32 senderData, Uint64 gci)
+Dbdih::enqueue(DIVERIFY_queue & q)
 {
 #ifndef NDEBUG
   /**
@@ -16294,41 +16339,24 @@ Dbdih::enqueue(DIVERIFY_queue & q, Uint32 senderData, Uint64 gci)
 #endif
 
   Uint32 last = q.clastVerifyQueue;
-  ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
-  apiConnectRecord[last].senderData = senderData;
-  apiConnectRecord[last].apiGci = gci;
+  q.clastVerifyQueue = last + 1;
+
+  /* barrier to flush writes */
   wmb();
-  if (last + 1 == capiConnectFileSize)
-  {
-    q.clastVerifyQueue = 0;
-  }
-  else
-  {
-    q.clastVerifyQueue = last + 1;
-  }
   assert(q.clastVerifyQueue != first);
 }
 
 inline
 void
-Dbdih::dequeue(DIVERIFY_queue & q, ApiConnectRecord & conRecord)
+Dbdih::dequeue(DIVERIFY_queue & q)
 {
   Uint32 first = q.cfirstVerifyQueue;
-  ApiConnectRecord * apiConnectRecord = q.apiConnectRecord;
 
-  rmb();
-  conRecord.senderData = apiConnectRecord[first].senderData;
-  conRecord.apiGci = apiConnectRecord[first].apiGci;
+  q.cfirstVerifyQueue = first + 1;
 
-  if (first + 1 == capiConnectFileSize)
-  {
-    q.cfirstVerifyQueue = 0;
-  }
-  else
-  {
-    q.cfirstVerifyQueue = first + 1;
-  }
+  /* barrier to flush writes */
+  wmb();
 }
 
 /*
@@ -16352,13 +16380,13 @@ void Dbdih::execDIVERIFYREQ(Signal* signal)
 loop:
   Uint32 val = m_micro_gcp.m_lock.read_lock();
   Uint32 blocked = getBlockCommit() == true ? 1 : 0;
-  if (blocked == 0 && isEmpty(q))
+  if (blocked == 0)
   {
     thrjam(jambuf);
     /*-----------------------------------------------------------------------*/
-    // We are not blocked and the verify queue was empty currently so we can
-    // simply reply back to TC immediately. The method was called with 
-    // EXECUTE_DIRECT so we reply back by setting signal data and returning. 
+    // We are not blocked so we can simply reply back to TC immediately. The
+    // method was called with EXECUTE_DIRECT so we reply back by setting signal
+    // data and returning.
     // theData[0] already contains the correct information so 
     // we need not touch it.
     /*-----------------------------------------------------------------------*/
@@ -16373,11 +16401,7 @@ loop:
   // Since we are blocked we need to put this operation last in the verify
   // queue to ensure that operation starts up in the correct order.
   /*-------------------------------------------------------------------------*/
-  enqueue(q, signal->theData[0], m_micro_gcp.m_new_gci);
-  if (blocked == 0 && jambuf == jamBuffer())
-  {
-    emptyverificbuffer(signal, 0, false);
-  }
+  enqueue(q);
   signal->theData[3] = blocked + 1; // Indicate no immediate return
   return;
 }//Dbdih::execDIVERIFYREQ()
@@ -17975,9 +17999,10 @@ void Dbdih::execSTART_LCP_REQ(Signal* signal)
   StartLcpReq * req = (StartLcpReq*)signal->getDataPtr();
   ndbrequire(!c_start_node_lcp_req_outstanding);
 
-  if ((getNodeInfo(refToNode(req->senderRef)).m_version <
-       NDBD_SUPPORT_PAUSE_LCP) ||
-       req->pauseStart == StartLcpReq::NormalLcpStart)
+  if (((getNodeInfo(refToNode(req->senderRef)).m_version <
+        NDBD_SUPPORT_PAUSE_LCP) ||
+        req->pauseStart == StartLcpReq::NormalLcpStart) &&
+        req->participatingLQH.get(cownNodeId))
   {
     jam();
     c_save_startLcpReq = *req;
@@ -18030,6 +18055,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
 
       StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
+      conf->lcpId = SYSFILE->latestLCP_ID;
       sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
                  StartLcpConf::SignalLength, JBB);
       return;
@@ -18065,6 +18091,7 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
 
       StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
       conf->senderRef = reference();
+      conf->lcpId = SYSFILE->latestLCP_ID;
       sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
                  StartLcpConf::SignalLength, JBB);
       return;
@@ -18098,6 +18125,10 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
      * to worry about this. If any node fails in the state of me being
      * started, I will fail as well.
      */
+    if (!isMaster())
+    {
+      ndbrequire(c_lcpState.m_participatingLQH.get(nodeId) == 0);
+    }
     NodeRecordPtr nodePtr;
     if (req->participatingDIH.get(nodeId) ||
         req->participatingLQH.get(nodeId))
@@ -18115,34 +18146,6 @@ void Dbdih::handleStartLcpReq(Signal *signal, StartLcpReq *req)
   }
   c_lcpState.m_participatingDIH = req->participatingDIH;
   c_lcpState.m_participatingLQH = req->participatingLQH;
-
-  for (Uint32 nodeId = 1; nodeId < MAX_NDB_NODES; nodeId++)
-  {
-    /**
-     * We could have a race here, a node could die while the START_LCP_REQ
-     * is in flight. We need remove the node from the set of nodes
-     * participating in this case. Not removing it here could lead to a
-     * potential LCP deadlock.
-     *
-     * For the PAUSE LCP code where we are included in the LCP we don't need
-     * to worry about this. If any node fails in the state of me being
-     * started, I will fail as well.
-     */
-    NodeRecordPtr nodePtr;
-    if (req->participatingDIH.get(nodeId) ||
-        req->participatingLQH.get(nodeId))
-    {
-      nodePtr.i = nodeId;
-      ptrAss(nodePtr, nodeRecord);
-      if (nodePtr.p->nodeStatus != NodeRecord::ALIVE)
-      {
-        jam();
-        jamLine(nodeId);
-        req->participatingDIH.clear(nodeId);
-        req->participatingLQH.clear(nodeId);
-      }
-    }
-  }
 
   c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH = req->participatingLQH;
   if(isMaster())
@@ -18349,6 +18352,7 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
 
   StartLcpConf * conf = (StartLcpConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
+  conf->lcpId = SYSFILE->latestLCP_ID;
   sendSignal(c_lcpState.m_masterLcpDihRef, GSN_START_LCP_CONF, signal,
              StartLcpConf::SignalLength, JBB);
 }//Dbdih::initLcpLab()
@@ -20220,6 +20224,19 @@ void Dbdih::execTCGETOPSIZECONF(Signal* signal)
       return;
     }
   }
+  
+  if (unlikely(c_lcpState.lcpManualStallStart))
+  {
+    jam();
+    g_eventLogger->warning("LCP start triggered, but manually stalled (Immediate %u, Change %llu / %llu)",
+                           c_lcpState.immediateLcpStart,
+                           Uint64(c_lcpState.ctcCounter),
+                           (Uint64(1) << c_lcpState.clcpDelay));
+    c_lcpState.setLcpStatus(LCP_STATUS_IDLE, __LINE__);
+    checkLcpStart(signal, __LINE__, 3000);
+    return;
+  }
+
   c_lcpState.lcpStart = ZIDLE;
   c_lcpState.immediateLcpStart = false;
   /* ----------------------------------------------------------------------- 
@@ -21945,17 +21962,26 @@ void Dbdih::execLCP_COMPLETE_REP(Signal* signal)
     jam();
     c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.clearWaitingFor(nodeId);
     ndbrequire(!c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodeId));
+    DEB_LCP_COMP(("LCP_COMPLETE_REP(LQH)(%u), LCP: %u",
+                   nodeId,
+                   lcpId));
     break;
   case DBDIH:
     jam();
     ndbrequire(isMaster());
     c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.clearWaitingFor(nodeId);
+    DEB_LCP_COMP(("LCP_COMPLETE_REP(DIH)(%u), LCP: %u",
+                   nodeId,
+                   lcpId));
     break;
   case 0:
     jam();
     ndbrequire(!isMaster());
     ndbrequire(c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false);
     c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received = true;
+    DEB_LCP_COMP(("LCP_COMPLETE_REP(0)(%u), LCP: %u",
+                   nodeId,
+                   lcpId));
     break;
   default:
     ndbrequire(false);
@@ -21972,6 +21998,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   
   if (c_lcpState.lcpStatus != LCP_TAB_SAVED) {
     jam();
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, LCP_TAB_SAVED"));
     /**
      * We have not sent LCP_COMPLETE_REP to master DIH yet
      */
@@ -21980,11 +22007,13 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
   
   if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.done()){
     jam();
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, LQH not done"));
     return;
   }
 
   if (!c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.done()){
     jam();
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, DIH not done"));
     return;
   }
 
@@ -21992,6 +22021,7 @@ void Dbdih::allNodesLcpCompletedLab(Signal* signal)
       c_lcpState.m_LCP_COMPLETE_REP_From_Master_Received == false){
     jam();
     /**
+    DEB_LCP_COMP(("LCP_COMPLETE_REQ not complete, Master not done"));
      * Wait until master DIH has signalled lcp is complete
      */
     return;
@@ -23051,10 +23081,8 @@ Dbdih::emptyverificbuffer(Signal* signal, Uint32 q, bool aContinueB)
   {
     jam();
 
-    ApiConnectRecord localApiConnect;
-    dequeue(c_diverify_queue[q], localApiConnect);
-    ndbrequire(localApiConnect.apiGci <= m_micro_gcp.m_current_gci);
-    signal->theData[0] = localApiConnect.senderData;
+    dequeue(c_diverify_queue[q]);
+    signal->theData[0] = RNIL;
     signal->theData[1] = (Uint32)(m_micro_gcp.m_current_gci >> 32);
     signal->theData[2] = (Uint32)(m_micro_gcp.m_current_gci & 0xFFFFFFFF);
     signal->theData[3] = 0;
@@ -23958,7 +23986,6 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
     initCommonData();
     break;
   case 1:{
-    ApiConnectRecordPtr apiConnectptr;
     jam();
     c_diverify_queue[0].m_ref = calcTcBlockRef(getOwnNodeId());
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
@@ -23967,15 +23994,6 @@ void Dbdih::initialiseRecordsLab(Signal* signal,
       {
         c_diverify_queue[i].m_ref = numberToRef(DBTC, i + 1, 0);
       }
-      /******** INTIALIZING API CONNECT RECORDS ********/
-      for (apiConnectptr.i = 0;
-           apiConnectptr.i < capiConnectFileSize; apiConnectptr.i++)
-      {
-        refresh_watch_dog();
-        ptrAss(apiConnectptr, c_diverify_queue[i].apiConnectRecord);
-        apiConnectptr.p->senderData = RNIL;
-        apiConnectptr.p->apiGci = ~(Uint64)0;
-      }//for
     }
     jam();
     break;
@@ -25987,11 +26005,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 	      c_nodeStartMaster.blockGcp, c_nodeStartMaster.wait);
     for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
     {
-      infoEvent("[ %u : cfirstVerifyQueue = %u clastVerifyQueue = %u sz: %u]",
+      /* read barrier to try force fresh reads of c_diverify_queue */
+      rmb();
+      infoEvent("[ %u : cfirstVerifyQueue = %u clastVerifyQueue = %u]",
                 i,
                 c_diverify_queue[i].cfirstVerifyQueue,
-                c_diverify_queue[i].clastVerifyQueue,
-                capiConnectFileSize);
+                c_diverify_queue[i].clastVerifyQueue);
     }
     infoEvent("cgcpOrderBlocked = %d",
               cgcpOrderBlocked);
@@ -26349,6 +26368,12 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
     
     infoEvent("-- Node %d LCP STATE --", getOwnNodeId());
+    if (refToMain(signal->getSendersBlockRef()) == DBLQH)
+    {
+      jam();
+      signal->theData[0] = 7011;
+      sendSignal(cmasterdihref, GSN_DUMP_STATE_ORD, signal, 1, JBB);
+    }
   }
 
   if(arg == DumpStateOrd::DihDumpLCPMasterTakeOver){
@@ -26790,7 +26815,35 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
     sendINFO_GCP_STOP_TIMER(signal);
   }
-      
+
+  if (arg == DumpStateOrd::DihStallLcpStart)
+  {
+    jam();
+
+    if (signal->getLength() != 2)
+    {
+      g_eventLogger->warning("Malformed DihStallLcpStart(%u) received, ignoring",
+                             DumpStateOrd::DihStallLcpStart);
+      return;
+    }
+    const Uint32 key = signal->theData[1];
+    if (key == 91919191)
+    {
+      jam();
+      g_eventLogger->warning("DihStallLcpStart(%u) received, stalling subsequent LCP starts",
+                             DumpStateOrd::DihStallLcpStart);
+      c_lcpState.lcpManualStallStart = true;
+    }
+    else
+    {
+      jam();
+      g_eventLogger->warning("DihStallLcpStart(%u) received, clearing LCP stall state (%u)",
+                             DumpStateOrd::DihStallLcpStart,
+                             c_lcpState.lcpManualStallStart);
+      c_lcpState.lcpManualStallStart = false;
+    }
+    return;
+  }
 
 }//Dbdih::execDUMP_STATE_ORD()
 

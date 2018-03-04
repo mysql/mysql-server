@@ -527,7 +527,7 @@ SELECT ST_ASTEXT(c8) FROM tab2;
 ST_ASTEXT(c8)
 GEOMETRYCOLLECTION(POINT(10 10),LINESTRING(20 20,30 30))
 # Creating a table with spatial index column
-CREATE TABLE geom_index (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL INDEX(g));
+CREATE TABLE geom_index (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(g));
 # Inserting geometry values
 INSERT INTO geom_index SELECT * FROM gis_geometry;
 # Check column datatypes
@@ -535,7 +535,7 @@ SHOW CREATE TABLE geom_index;
 Table	Create Table
 geom_index	CREATE TABLE `geom_index` (
   `fid` int(11) NOT NULL,
-  `g` geometry NOT NULL,
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

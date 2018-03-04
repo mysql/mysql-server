@@ -1,0 +1,229 @@
+## create all kinds of tables including absolute paths
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd' Engine=InnoDB;
+CREATE TABLE tab1(c1 int, c2 varchar(10)) TABLESPACE=ts1;
+INSERT INTO tab1 VALUES(1, 'VISH');
+CREATE TABLE tab2(c1 int, c2 varchar(10)) Engine=InnoDB;
+INSERT INTO tab2 VALUES(2, 'VISH');
+CREATE INDEX ix1 ON tab1(c2) USING BTREE;
+CREATE INDEX ix1 ON tab2(c2) ;
+## create a table with absolute path
+CREATE TABLE tab3(
+empno INT, ename VARCHAR(30),sal NUMERIC(3))
+ENGINE=InnoDB ROW_FORMAT=COMPRESSED
+PARTITION by hash(empno) (
+PARTITION P0 DATA DIRECTORY 'db_directory1/db_directory1',
+PARTITION P1 DATA DIRECTORY 'db_directory1/db_directory1');
+CREATE TABLESPACE ts2 ADD DATAFILE 'db_directory1/db_directory1/ts2.ibd' Engine=InnoDB;
+ERROR HY000: Incorrect File Name 'db_directory1/db_directory1/ts2.ibd'.
+CREATE INDEX ix1 ON tab3(ename) USING BTREE;
+INSERT INTO tab3 VALUES (100,'VISWANATH',100);
+INSERT INTO tab3 VALUES (300,'VISWANATH',100);
+SHOW CREATE TABLE tab1;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL,
+  KEY `ix1` (`c2`) USING BTREE
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE tab2;
+Table	Create Table
+tab2	CREATE TABLE `tab2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL,
+  KEY `ix1` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `empno` int(11) DEFAULT NULL,
+  `ename` varchar(30) DEFAULT NULL,
+  `sal` decimal(3,0) DEFAULT NULL,
+  KEY `ix1` (`ename`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+/*!50100 PARTITION BY HASH (`empno`)
+(PARTITION P0 DATA DIRECTORY = 'db_directory1/db_directory1/' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'db_directory1/db_directory1/' ENGINE = InnoDB) */
+## Stop DB server
+# Copy whole --datadir files into new locations
+## Copy absolute path *.ibd files into new location
+## Remove the old datadir files and *.ibd files
+## Start with --innodb-directories along with other initDB options
+## Check new datadir
+SELECT @@datadir;
+@@datadir
+NEW_DATADIR/
+SELECT @@innodb_undo_directory;
+@@innodb_undo_directory
+UNDO_DIRECTORY/undo_directory
+SELECT @@innodb_data_home_dir;
+@@innodb_data_home_dir
+DATA_HOME_DIR/data_home_dir
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home_dir
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `empno` int(11) DEFAULT NULL,
+  `ename` varchar(30) DEFAULT NULL,
+  `sal` decimal(3,0) DEFAULT NULL,
+  KEY `ix1` (`ename`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+/*!50100 PARTITION BY HASH (`empno`)
+(PARTITION P0 DATA DIRECTORY = 'db_directory2/undo_directory' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'db_directory2/undo_directory' ENGINE = InnoDB) */
+## Stop DB server
+## Start with new --datadir only
+# restart: --datadir=NEW_DATADIR --innodb_undo_directory=MYSQL_TMP_DIR/undo_directory --innodb_data_home_dir=MYSQL_TMP_DIR/data_home_dir --innodb_log_group_home_dir=MYSQL_TMP_DIR/data_home_dir
+## Check with new --datadir
+SELECT @@datadir;
+@@datadir
+NEW_DATADIR/
+SELECT @@innodb_undo_directory;
+@@innodb_undo_directory
+UNDO_DIRECTORY/undo_directory
+SELECT @@innodb_data_home_dir;
+@@innodb_data_home_dir
+DATA_HOME_DIR/data_home_dir
+SELECT @@innodb_log_group_home_dir;
+@@innodb_log_group_home_dir
+DATA_HOME_DIR/data_home_dir
+## Check the tables with SHOW
+SHOW CREATE TABLE tab1;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL,
+  KEY `ix1` (`c2`) USING BTREE
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE tab2;
+Table	Create Table
+tab2	CREATE TABLE `tab2` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL,
+  KEY `ix1` (`c2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `empno` int(11) DEFAULT NULL,
+  `ename` varchar(30) DEFAULT NULL,
+  `sal` decimal(3,0) DEFAULT NULL,
+  KEY `ix1` (`ename`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+/*!50100 PARTITION BY HASH (`empno`)
+(PARTITION P0 DATA DIRECTORY = 'undo_directory/undo_directory' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'undo_directory/undo_directory' ENGINE = InnoDB) */
+## Check with DML & DDL operations
+SELECT * FROM tab1;
+c1	c2
+1	VISH
+SELECT * FROM tab2;
+c1	c2
+2	VISH
+SELECT * FROM tab3;
+empno	ename	sal
+100	VISWANATH	100
+300	VISWANATH	100
+DELETE FROM tab1;
+DELETE FROM tab2;
+DELETE FROM tab3;
+ALTER TABLE tab3 ADD COLUMN c3 VARCHAR(15);
+INSERT INTO tab1 VALUES(1, 'VISH');
+INSERT INTO tab2 VALUES(2, 'VISH');
+INSERT INTO tab3 VALUES (100,'VISWANATH',100,'New Column');
+INSERT INTO tab3 VALUES (300,'VISWANATH',100,'New Column');
+SELECT * FROM tab1;
+c1	c2
+1	VISH
+SELECT * FROM tab2;
+c1	c2
+2	VISH
+SELECT * FROM tab3;
+empno	ename	sal	c3
+100	VISWANATH	100	New Column
+300	VISWANATH	100	New Column
+CREATE TABLESPACE ts2 ADD DATAFILE 'DATA_HOME_DIR/data_home_dir/ts2.ibd' Engine=InnoDB;
+CREATE TABLE tab4(c1 int, c2 varchar(10)) TABLESPACE=ts2;
+SHOW CREATE TABLE tab4;
+Table	Create Table
+tab4	CREATE TABLE `tab4` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+INSERT INTO tab4 VALUES(1, 'VISH');
+CREATE TABLESPACE ts3 ADD DATAFILE 'UNDO_DIRECTORY/undo_directory/ts3.ibd' Engine=InnoDB;
+CREATE TABLE tab5(c1 int, c2 varchar(10)) TABLESPACE=ts3;
+SHOW CREATE TABLE tab5;
+Table	Create Table
+tab5	CREATE TABLE `tab5` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL
+) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+INSERT INTO tab5 VALUES(1, 'VISH');
+DROP TABLE tab1;
+DROP TABLE tab2;
+DROP TABLESPACE ts1;
+# Stop DB server with new datadir
+## Copy back --datadir and *.ibd files into old location
+## Cleanup the new DATA DIRECTORY *.ibd files
+# Re-start with old --datadir with --innodb-directories as remote *.ibd files are existing.
+# restart: --datadir=OLD_DATADIR --innodb-directories='MYSQL_TMP_DIR/db_directory1'
+# Check --datadir started with old
+SELECT @@datadir;
+@@datadir
+OLD_DATADIR
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `empno` int(11) DEFAULT NULL,
+  `ename` varchar(30) DEFAULT NULL,
+  `sal` decimal(3,0) DEFAULT NULL,
+  `c3` varchar(15) DEFAULT NULL,
+  KEY `ix1` (`ename`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+/*!50100 PARTITION BY HASH (`empno`)
+(PARTITION P0 DATA DIRECTORY = 'db_directory1/db_directory1' ENGINE = InnoDB,
+ PARTITION P1 DATA DIRECTORY = 'db_directory1/db_directory1' ENGINE = InnoDB) */
+SHOW CREATE TABLE tab4;
+Table	Create Table
+tab4	CREATE TABLE `tab4` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW CREATE TABLE tab5;
+Table	Create Table
+tab5	CREATE TABLE `tab5` (
+  `c1` int(11) DEFAULT NULL,
+  `c2` varchar(10) DEFAULT NULL
+) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SHOW VARIABLES LIKE '%directories%';
+Variable_name	Value
+innodb_directories	'db_directory1/db_directory1'
+CREATE TABLESPACE ts4 ADD DATAFILE 'db_directory1/db_directory1/ts4.ibd' Engine=InnoDB;
+CREATE TABLE tab6(c1 int, c2 varchar(10)) TABLESPACE=ts4;
+INSERT INTO tab6 VALUES(1, 'VISH');
+# Stop DB server
+# Re-start with old --datadir only
+# restart: --datadir=OLD_DATADIR
+DELETE FROM tab3;
+DELETE FROM tab4;
+DELETE FROM tab5;
+DELETE FROM tab6;
+SELECT TABLESPACE_NAME,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES;
+TABLESPACE_NAME	TABLE_NAME	ENGINE
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+#	NULL	InnoDB
+DROP TABLE tab3;
+DROP TABLE tab4;
+DROP TABLE tab5;
+DROP TABLE tab6;

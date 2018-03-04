@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/table_socket_summary_by_instance.cc
@@ -26,12 +33,12 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr.h"
 
 THR_LOCK table_socket_summary_by_instance::m_table_lock;
 
@@ -122,6 +129,7 @@ table_socket_summary_by_instance::create(PFS_engine_table_share *)
 table_socket_summary_by_instance::table_socket_summary_by_instance()
   : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
 {
+  m_normalizer = time_normalizer::get_wait();
 }
 
 int
@@ -245,10 +253,8 @@ table_socket_summary_by_instance::make_row(PFS_socket *pfs)
   m_row.m_event_name.make_row(safe_class);
   m_row.m_identity = pfs->m_identity;
 
-  time_normalizer *normalizer = time_normalizer::get(wait_timer);
-
   /* Collect timer and byte count stats */
-  m_row.m_io_stat.set(normalizer, &pfs->m_socket_stat.m_io_stat);
+  m_row.m_io_stat.set(m_normalizer, &pfs->m_socket_stat.m_io_stat);
 
   if (!pfs->m_lock.end_optimistic_lock(&lock))
   {

@@ -145,8 +145,6 @@ test_tablespace_2.ibd
 test_tablespace_3.ibd
 triggers
 view_with_column_names
-# Create a bootstrap file in temp location
-MYSQL_TMP_DIR/bootstrap.log
 # Start the DB server. Server will create and populate Dictionary tables.
 # Test for Bug#25518436 : MYSQL 8.0.1 - MYSQLD ERRORLOG HAS UPGRADE ERRORS
 #                         AT SERVER START AT LIVE UPGRADE
@@ -236,11 +234,13 @@ tablespace.t1                                      OK
 tablespace.t2                                      OK
 tablespace.t3                                      OK
 tablespace.t4                                      OK
+test.child                                         OK
 test.geom                                          OK
 test.initial_tü                                   OK
 test.jemp                                          OK
 test.jemp_myisam                                   OK
 test.opening_lines                                 OK
+test.parent                                        OK
 test.t_blackhole                                   OK
 test.t_blob                                        OK
 test.t_blob_myisam                                 OK
@@ -334,7 +334,7 @@ user	CREATE TABLE `user` (
   `max_updates` int(11) unsigned NOT NULL DEFAULT '0',
   `max_connections` int(11) unsigned NOT NULL DEFAULT '0',
   `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
-  `plugin` char(64) COLLATE utf8_bin NOT NULL DEFAULT 'mysql_native_password',
+  `plugin` char(64) COLLATE utf8_bin NOT NULL DEFAULT 'caching_sha2_password',
   `authentication_string` text COLLATE utf8_bin,
   `password_expired` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   `password_last_changed` timestamp NULL DEFAULT NULL,
@@ -458,12 +458,14 @@ jemp_myisam	CREATE TABLE `jemp_myisam` (
 SELECT TABLE_SCHEMA, TABLE_NAME, TABLE_TYPE, ENGINE, VERSION, ROW_FORMAT
 FROM INFORMATION_SCHEMA.tables WHERE table_schema='test';
 TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT
+test	child	BASE TABLE	InnoDB	10	Dynamic
 test	geom	BASE TABLE	InnoDB	10	Dynamic
 test	initial_tü	BASE TABLE	BLACKHOLE	10	Fixed
 test	initial_vü	VIEW	NULL	NULL	NULL
 test	jemp	BASE TABLE	InnoDB	10	Dynamic
 test	jemp_myisam	BASE TABLE	MyISAM	10	Dynamic
 test	opening_lines	BASE TABLE	InnoDB	10	Dynamic
+test	parent	BASE TABLE	InnoDB	10	Dynamic
 test	t_blackhole	BASE TABLE	BLACKHOLE	10	Fixed
 test	t_blob	BASE TABLE	InnoDB	10	Dynamic
 test	t_blob_myisam	BASE TABLE	InnoDB	10	Dynamic
@@ -534,6 +536,36 @@ SELECT * FROM information_schema.tables WHERE table_schema = 'test' and table_ty
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 def	test	initial_vü	VIEW	NULL	NULL	NULL	0	0	0	0	0	0	NULL	CREATE_TIME	NULL	NULL	NULL	NULL	NULL	VIEW
 SET names default;
+#Test case for Bug#26636238
+SHOW CREATE TABLE performance_schema.threads;
+Table	Create Table
+threads	CREATE TABLE `threads` (
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
+  `NAME` varchar(128) NOT NULL,
+  `TYPE` varchar(10) NOT NULL,
+  `PROCESSLIST_ID` bigint(20) unsigned DEFAULT NULL,
+  `PROCESSLIST_USER` varchar(32) DEFAULT NULL,
+  `PROCESSLIST_HOST` varchar(60) DEFAULT NULL,
+  `PROCESSLIST_DB` varchar(64) DEFAULT NULL,
+  `PROCESSLIST_COMMAND` varchar(16) DEFAULT NULL,
+  `PROCESSLIST_TIME` bigint(20) DEFAULT NULL,
+  `PROCESSLIST_STATE` varchar(64) DEFAULT NULL,
+  `PROCESSLIST_INFO` longtext,
+  `PARENT_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
+  `ROLE` varchar(64) DEFAULT NULL,
+  `INSTRUMENTED` enum('YES','NO') NOT NULL,
+  `HISTORY` enum('YES','NO') NOT NULL,
+  `CONNECTION_TYPE` varchar(16) DEFAULT NULL,
+  `THREAD_OS_ID` bigint(20) unsigned DEFAULT NULL,
+  `RESOURCE_GROUP` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`THREAD_ID`),
+  KEY `PROCESSLIST_ID` (`PROCESSLIST_ID`),
+  KEY `THREAD_OS_ID` (`THREAD_OS_ID`),
+  KEY `NAME` (`NAME`),
+  KEY `PROCESSLIST_ACCOUNT` (`PROCESSLIST_USER`,`PROCESSLIST_HOST`),
+  KEY `PROCESSLIST_HOST` (`PROCESSLIST_HOST`),
+  KEY `RESOURCE_GROUP` (`RESOURCE_GROUP`)
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 # Check for SP/SF
 SHOW CREATE PROCEDURE sp.simpleproc;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -791,6 +823,18 @@ sakila.film_text	optimize	status	OK
 # Check SDI from ibdata1
 # Check SDI from test_tablespace_3.ibd
 # Check SDI from test_tablespace_2.ibd
+# Remove copied files
+#
+# Bug#26944731 : UPGRADE TO 8.0 FAILS: DUPLICATE SET VALUES IN TABLE FROM A PERMISSIVE SQL_MODE..
+# Bug#26948678 : MYSQLD: INVALID DEFAULT VALUE FOR 'CACHED_TIME'
+#
+# Unzip the zip file.
+SHOW CREATE TABLE test.t_set;
+Table	Create Table
+t_set	CREATE TABLE `t_set` (
+  `a` set('','') DEFAULT NULL
+) ENGINE=BLACKHOLE DEFAULT CHARSET=latin1
+# Stop the server
 # Remove copied files
 # Restart the server with default options.
 # restart

@@ -7,13 +7,13 @@ PLUGIN_STATUS
 ACTIVE
 ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services_plugin_registry;
-CREATE TABLE t1 (c1 varchar(30), c2 TEXT);
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1
 FIELDS TERMINATED BY ' [';
-SELECT replace(c2,'\r','') FROM t1 WHERE c2 LIKE '%test_services_plugin_registry %';
-replace(c2,'\r','')
-Note] Plugin test_services_plugin_registry reported: 'new service already registered'
-Note] Plugin test_services_plugin_registry reported: 'my service aleady unregistered'
-Note] Plugin test_services_plugin_registry reported: 'test_plugin_registry succeeded'
+SELECT replace(concat('[',c2,' [',c3),'\r','') AS msg FROM t1 WHERE c3 LIKE '%test_services_plugin_registry %';
+msg
+[Note] [MY-000000] Plugin test_services_plugin_registry reported: 'new service already registered'
+[Note] [MY-000000] Plugin test_services_plugin_registry reported: 'my service aleady unregistered'
+[Note] [MY-000000] Plugin test_services_plugin_registry reported: 'test_plugin_registry succeeded'
 DROP TABLE IF EXISTS t1;
 FLUSH ERROR LOGS;

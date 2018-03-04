@@ -12,10 +12,10 @@
 # Bug#16561 Unknown ERROR msg "ERROR 1186 (HY000): Binlog closed" by perror
 #
 
-# Test with error code 10000 as it's a common "unknown error"
-# As there is no error code defined for 10000, expect error
+# Test with error code 20000 as it's a common "unknown error"
+# As there is no error code defined for 20000, expect error
 --error 1
---exec $MY_PERROR 10000 2>&1
+--exec $MY_PERROR 20000 2>&1
 
 #
 # Bug#10143 (Perror not showing error description)

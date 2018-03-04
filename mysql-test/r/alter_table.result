@@ -958,12 +958,12 @@ engine=myisam default charset=latin1;
 alter table t1 change t t text;
 drop table t1;
 CREATE TABLE t1 (a varchar(500));
-ALTER TABLE t1 ADD b GEOMETRY NOT NULL, ADD SPATIAL INDEX(b);
+ALTER TABLE t1 ADD b GEOMETRY NOT NULL SRID 0, ADD SPATIAL INDEX(b);
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
-  `b` geometry NOT NULL,
+  `b` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 ADD KEY(b(50));
@@ -971,7 +971,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
-  `b` geometry NOT NULL,
+  `b` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -980,7 +980,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
-  `b` geometry NOT NULL,
+  `b` geometry NOT NULL /*!80003 SRID 0 */,
   `c` point DEFAULT NULL,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
@@ -1069,7 +1069,10 @@ alter table t1 modify c char(10) default "Three", rename to t2;
 select * from t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 select * from t2;
-ERROR HY000: Table 't2' was not locked with LOCK TABLES
+c
+NULL
+1
+Two
 select * from t3;
 j
 NULL
@@ -1084,7 +1087,11 @@ Three
 lock table t2 write, t3 read;
 alter table t2 change c vc varchar(100) default "Four", rename to t1;
 select * from t1;
-ERROR HY000: Table 't1' was not locked with LOCK TABLES
+vc
+NULL
+1
+Two
+Three
 select * from t2;
 ERROR HY000: Table 't2' was not locked with LOCK TABLES
 select * from t3;
@@ -3412,13 +3419,12 @@ t3	CREATE TABLE `t3` (
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`bb`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 RENAME COLUMN bb TO b;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE which renames columns in parent table of foreign key'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` varchar(30) DEFAULT NULL,
-  `bb` int(11) DEFAULT '5',
-  KEY `b` (`bb`)
+  `b` int(11) DEFAULT '5',
+  KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t3 RENAME COLUMN b TO c;
 SHOW CREATE TABLE t3;
@@ -3427,10 +3433,8 @@ t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL,
   KEY `b` (`c`),
-  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`bb`)
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-ALTER TABLE t3 DROP FOREIGN KEY t3_ibfk_1;
-ALTER TABLE t1 RENAME COLUMN bb TO b;
 CREATE TABLE t4(a int);
 ALTER TABLE t4 RENAME COLUMN a TO aa, ALGORITHM = INPLACE;
 SHOW CREATE TABLE t4;
@@ -3504,7 +3508,7 @@ SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')
 FROM information_schema.COLUMN_STATISTICS;
 SCHEMA_NAME	TABLE_NAME	COLUMN_NAME	JSON_REMOVE(histogram, '$."last-updated"')
-test	foo	col1	{"buckets": [[1, 0.5], [2, 1]], "data-type": "int", "charset-id": 8, "null-values": 0, "sampling-rate": 1, "histogram-type": "singleton", "number-of-buckets-specified": 10}
+test	foo	col1	{"buckets": [[1, 0.5], [2, 1.0]], "data-type": "int", "null-values": 0.0, "collation-id": 8, "sampling-rate": 1.0, "histogram-type": "singleton", "number-of-buckets-specified": 10}
 ALTER TABLE foo RENAME COLUMN col1 TO col2;
 SELECT schema_name, table_name, column_name,
 JSON_REMOVE(histogram, '$."last-updated"')

@@ -1,4 +1,4 @@
-call mtr.add_suppression("\\[ERROR\\] InnoDB: table .* does not exist "
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: table .* does not exist "
 			 "in the InnoDB internal");
 call mtr.add_suppression("Found .* prepared XA transactions");
 set global innodb_file_per_table = off;

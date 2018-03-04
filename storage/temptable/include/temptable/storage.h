@@ -1,16 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /** @file storage/temptable/include/temptable/storage.h
 TempTable Storage. */
@@ -21,9 +29,9 @@ TempTable Storage. */
 #include <cstddef> /* size_t */
 #include <utility> /* std::move() */
 
-#include "temptable/allocator.h" /* temptable::Allocator */
-#include "temptable/constants.h" /* temptable::STORAGE_PAGE_SIZE */
 #include "my_dbug.h"          /* DBUG_ASSERT() */
+#include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
+#include "storage/temptable/include/temptable/constants.h" /* temptable::STORAGE_PAGE_SIZE */
 
 namespace temptable {
 
@@ -411,7 +419,12 @@ inline Storage::Storage(Allocator<uint8_t>* allocator)
       m_last_page(nullptr),
       m_last_element(nullptr) {}
 
-inline Storage::Storage(Storage&& other) { *this = std::move(other); }
+inline Storage::Storage(Storage&& other)
+    : m_first_page(nullptr),
+      m_last_page(nullptr),
+      m_last_element(nullptr) {
+  *this = std::move(other);
+}
 
 inline Storage& Storage::operator=(Storage&& rhs) {
   DBUG_ASSERT(m_first_page == nullptr);
@@ -607,8 +620,6 @@ inline void Storage::clear() {
   if (m_first_page == m_last_page) {
     DBUG_ASSERT(m_number_of_elements <= m_number_of_elements_per_page);
   } else {
-    DBUG_ASSERT(m_number_of_elements > m_number_of_elements_per_page);
-
     Page* p = m_first_page;
     do {
       p = *page_next_page_ptr(p);

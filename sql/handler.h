@@ -4,15 +4,21 @@
 /*
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
-   This program is free software; you can redistribute it and/or
-   modify it under the terms of the GNU General Public License
-   as published by the Free Software Foundation; version 2 of
-   the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-   GNU General Public License for more details.
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -28,6 +34,7 @@
 #include <time.h>
 #include <algorithm>
 #include <random>       // std::mt19937
+#include <set>
 #include <string>
 
 #include "ft_global.h"         // ft_hints
@@ -50,6 +57,7 @@
 #include "mysql/udf_registration_types.h"
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/properties.h" // dd::Properties
+#include "sql/dd/types/object_table.h" // dd::Object_table
 #include "sql/discrete_interval.h" // Discrete_interval
 #include "sql/key.h"
 #include "sql/sql_alloc.h"
@@ -165,6 +173,8 @@ extern ulong total_ha_2pc;
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
 #define HA_ADMIN_STATS_UPD_ERR  -13
+/** User needs to dump and re-create table to fix pre 5.0 decimal types */
+#define HA_ADMIN_NEEDS_DUMP_UPGRADE -14
 
 /**
    Return values for check_if_supported_inplace_alter().
@@ -1115,6 +1125,24 @@ public:
 
   const char *get_tablespace_name() const
   { return m_tablespace_name; }
+
+  dd::String_type get_ddl() const
+  {
+    dd::Stringstream_type ss;
+    ss << "CREATE TABLE ";
+
+    if (m_schema_name != nullptr)
+      ss << m_schema_name << ".";
+
+    ss << m_table_name << "(\n";
+    ss << m_table_definition << ")";
+    ss << m_table_options;
+
+    if (m_tablespace_name != nullptr)
+      ss << " " << "TABLESPACE=" << m_tablespace_name;
+
+    return ss.str();
+  }
 };
 
 /**
@@ -1244,9 +1272,60 @@ typedef int (*prepare_t)(handlerton *hton, THD *thd, bool all);
 
 typedef int (*recover_t)(handlerton *hton, XID *xid_list, uint len);
 
-typedef int (*commit_by_xid_t)(handlerton *hton, XID *xid);
 
-typedef int (*rollback_by_xid_t)(handlerton *hton, XID *xid);
+/** X/Open XA distributed transaction status codes */
+enum xa_status_code
+{
+  /**
+    normal execution
+  */
+  XA_OK= 0,
+
+  /**
+    asynchronous operation already outstanding
+  */
+  XAER_ASYNC= -2,
+
+  /**
+    a resource manager error  occurred in the transaction branch
+  */
+  XAER_RMERR= -3,
+
+  /**
+    the XID is not valid
+  */
+  XAER_NOTA= -4,
+
+  /**
+    invalid arguments were given
+  */
+  XAER_INVAL= -5,
+
+  /**
+    routine invoked in an improper context
+  */
+  XAER_PROTO= -6,
+
+  /**
+    resource manager unavailable
+  */
+  XAER_RMFAIL= -7,
+
+  /**
+    the XID already exists
+  */
+  XAER_DUPID= -8,
+
+  /**
+    resource manager doing work outside transaction
+  */
+  XAER_OUTSIDE= -9
+};
+
+
+typedef xa_status_code (*commit_by_xid_t)(handlerton *hton, XID *xid);
+
+typedef xa_status_code (*rollback_by_xid_t)(handlerton *hton, XID *xid);
 
 /**
   Create handler object for the table in the storage engine.
@@ -1354,6 +1433,17 @@ typedef int (*alter_tablespace_t)(handlerton *hton, THD *thd,
 */
 typedef int (*upgrade_tablespace_t)(THD *thd);
 
+
+/**
+  Get the tablespace data from SE and insert it into Data dictionary
+
+  @param[in]  tablespace     tablespace object
+
+  @return Operation status.
+  @retval == 0  Success.
+  @retval != 0  Error (handler error code returned)
+*/
+typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
 
 /**
   Finish upgrade process inside storage engines.
@@ -1580,7 +1670,7 @@ enum dict_init_mode_t
 {
   DICT_INIT_CREATE_FILES,         //< Create all required SE files
   DICT_INIT_CHECK_FILES,          //< Verify existence of expected files
-  DICT_INIT_UPGRADE_FILES,        //< Used for upgrade from mysql-5.7
+  DICT_INIT_UPGRADE_57_FILES,     //< Used for upgrade from mysql-5.7
   DICT_INIT_IGNORE_FILES          //< Don't care about files at all
 };
 
@@ -1591,6 +1681,11 @@ enum dict_init_mode_t
   representing the required DDSE tables, i.e., tables that the DDSE
   expects to exist in the DD, and add them to the appropriate out
   parameter.
+
+  @note There are two variants of this function type, one is to be
+  used by the DDSE, and has a different type of output parameters
+  because the SQL layer needs more information about the DDSE tables
+  in order to support upgrade.
 
   @param dict_init_mode         How to initialize files
   @param version                Target DD version if a new
@@ -1611,6 +1706,19 @@ typedef bool (*dict_init_t)(dict_init_mode_t dict_init_mode,
                             uint version,
                             List<const Plugin_table> *DDSE_tables,
                             List<const Plugin_tablespace> *DDSE_tablespaces);
+
+typedef bool (*ddse_dict_init_t)(dict_init_mode_t dict_init_mode,
+                            uint version,
+                            List<const dd::Object_table> *DDSE_tables,
+                            List<const Plugin_tablespace> *DDSE_tablespaces);
+
+/**
+  Initialize the set of hard coded DD table ids.
+
+  @param dd_table_id  SE_private_id of DD table..
+*/
+typedef void (*dict_register_dd_table_id_t)(
+                             dd::Object_id hard_coded_tables);
 
 
 /**
@@ -1927,10 +2035,13 @@ struct handlerton
   get_tablespace_t get_tablespace;
   alter_tablespace_t alter_tablespace;
   upgrade_tablespace_t upgrade_tablespace;
+  upgrade_space_version_t upgrade_space_version;
   upgrade_logs_t upgrade_logs;
   finish_upgrade_t finish_upgrade;
   fill_is_table_t fill_is_table;
   dict_init_t dict_init;
+  ddse_dict_init_t ddse_dict_init;
+  dict_register_dd_table_id_t dict_register_dd_table_id;
   dict_cache_reset_t dict_cache_reset;
   dict_cache_reset_tables_and_tablespaces_t
     dict_cache_reset_tables_and_tablespaces;
@@ -3517,13 +3628,18 @@ protected:
   bool in_range_check_pushed_down;
 
 public:  
-  /*
+  /**
     End value for a range scan. If this is NULL the range scan has no
     end value. Should also be NULL when there is no ongoing range scan.
     Used by the read_range() functions and also evaluated by pushed
     index conditions.
   */
   key_range *end_range;
+  /**
+    Flag which tells if #end_range contains a virtual generated column.
+    The content is invalid when #end_range is @c nullptr.
+  */
+  bool m_virt_gcol_in_end_range= false;
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;
@@ -3822,21 +3938,20 @@ public:
   /**
     Submit a dd::Table object representing a core DD table having
     hardcoded data to be filled in by the DDSE. This function can be
-    used for retrieving the hard coded SE private data for the dd.version
-    table, before creating or opening it (submitting dd_version = 0), or for
+    used for retrieving the hard coded SE private data for the
+    mysql.dd_properties table, before creating or opening it, or for
     retrieving the hard coded SE private data for a core table,
-    before creating or opening them (submit version == the actual version
-    which was read from the dd.version table).
+    before creating or opening them.
 
     @param dd_table [in,out]    A dd::Table object representing
                                 a core DD table.
-    @param dd_version           Actual version of the DD.
+    @param reset                Reset counters.
 
     @retval true                An error occurred.
     @retval false               Success - no errors.
    */
 
-  bool ha_get_se_private_data(dd::Table *dd_table, uint dd_version);
+  bool ha_get_se_private_data(dd::Table *dd_table, bool reset);
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
@@ -5504,7 +5619,9 @@ public:
 
     @remark Engine is responsible for resetting the auto-increment counter.
 
-    @remark The table is locked in exclusive mode.
+    @remark The table is locked in exclusive mode. All open TABLE/handler
+            instances except the one which is used for truncate() call
+            are closed.
 
     @note   It is assumed that transactional storage engines implementing
             this method can revert its effects if transaction is rolled
@@ -5611,7 +5728,7 @@ public:
                      dd::Table *table_def) = 0;
 
   virtual bool get_se_private_data(dd::Table *dd_table MY_ATTRIBUTE((unused)),
-                                   uint dd_version MY_ATTRIBUTE((unused)))
+                                   bool reset MY_ATTRIBUTE((unused)))
   { return false; }
 
   /**

@@ -1,17 +1,24 @@
 # Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# GNU General Public License, version 2.0, for more details.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
 
 # We support different versions of SSL:
 # - "bundled" uses source code in <source dir>/extra/yassl
@@ -22,17 +29,20 @@
 #     - cmake -DWITH_SSL=</path/to/custom/openssl>
 #
 # The default value for WITH_SSL is "bundled"
-# set in cmake/build_configurations/feature_set.cmake
 #
-# For custom build/install of openssl, see the accompanying README and
-# INSTALL* files. When building with gcc, you must build the shared libraries
-# (in addition to the static ones):
-#   ./config --prefix=</path/to/custom/openssl> --shared; make; make install
-# On some platforms (mac) you need to choose 32/64 bit architecture.
-# Build/Install of openssl on windows is slightly different: you need to run
-# perl and nmake. You might also need to
-#   'set path=</path/to/custom/openssl>\bin;%PATH%
-# in order to find the .dll files at runtime.
+# WITH_SSL="system" means: use the SSL library that comes with the operating
+# system. This typically means you have to do 'yum install openssl-devel'
+# or something similar.
+#
+# For Windows or OsX, WITH_SSL="system" is handled a bit differently:
+# We assume you have installed
+#     https://slproweb.com/products/Win32OpenSSL.html
+#     find_package(OpenSSL) will locate it
+# or
+#     http://brewformulas.org/Openssl
+#     we give a hint /usr/local/opt/openssl to find_package(OpenSSL)
+# When the package has been located, we treat it as if cmake had been
+# invoked with  -DWITH_SSL=</path/to/custom/openssl>
 
 SET(WITH_SSL_DOC "bundled (use yassl)")
 SET(WITH_SSL_DOC
@@ -55,7 +65,7 @@ MACRO (MYSQL_USE_BUNDLED_SSL)
   IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
     SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBSOCKET})
   ENDIF()
-  SET(SSL_INCLUDE_DIRS ${INC_DIRS})
+  INCLUDE_DIRECTORIES(SYSTEM ${INC_DIRS})
   SET(SSL_INTERNAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
   SET(SSL_DEFINES "-DHAVE_YASSL -DYASSL_PREFIX -DHAVE_OPENSSL -DMULTI_THREADED")
   CHANGE_SSL_SETTINGS("bundled")
@@ -72,15 +82,32 @@ MACRO (MYSQL_USE_BUNDLED_SSL)
   ENDFOREACH()
 ENDMACRO()
 
+MACRO(RESET_SSL_VARIABLES)
+  UNSET(WITH_SSL_PATH)
+  UNSET(WITH_SSL_PATH CACHE)
+  UNSET(OPENSSL_ROOT_DIR)
+  UNSET(OPENSSL_ROOT_DIR CACHE)
+  UNSET(OPENSSL_INCLUDE_DIR)
+  UNSET(OPENSSL_INCLUDE_DIR CACHE)
+  UNSET(OPENSSL_APPLINK_C)
+  UNSET(OPENSSL_APPLINK_C CACHE)
+  UNSET(OPENSSL_LIBRARY)
+  UNSET(OPENSSL_LIBRARY CACHE)
+  UNSET(CRYPTO_LIBRARY)
+  UNSET(CRYPTO_LIBRARY CACHE)
+  UNSET(HAVE_SHA512_DIGEST_LENGTH)
+  UNSET(HAVE_SHA512_DIGEST_LENGTH CACHE)
+ENDMACRO()
+
 # MYSQL_CHECK_SSL
 #
 # Provides the following configure options:
 # WITH_SSL=[yes|bundled|system|<path/to/custom/installation>]
 MACRO (MYSQL_CHECK_SSL)
   IF(NOT WITH_SSL)
-   IF(WIN32)
-     CHANGE_SSL_SETTINGS("bundled")
-   ENDIF()
+    IF(WIN32)
+      CHANGE_SSL_SETTINGS("bundled")
+    ENDIF()
   ENDIF()
 
   # See if WITH_SSL is of the form </path/to/custom/installation>
@@ -118,9 +145,32 @@ MACRO (MYSQL_CHECK_SSL)
       UNSET(CRYPTO_LIBRARY CACHE)
     ENDIF()
   ELSEIF(WITH_SSL STREQUAL "system" OR
-         WITH_SSL STREQUAL "yes" OR
-         WITH_SSL_PATH
-         )
+      WITH_SSL STREQUAL "yes" OR
+      WITH_SSL_PATH
+      )
+    # Treat "system" the same way as -DWITH_SSL=</path/to/custom/openssl>
+    IF((APPLE OR WIN32) AND WITH_SSL STREQUAL "system")
+      # FindOpenSSL.cmake knows about
+      # http://www.slproweb.com/products/Win32OpenSSL.html
+      # and will look for "C:/OpenSSL-Win64/" (and others)
+      # For APPLE we set the hint /usr/local/opt/openssl
+      IF(LINK_STATIC_RUNTIME_LIBRARIES)
+        SET(OPENSSL_MSVC_STATIC_RT ON)
+      ENDIF()
+      IF(APPLE AND NOT OPENSSL_ROOT_DIR)
+        SET(OPENSSL_ROOT_DIR "/usr/local/opt/openssl")
+      ENDIF()
+      FIND_PACKAGE(OpenSSL)
+      IF(OPENSSL_FOUND)
+        GET_FILENAME_COMPONENT(OPENSSL_ROOT_DIR ${OPENSSL_INCLUDE_DIR} PATH)
+        MESSAGE(STATUS "system OpenSSL has root ${OPENSSL_ROOT_DIR}")
+        SET(WITH_SSL_PATH "${OPENSSL_ROOT_DIR}" CACHE PATH "Path to system SSL")
+      ELSE()
+        RESET_SSL_VARIABLES()
+        MESSAGE(SEND_ERROR "Could not find system OpenSSL")
+      ENDIF()
+    ENDIF()
+
     # First search in WITH_SSL_PATH.
     FIND_PATH(OPENSSL_ROOT_DIR
       NAMES include/openssl/ssl.h
@@ -146,9 +196,13 @@ MACRO (MYSQL_CHECK_SSL)
       MESSAGE(STATUS "OPENSSL_APPLINK_C ${OPENSSL_APPLINK_C}")
     ENDIF()
 
+    IF(LINUX AND INSTALL_LAYOUT MATCHES "STANDALONE")
+      SET(LINUX_STANDALONE 1)
+    ENDIF()
+
     # On mac this list is <.dylib;.so;.a>
     # On most platforms we still prefer static libraries, so we revert it here.
-    IF (WITH_SSL_PATH AND NOT APPLE)
+    IF (WITH_SSL_PATH AND NOT APPLE AND NOT LINUX_STANDALONE)
       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
       MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
     ENDIF()
@@ -158,7 +212,7 @@ MACRO (MYSQL_CHECK_SSL)
     FIND_LIBRARY(CRYPTO_LIBRARY
                  NAMES crypto libeay32
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
-    IF (WITH_SSL_PATH AND NOT APPLE)
+    IF (WITH_SSL_PATH AND NOT APPLE AND NOT LINUX_STANDALONE)
       LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
     ENDIF()
 
@@ -223,7 +277,7 @@ MACRO (MYSQL_CHECK_SSL)
     # and we have found static libraries, then link them statically
     # into our executables and libraries.
     # Adding IMPORTED_LOCATION allows MERGE_STATIC_LIBS
-    # to get LOCATION and do correct dependency analysis.
+    # to merge imported libraries as well as our own libraries.
     SET(MY_CRYPTO_LIBRARY "${CRYPTO_LIBRARY}")
     SET(MY_OPENSSL_LIBRARY "${OPENSSL_LIBRARY}")
     IF (WITH_SSL_PATH)
@@ -231,15 +285,11 @@ MACRO (MYSQL_CHECK_SSL)
       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
       IF (CRYPTO_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
         SET(MY_CRYPTO_LIBRARY imported_crypto)
-        ADD_LIBRARY(imported_crypto STATIC IMPORTED)
-        SET_TARGET_PROPERTIES(imported_crypto
-          PROPERTIES IMPORTED_LOCATION "${CRYPTO_LIBRARY}")
+        ADD_IMPORTED_LIBRARY(imported_crypto "${CRYPTO_LIBRARY}")
       ENDIF()
       IF (OPENSSL_EXT STREQUAL ".a" OR OPENSSL_EXT STREQUAL ".lib")
         SET(MY_OPENSSL_LIBRARY imported_openssl)
-        ADD_LIBRARY(imported_openssl STATIC IMPORTED)
-        SET_TARGET_PROPERTIES(imported_openssl
-          PROPERTIES IMPORTED_LOCATION "${OPENSSL_LIBRARY}")
+        ADD_IMPORTED_LIBRARY(imported_openssl "${OPENSSL_LIBRARY}")
       ENDIF()
     ENDIF()
 
@@ -262,23 +312,12 @@ MACRO (MYSQL_CHECK_SSL)
         SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBDL})
       ENDIF()
       MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
-      SET(SSL_INCLUDE_DIRS ${OPENSSL_INCLUDE_DIR})
+      INCLUDE_DIRECTORIES(SYSTEM ${OPENSSL_INCLUDE_DIR})
       SET(SSL_INTERNAL_INCLUDE_DIRS "")
       SET(SSL_DEFINES "-DHAVE_OPENSSL")
     ELSE()
 
-      UNSET(WITH_SSL_PATH)
-      UNSET(WITH_SSL_PATH CACHE)
-      UNSET(OPENSSL_ROOT_DIR)
-      UNSET(OPENSSL_ROOT_DIR CACHE)
-      UNSET(OPENSSL_INCLUDE_DIR)
-      UNSET(OPENSSL_INCLUDE_DIR CACHE)
-      UNSET(OPENSSL_APPLINK_C)
-      UNSET(OPENSSL_APPLINK_C CACHE)
-      UNSET(OPENSSL_LIBRARY)
-      UNSET(OPENSSL_LIBRARY CACHE)
-      UNSET(CRYPTO_LIBRARY)
-      UNSET(CRYPTO_LIBRARY CACHE)
+      RESET_SSL_VARIABLES()
 
       MESSAGE(SEND_ERROR
         "Cannot find appropriate system libraries for SSL. "
@@ -295,10 +334,148 @@ ENDMACRO()
 # If cmake is invoked with -DWITH_SSL=</path/to/custom/openssl>
 # and we discover that the installation has dynamic libraries,
 # then copy the dlls to runtime_output_directory, and add INSTALL them.
-# Currently only relevant for Windows and Mac.
+# Currently only relevant for Windows, Mac and Linux.
 MACRO(MYSQL_CHECK_SSL_DLLS)
-  IF (WITH_SSL_PATH AND (APPLE OR WIN32))
+  IF (WITH_SSL_PATH AND (APPLE OR WIN32 OR LINUX_STANDALONE))
     MESSAGE(STATUS "WITH_SSL_PATH ${WITH_SSL_PATH}")
+    IF(LINUX_STANDALONE)
+      GET_FILENAME_COMPONENT(CRYPTO_EXT "${CRYPTO_LIBRARY}" EXT)
+      GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
+      MESSAGE(STATUS "CRYPTO_EXT ${CRYPTO_EXT}")
+      IF(CRYPTO_EXT STREQUAL ".so" AND OPENSSL_EXT STREQUAL ".so")
+        MESSAGE(STATUS "set HAVE_CRYPTO_SO HAVE_OPENSSL_SO")
+        SET(HAVE_CRYPTO_SO 1)
+        SET(HAVE_OPENSSL_SO 1)
+      ENDIF()
+    ENDIF()
+    IF(LINUX_STANDALONE AND HAVE_CRYPTO_SO AND HAVE_OPENSSL_SO)
+      EXECUTE_PROCESS(
+        COMMAND readlink "${CRYPTO_LIBRARY}" OUTPUT_VARIABLE CRYPTO_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+      EXECUTE_PROCESS(
+        COMMAND readlink "${OPENSSL_LIBRARY}" OUTPUT_VARIABLE OPENSSL_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+      MESSAGE(STATUS "CRYPTO_VERSION ${CRYPTO_VERSION}")
+      MESSAGE(STATUS "OPENSSL_VERSION ${OPENSSL_VERSION}")
+
+      SET(LINUX_INSTALL_RPATH_ORIGIN 1)
+
+      GET_FILENAME_COMPONENT(CRYPTO_DIRECTORY "${CRYPTO_LIBRARY}" DIRECTORY)
+      GET_FILENAME_COMPONENT(OPENSSL_DIRECTORY "${OPENSSL_LIBRARY}" DIRECTORY)
+      GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME)
+      GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARY}" NAME)
+
+      SET(CRYPTO_FULL_NAME "${CRYPTO_DIRECTORY}/${CRYPTO_VERSION}")
+      SET(OPENSSL_FULL_NAME "${OPENSSL_DIRECTORY}/${OPENSSL_VERSION}")
+
+      ADD_CUSTOM_TARGET(copy_openssl_dlls ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CRYPTO_FULL_NAME}" "./${CRYPTO_VERSION}"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${OPENSSL_FULL_NAME}" "./${OPENSSL_VERSION}"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+          "${CRYPTO_VERSION}" "${CRYPTO_NAME}"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+          "${OPENSSL_VERSION}" "${OPENSSL_NAME}"
+
+        WORKING_DIRECTORY
+        "${CMAKE_BINARY_DIR}/library_output_directory"
+        )
+
+      # Create symlinks for executables
+      ADD_CUSTOM_TARGET(link_openssl_dlls_exe ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../lib/${CRYPTO_VERSION}" "${CRYPTO_VERSION}"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        "../lib/${OPENSSL_VERSION}" "${OPENSSL_VERSION}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/runtime_output_directory"
+      )
+
+      # Create symlinks for plugins
+      ADD_CUSTOM_TARGET(link_openssl_dlls ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+          "../lib/${CRYPTO_VERSION}" "${CRYPTO_VERSION}"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+          "../lib/${OPENSSL_VERSION}" "${OPENSSL_VERSION}"
+#         COMMAND ${CMAKE_COMMAND} -E create_symlink
+#           "../lib/${CRYPTO_NAME}" "${CRYPTO_NAME}"
+#         COMMAND ${CMAKE_COMMAND} -E create_symlink
+#           "../lib/${OPENSSL_NAME}" "${OPENSSL_NAME}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory"
+        )
+
+      # Directory layout after 'make install' is different.
+      # Create some symlinks from lib/plugin/*.so to ../../lib/*.so
+      FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin")
+      ADD_CUSTOM_TARGET(link_openssl_dlls_for_install ALL
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+          "../../lib/${CRYPTO_VERSION}" "${CRYPTO_VERSION}"
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+          "../../lib/${OPENSSL_VERSION}" "${OPENSSL_VERSION}"
+        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin"
+        )
+
+      # See INSTALL_DEBUG_TARGET used for installing debug versions of plugins.
+      IF(EXISTS ${DEBUGBUILDDIR})
+        FILE(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/Debug")
+        ADD_CUSTOM_TARGET(link_openssl_dlls_for_install_debug ALL
+          COMMAND ${CMAKE_COMMAND} -E create_symlink
+            "../../../lib/${CRYPTO_VERSION}" "${CRYPTO_VERSION}"
+          COMMAND ${CMAKE_COMMAND} -E create_symlink
+            "../../../lib/${OPENSSL_VERSION}" "${OPENSSL_VERSION}"
+          WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/Debug"
+        )
+      ENDIF()
+
+      MESSAGE(STATUS "INSTALL ${CRYPTO_NAME} to ${INSTALL_LIBDIR}")
+      MESSAGE(STATUS "INSTALL ${OPENSSL_NAME} to ${INSTALL_LIBDIR}")
+
+      INSTALL(FILES
+        ${CMAKE_BINARY_DIR}/runtime_output_directory/${CRYPTO_VERSION}
+        ${CMAKE_BINARY_DIR}/runtime_output_directory/${OPENSSL_VERSION}
+        DESTINATION "${INSTALL_BINDIR}" COMPONENT SharedLibraries
+        )
+      INSTALL(FILES
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CRYPTO_NAME}
+        ${CMAKE_BINARY_DIR}/library_output_directory/${OPENSSL_NAME}
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CRYPTO_VERSION}
+        ${CMAKE_BINARY_DIR}/library_output_directory/${OPENSSL_VERSION}
+        DESTINATION "${INSTALL_LIBDIR}" COMPONENT SharedLibraries
+        )
+      INSTALL(FILES
+        ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/${CRYPTO_VERSION}
+        ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/${OPENSSL_VERSION}
+        DESTINATION "${INSTALL_PLUGINDIR}" COMPONENT SharedLibraries
+        )
+
+      # See INSTALL_DEBUG_TARGET used for installing debug versions of plugins.
+      IF(EXISTS ${DEBUGBUILDDIR})
+        INSTALL(FILES
+          ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/Debug/${CRYPTO_VERSION}
+          ${CMAKE_BINARY_DIR}/plugin_output_directory/plugin/Debug/${OPENSSL_VERSION}
+          DESTINATION ${INSTALL_PLUGINDIR}/debug COMPONENT SharedLibraries
+          )
+      ENDIF()
+
+      SET(CMAKE_C_LINK_FLAGS
+        "${CMAKE_C_LINK_FLAGS} -Wl,-rpath,'\$ORIGIN/'")
+      SET(CMAKE_CXX_LINK_FLAGS
+        "${CMAKE_CXX_LINK_FLAGS} -Wl,-rpath,'\$ORIGIN/'")
+      SET(CMAKE_MODULE_LINKER_FLAGS
+        "${CMAKE_MODULE_LINKER_FLAGS} -Wl,-rpath,'\$ORIGIN/'")
+      SET(CMAKE_SHARED_LINKER_FLAGS
+        "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-rpath,'\$ORIGIN/'")
+      MESSAGE(STATUS
+        "CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS}")
+      MESSAGE(STATUS
+        "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
+      MESSAGE(STATUS
+        "CMAKE_MODULE_LINKER_FLAGS ${CMAKE_MODULE_LINKER_FLAGS}")
+      MESSAGE(STATUS
+        "CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}")
+
+    ENDIF()
+
     IF(APPLE)
       GET_FILENAME_COMPONENT(CRYPTO_EXT "${CRYPTO_LIBRARY}" EXT)
       GET_FILENAME_COMPONENT(OPENSSL_EXT "${OPENSSL_LIBRARY}" EXT)
@@ -339,18 +516,25 @@ MACRO(MYSQL_CHECK_SSL_DLLS)
       SET(CRYPTO_FULL_NAME "${CRYPTO_DIRECTORY}/${CRYPTO_VERSION}")
       SET(OPENSSL_FULL_NAME "${OPENSSL_DIRECTORY}/${OPENSSL_VERSION}")
 
+      # Link with the copied libraries, rather than the original ones.
+      SET(SSL_LIBRARIES
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}
+        ${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}
+        )
+      MESSAGE(STATUS "SSL_LIBRARIES = ${SSL_LIBRARIES}")
+
+      # Do copying and dependency patching in a sub-process,
+      # so that we can skip it if already done.
       ADD_CUSTOM_TARGET(copy_openssl_dlls ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CRYPTO_FULL_NAME}" "./${CRYPTO_VERSION}"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${OPENSSL_FULL_NAME}" "./${OPENSSL_VERSION}"
-        COMMAND ${CMAKE_COMMAND} -E create_symlink
-          "${CRYPTO_VERSION}" "${CRYPTO_NAME}"
-        COMMAND ${CMAKE_COMMAND} -E create_symlink
-          "${OPENSSL_VERSION}" "${OPENSSL_NAME}"
-        COMMAND chmod +w "${CRYPTO_VERSION}" "${OPENSSL_VERSION}"
-        COMMAND install_name_tool -change
-        "${OPENSSL_DEPS}" "@loader_path/${CRYPTO_VERSION}" "${OPENSSL_VERSION}"
+        COMMAND ${CMAKE_COMMAND}
+        -DCRYPTO_FULL_NAME="${CRYPTO_FULL_NAME}"
+        -DCRYPTO_NAME="${CRYPTO_NAME}"
+        -DCRYPTO_VERSION="${CRYPTO_VERSION}"
+        -DOPENSSL_DEPS="${OPENSSL_DEPS}"
+        -DOPENSSL_FULL_NAME="${OPENSSL_FULL_NAME}"
+        -DOPENSSL_NAME="${OPENSSL_NAME}"
+        -DOPENSSL_VERSION="${OPENSSL_VERSION}"
+        -P ${CMAKE_SOURCE_DIR}/cmake/install_name_tool.cmake
 
         WORKING_DIRECTORY
         "${CMAKE_BINARY_DIR}/library_output_directory/${CMAKE_CFG_INTDIR}"

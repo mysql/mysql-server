@@ -65,7 +65,7 @@ SET SESSION sql_log_bin= 1;
 
 SET @debug_save_retries= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
+RESET MASTER;
 --let $group_replication_start_member_state= ERROR
 --source include/start_group_replication.inc
 
@@ -81,7 +81,6 @@ DROP TABLE t1;
 RESET MASTER;
 
 SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_retries;
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 0;
 
 --source include/start_group_replication.inc
 

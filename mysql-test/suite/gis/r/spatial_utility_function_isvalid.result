@@ -37,8 +37,8 @@ INSERT INTO gis_geometrycollection VALUES
 (114,ST_GEOMFROMTEXT(@star_lines_near_vertical)),
 (115,ST_GEOMFROMTEXT(@star_collection_elems)),
 (116,ST_GEOMFROMTEXT(@star_collection_multilinestr));
-# Checking the integrity of the above create/insert statements 
-# 17 rows. 
+# Checking the integrity of the above create/insert statements
+# 17 rows.
 SELECT count(ST_ASTEXT(g) != 'NULL') FROM gis_geometrycollection;
 count(ST_ASTEXT(g) != 'NULL')
 17
@@ -380,29 +380,31 @@ ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_all_points,-1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_lines_near_vertical,4236));
-ERROR 22S00: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4236, which is not Cartesian.
-SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star,123456789));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 123456789, which has not been defined.
+ST_ISVALID(ST_GEOMFROMTEXT(@star_lines_near_vertical,4236))
+1
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_elem_vertical,4294967295));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4294967295, which has not been defined.
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_of_elems,4294967297));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT(@star_collection_elems,4294967295000));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
-SELECT ST_ISVALID(0x000000000200000000000000000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_ISVALID(0x010100000001000000010100000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
-SELECT ST_ISVALID(0x010100000002000000000000000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
+SELECT ST_ISVALID( x'e6100000010100000000000000000000000000000000000000');
+ST_ISVALID( x'e6100000010100000000000000000000000000000000000000')
+1
+SELECT ST_ISVALID( x'e6100000020000000100000000000000000000000000000000');
+ERROR 22023: Invalid GIS data provided to function st_isvalid.
+SELECT ST_ISVALID( x'00000000000001000001010000000000000000000000000000');
+ERROR 22023: Invalid GIS data provided to function st_isvalid.
+SELECT ST_ISVALID( x'e6100000060100000000000000000000000000000000000000');
+ERROR 22023: Invalid GIS data provided to function st_isvalid.
 SELECT ST_ISVALID(0x000000000600000001000000000200000002000000);
-ERROR HY000: Geometry byte string must be little endian.
+ERROR 22023: Invalid GIS data provided to function st_isvalid.
 SELECT ST_ISVALID(0x000000000200000001000000050000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
+ERROR 22023: Invalid GIS data provided to function st_isvalid.
 SELECT ST_ISVALID(0x010300000002000000010300000002000000050000);
-ERROR HY000: Geometry byte string must be little endian.
+ERROR SR001: There's no spatial reference system with SRID 769.
 SELECT ST_ISVALID(0x010400000002000000010100000000000000000000);
-ERROR HY000: Geometry byte string must be little endian.
+ERROR SR001: There's no spatial reference system with SRID 1025.
 # Clean up
 DROP TABLE gis_geometrycollection;
 ########################################################################
@@ -434,16 +436,73 @@ ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 0))
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000));
 ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000))
 1
-# Geographic SRS (should fail)
+# Geographic SRS (shall pass)
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 4326));
-ERROR 22S00: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 4326, which is not Cartesian.
-# Undefined SRS (should fail)
-SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000000));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 2000000, which has not been defined.
-# Unparseable SRS definition (should fail)
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (2000001, 1, 'TEST2000001', 'Foo', 2000001, 'FOOBAR', '');
-SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 2000001));
-ERROR SR002: Can't parse the spatial reference system definition of SRID 2000001.
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 2000001;
+ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 4326))
+1
+# Verify that ST_IsValid() returns NULL if at least one of its parameters
+# is NULL
+SELECT ST_ISVALID(NULL);
+ST_ISVALID(NULL)
+NULL
+# Verify that ST_IsValid() doesn't return NULL if its arguments are not
+# NULL
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)',4053));
+ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)',4053))
+1
+# Verify that ST_IsValid() returns ER_GIS_INVALID_DATA error if geometry
+# argument is not syntactically well-formed geometry
+DO ST_ISVALID(X'FF');
+ERROR 22023: Invalid GIS data provided to function st_isvalid.
+# Verify that ST_IsValid() returns 1 with empty geometry input
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTY','4326'));
+ST_ISVALID( ST_GEOMFROMTEXT('GEOMETRYCOLLECTION EMPTY','4326'))
+1
+# Verify that ST_IsValid() returns 1 if the input is geometrically valid
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)',4053));
+ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)',4053))
+1
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)'));
+ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)'))
+1
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)',4326));
+ST_ISVALID( ST_GEOMFROMTEXT('POINT(1 1)',4326))
+1
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.75 0.25, 0.25 0.75, 0.25 0.25))',4053));
+ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.75 0.25, 0.25 0.75, 0.25 0.25))',4053))
+1
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.75 0.25, 0.25 0.75, 0.25 0.25))',4326));
+ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.75 0.25, 0.25 0.75, 0.25 0.25))',4326))
+1
+# Verify that ST_IsValid() returns 0 if input is geometrically invalid
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4053));
+ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4053))
+0
+SELECT ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4326));
+ST_ISVALID( ST_GEOMFROMTEXT('POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,1.75 0.25, 0.25 0.75, 0.25 0.25))',4326))
+0
+# Verify that ST_IsValid() returns ER_LONGITUDE_OUT_OF_RANGE error with a
+# geometry in a geographic SRS and a longitude value is not in the range
+# (-180,180]
+DO ST_ISVALID(X'D50F0000010100000000000000000070400000000000000000');
+ERROR 22S02: Longitude 256.000000 is out of range in function st_isvalid. It must be within (-180.000000, 180.000000].
+# Verify that ST_IsValid() returns ER_LATITUDE_OUT_OF_RANGE error with a
+# geometry in geographic SRS and a latitude value is not in the range
+# [-90,90]
+DO ST_ISVALID(X'D50F0000010100000000000000000000000000000000008040');
+ERROR 22S03: Latitude 512.000000 is out of range in function st_isvalid. It must be within [-90.000000, 90.000000].
+# If a multipoint is made up of valid points it should be valid.
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('multipoint((0 0),(1 1))',4053 )) AS RESULT;
+RESULT
+1
+SELECT ST_IsValid(ST_GeomFromText('MULTIPOLYGON(((9 11,14 84,43 54,9 11)),((-144
+-58,-142 -6,-4 -70,-144 -58)))', '4326', 'axis-order=long-lat')) AS RESULT;
+RESULT
+1
+SELECT ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((0 0,0 1,1 1,1 0,0 0),(0.25 0.25,0.75 0.25, 0.25 0.75, 0.25 0.25)),POINT(1 1))',4053)) as result;
+result
+1
+SELECT ST_IsValid(ST_GeomFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((9 11,14 84,43 54,9 11)),((-144
+-58,-142 -6,-4 -70,-144 -58))), point( 1 1))', '4326', 'axis-order=long-lat')) AS RESULT;
+RESULT
+1

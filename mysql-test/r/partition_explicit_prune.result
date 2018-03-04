@@ -38,8 +38,9 @@ Handler_read_rnd_next	2
 FLUSH STATUS;
 INSERT INTO v1 VALUES (10);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO v1 VALUES (11);
@@ -85,8 +86,9 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 FLUSH STATUS;
 INSERT INTO v1 VALUES (20);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO v1 VALUES (21);
@@ -116,8 +118,9 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 FLUSH STATUS;
 INSERT INTO v1 VALUES (30);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 FLUSH STATUS;
 INSERT INTO v1 VALUES (31);
@@ -212,8 +215,9 @@ ERROR HY000: Unknown partition 'pNonExisting' in table 't1'
 FLUSH STATUS;
 INSERT INTO t1 PARTITION (pNeg, pNeg) VALUES (-1, "pNeg(-subp1)");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # Should be 1 commit
 # and 18 write (1 ha_innobase + 17 internal I_S write)
@@ -225,8 +229,9 @@ INSERT INTO t1 PARTITION(`p10-99`,subp3) VALUES (1, "subp3"), (10, "p10-99");
 FLUSH STATUS;
 INSERT INTO t1 PARTITION(subp3) VALUES (3, "subp3");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # Should be 1 commit
 # (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
@@ -242,8 +247,9 @@ Handler_read_next	16
 # 17 writes (internal I_S)
 INSERT INTO t1 PARTITION(`p0-9`) VALUES (5, "p0-9:subp3");
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	18
+Handler_commit	19
 Handler_external_lock	65
+Handler_prepare	2
 Handler_read_key	32
 Handler_read_next	16
 Handler_write	1
@@ -252,8 +258,9 @@ Handler_write	1
 # + 19 write (18 internal I_S + 1 insert)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	18
+Handler_commit	19
 Handler_external_lock	66
+Handler_prepare	2
 Handler_read_key	32
 Handler_read_next	16
 Handler_write	1
@@ -480,8 +487,9 @@ Handler_external_lock	2
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'Insert by REPLACE');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	1
 # 1 commit
 # 18 writes (17 I_S internal, 1 ha_innobase)
@@ -494,8 +502,9 @@ a	b
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 Handler_write	1
@@ -522,9 +531,10 @@ Handler_read_next	16
 # 17 write (internal I_S)
 DELETE FROM t1 PARTITION(subp1) WHERE b = "REPLACEd by REPLACE";
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	18
+Handler_commit	19
 Handler_delete	1
 Handler_external_lock	65
+Handler_prepare	2
 Handler_read_key	33
 Handler_read_next	17
 # + 1 commit
@@ -537,9 +547,10 @@ Handler_read_next	17
 REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
 ERROR HY000: Found a row not matching the given partition set
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	18
+Handler_commit	19
 Handler_delete	1
 Handler_external_lock	65
+Handler_prepare	2
 Handler_read_key	33
 Handler_read_next	17
 # Failed before start_stmt/execution.
@@ -548,9 +559,10 @@ Handler_read_next	17
 # + 18 write (internal I_S)
 REPLACE INTO t1 PARTITION (pNeg) VALUES (-21, 'Insert by REPLACE');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	19
+Handler_commit	21
 Handler_delete	1
 Handler_external_lock	65
+Handler_prepare	4
 Handler_read_key	33
 Handler_read_next	17
 Handler_write	1
@@ -559,9 +571,10 @@ Handler_write	1
 # + 19 write (18 internal I_S + 1 real write)
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'REPLACEd by REPLACE');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	20
+Handler_commit	23
 Handler_delete	1
 Handler_external_lock	65
+Handler_prepare	6
 Handler_read_key	34
 Handler_read_next	17
 Handler_update	1
@@ -577,9 +590,10 @@ a	b
 -1	pNeg(-subp1)
 -21	REPLACEd by REPLACE
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	21
+Handler_commit	24
 Handler_delete	1
 Handler_external_lock	65
+Handler_prepare	6
 Handler_read_first	1
 Handler_read_key	35
 Handler_read_next	20
@@ -593,9 +607,10 @@ Handler_write	2
 # + 18 write (internal I_S)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	21
+Handler_commit	24
 Handler_delete	1
 Handler_external_lock	66
+Handler_prepare	6
 Handler_read_first	1
 Handler_read_key	35
 Handler_read_next	20
@@ -632,6 +647,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	
 Handler_delete	
 Handler_external_lock	
+Handler_prepare	
 Handler_read_key	
 Handler_read_next	
 Handler_update	
@@ -643,7 +659,7 @@ LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg);
 ERROR HY000: Found a row not matching the given partition set
 VARIABLE_NAME	VARIABLE_VALUE
 Handler_external_lock	2
-Handler_rollback	1
+Handler_rollback	2
 Handler_write	4
 # 1 rollback
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
@@ -651,8 +667,9 @@ a	b
 FLUSH STATUS;
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, subp4, subp5);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_write	5
 # 10 lock (1 ha_partition + 4 ha_innobase) x 2 (lock + unlock)
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
@@ -688,16 +705,18 @@ Handler_read_next	16
 # 18 read key (ALTER forces table to be closed, see above for open)
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg, `p10-99`) CHARACTER SET latin1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	18
+Handler_commit	19
 Handler_external_lock	65
+Handler_prepare	2
 Handler_read_key	32
 Handler_read_next	16
 Handler_write	5
 # + 23 write (18 internal I_S + 5 rows)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	18
+Handler_commit	19
 Handler_external_lock	66
+Handler_prepare	2
 Handler_read_key	32
 Handler_read_next	16
 Handler_write	5
@@ -707,8 +726,9 @@ Handler_write	5
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	1
@@ -728,8 +748,9 @@ a	b
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 Handler_update	1
 # 1 commit
@@ -743,8 +764,9 @@ FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2')
 WHERE a = -2;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_update	1
@@ -803,9 +825,10 @@ FLUSH STATUS;
 UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -222, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	2
 Handler_read_rnd	1
 Handler_write	1
@@ -845,8 +868,9 @@ Handler_read_key	32
 Handler_read_next	16
 UPDATE t1 PARTITION (subp7) SET b = concat(b, ', Updated to 103'), a = 103 WHERE a = 101;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	18
+Handler_commit	19
 Handler_external_lock	65
+Handler_prepare	2
 Handler_read_key	34
 Handler_read_next	16
 Handler_read_rnd	1
@@ -856,9 +880,10 @@ Handler_update	1
 # + 1 update
 UPDATE t1 PARTITION (`p100-99999`) SET b = concat(b, ', Updated to 110'), a = 110 WHERE a = 103;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	19
+Handler_commit	21
 Handler_delete	1
 Handler_external_lock	65
+Handler_prepare	4
 Handler_read_key	36
 Handler_read_next	16
 Handler_read_rnd	2
@@ -870,9 +895,10 @@ Handler_write	1
 # + 19 write (18 internal I_S + 1 insert)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	19
+Handler_commit	21
 Handler_delete	1
 Handler_external_lock	66
+Handler_prepare	4
 Handler_read_key	36
 Handler_read_next	16
 Handler_read_rnd	2
@@ -897,18 +923,20 @@ a	b
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (pNeg) WHERE a = -1;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_key	1
 # 1 delete
 # 1 read key (index read)
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (subp1) WHERE b like '%subp1%';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	1
 Handler_external_lock	2
+Handler_prepare	2
 Handler_read_first	1
 Handler_read_key	1
 Handler_read_rnd_next	2
@@ -933,9 +961,10 @@ Handler_read_next	16
 #               + 1 innobase_get_index in index_init + 1 index read)
 DELETE FROM t1 PARTITION (`p0-9`) WHERE b = 'p0-9:subp3';
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	19
+Handler_commit	20
 Handler_delete	1
 Handler_external_lock	65
+Handler_prepare	2
 Handler_read_key	35
 Handler_read_next	17
 # + 1 delete
@@ -943,9 +972,10 @@ Handler_read_next	17
 # + 1 read next (read next after found row)
 UNLOCK TABLES;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	19
+Handler_commit	20
 Handler_delete	1
 Handler_external_lock	66
+Handler_prepare	2
 Handler_read_key	35
 Handler_read_next	17
 # Test multi-table DELETE
@@ -976,8 +1006,9 @@ SUBPARTITION BY HASH (`a`)
 FLUSH STATUS;
 INSERT INTO t2 PARTITION (`p10-99`, subp3, `p100-99999`) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	5
 Handler_read_key	5
 Handler_read_next	5
@@ -988,6 +1019,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	
 Handler_delete	
 Handler_external_lock	
+Handler_prepare	
 Handler_read_key	
 Handler_read_next	
 Handler_update	
@@ -1001,7 +1033,7 @@ Handler_external_lock	4
 Handler_read_first	2
 Handler_read_key	2
 Handler_read_next	2
-Handler_rollback	1
+Handler_rollback	2
 Handler_write	2
 FLUSH STATUS;
 INSERT IGNORE INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
@@ -1010,8 +1042,9 @@ Warning	1748	Found a row not matching the given partition set
 Warning	1748	Found a row not matching the given partition set
 Warning	1748	Found a row not matching the given partition set
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	5
 Handler_read_key	5
 Handler_read_next	5
@@ -1021,10 +1054,11 @@ TRUNCATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	3
-Handler_external_lock	8
+Handler_commit	2
+Handler_external_lock	4
+Handler_prepare	2
 Handler_read_first	5
-Handler_read_key	7
+Handler_read_key	5
 Handler_read_next	5
 Handler_write	5
 FLUSH STATUS;
@@ -1140,9 +1174,10 @@ FLUSH STATUS;
 DELETE FROM t2, t3 USING t2 PARTITION (`p0-9`), t3, t1 PARTITION (subp3)
 WHERE t1.a = t3.a AND t3.b = 'subp3' AND t2.a = t1.a;
 VARIABLE_NAME	VARIABLE_VALUE
-Handler_commit	1
+Handler_commit	2
 Handler_delete	4
 Handler_external_lock	6
+Handler_prepare	2
 Handler_read_first	1
 Handler_read_key	7
 Handler_read_rnd	2
@@ -1193,6 +1228,7 @@ VARIABLE_NAME	VARIABLE_VALUE
 Handler_commit	
 Handler_delete	
 Handler_external_lock	
+Handler_prepare	
 Handler_read_key	
 Handler_read_next	
 Handler_update	

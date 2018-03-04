@@ -148,11 +148,11 @@ create table t1 (a int) engine = ndb;
 
 connection server2;
 drop table t1;
-desc t1; # force discovery
+select * from t1 /* force discovery */;
 
 connection server4;
 drop table t1;
-desc t1; # force discovery
+select * from t1 /* force discovery */;
 
 connection server1;
 drop table t1;
@@ -173,11 +173,11 @@ alter table t1 algorithm=copy, add column b int column_format dynamic;
 
 connection server2;
 drop table t1;
-desc t1; # force discovery
+select * from t1 /* force discovery */;
 
 connection server4;
 drop table t1;
-desc t1; # force discovery
+select * from t1 /* force discovery */;
 
 connection server1;
 drop table t1;
@@ -198,11 +198,11 @@ alter table t1 algorithm=inplace, add column b int column_format dynamic;
 
 connection server2;
 drop table t1;
-desc t1; # force discovery
+select * from t1 /* force discovery */;
 
 connection server4;
 drop table t1;
-desc t1; # force discovery
+select * from t1 /* force discovery */;
 
 connection server1;
 drop table t1;
@@ -222,10 +222,10 @@ create table t1 (a int) engine = ndb;
 rename table t1 to t2;
 
 connection server2;
-desc t2; # force discovery
+select * from t2 /* force discovery */;
 
 connection server4;
-desc t2; # force discovery
+select * from t2 /* force discovery */;
 
 connection server1;
 drop table t2;
@@ -324,8 +324,7 @@ create table t2 (a int) engine=ndbcluster;
 --exec $NDB_MGM --no-defaults -e "all start" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
 
-# Wait for mysqld to reconnect and exit from readonly mode
---disable_query_log
+# Wait for mysqld(s) to reconnect and exit from readonly mode
 connection server1;
 --source include/ndb_not_readonly.inc
 connection server2;
@@ -334,20 +333,19 @@ connection server3;
 --source include/ndb_not_readonly.inc
 connection server4;
 --source include/ndb_not_readonly.inc
---enable_query_log
 
 connection server1;
-desc t1;
-desc t2;
+select * from t1 /* force discovery */;
+select * from t2 /* force discovery */;
 connection server2;
-desc t1;
-desc t2;
+select * from t1 /* force discovery */;
+select * from t2 /* force discovery */;
 connection server3;
-desc t1;
-desc t2;
+select * from t1 /* force discovery */;
+select * from t2 /* force discovery */;
 connection server4;
-desc t1;
-desc t2;
+select * from t1 /* force discovery */;
+select * from t2 /* force discovery */;
 
 connection server1;
 drop table t1, t2;
@@ -367,8 +365,7 @@ create table t2 (a int) engine=ndbcluster;
 --exec $NDB_MGM --no-defaults -e "all start" >> $NDB_TOOLS_OUTPUT
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
 
-# Wait for mysqld to reconnect and exit from readonly mode
---disable_query_log
+# Wait for mysqld(s) to reconnect and exit from readonly mode
 connection server1;
 --source include/ndb_not_readonly.inc
 connection server2;
@@ -377,27 +374,26 @@ connection server3;
 --source include/ndb_not_readonly.inc
 connection server4;
 --source include/ndb_not_readonly.inc
---enable_query_log
 
 connection server1;
 --error 1146
-desc t1;
+select * from t1 /* force discovery */;
 --error 1146
-desc t2;
+select * from t2 /* force discovery */;
 connection server2;
 --error 1146
-desc t1;
+select * from t1 /* force discovery */;
 --error 1146
-desc t2;
+select * from t2 /* force discovery */;
 connection server3;
 --error 1146
-desc t1;
+select * from t1 /* force discovery */;
 --error 1146
-desc t2;
+select * from t2 /* force discovery */;
 connection server4;
 --error 1146
-desc t1;
+select * from t1 /* force discovery */;
 --error 1146
-desc t2;
+select * from t2 /* force discovery */;
 
 --source suite/ndb/include/ndb_share_check_shares.inc

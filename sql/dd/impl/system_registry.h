@@ -1,17 +1,24 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD__SYSTEM_REGISTRY_INCLUDED
 #define DD__SYSTEM_REGISTRY_INCLUDED
@@ -374,15 +381,17 @@ public:
     - The dd::Table objects representing the SECOND order tables can be
       fetched from the dd tables as long as the core table objects are
       present.
-    - The SUPPORT tables are not needed by the data dictionary, but the
-      server manages these based on requests from e.g. storage engines.
+    - The DDSE tables are not needed by the data dictionary, but the
+      server manages these based on requests from the DD storage engine.
+    - The PFS tables are not needed by the data dictionary, but the
+      server manages these based on requests from the performance schema.
   */
   enum class Types
   {
     INERT,
     CORE,
     SECOND,
-    SUPPORT,
+    DDSE,
     PFS
   };
 
@@ -394,7 +403,7 @@ public:
       case Types::INERT:   return "INERT";
       case Types::CORE:    return "CORE";
       case Types::SECOND:  return "SECOND";
-      case Types::SUPPORT: return "SUPPORT";
+      case Types::DDSE:    return "DDSE";
       case Types::PFS:     return "PFS";
       default:             return "";
     }
@@ -406,7 +415,7 @@ public:
     if (type == Types::INERT || type == Types::CORE || type == Types::SECOND)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
 
-    if (type == Types::SUPPORT || type ==Types::PFS)
+    if (type == Types::DDSE || type ==Types::PFS)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
 
     DBUG_ASSERT(false);
@@ -428,7 +437,8 @@ public:
   static System_tables *instance();
 
   // Add predefined system tables.
-  void init();
+  void add_inert_dd_tables();
+  void add_remaining_dd_tables();
 
   // Add a new system table by delegation to the wrapped registry.
   void add(const String_type &schema_name, const String_type &table_name,

@@ -1,28 +1,35 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <string>
 
-#include "account_verification_handler.h"
-#include "mock/ngs_general.h"
-#include "mock/session.h"
-#include "one_row_resultset.h"
-#include "rapid/plugin/x/src/sql_user_require.h"
-#include "xpl_resultset.h"
+#include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "plugin/x/src/xpl_resultset.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/one_row_resultset.h"
 
 
 namespace xpl {
@@ -88,7 +95,7 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
   EXPECT_CALL(mock_connection, options()).WillOnce(Return(mock_options));
 
   EXPECT_CALL(*mock_account_verification,
-              verify_authentication_string(_, _)).WillOnce(Return(true));
+              verify_authentication_string(_, _, _, _)).WillOnce(Return(true));
 
   EXPECT_EQ(ER_SUCCESS,
             handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH).error);
@@ -117,7 +124,7 @@ TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
   EXPECT_CALL(*mock_account_verification,
-              verify_authentication_string(_, _)).WillOnce(Return(false));
+              verify_authentication_string(_, _, _, _)).WillOnce(Return(false));
 
   EXPECT_EQ(ER_NO_SUCH_USER,
             handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH).error);
@@ -150,7 +157,7 @@ TEST_P(User_verification_param_test, User_verification_on_given_account_param) {
 
   if (param.plugin_name == AUTH_PLUGIN_NAME)
     EXPECT_CALL(*mock_account_verification,
-                verify_authentication_string(_, _)).WillOnce(Return(true));
+                verify_authentication_string(_, _, _, _)).WillOnce(Return(true));
 
   EXPECT_EQ(param.expected_error,
             handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH).error);
@@ -194,7 +201,7 @@ TEST_P(User_verification_param_test_with_connection_type_combinations,
         .WillOnce(Return(param.type));
 
   EXPECT_CALL(*mock_account_verification,
-              verify_authentication_string(_, _)).WillOnce(Return(true));
+              verify_authentication_string(_, _, _, _)).WillOnce(Return(true));
 
   One_row_resultset data{param.requires_secure, EXPECTED_HASH,
                  AUTH_PLUGIN_NAME,      NOT ACCOUNT_LOCKED,

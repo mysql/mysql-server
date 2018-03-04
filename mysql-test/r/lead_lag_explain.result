@@ -51,7 +51,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -94,7 +95,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -137,7 +139,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -181,7 +184,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -224,7 +228,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -267,7 +272,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3129,7 +3135,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3182,7 +3189,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3235,7 +3243,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3293,7 +3302,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3351,7 +3361,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3407,7 +3418,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3461,7 +3473,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3514,7 +3527,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }
@@ -3567,7 +3581,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }
@@ -3620,7 +3635,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }
@@ -3673,7 +3689,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }
@@ -3726,7 +3743,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }
@@ -3779,7 +3797,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }
@@ -3835,7 +3854,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3890,7 +3910,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3944,7 +3965,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -3998,7 +4020,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4052,7 +4075,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4106,7 +4130,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4160,7 +4185,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4214,7 +4240,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4269,7 +4296,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4324,7 +4352,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4379,7 +4408,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4433,7 +4463,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "id"
+          "id",
+          "n"
         ]
       }
     }
@@ -4487,7 +4518,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "id"
+          "id",
+          "n"
         ]
       }
     }
@@ -4541,7 +4573,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "id"
+          "id",
+          "n"
         ]
       }
     }
@@ -4595,7 +4628,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "id"
+          "id",
+          "n"
         ]
       }
     }
@@ -4649,7 +4683,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "id"
+          "id",
+          "n"
         ]
       }
     }
@@ -4703,7 +4738,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "id"
+          "id",
+          "n"
         ]
       }
     }
@@ -4760,7 +4796,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4816,7 +4853,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4871,7 +4909,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4926,7 +4965,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -4981,7 +5021,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -5036,7 +5077,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -5091,7 +5133,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -5146,7 +5189,8 @@ EXPLAIN
         },
         "used_columns": [
           "id",
-          "sex"
+          "sex",
+          "n"
         ]
       }
     }
@@ -5206,7 +5250,8 @@ EXPLAIN
           "data_read_per_join": "216"
         },
         "used_columns": [
-          "d"
+          "d",
+          "n"
         ]
       }
     }
@@ -5269,7 +5314,8 @@ EXPLAIN
         },
         "used_columns": [
           "d",
-          "id"
+          "id",
+          "n"
         ]
       }
     }

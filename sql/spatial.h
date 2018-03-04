@@ -1,17 +1,24 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SPATIAL_INCLUDED
 #define SPATIAL_INCLUDED
@@ -662,6 +669,27 @@ public:
   */
   virtual bool reverse_coordinates()= 0;
 
+  /**
+    Check that the coordinates of a geometry is within the valid range.
+
+    Checks if the coordinates in a geometry are within allowed range of a
+    geographic spatial reference system. Valid range for longitude and latitude
+    coordinates in geographic spatial reference systems are (-180, 180) and
+    [-90, 90] degrees, respectively.
+
+    @param[in] srs_angular_unit Unit to radians conversion factor.
+    @param[out] long_out_of_range Longitude is out of range.
+    @param[out] lat_out_of_range Latitude is out of range.
+    @param[out] out_of_range_value The value that is out of range.
+
+    @retval false Coordinates are within allowed range.
+    @retval true Coordinates are not within allowed range, or an error occurred
+    during range checking.
+  */
+  virtual bool validate_coordinate_range(double srs_angular_unit,
+                                         bool *long_out_of_range,
+                                         bool *lat_out_of_range,
+                                         double *out_of_range_value) = 0;
 
 public:
   static Geometry *create_by_typeid(Geometry_buffer *buffer, int type_id);
@@ -1378,6 +1406,10 @@ public:
   uint32 feature_dimension() const override { return 0; }
   const Class_info *get_class_info() const override;
   bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /************* Boost Geometry Adapter Interface *************/
 
@@ -2444,6 +2476,11 @@ public:
     DBUG_ASSERT(false);
     return true;
   }
+  bool validate_coordinate_range(double, bool*, bool*, double*) override
+  {
+    DBUG_ASSERT(false); /* purecov: inspected */
+    return true; /* purecov: inspected */
+  }
 
 private:
   typedef Gis_wkb_vector<Gis_point> Linestring;
@@ -2478,6 +2515,10 @@ public:
   uint32 feature_dimension() const override { return 1; }
   const Class_info *get_class_info() const override;
   bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
 
@@ -2560,6 +2601,10 @@ public:
   uint32 feature_dimension() const override { return 2; }
   const Class_info *get_class_info() const override;
   bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
   typedef Gis_polygon self;
@@ -2676,6 +2721,10 @@ public:
   uint32 feature_dimension() const override { return 0; }
   const Class_info *get_class_info() const override;
   bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
 
@@ -2718,6 +2767,10 @@ public:
   uint32 feature_dimension() const override { return 1; }
   const Class_info *get_class_info() const override;
   bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
 
@@ -2758,6 +2811,10 @@ public:
   uint32 feature_dimension() const override { return 2; }
   const Class_info *get_class_info() const override;
   bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
 
   /**** Boost Geometry Adapter Interface ******/
   typedef Gis_multi_polygon self;
@@ -2813,6 +2870,10 @@ public:
     return 0;
   }
   bool reverse_coordinates() override;
+  bool validate_coordinate_range(double srs_angular_unit,
+                                 bool *long_out_of_range,
+                                 bool *lat_out_of_range,
+                                 double *out_of_range_value) override;
   const Class_info *get_class_info() const override;
 };
 

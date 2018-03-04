@@ -3,16 +3,24 @@
 Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -61,6 +69,7 @@ mem_heap_block_free(
 	mem_heap_t*	heap,	/*!< in: heap */
 	mem_block_t*	block);	/*!< in: block to free */
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 /******************************************************************//**
 Frees the free_block field from a memory heap. */
@@ -69,6 +78,7 @@ mem_heap_free_block_free(
 /*=====================*/
 	mem_heap_t*	heap);	/*!< in: heap */
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
 Adds a new block to a memory heap.
@@ -347,11 +357,13 @@ mem_heap_empty(
 	mem_heap_t*	heap)
 {
 	mem_heap_free_heap_top(heap, (byte*) heap + mem_block_get_start(heap));
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
 	}
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Returns a pointer to the topmost element in a memory heap.
@@ -549,11 +561,13 @@ mem_heap_create_func(
 		return(NULL);
 	}
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	/* The first block should not be in buffer pool,
 	because it might be relocated to resize buffer pool. */
 	ut_ad(block->buf_block == NULL);
 #endif /* !UNIV_LIBRARY */
+#endif /* UNIV_HOTBACKUP */
 
 	UT_LIST_INIT(block->base, &mem_block_t::list);
 
@@ -578,11 +592,13 @@ mem_heap_free(
 
 	block = UT_LIST_GET_LAST(heap->base);
 
+#ifndef UNIV_HOTBACKUP
 #ifndef UNIV_LIBRARY
 	if (heap->free_block) {
 		mem_heap_free_block_free(heap);
 	}
 #endif /* !UNIV_LIBRARY */
+#endif /* !UNIV_HOTBACKUP */
 
 	while (block != NULL) {
 		/* Store the contents of info before freeing current block

@@ -564,6 +564,14 @@ icp_match	1
 drop table monitor_test;
 set global innodb_monitor_disable = All;
 set global innodb_monitor_reset_all = all;
+set global innodb_monitor_reset_all=0xe7;
+ERROR 42000: Variable 'innodb_monitor_reset_all' can't be set to the value of '\xE7'
+set global innodb_monitor_enable =0xee;
+ERROR 42000: Variable 'innodb_monitor_enable' can't be set to the value of '\xEE'
+set global innodb_monitor_reset =0xe9;
+ERROR 42000: Variable 'innodb_monitor_reset' can't be set to the value of '\xE9'
+set global innodb_monitor_disable =0xed;
+ERROR 42000: Variable 'innodb_monitor_disable' can't be set to the value of '\xED'
 set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;
 set global innodb_monitor_reset = default;

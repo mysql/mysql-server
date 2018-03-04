@@ -2,28 +2,36 @@
    Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "sql/ha_ndb_index_stat.h"
+
 #include <ctype.h>
 #include <mysql/plugin.h>
 #include <mysql/psi/mysql_thread.h>
 
-#include "ha_ndb_index_stat.h"
-#include "ha_ndbcluster.h"
-#include "ha_ndbcluster_connection.h"
 #include "my_dbug.h"
-#include "mysqld.h"         // LOCK_*, mysqld_server_started
+#include "sql/ha_ndbcluster.h"
+#include "sql/ha_ndbcluster_connection.h"
+#include "sql/mysqld.h"     // LOCK_global_system_variables
 
 
 /* from other files */
@@ -986,7 +994,7 @@ ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag)
 
 /* Find or add entry under the share */
 
-/* Saved in get_share() under stat_mutex */
+/* Saved in ndb_index_stat_get_share() under stat_mutex */
 struct Ndb_index_stat_snap {
   time_t load_time;
   uint sample_version;
@@ -1224,7 +1232,6 @@ ndb_index_stat_free(NDB_SHARE *share)
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
   mysql_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
-  uint found= 0;
   Ndb_index_stat *st;
   while ((st= share->index_stat_list) != 0)
   {
@@ -1237,7 +1244,6 @@ ndb_index_stat_free(NDB_SHARE *share)
     assert(!st->to_delete);
     st->to_delete= true;
     st->abort_request= true;
-    found++;
     glob.drop_count++;
     assert(st->drop_bytes == 0);
     st->drop_bytes+= st->query_bytes + st->clean_bytes;
@@ -2493,12 +2499,10 @@ Ndb_index_stat_thread::is_setup_complete()
 }
 
 extern Ndb_cluster_connection* g_ndb_cluster_connection;
-extern handlerton *ndbcluster_hton;
 
 void
 Ndb_index_stat_thread::do_run()
 {
-  struct timespec abstime;
   DBUG_ENTER("Ndb_index_stat_thread::do_run");
 
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -2506,24 +2510,11 @@ Ndb_index_stat_thread::do_run()
 
   log_info("Starting...");
 
-  log_verbose(1, "Wait for server start completed");
-  /*
-    wait for mysql server to start
-  */
-  mysql_mutex_lock(&LOCK_server_started);
-  while (!mysqld_server_started)
+  if (!wait_for_server_started())
   {
-    set_timespec(&abstime, 1);
-    mysql_cond_timedwait(&COND_server_started, &LOCK_server_started,
-	                 &abstime);
-    if (is_stop_requested())
-    {
-      mysql_mutex_unlock(&LOCK_server_started);
-      mysql_mutex_lock(&LOCK_client_waiting);
-      goto ndb_index_stat_thread_end;
-    }
+    mysql_mutex_lock(&LOCK_client_waiting);
+    goto ndb_index_stat_thread_end;
   }
-  mysql_mutex_unlock(&LOCK_server_started);
 
   log_verbose(1, "Wait for cluster to start");
   /*
@@ -2562,6 +2553,7 @@ Ndb_index_stat_thread::do_run()
   bool check_sys;
   check_sys= true;
 
+  struct timespec abstime;
   set_timespec(&abstime, 0);
   for (;;)
   {

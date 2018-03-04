@@ -14,6 +14,7 @@ call mtr.add_suppression("Error. Leaving a group without being on one.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("Due to a plugin error, some transactions can't be certified and will now rollback.");
+call mtr.add_suppression("Error when trying to unblock non certified transactions.*");
 SET SESSION sql_log_bin= 1;
 SET @debug_saved= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,unable_to_add_specified_gtid_for_local_transaction';

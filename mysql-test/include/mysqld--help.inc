@@ -11,7 +11,7 @@
 --let $TMP_DATADIR= $MYDIR/data
 --mkdir $TMP_DATADIR
 
-exec $MYSQLD_BOOTSTRAP_CMD --datadir=$TMP_DATADIR --symbolic-links=0 --lower-case-table-names=1 --help --verbose > $MYSQL_TMP_DIR/mysqld--help.txt 2>/dev/null;
+exec $MYSQLD_BOOTSTRAP_CMD --datadir=$TMP_DATADIR --symbolic-links=0 --lower-case-table-names=1 --help --verbose --relay-log=relaylog > $MYSQL_TMP_DIR/mysqld--help.txt 2>/dev/null;
 
 # The inline perl code below will copy $MYSQL_TMP_DIR/mysqld--help.txt
 # to output, but filter away some variable stuff (e.g. paths).
@@ -33,7 +33,8 @@ perl;
   @plugins=qw/innodb ngram mecab ndb ndbinfo archive blackhole federated partition ndbcluster debug ssl des-key-file
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit
               sha256-password-private-key-path sha256-password-public-key-path
-              sha256-password-auto-generate-rsa-keys/;
+              sha256-password-auto-generate-rsa-keys keyring-migration-socket
+              caching-sha2-password-auto-generate-rsa-keys/;
 
   # And substitute the content some environment variables with their
   # names:

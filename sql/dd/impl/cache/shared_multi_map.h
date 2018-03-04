@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD_CACHE__SHARED_MULTI_MAP_INCLUDED
 #define DD_CACHE__SHARED_MULTI_MAP_INCLUDED
@@ -19,8 +26,6 @@
 #include <stdio.h>
 #include <vector>                            // std::vector
 
-#include "cache_element.h"                   // Cache_element
-#include "free_list.h"                       // Free_list
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -31,12 +36,15 @@
 #include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
 #include "mysql/psi/psi_base.h"
 #include "sql/dd/cache/multi_map_base.h"     // Multi_map_base
+#include "sql/dd/impl/cache/cache_element.h" // Cache_element
+#include "sql/dd/impl/cache/free_list.h"     // Free_list
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/charset.h"
 #include "sql/dd/types/collation.h"
 #include "sql/dd/types/column_statistics.h"
 #include "sql/dd/types/entity_object_table.h"
 #include "sql/dd/types/event.h"
+#include "sql/dd/types/resource_group.h"
 #include "sql/dd/types/routine.h"
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/spatial_reference_system.h"
@@ -494,7 +502,7 @@ public:
 #ifndef DBUG_OFF
     fprintf(stderr, "  --------------------------------\n");
     fprintf(stderr, "  Shared multi map for '%s'\n",
-            T::OBJECT_TABLE().name().c_str());
+            T::DD_table::instance().name().c_str());
     Multi_map_base<T>::dump();
     fprintf(stderr, "    Free list:\n");
     m_free_list.dump();

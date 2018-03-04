@@ -3,16 +3,24 @@
 Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -69,13 +77,6 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "ut0ut.h"
 
 /* To be backwards compatible we also fold partition separator on windows. */
-#ifdef _WIN32
-const char* part_sep = "#p#";
-const char* sub_sep = "#sp#";
-#else
-const char* part_sep = "#P#";
-const char* sub_sep = "#SP#";
-#endif /* _WIN32 */
 
 Ha_innopart_share::Ha_innopart_share(
 	TABLE_SHARE*	table_share)
@@ -159,18 +160,19 @@ Ha_innopart_share::create_partition_postfix(
 
 	part_name_len = append_sep_and_name(
 		partition_name, part->name().c_str(),
-		part_sep, size);
+		PART_SEPARATOR, size);
 
 	if (part_name_len < size && part != dd_part) {
 		char*	part_name_end = partition_name + part_name_len;
 
 		subpart_name_len = append_sep_and_name(
 			part_name_end, dd_part->name().c_str(),
-			sub_sep, size - part_name_len);
+			SUB_PART_SEPARATOR, size - part_name_len);
 
-		if (subpart_name_len >= strlen(sub_sep)) {
+		if (subpart_name_len >= SUB_PART_SEPARATOR_LEN) {
+
 			partition_name_casedn_str(
-				part_name_end + strlen(sub_sep));
+				part_name_end + SUB_PART_SEPARATOR_LEN);
 		}
 	}
 
@@ -1284,9 +1286,8 @@ void ha_innopart::clear_ins_upd_nodes()
 		for (uint i = 0; i < m_tot_parts; i++) {
 			if (m_upd_node_parts[i] != NULL) {
 				upd_node_t*	upd = m_upd_node_parts[i];
-				if (upd->cascade_top) {
+				if (upd->cascade_heap) {
 					mem_heap_free(upd->cascade_heap);
-					upd->cascade_top = false;
 					upd->cascade_heap = NULL;
 				}
 				if (upd->in_mysql_interface) {
@@ -2442,8 +2443,8 @@ ha_innopart::update_part_elem(
 		if (part_elem->tablespace_name != NULL) {
 			if (0 != strcmp(part_elem->tablespace_name,
 					tablespace_name)) {
-				/* Update part_elem ablespace to NULL same as in
-				innodb data dictionary ib_table. */
+				/* Update part_elem tablespace to NULL same
+				as in innodb data dictionary ib_table. */
 				part_elem->tablespace_name = NULL;
 			}
 		} else if (display_tablespace) {
@@ -2624,7 +2625,7 @@ ha_innopart::create(
 				     remote_path,
 				     tablespace_name,
 				     srv_file_per_table,
-				     false);
+				     false, 0, 0);
 
 	DBUG_ENTER("ha_innopart::create");
 	ut_ad(create_info != NULL);
@@ -2727,8 +2728,11 @@ ha_innopart::create(
 			partition_name_start, FN_REFLEN - table_name_len,
 			dd_part);
 
-		if (table_name_len + len >= FN_REFLEN) {
-			ut_ad(0);
+		/* Report error if the partition name with path separator
+		exceeds maximum path length. */
+		if ((table_name_len + len + sizeof "/") >= FN_REFLEN) {
+			error = HA_ERR_INTERNAL_ERROR;
+			my_error(ER_PATH_LENGTH, MYF(0), partition_name);
 			goto cleanup;
 		}
 
@@ -2759,6 +2763,8 @@ ha_innopart::create(
 		} else {
 			create_info->tablespace = tablespace_name;
 		}
+		info.flags_reset();
+		info.flags2_reset();
 
 		error = info.prepare_create_table(partition_name);
 		if (error != 0) {
@@ -2796,9 +2802,18 @@ ha_innopart::create(
 
 	for (const auto dd_part : *table_def->leaf_partitions()) {
 
-		Ha_innopart_share::create_partition_postfix(
+		size_t len = Ha_innopart_share::create_partition_postfix(
 			table_name_end, FN_REFLEN - table_name_len,
 			dd_part);
+
+		/* Report error if table_name with partition name length
+		exceeds maximum length */
+		if ((len + table_name_len) >  MAX_TABLE_UTF8_LEN)
+		{
+			my_error(ER_PATH_LENGTH, MYF(0), table_name);
+			error = HA_ERR_INTERNAL_ERROR;
+			goto end;
+		}
 
 		if ((error = info.create_table_update_global_dd<dd::Partition>(
 			const_cast<dd::Partition*>(dd_part))) != 0) {
@@ -3222,6 +3237,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 	ulint		num_used_parts = m_part_info->num_partitions_used();
 	ulint		processed = 0;
 	uint		i = 0;
+	uint		n_saved = 0;
 	THD*		thd = ha_thd();
 	DBUG_ENTER("ha_innopart::truncate_partition_low");
 
@@ -3235,7 +3251,8 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 	/* Use a heap to ease the memory alloc/free. Initialize with one
 	create_info + 5 bytes for short names (t#P#p) per partition. */
 	mem_heap_t*	heap = mem_heap_create(
-		num_used_parts * (sizeof(HA_CREATE_INFO) + 5));
+		num_used_parts * (sizeof(HA_CREATE_INFO) + 5
+				  + sizeof(ulint) * 2));
 	if (heap == NULL) {
 		DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 	}
@@ -3245,6 +3262,12 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 	size_t		alloc_size = sizeof(HA_CREATE_INFO) * num_used_parts;
 	create_infos = static_cast<HA_CREATE_INFO*>(mem_heap_zalloc(
 		heap, alloc_size));
+
+	ulint* old_flags = static_cast<ulint*>(mem_heap_zalloc(
+		heap, sizeof(*old_flags) * num_used_parts));
+	ulint* old_flags2 = static_cast<ulint*>(mem_heap_zalloc(
+		heap, sizeof(*old_flags2) * num_used_parts));
+
 	ut_a(create_infos != NULL);
 
 	/* TRUNCATE TABLE and ALTER TABLE...TRUNCATE PARTITION ALL
@@ -3279,6 +3302,9 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 			break;
 		}
 
+		old_flags[n_saved] = table_part->flags;
+		old_flags2[n_saved] = table_part->flags2;
+
 		info->data_file_name = table_part->data_dir_path == NULL
 			? NULL
 			: mem_heap_strdup(heap, table_part->data_dir_path);
@@ -3298,6 +3324,7 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 			dict_table_ddl_acquire(table_part);
 			mutex_exit(&dict_sys->mutex);
 		}
+		n_saved++;
 	}
 
 	if (error != 0) {
@@ -3365,7 +3392,9 @@ ha_innopart::truncate_partition_low(dd::Table *dd_table)
 
 			error = innobase_basic_ddl::create_impl(
 				thd, name, table, info, dd_part,
-				file_per_table, true, true);
+				file_per_table, true, true,
+				old_flags[processed - 1],
+				old_flags2[processed - 1]);
 
 			if (reset) {
 				dd_part->set_tablespace_id(
@@ -4380,6 +4409,10 @@ ha_innopart::external_lock(
 
 	if (m_prebuilt->table == nullptr) {
 		ut_ad(lock_type == F_UNLCK);
+		ut_ad(m_prebuilt->trx->n_mysql_tables_in_use > 0);
+		TrxInInnoDB::end_stmt(m_prebuilt->trx);
+		--m_prebuilt->trx->n_mysql_tables_in_use;
+		m_mysql_has_locked = false;
 		return(error);
 	}
 

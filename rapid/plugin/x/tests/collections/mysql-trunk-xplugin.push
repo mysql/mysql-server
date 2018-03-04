@@ -1,0 +1,3 @@
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=debug-x --vardir=var-debug-x --suite=x 
+
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=x --vardir=var-x --suite=x 

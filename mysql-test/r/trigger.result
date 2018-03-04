@@ -729,7 +729,7 @@ select "hello again";
 end|
 create trigger tr1 before insert on t1 for each row 
 begin 
-call bug11587();
+call bug11587(new.c2);
 set new.c2= '2004-04-02';
 end|
 insert into t1 (c1) values (4),(5),(6);
@@ -1366,8 +1366,9 @@ SELECT * FROM t2;
 id	val
 1	test1
 2	test2
-3	test3
-4	test4
+3	test2
+4	test3
+5	test4
 DROP TRIGGER trg27006_a_insert;
 DROP TRIGGER trg27006_a_update;
 drop table t1,t2;
@@ -3384,3 +3385,96 @@ SELECT @x;
 2017-04-17 06:06:06
 DROP TABLE t1;
 SET TIMESTAMP= DEFAULT;
+#
+# BUG 26626277: BUG IN "INSERT... ON DUPLICATE KEY UPDATE" QUERY
+#
+# Setup.
+CREATE TABLE t1 (fld1 VARCHAR(64) NOT NULL,
+fld2 INT DEFAULT 0, PRIMARY KEY (fld1));
+CREATE TABLE t2 (fld1 VARCHAR(64) NOT NULL,
+fld2 INT(11) DEFAULT NULL, PRIMARY KEY (fld1));
+INSERT INTO t1(fld1) VALUES (1100);
+INSERT INTO t2 VALUES (1100, 40);
+CREATE TRIGGER update_after_update
+AFTER UPDATE ON t2 FOR EACH ROW
+BEGIN
+UPDATE t1 SET t1.fld2 = t1.fld2 + 1
+WHERE t1.fld1 = NEW.fld1;
+END$$
+SELECT * FROM t1;
+fld1	fld2
+1100	0
+SELECT * FROM t2;
+fld1	fld2
+1100	40
+# Without patch, the after update trigger is not invoked.
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 50;
+SELECT * FROM t1;
+fld1	fld2
+1100	1
+SELECT * FROM t2;
+fld1	fld2
+1100	50
+# Without patch, the after update trigger is not invoked.
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 50;
+SELECT * FROM t1;
+fld1	fld2
+1100	2
+SELECT * FROM t2;
+fld1	fld2
+1100	50
+# Test added for coverage.
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 60;
+SELECT * FROM t1;
+fld1	fld2
+1100	3
+SELECT * FROM t2;
+fld1	fld2
+1100	60
+# Tests covering before update trigger.
+# Setup.
+TRUNCATE TABLE t1;
+DROP TRIGGER update_after_update;
+INSERT INTO t1(fld1) VALUES (1100);
+CREATE TRIGGER update_before_update
+BEFORE UPDATE ON t2 FOR EACH ROW
+BEGIN
+UPDATE t1 SET t1.fld2 = t1.fld2 + 1
+WHERE t1.fld1 = NEW.fld1;
+END$$
+SELECT * FROM t1;
+fld1	fld2
+1100	0
+SELECT * FROM t2;
+fld1	fld2
+1100	60
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 50;
+SELECT * FROM t1;
+fld1	fld2
+1100	1
+SELECT * FROM t2;
+fld1	fld2
+1100	50
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 50;
+SELECT * FROM t1;
+fld1	fld2
+1100	2
+SELECT * FROM t2;
+fld1	fld2
+1100	50
+INSERT INTO t2 (fld1) values (1100) ON DUPLICATE KEY UPDATE
+fld2= 60;
+SELECT * FROM t1;
+fld1	fld2
+1100	3
+SELECT * FROM t2;
+fld1	fld2
+1100	60
+# Cleanup
+DROP TRIGGER update_before_update;
+DROP TABLE t1, t2;

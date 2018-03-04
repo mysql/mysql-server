@@ -33,8 +33,8 @@ SELECT COUNT(@@GLOBAL.table_definition_cache);
 --echo 1 Expected
 
 SET @@GLOBAL.table_definition_cache=DEFAULT;
-SELECT IF (@@open_files_limit < 5000, 1400, @@GLOBAL.table_definition_cache);
---echo 1400 Expected
+SELECT IF (@@open_files_limit < 5000, 2000, @@GLOBAL.table_definition_cache);
+--echo 2000 Expected
 
 
 --echo '#---------------------WL6372_VAR_5_02----------------------#'
@@ -55,8 +55,8 @@ SELECT @@GLOBAL.table_definition_cache;
 --echo 2000 Expected
 
 SET @@GLOBAL.table_definition_cache=DEFAULT;
-SELECT IF (@@open_files_limit < 5000, 1400, @@GLOBAL.table_definition_cache);
---echo 1400 Expected
+SELECT IF (@@open_files_limit < 5000, 2000, @@GLOBAL.table_definition_cache);
+--echo 2000 Expected
 
 
 --echo '#---------------------WL6372_VAR_5_03----------------------#'
@@ -79,8 +79,8 @@ SET @@GLOBAL.table_definition_cache=1;
 SET @@GLOBAL.table_definition_cache=DEFAULT;
 
 
-SELECT IF (@@open_files_limit < 5000, 1400, @@GLOBAL.table_definition_cache);
---echo 1400 Expected
+SELECT IF (@@open_files_limit < 5000, 2000, @@GLOBAL.table_definition_cache);
+--echo 2000 Expected
 
 --echo '#---------------------WL6372_VAR_5_04----------------------#'
 #################################################################

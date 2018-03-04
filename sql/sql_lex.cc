@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -145,7 +152,7 @@ SELECT_LEX::type_str[static_cast<int>(enum_explain_type::EXPLAIN_total)]=
 
 Table_ident::Table_ident(Protocol *protocol, const LEX_CSTRING &db_arg,
                          const LEX_CSTRING &table_arg, bool force)
-  :table(table_arg), sel(NULL)
+  :table(table_arg), sel(NULL), table_function(NULL)
 {
   if (!force && protocol->has_client_capability(CLIENT_NO_SCHEMA))
     db= NULL_CSTR;
@@ -451,17 +458,18 @@ LEX::~LEX()
 
 void LEX::reset()
 {
+  // CREATE VIEW
+  create_view_mode= enum_view_create_mode::VIEW_CREATE_NEW;
+  create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+  create_view_suid= true;
+
   context_stack.empty();
   unit= NULL;
   select_lex= NULL;
   m_current_select= NULL;
   all_selects_list= NULL;
-  load_set_str_list.empty();
 
   bulk_insert_row_cnt= 0;
-
-  load_update_list.empty();
-  load_value_list.empty();
 
   purge_value_list.empty();
 
@@ -470,7 +478,6 @@ void LEX::reset()
   set_var_list.empty();
   param_list.empty();
   prepared_stmt_params.empty();
-  describe= DESCRIBE_NONE;
   subqueries= false;
   context_analysis_only= 0;
   safe_to_cache_query= true;
@@ -510,8 +517,8 @@ void LEX::reset()
   mi.channel= NULL;
 
   wild= NULL;
-  exchange= NULL;
   mark_broken(false);
+  reset_exec_started();
   max_execution_time= 0;
   reparse_common_table_expr_at= 0;
   opt_hints_global= NULL;
@@ -2328,6 +2335,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   leaf_tables(NULL),
   leaf_table_count(0),
   derived_table_count(0),
+  table_func_count(0),
   materialized_derived_table_count(0),
   has_sj_nests(false),
   partitioned_table_count(0),
@@ -2369,6 +2377,7 @@ SELECT_LEX::SELECT_LEX(Item *where, Item *having)
   m_empty_query(false),
   sj_candidates(NULL)
 {
+  end_lateral_table= NULL;
 }
 
 
@@ -2438,15 +2447,16 @@ bool SELECT_LEX::add_tables(THD *thd,
 void SELECT_LEX_UNIT::exclude_level()
 {
   /*
-    Changing unit tree should be done only when LOCK_query_plan mutex is
-    taken. This is needed to provide stable tree for EXPLAIN FOR CONNECTION.
+    This change to the unit tree is done only during statement resolution
+    so doesn't need LOCK_query_plan
   */
-  thd->lock_query_plan();
   SELECT_LEX_UNIT *units= NULL;
   SELECT_LEX_UNIT **units_last= &units;
   SELECT_LEX *sl= first_select();
   while (sl)
   {
+    // Exclusion can only be done prior to optimization.
+    DBUG_ASSERT(sl->join == nullptr);
     SELECT_LEX *next_select= sl->next_select();
 
     // unlink current level from global SELECTs list
@@ -2504,7 +2514,6 @@ void SELECT_LEX_UNIT::exclude_level()
   }
 
   invalidate();
-  thd->unlock_query_plan();
 }
 
 
@@ -2528,6 +2537,11 @@ void SELECT_LEX_UNIT::exclude_tree()
       u->exclude_level();
     }
 
+    /*
+      Reference to this query block is lost after it's excluded. Cleanup must
+      be done at this point to free memory.
+    */
+    sl->cleanup(true);
     sl->invalidate();
     sl= next_select;
   }
@@ -3071,7 +3085,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
   else
   {
     const char *cmp_name;                         // Name to compare with alias
-    if (view_name.str)
+    if (view_name.length)
     {
       // A view or CTE
       if (view_db.length &&
@@ -3084,6 +3098,11 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       }
       append_identifier(thd, str, view_name.str, view_name.length);
       cmp_name= view_name.str;
+    }
+    else if (is_table_function())
+    {
+      table_function->print(str, query_type);
+      cmp_name= table_name;
     }
     else if (is_derived() && !is_merged())
     {
@@ -3115,17 +3134,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       }
       else
       {
-        /**
-         Fix for printing empty string when internal_table_name is
-         used. Actual length of internal_table_name cannot be reduced
-         as server expects a valid string of length atleast 1 for any
-         table. So while printing we use the correct length of the
-         table_name i.e 0 when internal_table_name is used.
-        */
-        if (table_name != internal_table_name)
-          append_identifier(thd, str, table_name, table_name_length);
-        else
-          append_identifier(thd, str, table_name, 0);
+        append_identifier(thd, str, table_name, table_name_length);
         cmp_name= table_name;
       }
       if (partition_names && partition_names->elements)
@@ -3167,7 +3176,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type) const
       CTE, the definition is in WITH, and here we only have a
       reference. For a Derived Table, the definition is here.
     */
-    if (!view_name.str)
+    if (!view_name.length)
       print_derived_column_names(thd, str, m_derived_column_names);
 
     if (index_hints)
@@ -3367,7 +3376,7 @@ void SELECT_LEX::print(THD *thd, String *str, enum_query_type query_type)
     append_identifier(thd, str, w->name()->item_name.ptr(),
                       strlen(w->name()->item_name.ptr()));
     str->append(" AS ");
-    w->print(thd, this, str, query_type, true);
+    w->print(thd, str, query_type, true);
   }
 
   if (order_list.elements)
@@ -3491,7 +3500,7 @@ void LEX::clear_privileges()
 {
   users_list.empty();
   columns.empty();
-  grant= grant_tot_col= 0;
+  grant= grant_tot_col= grant_privilege= 0;
   all_privileges= false;
   ssl_type= SSL_TYPE_NOT_SPECIFIED;
   ssl_cipher= x509_subject= x509_issuer= nullptr;
@@ -3630,7 +3639,8 @@ LEX::LEX()
    contains_plaintext_password(false),
    keep_diagnostics(DA_KEEP_UNSPECIFIED),
    is_lex_started(0),
-   in_update_value_clause(false)
+   in_update_value_clause(false),
+   will_contextualize(true)
 {
   reset_query_tables_list(TRUE);
 }
@@ -4866,9 +4876,10 @@ void st_lex_master_info::initialize()
   view_id= NULL;
   until_after_gaps= false;
   ssl= ssl_verify_server_cert= heartbeat_opt= repl_ignore_server_ids_opt=
-    retry_count_opt= auto_position= port_opt= LEX_MI_UNCHANGED;
+    retry_count_opt= auto_position= port_opt= get_public_key= LEX_MI_UNCHANGED;
   ssl_key= ssl_cert= ssl_ca= ssl_capath= ssl_cipher= NULL;
   ssl_crl= ssl_crlpath= NULL;
+  public_key_path= NULL;
   tls_version= NULL;
   relay_log_name= NULL;
   relay_log_pos= 0;

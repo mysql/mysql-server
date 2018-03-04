@@ -13,7 +13,7 @@ COUNT(*)
 aborting session next_ses
 switched to session default
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
 connecting...
 active session is now 'next_ses'
@@ -25,7 +25,7 @@ COUNT(*)
 aborting session next_ses
 switched to session default
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
 Mysqlx.Ok {
   msg: "bye!"

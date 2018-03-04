@@ -1,13 +1,20 @@
 /* Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -24,6 +31,7 @@
 #include <string.h>
 #include <time.h>
 #include <algorithm>
+#include <thread>
 #include <atomic>
 #include <utility>
 
@@ -87,7 +95,6 @@
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_execution_of_init_command
 #include "sql/mysqld_thd_manager.h" // Find_thd_with_id
-#include "sql/opt_explain.h"  // mysql_explain_other
 #include "sql/opt_trace.h"    // Opt_trace_start
 #include "sql/parse_location.h"
 #include "sql/parse_tree_helpers.h" // is_identifier
@@ -130,7 +137,6 @@
 #include "sql/sql_help.h"     // mysqld_help
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
-#include "sql/sql_load.h"     // mysql_load
 #include "sql/sql_prepare.h"  // mysql_stmt_execute
 #include "sql/sql_profile.h"
 #include "sql/sql_query_rewrite.h" // invoke_pre_parse_rewrite_plugins
@@ -291,41 +297,39 @@ bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables)
 }
 
 
-/*
-  Implicitly commit a active transaction if statement requires so.
+/**
+  Returns whether the command in thd->lex->sql_command should cause an
+  implicit commit. An active transaction should be implicitly commited if the
+  statement requires so.
 
   @param thd    Thread handle.
   @param mask   Bitmask used for the SQL command match.
 
+  @retval true This statement shall cause an implicit commit.
+  @retval false This statement shall not cause an implicit commit.
 */
 bool stmt_causes_implicit_commit(const THD *thd, uint mask)
 {
-  const LEX *lex= thd->lex;
-  bool skip= FALSE;
   DBUG_ENTER("stmt_causes_implicit_commit");
+  const LEX *lex= thd->lex;
 
-  if (!(sql_command_flags[lex->sql_command] & mask) ||
+  if ((sql_command_flags[lex->sql_command] & mask) == 0 ||
       thd->is_plugin_fake_ddl())
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
 
   switch (lex->sql_command) {
   case SQLCOM_DROP_TABLE:
-    skip= lex->drop_temporary;
-    break;
+    DBUG_RETURN(!lex->drop_temporary);
   case SQLCOM_ALTER_TABLE:
   case SQLCOM_CREATE_TABLE:
     /* If CREATE TABLE of non-temporary table, do implicit commit */
-    skip= (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE);
-    break;
+    DBUG_RETURN((lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) == 0);
   case SQLCOM_SET_OPTION:
     /* Implicitly commit a transaction started by a SET statement */
-    skip= lex->autocommit ? FALSE : TRUE;
-    break;
+    DBUG_RETURN(lex->autocommit);
   default:
-    break;
+    DBUG_RETURN(true);
   }
-
-  DBUG_RETURN(!skip);
 }
 
 
@@ -345,7 +349,7 @@ bool stmt_causes_implicit_commit(const THD *thd, uint mask)
 uint sql_command_flags[SQLCOM_END+1];
 uint server_command_flags[COM_END+1];
 
-void init_update_queries(void)
+void init_sql_command_flags(void)
 {
   /* Initialize the server command flags array. */
   memset(server_command_flags, 0, sizeof(server_command_flags));
@@ -661,6 +665,9 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_RESOURCE_GROUP]=   CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SET_RESOURCE_GROUP]=    CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS;
 
+  sql_command_flags[SQLCOM_CLONE]= CF_AUTO_COMMIT_TRANS |
+                                   CF_ALLOW_PROTOCOL_PLUGIN;
+
   /* Does not change the contents of the Diagnostics Area. */
   sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
 
@@ -718,6 +725,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SLAVE_START]=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_SLAVE_STOP]=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_ALTER_TABLESPACE]|=  CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_CREATE_SRS]|=        CF_AUTO_COMMIT_TRANS |
+                                                CF_ACQUIRE_BACKUP_LOCK;
+  sql_command_flags[SQLCOM_DROP_SRS]|=          CF_AUTO_COMMIT_TRANS |
                                                 CF_ACQUIRE_BACKUP_LOCK;
 
   /*
@@ -827,6 +838,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_UNINSTALL_COMPONENT]|= CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_INSTANCE]|=   CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_IMPORT]|=           CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_CREATE_SRS]|=       CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_DROP_SRS]|=         CF_DISALLOW_IN_RO_TRANS;
 
   /*
     Mark statements that are allowed to be executed by the plugins.
@@ -975,6 +988,8 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_USER_DEFAULT_ROLE]|= CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_IMPORT]|=                  CF_ALLOW_PROTOCOL_PLUGIN;
   sql_command_flags[SQLCOM_END]|=                     CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_CREATE_SRS]|=              CF_ALLOW_PROTOCOL_PLUGIN;
+  sql_command_flags[SQLCOM_DROP_SRS]|=                CF_ALLOW_PROTOCOL_PLUGIN;
 
   /*
     Mark DDL statements which require that auto-commit mode to be temporarily
@@ -1035,6 +1050,10 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_EVENT]|=      CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
   sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_SRS]|=       CF_NEEDS_AUTOCOMMIT_OFF |
+                                               CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_SRS]|=         CF_NEEDS_AUTOCOMMIT_OFF |
                                                CF_POTENTIAL_ATOMIC_DDL;
 }
 
@@ -1619,10 +1638,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       PS_PARAM *parameters= com_data->com_stmt_execute.parameters;
       mysqld_stmt_execute(thd, stmt, com_data->com_stmt_execute.has_new_types,
                           com_data->com_stmt_execute.open_cursor, parameters);
-
-      DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
-        LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
-      });
     }
     break;
   }
@@ -1653,6 +1668,16 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     /* Clear possible warnings from the previous command */
     thd->reset_for_next_command();
     Prepared_statement *stmt= nullptr;
+
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
+      LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE,
+             com_data->com_stmt_prepare.query);
+    });
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+      LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE,
+             com_data->com_stmt_prepare.query);
+    });
+
     if (!mysql_stmt_precheck(thd, com_data, command, &stmt))
       mysqld_stmt_prepare(thd, com_data->com_stmt_prepare.query,
                           com_data->com_stmt_prepare.length, stmt);
@@ -1698,9 +1723,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     thd->profiling.set_query_source(thd->query().str, thd->query().length);
 #endif
 
-    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, thd->query().str,
-                             thd->query().length);
-
     Parser_state parser_state;
     if (parser_state.init(thd, thd->query().str, thd->query().length))
       break;
@@ -1709,6 +1731,9 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
     DBUG_EXECUTE_IF("parser_stmt_to_error_log", {
         LogErr(INFORMATION_LEVEL, ER_PARSER_TRACE, thd->query().str);
+      });
+    DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
+        LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
       });
 
     while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
@@ -1765,7 +1790,6 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
                                           thd->db().str, thd->db().length,
                                           thd->charset(), NULL);
       THD_STAGE_INFO(thd, stage_starting);
-      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi, beginning_of_next_stmt, length);
 
       thd->set_query(beginning_of_next_stmt, length);
       thd->set_query_id(next_query_id());
@@ -2591,7 +2615,7 @@ mysql_execute_command(THD *thd, bool first_level)
   DBUG_ASSERT(select_lex->master_unit() == lex->unit);
   DBUG_ENTER("mysql_execute_command");
   /* EXPLAIN OTHER isn't explainable command, but can have describe flag. */
-  DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command) ||
+  DBUG_ASSERT(!lex->is_explain() || is_explainable_query(lex->sql_command) ||
               lex->sql_command == SQLCOM_EXPLAIN_OTHER);
 
   thd->work_part_info= 0;
@@ -3211,7 +3235,8 @@ mysql_execute_command(THD *thd, bool first_level)
       goto error;
     }
 
-    res= group_replication_start();
+    char *error_message= NULL;
+    res= group_replication_start(&error_message);
 
     //To reduce server dependency, server errors are not used here
     switch (res)
@@ -3233,6 +3258,20 @@ mysql_execute_command(THD *thd, bool first_level)
         goto error;
       case 7: //GROUP_REPLICATION_MAX_GROUP_SIZE
         my_error(ER_GROUP_REPLICATION_MAX_GROUP_SIZE, MYF(0));
+        goto error;
+      case 8: //GROUP_REPLICATION_COMMAND_FAILURE
+        if (error_message == NULL)
+        {
+          my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                   "START GROUP_REPLICATION",
+                   "Please check error log for additional details.");
+        }
+        else
+        {
+          my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                   "START GROUP_REPLICATION", error_message);
+          my_free(error_message);
+        }
         goto error;
     }
     my_ok(thd);
@@ -3262,7 +3301,8 @@ mysql_execute_command(THD *thd, bool first_level)
       goto error;
     }
 
-    res= group_replication_stop();
+    char *error_message= NULL;
+    res= group_replication_stop(&error_message);
     if (res == 1) //GROUP_REPLICATION_CONFIGURATION_ERROR
     {
       my_error(ER_GROUP_REPLICATION_CONFIGURATION, MYF(0));
@@ -3271,6 +3311,22 @@ mysql_execute_command(THD *thd, bool first_level)
     if (res == 6) //GROUP_REPLICATION_APPLIER_THREAD_TIMEOUT
     {
       my_error(ER_GROUP_REPLICATION_STOP_APPLIER_THREAD_TIMEOUT, MYF(0));
+      goto error;
+    }
+    if (res == 8) //GROUP_REPLICATION_COMMAND_FAILURE
+    {
+      if (error_message == NULL)
+      {
+        my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                 "STOP GROUP_REPLICATION",
+                 "Please check error log for additonal details.");
+      }
+      else
+      {
+        my_error(ER_GROUP_REPLICATION_COMMAND_FAILURE, MYF(0),
+                 "STOP GROUP_REPLICATION", error_message);
+        my_free(error_message);
+      }
       goto error;
     }
     my_ok(thd);
@@ -3435,6 +3491,7 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_DROP_INDEX:
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   case SQLCOM_PRELOAD_KEYS:
+  case SQLCOM_LOAD:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
@@ -3486,45 +3543,6 @@ mysql_execute_command(THD *thd, bool first_level)
 
     if (!mysql_change_db(thd, db_str, FALSE))
       my_ok(thd);
-
-    break;
-  }
-
-  case SQLCOM_LOAD:
-  {
-    DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    uint privilege= (lex->duplicates == DUP_REPLACE ?
-		     INSERT_ACL | DELETE_ACL : INSERT_ACL) |
-                    (lex->local_file ? 0 : FILE_ACL);
-
-    if (lex->local_file)
-    {
-      if (!thd->get_protocol()->has_client_capability(CLIENT_LOCAL_FILES) ||
-          !opt_local_infile)
-      {
-	my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
-	goto error;
-      }
-    }
-
-    if (check_one_table_access(thd, privilege, all_tables))
-      goto error;
-
-    /* Push strict / ignore error handler */
-    Ignore_error_handler ignore_handler;
-    Strict_error_handler strict_handler;
-    if (thd->lex->is_ignore())
-      thd->push_internal_handler(&ignore_handler);
-    else if (thd->is_strict_mode())
-      thd->push_internal_handler(&strict_handler);
-
-    res= mysql_load(thd, lex->exchange, first_table, lex->load_field_list,
-                    lex->load_update_list, lex->load_value_list, lex->duplicates,
-                    lex->local_file);
-
-    /* Pop ignore / strict error handler */
-    if (thd->lex->is_ignore() || thd->is_strict_mode())
-      thd->pop_internal_handler();
 
     break;
   }
@@ -4566,12 +4584,6 @@ mysql_execute_command(THD *thd, bool first_level)
     mysql_client_binlog_statement(thd);
     break;
   }
-  case SQLCOM_EXPLAIN_OTHER:
-  {
-    /* EXPLAIN FOR CONNECTION <id> */
-    mysql_explain_other(thd);
-    break;
-  }
   case SQLCOM_ANALYZE:
   case SQLCOM_CHECK:
   case SQLCOM_OPTIMIZE:
@@ -4623,6 +4635,10 @@ mysql_execute_command(THD *thd, bool first_level)
   case SQLCOM_LOCK_INSTANCE:
   case SQLCOM_UNLOCK_INSTANCE:
   case SQLCOM_ALTER_TABLESPACE:
+  case SQLCOM_EXPLAIN_OTHER:
+  case SQLCOM_RESTART_SERVER:
+  case SQLCOM_CREATE_SRS:
+  case SQLCOM_DROP_SRS:
 
     DBUG_ASSERT(lex->m_sql_cmd != nullptr);
     res= lex->m_sql_cmd->execute(thd);
@@ -4736,6 +4752,9 @@ finish:
     lex->opt_hints_global->sys_var_hint->restore_vars(thd);
 
   THD_STAGE_INFO(thd, stage_query_end);
+
+  if (!res)
+    lex->set_exec_started();
 
   // Cleanup EXPLAIN info
   if (!thd->in_sub_stmt)
@@ -5209,6 +5228,8 @@ void THD::reset_for_next_command()
   // Need explicit setting, else demand all privileges to a table.
   thd->want_privilege= ~NO_ACCESS;
 
+  thd->reset_skip_readonly_check();
+
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
               thd->is_current_stmt_binlog_format_row()));
@@ -5316,29 +5337,34 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   if (!err)
   {
     /*
-      See whether we can do any query rewriting. opt_general_log_raw only controls
-      writing to the general log, so rewriting still needs to happen because
-      the other logs (binlog, slow query log, ...) can not be set to raw mode
-      for security reasons.
-      We're not general-logging if we're the slave, or if we've already
-      done raw-logging earlier.
+      Rewrite the query for logging and for the Performance Schema statement
+      tables. Raw logging happened earlier.
+
       Sub-routines of mysql_rewrite_query() should try to only rewrite when
       necessary (e.g. not do password obfuscation when query contains no
-      password), but we can optimize out even those necessary rewrites when
-      no logging happens at all. If rewriting does not happen here,
-      thd->rewritten_query is still empty from being reset in alloc_query().
+      password).
+
+      If rewriting does not happen here, thd->rewritten_query is still empty
+      from being reset in alloc_query().
     */
-    bool general= !(opt_general_log_raw || thd->slave_thread);
+    mysql_rewrite_query(thd);
 
-    if (general || opt_slow_log || opt_bin_log)
+    if (thd->rewritten_query.length())
     {
-      mysql_rewrite_query(thd);
+      lex->safe_to_cache_query= false; // see comments below
 
-      if (thd->rewritten_query.length())
-        lex->safe_to_cache_query= false; // see comments below
+      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
+                               thd->rewritten_query.c_ptr_safe(),
+                               thd->rewritten_query.length());
+    }
+    else
+    {
+      MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
+                               thd->query().str,
+                               thd->query().length);
     }
 
-    if (general)
+    if (!(opt_general_log_raw || thd->slave_thread))
     {
       if (thd->rewritten_query.length())
         query_logger.general_log_write(thd, COM_QUERY,
@@ -5427,6 +5453,27 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
   }
   else
   {
+    /*
+      Log the failed raw query in the Performance Schema. This statement did not
+      parse, so there is no way to tell if it may contain a password of not.
+
+      The tradeoff is:
+        a) If we do log the query, a user typing by accident a broken query
+           containing a password will have the password exposed. This is very
+           unlikely, and this behavior can be documented. Remediation is to use
+           a new password when retyping the corrected query.
+
+        b) If we do not log the query, finding broken queries in the client
+           application will be much more difficult. This is much more likely.
+
+      Considering that broken queries can typically be generated by attempts at
+      SQL injection, finding the source of the SQL injection is critical, so the
+      design choice is to log the query text of broken queries (a).
+    */
+    MYSQL_SET_STATEMENT_TEXT(thd->m_statement_psi,
+                             thd->query().str,
+                             thd->query().length);
+
     /* Instrument this broken statement as "statement/sql/error" */
     thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                  sql_statement_info[SQLCOM_END].m_key);
@@ -5810,6 +5857,7 @@ SELECT_LEX::find_common_table_expr(THD *thd, Table_ident *table_name,
   node->m_is_derived_table= true;
   auto wc_save= wc->enter_parsing_definition(tl);
 
+  DBUG_ASSERT(thd->lex->will_contextualize);
   if (node->contextualize(pc))
     return true;
 
@@ -5983,7 +6031,7 @@ bool PT_common_table_expr::match_table_ref(TABLE_LIST *tl, bool in_self,
 
 TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
                                           Table_ident *table_name,
-                                          LEX_STRING *alias,
+                                          const char *alias,
                                           ulong table_options,
                                           thr_lock_type lock_type,
                                           enum_mdl_type mdl_type,
@@ -5998,7 +6046,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   DBUG_ENTER("add_table_to_list");
 
   DBUG_ASSERT(table_name != nullptr);
-  if (!(table_options & TL_OPTION_ALIAS))
+  // A derived table has no table name, only an alias.
+  if (!(table_options & TL_OPTION_ALIAS) && !table_name->is_derived_table())
   {
     Ident_name_check ident_check_status=
       check_table_name(table_name->table.str, table_name->table.length);
@@ -6014,11 +6063,12 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     }
   }
   LEX_STRING db= to_lex_string(table_name->db);
-  if (!table_name->is_derived_table() && table_name->db.str &&
+  if (!table_name->is_derived_table() && !table_name->is_table_function() &&
+      table_name->db.str &&
       (check_and_convert_db_name(&db, false) != Ident_name_check::OK))
     DBUG_RETURN(0);
 
-  const char *alias_str= alias ? alias->str : table_name->table.str;
+  const char *alias_str= alias ? alias : table_name->table.str;
   if (!alias)					/* Alias is case sensitive */
   {
     if (table_name->sel)
@@ -6042,6 +6092,12 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   ptr->table_name_length= table_name->table.length;
   ptr->alias= const_cast<char*>(alias_str);
   ptr->is_alias= alias != nullptr;
+  ptr->table_function= table_name->table_function;
+  if (table_name->table_function)
+  {
+    table_func_count++;
+    ptr->derived_key_list.empty();
+  }
 
   if (table_name->db.str)
   {
@@ -6066,7 +6122,8 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   ptr->force_index= (table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= (table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->set_derived_unit(table_name->sel);
-  if (!ptr->is_derived() && is_infoschema_db(ptr->db, ptr->db_length))
+  if (!ptr->is_derived() && !ptr->is_table_function() &&
+      is_infoschema_db(ptr->db, ptr->db_length))
   {
     dd::info_schema::convert_table_name_case(
                        const_cast<char*>(ptr->db),
@@ -6110,16 +6167,31 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
     else
     {
       schema_table= find_schema_table(thd, ptr->table_name);
-      if (!schema_table ||
-          (schema_table->hidden &&
+      /*
+        Report an error
+          if hidden schema table name is used in the statement other than
+          SHOW statement OR
+          if unknown schema table is used in the statement other than
+          SHOW CREATE VIEW statement.
+        Invalid view warning is reported for SHOW CREATE VIEW statement in
+        the table open stage.
+      */
+      if ((!schema_table &&
+           !(thd->query_plan.get_command() == SQLCOM_SHOW_CREATE &&
+             thd->query_plan.get_lex()->only_view)) ||
+          (schema_table && schema_table->hidden &&
            (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0))
       {
         my_error(ER_UNKNOWN_TABLE, MYF(0),
                  ptr->table_name, INFORMATION_SCHEMA_NAME.str);
         DBUG_RETURN(0);
       }
-      ptr->schema_table_name= const_cast<char*>(ptr->table_name);
-      ptr->schema_table= schema_table;
+
+      if (schema_table)
+      {
+        ptr->schema_table_name= const_cast<char*>(ptr->table_name);
+        ptr->schema_table= schema_table;
+      }
     }
   }
 
@@ -6188,6 +6260,7 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
   {
     ptr->derived_key_list.empty();
     derived_table_count++;
+    ptr->save_name_temporary();
   }
 
   // Check access to DD tables. We must allow CHECK and ALTER TABLE
@@ -6206,16 +6279,12 @@ TABLE_LIST *SELECT_LEX::add_table_to_list(THD *thd,
               lex->sql_command != SQLCOM_ALTER_TABLE,
              ptr->db, ptr->db_length, ptr->table_name))
   {
-    // TODO: Allow access to 'st_spatial_reference_systems' until
-    // dedicated DDL statements for adding reference systems are
-    // implemented.
     // We must allow creation of the system views even for non-system
     // threads since this is expected by the mysql_upgrade utility.
     if (!(lex->sql_command == SQLCOM_CREATE_VIEW &&
           dd::get_dictionary()->is_system_view_name(
                                   lex->query_tables->db,
-                                  lex->query_tables->table_name)) &&
-        strcmp(ptr->table_name, "st_spatial_reference_systems"))
+                                  lex->query_tables->table_name)))
     {
       my_error(ER_NO_SYSTEM_TABLE_ACCESS, MYF(0),
                ER_THD(thd, dictionary->table_type_error_code(ptr->db,

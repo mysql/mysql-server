@@ -1,24 +1,31 @@
 /*  Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License as
-    published by the Free Software Foundation; version 2 of the
-    License.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+    as published by the Free Software Foundation.
+
+    This program is also distributed with certain software (including
+    but not limited to OpenSSL) that is licensed under separate terms,
+    as designated in a particular file or component or in included license
+    documentation.  The authors of MySQL hereby grant you an additional
+    permission to link the program and your derivative works with the
+    separately licensed software that they have included with MySQL.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU General Public License for more details.
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License, version 2.0, for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <stddef.h>
 
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_keyring.h" /* keyring plugin */
+#include "sql/set_var.h"
 #include "sql/current_thd.h"
 #include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
@@ -143,6 +150,8 @@ int my_key_store(const char *key_id, const char *key_type, const char *user_id,
   key_data.user_id= user_id;
   key_data.key_to_store= key;
   key_data.key_len_to_store= key_len;
+  if (keyring_access_test())
+    return 1;
   plugin_foreach(current_thd, key_store, MYSQL_KEYRING_PLUGIN, &key_data);
   return key_data.result;
 }
@@ -158,6 +167,8 @@ int my_key_remove(const char *key_id, const char *user_id)
   Key_data key_data;
   key_data.key_id= key_id;
   key_data.user_id= user_id;
+  if (keyring_access_test())
+    return 1;
   plugin_foreach(current_thd, key_remove, MYSQL_KEYRING_PLUGIN, &key_data);
   return key_data.result;
 }
@@ -177,6 +188,8 @@ int my_key_generate(const char *key_id, const char *key_type,
   key_data.key_type_to_store= key_type;
   key_data.user_id= user_id;
   key_data.key_len_to_store= key_len;
+  if (keyring_access_test())
+    return 1;
   plugin_foreach(current_thd, key_generate, MYSQL_KEYRING_PLUGIN, &key_data);
   return key_data.result;
 }

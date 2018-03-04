@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "my_config.h"
 
@@ -19,8 +26,9 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+#include "mysql/service_plugin_registry.h"
 #include "sql/replication.h"
-#include "xpl_performance_schema.h"
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
@@ -33,30 +41,8 @@
 
 #include <atomic>
 
+
 typedef struct st_vio Vio;
-
-PSI_thread_key KEY_thread_x_worker = PSI_NOT_INSTRUMENTED;
-PSI_thread_key KEY_thread_x_acceptor = PSI_NOT_INSTRUMENTED;
-
-PSI_mutex_key KEY_mutex_x_client_session = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_obuffer = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_lock_list_access = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
-PSI_mutex_key KEY_mutex_x_queue = PSI_NOT_INSTRUMENTED;
-
-PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending = PSI_NOT_INSTRUMENTED;
-PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit = PSI_NOT_INSTRUMENTED;
-PSI_cond_key KEY_cond_x_queue = PSI_NOT_INSTRUMENTED;
-
-PSI_rwlock_key KEY_rwlock_x_client_list_clients = PSI_NOT_INSTRUMENTED;
-
-PSI_memory_key KEY_memory_x_recv_buffer = PSI_NOT_INSTRUMENTED;
-PSI_memory_key KEY_memory_x_send_buffer = PSI_NOT_INSTRUMENTED;
-
-PSI_socket_key KEY_socket_x_tcpip = PSI_NOT_INSTRUMENTED;
-PSI_socket_key KEY_socket_x_unix = PSI_NOT_INSTRUMENTED;
-PSI_socket_key KEY_socket_x_client_connection = PSI_NOT_INSTRUMENTED;
 
 const char  *my_localhost;
 std::atomic<int32> connection_events_loop_aborted_flag;
@@ -162,3 +148,7 @@ long ssl_wrapper_sess_accept_good(struct st_VioSSLFd*)
 {
   return 0;
 }
+
+SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }
+
+int mysql_plugin_registry_release(SERVICE_TYPE(registry) *) { return 0; }

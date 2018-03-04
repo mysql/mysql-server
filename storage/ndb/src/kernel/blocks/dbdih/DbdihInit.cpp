@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -86,13 +93,6 @@ void Dbdih::initData()
 void Dbdih::initRecords()
 {
   // Records with dynamic sizes
-  for (Uint32 i = 0; i < c_diverify_queue_cnt; i++)
-  {
-    c_diverify_queue[i].apiConnectRecord = (ApiConnectRecord*)
-      allocRecord("ApiConnectRecord",
-                  sizeof(ApiConnectRecord),
-                  capiConnectFileSize);
-  }
 
   connectRecord = (ConnectRecord*)allocRecord("ConnectRecord",
                                               sizeof(ConnectRecord), 
@@ -265,6 +265,7 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_NDB_STARTREQ, &Dbdih::execNDB_STARTREQ);
   addRecSignal(GSN_GETGCIREQ, &Dbdih::execGETGCIREQ);
   addRecSignal(GSN_GET_LATEST_GCI_REQ, &Dbdih::execGET_LATEST_GCI_REQ);
+  addRecSignal(GSN_SET_LATEST_LCP_ID, &Dbdih::execSET_LATEST_LCP_ID);
   addRecSignal(GSN_DIH_RESTARTREQ, &Dbdih::execDIH_RESTARTREQ);
   addRecSignal(GSN_START_RECCONF, &Dbdih::execSTART_RECCONF);
   addRecSignal(GSN_START_FRAGCONF, &Dbdih::execSTART_FRAGCONF);
@@ -382,14 +383,6 @@ Dbdih::Dbdih(Block_context& ctx):
 
 Dbdih::~Dbdih()
 {
-  for (Uint32 i = 0; i<c_diverify_queue_cnt; i++)
-  {
-    deallocRecord((void **)&c_diverify_queue[i].apiConnectRecord,
-                  "ApiConnectRecord",
-                  sizeof(ApiConnectRecord),
-                  capiConnectFileSize);
-  }
-
   deallocRecord((void **)&connectRecord, "ConnectRecord",
                 sizeof(ConnectRecord), 
                 cconnectFileSize);

@@ -1,8 +1,8 @@
 #########
 # SETUP #
 #########
-call mtr.add_suppression("\\[ERROR\\] Plugin pfs_example_plugin_employee reported: 'Error returned from add_tables\\(\\)'");
-call mtr.add_suppression("\\[ERROR\\] Plugin 'pfs_example_plugin_employee' init function returned error.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin pfs_example_plugin_employee reported: 'Error returned from add_tables\\(\\)'");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin 'pfs_example_plugin_employee' init function returned error.");
 # Make sure that the errors, which are returned when plugin is tried to
 # be loaded with --early_plugin_load option, are present in server log.
 Pattern "Plugin pfs_example_plugin_employee reported: 'Error returned from add_tables\(\)'" found

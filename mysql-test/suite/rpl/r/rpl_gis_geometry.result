@@ -4,14 +4,14 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 # Create tables
-CREATE TABLE point_geom(id INT PRIMARY KEY, pt POINT NOT NULL, SPATIAL INDEX(pt));
-CREATE TABLE linestring_geom(id INT PRIMARY KEY, lnstr LINESTRING NOT NULL, SPATIAL INDEX(lnstr));
-CREATE TABLE polygon_geom(id INT PRIMARY KEY, poly POLYGON NOT NULL, SPATIAL INDEX(poly));
-CREATE TABLE multipoint_geom(id INT PRIMARY KEY, mpt MULTIPOINT NOT NULL, SPATIAL INDEX(mpt));
-CREATE TABLE multilinestring_geom(id INT PRIMARY KEY, mlnstr MULTILINESTRING NOT NULL, SPATIAL INDEX(mlnstr));
-CREATE TABLE multipolygon_geom(id INT PRIMARY KEY, mpoly MULTIPOLYGON NOT NULL, SPATIAL INDEX(mpoly));
-CREATE TABLE geometrycollection_geom(id INT PRIMARY KEY, geomcoll GEOMETRYCOLLECTION NOT NULL, SPATIAL INDEX(geomcoll));
-CREATE TABLE geom_data(id INT PRIMARY KEY , geom GEOMETRY NOT NULL, SPATIAL INDEX(geom));
+CREATE TABLE point_geom(id INT PRIMARY KEY, pt POINT NOT NULL SRID 0, SPATIAL INDEX(pt));
+CREATE TABLE linestring_geom(id INT PRIMARY KEY, lnstr LINESTRING NOT NULL SRID 0, SPATIAL INDEX(lnstr));
+CREATE TABLE polygon_geom(id INT PRIMARY KEY, poly POLYGON NOT NULL SRID 0, SPATIAL INDEX(poly));
+CREATE TABLE multipoint_geom(id INT PRIMARY KEY, mpt MULTIPOINT NOT NULL SRID 0, SPATIAL INDEX(mpt));
+CREATE TABLE multilinestring_geom(id INT PRIMARY KEY, mlnstr MULTILINESTRING NOT NULL SRID 0, SPATIAL INDEX(mlnstr));
+CREATE TABLE multipolygon_geom(id INT PRIMARY KEY, mpoly MULTIPOLYGON NOT NULL SRID 0, SPATIAL INDEX(mpoly));
+CREATE TABLE geometrycollection_geom(id INT PRIMARY KEY, geomcoll GEOMETRYCOLLECTION NOT NULL SRID 0, SPATIAL INDEX(geomcoll));
+CREATE TABLE geom_data(id INT PRIMARY KEY , geom GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(geom));
 # Insert different GEOMETRY data
 INSERT INTO point_geom VALUES
 (10,ST_GEOMFROMTEXT('POINT(0 0)')),
@@ -193,7 +193,7 @@ SHOW CREATE TABLE geom_data;
 Table	Create Table
 geom_data	CREATE TABLE `geom_data` (
   `id` int(11) NOT NULL,
-  `geom` geometry NOT NULL,
+  `geom` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 [Connection Master]
@@ -206,7 +206,7 @@ SHOW CREATE TABLE geom_data;
 Table	Create Table
 geom_data	CREATE TABLE `geom_data` (
   `id` int(11) NOT NULL,
-  `geom` geometry NOT NULL,
+  `geom` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`),
   SPATIAL KEY `geom` (`geom`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -274,7 +274,7 @@ SHOW CREATE TABLE geom_data;
 Table	Create Table
 geom_data	CREATE TABLE `geom_data` (
   `id` int(11) NOT NULL,
-  `geom` geometry NOT NULL,
+  `geom` geometry NOT NULL /*!80003 SRID 0 */,
   `geom1` geometry DEFAULT NULL,
   PRIMARY KEY (`id`),
   SPATIAL KEY `geom` (`geom`)
@@ -324,7 +324,7 @@ SHOW CREATE TABLE geom_data;
 Table	Create Table
 geom_data	CREATE TABLE `geom_data` (
   `id` int(11) NOT NULL,
-  `geom` geometry NOT NULL,
+  `geom` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`),
   SPATIAL KEY `geom` (`geom`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4

@@ -46,11 +46,9 @@ ALTER TABLESPACE ts1 RENAME TO ts2;
 # work either since MySQL Server refuses to drop tablesapce without
 # datafiles
 ALTER TABLESPACE ts1
-  DROP DATAFILE 'ts1_datafile.dat'
-  ENGINE=NDB;
+  DROP DATAFILE 'ts1_datafile.dat';
 
-DROP TABLESPACE ts1
-  ENGINE=NDB;
+DROP TABLESPACE ts1;
 
 DROP LOGFILE GROUP lg1
   ENGINE=NDB;

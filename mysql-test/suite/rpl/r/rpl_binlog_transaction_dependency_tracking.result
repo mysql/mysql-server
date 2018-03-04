@@ -749,6 +749,53 @@ include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;2 4;2 5]
 DROP TABLE t1;
 FLUSH LOGS;
 
+#### Bug#26277771, PART1 ####
+CREATE TABLE t1 (c1 int(10) NOT NULL, c2 varchar(20) NOT NULL, PRIMARY KEY (c1),
+UNIQUE KEY (c1, c2)) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1, 'a');
+DELETE FROM t1 WHERE c1=1 AND c2='a';
+INSERT INTO t1 VALUES (1, 'A');
+Processing binlog master-bin.000020
+include/include/assert_logical_timestamps.inc [0 1;1 2;2 3;3 4]
+DROP TABLE t1;
+FLUSH LOGS;
+
+#### Bug#26277771, PART2 ####
+CREATE TABLE t1 (c1 VARCHAR(20) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES ('a');
+INSERT INTO t1 VALUES ('A');
+INSERT INTO t1 VALUES ('b');
+INSERT INTO t1 VALUES ('B');
+Processing binlog master-bin.000021
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;1 4;1 5]
+DROP TABLE t1;
+FLUSH LOGS;
+
+#### Bug#26277771, PART3 ####
+CREATE TABLE t1 (c1 VARCHAR(20) NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES ('a');
+INSERT INTO t1 VALUES ('b');
+CREATE TABLE t2 (c1 BINARY(3) NOT NULL PRIMARY KEY);
+INSERT INTO t2 VALUES ('a');
+INSERT INTO t2 VALUES ('\0a');
+INSERT INTO t2 VALUES ('\0');
+INSERT INTO t2 VALUES ('a ');
+Processing binlog master-bin.000022
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3;3 4;4 5;4 6;4 7;4 8]
+DROP TABLE t1;
+DROP TABLE t2;
+FLUSH LOGS;
+
+#### Bug#26277771, PART4 ####
+CREATE TABLE t1 (c1 varchar(20) NOT NULL PRIMARY KEY)
+ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_bin;
+INSERT INTO t1 VALUES ('a');
+INSERT INTO t1 VALUES ('á');
+Processing binlog master-bin.000023
+include/include/assert_logical_timestamps.inc [0 1;1 2;1 3]
+DROP TABLE t1;
+FLUSH LOGS;
+
 #### Test ROLLBACK TO SAVEPOINT ####
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE nopk (a INT);
@@ -764,7 +811,7 @@ ROLLBACK TO sp;
 INSERT INTO t1 VALUES (2);
 COMMIT;
 INSERT INTO t1 VALUES (3);
-Processing binlog master-bin.000021
+Processing binlog master-bin.000025
 include/include/assert_logical_timestamps.inc [0 1;1 2;1 3]
 # 2. If transaction is flagged as updating a non-index table, the flag is not rolled-back
 FLUSH LOGS;
@@ -776,7 +823,7 @@ ROLLBACK TO sp;
 INSERT INTO t1 VALUES (5);
 COMMIT;
 INSERT INTO t1 VALUES (6);
-Processing binlog master-bin.000022
+Processing binlog master-bin.000026
 include/include/assert_logical_timestamps.inc [0 1;1 2;1 3]
 # 3. If transaction is flagged as updating a foreign key parent table, the flag is not rolled-back
 FLUSH LOGS;
@@ -788,7 +835,7 @@ ROLLBACK TO sp;
 INSERT INTO t1 VALUES (8);
 COMMIT;
 INSERT INTO t1 VALUES (9);
-Processing binlog master-bin.000023
+Processing binlog master-bin.000027
 include/include/assert_logical_timestamps.inc [0 1;1 2;2 3]
 # Clean up SAVEPOINT tests
 DROP TABLE t1;

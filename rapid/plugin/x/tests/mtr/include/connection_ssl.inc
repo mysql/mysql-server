@@ -5,39 +5,26 @@
 --echo Preamble
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 SET GLOBAL mysqlx_connect_timeout = 300;
-call mtr.add_suppression("Unsuccessful login attempt");
+call mtr.add_suppression("Maximum number of authentication attempts reached");
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp
+-->import ssl.macro
 Mysqlx.Connection.CapabilitiesGet {
 }
 
--->recvtype Mysqlx.Connection.Capabilities
+-->recv capabilities[0]
 
-Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-	type: SCALAR
-	scalar {
-	  type: V_BOOL
-	  v_bool: 1
-	}
-      }
-    }
-  }
-}
--->recvtype Mysqlx.Ok
+-->callmacro Enable_ssl_on_xprotocol_and_transmision_layer
 -->echo Enable SSL
--->enablessl
 
 Mysqlx.Connection.CapabilitiesGet {
 }
 
--->recvtype Mysqlx.Connection.Capabilities
+-->recv capabilities[0]
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
@@ -45,7 +32,7 @@ EOF
 Mysqlx.Connection.CapabilitiesGet {
 }
 
--->recvtype Mysqlx.Connection.Capabilities
+-->recv capabilities[0]
 
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
@@ -214,51 +201,51 @@ GRANT ALL ON *.* TO user7_mysqlx@localhost;
 --let $CLIENT_TLS= --tls-version=TLSv1
 --let $CONNECTION_FILE= --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth  $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth  $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp 2>&1
 
 ##setting tls caps with ssl connection
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
 
 ##setting tls caps with non-ssl connection
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
 
 --echo ## SSL connection testing
 
 # Bug#21619518 -- FIXED
---exec $MYSQLXTEST -u user1_mysqlx --password='auth_string1' $CLIENT_TLS $CLIENT_CIPHER $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user1_mysqlx --password='auth_string1' $CLIENT_TLS $CLIENT_CIPHER $CONNECTION_FILE 2>&1
 
 # Try connecting with Expired password using user2_mysqlx user.
 --let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u user2_mysqlx --password='auth_string2' $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user2_mysqlx --password='auth_string2' $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
 # RESET PASSWORD FOR MYSQLXTEST CONNECT-EXPIRED-PASSWORD WITH SSL OPTIONS.
---exec $MYSQLXTEST -u user2_mysqlx --password='auth_string2' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp 2>&1
+--exec $MYSQLXTEST --plain-auth -u user2_mysqlx --password='auth_string2' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp 2>&1
 ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
---exec $MYSQLXTEST -u user2_mysqlx --password='alter-new-auth' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1
+--exec $MYSQLXTEST --plain-auth -u user2_mysqlx --password='alter-new-auth' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1
 
---exec $MYSQLXTEST -u user2_mysqlx --password='set-new-auth' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user2_mysqlx --password='set-new-auth' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
---exec $MYSQLXTEST -u user3_mysqlx  --password='auth_string3'  $CLIENT_CIPHER $CLIENT_TLS $CLIENT_CA_CERT $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user3_mysqlx  --password='auth_string3'  $CLIENT_CIPHER $CLIENT_TLS $CLIENT_CA_CERT $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
 
 --echo Testing conenction for ACCOUNT LOCK user.
 --let $expected_error_msg=  Account is locked. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u user4_mysqlx --password='' $CLIENT_TLS $CLIENT_CIPHER $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user4_mysqlx --password='' $CLIENT_TLS $CLIENT_CIPHER $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
 
 --echo Unlocking user account.
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
---exec $MYSQLXTEST -u user4_mysqlx --password='' $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user4_mysqlx --password='' $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
---exec $MYSQLXTEST -u user5_mysqlx --password='auth_string' $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user5_mysqlx --password='auth_string' $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
---exec $MYSQLXTEST -u user5_mysqlx --password='auth_string' $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user5_mysqlx --password='auth_string' $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
---exec $MYSQLXTEST -u user6_mysqlx --password='dwh@#ghd' $CLIENT_CA_CERT $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user6_mysqlx --password='dwh@#ghd' $CLIENT_CA_CERT $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
 --let $expected_error_msg=  Current account requires TLS to be activate. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u user6_mysqlx --password='dwh@#ghd' $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user6_mysqlx --password='dwh@#ghd' $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
 --let $expected_error_msg=  Current account requires TLS to be activate. \(code 1045\)
 --let $expected_error_extra= /in main, line 0:ERROR: (Invalid user or password \(code 1045\))/Application terminated with expected error: \1/
@@ -267,31 +254,32 @@ ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 
 --let $expected_error_msg= Current user cipher isn't allowed. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u user7_mysqlx $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --cached-auth --mysql41-auth --plain-auth -u user7_mysqlx $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
---exec $MYSQLXTEST -u user7_mysqlx --ssl-cipher="AES256-SHA"         $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -u user7_mysqlx --ssl-cipher="AES256-SHA"         $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
 --echo Cert needed
 --let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u user7_mysqlx --ssl-cipher="AES256-SHA"         $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --cached-auth --mysql41-auth --plain-auth -u user7_mysqlx --ssl-cipher="AES256-SHA"         $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
 --replace_regex /4294967295/-1/ /18446744073709551615/-1/
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 
 --replace_regex /4294967295/-1/ /18446744073709551615/-1/
---exec $MYSQLXTEST -u root --ssl-cipher="AES256-SHA" $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-status.tmp 2>&1
+--exec $MYSQLXTEST --plain-auth -u x_root --ssl-cipher="AES256-SHA" $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-status.tmp 2>&1
 
 
 # Lets confirm that Mysqlx plugin can't use TCP-IP connections without SSL as secure one
-call mtr.add_suppression("Plugin mysqlx reported: '.+: Unsuccessful login attempt: Secure transport required. To log in you must use TCP.SSL or UNIX socket connection.");
 SET GLOBAL require_secure_transport:=1;
 --let $expected_error_msg= Secure transport required. To log in you must use TCP\+SSL or UNIX socket connection. \(code 1045\)
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uroot --password='' $CONNECTION_FILE 2>&1
---exec $MYSQLXTEST -uroot --password='' $CLIENT_TLS $CLIENT_CA_CERT $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST -ux_root --password='' $CONNECTION_FILE 2>&1
+--exec $MYSQLXTEST --plain-auth -ux_root --password='' $CLIENT_TLS $CLIENT_CA_CERT $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
 SET GLOBAL require_secure_transport:=0;
 
+
+--source include/xplugin_drop_user.inc
 
 # Postamble
 UNINSTALL PLUGIN mysqlx;

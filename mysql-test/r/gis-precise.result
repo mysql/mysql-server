@@ -1292,12 +1292,12 @@ ST_ISVALID(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION(POINT(0 0)))')
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4236),
 ST_GEOMFROMTEXT('POINT(0 0)', 0)));
 ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4236 and 0, which should have been identical.
-SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 1),
+SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 4145),
 ST_GEOMFROMTEXT('POINT(0 0)', 0)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 1 and 0, which should have been identical.
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 4145 and 0, which should have been identical.
 SELECT ST_ASTEXT(ST_MAKEENVELOPE(ST_GEOMFROMTEXT('POINT(0 1)', 0),
-ST_GEOMFROMTEXT('POINT(0 0)', 100)));
-ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 100, which should have been identical.
+ST_GEOMFROMTEXT('POINT(0 0)', 2000)));
+ERROR HY000: Binary geometry function st_makeenvelope given two geometries of different srids: 0 and 2000, which should have been identical.
 #
 # Bug #20085563  ASSERTION `!NULL_VALUE && OPDONE && STR_VALUE_ARG->LENGTH() > 0' FAILED
 #
@@ -1571,9 +1571,9 @@ result
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', -1));
 ERROR 22003: SRID value is out of range in 'st_geomfromtext'
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1, which has not been defined.
+ERROR SR001: There's no spatial reference system with SRID 1.
 SELECT ST_ISVALID(ST_GEOMFROMTEXT('POINT(0 0)', 1000));
-ERROR SR001: Function st_isvalid is only defined for Cartesian spatial reference systems, but one of its arguments is in SRID 1000, which has not been defined.
+ERROR SR001: There's no spatial reference system with SRID 1000.
 #
 # Bug#20406850 WL#8034 : CRASH WITH ST_ISVAID() IN ITEM_FUNC_ISVALID::VAL_INT FUNCTION
 #
@@ -2110,6 +2110,7 @@ st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 3, 4 3, 4 5, 0 5))')))
 as result;
 result
 GEOMETRYCOLLECTION(POINT(1 3),LINESTRING(4 3,3 3))
+# Invalid geometry in input.
 select st_astext(st_intersection(
 st_geomfromtext('polygon((0 0, 10 0, 10 3, 0 3, 0 0))'),
 st_geomfromtext('polygon((0 5, 1 3, 2 5, 3 2, 6 2, 6 5, 0 5))')))
@@ -2181,7 +2182,7 @@ ERROR 22023: Invalid GIS data provided to function st_union.
 # Bug #21663612 AUTO INCREMENT COLUMN VALUES ARE NOT VISIBLE IN A TABLE CONTAINING SPATIAL INDEX
 #
 CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, g GEOMETRY NOT
-NULL, SPATIAL INDEX(g)) ENGINE=INNODB;
+NULL SRID 0, SPATIAL INDEX(g)) ENGINE=INNODB;
 INSERT INTO t2(g) VALUES (ST_GEOMFROMTEXT('POINT(0 0)'));
 INSERT INTO t2(g) VALUES (ST_GEOMFROMTEXT('POINT(10 0)'));
 INSERT INTO t2(g) VALUES (ST_GEOMFROMTEXT('POINT(10 10)'));
@@ -2191,7 +2192,7 @@ id
 2
 3
 DROP TABLE t2;
-CREATE TABLE t3 (id INT PRIMARY KEY, g GEOMETRY NOT NULL,
+CREATE TABLE t3 (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0,
 SPATIAL INDEX(g)) ENGINE=INNODB;
 INSERT INTO t3(id, g) VALUES
 (1, ST_GEOMFROMTEXT('POINT(0 0)')),

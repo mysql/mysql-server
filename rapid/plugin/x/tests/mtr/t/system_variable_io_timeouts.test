@@ -1,0 +1,76 @@
+## Test configuration
+##
+--let $dont_load_mysqlx_plugin = 1
+--let $wait_for_unixsocket_status = no_wait
+--let $wait_for_tcpsocket_status = no_wait
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+CREATE USER 'regular_user'@'%' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'var_admin_user'@'%' IDENTIFIED WITH 'mysql_native_password';
+CREATE USER 'super_user'@'%' IDENTIFIED WITH 'mysql_native_password';
+
+disable_warnings;
+GRANT 'SYSTEM_VARIABLES_ADMIN' ON *.* TO 'var_admin_user'@'%';
+GRANT SUPER ON *.* TO 'super_user'@'%';
+enable_warnings;
+
+#
+## Verify Mysqlx_wait_timeout
+#
+--let $timeout_default_value=28800
+--let $timeout_variable=Mysqlx_wait_timeout
+--let $user_without_permissions=regular_user
+--let $user_with_permissions=var_admin_user
+--let $is_session=1
+--source ../include/system_variable_timeout.inc
+
+--let $user_with_permissions=super_user
+--source ../include/system_variable_timeout.inc
+
+#
+## Verify Mysqlx_interactive_timeout
+#
+--let $timeout_default_value=28800
+--let $timeout_variable=Mysqlx_interactive_timeout
+--let $user_without_permissions=regular_user
+--let $user_with_permissions=var_admin_user
+--let $is_session=0
+--source ../include/system_variable_timeout.inc
+
+--let $user_with_permissions=super_user
+--source ../include/system_variable_timeout.inc
+
+#
+## Verify Mysqlx_read_timeout
+#
+--let $timeout_default_value=30
+--let $timeout_variable=Mysqlx_read_timeout
+--let $user_without_permissions=regular_user
+--let $user_with_permissions=var_admin_user
+--let $is_session=1
+--source ../include/system_variable_timeout.inc
+
+--let $user_with_permissions=super_user
+--source ../include/system_variable_timeout.inc
+
+#
+## Verify Mysqlx_write_timeout
+#
+--let $timeout_default_value=60
+--let $timeout_variable=Mysqlx_write_timeout
+--let $user_without_permissions=regular_user
+--let $user_with_permissions=var_admin_user
+--let $is_session=1
+--source ../include/system_variable_timeout.inc
+
+--let $user_with_permissions=super_user
+--source ../include/system_variable_timeout.inc
+
+## Cleanup
+##
+DROP USER 'regular_user'@'%';
+DROP USER 'var_admin_user'@'%';
+DROP USER 'super_user'@'%';
+
+--source include/xplugin_drop_user.inc

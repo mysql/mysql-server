@@ -9,6 +9,9 @@
 # updated when the applier thread executes events, not when CHANGE
 # MASTER is used to fast-forward the position as this script does.
 #
+# When used in channels with MASTER_AUTO_POSITION = 1, this include
+# uses GTID_FROM_GTID_SET() which exists in include/gtid_utils.inc.
+#
 # ==== Usage ====
 #
 # [--let $rpl_channel_name= 'NAME']
@@ -39,6 +42,11 @@ if (!$rpl_debug)
 
 if ($_rsteorl_is_auto_position)
 {
+  if (!`SELECT COUNT(*) FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name = 'GTID_FROM_GTID_SET' AND routine_schema = 'test'`)
+  {
+    --die include/rpl_skip_to_end_of_relay_log.inc uses GTID_FROM_GTID_SET() which exists in include/gtid_utils.inc. Please source it or use "$rpl_gtid_utils= 1" before sourcing include/master_slave.inc
+  }
+
   --let $_rsteorl_received_gtid_set= query_get_value(SHOW SLAVE STATUS, Retrieved_Gtid_Set, 1)
   # Find transactions in relay log which are not in gtid_executed.
   --let $_rsteorl_skip_set= `SELECT GTID_SUBTRACT('$_rsteorl_received_gtid_set', @@GLOBAL.GTID_EXECUTED)`

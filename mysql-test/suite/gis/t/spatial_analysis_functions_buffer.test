@@ -107,9 +107,8 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_all_points), 0));
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT(@star_bottom_points), 2));
 
-# Disabled, see bug #24947868
-#--replace_regex /([0-9]*\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-#SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5));
+--replace_regex /([0-9]*\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5));
 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 5,5 5,5 0,0 0)'), 5));
@@ -447,9 +446,8 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(1000 -1000)'), 5, ST_BUFFER_ST
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0.000001)'), 10, ST_BUFFER_STRATEGY('point_circle', 10)));
 
-# Disabled, see bug #24947868
-#--replace_regex /([0-9]+\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{4})[0-9]*/\1/
-#SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5, ST_BUFFER_STRATEGY('point_circle', 20)));
+--replace_regex /([0-9]+\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{2})[0-9]+(e.+)/\1\2/ /([0-9]+\.[0-9]{4})[0-9]*/\1/
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5, ST_BUFFER_STRATEGY('point_circle', 20)));
 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(10 10,20 20,30 30)'), 5, ST_BUFFER_STRATEGY('point_circle', 4)));
@@ -488,9 +486,8 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(1000 -1000)'), 5, ST_BUFFER_ST
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0.000001)'), 10, ST_BUFFER_STRATEGY('point_square')));
 
-# Disabled, see bug #24947868
-#--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
-#SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5, ST_BUFFER_STRATEGY('point_square')));
+--replace_regex /([0-9]+\.[0-9]{4})[0-9]*/\1/ /([0-9]*\.[0-9]{2})[0-9]*(e[-+]*[0-9]+)/\1\2/
+SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5, ST_BUFFER_STRATEGY('point_square')));
 
 --replace_numeric_round 4
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(10 10,20 20,30 30)'), 5, ST_BUFFER_STRATEGY('point_square')));
@@ -1371,18 +1368,46 @@ DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 0), 1));
 --echo # Projected SRS (should pass)
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 2000), 1));
 
---echo # Geographic SRS (should pass)
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1));
 
---echo # Undefined SRS (should pass with warning)
-# Assume SRID 6000000 is undefined
-DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 6000000), 1));
+--echo #
+--echo # Bug #24947868 BOOST::GEOMETRY::BUFFER RETURNS INVALID MULTIPOLYGON
+--echo #
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 6000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (6000001, 1, 'TEST6000001', 'Foo', 6000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-DO ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)', 6000001), 1));
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 6000001;
+SELECT ST_ISVALID(
+  ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'), 5)
+) AS result;
+
+SELECT ST_ISVALID(
+  ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'),
+  5,
+  ST_BUFFER_STRATEGY('point_circle', 20))
+) AS result;
+
+SELECT ST_ISVALID(
+  ST_BUFFER(ST_GEOMFROMTEXT('MULTIPOINT(0 0,0 0,0 0,0 0)'),
+  5,
+  ST_BUFFER_STRATEGY('point_square'))
+) AS result;
+
+--echo #
+--echo # Bug #25662426 BG::BUFFER(LS, MPY) THROWS
+--echo # BG::INCONSISTENT_TURNS_EXCEPTION
+--echo #
+
+DO ST_BUFFER(
+  ST_GEOMFROMTEXT(
+    'LINESTRING(170 4756,168 4756,168 4759,168 4764,171 4764,171 3764)'
+  ),
+  10
+);
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_BUFFER(x'0A000000010100000000000000000000000000000000000000', 10);

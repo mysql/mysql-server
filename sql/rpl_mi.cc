@@ -1,13 +1,20 @@
 /* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -72,8 +79,14 @@ enum {
   /* line for tls_version */
   LINE_FOR_TLS_VERSION= 25,
 
+  /* line for master_public_key_path */
+  LINE_FOR_PUBLIC_KEY_PATH= 26,
+
+  /* line for get_master_public_key */
+  LINE_FOR_GET_PUBLIC_KEY= 27,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_TLS_VERSION
+  LINES_IN_MASTER_INFO= LINE_FOR_GET_PUBLIC_KEY
 
 };
 
@@ -109,6 +122,8 @@ const char *info_mi_fields []=
   "auto_position",
   "channel_name",
   "tls_version",
+  "public_key_path",
+  "get_public_key"
 };
 
 const uint info_mi_table_pk_field_indexes []=
@@ -140,6 +155,7 @@ Master_info::Master_info(
             ),
    start_user_configured(false),
    ssl(0), ssl_verify_server_cert(0),
+   get_public_key(false),
    port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
    clock_diff_with_master(0), heartbeat_period(0),
    received_heartbeats(0), last_heartbeat(0), master_id(0),
@@ -156,6 +172,7 @@ Master_info::Master_info(
   master_uuid[0]= 0;
   start_plugin_auth[0]= 0; start_plugin_dir[0]= 0;
   start_user[0]= 0;
+  public_key_path[0]= 0;
   ignore_server_ids= new Server_ids;
 
   gtid_monitoring_info= new Gtid_monitoring_info(&data_lock);
@@ -357,6 +374,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   int temp_ssl= 0;
   int temp_ssl_verify_server_cert= 0;
   int temp_auto_position= 0;
+  int temp_get_public_key= 0;
 
   DBUG_ENTER("Master_info::read_info");
 
@@ -504,10 +522,23 @@ bool Master_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(true);
   }
 
+  if (lines >= LINE_FOR_PUBLIC_KEY_PATH)
+  {
+    if (from->get_info(public_key_path, sizeof(public_key_path), (char *) 0))
+      DBUG_RETURN(true);
+  }
+
+  if (lines >= LINE_FOR_GET_PUBLIC_KEY)
+  {
+    if (from->get_info(&temp_get_public_key, 0))
+      DBUG_RETURN(true);
+  }
+
   ssl= (bool) temp_ssl;
   ssl_verify_server_cert= (bool) temp_ssl_verify_server_cert;
   master_log_pos= (my_off_t) temp_master_log_pos;
   auto_position= temp_auto_position;
+  get_public_key= (bool) temp_get_public_key;
 
 #ifndef HAVE_OPENSSL
   if (ssl)
@@ -565,7 +596,9 @@ bool Master_info::write_info(Rpl_info_handler *to)
       to->set_info(ssl_crlpath) ||
       to->set_info((int) auto_position) ||
       to->set_info(channel) ||
-      to->set_info(tls_version))
+      to->set_info(tls_version) ||
+      to->set_info(public_key_path) ||
+      to->set_info(get_public_key))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);

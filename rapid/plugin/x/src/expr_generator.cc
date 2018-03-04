@@ -1,34 +1,39 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "expr_generator.h"
+#include "plugin/x/src/expr_generator.h"
 
 #include <algorithm>
 #include <string>
 #include <utility>
 
-#include "json_utils.h"
-#include "mysql_function_names.h"
-#include "ngs_common/bind.h"
-#include "ngs_common/to_string.h"
-#include "xpl_error.h"
-#include "xpl_regex.h"
+#include "plugin/x/ngs/include/ngs_common/bind.h"
+#include "plugin/x/ngs/include/ngs_common/to_string.h"
+#include "plugin/x/src/json_utils.h"
+#include "plugin/x/src/mysql_function_names.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_regex.h"
 
 namespace xpl {
 
@@ -172,7 +177,11 @@ void Expression_generator::generate(const Mysqlx::Expr::FunctionCall &arg)
     const {
   generate(arg.name(), true);
   m_qb->put("(");
-  generate_for_each(arg.param(), &Expression_generator::generate_unquote_param);
+  if (is_native_mysql_json_function(arg.name().name()))
+    generate_for_each(arg.param(), &Expression_generator::generate);
+  else
+    generate_for_each(arg.param(),
+                      &Expression_generator::generate_unquote_param);
   m_qb->put(")");
 }
 
@@ -209,7 +218,7 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Scalar &arg)
 
     case Mysqlx::Datatypes::Scalar::V_STRING:
       if (arg.v_string().has_collation()) {
-        // TODO handle _utf8'string' type charset specification... but 1st
+        // TODO(bob) handle _utf8'string' type charset specification... but 1st
         // validate charset for alnum_
         // m_qb->put("_").put(arg.v_string().charset());
       }
@@ -303,7 +312,7 @@ void Expression_generator::generate_for_each(
     const typename ::google::protobuf::RepeatedPtrField<T>::size_type offset)
     const {
   if (list.size() == 0) return;
-  typedef typename ::google::protobuf::RepeatedPtrField<T>::const_iterator It;
+  using It = typename ::google::protobuf::RepeatedPtrField<T>::const_iterator;
   It end = list.end() - 1;
   for (It i = list.begin() + offset; i != end; ++i) {
     (this->*generate_fun)(*i);
@@ -379,7 +388,6 @@ inline bool is_cast_to_json(const Mysqlx::Expr::Operator &arg) {
 }
 
 inline bool is_json_function_call(const Mysqlx::Expr::FunctionCall &arg) {
-
   return arg.has_name() && arg.name().has_name() &&
          does_return_json_mysql_function(arg.name().name());
 }
@@ -645,10 +653,9 @@ void Expression_generator::binary_expression(const Mysqlx::Expr::Operator &arg,
 }
 
 namespace {
-typedef ngs::function<void(const Expression_generator *,
-                           const Mysqlx::Expr::Operator &)> Operator_ptr;
-
-typedef std::pair<const char *const, Operator_ptr> Operator_bind;
+using Operator_ptr = ngs::function<
+    void(const Expression_generator *, const Mysqlx::Expr::Operator &)>;
+using Operator_bind = std::pair<const char *const, Operator_ptr>;
 
 struct Is_operator_less {
   bool operator()(const Operator_bind &pattern,

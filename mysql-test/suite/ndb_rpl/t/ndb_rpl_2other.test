@@ -38,6 +38,20 @@ SET @old_slave_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=myisam;
 
 --source include/start_slave.inc
+
+# Check if log-slave-updates and slave-preserve-commit-order
+# have been turned off
+
+if (`select @@log_slave_updates`)
+{
+  die Test requires log-slave-updates=0;
+}
+
+if (`select @@slave_preserve_commit_order`)
+{
+  die Test requires slave-preserve-commit-order=0;
+}
+
 --source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc

@@ -1,4 +1,4 @@
-create table t1 (i int, g geometry not null, spatial index (g))engine=innodb;
+create table t1 (i int, g geometry not null SRID 0, spatial index (g))engine=innodb;
 SET SESSION debug="+d,rtree_test_check_count";
 insert into t1 values (1, POINT(1,1));
 insert into t1 values (1, POINT(1.5,1.5));

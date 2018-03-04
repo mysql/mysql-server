@@ -1,17 +1,24 @@
 /* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_rli.h"
 
@@ -258,8 +265,8 @@ Relay_log_info::~Relay_log_info()
 
     if (rpl_filter != NULL)
     {
-      /* Remove the channel's replication filter from rpl_filter_map. */
-      rpl_filter_map.delete_filter(rpl_filter);
+      /* Remove the channel's replication filter from rpl_channel_filters. */
+      rpl_channel_filters.delete_filter(rpl_filter);
       rpl_filter= NULL;
     }
 
@@ -1356,7 +1363,7 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
 
       ln= add_channel_to_relay_log_name(relay_bin_channel, FN_REFLEN,
                                         ln_without_channel_name);
-      if (opt_relaylog_index_name)
+      if (opt_relaylog_index_name_supplied)
       {
         char index_file_withoutext[FN_REFLEN];
         relay_log.generate_name(opt_relaylog_index_name,"",
@@ -1371,8 +1378,9 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
 
       if (relay_log.open_index_file(log_index_name, ln, TRUE))
       {
-        sql_print_error("Unable to purge relay log files. Failed to open relay "
-                        "log index file:%s.", relay_log.get_index_fname());
+        LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
+               "Failed to open relay log index file:",
+               relay_log.get_index_fname());
         DBUG_RETURN(1);
       }
       mysql_mutex_lock(&mi->data_lock);
@@ -1386,8 +1394,8 @@ int Relay_log_info::purge_relay_logs(THD *thd, bool just_reset,
       {
         mysql_mutex_unlock(log_lock);
         mysql_mutex_unlock(&mi->data_lock);
-        sql_print_error("Unable to purge relay log files. Failed to open relay "
-                        "log file:%s.", relay_log.get_log_fname());
+        LogErr(ERROR_LEVEL, ER_SLAVE_RELAY_LOG_PURGE_FAILED,
+               "Failed to open relay log file:", relay_log.get_log_fname());
         DBUG_RETURN(1);
       }
       mysql_mutex_unlock(log_lock);
@@ -1620,9 +1628,19 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   }
   if (rows_query_ev)
   {
+    /*
+      In order to avoid invalid memory access, THD::reset_query() should be
+      called before deleting the rows_query event.
+    */
+    info_thd->reset_query();
     delete rows_query_ev;
     rows_query_ev= NULL;
-    info_thd->reset_query();
+    DBUG_EXECUTE_IF("after_deleting_the_rows_query_ev",
+                    {
+                      const char action[]="now SIGNAL deleted_rows_query_ev WAIT_FOR go_ahead";
+                      DBUG_ASSERT(!debug_sync_set_action(info_thd,
+                                                       STRING_WITH_LEN(action)));
+                    };);
   }
   m_table_map.clear_tables();
   slave_close_thread_tables(thd);
@@ -1946,7 +1964,8 @@ int Relay_log_info::rli_init_info()
                                       ln_without_channel_name);
 
     /* We send the warning only at startup, not after every RESET SLAVE */
-    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
+    if (!opt_relay_logname_supplied && !opt_relaylog_index_name_supplied &&
+        !name_warning_sent)
     {
       /*
         User didn't give us info to name the relay log index file.
@@ -1965,7 +1984,7 @@ int Relay_log_info::rli_init_info()
        index file. If the opt_relaylog_index has an extension, we strip
        it too. This is inconsistent to relay log names.
     */
-    if (opt_relaylog_index_name)
+    if (opt_relaylog_index_name_supplied)
     {
       char index_file_withoutext[FN_REFLEN];
       relay_log.generate_name(opt_relaylog_index_name,"",
@@ -2159,7 +2178,7 @@ err:
   inited= 0;
   error_on_rli_init_info= true;
   if (msg)
-    sql_print_error("%s.", msg);
+    LogErr(ERROR_LEVEL, ER_RPL_RLI_INIT_INFO_MSG, msg);
   relay_log.close(LOG_CLOSE_INDEX | LOG_CLOSE_STOP_EVENT,
                   true/*need_lock_log=true*/,
                   true/*need_lock_index=true*/);

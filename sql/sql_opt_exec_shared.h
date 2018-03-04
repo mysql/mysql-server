@@ -1,13 +1,20 @@
 /* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -515,6 +522,8 @@ public:
   { return m_qs->is_inner_table_of_outer_join(); }
   bool is_first_inner_for_outer_join() const
   { return m_qs->is_first_inner_for_outer_join(); }
+  bool is_single_inner_for_outer_join() const
+  { return m_qs->is_single_inner_of_outer_join(); }
 
   bool has_guarded_conds() const
   { return ref().has_guarded_conds(); }
@@ -537,8 +546,62 @@ protected:
   Symbolic slice numbers into JOIN's arrays ref_items, tmp_fields and
   tmp_all_fields
 */
-enum { REF_SLICE_BASE = 0,
-       REF_SLICE_TMP1, REF_SLICE_TMP2, REF_SLICE_TMP3, REF_SLICE_SAVE,
-       REF_SLICE_WIN_1 };
+enum {
+  /**
+     The slice which is used during evaluation of expressions; Item_ref::ref
+     points there.
+     The contents of this slice is dynamic, and is filled with one
+     of the other (static) slices during execution, see
+     Switch_ref_item_slice.
+  */
+  REF_SLICE_BASE = 0,
+  /**
+     The slice with pointers to columns of 1st group-order-distinct tmp
+     table
+  */
+  REF_SLICE_TMP1,
+  /**
+     The slice with pointers to columns of 2nd group-order-distinct tmp
+     table
+  */
+  REF_SLICE_TMP2,
+  /**
+     The slice with pointers to columns of a pseudo-tmp-table used for
+     GROUP BY. For certain queries with GROUP BY, when it's time to group,
+     rows arrive already sorted in the order of group expressions (example:
+     index is used, or a sort has been inserted at the join's beginning or
+     end). In that case, we do not use a tmp table to manage the groups (as
+     end_update() would do); we use a set of Items, which
+     together represent a one-row pseudo-tmp-table holding the current group.
+     These items are created by setup_copy_fields().
+     When we have finished reading a row from the last pre-grouping table, we
+     process it either with end_send_group() or end_send():
+     * end_send_group(): we compare new row with current group, if it belongs
+     to that group we update aggregate functions of the group, if it doesn't
+     belong we send the group forward and then overwrite it with the new
+     group.
+     * end_send(): that's for when the comparison is unnecessary i.e. we know
+     every incoming row is a new group i.e. grouping has been handled before
+     (e.g. loose index scan). Then we just build the group and send it
+     forward.
+     Both functions build the group by copying values of items from previous
+     stages into pseudo-table, e.g.
+     SELECT a, RAND() AS r FROM t GROUP BY a HAVING r=1;
+     copies "a" from "t" and stores it into pseudo-table, evaluates rand() and
+     stores it too, then evaluates "r=1" based on stored value (which is
+     necessary so that "r" in SELECT list and "r" in "r=1" match).
+
+     Groups from this slice are always directly sent to the query's result,
+     and never buffered to any further tmp table.
+  */
+  REF_SLICE_TMP3,
+  /**
+     The slice with pointers to columns of the joined tables
+  */
+  REF_SLICE_SAVE,
+  /**
+     The slice with pointers to columns of 1st tmp table of windowing
+  */
+  REF_SLICE_WIN_1 };
 
 #endif // SQL_OPT_EXEC_SHARED_INCLUDED

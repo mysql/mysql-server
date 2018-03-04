@@ -3,16 +3,24 @@
 Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -27,7 +35,9 @@ Created 9/17/2000 Heikki Tuuri
 #ifndef row0mysql_h
 #define row0mysql_h
 
+#ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"
+#endif  /* !UNIV_HOTBACKUP */
 
 #include "data0data.h"
 #include "que0types.h"
@@ -40,6 +50,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "sess0sess.h"
 #include "sql_cmd.h"
 
+#ifndef UNIV_HOTBACKUP
 extern ibool row_rollback_on_timeout;
 
 struct row_prebuilt_t;
@@ -290,6 +301,7 @@ void
 row_unlock_for_mysql(
 	row_prebuilt_t*	prebuilt,
 	ibool		has_latches_on_recs);
+#endif  /* !UNIV_HOTBACKUP */
 
 /*********************************************************************//**
 Checks if a table name contains the string "/#sql" which denotes temporary
@@ -302,6 +314,7 @@ row_is_mysql_tmp_table_name(
 				/*!< in: table name in the form
 				'database/tablename' */
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
@@ -311,6 +324,17 @@ row_create_update_node_for_mysql(
 /*=============================*/
 	dict_table_t*	table,	/*!< in: table to update */
 	mem_heap_t*	heap);	/*!< in: mem heap from which allocated */
+/**********************************************************************//**
+Does a cascaded delete or set null in a foreign key operation.
+@return error code or DB_SUCCESS */
+dberr_t
+row_update_cascade_for_mysql(
+/*=========================*/
+        que_thr_t*      thr,    /*!< in: query thread */
+        upd_node_t*     node,   /*!< in: update node used in the cascade
+                                or set null operation */
+        dict_table_t*   table)  /*!< in: table where we do the operation */
+        MY_ATTRIBUTE((nonnull, warn_unused_result));
 /*********************************************************************//**
 Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
@@ -585,8 +609,9 @@ struct mysql_row_templ_t {
 					ROW_MYSQL_WHOLE_ROW */
 	ulint	icp_rec_field_no;	/*!< field number of the column in an
 					Innobase record in the current index;
-					not defined unless
-					index condition pushdown is used */
+					only defined for columns that could be
+					used to evaluate a pushed down index
+					condition and/or end-range condition */
 	ulint	mysql_col_offset;	/*!< offset of the column in the MySQL
 					row format */
 	ulint	mysql_col_len;		/*!< length of the column in the MySQL
@@ -981,5 +1006,6 @@ innobase_rename_vc_templ(
 void
 row_wait_for_background_drop_list_empty();
 #endif /* UNIV_DEBUG */
+#endif  /* !UNIV_HOTBACKUP */
 
 #endif /* row0mysql.h */

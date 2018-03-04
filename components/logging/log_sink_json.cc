@@ -1,17 +1,24 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @brief
@@ -69,8 +76,10 @@ typedef struct _my_state
   can veto.
 
   @param   ll  a list-item describing the variable (name, new value)
+
   @retval   0  for allow (including when we don't feel the event is for us),
-  @retval  -1  for deny
+  @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
+  @retval  >0  deny (user input rejected)
 */
 DEFINE_METHOD(int, log_service_imp::variable_check,
               (log_line *ll MY_ATTRIBUTE((unused))))
@@ -85,8 +94,10 @@ DEFINE_METHOD(int, log_service_imp::variable_check,
   to update our state (if the variable concerns us to begin with).
 
   @param   ll  a list-item describing the variable (name, new value)
-  @retval   0  for success (including when we don't feel the event is for us),
-  @retval  -1  for failure
+
+  @retval  0  the event is not for us
+  @retval <0  for failure
+  @retval >0  for success (at least one item was updated)
 */
 DEFINE_METHOD(int, log_service_imp::variable_update,
               (log_line *ll MY_ATTRIBUTE((unused))))

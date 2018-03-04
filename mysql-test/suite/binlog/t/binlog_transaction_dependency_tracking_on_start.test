@@ -56,7 +56,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --transaction_wr
 --source include/grep_pattern.inc
 
 # The server restart aborts
---let $grep_pattern= \[ERROR\] Aborting
+--let $grep_pattern= \[ERROR\] \[[^]]*\] Aborting
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 
@@ -73,7 +73,7 @@ let $mysqld=$MYSQLD_CMD --core-file --console > $error_log 2>&1 --transaction_wr
 --source include/grep_pattern.inc
 
 # The server restart aborts
---let $grep_pattern= \[ERROR\] Aborting
+--let $grep_pattern= \[ERROR\] \[[^]]*\] Aborting
 --let $grep_output= print_count
 --source include/grep_pattern.inc
 

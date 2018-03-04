@@ -92,7 +92,9 @@ EOF
   $ENV{'PATH'}="$bindir:$ENV{'PATH'}";
 
   my $init_file_args= $ENV{'INIT_FILE_ARGS'};
-  (system("mysqld $init_file_args") == 0) ||
+  my $binary= $ENV{'MYSQLD'};
+  $binary =~ s|$bdir/||;
+  (system("$binary $init_file_args") == 0) ||
     die "system failed on 'mysqld $init_file_args': $!";
 
   my $mysqld_log= $ENV{'MYSQLD_LOG'};
@@ -122,7 +124,7 @@ EOF
   my $found_expected_error= 0;
   while(<MYSQLD_OUT>)
   {
-    if (/\[ERROR\] Could not open .+ for error logging/)
+    if (/\[ERROR\] \[[^]]*\] Could not open .+ for error logging/)
     {
       print "# Found expected error\n";
       $found_expected_error= 1;
@@ -149,12 +151,12 @@ EOF
   my $found_expected_errors= 0;
   while(<MYSQLD_OUT>)
   {
-    if (/\[ERROR\] Could not open .+ for error logging/)
+    if (/\[ERROR\] \[[^]]*\] Could not open .+ for error logging/)
     {
       print "# Found expected error from launcher process\n";
       ++$found_expected_errors;
     }
-    if (/\[ERROR\] Failed to start mysqld daemon\. Check mysqld error log\./)
+    if (/\[ERROR\] \[[^]]*\] Failed to start mysqld daemon\. Check mysqld error log\./)
     {
       print "# Found expected error from daemon process\n";
       ++$found_expected_errors;

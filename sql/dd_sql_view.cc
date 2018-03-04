@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -26,6 +33,7 @@
 #include "my_sqlcommand.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
+#include "mysqld.h"                     // mysqld_server_started
 #include "sql/auth/auth_common.h"
 #include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
 #include "sql/dd/dd.h"                  // dd::get_dictionary
@@ -81,7 +89,9 @@ public:
     m_thd->lex->sql_command= SQLCOM_SHOW_FIELDS;
 
     // Backup open tables state.
-    m_thd->reset_n_backup_open_tables_state(&m_open_tables_state_backup, 0);
+    m_open_tables_state_backup.set_open_tables_state(m_thd);
+    m_thd->reset_open_tables_state();
+    m_thd->state_flags|= (Open_tables_state::BACKUPS_AVAIL);
   }
 
   ~View_metadata_updater_context()
@@ -93,7 +103,7 @@ public:
     m_thd->variables.sql_mode= m_saved_sql_mode;
 
     // Restore open tables state.
-    m_thd->restore_backup_open_tables_state(&m_open_tables_state_backup);
+    m_thd->set_open_tables_state(&m_open_tables_state_backup);
 
     // Restore lex.
     m_thd->lex->unit->cleanup(true);
@@ -104,8 +114,6 @@ public:
     // While opening views, there is chance of hitting deadlock error. Returning
     // error in this case and resetting transaction_rollback_request here.
     m_thd->transaction_rollback_request= false;
-
-    DEBUG_SYNC(m_thd, "view_metadata_updater_context_dtor");
   }
 
 private:
@@ -451,7 +459,18 @@ static bool open_views_and_update_metadata(
                     &prelocking_strategy))
     {
       thd->pop_internal_handler();
-      if (error_handler.is_view_invalid())
+      /*
+        If error is handled by the error handler then update status of the view
+        as "invalid." else report an error.
+
+        During server startup, my_message_stderr is set to the
+        error_handler_hook until all the server components and network are
+        initialized. my_message_stderr does not invoke error handlers pushed.
+        Even there will not be any concurrent operations at this stage to hit
+        deadlock and lock wait timeout situations. So during server startup,
+        view is marked as "invalid" in the error cases.
+      */
+      if (!mysqld_server_started || error_handler.is_view_invalid())
       {
         if (view->mdl_request.ticket != NULL)
         {
@@ -486,7 +505,8 @@ static bool open_views_and_update_metadata(
     {
       thd->lex= org_lex;
       thd->pop_internal_handler();
-      if (error_handler.is_view_invalid())
+      // Please refer comments in the view open error handling block above.
+      if (!mysqld_server_started || error_handler.is_view_invalid())
       {
         // Update view status in tables.options.view_valid.
         if (dd::update_view_status(thd, view->get_db_name(),
@@ -503,11 +523,6 @@ static bool open_views_and_update_metadata(
     }
     thd->pop_internal_handler();
 
-    view_lex->create_view_algorithm= view->algorithm;
-    view_lex->definer= &view->definer;
-    view_lex->create_view_suid= view->view_suid;
-    view_lex->create_view_check= view->with_check;
-
     /*
       If we are not going commit changes immediately we need to ensure
       that entries for uncommitted views are removed from TDC on error/
@@ -517,9 +532,34 @@ static bool open_views_and_update_metadata(
     if (!commit_dd_changes)
       uncommitted_tables->add_table(view);
 
-    // Update view metadata. mysql_register_view with VIEW_ALTER mode, drops
-    // old view object and recreates the new one with the new definition.
-    bool res= mysql_register_view(thd, view, enum_view_create_mode::VIEW_ALTER);
+    // Prepare view query from the Item-tree built from the original query.
+    char view_query_buff[4096];
+    String view_query(view_query_buff, sizeof(view_query_buff), thd->charset());
+    view_query.length(0);
+
+    if (thd->lex->unit->is_mergeable() &&
+        view->algorithm != VIEW_ALGORITHM_TEMPTABLE)
+    {
+      for (ORDER *order= thd->lex->select_lex->order_list.first;
+           order; order= order->next)
+        order->used_alias= false;              /// @see Item::print_for_order()
+    }
+    Sql_mode_parse_guard parse_guard(thd);
+    thd->lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
+    if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
+                              view_query.length(), false))
+      DBUG_RETURN(true);
+
+    // Update view metadata in the data-dictionary tables.
+    view->updatable_view= is_updatable_view(thd, view);
+    dd::View *new_view= nullptr;
+    if (thd->dd_client()->acquire_for_modification(view->db,
+                                                   view->table_name,
+                                                   &new_view))
+      DBUG_RETURN(true);
+    DBUG_ASSERT(new_view != nullptr);
+    bool res= dd::update_view(thd, new_view, view);
+
     if (commit_dd_changes)
     {
       Disable_gtid_state_update_guard disabler(thd);
@@ -546,6 +586,7 @@ static bool open_views_and_update_metadata(
     lex_end(view_lex);
     thd->lex= org_lex;
   }
+  DEBUG_SYNC(thd, "after_updating_view_metadata");
 
   DBUG_RETURN(false);
 }
@@ -614,6 +655,8 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
     break;
   case SQLCOM_CREATE_SPFUNCTION:
   case SQLCOM_DROP_FUNCTION:
+  case SQLCOM_INSTALL_PLUGIN:
+  case SQLCOM_UNINSTALL_PLUGIN:
     retval= true;
     break;
   default:
@@ -667,7 +710,8 @@ static bool update_view_metadata(THD *thd,
       (thd->lex->sql_command == SQLCOM_DROP_TABLE    ||
        thd->lex->sql_command == SQLCOM_DROP_VIEW     ||
        thd->lex->sql_command == SQLCOM_DROP_FUNCTION ||
-       thd->lex->sql_command == SQLCOM_DROP_DB);
+       thd->lex->sql_command == SQLCOM_DROP_DB ||
+       thd->lex->sql_command == SQLCOM_UNINSTALL_PLUGIN);
 
     // If operation is drop operation then view referencing it becomes invalid.
     // Hence mark all view as invalid.
@@ -696,21 +740,19 @@ static bool update_view_metadata(THD *thd,
 }
 
 
-bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
+static bool update_referencing_views_metadata(THD *thd,
+        const char *db, const char *table_name,
         const char *new_db, const char *new_table_name,
         bool commit_dd_changes,
         Uncommitted_tables_guard *uncommitted_tables)
 {
   DBUG_ENTER("update_referencing_views_metadata");
-  DBUG_ASSERT(table != nullptr);
 
   // Update metadata for view's referencing table.
-  if (is_view_metadata_update_needed(thd, table->get_db_name(),
-                                     table->get_table_name()))
+  if (is_view_metadata_update_needed(thd, db, table_name))
   {
     // Prepare list of all views referencing the table.
-    if (update_view_metadata<dd::View_table>(thd, table->get_db_name(),
-                                             table->get_table_name(),
+    if (update_view_metadata<dd::View_table>(thd, db, table_name,
                                              commit_dd_changes,
                                              uncommitted_tables))
       DBUG_RETURN(true);
@@ -727,12 +769,45 @@ bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
 
 
 bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
+        const char *new_db, const char *new_table_name,
+        bool commit_dd_changes,
+        Uncommitted_tables_guard *uncommitted_tables)
+{
+  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_ASSERT(table != nullptr);
+
+  bool error= update_referencing_views_metadata(thd, table->get_db_name(),
+                                                table->get_table_name(),
+                                                new_db, new_table_name,
+                                                commit_dd_changes,
+                                                uncommitted_tables);
+  DBUG_RETURN(error);
+}
+
+
+bool update_referencing_views_metadata(THD *thd, const TABLE_LIST *table,
         bool commit_dd_changes,
         Uncommitted_tables_guard *uncommitted_tables)
 {
   return update_referencing_views_metadata(thd, table, nullptr, nullptr,
                                            commit_dd_changes,
                                            uncommitted_tables);
+}
+
+
+bool update_referencing_views_metadata(THD *thd, const char *db_name,
+        const char *table_name,
+        bool commit_dd_changes,
+        Uncommitted_tables_guard *uncommitted_tables)
+{
+  DBUG_ENTER("update_referencing_views_metadata");
+  DBUG_ASSERT(db_name && table_name);
+
+  bool error= update_referencing_views_metadata(thd, db_name, table_name,
+                                                nullptr, nullptr,
+                                                commit_dd_changes,
+                                                uncommitted_tables);
+  DBUG_RETURN(error);
 }
 
 
@@ -747,11 +822,12 @@ bool update_referencing_views_metadata(THD *thd, const sp_name *spname)
     the update_view_metadata().
   */
   Uncommitted_tables_guard uncommitted_tables(thd);
-  DBUG_RETURN(update_view_metadata<dd::View_routine>(thd,
+  bool error= update_view_metadata<dd::View_routine>(thd,
                                                      spname->m_db.str,
                                                      spname->m_name.str,
                                                      false,
-                                                     &uncommitted_tables));
+                                                     &uncommitted_tables);
+  DBUG_RETURN(error);
 }
 
 

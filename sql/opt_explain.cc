@@ -1,17 +1,24 @@
 /* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file sql/opt_explain.cc
@@ -80,6 +87,7 @@
 #include "sql/sql_select.h"
 #include "sql/table.h"
 #include "sql_string.h"
+#include "sql/table_function.h"      // Table_function
 
 class Opt_trace_context;
 
@@ -1007,6 +1015,9 @@ bool Explain_table_base::explain_extra_common(int quick_type,
     int pushed_id= 0;
     for (QEP_TAB* prev= select_lex->join->qep_tab; prev <= tab; prev++)
     {
+      if (prev->table() == NULL)
+        continue;
+
       const TABLE* prev_root= prev->table()->file->root_of_pushed_join();
       if (prev_root == prev->table())
       {
@@ -1067,6 +1078,15 @@ bool Explain_table_base::explain_extra_common(int quick_type,
 
   if (tab)
   {
+    if (tab->table_ref && tab->table_ref->table_function)
+    {
+      StringBuffer<64> str(cs);
+      str.append(tab->table_ref->table_function->func_name());
+
+      if (push_extra(ET_TABLE_FUNCTION, str) ||
+          push_extra(ET_USING_TEMPORARY))
+        return true;
+    }
     if (tab->dynamic_range())
     {
       StringBuffer<64> str(STRING_WITH_LEN("index map: 0x"), cs);
@@ -2381,8 +2401,8 @@ bool mysql_explain_unit(THD *ethd, SELECT_LEX_UNIT *unit)
 }
 
 /**
-  Callback function used by mysql_explain_other() to find thd based
-  on the thread id.
+  Callback function used by Sql_cmd_explain_other_thread::execute() to find thd
+  based on the thread id.
 
   @note It acquires LOCK_thd_data mutex and LOCK_query_plan mutex,
   when it finds matching thd.
@@ -2422,7 +2442,7 @@ private:
    proper locks, explains its current statement, releases locks.
    @param  thd THD executing this function (== the explainer)
 */
-void mysql_explain_other(THD *thd)
+bool Sql_cmd_explain_other_thread::execute(THD *thd)
 {
   bool res= false;
   THD *query_thd= NULL;
@@ -2455,7 +2475,7 @@ void mysql_explain_other(THD *thd)
   }
 
   // Pick thread
-  Find_thd_query_lock find_thd_query_lock(thd->lex->query_id);
+  Find_thd_query_lock find_thd_query_lock(m_thread_id);
   if (!thd->killed)
   {
     query_thd= Global_THD_manager::
@@ -2466,7 +2486,7 @@ void mysql_explain_other(THD *thd)
 
   if (!query_thd)
   {
-    my_error(ER_NO_SUCH_THREAD, MYF(0), thd->lex->query_id);
+    my_error(ER_NO_SUCH_THREAD, MYF(0), m_thread_id);
     goto err;
   }
 
@@ -2495,7 +2515,7 @@ void mysql_explain_other(THD *thd)
     */
     if (!qp->is_ps_query() &&                                        // (1)
         is_explainable_query(qp->get_command()) &&
-        !qp->get_lex()->describe &&                                  // (2)
+        !qp->get_lex()->is_explain() &&                              // (2)
         qp->get_lex()->sphead == NULL &&                             // (3)
         (!qp->get_lex()->m_sql_cmd ||
          qp->get_lex()->m_sql_cmd->is_prepared()))                   // (4)
@@ -2546,6 +2566,8 @@ err:
   DEBUG_SYNC(thd, "after_explain_other");
   if (!res && send_ok)
     my_ok(thd, 0);
+
+  return false; // Always return "success".
 }
 
 

@@ -3,16 +3,24 @@
 Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -30,12 +38,16 @@ Created 11/26/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "fsp0sysspace.h"
-#include "log0log.h"
-#include "log0recv.h"
-#include "mtr0log.h"
+#ifndef UNIV_HOTBACKUP
+# include "log0log.h"
+# include "log0recv.h"
+# include "mtr0log.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "my_dbug.h"
-#include "page0types.h"
-#include "trx0purge.h"
+#ifndef UNIV_HOTBACKUP
+# include "page0types.h"
+# include "trx0purge.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /** Iterate over a memo block in reverse. */
 template <typename Functor>
@@ -177,16 +189,20 @@ void
 memo_slot_release(mtr_memo_slot_t* slot)
 {
 	switch (slot->type) {
+#ifndef UNIV_HOTBACKUP
 		buf_block_t*	block;
+#endif /* !UNIV_HOTBACKUP */
 
 	case MTR_MEMO_BUF_FIX:
 	case MTR_MEMO_PAGE_S_FIX:
 	case MTR_MEMO_PAGE_SX_FIX:
 	case MTR_MEMO_PAGE_X_FIX:
+#ifndef UNIV_HOTBACKUP
 		block = reinterpret_cast<buf_block_t*>(slot->object);
 
 		buf_block_unfix(block);
 		buf_page_release_latch(block, slot->type);
+#endif /* !UNIV_HOTBACKUP */
 		break;
 
 	case MTR_MEMO_S_LOCK:
@@ -252,12 +268,14 @@ struct AddDirtyBlocksToFlushList {
 		ut_ad(m_end_lsn > 0);
 		ut_ad(m_start_lsn > 0);
 
+#ifndef UNIV_HOTBACKUP
 		buf_block_t*	block;
 
 		block = reinterpret_cast<buf_block_t*>(slot->object);
 
 		buf_flush_note_modification(block, m_start_lsn,
 					    m_end_lsn, m_flush_observer);
+#endif /* !UNIV_HOTBACKUP */
 	}
 
 	/** @return true always. */
@@ -349,14 +367,18 @@ public:
 	/** Release the resources */
 	void release_resources();
 
+#ifndef UNIV_HOTBACKUP
 	/** Append the redo log records to the redo log buffer.
 	@param[in]	len	number of bytes to write */
 	void finish_write(ulint len);
+#endif /* !UNIV_HOTBACKUP */
 
 private:
+#ifndef UNIV_HOTBACKUP
 	/** Prepare to write the mini-transaction log to the redo log buffer.
 	@return number of bytes to write in finish_write() */
 	ulint prepare_write();
+#endif /* !UNIV_HOTBACKUP */
 
 	/** true if it is a sync mini-transaction. */
 	bool			m_sync;
@@ -389,6 +411,7 @@ mtr_t::is_block_dirtied(const buf_block_t* block)
 	return(block->page.oldest_modification == 0);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Write the block contents to the REDO log */
 struct mtr_write_log_t {
 	/** Append a block to the redo log buffer.
@@ -399,6 +422,7 @@ struct mtr_write_log_t {
 		return(true);
 	}
 };
+#endif /* !UNIV_HOTBACKUP */
 
 /** Start a mini-transaction.
 @param sync		true if it is a synchronous mini-transaction
@@ -480,6 +504,7 @@ mtr_t::commit()
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /** Acquire a tablespace X-latch.
 @param[in]	space		tablespace instance
 @param[in]	file		file name from where called
@@ -595,8 +620,10 @@ mtr_t::Command::prepare_write()
 		++len;
 	}
 
+#ifndef UNIV_HOTBACKUP
 	/* check and attempt a checkpoint if exceeding capacity */
 	log_margin_checkpoint_age(len);
+#endif  /* !UNIV_HOTBACKUP */
 
 	return(len);
 }
@@ -632,6 +659,7 @@ mtr_t::Command::finish_write(
 
 	m_end_lsn = log_close();
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Release the latches and blocks acquired by this mini-transaction */
 void
@@ -664,9 +692,11 @@ mtr_t::Command::execute()
 {
 	ut_ad(m_impl->m_log_mode != MTR_LOG_NONE);
 
+#ifndef UNIV_HOTBACKUP
 	if (const ulint len = prepare_write()) {
 		finish_write(len);
 	}
+#endif /* !UNIV_HOTBACKUP */
 
 	if (m_impl->m_made_dirty) {
 		log_flush_order_mutex_enter();
@@ -689,6 +719,7 @@ mtr_t::Command::execute()
 	release_resources();
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /** Check if memo contains the given item.
 @return	true if contains */
@@ -786,3 +817,4 @@ mtr_t::print() const
 }
 
 #endif /* UNIV_DEBUG */
+#endif  /* !UNIV_HOTBACKUP */

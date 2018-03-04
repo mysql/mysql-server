@@ -2,6 +2,7 @@
 ##
 --source include/restart_mysqld.inc
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-largetest.tmp
@@ -62,17 +63,18 @@ EOF
 --write_file $MYSQL_TMP_DIR/mysqlx-empty.tmp
 EOF
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest.tmp -v %PATH_TO_256kb_JSON_FILE%=$MYSQL_TEST_DIR/std_data/256kb.json 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest.tmp -v %PATH_TO_256kb_JSON_FILE%=$MYSQL_TEST_DIR/std_data/256kb.json 2>&1
 
 SET GLOBAL mysqlx_max_allowed_packet=162000000;
 
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-empty.tmp 2>&1
---exec $MYSQLXTEST -uroot --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-empty.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp 2>&1
 
 --remove_file $MYSQL_TMP_DIR/mysqlx-largetest.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-empty.tmp
 
 ##cleanup
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;
 

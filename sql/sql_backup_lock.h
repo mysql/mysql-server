@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -106,5 +113,32 @@ bool acquire_shared_backup_lock(THD *thd, ulong lock_wait_timeout);
 */
 
 void release_backup_lock(THD *thd);
+
+
+/**
+  There are three possible results while checking if the instance is locked for
+  backup.
+*/
+
+enum class Is_instance_backup_locked_result
+{
+  NOT_LOCKED = 0,
+  LOCKED = 1,
+  OOM = 2
+};
+
+
+/**
+  Check if this server instance is locked with Backup Lock. In fact, it checks
+  if any thread owns BACKUP_LOCK.
+
+  @param[in] thd  Current thread context
+
+  @retval NOT_LOCKED Backup Lock is not acquired by any thread.
+  @retval LOCKED     Backup Lock is acquired by a thread.
+  @retval OOM        Error occurred (OOM) when checking lock ownership.
+*/
+
+Is_instance_backup_locked_result is_instance_backup_locked(THD *thd);
 
 #endif /* SQL_LOCK_INCLUDED */

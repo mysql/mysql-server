@@ -1,5 +1,5 @@
 #
-# WL#6205 - A series of tests to show the correct behavior for
+# A series of tests to show the correct behavior for
 # CREATE TABLESPACE and associated SQL statements.
 #
 
@@ -11,6 +11,16 @@ SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET NAMES utf8;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
+
+--disable_query_log
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+LET $restart_parameters = restart:--innodb-directories=$MYSQL_TMP_DIR;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--source include/restart_mysqld.inc
+--enable_query_log
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW VARIABLES LIKE 'innodb_directories';
 
 --echo # Strict-mode has no effect on CREATE TABLESPACE.
 --echo # It rejects all invalid input, as if strict mode is always ON.
@@ -70,9 +80,10 @@ CREATE TABLESPACE test/s_bad ADD DATAFILE 's_bad.ibd';
 --error ER_WRONG_TABLESPACE_NAME
 CREATE TABLESPACE `test/s_bad` ADD DATAFILE 's_bad.ibd';
 LET $TWOFIFTYFIVE=../xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
-call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'delete' returned OS error .*");
---error ER_CREATE_FILEGROUP_FAILED
+--error ER_WRONG_FILE_NAME
 eval CREATE TABLESPACE `s_too_long_file_name` ADD DATAFILE '$TWOFIFTYFIVE.ibd';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
 --error ER_FILEGROUP_OPTION_ONLY_ONCE
 CREATE TABLESPACE s_bad ADD DATAFILE 's_bad.ibd' FILE_BLOCK_SIZE=1k FILE_BLOCK_SIZE=2k;
 --error ER_ILLEGAL_HA_CREATE_OPTION
@@ -964,7 +975,7 @@ DROP TABLESPACE s1;
 --echo #
 USE test;
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
-CREATE TABLE t1 (a geometry NOT NULL, SPATIAL (a)) ENGINE=InnoDB;
+CREATE TABLE t1 (a geometry NOT NULL SRID 0, SPATIAL (a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (st_GeomFromText("LINESTRING(100 100, 200 200, 300 300)")) ;
 DELIMITER |;
 CREATE PROCEDURE p1()
@@ -1002,30 +1013,15 @@ SET GLOBAL innodb_strict_mode=default;
 --rmdir $MYSQL_TMP_DIR/test
 --rmdir $MYSQL_TMP_DIR/tablespace.ibd
 
---disable_query_log
-call mtr.add_suppression("\\[ERROR\\] InnoDB: File .*\.ibd: 'create' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means mysqld does not have the access rights to the directory. It may also be you have created a subdirectory of the same name as a data file.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number .* means");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Invalid use of ':' in");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The file .* already exists though the corresponding table did not exist.");
---enable_query_log
 --echo #
 --echo # Bug #20763179 SEGV WHEN CREATE TABLESPACE IS EXECUTED IN READ ONLY MODE
 --echo #
 --echo # Check CREATE TABLESPACE is handled properly in read-only mode
 
---disable_query_log
-call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
-call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
---enable_query_log
-
 CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd' ENGINE InnoDB;
 
-let $restart_parameters = restart: --innodb_read_only;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart: --innodb_read_only --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
 --error ER_OPEN_AS_READONLY
 CREATE TABLESPACE s2 ADD DATAFILE 's2.ibd' ENGINE InnoDB;
@@ -1035,7 +1031,189 @@ DROP TABLESPACE s1;
 SHOW WARNINGS;
 
 --echo # Restart in normal mode for cleanup.
-let $restart_parameters = restart;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+let $restart_parameters = restart --innodb-directories=$MYSQL_TMP_DIR;
 --source include/restart_mysqld.inc
 DROP TABLESPACE s1;
+
+--echo #
+--echo # Bug#26199233 create like ignores innodb_file_per_table
+--echo #
+--echo # - Verify if table picks correct tablespace based on
+--echo # innodb_file_per_table settings.
+--echo # - Check if SHOW CREATE displays correct tablespace name.
+
+CREATE DATABASE db1;
+
+SET @@global.innodb_file_per_table = OFF;
+
+--echo # Case 1
+--echo # SHOW CREATE should not show TABLESPACE clause after the fix.
+--echo # Because it was not explicitly specified by user.
+CREATE TABLE db1.t1 (c1 INT) ENGINE=InnoDB;
+SHOW CREATE TABLE db1.t1;
+
+SET @@global.innodb_file_per_table = ON;
+
+--echo # Case 2
+--echo # After the fix table, t2 should use innodb_file_per_table tablespace.
+CREATE TABLE db1.t2 LIKE db1.t1;
+SHOW CREATE TABLE db1.t2;
+--echo # Verify the same by listing the .ibd file.
+--list_files $MYSQLD_DATADIR/db1/
+
+--echo # Case 3
+--echo # db1.tables TABLESPACE clause should show 'ts0' after the fix.
+CREATE TABLESPACE ts0 ADD DATAFILE 'df0.ibd';
+CREATE TABLE db1.tables (c1 INT) ENGINE=InnoDB tablespace=ts0;
+SHOW CREATE TABLE db1.tables;
+DROP TABLE db1.tables;
+DROP TABLESPACE ts0;
+
+--echo # Cleanup
+DROP DATABASE db1;
+
+--echo # Additional test cases for Bug#26199233 to
+--echo # test various combinations.
+
+CREATE SCHEMA s1;
+USE s1;
+CREATE TABLESPACE s1 ADD DATAFILE 's1.ibd';
+
+--echo #
+--echo # Tables with explicitly assigned tablespaces.
+--echo #
+--echo # Table with an explicitly assigned user tablespace.
+CREATE TABLE t_expl_usr (i INT) TABLESPACE s1;
+SHOW CREATE TABLE t_expl_usr;
+--echo #
+--echo # Table with an explicitly assigned system tablespace.
+CREATE TABLE t_expl_sys (i INT) TABLESPACE innodb_system;
+SHOW CREATE TABLE t_expl_sys;
+--echo #
+--echo # Table with an explicitly assigned f_p_t tablespace.
+CREATE TABLE t_expl_fpt (i INT) TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t_expl_fpt;
+--echo #
+--echo # Temporary table with an explicitly assigned tmp tablespace.
+CREATE TEMPORARY TABLE t_expl_tmp (i INT) TABLESPACE innodb_temporary;
+SHOW CREATE TABLE t_expl_tmp;
+
+--echo #
+--echo # Tables with implicitly assigned tablespaces.
+--echo #
+--echo # Table with an implicitly assigned system tablespace.
+SET GLOBAL innodb_file_per_table= OFF;
+CREATE TABLE t_impl_sys (i INT);
+SHOW CREATE TABLE t_impl_sys;
+--echo #
+--echo # Table with an implicitly assigned f_p_t tablespace.
+SET GLOBAL innodb_file_per_table= ON;
+CREATE TABLE t_impl_fpt (i INT);
+SHOW CREATE TABLE t_impl_fpt;
+--echo #
+--echo # Temporary table with an implicitly assigned tmp tablespace.
+CREATE TEMPORARY TABLE t_impl_tmp (i INT);
+SHOW CREATE TABLE t_impl_tmp;
+
+--echo #
+--echo # CREATE LIKE when innodb_file_per_table is ON.
+--echo #
+--echo # Tablespace preserved for all source tables that
+--echo # had an explicitly assigned tablesapce.
+SET GLOBAL innodb_file_per_table= ON;
+CREATE TABLE fpt_on_like_t_expl_usr LIKE t_expl_usr;
+SHOW CREATE TABLE fpt_on_like_t_expl_usr;
+CREATE TABLE fpt_on_like_t_expl_sys LIKE t_expl_sys;
+SHOW CREATE TABLE fpt_on_like_t_expl_sys;
+CREATE TABLE fpt_on_like_t_expl_fpt LIKE t_expl_fpt;
+SHOW CREATE TABLE fpt_on_like_t_expl_fpt;
+CREATE TEMPORARY TABLE fpt_on_like_t_expl_tmp LIKE t_expl_tmp;
+SHOW CREATE TABLE fpt_on_like_t_expl_tmp;
+
+--echo # Tablespace not preserved for all source tables that
+--echo # had an implicitly assigned tablesapce.
+CREATE TABLE fpt_on_like_t_impl_sys LIKE t_impl_sys;
+SHOW CREATE TABLE fpt_on_like_t_impl_sys;
+CREATE TABLE fpt_on_like_t_impl_fpt LIKE t_impl_fpt;
+SHOW CREATE TABLE fpt_on_like_t_impl_fpt;
+CREATE TEMPORARY TABLE fpt_on_like_t_impl_tmp LIKE t_impl_tmp;
+SHOW CREATE TABLE fpt_on_like_t_impl_tmp;
+
+--echo #
+--echo # CREATE LIKE when innodb_file_per_table is OFF.
+--echo #
+--echo # Tablespace preserved for all source tables that
+--echo # had an explicitly assigned tablesapce.
+SET GLOBAL innodb_file_per_table= OFF;
+CREATE TABLE fpt_off_like_t_expl_usr LIKE t_expl_usr;
+SHOW CREATE TABLE fpt_off_like_t_expl_usr;
+CREATE TABLE fpt_off_like_t_expl_sys LIKE t_expl_sys;
+SHOW CREATE TABLE fpt_off_like_t_expl_sys;
+CREATE TABLE fpt_off_like_t_expl_fpt LIKE t_expl_fpt;
+SHOW CREATE TABLE fpt_off_like_t_expl_fpt;
+CREATE TEMPORARY TABLE fpt_off_like_t_expl_tmp LIKE t_expl_tmp;
+SHOW CREATE TABLE fpt_off_like_t_expl_tmp;
+
+--echo # Tablespace not preserved for all source tables that
+--echo # had an implicitly assigned tablesapce.
+CREATE TABLE fpt_off_like_t_impl_sys LIKE t_impl_sys;
+SHOW CREATE TABLE fpt_off_like_t_impl_sys;
+CREATE TABLE fpt_off_like_t_impl_fpt LIKE t_impl_fpt;
+SHOW CREATE TABLE fpt_off_like_t_impl_fpt;
+CREATE TEMPORARY TABLE fpt_off_like_t_impl_tmp LIKE t_impl_tmp;
+SHOW CREATE TABLE fpt_off_like_t_impl_tmp;
+
+--echo # The end result should be that we have .ibd files for:
+--echo #   fpt_off_like_t_expl_fpt.ibd
+--echo #   fpt_on_like_t_expl_fpt.ibd
+--echo #   fpt_on_like_t_impl_fpt.ibd
+--echo #   fpt_on_like_t_impl_sys.ibd
+--echo #   t_expl_fpt.ibd
+--echo #   t_impl_fpt.ibd
+
+let $MYSQLD_DATADIR = `select @@datadir`;
+--list_files $MYSQLD_DATADIR/s1/
+
+--echo # Now, we can ALTER the tables that have implicitly
+--echo # assigned tablespaces to instead assign the spaces
+--echo # explicitly. This will make SHOW CREATE show the
+--echo # tablespace names.
+ALTER TABLE t_impl_sys TABLESPACE innodb_system;
+SHOW CREATE TABLE t_impl_sys;
+ALTER TABLE t_impl_fpt TABLESPACE innodb_file_per_table;
+SHOW CREATE TABLE t_impl_fpt;
+ALTER TABLE t_impl_tmp TABLESPACE innodb_temporary;
+SHOW CREATE TABLE t_impl_tmp;
+
+--echo # And CREATE TABLE LIKE will now preserve the
+--echo # tablespace name of the above tables.
+
+CREATE TABLE after_alter_like_t_impl_sys LIKE t_impl_sys;
+SHOW CREATE TABLE after_alter_like_t_impl_sys;
+CREATE TABLE after_alter_like_t_impl_fpt LIKE t_impl_fpt;
+SHOW CREATE TABLE after_alter_like_t_impl_fpt;
+CREATE TEMPORARY TABLE after_alter_like_t_impl_tmp LIKE t_impl_tmp;
+SHOW CREATE TABLE after_alter_like_t_impl_tmp;
+
+DROP SCHEMA s1;
+DROP TABLESPACE s1;
+SET GLOBAL innodb_file_per_table= DEFAULT;
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\].*Skip re-populating collations and character sets tables in InnoDB read-only mode");
+call mtr.add_suppression("\\[Warning\\].*Skip updating information_schema metadata in InnoDB read-only mode");
+call mtr.add_suppression("\\[Warning\\].*Skipped updating resource group metadata in InnoDB read only mode");
+call mtr.add_suppression("\\[Warning\\].*InnoDB: '.*tablespace.ibd' is a directory, can't delete!");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'stat' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .*\.ibd: 'create' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: The error means mysqld does not have the access rights to the directory. It may also be you have created a subdirectory of the same name as a data file.");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Error number .* means");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Cannot create file");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Invalid use of ':' in");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: The file .* already exists though the corresponding table did not exist.");
+--enable_query_log
 

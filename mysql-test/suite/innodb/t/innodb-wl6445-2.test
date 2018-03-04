@@ -44,7 +44,7 @@ CREATE DATABASE testdb_wl6445;
 
 SET GLOBAL innodb_file_per_table = 1;
 USE testdb_wl6445;
-CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
@@ -103,7 +103,7 @@ DROP DATABASE testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
 
 USE testdb_wl6445;
-CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
@@ -113,7 +113,7 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 --exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
 #
 # check dml/ddl after removing write permission
-CREATE TABLE t2 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t2 ( i int PRIMARY KEY , j blob, KEY k1(j(10)), KEY k2(j(20))) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;

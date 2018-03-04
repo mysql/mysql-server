@@ -1,17 +1,24 @@
 /* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -138,7 +145,7 @@
 #define MAX_FIELDS_BEFORE_HASH	32
 #define USER_VARS_HASH_SIZE     16
 #define TABLE_OPEN_CACHE_MIN    400
-#define TABLE_OPEN_CACHE_DEFAULT 2000
+#define TABLE_OPEN_CACHE_DEFAULT 4000
 static const ulong TABLE_DEF_CACHE_DEFAULT=          400;
 static const ulong SCHEMA_DEF_CACHE_DEFAULT=         256;
 static const ulong STORED_PROGRAM_DEF_CACHE_DEFAULT= 256;
@@ -175,7 +182,11 @@ static const ulong EVENT_DEF_CACHE_MIN=          256;
   Feel free to raise this by the smallest amount you can to get the
   "execution_constants" test to pass.
 */
+#if defined HAVE_UBSAN && SIZEOF_CHARP == 4
+#define STACK_MIN_SIZE          30000   // Abort if less stack during eval.
+#else
 #define STACK_MIN_SIZE          20000   // Abort if less stack during eval.
+#endif
 
 #define STACK_MIN_SIZE_FOR_OPEN 1024*80
 
@@ -369,7 +380,7 @@ enum enum_mark_columns
   Exit code used by mysqld_exit, exit and _exit function to
   signify unsuccessful termination of mysqld. The exit
   code signifies the server should NOT BE RESTARTED AUTOMATICALLY
-  by init systems like systemd. 
+  by init systems like systemd.
 */
 #define MYSQLD_ABORT_EXIT 1
 /*
@@ -379,6 +390,13 @@ enum enum_mark_columns
   init systems like systemd.
 */
 #define MYSQLD_FAILURE_EXIT 2
+/*
+  Exit code used by mysqld_exit, my_thread_exit function which allows
+  for external programs like systemd, mysqld_safe to restart mysqld
+  server. The exit code  16 is choosen so it is safe as InnoDB code
+  exit directly with values like 3.
+*/
+#define MYSQLD_RESTART_EXIT 16
 
 #define UUID_LENGTH (8+1+4+1+4+1+4+1+12)
 

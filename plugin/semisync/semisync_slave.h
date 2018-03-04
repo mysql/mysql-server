@@ -2,24 +2,31 @@
    Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #ifndef SEMISYNC_SLAVE_H
 #define SEMISYNC_SLAVE_H
 
 #include "my_inttypes.h"
-#include "semisync.h"
+#include "plugin/semisync/semisync.h"
 
 /**
    The extension class for the slave of semi-synchronous replication
@@ -84,9 +91,9 @@ public:
 
 private:
   /* True when initObject has been called */
-  bool init_done_;
-  bool slave_enabled_;        /* semi-sycn is enabled on the slave */
-  MYSQL *mysql_reply;         /* connection to send reply */
+  bool init_done_ = false;
+  bool slave_enabled_ = false;        /* semi-sycn is enabled on the slave */
+  MYSQL *mysql_reply = nullptr;         /* connection to send reply */
 };
 
 

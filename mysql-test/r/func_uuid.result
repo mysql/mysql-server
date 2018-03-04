@@ -310,5 +310,5 @@ DROP TABLE t2;
 CREATE TABLE t as SELECT replace(uuid(), '-', '=') as v from mysql.user;
 SELECT COUNT(DISTINCT v) FROM t;
 COUNT(DISTINCT v)
-3
+4
 DROP TABLE t;

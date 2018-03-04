@@ -2,13 +2,20 @@
    Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -132,6 +139,22 @@ public interface Constants {
 
     /** The default value of the connection timeout after property */
     static final int DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_AFTER = 20;
+
+    /** The cpu binding of the receive threads for the connections in the
+     * connection pool. The default is no cpu binding for receive threads.
+     * If this property is specified and connection pool size is not the
+     * default (1), the number of cpuids of the list must match the
+     * connection pool size.
+     */
+    static final String PROPERTY_CONNECTION_POOL_RECV_THREAD_CPUIDS = "com.mysql.clusterj.connection.pool.recv.thread.cpuids";
+
+    /** The receive thread activation threshold for all connections in the
+     * connection pool. The default is no activation threshold.
+     */
+    static final String PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD = "com.mysql.clusterj.connection.pool.recv.thread.activation.threshold";
+
+    /** The default value of the receive thread activation threshold */
+    static final int DEFAULT_PROPERTY_CONNECTION_POOL_RECV_THREAD_ACTIVATION_THRESHOLD = 8;
 
     /** The name of the database property. For details, see the catalogName parameter in the Ndb constructor.
      * <a href="http://dev.mysql.com/doc/ndbapi/en/ndb-ndb-methods.html#ndb-ndb-constructor">Ndb constructor</a>

@@ -1,3 +1,4 @@
+--source include/have_innodb_min_8k.inc
 
 --echo #
 --echo # TRUNCATE TABLE
@@ -64,3 +65,28 @@ INSERT INTO t1 VALUES (NULL), (NULL);
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
 
+--echo #
+--echo # Test that TRUNCATE with innodb_default_row_format changed
+--echo #
+
+CREATE TEMPORARY TABLE t1(c1 DOUBLE(1,0)ZEROFILL,c2 BLOB,c3 YEAR)
+ENGINE=InnoDB;
+ALTER TABLE t1 MODIFY c2 VARCHAR(1024)BINARY CHARACTER SET 'Binary' COLLATE
+'Binary';
+ALTER TABLE t1 ADD INDEX(c2),ADD UNIQUE (c2);
+SET @@GLOBAL.innodb_default_row_format=1;
+TRUNCATE t1;
+DROP TABLE t1;
+
+SET @@GLOBAL.innodb_default_row_format=default;
+CREATE  TABLE t1(c1 DOUBLE(1,0)ZEROFILL,c2 BLOB,c3 YEAR)
+ENGINE=InnoDB;
+ALTER TABLE t1 MODIFY c2 VARCHAR(1024)BINARY CHARACTER SET 'Binary' COLLATE
+'Binary';
+ALTER TABLE t1 ADD INDEX(c2),ADD UNIQUE (c2);
+
+alter table t1 partition by key (c2) partitions 2;
+SET @@GLOBAL.innodb_default_row_format=1;
+TRUNCATE t1;
+DROP TABLE t1;
+SET @@GLOBAL.innodb_default_row_format=default;

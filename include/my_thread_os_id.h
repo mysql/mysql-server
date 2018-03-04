@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file include/my_thread_os_id.h
@@ -33,6 +40,10 @@
 #include <pthread_np.h>             /* pthread_getthreadid_np() */
 #endif /* HAVE_PTHREAD_GETTHREADID_NP */
 
+#ifdef HAVE_PTHREAD_THREADID_NP
+#include <pthread.h>
+#endif /* HAVE_PTHREAD_THREADID_NP */
+
 C_MODE_START
 
 typedef unsigned long long my_thread_os_id_t;
@@ -47,14 +58,16 @@ typedef unsigned long long my_thread_os_id_t;
 */
 static inline my_thread_os_id_t my_thread_os_id()
 {
-#ifdef HAVE_SYS_THREAD_SELFID
+#ifdef HAVE_PTHREAD_THREADID_NP
   /*
-    Mac OSX.
-    Be careful to use SYS_thread_selfid first,
-    and to not use SYS_gettid on Mac OSX,
+    macOS.
+
+    Be careful to use this version first, and to not use SYS_gettid on macOS,
     as SYS_gettid has a different meaning compared to linux gettid().
   */
-  return syscall(SYS_thread_selfid);
+  uint64_t tid64;
+  pthread_threadid_np(nullptr, &tid64);
+  return (pid_t)tid64;
 #else
 #ifdef HAVE_SYS_GETTID
   /*

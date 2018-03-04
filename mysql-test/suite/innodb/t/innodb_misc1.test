@@ -13,8 +13,8 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 -- disable_query_log
 
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: in ALTER TABLE `test`.`t1`");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: in RENAME TABLE table `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: in ALTER TABLE `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: in RENAME TABLE table `test`.`t1`");
 SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
 -- enable_query_log
 
@@ -1154,4 +1154,15 @@ CONNECTION default;
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
 
 -- enable_query_log
+
+--echo #
+--echo # Bug#27041288: ASSERTION FAILURE:
+--echo # ROW0SEL.CC:3955:PREBUILT->MYSQL_PREFIX_LEN <= RECORD_BUFFER..
+--echo #
+CREATE TABLE t(a INT PRIMARY KEY, b CHAR(0), c CHAR(1));
+INSERT INTO t VALUES (1, '', 'a'), (2, '', 'b');
+--sorted_result
+SELECT * FROM t;
+DROP TABLE t;
+
 -- source suite/innodb/include/check_pfs_mem_other_is_zero.inc

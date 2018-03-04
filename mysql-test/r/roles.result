@@ -22,7 +22,7 @@ CREATE ROLE r1 IDENTIFIED BY 'test';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IDENTIFIED BY 'test'' at line 1
 # Created roles should not allow login per default
 # WL988.R-1.4
-SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session');
+SELECT user,host, plugin,IF(account_locked = 'Y',"Account is locked","ERROR") FROM mysql.user u WHERE u.user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	host	plugin	IF(account_locked = 'Y',"Account is locked","ERROR")
 ident with space	%	<default_plugin>	Account is locked
 role	%	<default_plugin>	Account is locked
@@ -187,7 +187,7 @@ REVOKE engineering, role1 FROM root@localhost;
 # only count nodes and edges as the sorting order is depending on platform
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 num_nodes
-22
+23
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 num_edges
 7
@@ -223,7 +223,7 @@ ERROR HY000: Operation DROP ROLE failed for 'role'@'%'
 # only count nodes and edges as the sorting order is depending on platform
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 num_nodes
-19
+20
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 num_edges
 6
@@ -337,7 +337,7 @@ GRANT consultants TO sally WITH ADMIN OPTION;
 # only count nodes and edges as the sorting order is depending on platform
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 num_nodes
-19
+20
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 num_edges
 7
@@ -421,7 +421,7 @@ DROP ROLE joe@localhost;
 # only count nodes and edges as the sorting order is depending on platform
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 num_nodes
-3
+4
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 num_edges
 0
@@ -635,7 +635,7 @@ HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 localhost	joe_schema_designer	%	schema_designer
 DROP DATABASE db1;
 DROP PROCEDURE test.sp1;
-SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session');
+SELECT user,host FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	host
 backup_admin	%
 db_admin	%
@@ -1049,7 +1049,7 @@ ExtractValue(ROLES_GRAPHML(),'//node[text()="`mysql.session`@`localhost`"]')
 
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//node)') as num_nodes;
 num_nodes
-6
+7
 SELECT ExtractValue(ROLES_GRAPHML(),'count(//edge)') as num_edges;
 num_edges
 2
@@ -1186,22 +1186,23 @@ SET @@global.mysql_native_password_proxy_users = OFF;
 CREATE USER u1 IDENTIFIED BY 'foo' DEFAULT ROLE a,a@localhost,`b`,`b`@local,`c c`,`aaa`, `a`@`a`;
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER u1;
 ERROR HY000: Operation CREATE USER failed for 'u1'@'%'
 # Same as before and don't crash.
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<hash>' DEFAULT ROLE `a`@`%`,`a`@`a`,`a`@`localhost`,`aaa`@`%`,`b`@`%`,`b`@`local`,`c c`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 # check that we can combine different properties with default roles.
 CREATE USER u2 DEFAULT ROLE r1 REQUIRE SSL ACCOUNT LOCK;
 SHOW CREATE USER u2;
 CREATE USER for u2@%
-CREATE USER 'u2'@'%' IDENTIFIED WITH 'mysql_native_password' DEFAULT ROLE `r1`@`%` REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u2'@'%' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE SSL PASSWORD EXPIRE DEFAULT ACCOUNT LOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT user,host FROM mysql.user;
 user	host
 u1	%
 u2	%
+mysql.infoschema	localhost
 mysql.session	localhost
 mysql.sys	localhost
 root	localhost
@@ -1221,7 +1222,7 @@ CREATE USER u1;
 ALTER USER u1 DEFAULT ROLE r1;
 SHOW CREATE USER u1;
 CREATE USER for u1@%
-CREATE USER 'u1'@'%' IDENTIFIED WITH 'mysql_native_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'u1'@'%' IDENTIFIED WITH 'caching_sha2_password' DEFAULT ROLE `r1`@`%` REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 SELECT * FROM mysql.default_roles;
 HOST	USER	DEFAULT_ROLE_HOST	DEFAULT_ROLE_USER
 %	u1	%	r1

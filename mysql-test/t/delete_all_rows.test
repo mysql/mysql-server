@@ -13,6 +13,7 @@
 # WL#8313: Set ROW based binary log format by default
 #
 --source include/have_myisam.inc
+# The testcase requires binary logging disabled.
 --source include/not_log_bin.inc
 
 CALL mtr.add_suppression('You need to use --log-bin to make --binlog-format work.');

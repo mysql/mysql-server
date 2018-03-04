@@ -1,13 +1,20 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -18,8 +25,8 @@
   plugins/components tables (implementation).
 */
 
-#include "table_plugin_table.h"
-#include "pfs_plugin_table.h"
+#include "storage/perfschema/table_plugin_table.h"
+#include "storage/perfschema/pfs_plugin_table.h"
 
 int
 PFS_plugin_table_index::init(PSI_table_handle *plugin_table,
@@ -29,7 +36,10 @@ PFS_plugin_table_index::init(PSI_table_handle *plugin_table,
   int ret;
   m_idx = idx;
 
-  /* call the plugin to initialize the index. */
+  if (unlikely(m_st_table->index_init == NULL))
+    return 0;
+
+  /* Call the plugin to initialize the index */
   ret = m_st_table->index_init(plugin_table, idx, sorted, &m_plugin_index);
   return ret;
 }
@@ -39,6 +49,9 @@ PFS_plugin_table_index::read_key(const uchar *key,
                                  uint key_len,
                                  enum ha_rkey_function find_flag)
 {
+  if (unlikely(m_st_table->index_read == NULL))
+    return;
+
   PFS_key_reader reader(m_key_info, key, key_len);
   m_st_table->index_read(
     m_plugin_index, (PSI_key_reader *)&reader, m_idx, find_flag);
@@ -47,6 +60,9 @@ PFS_plugin_table_index::read_key(const uchar *key,
 int
 PFS_plugin_table_index::index_next(PSI_table_handle *table)
 {
+  if (unlikely(m_st_table->index_next == NULL))
+    return HA_ERR_END_OF_FILE;
+
   return m_st_table->index_next(table);
 }
 
@@ -70,24 +86,32 @@ table_plugin_table::table_plugin_table(PFS_engine_table_share *share)
 void
 table_plugin_table::reset_position(void)
 {
+  if (unlikely(m_st_table->reset_position == NULL))
+    return;
   m_st_table->reset_position(this->plugin_table_handle);
 }
 
 int
 table_plugin_table::rnd_init(bool scan)
 {
+  if (unlikely(m_st_table->rnd_next == NULL))
+    return HA_ERR_WRONG_COMMAND;
   return m_st_table->rnd_init(this->plugin_table_handle, scan);
 }
 
 int
 table_plugin_table::rnd_next(void)
 {
+  if (unlikely(m_st_table->rnd_next == NULL))
+    return HA_ERR_END_OF_FILE;
   return m_st_table->rnd_next(this->plugin_table_handle);
 }
 
 int
 table_plugin_table::rnd_pos(const void *pos)
 {
+  if (unlikely(m_st_table->rnd_pos == NULL))
+    return HA_ERR_WRONG_COMMAND;
   set_position(pos);
   return m_st_table->rnd_pos(this->plugin_table_handle);
 }
@@ -123,6 +147,9 @@ table_plugin_table::read_row_values(TABLE *table,
   Field *f;
   int result = 0;
 
+  if (unlikely(m_st_table->read_column_value == NULL))
+    return HA_ERR_WRONG_COMMAND;
+
   /* Set the buf using null_bytes */
   for (uint temp_null_bytes = table->s->null_bytes; temp_null_bytes > 0;
        temp_null_bytes--)
@@ -145,6 +172,9 @@ table_plugin_table::read_row_values(TABLE *table,
 int
 table_plugin_table::delete_all_rows(void)
 {
+  if (unlikely(m_share->m_delete_all_rows == NULL))
+    return HA_ERR_WRONG_COMMAND;
+
   return m_share->m_delete_all_rows();
 }
 
@@ -156,6 +186,9 @@ table_plugin_table::update_row_values(TABLE *table,
 {
   Field *f;
   int result = 0;
+
+  if (unlikely(m_st_table->update_column_value == NULL))
+    return HA_ERR_WRONG_COMMAND;
 
   for (; (f = *fields); fields++)
   {
@@ -177,5 +210,8 @@ table_plugin_table::update_row_values(TABLE *table,
 int
 table_plugin_table::delete_row_values(TABLE *, const unsigned char *, Field **)
 {
+  if (unlikely(m_st_table->delete_row_values == NULL))
+    return HA_ERR_WRONG_COMMAND;
+
   return m_st_table->delete_row_values(plugin_table_handle);
 }

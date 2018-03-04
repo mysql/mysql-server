@@ -16,15 +16,10 @@
 #    3.5 Check the error on server1, it will rollback T1 as it is conflicting
 #        with T2.
 #    Another conflicting transaction, but transaction will rollback
-#    3.6 set a debug sync and execute a transaction on server1 that will be
-#        blocked before broadcast.
-#    3.7 Wait until server_1 connection reaches the
-#        'group_replication_before_message_broadcast' debug sync point.
-#    3.8 execute a conflicting transaction (T2) on server2 that will reach
-#        certification first.
-#    3.9 Signal the waiting thread on server1 to resume.
-#   3.10 Transaction originated on server2 will be successful without error, as
-#        conflicting transaction on server1 is ROLLED BACK.
+#    3.6 ROLL BACK a transaction on server1
+#    3.7 Execute a transaction on server2
+#    3.8 Transaction originated on server2 will be successful as ROLLED BACK
+#        transactions are not broadcasted.
 # 4. Check the positive scenarios with non-conflicting transactions,
 #    4.1 set a debug sync and execute a transaction (T1) on server1 so that it
 #         is blocked before broadcast.
@@ -128,28 +123,15 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --reap
 
 --echo
---echo ## 3.6 Set a debug sync before broadcast message to group on server1
---echo ##     execute a transaction that will be blocked before broadcast.
+--echo ## 3.6 ROLL BACK a transaction on server1
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
-SET @debug_save= @@GLOBAL.DEBUG;
-SET @@GLOBAL.DEBUG='d,group_replication_before_message_broadcast';
 BEGIN;
 UPDATE t1 set a= 30 where a= 3;
 --send ROLLBACK
 
 --echo
---echo ## 3.7 Wait until server1 connection reaches the
---echo ##    'group_replication_before_message_broadcast' debug sync point.
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-
---let $wait_condition=SELECT COUNT(*)=1 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'debug sync point: now'
---source include/wait_condition.inc
-
---echo
---echo ## 3.8 Execute a transaction on server2, that will reach first
---echo ##     certification, since server_1 is blocked before broadcast.
+--echo ## 3.7 Execute a transaction on server2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 BEGIN;
@@ -159,15 +141,8 @@ COMMIT;
 --source include/sync_slave_sql_with_master.inc
 
 --echo
---echo ## 3.9 Signal the waiting thread on server1 to resume.
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-SET DEBUG_SYNC='now SIGNAL waiting';
-SET @@GLOBAL.DEBUG= @debug_save;
-
---echo
---echo ## 3.10 Transaction originated on server2 will be successful without
---echo ##      error as conflicting transaction on server1 is ROLLED BACK.
+--echo ## 3.8 Transaction originated on server2 will be successful as ROLLED BACK
+--echo ##     transactions are not broadcasted.
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 --reap
@@ -250,11 +225,11 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --source include/assert.inc
 
 --let $assert_text= 'The value of Count_Transactions_Checked should be 7 after starting group replication'
---let $assert_cond= "[SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats, Count_Transactions_Checked, 1]" = "7"
+--let $assert_cond= "[SELECT Count_Transactions_Checked from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_Checked, 1]" = "7"
 --source include/assert.inc
 
 --let $assert_text= 'The value of Count_Conflicts_Detected should be 1 after starting group replication'
---let $assert_cond= "[SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats, Count_Conflicts_Detected, 1]" = "1"
+--let $assert_cond= "[SELECT Count_Conflicts_Detected from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Conflicts_Detected, 1]" = "1"
 --source include/assert.inc
 
 # Check that t1 on Server1, Server2 has same data

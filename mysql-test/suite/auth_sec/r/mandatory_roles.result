@@ -206,3 +206,76 @@ GRANT USAGE ON *.* TO `u1`@`localhost`
 GRANT `r1`@`%` TO `u1`@`localhost`
 SET GLOBAL mandatory_roles="PUBLIC";
 DROP USER u1@localhost, r1, r2, r3;
+
+# Anonymous roles aren't allowed
+SET GLOBAL mandatory_roles='';
+CREATE USER ''@'localhost';
+GRANT ALL ON sys.* TO ''@'localhost';
+SET GLOBAL mandatory_roles='``@`localhost`';
+ERROR 42000: Variable 'mandatory_roles' can't be set to the value of '``@`localhost`'
+SHOW GRANTS;
+Grants for root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
+GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+CREATE USER u1@localhost identified by 'foo';
+GRANT SELECT ON *.* To u1@localhost;
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@localhost
+# Should not show any anonymous mandatory role
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SELECT CURRENT_USER();
+CURRENT_USER()
+u1@localhost
+SHOW GRANTS;
+Grants for u1@localhost
+GRANT SELECT ON *.* TO `u1`@`localhost`
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO `u1`@`localhost`
+SET GLOBAL mandatory_roles='';
+ERROR 42000: Access denied; you need (at least one of) the ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL mandatory_roles='foo@localhost';
+ERROR 42000: Access denied; you need (at least one of) the ROLE_ADMIN, SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+GRANT ''@'localhost' TO u1@localhost;
+ERROR HY000: Failed to grant ``@`localhost`` to `u1`@`localhost`
+SET GLOBAL mandatory_roles='';
+DROP USER u1@localhost, ''@'localhost';
+# SET ROLE DEFAULT ALL should include mandatory roles
+CREATE ROLE r1, r2, r3;
+GRANT SELECT ON *.* TO r1;
+CREATE USER paul@localhost IDENTIFIED BY 'foo';
+GRANT r3 TO paul@localhost;
+GRANT INSERT ON test.* TO r3;
+SET GLOBAL mandatory_roles='r1,r2,r3';
+SET DEFAULT ROLE ALL TO paul@localhost;
+# Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET ROLE ALL;
+# Should still show all mandatory roles
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+ALTER USER paul@localhost DEFAULT ROLE ALL;
+SET ROLE DEFAULT;
+# Should show mandatory roles
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET ROLE ALL;
+# Should show roles r1,r2,r3
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+# no duplicates
+SET ROLE r1,r1,r1,r1,r1,r2,r2,r2,r2,r3,r3,r3,r3;
+SELECT CURRENT_ROLE();
+CURRENT_ROLE()
+`r1`@`%`,`r2`@`%`,`r3`@`%`
+SET GLOBAL mandatory_roles="PUBLIC";
+DROP USER paul@localhost;
+DROP ROLE r1,r2,r3;

@@ -21,8 +21,8 @@
 #
 # ##### Usage #######
 #
-# --let $local_server_connection1=server_1
-# --let $local_server_connection2=server1
+# --let $local_server_connection1=server1
+# --let $local_server_connection2=server_1
 # --let $remote_server_connection=server2
 # --let $local_transaction= INSERT INTO t2 VALUES (5); INSERT INTO t1 VALUES (5);
 # --let $remote_transaction=UPDATE t1 SET c1=6 WHERE c1=2
@@ -33,6 +33,9 @@
 #
 #  $local_server_connection1
 #      Connection name on which the $local_transaction needs to be executed.
+#      show_rpl_debug_info uses 'server_.*' connections, they need to be
+#      avoided for this parameter due to use of --send command, that dissalows
+#      the execution of queries
 #
 #  $local_server_connection2
 #      Connection name on which debug sync commands can be executed to block
@@ -69,10 +72,14 @@
 --echo ############################################################
 --echo # 0. Initial setup and checks.
 
--- let $old_conn= $CURRENT_CONNECTION
+--let $old_conn= $CURRENT_CONNECTION
 if (!$local_server_connection1)
 {
   --die !!!ERROR IN TEST: you must set $local_server_connection1 on which the local_transaction needs to be executed.
+}
+if (`SELECT '$local_server_connection1' REGEXP '.*_.*'`)
+{
+  --die !!!ERROR IN TEST: $local_server_connection1 can't be a 'server_.*' connection, as it maybe be used by rpl_debug_info on error cases.
 }
 if (!$local_server_connection2)
 {

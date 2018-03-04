@@ -1,6 +1,7 @@
 call mtr.add_suppression("Capability expired password failed with error: Invalid data, expected numeric type");
 --sleep 2
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 --write_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp
 Mysqlx.Connection.CapabilitiesGet {
@@ -272,18 +273,52 @@ Mysqlx.Connection.CapabilitiesSet {
 
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-pwd_expire-invalid.tmp
--->echo setting read/write  pwd_expire param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
--->echo Bug#21633502 logged and change result files once it is fixed
+--write_file $MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.tmp
+-->macro Test_different_values_in_cap_set %NAME%
+-->echo setting %NAME% param with possible invalid data types
+
+-->echo setting %NAME% capability
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
-      name: "client.pwd_expire_ok"
+      name: %NAME%
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 0
+        }
+      }
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: %NAME%
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
+      }
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: %NAME%
       value {
         type: SCALAR
         scalar {
           type: V_FLOAT
-          v_float:19.49
+          v_float:1.0
         }
       }
     }
@@ -294,12 +329,28 @@ Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
-      name: "client.pwd_expire_ok"
+      name: %NAME%
+      value {
+        type: SCALAR
+        scalar {
+          type: V_FLOAT
+          v_float:0.0
+        }
+      }
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: %NAME%
       value {
         type: SCALAR
         scalar {
           type: V_DOUBLE
-          v_double:1111111
+          v_double:1.0
         }
       }
     }
@@ -310,41 +361,12 @@ Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
-      name: "client.pwd_expire_ok"
+      name: %NAME%
       value {
         type: SCALAR
         scalar {
-          type: V_NULL
-        }
-      }
-    }
-  }
-}
--->recvtype Mysqlx.Error
-
-Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "client.pwd_expire_ok"
-      value {
-        type: SCALAR
-        scalar {
-          type:V_OCTETS
-        }
-      }
-    }
-  }
-}
--->recvtype Mysqlx.Error
-
-Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "client.pwd_expire_ok"
-      value {
-        type: SCALAR
-        scalar {
-          type:V_UINT
+          type: V_DOUBLE
+          v_double:0.0
         }
       }
     }
@@ -355,17 +377,71 @@ Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
-      name: "client.pwd_expire_ok"
+      name: %NAME%
       value {
         type: SCALAR
         scalar {
-          type:V_SINT
+          type: V_UINT
+          v_unsigned_int:1
         }
       }
     }
   }
 }
 -->recvtype Mysqlx.Ok
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: %NAME%
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+          v_unsigned_int:0
+        }
+      }
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: %NAME%
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int:1
+        }
+      }
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: %NAME%
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+          v_signed_int:0
+        }
+      }
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+
+-->endmacro
+
+-->callmacro Test_different_values_in_cap_set "client.pwd_expire_ok"
+-->callmacro Test_different_values_in_cap_set "client.interactive"
 
 EOF
 
@@ -487,17 +563,17 @@ Mysqlx.Connection.CapabilitiesSet {
 
 EOF
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp 2>&1
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-failure.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-failure.tmp 2>&1
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.tmp 2>&1
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-pwd_expire-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
 
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.tmp 2>&1
 
 #check Get and Set capabilities with invalid user details
 --exec $MYSQLXTEST -u invalid --password='invalid' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp 2>&1
@@ -507,11 +583,14 @@ let $restart_parameters = restart: --ssl=1;
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --echo capabilities.result checks the presence of tls cap
---exec $MYSQLXTEST -u root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp 2>&1
+
+--source include/xplugin_drop_user.inc
 
 --remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-get-success.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-failure.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-invalid.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-pwd_expire-invalid.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-capabilities-get.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-check-bool-capabilities.tmp
+
 uninstall plugin mysqlx;

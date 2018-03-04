@@ -40,7 +40,9 @@ SELECT @@global.log_error_services;
 # (we're only using rules here that should be "neutral", i.e. no
 # add/delete item, no relative prio, etc.)
 INSTALL COMPONENT "file://component_log_sink_json";
+--error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_filter_internal; log_sink_json";
+SET GLOBAL log_error_services= "log_filter_internal; log_sink_internal; log_sink_json";
 SELECT "Let's do the double dutch!";
 # internal sink doesn't allow multi-open for now
 --error ER_WRONG_VALUE_FOR_VAR
@@ -51,13 +53,20 @@ SET GLOBAL log_error_services= DEFAULT;
 UNINSTALL COMPONENT "file://component_log_sink_json";
 
 
-# show only warnings+errors
+# show only errors
 SET GLOBAL log_error_verbosity= 1;
 SELECT "I should NOT be visible in the error log!";
 # now disable the filter
 SET GLOBAL log_error_services= "log_sink_internal";
 SELECT "I SHOULD be visible in the error log!";
 SET GLOBAL log_error_services= DEFAULT;
+
+# Check system level error logs. System level logs should be logged even with
+# verbosity=1.
+SET @@session.debug="+d,parser_stmt_to_error_log_with_system_prio";
+SELECT "I should be visible with \"System\" label!";
+SET @@session.debug="-d,parser_stmt_to_error_log_with_system_prio";
+
 SET GLOBAL log_error_verbosity= DEFAULT;
 
 

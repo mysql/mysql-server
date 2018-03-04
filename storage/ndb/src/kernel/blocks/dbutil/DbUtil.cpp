@@ -1,14 +1,21 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -183,13 +190,110 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
 
-  c_pagePool.setSize(10);
-  c_preparePool.setSize(1);            // one parallel prepare at a time
-  c_preparedOperationPool.setSize(6);  // three hardcoded, one for setval, two for test
-  c_operationPool.setSize(64);         // 64 parallel operations
-  c_transactionPool.setSize(32);       // 16 parallel transactions
-  c_attrMappingPool.setSize(100);
-  c_dataBufPool.setSize(6000);	       // 6000*11*4 = 264K > 8k+8k*16 = 256k
+  {
+    /* ** Dimensioning inputs : */
+    Uint32 maxUIBuildBatchSize = 64;
+    ndb_mgm_get_int_parameter(p, CFG_DB_UI_BUILD_MAX_BATCHSIZE,
+                              &maxUIBuildBatchSize);
+    
+    Uint32 maxFKBuildBatchSize = 64;
+    ndb_mgm_get_int_parameter(p, CFG_DB_FK_BUILD_MAX_BATCHSIZE,
+                              &maxFKBuildBatchSize);
+    
+    Uint32 maxReorgBuildBatchSize = 64;
+    ndb_mgm_get_int_parameter(p, CFG_DB_REORG_BUILD_MAX_BATCHSIZE,
+                              &maxReorgBuildBatchSize);
+    
+    /* Based on existing setting, probably excessive */
+    const Uint32 MaxNonSchemaBuildOps = 48;
+    const Uint32 MaxPreparedOps = 6;  //  three hardcoded, one for setval, two for test
+    const Uint32 NumConcurrentPrepares = 1;  /* One parallel prepare */
+    
+    const Uint32 SparePages = 5;             /* Arbitrary */    
+    const Uint32 PagesPerPreparingOp = 5;    /* Arbitrary */
+    const Uint32 PagesPerTransaction = 0;    /* Not used currently */
+    
+    /**
+     * Calculations:
+     * Normally these operations cannot happen in parallel. But the DICT framework
+     * has no specific block against that they occur in parallel, we will use the
+     * the maximum of the 3 types + the non-schema as maximum concurrent ops.
+     */
+    Uint32 max = MAX(maxUIBuildBatchSize, maxFKBuildBatchSize);
+    max = MAX(max, maxReorgBuildBatchSize);
+    const Uint32 MaxConcurrentOps = max + MaxNonSchemaBuildOps;
+
+    /* Some support for multiple ops per trans, but unused? */ 
+    const Uint32 MaxConcurrentTrans = MaxConcurrentOps;
+
+    const Uint32 DataBuffSegmentWords = 11; // TODO get programmatically
+    
+    /* Need attribute mappings for prepared ops, and not always limited to a key */
+    const Uint32 MaxAttributeMappings = MaxPreparedOps * MAX_ATTRIBUTES_IN_TABLE;
+    
+    /**
+     * Assume either Key + write Data, or Key only, with space for result set 
+     *
+     * Otherwise also need another full tuple size worth
+     */
+    const Uint32 DataBuffWordsPerOp = 
+      MAX_TUPLE_SIZE_IN_WORDS + 
+      MAX_KEY_SIZE_IN_WORDS;
+
+    /**
+     * Enough for all the ops to have 1 key + 1 full size tuple, rounded up to 
+     * whole buffers
+     */
+    const Uint32 numDataBuffers = 
+      ((MaxConcurrentOps * 
+        (DataBuffWordsPerOp + 
+         2* DataBuffSegmentWords)) + 1) /
+      DataBuffSegmentWords;
+    
+    const Uint32 numPages = 
+      SparePages + 
+      (NumConcurrentPrepares * PagesPerPreparingOp) +
+      (MaxConcurrentTrans * PagesPerTransaction);
+    
+    if (0)
+    {
+      ndbout_c("Inputs : ");
+      ndbout_c("  MaxUIBuildBatchSize : %u",
+               maxUIBuildBatchSize);
+      ndbout_c("  MaxFKBuildBatchSize : %u",
+               maxFKBuildBatchSize);
+      ndbout_c("  MaxReorgBuildBatchSize : %u",
+               maxReorgBuildBatchSize);
+      ndbout_c("  MaxPreparedOps : %u", MaxPreparedOps);
+      ndbout_c("  MaxNonSchemaBuildOps : %u", MaxNonSchemaBuildOps);
+      ndbout_c("  NumConcurrentPrepares : %u", NumConcurrentPrepares);
+      ndbout_c("  SparePages : %u", SparePages);
+      ndbout_c("  PagesPerPreparingOp : %u", PagesPerPreparingOp);
+      ndbout_c("  PagesPerTransaction : %u", PagesPerTransaction);
+      ndbout_c("  MAX_ATTRIBUTES_IN_TABLE : %u", MAX_ATTRIBUTES_IN_TABLE);
+      ndbout_c("  MAX_TUPLE_SIZE_IN_WORDS : %u", MAX_TUPLE_SIZE_IN_WORDS);
+      ndbout_c("  MAX_KEY_SIZE_IN_WORDS : %u", MAX_KEY_SIZE_IN_WORDS);
+      ndbout_c("Outputs : ");
+      ndbout_c("  MaxConcurrentOps : %u", MaxConcurrentOps);
+      ndbout_c("  MaxConcurrentTrans : %u", MaxConcurrentTrans);
+      ndbout_c("  MaxAttributeMappings : %u", MaxAttributeMappings);
+      ndbout_c("  DataBuffWordsPerOp : %u", DataBuffWordsPerOp);
+      ndbout_c("  numDataBuffers : %u", numDataBuffers);
+      ndbout_c("  numPages : %u", numPages);
+    }
+      
+
+    /* ** Settings */
+    
+    c_pagePool.setSize(numPages);
+    c_preparePool.setSize(NumConcurrentPrepares);
+    c_preparedOperationPool.setSize(MaxPreparedOps);
+    c_operationPool.setSize(MaxConcurrentOps);
+    c_transactionPool.setSize(MaxConcurrentTrans);
+    c_attrMappingPool.setSize(MaxAttributeMappings);
+    c_dataBufPool.setSize(numDataBuffers);
+  }
+
   {
     Prepare_sllist tmp(c_preparePool);
     PreparePtr ptr;

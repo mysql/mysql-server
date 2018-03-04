@@ -2876,6 +2876,8 @@ drop table t1;
 # Test change_user command
 # ----------------------------------------------------------------------------
 
+--connect(change_user_conn, localhost, root,,,,)
+
 --error ER_BAD_DB_ERROR
 --change_user root,,inexistent
 
@@ -2889,6 +2891,9 @@ drop table t1;
 --change_user root
 --change_user root,,
 --change_user root,,test
+
+--connection default
+--disconnect change_user_conn
 
 # ----------------------------------------------------------------------------
 # Test mkdir and rmdir command
@@ -3966,3 +3971,28 @@ EOF
 
 # Cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/bug25929826.test
+
+--echo #
+--echo # BUG#26630826: MTR: REPLACE_RESULT IS NOT ABLE TO REPLACE LONG
+--echo #               STRINGS IN PATH NAME
+--echo #
+
+# Check whether replace_result replaces a matching long string pattern
+# when used with exec mysqltest command.
+--let $replace_string= `SELECT REPEAT('A', 550)`
+--replace_result $replace_string REPLACE_STRING
+--exec echo $replace_string
+
+# replace_result with long string pattern as argument used with exec
+# command which fails with error 1, pattern should get replaced.
+--replace_result $replace_string REPLACE_STRING tab1 t1
+--error 1
+--exec echo "SELECT $replace_string FROM tab1;" | $MYSQL_TEST  2>&1
+
+--echo #
+--echo # BUG#27136445: MTR: EXPORT AND USE # OF AVAILABLE CPUS IN TESTS
+--echo #
+
+# Print the value of environment variable storing number of CPUs
+--replace_result $NUMBER_OF_CPUS NUMBER_OF_CPUS
+--eval SELECT $NUMBER_OF_CPUS

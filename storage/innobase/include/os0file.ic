@@ -3,16 +3,24 @@
 Copyright (c) 2010, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -209,12 +217,13 @@ pfs_os_file_close_func(
 	return(result);
 }
 
+#ifndef UNIV_HOTBACKUP
 /** NOTE! Please use the corresponding macro os_aio(), not directly this
 function!
 Performance schema wrapper function of os_aio() which requests
 an asynchronous i/o operation.
 @param[in]	type		IO request context
-@param[in]	mode		IO mode
+@param[in]	aio_mode	IO mode
 @param[in]	name		Name of the file or path as NUL terminated
 				string
 @param[in]	file		Open file handle
@@ -235,7 +244,7 @@ UNIV_INLINE
 dberr_t
 pfs_os_aio_func(
 	IORequest&	type,
-	ulint		mode,
+	AIO_mode	aio_mode,
 	const char*	name,
 	pfs_os_file_t	file,
 	void*		buf,
@@ -259,12 +268,13 @@ pfs_os_aio_func(
 		src_file, src_line);
 
 	dberr_t result = os_aio_func(
-		type, mode, name, file, buf, offset, n, read_only, m1, m2);
+		type, aio_mode, name, file, buf, offset, n, read_only, m1, m2);
 
 	register_pfs_file_io_end(locker, n);
 
 	return(result);
 }
+#endif /* UNIV_HOTBACKUP */
 
 /** NOTE! Please use the corresponding macro os_file_read(), not directly
 this function!
@@ -300,6 +310,44 @@ pfs_os_file_read_func(
 	dberr_t		result;
 
 	result = os_file_read_func(type, file.m_file, buf, offset, n);
+
+	register_pfs_file_io_end(locker, n);
+
+	return(result);
+}
+
+/** NOTE! Please use the corresponding macro os_file_read_first_page(),
+not directly this function!
+This is the performance schema instrumented wrapper function for
+os_file_read() which requests a synchronous read operation.
+@param[in, out]	type		IO request context
+@param[in]	file		Open file handle
+@param[out]	buf		buffer where to read
+@param[in]	n		number of bytes to read
+@param[in]	src_file	file name where func invoked
+@param[in]	src_line	line where the func invoked
+@return DB_SUCCESS if request was successful */
+UNIV_INLINE
+dberr_t
+pfs_os_file_read_first_page_func(
+	IORequest&	type,
+	pfs_os_file_t	file,
+	void*		buf,
+	ulint		n,
+	const char*	src_file,
+	uint		src_line)
+{
+	PSI_file_locker_state	state;
+	struct PSI_file_locker*	locker = NULL;
+
+	ut_ad(type.validate());
+
+	register_pfs_file_io_begin(
+		&state, locker, file, n, PSI_FILE_READ, src_file, src_line);
+
+	dberr_t		result;
+
+	result = os_file_read_first_page_func(type, file.m_file, buf, n);
 
 	register_pfs_file_io_end(locker, n);
 
@@ -583,7 +631,7 @@ pfs_os_file_rename_func(
 
 	bool	result = os_file_rename_func(oldpath, newpath);
 
-	register_pfs_file_rename_end(locker, 0);
+	register_pfs_file_rename_end(locker, oldpath, newpath, !result);
 
 	return(result);
 }

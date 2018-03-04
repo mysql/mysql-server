@@ -1,37 +1,39 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "native_verification.h"
+#include "plugin/x/src/native_verification.h"
+
 #include "mysql_com.h"
-#include "crypt_genhash_impl.h"
 #include "password.h"
 
 namespace xpl {
 
-std::string Native_verification::generate_salt() {
-  std::string salt(SCRAMBLE_LENGTH, '\0');
-  ::generate_user_salt(&salt[0], static_cast<int>(salt.size()));
-  return salt;
-};
-
 bool Native_verification::verify_authentication_string(
-    const std::string &client_string, const std::string &db_string) const {
+    const std::string &user,
+    const std::string &host,
+    const std::string &client_string,
+    const std::string &db_string) const {
   if (client_string.empty()) return db_string.empty();
 
   if (db_string.empty()) return false;

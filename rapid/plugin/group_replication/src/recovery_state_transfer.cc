@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <assert.h>
 #include <mysql/group_replication_priv.h>
@@ -19,12 +26,12 @@
 
 #include "my_dbug.h"
 #include "my_systime.h"
-#include "plugin.h"
-#include "plugin_log.h"
-#include "plugin_psi.h"
-#include "plugin_server_include.h"
-#include "recovery_channel_state_observer.h"
-#include "recovery_state_transfer.h"
+#include "plugin/group_replication/include/plugin.h"
+#include "plugin/group_replication/include/plugin_log.h"
+#include "plugin/group_replication/include/plugin_psi.h"
+#include "plugin/group_replication/include/plugin_server_include.h"
+#include "plugin/group_replication/include/recovery_channel_state_observer.h"
+#include "plugin/group_replication/include/recovery_state_transfer.h"
 
 using std::string;
 
@@ -39,7 +46,8 @@ Recovery_state_transfer(char* recovery_channel_name,
     donor_connection_interface(recovery_channel_name),
     channel_observation_manager(channel_obsr_mngr),
     recovery_channel_observer(NULL),
-    recovery_use_ssl(false), recovery_ssl_verify_server_cert(false),
+    recovery_use_ssl(false), recovery_get_public_key(false),
+    recovery_ssl_verify_server_cert(false),
     max_connection_attempts_to_donors(0), donor_reconnect_interval(0)
 {
   //set the recovery SSL options to 0
@@ -50,6 +58,7 @@ Recovery_state_transfer(char* recovery_channel_name,
   (void) strncpy(recovery_ssl_key, "", 1);
   (void) strncpy(recovery_ssl_crl, "", 1);
   (void) strncpy(recovery_ssl_crlpath, "", 1);
+  (void) strncpy(recovery_public_key_path, "", 1);
 
   this->member_uuid= member_uuid;
 
@@ -519,7 +528,9 @@ int Recovery_state_transfer::initialize_donor_connection()
                                                        recovery_ssl_crlpath,
                                                        recovery_ssl_verify_server_cert,
                                                        DEFAULT_THREAD_PRIORITY,
-                                                       1, false);
+                                                       1, false,
+                                                       recovery_public_key_path,
+                                                       recovery_get_public_key);
 
   if (!error)
   {
@@ -695,7 +706,8 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos()
                                                   NULL,
                                                   NULL,
                                                   DEFAULT_THREAD_PRIORITY,
-                                                  1, false);
+                                                  1, false,
+                                                  NULL, false);
 
   DBUG_RETURN(error);
 }

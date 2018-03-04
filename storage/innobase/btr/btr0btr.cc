@@ -4,16 +4,24 @@ Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -28,27 +36,28 @@ Created 6/2/1994 Heikki Tuuri
 
 #include <sys/types.h>
 
-#include "fsp0sysspace.h"
-#include "gis0rtree.h"
-#include "my_dbug.h"
-#include "my_inttypes.h"
-#include "page0page.h"
-#include "page0zip.h"
+#ifndef UNIV_HOTBACKUP
+# include "fsp0sysspace.h"
+# include "gis0rtree.h"
+# include "my_dbug.h"
+# include "my_inttypes.h"
+# include "page0page.h"
+# include "page0zip.h"
+# include "btr0cur.h"
+# include "btr0pcur.h"
+# include "btr0sea.h"
+# include "buf0stats.h"
+# include "dict0boot.h"
+# include "gis0geo.h"
+# include "ibuf0ibuf.h"
+# include "lock0lock.h"
+# include "rem0cmp.h"
+# include "srv0mon.h"
+# include "trx0trx.h"
+# include "ut0new.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_HOTBACKUP
-#include "btr0cur.h"
-#include "btr0pcur.h"
-#include "btr0sea.h"
-#include "buf0stats.h"
-#include "dict0boot.h"
-#include "gis0geo.h"
-#include "ibuf0ibuf.h"
-#include "lock0lock.h"
-#include "rem0cmp.h"
-#include "srv0mon.h"
-#include "trx0trx.h"
-#include "ut0new.h"
-
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
 If necessary, re-organize the merge_page.
@@ -61,8 +70,7 @@ btr_can_merge_with_page(
 	page_no_t	page_no,	/*!< in: a sibling page */
 	buf_block_t**	merge_block,	/*!< out: the merge block */
 	mtr_t*		mtr);		/*!< in: mini-transaction */
-
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 /**************************************************************//**
 Report that an index page is corrupted. */
@@ -1365,7 +1373,9 @@ btr_page_reorganize_low(
 	ulint		pos;
 	bool		log_compressed;
 
+#ifndef UNIV_HOTBACKUP
 	ut_ad(mtr_is_block_fix(mtr, block, MTR_MEMO_PAGE_X_FIX, index->table));
+#endif /* !UNIV_HOTBACKUP */
 	btr_assert_not_corrupted(block, index);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
@@ -1379,12 +1389,13 @@ btr_page_reorganize_low(
 #ifndef UNIV_HOTBACKUP
 	temp_block = buf_block_alloc(buf_pool);
 #else /* !UNIV_HOTBACKUP */
-	ut_ad(block == back_block1);
 	temp_block = back_block2;
 #endif /* !UNIV_HOTBACKUP */
 	temp_page = temp_block->frame;
 
+#ifndef UNIV_HOTBACKUP
 	MONITOR_INC(MONITOR_INDEX_REORG_ATTEMPTS);
+#endif /* !UNIV_HOTBACKUP */
 
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
@@ -1570,7 +1581,6 @@ btr_page_reorganize_block(
 	return(btr_page_reorganize_low(recovery, z_level, &cur, index, mtr));
 }
 
-#ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Reorganizes an index page.
 
@@ -1592,7 +1602,6 @@ btr_page_reorganize(
 	return(btr_page_reorganize_low(false, page_zip_level,
 				       cursor, index, mtr));
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************//**
 Parses a redo log record of reorganizing a page.
@@ -2562,7 +2571,7 @@ btr_insert_into_right_sibling(
 
 	compressed = btr_cur_pessimistic_delete(
 		&err, TRUE, &next_father_cursor,
-		BTR_CREATE_FLAG, false, mtr);
+		BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
 
 	ut_a(err == DB_SUCCESS);
 
@@ -3181,7 +3190,8 @@ btr_node_ptr_delete(
 	btr_page_get_father(index, block, mtr, &cursor);
 
 	compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor,
-						BTR_CREATE_FLAG, false, mtr);
+						BTR_CREATE_FLAG, false,
+						0, 0, 0, mtr);
 	ut_a(err == DB_SUCCESS);
 
 	if (!compressed) {
@@ -3794,10 +3804,9 @@ retry:
 			lock_mutex_exit();
 		} else {
 
-			compressed = btr_cur_pessimistic_delete(&err, TRUE,
-								&cursor2,
-								BTR_CREATE_FLAG,
-								false, mtr);
+			compressed = btr_cur_pessimistic_delete(
+				&err, TRUE, &cursor2, BTR_CREATE_FLAG,
+				false, 0, 0, 0, mtr);
 			ut_a(err == DB_SUCCESS);
 
 			if (!compressed) {
@@ -4395,7 +4404,7 @@ btr_index_rec_validate(
 	}
 
 #ifdef VIRTUAL_INDEX_DEBUG
-	if (dict_index_has_virtual(index)) {
+	if (dict_index_has_virtual(index) || index->is_clustered()) {
 		fprintf(stderr, "index name is %s\n", index->name());
 	}
 #endif
@@ -4493,7 +4502,7 @@ btr_index_rec_validate(
 	}
 
 #ifdef VIRTUAL_INDEX_DEBUG
-	if (dict_index_has_virtual(index)) {
+	if (dict_index_has_virtual(index) || index->is_clustered()) {
 		rec_print_new(stderr, rec, offsets);
 	}
 #endif

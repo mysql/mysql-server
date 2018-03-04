@@ -8,16 +8,13 @@ sys
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-5
+4
 select count(*) from performance_schema.setup_consumers;
 count(*)
 15
 select count(*) > 4 from performance_schema.setup_instruments;
 count(*) > 4
 1
-select count(*) from performance_schema.setup_timers;
-count(*)
-5
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -90,7 +87,6 @@ select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
 select * from performance_schema.setup_threads;
-select * from performance_schema.setup_timers;
 select * from performance_schema.socket_instances;
 select * from performance_schema.socket_summary_by_instance;
 select * from performance_schema.socket_summary_by_event_name;
@@ -128,4 +124,4 @@ FLUSH STATUS;
 select variable_value from performance_schema.global_status
 where variable_name like 'PERFORMANCE_SCHEMA_METADATA_LOCK_LOST';
 variable_value
-2
+1

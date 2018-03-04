@@ -1,18 +1,25 @@
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 #ifndef X_TESTS_DRIVER_DRIVER_COMMAND_LINE_OPTIONS_H_
@@ -22,11 +29,11 @@
 #include <string>
 #include <vector>
 
-#include "common/command_line_options.h"
-#include "formatters/console.h"
-#include "mysqlx_version.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/tests/driver/common/command_line_options.h"
+#include "plugin/x/tests/driver/formatters/console.h"
+#include "plugin/x/tests/driver/processor/execution_context.h"
 #include "print_version.h"
-#include "processor/execution_context.h"
 #include "welcome_copyright_notice.h"
 
 
@@ -42,7 +49,8 @@ class Driver_command_line_options : public Command_line_options {
   std::string m_run_file;
   bool        m_has_file;
   bool        m_cap_expired_password;
-  bool        m_use_plain_auth;
+  bool        m_client_interactive;
+  std::vector<std::string> m_auth_methods;
 
   Execution_context::Options m_context_options;
   Console::Options           m_console_options;

@@ -43,7 +43,7 @@ BUFFER_POOL_SIZE_IN_MB
 @final_log_file_size_result
 1
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
 
 #########################################
 # RESTART 3                             #
@@ -60,7 +60,7 @@ ON
 LOG_FILE_SIZE_IN_MB
 50
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
 
 #########################################
 # RESTART 4                             #
@@ -76,8 +76,8 @@ BUFFER_POOL_SIZE_IN_MB
 LOG_FILE_SIZE_IN_MB
 50
 # Make sure that the warnings are present in server log.
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
-Pattern "\[Warning\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size" found
+Pattern "\[Warning\] \[[^]]*\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size" found
 SET innodb_dedicated_server = 0;
 ERROR HY000: Variable 'innodb_dedicated_server' is a read only variable
 SELECT @@innodb_dedicated_server;

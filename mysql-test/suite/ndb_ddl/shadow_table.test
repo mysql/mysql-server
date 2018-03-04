@@ -1,0 +1,170 @@
+--source setup.inc
+
+# Test behaviour of schema distribution when there is "shadow table"
+# in the dictionary, i.e a non NDB table with same name as the
+# table in NDB.
+#
+# This is a feature of MySQL Cluster schema distribution which should be
+# allowed, unfortunately it causes the DD on different MySQL Servers
+# connected to the same cluster to be different but that is on purpose.
+#
+# For example, one MySQL Server may have table t1 in InnoDB while all
+# the other MySQL Servers have table t1 in NDB. The MySQL Server having
+# the table in InnoDB shuod simply ignore all distributed DDL operations
+# and print a message to the MySQL Server log file
+#
+
+--connection mysqld1
+
+# Create "shadow table" in other engine on first mysqld
+create table ndb_ddl_test.shadow1 (
+  in_other_engine int primary key
+) engine = InnoDB;
+insert into ndb_ddl_test.shadow1 values(100);
+
+--connection mysqld2
+
+# Check that table does not exist on second mysqld(as it was not
+# created in NDB)
+--error ER_NO_SUCH_TABLE
+show create table ndb_ddl_test.shadow1;
+
+# Create a table in NDB with same name as on first mysqld
+create table ndb_ddl_test.shadow1 (
+  in_NDB_engine int primary key
+) engine = NDB;
+
+--connection mysqld1
+
+# Check that table on first mysqld is still in other engine
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+
+--connection mysqld2
+
+# Truncate the NDB table, the truncate is implemented
+# by "drop+create" so also now the shadow table on first mysqld should
+# not be truncated
+truncate table ndb_ddl_test.shadow1;
+
+--connection mysqld1
+
+# Check that table on first mysqld is still in other engine
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+
+# Check that table on first mysqld still contains one row
+select count(*) = 1 from ndb_ddl_test.shadow1;
+
+--connection mysqld2
+
+# Alter the NDB table with algorithm=copy, the shadow table on
+# first mysqld should ignore the alter
+alter table ndb_ddl_test.shadow1 algorithm=copy,
+  add column added_by_copying_alter int;
+
+--connection mysqld1
+
+# Check that table on first mysqld is still in other engine
+# and have only one column
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+
+--connection mysqld2
+
+# Alter the NDB table with algorithm=inplace, the shadow table on
+# first mysqld should ignore the alter
+alter table ndb_ddl_test.shadow1 algorithm=inplace,
+  add column added_by_inplace_alter int default NULL column_format DYNAMIC;
+
+--connection mysqld1
+
+# Check that table on first mysqld is still in other engine
+# and have only one column
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+
+--connection mysqld2
+
+# Drop the NDB table
+drop table ndb_ddl_test.shadow1;
+
+--connection mysqld1
+
+# Check that table on first mysqld is still in other engine
+select column_name from
+  information_schema.columns
+     where TABLE_SCHEMA = 'ndb_ddl_test' and TABLE_NAME = 'shadow1';
+
+# Check that table on first mysqld still contains one row
+select count(*) = 1 from ndb_ddl_test.shadow1;
+
+# Drop the "shadow table" from other engine
+drop table ndb_ddl_test.shadow1;
+
+# Check that all mysqlds have identical DD
+--source verify_mysql_dd.inc
+
+
+# #######################################################
+# Testing that also "drop database" is ignored if there
+# are shadow table(s) in a database
+# #######################################################
+
+--connection mysqld1
+# Create "shadow table" in other engine on first mysqld,
+# using the second empty test database
+create table ndb_ddl_test2.shadow_in_db (
+  in_other_engine int primary key
+) engine = InnoDB;
+
+--connection mysqld2
+
+# Create a table in NDB in order to verify that it's dropped
+# from first mysqld although the database is still there
+create table ndb_ddl_test2.table_in_ndb (
+  in_NDB_engine int primary key
+) engine = NDB;
+
+# Check that table does not exist on second mysqld(as it was not
+# created in NDB)
+--error ER_NO_SUCH_TABLE
+show create table ndb_ddl_test2.shadow_in_db;
+
+# Drop the database on the second mysqld, the database should then be dropped
+# on all mysqlds except the first
+drop database ndb_ddl_test2;
+
+# Check that the database does not exist on second mysqld
+--error ER_BAD_DB_ERROR
+use ndb_ddl_test2;
+
+--connection mysqld1
+
+# Check that the database still exist on first mysqld
+use ndb_ddl_test2;
+
+# Check that the NDB table is gone although database still exist
+--error ER_NO_SUCH_TABLE
+show create table ndb_ddl_test2.table_in_ndb;
+
+# Drop the "shadow table" from other engine
+drop table ndb_ddl_test2.shadow_in_db;
+
+# Drop the database which now exists only on the first mysqld
+drop database ndb_ddl_test2;
+
+--connection mysqld2
+
+# Create the ndb_ddl_test2 database again, thus checking it can be created
+# and also allowing cleanup to drop it
+create database ndb_ddl_test2;
+
+# Check that all mysqlds have identical DD
+--source verify_mysql_dd.inc
+
+--source cleanup.inc

@@ -1,6 +1,6 @@
 SELECT  @@GLOBAL.default_authentication_plugin;
 @@GLOBAL.default_authentication_plugin
-mysql_native_password
+caching_sha2_password
 SELECT COUNT(@@GLOBAL.default_authentication_plugin);
 COUNT(@@GLOBAL.default_authentication_plugin)
 1

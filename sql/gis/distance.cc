@@ -1,36 +1,44 @@
 // Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
-// This program is free software; you can redistribute it and/or modify it under
-// the terms of the GNU General Public License as published by the Free Software
-// Foundation; version 2 of the License.
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
 //
-// This program is distributed in the hope that it will be useful, but WITHOUT
-// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-// FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
-// details.
+// This program is also distributed with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have included with MySQL.
 //
-// You should have received a copy of the GNU General Public License along with
-// this program; if not, write to the Free Software Foundation, 51 Franklin
-// Street, Suite 500, Boston, MA 02110-1335 USA.
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 /// @file
 ///
 /// This file implements the distance functor and function.
 
-#include "distance.h"
+#include "sql/gis/distance.h"
 
-#include <boost/geometry.hpp>  // boost::geometry::distance
 #include <cmath>  // std::isfinite
 #include <limits>
 
-#include "distance_functor.h"
-#include "geometries.h"
-#include "geometries_traits.h"
-#include "my_inttypes.h"            // MYF
-#include "my_sys.h"                 // my_error
-#include "mysqld_error.h"           // Error codes
-#include "sql/dd/types/spatial_reference_system.h" // dd::Spatial_reference_system
-#include "sql/sql_exception_handler.h" // handle_gis_exception
+#include <boost/geometry.hpp>  // boost::geometry::distance
+
+#include "my_inttypes.h"                            // MYF
+#include "my_sys.h"                                 // my_error
+#include "mysqld_error.h"                           // Error codes
+#include "sql/dd/types/spatial_reference_system.h"  // dd::Spatial_reference_system
+#include "sql/gis/distance_functor.h"
+#include "sql/gis/geometries.h"
+#include "sql/gis/geometries_traits.h"
+#include "sql/sql_exception_handler.h"  // handle_gis_exception
 
 namespace bg = boost::geometry;
 namespace bgs = boost::geometry::srs;
@@ -98,8 +106,7 @@ double Distance::operator()(const Geometry *g1, const Geometry *g2) const {
 double Distance::eval(const Geometry *g1, const Geometry *g2) const {
   // Not all geographic type combinations have been implemented.
   DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
-  throw not_implemented_exception(g1->coordinate_system(), g1->type(),
-                                  g2->type());
+  throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
 //////////////////////////////////////////////////////////////////////////////

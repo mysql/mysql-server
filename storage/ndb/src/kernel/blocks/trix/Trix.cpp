@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -145,6 +152,18 @@ Trix::execREAD_CONFIG_REQ(Signal* signal)
   const ndb_mgm_configuration_iterator * p = 
     m_ctx.m_config.getOwnConfigIterator();
   ndbrequire(p != 0);
+
+  c_maxUIBuildBatchSize = 64;
+  ndb_mgm_get_int_parameter(p, CFG_DB_UI_BUILD_MAX_BATCHSIZE,
+                            &c_maxUIBuildBatchSize);
+
+  c_maxFKBuildBatchSize = 64;
+  ndb_mgm_get_int_parameter(p, CFG_DB_FK_BUILD_MAX_BATCHSIZE,
+                            &c_maxFKBuildBatchSize);
+
+  c_maxReorgBuildBatchSize = 64;
+  ndb_mgm_get_int_parameter(p, CFG_DB_REORG_BUILD_MAX_BATCHSIZE,
+                            &c_maxReorgBuildBatchSize);
 
   // Allocate pool sizes
   c_theAttrOrderBufferPool.setSize(100);
@@ -617,7 +636,7 @@ void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
   subRec->indexType = buildIndxReq->indexType;
   subRec->sourceTableId = buildIndxReq->tableId;
   subRec->targetTableId = buildIndxReq->indexId;
-  subRec->parallelism = buildIndxReq->parallelism;
+  subRec->parallelism = c_maxUIBuildBatchSize;
   subRec->expectedConf = 0;
   subRec->subscriptionCreated = false;
   subRec->pendingSubSyncContinueConf = false;
@@ -1049,6 +1068,7 @@ void Trix::startTableScan(Signal* signal, SubscriptionRecPtr subRecPtr)
   subSyncReq->requestInfo = 0;
   subSyncReq->fragCount = subRec->fragCount;
   subSyncReq->fragId = subRec->fragId;
+  subSyncReq->batchSize = subRec->parallelism;
 
   if (subRec->m_flags & SubscriptionRecord::RF_NO_DISK)
   {
@@ -1562,7 +1582,7 @@ Trix::execCOPY_DATA_IMPL_REQ(Signal* signal)
   subRec->indexType = RNIL;
   subRec->sourceTableId = req->srcTableId;
   subRec->targetTableId = req->dstTableId;
-  subRec->parallelism = 16;
+  subRec->parallelism = c_maxReorgBuildBatchSize;
   subRec->expectedConf = 0;
   subRec->subscriptionCreated = false;
   subRec->pendingSubSyncContinueConf = false;
@@ -1700,7 +1720,7 @@ Trix::execBUILD_FK_IMPL_REQ(Signal* signal)
   subRec->indexType = RNIL;
   subRec->sourceTableId = req->childTableId;
   subRec->targetTableId = req->parentTableId;
-  subRec->parallelism = 16;
+  subRec->parallelism = c_maxFKBuildBatchSize;
   subRec->expectedConf = 0;
   subRec->subscriptionCreated = false;
   subRec->pendingSubSyncContinueConf = false;
@@ -2637,7 +2657,7 @@ Trix::statCleanPrepare(Signal* signal, StatOp& stat)
   subRec->targetTableId = RNIL;
   subRec->noOfIndexColumns = ao_size;
   subRec->noOfKeyColumns = 0;
-  subRec->parallelism = 16;
+  subRec->parallelism = 16;  // remains hardcoded for now
   subRec->fragCount = 0;
   subRec->fragId = ZNIL;
   subRec->syncPtr = RNIL;
@@ -2847,7 +2867,7 @@ Trix::statScanPrepare(Signal* signal, StatOp& stat)
   subRec->targetTableId = RNIL;
   subRec->noOfIndexColumns = ao_size;
   subRec->noOfKeyColumns = 0;
-  subRec->parallelism = 16;
+  subRec->parallelism = 16;   // remains hardcoded for now
   subRec->fragCount = 0; // XXX Suma currently checks all frags
   subRec->fragId = req->fragId;
   subRec->syncPtr = RNIL;

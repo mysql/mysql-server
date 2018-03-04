@@ -1,26 +1,34 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql/gcs/gcs_logging_system.h"
-#include "gcs_xcom_communication_interface.h"
-#include "gcs_xcom_control_interface.h"
-#include "gcs_xcom_group_member_information.h"
-#include "gcs_xcom_notification.h"
-#include "gcs_xcom_utils.h"
-#include "gcs_xcom_view_identifier.h"
-#include "node_no.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_control_interface.h"
+
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_group_member_information.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_notification.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_view_identifier.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_no.h"
 
 using std::map;
 using std::set;
@@ -83,6 +91,7 @@ static void *xcom_taskmain_startup(void *ptr)
   Gcs_xcom_proxy *proxy= gcs_ctrl->get_xcom_proxy();
   xcom_port port= gcs_ctrl->get_node_address()->get_member_port();
 
+  proxy->set_should_exit(false);
   proxy->xcom_init(port);
 
   My_xp_thread_util::exit(0);
@@ -435,8 +444,7 @@ enum_gcs_error Gcs_xcom_control::retry_do_join()
         {
           MYSQL_GCS_LOG_ERROR(
             "Error on opening a connection to " << addr <<":"<< port <<
-            " on local port: " << local_port
-            << ". Error= " << con
+            " on local port: " << local_port << "."
           )
         }
       }
@@ -1686,7 +1694,8 @@ Gcs_suspicions_manager::Gcs_suspicions_manager(Gcs_xcom_proxy *proxy)
   m_suspicions(),
   m_suspicions_mutex()
 {
-  m_suspicions_mutex.init(NULL);
+  m_suspicions_mutex.init(
+    key_GCS_MUTEX_Gcs_suspicions_manager_m_suspicions_mutex, NULL);
 }
 
 

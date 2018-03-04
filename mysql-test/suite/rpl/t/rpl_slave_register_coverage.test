@@ -15,7 +15,7 @@
 
 CREATE USER rpl_user;
 
---source include/rpl_connection_slave.inc
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_io.inc
 
 CHANGE MASTER TO master_user='rpl_user';

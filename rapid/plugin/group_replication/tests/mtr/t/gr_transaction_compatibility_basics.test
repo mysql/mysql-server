@@ -1,17 +1,15 @@
 ################################################################################
-# Test that evaluates basics about transaction control when joining and the
-# basics about group_replication_allow_local_disjoint_gtids_join.
+# Test that evaluates basics about transaction control when joining,
 #
 # Test:
 #  0) The test requires two servers: M1 and M2.
 #  1) Bootstrap start a group on M1 and execute some transactions.
 #  2) Execute a local transaction on M2 and try to join. It fails.
 #     Verify the error messages are logged.
-#  3) Test the default value is 0, invalid inputs are not accepted, and the
-#     value can be set to 1 for the variable.
-#  4) Test that the M2 can now join the group with this option set to 1/ON.
-#  5) Verify all is fine. Check data in table on M2.
-#  6) Clean up.
+#  3) Test that the M2 can now join the group after the extra data
+#     is removed.
+#  4) Verify all is fine. Check data in table on M2.
+#  5) Clean up.
 ################################################################################
 
 --source include/big_test.inc
@@ -27,7 +25,6 @@
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression(".*This member has more executed transactions *.*");
 call mtr.add_suppression(".*The member contains transactions not present *.*");
 SET SESSION sql_log_bin= 1;
 
@@ -68,44 +65,18 @@ SET GTID_NEXT= "AUTOMATIC";
 --error ER_GROUP_REPLICATION_CONFIGURATION
 START GROUP_REPLICATION;
 
---replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^]]*\] */DATE_TIME [ERROR] /
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_transaction_compatibility_basics.err
 --let $grep_pattern=This member has more executed transactions than those present in the group. Local transactions
 --source include/grep_pattern.inc
 
---replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* *\[/DATE_TIME [/
+--replace_regex /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]\.[0-9][0-9][0-9][0-9][0-9][0-9][-+Z][0-9:]* *[0-9]* \[ERROR\] \[[^]]*\] */DATE_TIME [ERROR] /
 --let $grep_file=$MYSQLTEST_VARDIR/tmp/group_replication_transaction_compatibility_basics.err
 --let $grep_pattern=The member contains transactions not present in the group. The member will now exit the group.
 --source include/grep_pattern.inc
 
 --echo #
---echo # Test the basics for group_replication_allow_local_disjoint_gtids_join
---echo #
-
-# Check default value
---let $assert_text= The default value of allow_local_disjoint_gtids_join should be 0/OFF
---let $assert_cond= "[SELECT @@group_replication_allow_local_disjoint_gtids_join]" = "0"
---source include/assert.inc
-
-# Test that variable doesn't take invalid inputs
---error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= NULL;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= "a";
-
---error ER_WRONG_TYPE_FOR_VAR
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1.2;
-
-# Enable variable by setting it to 1
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
-
---let $assert_text= The value of allow_local_disjoint_gtids_join should now be 1/ON
---let $assert_cond= "[SELECT @@group_replication_allow_local_disjoint_gtids_join]" = "1"
---source include/assert.inc
-
---echo #
---echo # Test that server 2 can now join
+--echo # Test that server 2 can now join after extra data is removed.
 --echo #
 
 #For precaution, wait for server 2 to leave before joining again.
@@ -118,6 +89,9 @@ SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+DROP TABLE t2;
+RESET MASTER;
+
 --source include/start_group_replication.inc
 
 --echo #
@@ -129,9 +103,10 @@ SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 1;
 
 INSERT INTO t1 VALUES (2);
 
-# We cannot use rpl_sync.inc because of errand transactions.
---let $sync_slave_connection= server2
---source include/sync_slave_sql_with_master.inc
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
 
 --let $assert_text= 'There are two values in table t1'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
@@ -141,18 +116,6 @@ INSERT INTO t1 VALUES (2);
 --echo # Cleaning up
 --echo #
 
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-
---source include/stop_group_replication.inc
---source include/start_group_replication.inc
-
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-
-SET GLOBAL group_replication_allow_local_disjoint_gtids_join= 0;
-
 DROP TABLE t1;
-DROP TABLE t2;
 
 --source ../inc/group_replication_end.inc

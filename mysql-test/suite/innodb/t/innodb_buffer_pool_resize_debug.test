@@ -149,7 +149,7 @@ disconnect con1;
 disconnect con2;
 
 # fails to allocate new chunks
-call mtr.add_suppression("\\[ERROR\\] InnoDB: buffer pool 0 : failed to allocate new memory.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: buffer pool 0 : failed to allocate new memory.");
 connection default;
 set global DEBUG="+d,ib_buf_chunk_init_fails";
 set global innodb_buffer_pool_size = 16*1024*1024;
@@ -186,3 +186,50 @@ let $wait_condition =
 
 # Wait till all disconnects are completed]
 --source include/wait_until_count_sessions.inc
+
+--echo #
+--echo # BUG#23590280 NO WARNING WHEN REDUCING INNODB_BUFFER_POOL_SIZE INSIZE THE FIRST CHUNK
+--echo #
+
+# Slow shutdown and restart to make sure ibuf merge is finished
+SET GLOBAL innodb_fast_shutdown = 0;
+let $restart_parameters = restart: --innodb-buffer-pool-size=24M --innodb-buffer-pool-chunk-size=24M;
+--source include/restart_mysqld.inc
+
+set @before_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
+
+set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size div 2;
+
+let $wait_timeout = 60;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 19) = 'Size did not change'
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc
+
+set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size * 2;
+
+let $wait_timeout = 60;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 9) = 'Completed'
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc
+
+set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size;
+
+let $wait_timeout = 60;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 9) = 'Completed'
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc
+
+set global innodb_buffer_pool_size=@before_innodb_buffer_pool_size;
+
+let $wait_timeout = 60;
+let $wait_condition =
+  SELECT SUBSTR(variable_value, 1, 19) = 'Size did not change'
+  FROM performance_schema.global_status
+  WHERE LOWER(variable_name) = 'innodb_buffer_pool_resize_status';
+--source include/wait_condition.inc

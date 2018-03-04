@@ -83,7 +83,7 @@ call dml_operations(1,100);
 
 set sql_log_bin=0;
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Database page corruption or a failed file read of page");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Database page corruption or a failed file read of page");
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
 LOCK TABLES t1 READ;

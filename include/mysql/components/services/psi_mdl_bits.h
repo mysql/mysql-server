@@ -1,25 +1,27 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef COMPONENTS_SERVICES_PSI_MDL_BITS_H
 #define COMPONENTS_SERVICES_PSI_MDL_BITS_H
-
-#include "my_inttypes.h"
-#include "my_macros.h"
-
-C_MODE_START
 
 /**
   @file
@@ -67,15 +69,15 @@ typedef struct PSI_metadata_locker PSI_metadata_locker;
 struct PSI_metadata_locker_state_v1
 {
   /** Internal state. */
-  uint m_flags;
+  unsigned int m_flags;
   /** Current metadata lock. */
   struct PSI_metadata_lock *m_metadata_lock;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Timer start. */
-  ulonglong m_timer_start;
+  unsigned long long m_timer_start;
   /** Timer function. */
-  ulonglong (*m_timer)(void);
+  unsigned long long (*m_timer)(void);
   /** Internal data. */
   void *m_wait;
 };
@@ -88,7 +90,7 @@ typedef PSI_metadata_lock *(*create_metadata_lock_v1_t)(
   opaque_mdl_duration mdl_duration,
   opaque_mdl_status mdl_status,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 
 typedef void (*set_metadata_lock_status_v1_t)(PSI_metadata_lock *lock,
                                               opaque_mdl_status mdl_status);
@@ -99,7 +101,7 @@ typedef struct PSI_metadata_locker *(*start_metadata_wait_v1_t)(
   struct PSI_metadata_locker_state_v1 *state,
   struct PSI_metadata_lock *mdl,
   const char *src_file,
-  uint src_line);
+  unsigned int src_line);
 
 typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
                                        int rc);
@@ -107,7 +109,5 @@ typedef void (*end_metadata_wait_v1_t)(struct PSI_metadata_locker *locker,
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;
 
 /** @} (end of group psi_abi_mdl) */
-
-C_MODE_END
 
 #endif /* COMPONENTS_SERVICES_PSI_MDL_BITS_H */

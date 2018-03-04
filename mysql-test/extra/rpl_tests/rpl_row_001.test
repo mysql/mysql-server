@@ -4,6 +4,7 @@
 let $date_to_restore_root=`SELECT password_last_changed from mysql.user where user='root'`;
 let $date_to_restore_sys=`SELECT password_last_changed from mysql.user where user='mysql.sys'`;
 let $date_to_restore_session_user=`SELECT password_last_changed from mysql.user where user='mysql.session'`;
+let $date_to_restore_infoschema_user=`SELECT password_last_changed from mysql.user where user='mysql.infoschema'`;
 
 let $LOAD_FILE= $MYSQLTEST_VARDIR/std_data/words.dat;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
@@ -53,8 +54,11 @@ eval CREATE TABLE t1 (n INT) ENGINE=$engine_type;
 sync_slave_with_master;
 connection master;
 RESET MASTER;
+
 connection slave;
-STOP SLAVE;
+--let $wait_condition=SELECT COUNT(*)=0 from t1
+--source include/wait_condition_or_abort.inc
+--source include/stop_slave.inc
 RESET SLAVE;
 
 connection master;
@@ -68,22 +72,36 @@ while ($1)
 }
 enable_query_log;
 SELECT COUNT(*) FROM t1;
-save_master_pos;
+
+# When running this test with MySQL Cluster replication, the
+# binlog is written asynchronosly via NDB and the master pos
+# should not be saved until all the committed inserts have
+# been written to the binlog of this MySQL Server
+--source include/wait_for_ndb_committed_to_binlog.inc
+
+--source include/save_master_pos.inc
 
 # Try to cause a large relay log lag on the slave by locking t1
 connection slave;
 RESET MASTER;
 LOCK TABLES t1 READ;
-START SLAVE;
+
+--source include/start_slave.inc
+--source include/sync_slave_io.inc
+
 UNLOCK TABLES;
-sync_with_master;
+--let $wait_condition= SELECT count(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State = 'Waiting for table metadata lock'
+--source include/wait_condition.inc
+# In valgrind sync a large workload might take long when MTS is enabled
+--let $slave_timeout= 1200
+--source include/sync_slave_sql_with_io.inc
 SELECT COUNT(*) FROM t1;
 
 connection master;
 DROP TABLE t1;
 CREATE TABLE t1 (n INT);
 INSERT INTO t1 VALUES(3456);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT n FROM t1;
 
 connection master;
@@ -93,7 +111,8 @@ DROP TABLE t1;
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_root'
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_sys' WHERE USER= 'mysql.sys'
 --eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_session_user' WHERE USER= 'mysql.session'
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore_infoschema_user' WHERE USER= 'mysql.infoschema'
 --enable_query_log
 --echo # mysql.user table restored to original values.
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc

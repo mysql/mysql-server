@@ -3,23 +3,32 @@
 Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
+
+#include "my_config.h"
 
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
-#include <my_config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -28,32 +37,32 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _WIN32
 # include <unistd.h>
 #endif
-#include <m_string.h>
-#include <my_getopt.h>
-#include <welcome_copyright_notice.h>
 #include <zlib.h>
 #include <iostream>
 #include <map>
 
-#include "btr0cur.h"
-#include "dict0sdi-decompress.h"
-#include "fil0fil.h"
-#include "fsp0fsp.h"
-#include "lob0lob.h"
-#include "mach0data.h"
+#include "m_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_dir.h"
+#include "my_getopt.h"
 #include "my_io.h"
 #include "my_macros.h"
-#include "page0page.h"
-#include "page0size.h"
-#include "page0types.h"
 #include "print_version.h"
+#include "storage/innobase/include/btr0cur.h"
+#include "storage/innobase/include/dict0sdi-decompress.h"
+#include "storage/innobase/include/fil0fil.h"
+#include "storage/innobase/include/fsp0fsp.h"
+#include "storage/innobase/include/lob0lob.h"
+#include "storage/innobase/include/mach0data.h"
+#include "storage/innobase/include/page0page.h"
+#include "storage/innobase/include/page0size.h"
+#include "storage/innobase/include/page0types.h"
+#include "storage/innobase/include/univ.i"
+#include "storage/innobase/include/ut0byte.h"
+#include "storage/innobase/include/ut0crc32.h"
 #include "typelib.h"
-#include "univ.i"
-#include "ut0byte.h"
-#include "ut0crc32.h"
+#include "welcome_copyright_notice.h"
 
 typedef enum {
 	SUCCESS = 0,

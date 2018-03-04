@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -1623,14 +1630,6 @@ type_conversion_status Field::check_constraints(int mysql_errno)
 
   if (this == table->next_number_field)
     return TYPE_OK;
-
-  /*
-    If the field is of TIMESTAMP its default value is CURRENT_TIMESTAMP
-    and was set before calling this method. Therefore m_is_tmp_null == false
-    for such field and we leave check_constraints() before this
-    DBUG_ASSERT is fired.
-  */
-  DBUG_ASSERT (type() != MYSQL_TYPE_TIMESTAMP);
 
   switch (m_check_for_truncated_fields_saved) {
   case CHECK_FIELD_WARN:
@@ -6663,7 +6662,7 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 size_t Field_newdate::make_sort_key(uchar *to,
                                     size_t length MY_ATTRIBUTE((unused)))
 {
-  DBUG_ASSERT(length == 3);
+  memset(to, 0, length);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
@@ -8878,7 +8877,7 @@ Field_json::store(const char *from, size_t length, const CHARSET_INFO *cs)
   size_t ss;
   String v(from, length, cs);
 
-  if (ensure_utf8mb4(&v, &value, &s, &ss, true))
+  if (ensure_utf8mb4(v, &value, &s, &ss, true))
   {
     return TYPE_ERR_BAD_VALUE;
   }
@@ -8930,19 +8929,8 @@ type_conversion_status Field_json::store_binary(const char *ptr, size_t length)
   /*
     We expect that a valid binary representation of a JSON document is
     passed to us.
-
-    We make an exception for the case of an empty binary string. Even
-    though an empty binary string is not a valid representation of a
-    JSON document, we might be served one as a result of inserting
-    NULL or DEFAULT into a not nullable JSON column using INSERT
-    IGNORE, or inserting DEFAULT into a not nullable JSON column in
-    non-strict SQL mode.
-
-    We accept an empty binary string in those cases. Such values will
-    be converted to the JSON null literal when they are read with
-    Field_json::val_json().
   */
-  DBUG_ASSERT(length == 0 || json_binary::parse_binary(ptr, length).is_valid());
+  DBUG_ASSERT(json_binary::parse_binary(ptr, length).is_valid());
 
   if (length > UINT_MAX32)
   {
@@ -9047,25 +9035,6 @@ bool Field_json::val_json(Json_wrapper *wr)
 
   String tmp;
   String *s= Field_blob::val_str(&tmp, &tmp);
-
-  /*
-    The empty string is not a valid JSON binary representation, so we
-    should have returned an error. However, sometimes an empty
-    Field_json object is created in order to retrieve meta-data.
-    Return a dummy value instead of raising an error. Bug#21104470.
-
-    The field could also contain an empty string after forcing NULL or
-    DEFAULT into a not nullable JSON column using lax error checking
-    (such as INSERT IGNORE or non-strict SQL mode). The JSON null
-    literal is used to represent the empty value in this case.
-    Bug#21437989.
-  */
-  if (s->length() == 0)
-  {
-    using namespace json_binary;
-    *wr= Json_wrapper(Value(Value::LITERAL_NULL));
-    DBUG_RETURN(false);
-  }
 
   json_binary::Value v(json_binary::parse_binary(s->ptr(), s->length()));
   if (v.type() == json_binary::Value::ERROR)
@@ -9352,6 +9321,21 @@ bool Field_json::get_time(MYSQL_TIME *ltime)
   if (result)
     set_zero_time(ltime, MYSQL_TIMESTAMP_DATETIME); /* purecov: inspected */
   return result;
+}
+
+
+int Field_json::cmp_binary(const uchar *a_ptr, const uchar *b_ptr,
+                           uint32 /* max_length */)
+{
+  char *a;
+  char *b;
+  memcpy(&a, a_ptr + packlength, sizeof(a));
+  memcpy(&b, b_ptr + packlength, sizeof(b));
+  uint32 a_length= get_length(a_ptr);
+  uint32 b_length= get_length(b_ptr);
+  Json_wrapper aw(json_binary::parse_binary(a, a_length));
+  Json_wrapper bw(json_binary::parse_binary(b, b_length));
+  return aw.compare(bw);
 }
 
 
@@ -10704,11 +10688,12 @@ uint32 calc_key_length(enum_field_types sql_type, uint32 length,
 void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
                                       uint32 length_arg, uint32 decimals_arg,
                                       bool maybe_null_arg, bool is_unsigned_arg,
-                                      uint pack_length_override_arg)
+                                      uint pack_length_override_arg,
+                                      const char *fld_name)
 {
   DBUG_ENTER("Create_field::init_for_tmp_table");
 
-  field_name= "";
+  field_name= fld_name;
   sql_type= sql_type_arg;
   char_length= length= length_arg;;
   auto_flags= Field::NONE;
@@ -10727,6 +10712,10 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   {
   case MYSQL_TYPE_BIT:
     treat_bit_as_char= true;
+    break;
+  case MYSQL_TYPE_DATE:
+    // Old type
+    sql_type= MYSQL_TYPE_NEWDATE;
     break;
 
   case MYSQL_TYPE_NEWDECIMAL:
@@ -10803,6 +10792,7 @@ bool Create_field::init(THD *thd, const char *fld_name,
   flags= fld_type_modifier;
   charset= fld_charset;
   auto_flags= Field::NONE;
+  maybe_null= !(fld_type_modifier & NOT_NULL_FLAG);
 
   if (fld_default_value != NULL && fld_default_value->type() == Item::FUNC_ITEM)
   {
@@ -10870,12 +10860,15 @@ bool Create_field::init(THD *thd, const char *fld_name,
     */
     switch (gcol_info->expr_item->type()) {
     case Item::FUNC_ITEM:
-      if (((Item_func *)gcol_info->expr_item)->functype() ==
-          Item_func::FUNC_SP)
       {
-        my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0),
-                 field_name);
-        DBUG_RETURN(TRUE);
+        Item_func *func_item= static_cast<Item_func *>(gcol_info->expr_item);
+        if (func_item->functype() == Item_func::FUNC_SP ||
+            func_item->is_deprecated())
+        {
+          my_error(ER_GENERATED_COLUMN_FUNCTION_IS_NOT_ALLOWED, MYF(0),
+                   field_name);
+          DBUG_RETURN(TRUE);
+        }
       }
       break;
     case Item::COPY_STR_ITEM:
@@ -11011,7 +11004,6 @@ bool Create_field::init(THD *thd, const char *fld_name,
   case MYSQL_TYPE_TINY_BLOB:
   case MYSQL_TYPE_LONG_BLOB:
   case MYSQL_TYPE_MEDIUM_BLOB:
-  case MYSQL_TYPE_GEOMETRY:
   case MYSQL_TYPE_JSON:
     if (fld_default_value)
     {
@@ -11039,6 +11031,14 @@ bool Create_field::init(THD *thd, const char *fld_name,
                             fld_name);
       }
       def= 0;
+    }
+    flags|= BLOB_FLAG;
+    break;
+  case MYSQL_TYPE_GEOMETRY:
+    if (fld_default_value)
+    {
+      my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), fld_name);
+      DBUG_RETURN(TRUE);
     }
     flags|= BLOB_FLAG;
     break;
@@ -11882,9 +11882,11 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
   return false;
 }
 
-bool Field::is_part_of_actual_key(THD *thd, uint cur_index)
+bool Field::is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info)
 {
-  return thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+  return
+    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) &&
+    !(cur_index_info->flags & HA_NOSAME) ?
     part_of_key.is_set(cur_index) :
     part_of_key_not_extended.is_set(cur_index);
 }

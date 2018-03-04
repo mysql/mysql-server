@@ -1,0 +1,1006 @@
+#
+# WL#9651:  Logging services: filter configuration engine
+#
+SET @@global.log_error_verbosity=3;
+FLUSH LOGS;
+SET @@session.debug="+d,parser_stmt_to_error_log";
+SET @@session.debug="+d,log_error_normalize";
+SELECT @@global.log_error_services;
+@@global.log_error_services
+log_filter_internal; log_sink_internal
+
+## WL#9651
+SET @save_filters= @@global.dragnet.log_error_filter_rules;
+ERROR HY000: Unknown system variable 'dragnet.log_error_filter_rules'
+# currently nothing is loaded that can handle this, so we'll fail
+SET @@global.dragnet.log_error_filter_rules= DEFAULT;
+ERROR HY000: Unknown system variable 'dragnet.log_error_filter_rules'
+
+INSTALL COMPONENT "file://component_log_filter_dragnet";
+SET @save_filters= @@global.dragnet.log_error_filter_rules;
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line.";
+# when clearing rule-set, notice should also show an empty rule-set
+SET @@global.dragnet.log_error_filter_rules="";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line.";
+SET @@global.log_error_services="log_sink_internal; log_sink_internal";
+ERROR 42000: Variable 'log_error_services' can't be set to the value of 'log_sink_internal; log_sink_internal'
+SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet";
+ERROR 42000: Variable 'log_error_services' can't be set to the value of 'log_filter_dragnet; log_filter_dragnet'
+SET @@global.log_error_services="log_filter_dragnet; log_sink_internal";
+# error, not starting with IF
+SET @@global.dragnet.log_error_filter_rules='drop.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: getting first token ...) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'drop.'
+
+# error, ELSE without IF
+SET @@global.dragnet.log_error_filter_rules='ELSE drop.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'ELSE drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "drop." (state: IF expected) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'ELSE drop.'
+
+# correct OR
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a OR NOT EXISTS b THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a OR NOT EXISTS b THEN drop.';
+
+# correct AND
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.';
+
+# multi-chain
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.';
+
+# test presence/absence operator
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'.";
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF EXISTS a THEN SET a='asd'.";
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF NOT EXISTS a THEN SET a='asd'.";
+# correct conditions:
+SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN drop.';
+
+# correct actions:
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/60.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.000000.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset a.';
+SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset a.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.';
+SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==1408 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==1408 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.';
+SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_code==1408 THEN set err_code:=1003.';
+SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".';
+SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a=="\\a\"\'" THEN set err_symbol:="ER_YES".';
+# error, unrecognized token
+SET @@global.dragnet.log_error_filter_rules='DRAUGR.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'DRAUGR.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: getting first token ...) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'DRAUGR.'
+# error, == is not an assignment operator
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b==2.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set b==2.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "==2." (state: malformed number) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set b==2.'
+# error, mismatching quotation signs
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP THEN drop.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol=='ER_STARTUP THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "'ER_STARTUP THEN drop." (state: testing for prefix) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol=='ER_STARTUP THEN drop.'
+# error, mismatching quotation signs
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP' THEN drop.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP' THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "ER_STARTUP' THEN drop." (state: unknown ER_code) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP' THEN drop.'
+# error, mismatching quotation signs
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP\" THEN drop.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol=='ER_STARTUP" THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "'ER_STARTUP" THEN drop." (state: testing for prefix) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol=='ER_STARTUP" THEN drop.'
+# error, mismatching quotation signs
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol==\"ER_STARTUP' THEN drop.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol=="ER_STARTUP' THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at ""ER_STARTUP' THEN drop." (state: testing for prefix) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol=="ER_STARTUP' THEN drop.'
+# error, reserved
+SET @@global.dragnet.log_error_filter_rules="IF misc_cstring=='1' THEN drop.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF misc_cstring=='1' THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "=='1' THEN drop." (state: could not set up field before comparator) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF misc_cstring=='1' THEN drop.'
+SET @@global.dragnet.log_error_filter_rules="IF a=='1' THEN set misc_cstring:='abc'.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a=='1' THEN set misc_cstring:='abc'.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at ":='abc'." (state: could not set up field in action) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a=='1' THEN set misc_cstring:='abc'.'
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS misc_cstring THEN drop.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS misc_cstring THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "THEN drop." (state: could not set up field for EXISTS) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS misc_cstring THEN drop.'
+# error, trying to assign integer to string field
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS foo THEN set component:=1.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "1." (state: Argument is of numeric type, field is not.) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS foo THEN set component:=1.'
+# error, trying to assign float to string field
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1..5.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS foo THEN set component:=1..5.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "1..5." (state: Argument is of numeric type, field is not.) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS foo THEN set component:=1..5.'
+# error, trying to assign float to an integer field
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set prio:=1.5.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS foo THEN set prio:=1.5.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "1.5." (state: Argument is of float type, field is not.) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS foo THEN set prio:=1.5.'
+# error, no action (condition ends in NUL)
+SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "ER_STARTUP" (state: 'err_code' is the only built-in field-type we will resolve ER_symbols for) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP'
+# error, NOT requires EXISTS
+SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF NOT field THEN action.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "field THEN action." (state: NOT requires EXISTS) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF NOT field THEN action.'
+SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF EXISTS field THEN drop.';
+
+# error, wrong data-type
+SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "ER_STARTUP THEN drop." (state: 'err_code' is the only built-in field-type we will resolve ER_symbols for) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_symbol==ER_STARTUP THEN drop.'
+SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_code=="ER_STARTUP" THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at ""ER_STARTUP" THEN drop." (state: Argument is of string type, field is not.) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF err_code=="ER_STARTUP" THEN drop.'
+
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.';
+SET @@global.dragnet.log_error_filter_rules='IF a==2 AND b==3 THEN unset.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 AND b==3 THEN unset.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: implicit field name only allowed for IFs with exactly 1 condition.) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 AND b==3 THEN unset.'
+
+# error, both prefix and infix operators
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a>0 THEN drop.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS a>0 THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at ">0 THEN drop." (state: looking for THEN) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS a>0 THEN drop.'
+
+# error, no terminator
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS a THEN drop'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "" (state: statement incomplete) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS a THEN drop'
+
+# error, malformed statement
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS field THEN AND.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS field THEN AND.'
+# error, malformed statement
+SET @@global.dragnet.log_error_filter_rules="IF EXISTS field DROP.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS field DROP.'
+# error, incomplete action:
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: looking for action's field name) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set.'
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set b.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: looking for action field's value) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set b.'
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set b:=.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: looking for action field's value) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set b:=.'
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set b:=.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: looking for action field's value) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set b:=.'
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set :=2.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set :=2.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at ":=2." (state: looking for action's field name) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN set :=2.'
+
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "" (state: statement incomplete) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop'
+
+# NULL should not be allowed
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules=NULL;
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'NULL'
+SHOW WARNINGS;
+Level	Code	Message
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'NULL'
+# empty rule-set should be allowed
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SET @@global.dragnet.log_error_filter_rules="";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+SELECT @@global.dragnet.log_error_filter_rules;
+@@global.dragnet.log_error_filter_rules
+
+# interaction with SET PERSIST
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.';
+SET PERSIST dragnet.log_error_filter_rules= '';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='';
+SELECT @@global.dragnet.log_error_filter_rules;
+@@global.dragnet.log_error_filter_rules
+
+SELECT @@session.dragnet.log_error_filter_rules;
+ERROR HY000: Variable 'dragnet.log_error_filter_rules' is a GLOBAL variable
+RESET PERSIST;
+# symbolic prio
+SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>9999 THEN set prio:=WARNING.';
+SET @@global.dragnet.log_error_filter_rules="IF prio>=ERROR THEN drop.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=ERROR THEN drop.';
+SET @@global.dragnet.log_error_filter_rules="IF prio>=WARNING THEN drop.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=WARNING THEN drop.';
+SET @@global.dragnet.log_error_filter_rules="IF prio>=NOTE THEN drop.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=INFORMATION THEN drop.';
+SET @@global.dragnet.log_error_filter_rules="IF prio>=INFORMATION THEN drop.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=INFORMATION THEN drop.';
+SET @@global.dragnet.log_error_filter_rules="IF thread>=INFORMATION THEN drop.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF thread>=INFORMATION THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "INFORMATION THEN drop." (state: malformed number) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF thread>=INFORMATION THEN drop.'
+SET @@global.dragnet.log_error_filter_rules="IF prio>=INFORMATION THEN set thread:=ERROR.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=INFORMATION THEN set thread:=ERROR.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "ERROR." (state: malformed number) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=INFORMATION THEN set thread:=ERROR.'
+SET @@global.dragnet.log_error_filter_rules="IF prio>=NOUGAT THEN drop.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=NOUGAT THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "NOUGAT THEN drop." (state: unknown prio) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=NOUGAT THEN drop.'
+# == should not require a space
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. ";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.';
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. ";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg=="Parser saw: select 1" THEN set a:=1.';
+# throw error for absurdly large values
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 .";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 .'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 ." (state: failed to parse denominator of fraction (0 < integer number of seconds <= 604800)) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 .'
+# throw error for floats
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "1.1." (state: failed to parse denominator of fraction (0 < integer number of seconds <= 604800)) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1.'
+# test for correct range in throttle denominator
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN throttle 111/3600.';
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800.";
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF prio>=9999 THEN throttle 111/604800.';
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 111/604801.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "604801." (state: failed to parse denominator of fraction (0 < integer number of seconds <= 604800)) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 111/604801.'
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/0.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 111/0.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "0." (state: failed to parse denominator of fraction (0 < integer number of seconds <= 604800)) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 111/0.'
+SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/-1.";
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 111/-1.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "-1." (state: failed to parse denominator of fraction (0 < integer number of seconds <= 604800)) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>=9999 THEN throttle 111/-1.'
+# error, drop takes no argument
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop a.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop a.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: getting first token ...) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop a.'
+
+# error, throttle requires numeric value (limit)
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle a.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "a." (state: malformed number) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle a.'
+
+# error, throttle requires integer value (limit)
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1.5.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle 1.5.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "1.5." (state: action "throttle" requires integer or fraction) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle 1.5.'
+
+# error, throttle requires numeric value (window-size)
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/b.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle 1/b.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "b." (state: failed to parse denominator of fraction (0 < integer number of seconds <= 604800)) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle 1/b.'
+
+# error, throttle -- / given, but not window-size
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a/.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle a/.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "a/." (state: malformed number) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle a/.'
+
+# error, throttle numerator needs to be positive
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle -1/2.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle -1/2.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "-1/2." (state: numerator must be larger than 0) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle -1/2.'
+
+# error, throttle numerator needs to be non-zero
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 0/2.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle 0/2.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "0/2." (state: numerator must be larger than 0) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN throttle 0/2.'
+
+# correct ELSE
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.';
+
+# incorrect ELSE
+SET @@global.dragnet.log_error_filter_rules='ELSE.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'ELSE.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: IF expected) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'ELSE.'
+
+SET @@global.dragnet.log_error_filter_rules='IF a==2 ELSE.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 ELSE.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "ELSE." (state: looking for THEN) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 ELSE.'
+
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop ELSE drop ELSE drop.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop ELSE drop ELSE drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "drop." (state: ELSE not expected here ...) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop ELSE drop ELSE drop.'
+
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop ELSE scream.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop ELSE scream.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "scream." (state: looking for action verb) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop ELSE scream.'
+
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop ELSE.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop ELSE.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: failed to get token after ELSE ...) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a==2 THEN drop ELSE.'
+
+SET @@global.dragnet.log_error_filter_rules='IF .';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF .'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: field name missing or invalid before comparator) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF .'
+
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS a THEN.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: looking for action verb) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS a THEN.'
+
+# error, unknown comparator
+SET @@global.dragnet.log_error_filter_rules='IF a!!b THEN drop.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a!!b THEN drop.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "!!b THEN drop." (state: unknown comparator) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF a!!b THEN drop.'
+
+# error, field name missing after EXISTS
+SET @@global.dragnet.log_error_filter_rules='IF EXISTS.';
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS.'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "." (state: field name missing or invalid after EXISTS) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF EXISTS.'
+
+# correct ELSEIF
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
+
+# correct ELSE IF
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.';
+
+# correct ELSEIF-ELSE
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+
+# correct ELSE IF-ELSE
+SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+SHOW WARNINGS;
+Level	Code	Message
+Note	3704	filter configuration accepted: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.';
+
+# correct multi-rule rule-set.
+CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256));
+INSERT INTO my_rules VALUES(NULL, 'IF EXISTS source_line THEN unset source_line.');
+INSERT INTO my_rules VALUES(NULL, 'IF EXISTS thread THEN set thread:=0.'),
+(NULL, 'IF EXISTS user THEN unset user.'),
+(NULL, 'IF EXISTS host THEN unset host.'),
+(NULL, 'IF EXISTS query_id THEN set query_id:=0.'),
+(NULL, 'IF EXISTS time THEN set time:="1970-01-01T00:00:00.000000Z".'),
+(NULL, 'IF EXISTS _pid THEN unset _pid.'),
+(NULL, 'IF EXISTS _platform THEN unset platform.'),
+(NULL, 'IF EXISTS _client_version THEN unset _client_version.'),
+(NULL, 'IF EXISTS _os THEN unset _os.');
+INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val1 < 1 THEN set wl9651_result1:="IF" ELSE IF wl9651_val1 == 1 THEN set wl9651_result1:="ELSEIF1" ELSE IF wl9651_val1 == 2 THEN set wl9651_result1:="ELSEIF2" ELSE set wl9651_result1:="ELSE".');
+INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val2==1 OR wl9651_val2==2 OR wl9651_val2==3 THEN set wl9651_result2:="SUCCESS" ELSE set wl9651_result2:="FAILURE".');
+INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val3a==1 AND wl9651_val3b==2 AND wl9651_val3c==3 THEN set wl9651_result3:="SUCCESS" ELSE set wl9651_result3:="FAILURE".');
+SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules;
+SET @@global.dragnet.log_error_filter_rules= @rules;
+INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1!="stringx" THEN set cmp02:="NE/S works" ELSE set cmp02:="NE/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>="string" THEN set cmp03:="GE/S works" ELSE set cmp03:="GE/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>="strin" THEN set cmp04:="GE/S works" ELSE set cmp04:="GE/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>="strinx" THEN set cmp04:="GE/S is broken" ELSE set cmp04:="GE/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>"strinx" THEN set cmp05:="GT/S is broken" ELSE set cmp05:="GT/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>"string" THEN set cmp06:="GT/S is broken" ELSE set cmp06:="GT/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1>"strin" THEN set cmp07:="GT/S works" ELSE set cmp07:="GT/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<="string" THEN set cmp08:="LE/S works" ELSE set cmp08:="LE/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<="strin" THEN set cmp09:="LE/S is broken" ELSE set cmp09:="LE/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<="strinx" THEN set cmp10:="LE/S works" ELSE set cmp10:="LE/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<"string" THEN set cmp11:="LT/S is broken" ELSE set cmp11:="LT/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<"strin" THEN set cmp12:="LT/S is broken" ELSE set cmp12:="LT/S works".');
+INSERT INTO my_rules VALUES(NULL, 'IF s1<"strinx" THEN set cmp1:="LT/S works" ELSE set cmp13:="LT/S is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set f1:=1.4. IF f1>=1.4 THEN set cmp14:="GE/# works" ELSE set cmp14:="GE/# is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF f1>=1 THEN set cmp15:="GE/# works" ELSE set cmp15:="GE/# is broken".');
+INSERT INTO my_rules VALUES(NULL, 'IF f1>=1.5 THEN set cmp16:="GE/# is broken" ELSE set cmp16:="GE/# works".');
+SET SESSION group_concat_max_len=65535;
+SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules;
+DROP TABLE my_rules;
+
+# Heads-up: log_sink_test sets up some debug rules in the built-in
+# rule-set, including a throttle for some ER_YES messages it also
+# generates. We see this succeed (rate-limit) in log_components.test;
+# in here, the throttle is not applied as it is in the internal rule-set,
+# and we run the rule-set generated by the log_filter_dragnet language
+# (which does not contain this throttle). The throttle not being applied
+# therefore demonstrates the separation of the rule-sets, and counts as a
+# success in this context!
+
+INSTALL COMPONENT   "file://component_log_sink_test";
+INSTALL COMPONENT   "file://component_log_sink_json";
+SET @@global.log_error_services="log_filter_dragnet; log_sink_test";
+SET @@global.dragnet.log_error_filter_rules= @rules;
+SET @@global.log_error_services="log_filter_dragnet; log_sink_json";
+SET @@global.dragnet.log_error_filter_rules= REPEAT("IF prio>9 THEN drop. ", 65);
+ERROR 42000: Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 T'
+SHOW WARNINGS;
+Level	Code	Message
+Warning	3621	The log-filter component "dragnet" got confused at "IF prio>9 THEN drop. " (state: failed to allocate a rule in the current rule-set ...) ...
+Error	1231	Variable 'dragnet.log_error_filter_rules' can't be set to the value of 'IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 THEN drop. IF prio>9 T'
+SET @rules= CONCAT("IF ", REPEAT("x", 20000), ">9 THEN drop.");
+SET @@global.dragnet.log_error_filter_rules= @rules;
+SHOW WARNINGS;
+Level	Code	Message
+SET @@global.log_error_services=DEFAULT;
+UNINSTALL COMPONENT "file://component_log_sink_test";
+UNINSTALL COMPONENT "file://component_log_sink_json";
+# Now we can uninstall.
+SET @@global.dragnet.log_error_filter_rules=@save_filters;
+UNINSTALL COMPONENT "file://component_log_filter_dragnet";
+
+# cleanup
+SET @@session.debug="-d,parser_stmt_to_error_log";
+SET @@session.debug="-d,log_error_normalize";
+FLUSH ERROR LOGS;
+SET @@global.log_error_verbosity=DEFAULT;
+
+###
+### error log file
+###
+
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@session.debug="+d,log_error_normalize"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules= DEFAULT
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT "file://component_log_filter_dragnet"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_sink_internal; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='ELSE drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF EXISTS a THEN SET a='asd'."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF NOT EXISTS a THEN SET a='asd'."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='DRAUGR.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b==2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP\" THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==\"ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF misc_cstring=='1' THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF a=='1' THEN set misc_cstring:='abc'."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS misc_cstring THEN drop."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1..5."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set prio:=1.5."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 AND b==3 THEN unset.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a>0 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field THEN AND."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field DROP."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set :=2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules=NULL
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET PERSIST dragnet.log_error_filter_rules= ''
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT @@session.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: RESET PERSIST
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: select @@datadir
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. "
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. "
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 ."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/0."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/-1."
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop a.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1.5.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/b.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a/.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle -1/2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 0/2.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256))
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1!="stringx" THEN set cmp02:="NE/S works" ELSE set cmp02:="NE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="string" THEN set cmp03:="GE/S works" ELSE set cmp03:="GE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strin" THEN set cmp04:="GE/S works" ELSE set cmp04:="GE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strinx" THEN set cmp04:="GE/S is broken" ELSE set cmp04:="GE/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strinx" THEN set cmp05:="GT/S is broken" ELSE set cmp05:="GT/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"string" THEN set cmp06:="GT/S is broken" ELSE set cmp06:="GT/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strin" THEN set cmp07:="GT/S works" ELSE set cmp07:="GT/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="string" THEN set cmp08:="LE/S works" ELSE set cmp08:="LE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strin" THEN set cmp09:="LE/S is broken" ELSE set cmp09:="LE/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strinx" THEN set cmp10:="LE/S works" ELSE set cmp10:="LE/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"string" THEN set cmp11:="LT/S is broken" ELSE set cmp11:="LT/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strin" THEN set cmp12:="LT/S is broken" ELSE set cmp12:="LT/S works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strinx" THEN set cmp1:="LT/S works" ELSE set cmp13:="LT/S is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set f1:=1.4. IF f1>=1.4 THEN set cmp14:="GE/# works" ELSE set cmp14:="GE/# is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1 THEN set cmp15:="GE/# works" ELSE set cmp15:="GE/# is broken".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1.5 THEN set cmp16:="GE/# is broken" ELSE set cmp16:="GE/# works".')
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET SESSION group_concat_max_len=65535
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: DROP TABLE my_rules
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT   "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: INSTALL COMPONENT   "file://component_log_sink_json"
+[prio=3];[err_code=10000];[subsystem=parser];[SQL_state=XX999];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_test"];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[prio=3];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[prio=1];[thread=0];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.000000Z];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[key=val];[msg=using log_message() with duplicate generic C-string k/v pair];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[key=4711];[msg=using log_message() with duplicate generic mixed k/v pair];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[msg=using log_message() with errno 0];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[SQL_state=HY000];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[err_symbol=ER_NO];[msg=using log_message() with errsymbol];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_code=1002];[SQL_state=HY000];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[log_type=1];[prio=3];[thread=0];[source_file=log_sink_test];[test_float=3.141592692700];[test_int=739241];[test_cstring=cstring];[test_lexstring=lexstring];[msg=using LogEvent() object in external service];[time=1970-01-01T00:00:00.000000Z];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[msg=item_inconsistent(#1): NOT_FOUND];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[msg=item_inconsistent(#2): CLASS_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[msg=item_inconsistent(#2): KEY_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[msg=item_inconsistent(#3): KEY_NULL];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[msg=item_inconsistent(#4): STRING_NULL];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[msg=item_inconsistent(#5): OK];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[thread=0];[source_file=log_sink_test];[msg=below: 3*yes per writer == correct.  >3*yes per writer == filter fail. 0*yes == log_sink_test fail.];[time=1970-01-01T00:00:00.000000Z];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[thread=0];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta in medias res) 1];[time=1970-01-01T00:00:00.000000Z];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[SQL_state=HY000];[source_file=log_sink_test];[err_code=1003];[msg=YES];[time=1970-01-01T00:00:00.000000Z];[thread=0];[err_symbol=ER_YES];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[thread=0];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta ex post) 0];[time=1970-01-01T00:00:00.000000Z];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[meow=test_me_for_presence];[bark=delete_me_by_rule];[prio_change=yes];[source_file=log_sink_test];[msg=filter_rules: (add_item delta in medias res) 3];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[log_type=1];[meow=test_me_for_presence];[bark=delete_me_by_rule];[prio_change=yes];[source_file=log_sink_test];[msg=filter_rules: (add_item delta ex post) 0];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[log_type=1];[prio=3];[wl9651_val1=0];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=3];[msg=WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=IF];[wl9651_result2=SUCCESS];[wl9651_result3=SUCCESS];[label=Note];
+[log_type=1];[prio=3];[wl9651_val1=1];[wl9651_val2=2];[wl9651_val3a=0];[wl9651_val3b=2];[wl9651_val3c=3];[msg=WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSEIF1];[wl9651_result2=SUCCESS];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[wl9651_val1=2];[wl9651_val2=3.100000000000];[wl9651_val3a=1];[wl9651_val3b=0];[wl9651_val3c=3];[msg=WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSEIF2];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[wl9651_val1=3];[wl9651_val2=4];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=0];[msg=WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[wl9651_val1=-7];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3c=3];[msg=WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=IF];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[label=log_sink_test: broken item with class 3, type 131072];[prio=1];[time=1970-01-01T00:00:00.000000Z];[thread=0];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_dragnet; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= REPEAT(\"IF prio>9 THEN drop. \", 65)", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @rules= CONCAT(\"IF \", REPEAT(\"x\", 20000), \">9 THEN drop.\")", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "parser", "SQL_state" : "XX999", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "label" : "Note" }
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.log_error_services=DEFAULT
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: SET @@global.dragnet.log_error_filter_rules=@save_filters
+1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] Parser saw: UNINSTALL COMPONENT "file://component_log_filter_dragnet"
+
+###
+### done
+###

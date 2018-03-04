@@ -2,13 +2,20 @@
    Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -816,7 +823,11 @@ static bool get_interval_info(Item *args,
     longlong value;
     const char *start= str;
     for (value=0; str != end && my_isdigit(cs,*str) ; str++)
+    {
+      if (value > (LLONG_MAX -10) / 10)
+        return true;
       value= value*10LL + (longlong) (*str - '0');
+    }
     msec_length= 6 - (str - start);
     values[i]= value;
     while (str != end && !my_isdigit(cs,*str))
@@ -1065,12 +1076,15 @@ longlong Item_func_period_add::val_int()
   ulong period=(ulong) args[0]->val_int();
   int months=(int) args[1]->val_int();
 
-  if ((null_value=args[0]->null_value || args[1]->null_value) ||
-      period == 0L)
+  if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
+  if (!valid_period(period))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_int();
+  }
   return (longlong)
-    convert_month_to_period((uint) ((int) convert_period_to_month(period)+
-				    months));
+    convert_month_to_period(convert_period_to_month(period) + months);
 }
 
 
@@ -1082,6 +1096,11 @@ longlong Item_func_period_diff::val_int()
 
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
+  if (!valid_period(period1) || !valid_period(period2))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_int();
+  }
   return (longlong) ((long) convert_period_to_month(period1)-
 		     (long) convert_period_to_month(period2));
 }
@@ -1643,10 +1662,12 @@ bool get_interval_value(Item *args, interval_type int_type,
   {
     my_decimal decimal_value, *val;
     lldiv_t tmp;
-    if (!(val= args->val_decimal(&decimal_value)) ||
-        my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &tmp))
-      return false;
-    
+    if (!(val= args->val_decimal(&decimal_value)))
+      return true;
+    int lldiv_result= my_decimal2lldiv_t(E_DEC_FATAL_ERROR, val, &tmp);
+    if (lldiv_result == E_DEC_OVERFLOW)
+      return true;
+
     if (tmp.quot >= 0 && tmp.rem >= 0)
     {
       interval->neg= false;
@@ -1666,6 +1687,12 @@ bool get_interval_value(Item *args, interval_type int_type,
     value= args->val_int();
     if (args->null_value)
       return true;
+    /*
+      Large floating-point values will be truncated to LLONG_MIN / LLONG_MAX
+      LLONG_MIN cannot be negated below, so reject it here.
+    */
+    if (value == LLONG_MIN)
+      return true;
     if (value < 0)
     {
       interval->neg= true;
@@ -1678,12 +1705,16 @@ bool get_interval_value(Item *args, interval_type int_type,
     interval->year= (ulong) value;
     break;
   case INTERVAL_QUARTER:
+    if (value >=  UINT_MAX / 3)
+      return true;
     interval->month= (ulong)(value*3);
     break;
   case INTERVAL_MONTH:
     interval->month= (ulong) value;
     break;
   case INTERVAL_WEEK:
+    if (value >= UINT_MAX / 7)
+      return true;
     interval->day= (ulong)(value*7);
     break;
   case INTERVAL_DAY:
@@ -2425,9 +2456,21 @@ bool Item_date_add_interval::get_date_internal(MYSQL_TIME *ltime,
 {
   Interval interval;
 
-  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE) ||
-      get_interval_value(args[1], int_type, &value, &interval))
+  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE))
     return (null_value= true);
+
+  if (get_interval_value(args[1], int_type, &value, &interval))
+  {
+    // Do not warn about "overflow" for NULL
+    if (!args[1]->null_value)
+    {
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
+                          ER_DATETIME_FUNCTION_OVERFLOW,
+                          ER_THD(current_thd, ER_DATETIME_FUNCTION_OVERFLOW),
+                          func_name());
+    }
+    return (null_value= true);
+  }
 
   if (date_sub_interval)
     interval.neg = !interval.neg;
@@ -2750,7 +2793,7 @@ bool Item_func_makedate::get_date(MYSQL_TIME *ltime, my_time_flags_t)
   long days;
 
   if (args[0]->null_value || args[1]->null_value ||
-      year < 0 || year > 9999 || daynr <= 0)
+      year < 0 || year > 9999 || daynr <= 0 || daynr > MAX_DAY_NUMBER)
     goto err;
 
   if (year < 100)
@@ -3471,6 +3514,7 @@ bool Item_func_internal_update_time::resolve_type(THD *thd)
 {
   set_data_type_datetime(0);
   maybe_null= true;
+  null_on_null= false;
   thd->time_zone_used= true;
   return false;
 }
@@ -3546,6 +3590,7 @@ bool Item_func_internal_check_time::resolve_type(THD *thd)
 {
   set_data_type_datetime(0);
   maybe_null= true;
+  null_on_null= false;
   thd->time_zone_used= true;
   return false;
 }

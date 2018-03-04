@@ -220,16 +220,12 @@ send Mysqlx.Sql.StmtExecute {
 
 Mysqlx.Resultset.ColumnMetaData {
   type: SINT
-  collation: 0
-  fractional_digits: 0
   length: 11
-  flags: 0
 }
 
 Mysqlx.Resultset.ColumnMetaData {
   type: BYTES
   collation: 45
-  fractional_digits: 31
   length: 44
   flags: 16
 }
@@ -273,10 +269,7 @@ Mysqlx.Resultset.ColumnMetaData {
   original_table: "scalar_types"
   schema: "xtest"
   catalog: "def"
-  collation: 0
-  fractional_digits: 0
   length: 11
-  flags: 0
 }
 
 Mysqlx.Resultset.ColumnMetaData {
@@ -288,7 +281,6 @@ Mysqlx.Resultset.ColumnMetaData {
   schema: ""
   catalog: "def"
   collation: 45
-  fractional_digits: 31
   length: 44
   flags: 16
 }

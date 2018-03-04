@@ -1,5 +1,6 @@
  ## Preamble
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
 --write_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
@@ -70,7 +71,7 @@ Mysqlx.Crud.Find {
 ## Current recursion limit is set to 100
 ## each repeated message in bellow macro contains two messages
 ## (it increases the current depth by 2)
--->newsession test_different_messages1	root
+-->newsession test_different_messages1	x_root
 -->echo Try to send number of objects less then X Protocol limit, 50 (2 * 25)
 -->callmacro Send_crud_find_with_repeated_nested_objects	25
 -->recvresult
@@ -90,11 +91,12 @@ Mysqlx.Crud.Find {
 
 EOF
 
---exec $MYSQLXTEST -u root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp 2>&1
 
 ## Postamble
 --remove_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
 
+--source include/xplugin_drop_user.inc
 uninstall plugin mysqlx;
 
 DROP TABLE IF EXISTS coll;

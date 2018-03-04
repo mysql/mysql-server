@@ -4,13 +4,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -138,11 +145,6 @@ enum type_conversion_status
   */
   TYPE_NOTE_TIME_TRUNCATED,
   /**
-    Value outside min/max limit of datatype. The min/max value is
-    stored by Field::store() instead (if applicable)
-  */
-  TYPE_WARN_OUT_OF_RANGE,
-  /**
     Value was stored, but something was cut. What was cut is
     considered insignificant enough to only issue a note. Example:
     trying to store a number with 5 decimal places into a field that
@@ -152,6 +154,11 @@ enum type_conversion_status
     whitespace is cut.
   */
   TYPE_NOTE_TRUNCATED,
+  /**
+    Value outside min/max limit of datatype. The min/max value is
+    stored by Field::store() instead (if applicable)
+  */
+  TYPE_WARN_OUT_OF_RANGE,
   /**
     Value was stored, but something was cut. What was cut is
     considered significant enough to issue a warning. Example: storing
@@ -1168,16 +1175,16 @@ public:
   virtual void sql_type(String &str) const =0;
 
   bool is_temporal() const
-  { return is_temporal_type(type()); }
+  { return is_temporal_type(real_type_to_type(type())); }
 
   bool is_temporal_with_date() const
-  { return is_temporal_type_with_date(type()); }
+  { return is_temporal_type_with_date(real_type_to_type(type())); }
 
   bool is_temporal_with_time() const
-  { return is_temporal_type_with_time(type()); }
+  { return is_temporal_type_with_time(real_type_to_type(type())); }
 
   bool is_temporal_with_date_and_time() const
-  { return is_temporal_type_with_date_and_time(type()); }
+  { return is_temporal_type_with_date_and_time(real_type_to_type(type())); }
 
   /**
     Check whether the full table's row is NULL or the Field has value NULL.
@@ -1697,16 +1704,18 @@ public:
 
   /**
     Check whether field is part of the index taking the index extensions flag
-    into account.
+    into account. Index extensions are also not applicable to UNIQUE indexes
+    for loose index scans.
 
     @param[in]     thd             THD object
     @param[in]     cur_index       Index of the key
+    @param[in]     cur_index_info  key_info object
 
     @retval true  Field is part of the key
     @retval false otherwise
 
   */
-  bool is_part_of_actual_key(THD *thd, uint cur_index);
+  bool is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info);
 
   friend class Copy_field;
   friend class Item_avg_field;
@@ -4285,6 +4294,8 @@ public:
   Field_json *clone() const override;
   uint is_equal(const Create_field *new_field) override;
   Item_result cast_to_int_type () const override { return INT_RESULT; }
+  int cmp_binary(const uchar *a, const uchar *b, uint32 max_length=~0L)
+    override;
   bool sort_key_is_varlen() const override { return true; }
   size_t make_sort_key(uchar *to, size_t length) override;
 
@@ -4686,7 +4697,8 @@ public:
   void init_for_tmp_table(enum_field_types sql_type_arg,
                           uint32 max_length, uint32 decimals,
                           bool maybe_null, bool is_unsigned,
-                          uint pack_length_override);
+                          uint pack_length_override,
+                          const char *field_name= "");
 
   bool init(THD *thd, const char *field_name, enum_field_types type,
             const char *length, const char *decimals, uint type_modifier,

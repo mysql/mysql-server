@@ -1,13 +1,25 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -26,7 +38,7 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "vio_priv.h"
+#include "vio/vio_priv.h"
 
 #ifdef HAVE_OPENSSL
 
@@ -331,7 +343,9 @@ void vio_ssl_delete(Vio *vio)
   }
 
 #ifndef HAVE_YASSL
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 #endif
 
   vio_delete(vio);
@@ -442,7 +456,11 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
       for (j = 0; j < n; j++)
       {
         SSL_COMP *c = sk_SSL_COMP_value(ssl_comp_methods, j);
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
         DBUG_PRINT("info", ("  %d: %s\n", c->id, c->name));
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+        DBUG_PRINT("info", ("  %d: %s\n", SSL_COMP_get_id(c), SSL_COMP_get0_name(c)));
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
       }
   }
 #endif

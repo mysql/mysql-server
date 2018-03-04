@@ -40,11 +40,11 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	sql_session
-1	root	localhost	$SESSION
+1	x_root	localhost	$SESSION
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	1
@@ -59,12 +59,12 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
-2	root	localhost
+1	x_root	localhost
+2	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new root session
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new x_root session
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	1
@@ -78,11 +78,11 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
-2	root	localhost
+1	x_root	localhost
+2	x_root	localhost
 command ok
-expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default root session where list_clients already executed
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default x_root session where list_clients already executed
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	2
@@ -112,16 +112,16 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
-expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 3 times and kill_client once
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 3 times and kill_client once
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	3
 0 rows affected
 create and activate new session abc
-expect only abc user session id 
+expect only abc user session id
 connecting...
 active session is now 'abc'
 send Mysqlx.Sql.StmtExecute {
@@ -134,7 +134,7 @@ client_id	user	host
 3	abc	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-killing root user session with unprivileged user 'abc' which should be unsuccessful
+killing x_root user session with unprivileged user 'abc' which should be unsuccessful
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -154,7 +154,7 @@ RUN select sleep(0.5)
 sleep(0.5)
 0
 0 rows affected
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	1
@@ -207,7 +207,7 @@ client_id	user	host
 4	abc	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with new session abc where list_clients executed twice and kill_client executed once
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	2
@@ -250,25 +250,24 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
-expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 4 times and kill_client once
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 4 times and kill_client once
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	4
 0 rows affected
 RUN select user(),current_user()
 user()	current_user()
-root@localhost	root@localhost
+x_root@localhost	x_root@localhost
 0 rows affected
 RUN show grants
-Grants for root@localhost
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `root`@`localhost` WITH GRANT OPTION
-GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION
+Grants for x_root@localhost
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `x_root`@`localhost` WITH GRANT OPTION
+GRANT BACKUP_ADMIN,BINLOG_ADMIN,CONNECTION_ADMIN,ENCRYPTION_KEY_ADMIN,GROUP_REPLICATION_ADMIN,PERSIST_RO_VARIABLES_ADMIN,REPLICATION_SLAVE_ADMIN,RESOURCE_GROUP_ADMIN,RESOURCE_GROUP_USER,ROLE_ADMIN,SET_USER_ID,SYSTEM_VARIABLES_ADMIN,XA_RECOVER_ADMIN ON *.* TO `x_root`@`localhost` WITH GRANT OPTION
 0 rows affected
-open process only privileged user seession and kill root user session,expect error "You are not owner of thread"
+open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 connecting...
 active session is now 'process'
 send Mysqlx.Sql.StmtExecute {
@@ -294,7 +293,7 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 Got expected error: You are not owner of thread (code 1095)
-checking list of clients after root user session killed by xplugin user
+checking list of clients after x_root user session killed by xplugin user
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -304,7 +303,7 @@ client_id	user	host
 5	process	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with process user where list_clients executed 2 times and kill_client once
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	2
@@ -317,7 +316,7 @@ RUN show grants
 Grants for process@localhost
 GRANT PROCESS ON *.* TO `process`@`localhost`
 0 rows affected
-open privileged user seession and kill root user session,expect success
+open privileged user seession and kill x_root user session,expect success
 connecting...
 active session is now 'xplugin'
 send Mysqlx.Sql.StmtExecute {
@@ -326,7 +325,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 5	process	localhost
 6	xplugin	localhost
 command ok
@@ -350,7 +349,7 @@ RUN select sleep(0.5)
 sleep(0.5)
 0
 0 rows affected
-checking list of clients after root user session killed by xplugin user
+checking list of clients after x_root user session killed by xplugin user
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -361,7 +360,7 @@ client_id	user	host
 6	xplugin	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	2
@@ -391,7 +390,7 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-7	root	localhost
+7	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect error while killing client with data type other than usinged int
@@ -543,8 +542,8 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 Got expected error: Invalid type for argument 'id' at #1 (should be unsigned int) (code 5016)
-expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with root user even though kill_client returns errors
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=11 with x_root user even though kill_client returns errors
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	11
 Mysqlx_stmt_list_clients	1
@@ -585,8 +584,8 @@ Mysqlx.Error {
 }
 
 expect error for status var executed with password expired user
-RUN show status like 'Mysqlx%client%'
-While executing show status like 'Mysqlx%client%':
+RUN show status like 'Mysqlx_stmt%client%'
+While executing show status like 'Mysqlx_stmt%client%':
 Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 Mysqlx.Ok {
   msg: "bye!"
@@ -599,7 +598,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-9	root	localhost
+9	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 send Mysqlx.Sql.StmtExecute {
@@ -622,8 +621,8 @@ Mysqlx.Error {
   sql_state: "HY000"
 }
 
-expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with root user when these commads executed with mixed case
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=1 with x_root user when these commads executed with mixed case
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	1
@@ -794,11 +793,11 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	sql_session
-10	root	localhost	$SESSION
+10	x_root	localhost	$SESSION
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	1
@@ -922,7 +921,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-10	root	localhost
+10	x_root	localhost
 11	xconnection1	localhost
 12	xconnection2	localhost
 13	xconnection3	localhost
@@ -974,8 +973,8 @@ client_id	user	host
 59	xconnection49	localhost
 60	xconnection50	localhost
 command ok
-expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	2
@@ -990,7 +989,7 @@ Mysqlx_sessions_fatal_error	0
 Mysqlx_sessions_killed	4
 Mysqlx_sessions_rejected	0
 0 rows affected
-killing all newly connected clients except root,one by one
+killing all newly connected clients except x_root,one by one
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -1702,10 +1701,10 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-10	root	localhost
+10	x_root	localhost
 command ok
 expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=49
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	50
 Mysqlx_stmt_list_clients	3
@@ -1926,7 +1925,7 @@ send Mysqlx.Sql.StmtExecute {
 expect Mysqlx.Sql.StmtExecuteOk
 Got expected error: Unknown namespace invalid (code 5162)
 expect Mysqlx_stmt_list_clients=0 and Mysqlx_stmt_kill_client=0 as these are not executed on right namespace
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	0
@@ -1957,7 +1956,7 @@ client_id	user	host
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	1
@@ -1976,7 +1975,7 @@ client_id	user	host
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	1
@@ -1985,7 +1984,7 @@ open 3rd xprotocol connection where 2 sessions already opened
 connecting...
 active session is now 'con2'
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	0
@@ -2050,7 +2049,7 @@ RUN drop user con1@localhost
 RUN drop user con2@localhost
 
 0 rows affected
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	2
 Mysqlx_stmt_list_clients	3
@@ -2059,7 +2058,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-open xconnection with ssl root user kill,expect success
+open xconnection with ssl x_root user kill,expect success
 RUN create user con1@localhost identified by 'con1'
 
 0 rows affected
@@ -2077,7 +2076,7 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-65	root	localhost
+65	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 create and activate new session con1
@@ -2090,8 +2089,8 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-65	root	localhost
-66	root	localhost
+65	x_root	localhost
+66	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 open 3rd xprotocol connection where 2 sessions already opened
@@ -2104,9 +2103,9 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-65	root	localhost
-66	root	localhost
-67	root	localhost
+65	x_root	localhost
+66	x_root	localhost
+67	x_root	localhost
 command ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
@@ -2148,7 +2147,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-65	root	localhost
+65	x_root	localhost
 command ok
 RUN drop user con1@localhost
 
@@ -2160,7 +2159,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 Variable_name	Value
 Mysqlx_stmt_kill_client	72
 Mysqlx_stmt_list_clients	26
@@ -2170,7 +2169,7 @@ drop user xplugin@localhost;
 drop user process@localhost;
 drop user expire@localhost;
 set @@global.mysqlx_max_connections=100;
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	0
@@ -2209,11 +2208,11 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
 expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	1
@@ -2228,12 +2227,12 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
-2	root	localhost
+1	x_root	localhost
+2	x_root	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new root session
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0 even with another new x_root session
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	1
@@ -2247,11 +2246,11 @@ send Mysqlx.Sql.StmtExecute {
 
 expect error
 client_id	user	host	
-1	root	localhost
-2	root	localhost
+1	x_root	localhost
+2	x_root	localhost
 command ok
-expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default root session where list_clients already executed
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=0 with default x_root session where list_clients already executed
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	0
 Mysqlx_stmt_list_clients	2
@@ -2280,16 +2279,16 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
-expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 3 times and kill_client once
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=3 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 3 times and kill_client once
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	3
 0 rows affected
 create and activate new session abc
-expect only abc user session id 
+expect only abc user session id
 connecting...
 active session is now 'abc'
 send Mysqlx.Sql.StmtExecute {
@@ -2302,7 +2301,7 @@ client_id	user	host
 3	abc	localhost
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-killing root user session with unprivileged user 'abc' which should be unsuccessful
+killing x_root user session with unprivileged user 'abc' which should be unsuccessful
 send Mysqlx.Sql.StmtExecute {
   stmt: "kill_client"
   args {
@@ -2318,7 +2317,7 @@ send Mysqlx.Sql.StmtExecute {
 expect Mysqlx.Sql.StmtExecuteOk
 Got expected error: You are not owner of thread (code 1095)
 expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	1
@@ -2363,7 +2362,7 @@ client_id	user	host
 4	abc	localhost
 command ok
 expect ERROR: SELECT command denied to user 'abc'@'localhost' for table 'session_status' (code 1142) for show status command
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	2
@@ -2393,15 +2392,15 @@ send Mysqlx.Sql.StmtExecute {
 
 expect Mysqlx.Sql.StmtExecuteOk
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 command ok
-expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default root session where list_clients executed 4 times and kill_client once
-RUN show status like 'Mysqlx%client%'
+expect Mysqlx_stmt_list_clients=4 and Mysqlx_stmt_kill_client=1 with default x_root session where list_clients executed 4 times and kill_client once
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	4
 0 rows affected
-open process only privileged user seession and kill root user session,expect error "You are not owner of thread"
+open process only privileged user seession and kill x_root user session,expect error "You are not owner of thread"
 connecting...
 active session is now 'process'
 send Mysqlx.Sql.StmtExecute {
@@ -2431,7 +2430,7 @@ RUN select sleep(0.5)
 sleep(0.5)
 0
 0 rows affected
-checking list of clients after root user session killed by xplugin user
+checking list of clients after x_root user session killed by xplugin user
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -2441,12 +2440,12 @@ client_id	user	host
 5	process	localhost
 command ok
 expect ERROR: SELECT command denied to user 'process'@'localhost' for table 'session_status' (code 1142) for show command
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	2
 0 rows affected
-open privileged user seession and kill root user session,expect success
+open privileged user seession and kill x_root user session,expect success
 connecting...
 active session is now 'xplugin'
 send Mysqlx.Sql.StmtExecute {
@@ -2455,7 +2454,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 client_id	user	host	
-1	root	localhost
+1	x_root	localhost
 5	process	localhost
 6	xplugin	localhost
 command ok
@@ -2479,7 +2478,7 @@ RUN select sleep(0.5)
 sleep(0.5)
 0
 0 rows affected
-checking list of clients after root user session killed by xplugin user
+checking list of clients after x_root user session killed by xplugin user
 send Mysqlx.Sql.StmtExecute {
   stmt: "list_clients"
   namespace: "xplugin"
@@ -2490,7 +2489,7 @@ client_id	user	host
 6	xplugin	localhost
 command ok
 expect Mysqlx_stmt_list_clients=2 and Mysqlx_stmt_kill_client=1 with xplugin user where list_clients executed 2 times and kill_client once
-RUN show status like 'Mysqlx%client%'
+RUN show status like 'Mysqlx_stmt%client%'
 Variable_name	Value
 Mysqlx_stmt_kill_client	1
 Mysqlx_stmt_list_clients	2
@@ -2504,7 +2503,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-show status like 'Mysqlx%client%';
+show status like 'Mysqlx_stmt%client%';
 Variable_name	Value
 Mysqlx_stmt_kill_client	6
 Mysqlx_stmt_list_clients	12

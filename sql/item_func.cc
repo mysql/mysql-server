@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -103,6 +110,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
+#include "sql/sql_load.h"        // Sql_cmd_load_table
 #include "sql/sql_optimizer.h"   // JOIN
 #include "sql/sql_parse.h"       // check_stack_overrun
 #include "sql/sql_show.h"        // append_identifier
@@ -183,12 +191,6 @@ void Item_func::set_arguments(List<Item> &list, bool context_free)
   list.empty();					// Fields are used
 }
 
-Item_func::Item_func(List<Item> &list)
-  :allowed_arg_cols(1)
-{
-  set_arguments(list, false);
-}
-
 
 Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
   : super(pos), allowed_arg_cols(1)
@@ -202,8 +204,10 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
     set_arguments(opt_list->value, true);
 }
 
+
 Item_func::Item_func(THD *thd, Item_func *item)
   :Item_result_field(thd, item),
+   null_on_null(item->null_on_null),
    allowed_arg_cols(item->allowed_arg_cols),
    used_tables_cache(item->used_tables_cache),
    not_null_tables_cache(item->not_null_tables_cache),
@@ -310,6 +314,7 @@ Item_func::fix_fields(THD *thd, Item**)
         return true;
     }
   }
+
   if (resolve_type(thd) || thd->is_error()) // Some impls still not error-safe
     return true;
   fixed= true;
@@ -338,7 +343,8 @@ bool Item_func::fix_func_arg(THD *thd, Item **arg)
 
   maybe_null|=            item->maybe_null;
   used_tables_cache|=     item->used_tables();
-  not_null_tables_cache|= item->not_null_tables();
+  if (null_on_null)
+    not_null_tables_cache|= item->not_null_tables();
   add_accum_properties(item);
 
   return false;
@@ -369,7 +375,8 @@ void Item_func::fix_after_pullout(SELECT_LEX *parent_select,
       Item *const item= *arg;
       item->fix_after_pullout(parent_select, removed_select);
       used_tables_cache|=     item->used_tables();
-      not_null_tables_cache|= item->not_null_tables();
+      if (null_on_null)
+        not_null_tables_cache|= item->not_null_tables();
     }
   }
 }
@@ -516,18 +523,6 @@ void Item_func::update_used_tables()
     used_tables_cache|=args[i]->used_tables();
     add_accum_properties(args[i]);
   }
-}
-
-
-table_map Item_func::used_tables() const
-{
-  return used_tables_cache;
-}
-
-
-table_map Item_func::not_null_tables() const
-{
-  return not_null_tables_cache;
 }
 
 
@@ -3308,13 +3303,17 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
 {
   double tmp;
   bool dec_negative= (dec < 0) && !dec_unsigned;
+  int log_10_size= array_elements(log_10); // 309
+  if (dec_negative && dec <= -log_10_size)
+    return 0.0;
+
   ulonglong abs_dec= dec_negative ? -dec : dec;
   /*
     tmp2 is here to avoid return the value with 80 bit precision
     This will fix that the test round(0.1,1) = round(0.1,1) is true
     Tagging with volatile is no guarantee, it may still be optimized away...
   */
-  volatile double tmp2;
+  volatile double tmp2= 0.0;
 
   tmp=(abs_dec < array_elements(log_10) ?
        log_10[abs_dec] : pow(10.0,(double) abs_dec));
@@ -3323,9 +3322,7 @@ double my_double_round(double value, longlong dec, bool dec_unsigned,
   volatile double value_div_tmp= value / tmp;
   volatile double value_mul_tmp= value * tmp;
 
-  if (dec_negative && std::isinf(tmp))
-    tmp2= 0.0;
-  else if (!dec_negative && !std::isfinite(value_mul_tmp))
+  if (!dec_negative && !std::isfinite(value_mul_tmp))
     tmp2= value;
   else if (truncate)
   {
@@ -3548,93 +3545,48 @@ double Item_func_units::val_real()
 }
 
 
-bool Item_func_min_max::resolve_type(THD*)
+bool Item_func_min_max::resolve_type(THD *)
 {
-  uint string_arg_count= 0;
-  uint unsigned_arg_count= 0;
-  int max_int_part= 0;
-  bool datetime_found= false;
-  maybe_null= false;
-  cmp_type= args[0]->temporal_with_date_as_number_result_type();
-
-  for (uint i=0 ; i < arg_count ; i++)
+  aggregate_type(make_array(args, arg_count));
+  hybrid_type= Field::result_merge_type(data_type());
+  if (hybrid_type == STRING_RESULT)
   {
-    set_if_bigger(max_length, args[i]->max_length);
-    set_if_bigger(decimals, args[i]->decimals);
-    set_if_bigger(max_int_part, args[i]->decimal_int_part());
-    if (args[i]->maybe_null)
-      maybe_null= true;
-    cmp_type= item_cmp_type(cmp_type,
-                            args[i]->temporal_with_date_as_number_result_type());
-    if (args[i]->result_type() == STRING_RESULT)
-     string_arg_count++;
-    if (args[i]->result_type() != ROW_RESULT &&
-        args[i]->is_temporal_with_date())
+    /*
+      If one or more of the arguments have a temporal data type, temporal_item
+      must be set for correct conversion from temporal values to various result
+      types.
+    */
+    for (uint i= 0; i < arg_count; i++)
     {
-      datetime_found= true;
-      if (!datetime_item || args[i]->data_type() == MYSQL_TYPE_DATETIME)
-        datetime_item= args[i];
+      if (args[i]->is_temporal())
+      {
+        /*
+          If one of the arguments is DATETIME, overwrite any existing
+          temporal_item since DATETIME contains both date and time and is the
+          most general and detailed data type to which other temporal types can
+          be converted without loss of information.
+        */
+        if (!temporal_item || args[i]->data_type() == MYSQL_TYPE_DATETIME)
+          temporal_item= args[i];
+      }
     }
-    if (args[i]->result_type() == INT_RESULT && args[i]->unsigned_flag)
-      ++unsigned_arg_count;
-  }
-  
-  if (string_arg_count == arg_count)
-  {
-    // We compare as strings only if all arguments were strings.
-    if (agg_arg_charsets_for_string_result_with_comparison(collation,
-                                                           args, arg_count))
+    /*
+      If one or more, but not all, of the arguments have a temporal data type,
+      the data type of this item must be set temporarily to ensure that the
+      various aggregate functions derive the correct properties.
+    */
+    enum_field_types tmp_data_type= (!is_temporal() && has_temporal_arg()) ?
+                                    temporal_item->data_type() : data_type();
+    enum_field_types aggregated_data_type= data_type();
+    set_data_type(tmp_data_type);
+    if (aggregate_string_properties(func_name(), args, arg_count))
       return true;
-
-    if (datetime_found)
-    {
-      compare_as_dates= true;
-      /*
-        We should not do this:
-          data_type= datetime_item->data_type();
-          count_datetime_length(args, arg_count);
-        because compare_as_dates can be TRUE but
-        result type can still be VARCHAR.
-      */
-    }
+    set_data_type(aggregated_data_type);
   }
-  else if ((cmp_type == DECIMAL_RESULT) || (cmp_type == INT_RESULT))
-  {
-    collation.set_numeric();
-    if (cmp_type == INT_RESULT)
-    {
-      // For greatest: one unsigned input means result must be >= 0
-      if (-1 == cmp_sign && unsigned_arg_count)
-        unsigned_flag= true;
-      // For least: all unsigned input means result must be >= 0
-      if (1 == cmp_sign && unsigned_arg_count == arg_count)
-        unsigned_flag= true;
-    }
-    fix_char_length(my_decimal_precision_to_length_no_truncation(max_int_part +
-                                                                 decimals,
-                                                                 decimals,
-                                                                 unsigned_flag));
-  }
-  else if (cmp_type == REAL_RESULT)
-  {
-    fix_char_length(float_length(decimals));
-  }
+  else
+    aggregate_num_type(hybrid_type, args, arg_count);
 
-  set_data_type(agg_field_type(args, arg_count));
-
-  /*
-    See comment above: We should not do this:
-    However: we need to re-calculate max_length for this case,
-    so we temporarily set data type, calculate lenghts, and set it back.
-   */
-  if (compare_as_dates && data_type() == MYSQL_TYPE_VARCHAR)
-  {
-    set_data_type(datetime_item->data_type());
-    aggregate_temporal_properties(args, arg_count);
-    set_data_type(MYSQL_TYPE_VARCHAR);
-  }
-
-  /*
+    /*
     LEAST and GREATEST convert JSON values to strings before they are
     compared, so their JSON nature is lost. Raise a warning to
     indicate to the users that the values are not compared using the
@@ -3651,374 +3603,235 @@ bool Item_func_min_max::resolve_type(THD*)
 }
 
 
-/*
-  Compare item arguments in the DATETIME context.
-
-  SYNOPSIS
-    cmp_datetimes()
-    value [out]   found least/greatest DATE/DATETIME value
-
-  DESCRIPTION
-    Compare item arguments as DATETIME values and return the index of the
-    least/greatest argument in the arguments array.
-    The correct integer DATE/DATETIME value of the found argument is
-    stored to the value pointer, if latter is provided.
-
-  RETURN
-   0	If one of arguments is NULL or there was a execution error
-   #	index of the least/greatest argument
-*/
-
-uint Item_func_min_max::cmp_datetimes(longlong *value)
+bool Item_func_min_max::cmp_datetimes(longlong *value)
 {
-  longlong min_max= 0;
-  uint min_max_idx= 0;
-
-  for (uint i=0; i < arg_count ; i++)
+  THD *thd= current_thd;
+  longlong res= 0;
+  for (uint i= 0; i < arg_count; i++)
   {
     Item **arg= args + i;
     bool is_null;
-    THD *thd= current_thd;
-    longlong res= get_datetime_value(thd, &arg, 0, datetime_item, &is_null);
+    longlong tmp= get_datetime_value(thd, &arg, 0, temporal_item, &is_null);
 
-    /* Check if we need to stop (because of error or KILL)  and stop the loop */
-    if (thd->is_error())
-    {
-      null_value= 1;
-      return 0;
-    }
-
+    // Check if we need to stop (because of error or KILL)  and stop the loop
+    if ((null_value= thd->is_error()))
+      return true;
     if ((null_value= args[i]->null_value))
-      return 0;
-    if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
-    {
-      min_max= res;
-      min_max_idx= i;
-    }
+      return true;
+    if (i == 0 || (tmp < res ? cmp_sign : -cmp_sign) > 0)
+      res= tmp;
   }
-  if (value)
-    *value= min_max;
-  return min_max_idx;
+  *value= res;
+  return false;
 }
 
 
-uint Item_func_min_max::cmp_times(longlong *value)
+bool Item_func_min_max::cmp_times(longlong *value)
 {
-  longlong min_max= 0;
-  uint min_max_idx= 0;
-  for (uint i=0; i < arg_count ; i++)
+  longlong res= 0;
+  for (uint i= 0; i < arg_count; i++)
   {
-    longlong res= args[i]->val_time_temporal();
+    longlong tmp= args[i]->val_time_temporal();
     if ((null_value= args[i]->null_value))
-      return 0;
-    if (i == 0 || (res < min_max ? cmp_sign : -cmp_sign) > 0)
-    {
-      min_max= res;
-      min_max_idx= i;
-    }
+      return true;
+    if (i == 0 || (tmp < res ? cmp_sign : -cmp_sign) > 0)
+      res= tmp;
   }
-  if (value)
-    *value= min_max;
-  return min_max_idx;
+  *value= res;
+  return false;
 }
 
 
-String *Item_func_min_max::val_str(String *str)
+String *Item_func_min_max::str_op(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  if (compare_as_dates)
+  if (compare_as_dates())
   {
-    if (is_temporal())
+    longlong result= 0;
+    if (cmp_datetimes(&result))
+      return nullptr;
+
+    /*
+      If result is greater than 0, the winning argument was successfully
+      converted to a time value and should be converted to a string
+      formatted in accordance with the data type in temporal_item. Otherwise,
+      the arguments should be compared based on their raw string value.
+    */
+    if (result > 0)
     {
-      /*
-        In case of temporal data types, we always return
-        string value according the format of the data type.
-        For example, in case of LEAST(time_column, datetime_column)
-        the result date type is DATETIME,
-        so we return a 'YYYY-MM-DD hh:mm:ss' string even if time_column wins
-        (conversion from TIME to DATETIME happens in this case).
-      */
-      longlong result;
-      cmp_datetimes(&result);
-      if (null_value)
-        return 0;
       MYSQL_TIME ltime;
-      TIME_from_longlong_packed(&ltime, data_type(), result);
+      enum_field_types field_type= temporal_item->data_type();
+      TIME_from_longlong_packed(&ltime, field_type, result);
       return (null_value= my_TIME_to_str(&ltime, str, decimals)) ?
-             (String *) 0 : str;
-    }
-    else
-    {
-      /*
-        In case of VARCHAR result type we just return val_str()
-        value of the winning item AS IS, without conversion.
-      */
-      String *str_res;
-      uint min_max_idx= cmp_datetimes(NULL);
-      if (null_value)
-        return 0;
-      str_res= args[min_max_idx]->val_str(str);
-      if (args[min_max_idx]->null_value)
-      {
-        // check if the call to val_str() above returns a NULL value
-        null_value= 1;
-        return NULL;
-      }
-      str_res->set_charset(collation.collation);
-      return str_res;
+                          nullptr : str;
     }
   }
 
-  switch (cmp_type) {
-  case INT_RESULT:
+  // Find the least/greatest argument based on string value.
+  String tmp_buf, *res= nullptr;
+  for (uint i= 0; i < arg_count; i++)
   {
-    longlong nr=val_int();
-    if (null_value)
-      return 0;
-    str->set_int(nr, unsigned_flag, collation.collation);
-    return str;
+    String *tmp= args[i]->val_str(res == str ? &tmp_buf : str);
+    if ((null_value= args[i]->null_value))
+      return nullptr;
+    if (i == 0 || (sortcmp(tmp, res, collation.collation) < 0 ?
+                   cmp_sign : -cmp_sign) > 0)
+      res= tmp;
   }
-  case DECIMAL_RESULT:
+  //  Result must be copied from temporary buffer to remain valid after return.
+  if (res == &tmp_buf)
   {
-    my_decimal dec_buf, *dec_val= val_decimal(&dec_buf);
-    if (null_value)
-      return 0;
-    my_decimal2string(E_DEC_FATAL_ERROR, dec_val, 0, 0, 0, str);
-    return str;
+    str->copy(tmp_buf);
+    res = str;
   }
-  case REAL_RESULT:
-  {
-    double nr= val_real();
-    if (null_value)
-      return 0; /* purecov: inspected */
-    str->set_real(nr, decimals, collation.collation);
-    return str;
-  }
-  case STRING_RESULT:
-  {
-    String *res= NULL;
-    for (uint i=0; i < arg_count ; i++)
-    {
-      if (i == 0)
-	res=args[i]->val_str(str);
-      else
-      {
-	String *res2;
-	res2= args[i]->val_str(res == str ? &tmp_value : str);
-	if (res2)
-	{
-	  int cmp= sortcmp(res,res2,collation.collation);
-	  if ((cmp_sign < 0 ? cmp : -cmp) < 0)
-	    res=res2;
-	}
-      }
-      if ((null_value= args[i]->null_value))
-        return 0;
-    }
-    res->set_charset(collation.collation);
-    return res;
-  }
-  case ROW_RESULT:
-  default:
-    // This case should never be chosen
-    DBUG_ASSERT(0);
-    return 0;
-  }
-  return 0;					// Keep compiler happy
+  res->set_charset(collation.collation);
+  return res;
 }
 
-
-bool Item_func_min_max::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+bool Item_func_min_max::date_op(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
-  if (compare_as_dates)
-  {
-    longlong result;
-    cmp_datetimes(&result);
-    if (null_value)
-      return true;
-    TIME_from_longlong_packed(ltime, datetime_item->data_type(), result);
-    int warnings;
-    return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
-  }
-
-  switch (data_type())
-  {
-  case MYSQL_TYPE_TIME:
-    return get_date_from_time(ltime);
-  case MYSQL_TYPE_DATETIME:
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_DATE:
-    DBUG_ASSERT(0); // Should have been processed in "compare_as_dates" block.
-  default:
-    return get_date_from_non_temporal(ltime, fuzzydate);
-  }
+  longlong result= 0;
+  if (cmp_datetimes(&result))
+    return true;
+  TIME_from_longlong_packed(ltime, data_type(), result);
+  int warnings;
+  return check_date(ltime, non_zero_date(ltime), fuzzydate, &warnings);
 }
 
-
-bool Item_func_min_max::get_time(MYSQL_TIME *ltime)
+bool Item_func_min_max::time_op(MYSQL_TIME *ltime)
 {
   DBUG_ASSERT(fixed == 1);
-  if (compare_as_dates)
+  longlong result= 0;
+  if (compare_as_dates())
   {
-    longlong result;
-    cmp_datetimes(&result);
-    if (null_value)
+    if (cmp_datetimes(&result))
       return true;
-    TIME_from_longlong_packed(ltime, datetime_item->data_type(), result);
+    TIME_from_longlong_packed(ltime, data_type(), result);
     datetime_to_time(ltime);
     return false;
   }
 
-  switch (data_type())
+  if (cmp_times(&result))
+    return true;
+  TIME_from_longlong_time_packed(ltime, result);
+  return false;
+}
+
+double Item_func_min_max::real_op()
+{
+  DBUG_ASSERT(fixed == 1);
+  null_value= 0;
+  if (compare_as_dates())
   {
-  case MYSQL_TYPE_TIME:
-    {
-      longlong result;
-      cmp_times(&result);
-      if (null_value)
-        return true;
-      TIME_from_longlong_time_packed(ltime, result);
-      return false;
-    }
-    break;
-  case MYSQL_TYPE_DATE:
-  case MYSQL_TYPE_TIMESTAMP:
-  case MYSQL_TYPE_DATETIME:
-    DBUG_ASSERT(0); // Should have been processed in "compare_as_dates" block.
-  default:
-    return get_time_from_non_temporal(ltime);
-    break;
+    longlong result= 0;
+    if (cmp_datetimes(&result))
+      return 0;
+    return double_from_datetime_packed(temporal_item->data_type(), result);
   }
+
+  // Find the least/greatest argument based on double value.
+  double result= 0;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    const double tmp= args[i]->val_real();
+    if ((null_value= args[i]->null_value))
+      break;
+    if (i == 0 || (tmp < result ? cmp_sign : -cmp_sign) > 0)
+      result= tmp;
+
+  }
+  return result;
+}
+
+longlong Item_func_min_max::int_op()
+{
+  DBUG_ASSERT(fixed == 1);
+  null_value= 0;
+  longlong result= 0;
+  if (compare_as_dates())
+  {
+    if (cmp_datetimes(&result))
+      return 0;
+    return longlong_from_datetime_packed(temporal_item->data_type(), result);
+  }
+
+  // Find the least/greatest argument based on integer value.
+  longlong res= args[0]->val_int();
+  bool val_unsigned= args[0]->unsigned_flag;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    const longlong tmp= args[i]->val_int();
+    if ((null_value= args[i]->null_value))
+      return 0;
+    const bool tmp_unsigned= args[i]->unsigned_flag;
+    const bool tmp_is_smaller=
+        Integer_value(tmp, tmp_unsigned) < Integer_value(res, val_unsigned);
+
+    if (i == 0 || (tmp_is_smaller ? cmp_sign : -cmp_sign) > 0)
+    {
+      res= tmp;
+      val_unsigned= tmp_unsigned;
+    }
+  }
+  return res;
+}
+
+my_decimal *Item_func_min_max::decimal_op(my_decimal *dec)
+{
+  DBUG_ASSERT(fixed == 1);
+  null_value= 0;
+  if (compare_as_dates())
+  {
+    longlong result= 0;
+    if (cmp_datetimes(&result))
+      return nullptr;
+    return my_decimal_from_datetime_packed(dec, temporal_item->data_type(),
+                                           result);
+  }
+
+  // Find the least/greatest argument based on decimal value.
+  my_decimal tmp_buf, *res= args[0]->val_decimal(dec);
+  for (uint i= 0; i < arg_count; i++)
+  {
+    my_decimal *tmp= args[i]->val_decimal(res == dec ? &tmp_buf : dec);
+    if ((null_value= args[i]->null_value))
+      return nullptr;
+    if (i == 0 || (my_decimal_cmp(tmp, res) < 0 ? cmp_sign : -cmp_sign) > 0)
+      res= tmp;
+  }
+  //  Result must me copied from temporary buffer to remain valid after return.
+  if (res == &tmp_buf)
+  {
+    my_decimal2decimal(res, dec);
+    res = dec;
+  }
+  return res;
 }
 
 
 double Item_func_min_max::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  double value=0.0;
-  if (compare_as_dates)
-  {
-    longlong result= 0;
-    (void)cmp_datetimes(&result);
-    return double_from_datetime_packed(datetime_item->data_type(), result);
-  }
-  for (uint i=0; i < arg_count ; i++)
-  {
-    if (i == 0)
-      value= args[i]->val_real();
-    else
-    {
-      double tmp= args[i]->val_real();
-      if (!args[i]->null_value && (tmp < value ? cmp_sign : -cmp_sign) > 0)
-	value=tmp;
-    }
-    if ((null_value= args[i]->null_value))
-      break;
-  }
-  return value;
+  if (has_temporal_arg() && data_type() == MYSQL_TYPE_VARCHAR)
+    return real_op(); // For correct conversion from temporal value to string.
+  return Item_func_numhybrid::val_real();
 }
-
 
 longlong Item_func_min_max::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  longlong value=0;
-  if (compare_as_dates)
-  {
-    longlong result= 0;
-    (void)cmp_datetimes(&result);
-    return longlong_from_datetime_packed(datetime_item->data_type(), result);
-  }
-  /*
-    TS-TODO: val_str decides which type to use using cmp_type.
-    val_int, val_decimal, val_real do not check cmp_type and
-    decide data type according to the method type.
-    This is probably not good:
-
-mysql> select least('11', '2'), least('11', '2')+0, concat(least(11,2));
-+------------------+--------------------+---------------------+
-| least('11', '2') | least('11', '2')+0 | concat(least(11,2)) |
-+------------------+--------------------+---------------------+
-| 11               |                  2 | 2                   |
-+------------------+--------------------+---------------------+
-1 row in set (0.00 sec)
-
-    Should not the second column return 11?
-    I.e. compare as strings and return '11', then convert to number.
-  */
-  value= args[0]->val_int();
-  if ((null_value= args[0]->null_value))
-    return value;
-  bool val_unsigned= args[0]->unsigned_flag;
-
-  for (uint i= 1; i < arg_count; i++)
-  {
-    const longlong tmp= args[i]->val_int();
-    if ((null_value= args[i]->null_value))
-      break;
-
-    const bool tmp_unsigned= args[i]->unsigned_flag;
-    const bool tmp_is_smaller=
-      Integer_value(tmp, tmp_unsigned) < Integer_value(value, val_unsigned);
-
-    if ((tmp_is_smaller ? cmp_sign : -cmp_sign) > 0)
-    {
-      value= tmp;
-      val_unsigned= tmp_unsigned;
-    }
-  }
-  return value;
+  if (has_temporal_arg() && data_type() == MYSQL_TYPE_VARCHAR)
+    return int_op(); // For correct conversion from temporal value to int.
+  return Item_func_numhybrid::val_int();
 }
-
 
 my_decimal *Item_func_min_max::val_decimal(my_decimal *dec)
 {
   DBUG_ASSERT(fixed == 1);
-  my_decimal tmp_buf, *tmp, *res= NULL;
-
-  if (compare_as_dates)
-  {
-    longlong value= 0;
-    (void)cmp_datetimes(&value);
-    return my_decimal_from_datetime_packed(dec, datetime_item->data_type(),
-                                           value);
-  }
-  for (uint i=0; i < arg_count ; i++)
-  {
-    if (i == 0)
-      res= args[i]->val_decimal(dec);
-    else
-    {
-      tmp= args[i]->val_decimal(&tmp_buf);      // Zero if NULL
-      if (tmp && (my_decimal_cmp(tmp, res) * cmp_sign) < 0)
-      {
-        if (tmp == &tmp_buf)
-        {
-          /* Move value out of tmp_buf as this will be reused on next loop */
-          my_decimal2decimal(tmp, dec);
-          res= dec;
-        }
-        else
-          res= tmp;
-      }
-    }
-    if ((null_value= args[i]->null_value))
-    {
-      res= 0;
-      break;
-    }
-  }
-  
-  if (res)
-  {
-    /*
-      Need this to make val_str() always return fixed
-      number of fractional digits, according to "decimals".
-    */
-    my_decimal_round(E_DEC_FATAL_ERROR, res, decimals, false, res);
-  }
-  return res;
+  if (has_temporal_arg() && data_type() == MYSQL_TYPE_VARCHAR)
+    return decimal_op(dec); // For correct conversion from temporal value to dec
+  return Item_func_numhybrid::val_decimal(dec);
 }
 
 double Item_func_rollup_const::val_real()
@@ -6205,10 +6018,31 @@ bool Item_func_set_user_var::resolve_type(THD*)
   else
     collation.collation= args[0]->collation.collation;
 
-  set_data_type(Item::type_for_variable(args[0]->data_type(),
-                                        args[0]->max_length));
-  max_length= args[0]->max_length;
+  enum_field_types data_type= Item::type_for_variable(args[0]->data_type());
+  switch (data_type)
+  {
+  case MYSQL_TYPE_LONGLONG:
+    set_data_type_longlong();
+    max_length= args[0]->max_length; // Preserves "length" of integer constants
+    break;
+  case MYSQL_TYPE_NEWDECIMAL:
+    set_data_type_decimal(args[0]->decimal_precision(), args[0]->decimals);
+    break;
+  case MYSQL_TYPE_DOUBLE:
+    set_data_type_double();
+    break;
+  case MYSQL_TYPE_VARCHAR:
+    set_data_type_string(args[0]->max_char_length());
+    break;
+  case MYSQL_TYPE_NULL:
+  default:
+    DBUG_ASSERT(false);
+    set_data_type(MYSQL_TYPE_NULL);
+    break;
+  }
+
   unsigned_flag= args[0]->unsigned_flag;
+
   return false;
 }
 
@@ -6608,17 +6442,17 @@ void Item_func_set_user_var::save_item_result(Item *item)
 
   switch (cached_result_type) {
   case REAL_RESULT:
-    save_result.vreal= item->val_real_result();
+    save_result.vreal= item->val_real();
     break;
   case INT_RESULT:
-    save_result.vint= item->val_int_result();
+    save_result.vint= item->val_int();
     unsigned_flag= item->unsigned_flag;
     break;
   case STRING_RESULT:
-    save_result.vstr= item->str_result(&value);
+    save_result.vstr= item->val_str(&value);
     break;
   case DECIMAL_RESULT:
-    save_result.vdec= item->val_decimal_result(&decimal_buff);
+    save_result.vdec= item->val_decimal(&decimal_buff);
     break;
   case ROW_RESULT:
   default:
@@ -6738,56 +6572,6 @@ my_decimal *Item_func_set_user_var::val_decimal(my_decimal *val)
   return entry->val_decimal(&null_value, val);
 }
 
-
-double Item_func_set_user_var::val_real_result()
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_real(&null_value);
-}
-
-longlong Item_func_set_user_var::val_int_result()
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_int(&null_value);
-}
-
-bool Item_func_set_user_var::val_bool_result()
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_int(&null_value) != 0;
-}
-
-String *Item_func_set_user_var::str_result(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_str(&null_value, str, decimals);
-}
-
-
-my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return entry->val_decimal(&null_value, val);
-}
-
-
-bool Item_func_set_user_var::is_null_result()
-{
-  DBUG_ASSERT(fixed == 1);
-  check(TRUE);
-  update();					// Store expression
-  return is_null();
-}
 
 // just the assignment, for use in "SET @a:=5" type self-prints
 void Item_func_set_user_var::print_assignment(String *str,
@@ -7246,14 +7030,17 @@ bool Item_func_get_user_var::set_value(THD *thd,
 bool Item_user_var_as_out_param::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
-  DBUG_ASSERT(thd->lex->exchange);
+
+  DBUG_ASSERT(thd->lex->sql_command == SQLCOM_LOAD);
+  auto exchange_cs=
+    down_cast<Sql_cmd_load_table *>(thd->lex->m_sql_cmd)->m_exchange.cs;
   /*
     Let us set the same collation which is used for loading
     of fields in LOAD DATA INFILE.
     (Since Item_user_var_as_out_param is used only there).
   */
-  const CHARSET_INFO *cs= thd->lex->exchange->cs ?
-    thd->lex->exchange->cs : thd->variables.collation_database;
+  const CHARSET_INFO *cs= exchange_cs ? exchange_cs
+                                      : thd->variables.collation_database;
 
   if (Item::fix_fields(thd, ref))
     return true;
@@ -8402,8 +8189,14 @@ Item_func_sp::Item_func_sp(const POS &pos,
                            const LEX_STRING &fn_name,
                            bool use_explicit_name,
                            PT_item_list *opt_list)
-: Item_func(pos, opt_list), m_sp(NULL), dummy_table(NULL), sp_result_field(NULL)
+: Item_func(pos, opt_list), m_sp(NULL), dummy_table(NULL),
+  sp_result_field(NULL)
 {
+  /*
+    Set to false here, which is the default according to SQL standard.
+    RETURNS NULL ON NULL INPUT can be implemented by modifying this member.
+  */
+  null_on_null= false;
   maybe_null= true;
   set_stored_program();
   THD *thd= current_thd;

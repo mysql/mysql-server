@@ -2,7 +2,7 @@ select @@innodb_flush_method;
 @@innodb_flush_method
 fsync
 call mtr.add_suppression("InnoDB: Failed to set O_DIRECT");
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to create check sector file*");
+CALL mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to create check sector file*");
 call mtr.add_suppression("InnoDB: Failed to set DIRECTIO_ON");
 # restart: --innodb-flush-method=5
 select @@innodb_flush_method;

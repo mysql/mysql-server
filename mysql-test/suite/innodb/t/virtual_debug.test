@@ -344,3 +344,22 @@ DROP TABLE t1;
 --connection default
 --disconnect con1
 --disconnect con2
+
+--echo #
+--echo # Bug#26330279 - ASSERT ON ROW_PURGE_REMOVE_SEC_IF_POSS_LEAF| INNOBASE/ROW/ROW0PURGE.CC
+--echo #
+
+SET GLOBAL innodb_purge_stop_now=ON;
+CREATE TABLE t1 (col1 INT,
+                 col2 VARCHAR(100),
+                 col3 VARCHAR(80) GENERATED ALWAYS AS (SUBSTR(col2,1,70)),
+                 PRIMARY KEY (col1), UNIQUE KEY uidx(col3(10))) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2) VALUES(1, CONCAT(1, REPEAT('z',90)));
+
+REPLACE INTO t1(col1, col2) SELECT col1, col2 FROM t1;
+
+SET GLOBAL innodb_purge_run_now=ON;
+--source include/wait_innodb_all_purged.inc
+
+DROP TABLE t1;

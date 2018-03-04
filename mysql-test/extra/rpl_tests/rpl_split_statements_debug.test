@@ -212,7 +212,7 @@ if (!$gtid_mode_on)
 SET GTID_NEXT = 'AUTOMATIC';
 
 --replace_result \\ /
---error ER_DB_DROP_EXISTS
+--error ER_SCHEMA_DIR_UNKNOWN
 DROP DATABASE db13;
 
 --let $event_sequence= ()
@@ -357,7 +357,7 @@ SET GTID_NEXT = 'AUTOMATIC';
 --source include/save_binlog_position.inc
 --source include/set_gtid_next_gtid_mode_agnostic.inc
 --replace_result \\ /
---error ER_DB_DROP_EXISTS
+--error ER_SCHEMA_DIR_UNKNOWN
 DROP DATABASE db14;
 --let $event_sequence= ()
 --source include/assert_binlog_events.inc
@@ -435,7 +435,8 @@ SET GLOBAL DEBUG= '-d, rm_db_fail_after_dropping_tables';
 --source include/rpl_connection.inc
 
 --echo # db15: not a database, but an empty directory exists.
---error ER_DB_DROP_EXISTS
+--replace_result \\ /
+--error ER_SCHEMA_DIR_UNKNOWN
 DROP DATABASE db15;
 
 --echo ---- Clean up ----

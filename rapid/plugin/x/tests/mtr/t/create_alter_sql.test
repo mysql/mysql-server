@@ -16,9 +16,8 @@
 ##                                                                    #
 #######################################################################
 
-
-
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
@@ -153,9 +152,9 @@ DROP DATABASE IF EXISTS xplugintest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
-
+--source include/xplugin_drop_user.inc
 ## Postamble
 UNINSTALL PLUGIN mysqlx;
 

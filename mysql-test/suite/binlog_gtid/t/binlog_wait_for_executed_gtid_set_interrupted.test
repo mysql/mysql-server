@@ -19,7 +19,7 @@ INSERT INTO t1 VALUES (1);
 
 --send
 --replace_result $master_uuid MASTER_UUID
---eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:4', 100)
+--eval SELECT WAIT_FOR_EXECUTED_GTID_SET('$master_uuid:4', 999999)
 
 --connection default
 DROP TABLE t1;

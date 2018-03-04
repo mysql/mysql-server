@@ -393,3 +393,67 @@ INSERT INTO t1 VALUES (ST_GeomFromText('POINT(0 0)'),
 ALTER TABLE t1 add spatial index idx1(g4);
 ALTER TABLE t1 add spatial index idx3(g3);
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#27015964 USELESS SPATIAL INDEX CAN BE CREATED WITHOUT WARNING
+--echo #
+--echo # Creating a table with a spatial index on a SRID-less column should
+--echo # raise a warning.
+CREATE TABLE t1 (
+    g1 POINT NOT NULL
+  , g2 POINT NOT NULL
+  , g3 POINT NOT NULL SRID 0
+  , SPATIAL INDEX idx1 (g1)
+  , SPATIAL INDEX idx2 (g2)
+  , SPATIAL INDEX idx3 (g3));
+
+DROP INDEX idx1 ON t1;
+DROP INDEX idx2 ON t1;
+DROP INDEX idx3 ON t1;
+
+--echo # Verify that we get the same warning when using CREATE INDEX syntax.
+CREATE SPATIAL INDEX idx1 ON t1 (g1);
+CREATE SPATIAL INDEX idx2 ON t1 (g2);
+CREATE SPATIAL INDEX idx3 ON t1 (g3);
+
+DROP INDEX idx1 ON t1;
+DROP INDEX idx2 ON t1;
+DROP INDEX idx3 ON t1;
+
+--echo # Verify that we get the same warning when using ALTER TABLE syntax.
+ALTER TABLE t1 ADD SPATIAL INDEX idx1 (g1);
+ALTER TABLE t1 ADD SPATIAL INDEX idx2 (g2);
+ALTER TABLE t1 ADD SPATIAL INDEX idx3 (g3);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#27220467 SERVER HANGS WHILE CREATING A NEW SRS WHICH IS USED IN
+--echo #              ANOTHER CLIENT
+--echo #
+--echo # Try to create a point column using a SRID that doesn't exist
+--error ER_SRS_NOT_FOUND
+CREATE TABLE t1 (col1 POINT SRID 4326, col2 POINT SRID 1000000000);
+
+--echo # Verify that any lock that was taken for SRIDs is released
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+
+--echo # Force the error to happen after all the columns are contextualized.
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE t1 (col1 POINT SRID 4326) ENGINE = "foo";
+
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+
+--echo # Verify the same behavior for ALTER TABLE as well.
+CREATE TABLE t1 (col1 INT);
+
+--error ER_SRS_NOT_FOUND
+ALTER TABLE t1 ADD COLUMN col2 POINT SRID 1000000000;
+
+SELECT COUNT(*) AS should_be_zero FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'SRID';
+
+DROP TABLE t1;

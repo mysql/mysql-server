@@ -110,7 +110,7 @@ typedef struct st_net {
   int fcntl;
   unsigned int *return_status;
   unsigned char reading_or_writing;
-  char save_char;
+  unsigned char save_char;
   bool compress;
   unsigned int last_errno;
   unsigned char error;
@@ -348,14 +348,11 @@ typedef struct st_mysql_rows {
   unsigned long length;
 } MYSQL_ROWS;
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;
-typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
 typedef struct st_mysql_data {
   MYSQL_ROWS *data;
-  struct embedded_query_result *embedded_info;
   MEM_ROOT *alloc;
   my_ulonglong rows;
   unsigned int fields;
-  void *extension;
 } MYSQL_DATA;
 enum mysql_option
 {
@@ -364,8 +361,6 @@ enum mysql_option
   MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_OPT_LOCAL_INFILE,
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
-  MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
   MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
   MYSQL_OPT_BIND,
@@ -399,18 +394,8 @@ struct st_mysql_options {
   char *ssl_cipher;
   char *shared_memory_base_name;
   unsigned long max_allowed_packet;
-  bool unused6;
   bool compress,named_pipe;
-  bool unused1;
-  bool unused2;
-  bool unused3;
-  bool unused4;
-  enum mysql_option methods_to_use;
-  union {
-    char *client_ip;
-    char *bind_address;
-  } ci;
-  bool unused5;
+  char *bind_address;
   bool report_data_truncation;
   int (*local_infile_init)(void **, const char *, void *);
   int (*local_infile_read)(void *, char *, unsigned int);
@@ -474,13 +459,10 @@ typedef struct st_mysql
   bool free_me;
   bool reconnect;
   char scramble[20 +1];
-  bool unused1;
-  void *unused2, *unused3, *unused4, *unused5;
   LIST *stmts;
   const struct st_mysql_methods *methods;
   void *thd;
   bool *unbuffered_fetch_owner;
-  char *info_buffer;
   void *extension;
 } MYSQL;
 typedef struct st_mysql_res {
@@ -750,3 +732,4 @@ bool mysql_more_results(MYSQL *mysql);
 int mysql_next_result(MYSQL *mysql);
 int mysql_stmt_next_result(MYSQL_STMT *stmt);
 void mysql_close(MYSQL *sock);
+void mysql_reset_server_public_key(void);

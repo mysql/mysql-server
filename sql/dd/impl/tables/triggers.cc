@@ -1,17 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/impl/tables/triggers.h"
 
@@ -23,6 +30,7 @@
 #include "sql/dd/impl/raw/object_keys.h" // dd::Global_name_key
 #include "sql/dd/impl/raw/raw_record.h" // dd::Raw_record
 #include "sql/dd/impl/raw/raw_table.h" // dd::Raw_table
+#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
 #include "sql/dd/impl/transaction_impl.h" // Transaction_ro
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/types/table.h"
@@ -35,8 +43,7 @@ namespace tables {
 
 Triggers::Triggers()
 {
-  m_target_def.table_name(table_name());
-  m_target_def.dd_version(1);
+  m_target_def.set_table_name("triggers");
 
   m_target_def.add_field(FIELD_ID,
                          "FIELD_ID",
@@ -123,21 +130,50 @@ Triggers::Triggers()
   m_target_def.add_field(FIELD_SCHEMA_COLLATION_ID,
                          "FIELD_SCHEMA_COLLATION_ID",
                          "schema_collation_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_OPTIONS,
+                         "FIELD_OPTIONS",
+                         "options MEDIUMTEXT");
 
-  m_target_def.add_index("PRIMARY KEY(id)");
-  m_target_def.add_index("UNIQUE KEY (schema_id, name)");
-  m_target_def.add_index("UNIQUE KEY (table_id, event_type, "
-                         "action_timing, action_order)");
+  m_target_def.add_index(INDEX_PK_ID,
+                         "INDEX_PK_ID",
+                         "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_SCHEMA_ID_NAME,
+                         "INDEX_UK_SCHEMA_ID_NAME",
+                         "UNIQUE KEY (schema_id, name)");
+  m_target_def.add_index(
+                    INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER,
+                    "INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER",
+                    "UNIQUE KEY (table_id, event_type, "
+                    "action_timing, action_order)");
+  m_target_def.add_index(INDEX_K_CLIENT_COLLATION_ID,
+                         "INDEX_K_CLIENT_COLLATION_ID",
+                         "KEY(client_collation_id)");
+  m_target_def.add_index(INDEX_K_CONNECTION_COLLATION_ID,
+                         "INDEX_K_CONNECTION_COLLATION_ID",
+                         "KEY(connection_collation_id)");
+  m_target_def.add_index(INDEX_K_SCHEMA_COLLATION_ID,
+                         "INDEX_K_SCHEMA_COLLATION_ID",
+                         "KEY(schema_collation_id)");
 
-  m_target_def.add_foreign_key("FOREIGN KEY (schema_id) "
+  m_target_def.add_foreign_key(FK_SCHEMA_ID,
+                               "FK_SCHEMA_ID",
+                               "FOREIGN KEY (schema_id) "
                                "REFERENCES schemata(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (table_id) "
+  m_target_def.add_foreign_key(FK_TABLE_ID,
+                               "FK_TABLE_ID",
+                               "FOREIGN KEY (table_id) "
                                "REFERENCES tables(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (client_collation_id) "
+  m_target_def.add_foreign_key(FK_CLIENT_COLLATION_ID,
+                               "FK_CLIENT_COLLATION_ID",
+                               "FOREIGN KEY (client_collation_id) "
                                "REFERENCES collations(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (connection_collation_id) "
+  m_target_def.add_foreign_key(FK_CONNECTION_COLLATION_ID,
+                               "FK_CONNECTION_COLLATION_ID",
+                               "FOREIGN KEY (connection_collation_id) "
                                "REFERENCES collations(id)");
-  m_target_def.add_foreign_key("FOREIGN KEY (schema_collation_id) "
+  m_target_def.add_foreign_key(FK_SCHEMA_COLLATION_ID,
+                               "FK_SCHEMA_COLLATION_ID",
+                               "FOREIGN KEY (schema_collation_id) "
                                "REFERENCES collations(id)");
 }
 
@@ -146,9 +182,8 @@ Triggers::Triggers()
 /* purecov: begin deadcode */
 Object_key *Triggers::create_key_by_schema_id(Object_id schema_id)
 {
-  const int INDEX_NO= 1;
   return new (std::nothrow) Parent_id_range_key(
-                              INDEX_NO, FIELD_SCHEMA_ID, schema_id);
+          INDEX_UK_SCHEMA_ID_NAME, FIELD_SCHEMA_ID, schema_id);
 }
 /* purecov: end */
 
@@ -156,9 +191,9 @@ Object_key *Triggers::create_key_by_schema_id(Object_id schema_id)
 
 Object_key *Triggers::create_key_by_table_id(Object_id table_id)
 {
-  const int INDEX_NO= 2;
   return new (std::nothrow) Parent_id_range_key(
-                              INDEX_NO, FIELD_TABLE_ID, table_id);
+          INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER,
+          FIELD_TABLE_ID, table_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -197,7 +232,7 @@ bool Triggers::get_trigger_table_id(THD *thd,
   const std::unique_ptr<Object_key> key(
     create_key_by_trigger_name(schema_id, trigger_name.c_str()));
 
-  Raw_table *table= trx.otx.get_table(table_name());
+  Raw_table *table= trx.otx.get_table(instance().name());
   DBUG_ASSERT(table != nullptr);
 
   // Find record by the object-key.

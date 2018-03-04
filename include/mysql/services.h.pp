@@ -13,6 +13,7 @@ extern struct srv_session_service_st
   int (*detach_session)(MYSQL_SESSION session);
   int (*close_session)(MYSQL_SESSION session);
   int (*server_is_available)();
+  int (*attach_session)(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 } *srv_session_service;
 int srv_session_init_thread(const void *plugin);
 void srv_session_deinit_thread();
@@ -20,6 +21,7 @@ MYSQL_SESSION srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx);
 int srv_session_detach(MYSQL_SESSION session);
 int srv_session_close(MYSQL_SESSION session);
 int srv_session_server_is_available();
+int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
 #include <mysql/service_srv_session_info.h>
 #include "mysql/service_srv_session.h"
 extern struct srv_session_info_service_st {
@@ -370,14 +372,13 @@ void mysql_string_free(mysql_string_handle);
 void mysql_string_iterator_free(mysql_string_iterator_handle);
 #include <mysql/service_mysql_alloc.h>
 #include "mysql/components/services/psi_memory_bits.h"
-#include "my_inttypes.h"
 typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 struct PSI_memory_info_v1
 {
   PSI_memory_key *m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   int m_volatility;
   const char *m_documentation;
 };
@@ -433,7 +434,6 @@ extern struct mysql_password_policy_service_st {
 int my_validate_password_policy(const char *, unsigned int);
 int my_calculate_password_strength(const char *, unsigned int);
 #include <mysql/service_parser.h>
-#include "my_md5_size.h"
 #include <mysql/mysql_lex_string.h>
 typedef void* MYSQL_ITEM;
 typedef

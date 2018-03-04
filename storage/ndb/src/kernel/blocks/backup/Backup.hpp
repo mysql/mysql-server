@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -179,6 +186,7 @@ protected:
 
   void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAGMENT_REQ(Signal*);
+  void execSYNC_PAGE_WAIT_REP(Signal*);
   void execSYNC_PAGE_CACHE_CONF(Signal*);
   void execSYNC_EXTENT_PAGES_CONF(Signal*);
   void execEND_LCPREQ(Signal* signal);
@@ -203,7 +211,7 @@ public:
   };
   typedef Ptr<Node> NodePtr;
   typedef ArrayPool<Node> Node_pool;
-  typedef SLList<Node, Node_pool> Node_list;
+  typedef SLList<Node_pool> Node_list;
 
   void update_lcp_pages_scanned(Signal *signal,
                                 Uint32 filePtrI,
@@ -217,10 +225,14 @@ public:
     return m_enable_partial_lcp != 0;
   }
 
+  Uint32 get_recovery_work()
+  {
+    return m_recovery_work;
+  }
+
   void init_lcp_scan(Uint32 & scanGCI,
                      bool & skip_page,
                      bool & changed_row_page_flag);
-
   void end_lcp_scan(Uint32 number_of_pages);
 
   void record_deleted_rowid(Uint32 pageNo,
@@ -273,9 +285,9 @@ public:
     Uint32 prevList;
   };
   typedef Ptr<DeleteLcpFile> DeleteLcpFilePtr;
-  typedef DLCFifoList<DeleteLcpFile, ArrayPool<DeleteLcpFile> >
-    DeleteLcpFile_list;
-  typedef LocalDLCFifoList<DeleteLcpFile, ArrayPool<DeleteLcpFile> >
+  typedef ArrayPool<DeleteLcpFile> DeleteLcpFile_pool;
+  typedef DLCFifoList<DeleteLcpFile_pool> DeleteLcpFile_list;
+  typedef LocalDLCFifoList<DeleteLcpFile_pool>
     LocalDeleteLcpFile_list;
   DeleteLcpFile_list::Head m_delete_lcp_file_head;
 
@@ -283,6 +295,7 @@ public:
   Uint32 m_lcp_ptr_i;
   bool m_delete_lcp_files_ongoing;
   Uint32 m_enable_partial_lcp;
+  Uint32 m_recovery_work;
 
   struct Table {
     Table(Fragment_pool &);
@@ -315,8 +328,8 @@ public:
   };
   typedef Ptr<Table> TablePtr;
   typedef ArrayPool<Table> Table_pool;
-  typedef SLList<Table, Table_pool> Table_list;
-  typedef DLCFifoList<Table, Table_pool> Table_fifo;
+  typedef SLList<Table_pool> Table_list;
+  typedef DLCFifoList<Table_pool> Table_fifo;
 
   struct OperationRecord {
   public:
@@ -337,8 +350,9 @@ public:
      * Once per scan frag (next) req/conf
      */
     bool newScan();
-    bool scanConf(Uint32 noOfOps, Uint32 opLen);
-    bool closeScan();
+    void scanConf(Uint32 noOfOps, Uint32 opLen);
+    void scanConfExtra();
+    void closeScan();
     
     /**
      * Per record
@@ -355,7 +369,6 @@ public:
 
   public:
     Uint32* dst;
-    Uint32 attrSzTotal; // No of AI words received
     Uint32 tablePtr;    // Ptr.i to current table
 
     FsBuffer dataBuffer;
@@ -403,7 +416,7 @@ public:
   };
   typedef Ptr<TriggerRecord> TriggerPtr;
   typedef ArrayPool<TriggerRecord> TriggerRecord_pool;
-  typedef SLList<TriggerRecord, TriggerRecord_pool> TriggerRecord_list;
+  typedef SLList<TriggerRecord_pool> TriggerRecord_list;
 
   /**
    * BackupFile - At least 3 per backup
@@ -424,6 +437,11 @@ public:
     OperationRecord operation;
     Uint32 m_sent_words_in_scan_batch;
     Uint32 m_num_scan_req_on_prioa;
+
+    Uint64 m_lcp_inserts;
+    Uint64 m_lcp_writes;
+    Uint64 m_lcp_delete_by_pageids;
+    Uint64 m_lcp_delete_by_rowids;
     
     Array<Page32> pages;
     Uint32 nextList;
@@ -446,7 +464,7 @@ public:
   }; 
   typedef Ptr<BackupFile> BackupFilePtr;
   typedef ArrayPool<BackupFile> BackupFile_pool;
-  typedef SLList<BackupFile, BackupFile_pool> BackupFile_list;
+  typedef SLList<BackupFile_pool> BackupFile_list;
 
   /**
    * State for BackupRecord
@@ -528,7 +546,7 @@ public:
                  TriggerRecord_pool& trp)
       : slaveState(b, validSlaveTransitions, validSlaveTransitionsCount,1)
       , m_first_fragment(false), prepare_table(tp), tables(tp), triggers(trp), files(bp)
-      , ctlFilePtr(RNIL), logFilePtr(RNIL), dataFilePtr(RNIL)
+      , ctlFilePtr(RNIL), logFilePtr(RNIL)
       , masterData(b), backup(b)
 
       {
@@ -536,6 +554,13 @@ public:
         m_initial_lcp_started = false;
         m_wait_gci_to_delete = 0;
         localLcpId = 0;
+        m_wait_data_file_close = false;
+        m_disk_data_exist = false;
+        m_wait_sync_extent = false;
+        m_wait_final_sync_extent = false;
+        m_wait_disk_data_sync = false;
+        m_num_sync_pages_waiting = 0;
+        m_num_sync_extent_pages_written = 0;
         /*
           report of backup status uses these variables to keep track
           if backup ia running and current state
@@ -545,6 +570,13 @@ public:
         m_informDropTabTableId = Uint32(~0);
         m_informDropTabReference = Uint32(~0);
         currentDeleteLcpFile = RNIL;
+        noOfRecords = 0;
+        noOfBytes = 0;
+        for (Uint32 i = 0; i < BackupFormat::NDB_MAX_FILES_PER_LCP; i++)
+        {
+          dataFilePtr[i] = RNIL;
+          prepareDataFilePtr[i] = RNIL;
+        }
       }
     
     /* prev time backup status was reported */
@@ -573,13 +605,11 @@ public:
     Uint32 prepareDeleteCtlFileNumber;
     Uint32 prepareMaxGciWritten;
     PrepareState prepareState;
-    Uint32 prepareDataFileNumber;
+    Uint32 prepareFirstDataFileNumber;
     Uint32 preparePrevLcpId;
     Uint32 preparePrevLocalLcpId;
     Uint32 prepareErrorCode;
     Table_fifo prepare_table;
-    Uint32 prepareCtlFilePtr[2];  // Ptr.i to ctl-file for LCP prepare
-    Uint32 prepareDataFilePtr; // Ptr.i for data-file prepare LCP
     Uint32 m_prepare_scan_change_gci;
     Uint32 m_prepare_first_start_part_in_lcp;
     Uint32 m_prepare_num_parts_in_lcp;
@@ -602,18 +632,23 @@ public:
     Uint64 m_memory_used_in_bytes;
     bool   m_empty_lcp;
     bool   m_is_lcp_scan_active;
-    bool   m_handle_dropped_table_during_lcp_scan;
+    bool   m_working_changed_row_page_flag;
     bool   m_current_changed_row_page_flag;
     Uint32 m_outstanding_operations;
     Uint32 m_first_start_part_in_lcp;
+    Uint32 m_num_parts_in_this_lcp;
     Uint32 m_num_parts_in_lcp;
     Uint32 m_max_parts_in_lcp;
-    Uint32 m_lcp_rounds;
     Uint32 m_lcp_current_page_scanned;
     Uint32 m_lcp_max_page_cnt;
     Uint32 m_scan_change_gci;
     Uint32 m_lcp_remove_files;
-    Uint32 m_current_data_file_number;
+    Uint32 m_num_lcp_files;
+    Uint32 m_num_lcp_data_files_open;
+    Uint32 m_first_data_file_number;
+    Uint32 m_last_data_file_number;
+    Uint32 m_current_data_file_ptr;
+    Uint32 m_working_data_file_ptr;
     Uint64 m_current_lcp_lsn;
     BackupFormat::PartPair m_part_info[BackupFormat::NDB_MAX_LCP_PARTS];
     LcpScanInfo m_scan_info[BackupFormat::NDB_MAX_FILES_PER_LCP];
@@ -628,10 +663,14 @@ public:
 
     /* State variables for finalisation of LCP processing of a fragment. */
     bool m_disk_data_exist;
-    bool wait_data_file_close;
-    bool wait_disk_data_sync;
+    bool m_wait_data_file_close;
+    bool m_wait_disk_data_sync;
+    bool m_wait_sync_extent;
+    bool m_wait_final_sync_extent;
     bool m_lcp_lsn_synced;
 
+    Uint32 m_num_sync_pages_waiting;
+    Uint32 m_num_sync_extent_pages_written;
     /* Data for delete LCP file process */
     Uint32 deleteFilePtr;
     Uint32 currentDeleteLcpFile;
@@ -693,7 +732,10 @@ public:
     BackupFile_list files;
     Uint32 ctlFilePtr;  // Ptr.i to ctl-file (LCP and Backup)
     Uint32 logFilePtr;  // Ptr.i to log-file (Only backup)
-    Uint32 dataFilePtr; // Ptr.i to first data-file (LCP and Backup)
+    Uint32 dataFilePtr[BackupFormat::NDB_MAX_FILES_PER_LCP];
+      // Ptr.i to first data-file (LCP and Backup)
+    Uint32 prepareDataFilePtr[BackupFormat::NDB_MAX_FILES_PER_LCP]; // Only LCP
+    Uint32 prepareCtlFilePtr[2];  // Ptr.i to ctl-file for LCP prepare
     
     Uint32 backupDataLen;  // Used for (un)packing backup request
     SimpleProperties props;// Used for (un)packing backup request
@@ -772,8 +814,8 @@ public:
   friend struct BackupRecord;
   typedef Ptr<BackupRecord> BackupRecordPtr;
   typedef ArrayPool<BackupRecord> BackupRecord_pool;
-  typedef SLList<BackupRecord, BackupRecord_pool> BackupRecord_sllist;
-  typedef DLList<BackupRecord, BackupRecord_pool> BackupRecord_dllist;
+  typedef SLList<BackupRecord_pool> BackupRecord_sllist;
+  typedef DLList<BackupRecord_pool> BackupRecord_dllist;
 
 /**
  * Number of words needed in buff to start a new scan batch
@@ -954,6 +996,10 @@ public:
 
   void checkFile(Signal*, BackupFilePtr);
   void checkScan(Signal*, BackupRecordPtr, BackupFilePtr);
+  bool check_new_scan(BackupRecordPtr ptr, OperationRecord &op);
+  bool check_min_buf_size(BackupRecordPtr ptr, OperationRecord &op);
+  bool check_frag_complete(BackupRecordPtr ptr, BackupFilePtr filePtr);
+  bool check_error(BackupRecordPtr ptr, BackupFilePtr filePtr);
   void fragmentCompleted(Signal*, BackupFilePtr, Uint32 errCode = 0);
   
   void backupAllData(Signal* signal, BackupRecordPtr);
@@ -1066,7 +1112,6 @@ public:
 
   void lcp_close_ctl_file_drop_case(Signal*, BackupRecordPtr);
   void finish_end_lcp(Signal*, BackupRecordPtr);
-  void handle_dropped_table_during_lcp_scan(Signal*, BackupRecordPtr);
   bool check_if_in_page_range(Uint32 part_id,
                               Uint32 start_part,
                               Uint32 num_parts);
@@ -1075,7 +1120,9 @@ public:
   void lcp_write_ctl_file_to_disk(Signal*, BackupFilePtr, Page32Ptr);
   void lcp_init_ctl_file(Page32Ptr pagePtr);
   Uint32 compress_part_pairs(struct BackupFormat::LCPCtlFile*, Uint32);
-  Uint32 decompress_part_pairs(struct BackupFormat::LCPCtlFile*, Uint32);
+  Uint32 decompress_part_pairs(struct BackupFormat::LCPCtlFile*,
+                               Uint32,
+                               struct BackupFormat::PartPair*);
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
   void convert_ctl_page_to_network(Uint32*);
   void handle_idle_lcp(Signal*, BackupRecordPtr);
@@ -1090,15 +1137,14 @@ public:
   void start_lcp_scan(Signal *signal,
                       BackupRecordPtr ptr,
                       TablePtr tabPtr,
-                      FragmentPtr fragPtr,
-                      BackupFilePtr filePtr);
+                      Uint32 ptrI,
+                      Uint32 fragNo);
   Uint32 get_part_add(Uint32 start_part, Uint32 num_parts);
   Uint32 get_file_add(Uint32 start_file, Uint32 num_files);
+  Uint32 get_file_sub(Uint32 start_file, Uint32 num_files);
 
 
-  void prepare_ranges_for_parts(BackupRecordPtr,
-                                Uint32 parts,
-                                Uint64 memory_used);
+  void prepare_ranges_for_parts(BackupRecordPtr, Uint32 parts);
   void prepare_parts_for_lcp(Signal*, BackupRecordPtr);
   void prepare_new_part_info(BackupRecordPtr, Uint32);
   void lcp_swap_tables(BackupRecordPtr, TablePtr&, Uint32);
@@ -1122,6 +1168,7 @@ public:
   void lcp_close_prepare_ctl_file_done(Signal*, BackupRecordPtr);
   void lcp_read_ctl_page(BackupFilePtr, Page32Ptr&);
   void lcp_open_data_file(Signal*, BackupRecordPtr);
+  void lcp_open_data_file_late(Signal*, BackupRecordPtr, Uint32 index);
   void lcp_open_data_file_done(Signal*, BackupRecordPtr);
   void lcp_close_data_file(Signal*, BackupRecordPtr, bool remove_flag);
   void lcp_close_data_file_conf(Signal* signal, BackupRecordPtr);
@@ -1191,14 +1238,22 @@ public:
   static bool g_is_backup_running;
 
   void get_page_info(BackupRecordPtr,
-                     Uint32 current_lcp_round,
                      Uint32 part_id,
                      Uint32 & scanGCI,
                      bool & skip_flag,
                      bool & changed_row_page_flag);
+  void set_working_file(BackupRecordPtr,
+                        Uint32 part_id,
+                        bool is_all_rows_page);
+  void init_file_for_lcp(Signal*, Uint32 index, BackupRecordPtr, Uint32 ptrI);
+  bool is_all_rows_page(BackupRecordPtr, Uint32 part_id);
+  void change_current_page_temp(Uint32 page_no);
+  void restore_current_page(BackupRecordPtr ptr);
 
   void setRestorableGci(Uint32);
   Uint32 getRestorableGci();
+public:
+  bool is_change_part_state(Uint32 page_id);
 };
 
 inline

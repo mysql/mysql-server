@@ -9,11 +9,11 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-perfschema.idx_compare_events_waits_current : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
-perfschema.idx_data_lock_waits              : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
-perfschema.idx_events_waits_current         : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
+# perfschema.idx_data_lock_waits              : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
+# perfschema.idx_events_waits_current         : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
 perfschema.stage_mdl_function               : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
 perfschema.innodb_is_data_locks             : Bug#24688694 2016-09-19 Marc Frequent failures on PB2
 perfschema.stage_mdl_table                  : Bug#24688694 2017-01-06 Erlend Frequent failures on PB2
-perfschema.idx_metadata_locks               : Bug#24688694 2017-02-10 Anitha Frequent failures on PB2
+# perfschema.idx_metadata_locks               : Bug#24688694 2017-02-10 Anitha Frequent failures on PB2
 perfschema.statement_digest_query_sample    : Bug#24688694 2017-08-18 Marc Unstable under load
+perfschema.socket_summary_by_instance_func @solaris : Bug#26918495 2017-10-04 Deepa Result content mismatch on Solaris

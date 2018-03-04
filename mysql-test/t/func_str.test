@@ -1,6 +1,8 @@
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
+
+# When removing this, also remove 'SET default_storage_engine InnoDB' below
 --source include/force_myisam_default.inc
 
 # Description
@@ -1690,6 +1692,7 @@ DROP TABLE t1;
 --echo # Bug#22888420 CONCAT_WS: ASSERTION FAILED: !S.USES_BUFFER_OWNED_BY(THIS)
 --echo #
 
+--error ER_WRONG_ARGUMENTS
 do concat('a',concat_ws('a', 0x2859, 'a' ,
                         trim(period_add('a',1) from (1&''))
                         )
@@ -2006,3 +2009,35 @@ disconnect con1;
 connection default;
 set global max_allowed_packet=@max_allowed_packet;
 --disable_connect_log
+
+--echo #
+--echo # Bug#26524721 ASSERTION MAYBE_NULL FAILED IN ITEM_FUNC_CONCAT::VAL_STR
+--echo #
+CREATE TABLE t(x VARCHAR(10) NOT NULL);
+# Disable ONLY_FULL_GROUP_BY to allow the query.
+--source include/turn_off_only_full_group_by.inc
+# Disable strict mode to trigger the assert (strict mode affects the
+# nullability of the CONCAT function).
+--source include/turn_off_strict_mode.inc
+SELECT COUNT(*), CONCAT(x, 'x') FROM (SELECT * FROM t) AS tt;
+--source include/restore_strict_mode.inc
+--source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
+DROP TABLE t;
+
+# Force default storage engine InnoDB for new tests
+
+SET default_storage_engine=InnoDB;
+
+--echo # Bug#26049942 create table .. as select .. quote() give wrong length
+
+SET NAMES latin1;
+CREATE TABLE t1 AS SELECT quote('a');
+SHOW CREATE TABLE t1;
+SET NAMES utf8;
+CREATE TABLE t2 AS SELECT quote('a');
+SHOW CREATE TABLE t2;
+SET NAMES utf8mb4;
+CREATE TABLE t3 AS SELECT quote('a');
+SHOW CREATE TABLE t3;
+SET NAMES DEFAULT;
+DROP TABLE t1, t2, t3;

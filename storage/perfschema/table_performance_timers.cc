@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/table_performance_timers.cc
@@ -24,10 +31,10 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_global.h"
-#include "pfs_timer.h"
 #include "sql/field.h"
-#include "table_helper.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/table_helper.h"
 
 THR_LOCK table_performance_timers::m_table_lock;
 
@@ -37,8 +44,7 @@ Plugin_table table_performance_timers::m_table_def(
   /* Name */
   "performance_timers",
   /* Definition */
-  "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND',\n"
-  "                   'TICK') NOT NULL,\n"
+  "  TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND') NOT NULL,\n"
   "  TIMER_FREQUENCY BIGINT,\n"
   "  TIMER_RESOLUTION BIGINT,\n"
   "  TIMER_OVERHEAD BIGINT\n",
@@ -94,10 +100,6 @@ table_performance_timers::table_performance_timers()
   index = (int)TIMER_NAME_MILLISEC - FIRST_TIMER_NAME;
   m_data[index].m_timer_name = TIMER_NAME_MILLISEC;
   m_data[index].m_info = pfs_timer_info.milliseconds;
-
-  index = (int)TIMER_NAME_TICK - FIRST_TIMER_NAME;
-  m_data[index].m_timer_name = TIMER_NAME_TICK;
-  m_data[index].m_info = pfs_timer_info.ticks;
 }
 
 void

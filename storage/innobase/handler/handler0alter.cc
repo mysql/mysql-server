@@ -3,16 +3,24 @@
 Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -47,7 +55,6 @@ Smart ALTER TABLE
 #include "dd/types/index_element.h"
 #include "dd/types/partition.h"
 #include "dd/types/partition_index.h"
-#include "dd/types/object_type.h"
 #include "dd/types/tablespace_file.h"
 #include "dd_table_share.h"
 
@@ -361,6 +368,9 @@ my_error_innodb(
 		break;
 	case DB_OUT_OF_FILE_SPACE:
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
+		break;
+	case DB_OUT_OF_DISK_SPACE:
+		my_error(ER_DISK_FULL_NOWAIT, MYF(0), table);
 		break;
 	case DB_TEMP_FILE_WRITE_FAIL:
 		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
@@ -1040,7 +1050,7 @@ ha_innobase::prepare_inplace_alter_table(
 	ut_ad(old_dd_tab != NULL);
 	ut_ad(new_dd_tab != NULL);
 
-	if (dict_sys_t::is_hardcoded(m_prebuilt->table->id)
+	if (dict_sys_t::is_dd_table_id(m_prebuilt->table->id)
 	    && innobase_need_rebuild(ha_alter_info)) {
 		ut_ad(!m_prebuilt->table->is_temporary());
 		my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
@@ -4139,7 +4149,7 @@ dd_commit_inplace_alter_table(
 		dd_space_id = dd_first_index(old_dd_tab)->tablespace_id();
 	}
 
-	dd_set_table_options(&(new_dd_tab->table()), new_table);
+	dd_set_table_options(new_dd_tab, new_table);
 
 	new_table->dd_space_id = dd_space_id;
 
@@ -5271,17 +5281,22 @@ alter_fill_stored_column(
 	mem_heap_t**		s_heap)
 {
 	ulint	n_cols = altered_table->s->fields;
+	ulint   stored_col_no = 0;
 
 	for (ulint i = 0; i < n_cols; i++) {
 		Field* field = altered_table->field[i];
 		dict_s_col_t	s_col;
+
+		if (!innobase_is_v_fld(field)) {
+			stored_col_no++;
+		}
 
 		if (!innobase_is_s_fld(field)) {
 			continue;
 		}
 
 		ulint	num_base = field->gcol_info->non_virtual_base_columns();
-		dict_col_t*	col = table->get_col(i);
+		dict_col_t*	col = table->get_col(stored_col_no);
 
 		s_col.m_col = col;
 		s_col.s_pos = i;
@@ -5421,7 +5436,7 @@ ha_innobase::prepare_inplace_alter_table_impl(
 				     NULL,
 				     NULL,
 				     is_file_per_table,
-				     false);
+				     false, 0, 0);
 
 	info.set_tablespace_type(is_file_per_table);
 
@@ -6903,7 +6918,7 @@ innobase_update_foreign_cache(
 			releaser(client);
 
 
-		dd_open_fk_tables(client, fk_tables, false, user_thd);
+		dd_open_fk_tables(fk_tables, false, user_thd);
 		mutex_enter(&dict_sys->mutex);
 	}
 
@@ -8569,8 +8584,8 @@ alter_part::build_partition_name(
 	ut_ad(len < FN_REFLEN);
 
 	if (temp) {
-		strcpy(name + len, "#tmp");
-		ut_ad(len + sizeof "#tmp" < FN_REFLEN);
+		strcpy(name + len, TMP_POSTFIX);
+		ut_ad(len + sizeof TMP_POSTFIX < FN_REFLEN);
 	}
 }
 
@@ -8637,7 +8652,7 @@ alter_part::create(
 
 	return(innobase_basic_ddl::create_impl<dd::Partition>(
 		current_thd, part_name, table, &create_info, dd_part,
-		file_per_table, false, false));
+		file_per_table, false, false, 0, 0));
 }
 
 typedef std::vector<alter_part*, ut_allocator<alter_part*>> alter_part_array;
@@ -10191,9 +10206,6 @@ alter_parts::try_commit(
 		return(error);
 	}
 
-	ut_ad(m_trx->n_mysql_tables_in_use > 0);
-	--m_trx->n_mysql_tables_in_use;
-
 	return(0);
 }
 
@@ -10483,6 +10495,10 @@ ha_innopart::prepare_inplace_alter_table(
 {
 	DBUG_ENTER("ha_innopart::prepare_inplace_alter_table");
 	DBUG_ASSERT(ha_alter_info->handler_ctx == nullptr);
+
+	/* The row format in new table may differ from the old one,
+	which is set by server earlier. So keep them the same */
+	new_table_def->set_row_format(old_table_def->row_format());
 
 	if (altered_table->found_next_number_field != nullptr) {
 		dd_copy_autoinc(old_table_def->se_private_data(),
@@ -11160,9 +11176,9 @@ ha_innopart::exchange_partition_low(
 	char*	swap_name = strdup(swap->name.m_name);
 	char*	part_name = strdup(part->name.m_name);
 
-	/* Define the temporary table name, by appending "#tmp" */
+	/* Define the temporary table name, by appending TMP_POSTFIX */
 	char			temp_name[FN_REFLEN];
-	snprintf(temp_name, sizeof temp_name, "%s#tmp", swap_name);
+	snprintf(temp_name, sizeof temp_name, "%s%s", swap_name, TMP_POSTFIX);
 
 	int	error = 0;
 	error = innobase_basic_ddl::rename_impl<dd::Table>(

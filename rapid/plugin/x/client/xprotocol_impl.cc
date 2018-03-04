@@ -1,21 +1,30 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
+
+#include "plugin/x/client/xprotocol_impl.h"
+
+#include "my_config.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -24,15 +33,15 @@
 #include <limits>
 #include <string>
 
+#include "mysql_com.h"
+#include "sha2.h"
 #include "errmsg.h"
-#include "my_config.h"
 #include "my_io.h"
-#include "mysqlx_version.h"
-#include "password_hasher.h"
-#include "xprotocol_impl.h"
-
-#include "mysqlxclient/xerror.h"
-#include "mysqlxclient/xrow.h"
+#include "plugin/x/client/mysqlxclient/xerror.h"
+#include "plugin/x/client/mysqlxclient/xrow.h"
+#include "plugin/x/client/sha256_scramble_generator.h"
+#include "plugin/x/client/password_hasher.h"
+#include "plugin/x/generated/mysqlx_version.h"
 
 
 namespace xcl {
@@ -118,6 +127,8 @@ XError Protocol_impl::execute_authenticate(
     error = authenticate_plain(user, pass, schema);
   else if (method == "MYSQL41")
     error = authenticate_mysql41(user, pass, schema);
+  else if (method == "SHA256_MEMORY")
+    error = authenticate_sha256_memory(user, pass, schema);
   else
     return XError(CR_X_INVALID_AUTH_METHOD,
                   ERR_MSG_INVALID_AUTH_METHOD + method);
@@ -226,71 +237,96 @@ XError Protocol_impl::authenticate_mysql41(
     const std::string &user,
     const std::string &pass,
     const std::string &db) {
-  XError error;
 
-  {
-    Mysqlx::Session::AuthenticateStart auth;
+  class Mysql41_continue_handler {
+  public:
+    explicit Mysql41_continue_handler(Protocol_impl *protocol)
+      : m_protocol(protocol) {}
 
-    auth.set_mech_name("MYSQL41");
+    std::string get_name() const { return "MYSQL41"; }
 
-    error = send(Mysqlx::ClientMessages::SESS_AUTHENTICATE_START, auth);
+    XError operator()(const std::string &user,
+        const std::string &pass,
+        const std::string &db,
+        const Mysqlx::Session::AuthenticateContinue &auth_continue) {
+      std::string data;
+      std::string password_hash;
 
-    if (error)
-      return error;
-  }
+      Mysqlx::Session::AuthenticateContinue auth_continue_response;
 
-  {
-    std::unique_ptr<Message> message{
-      recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE,
-              &error)
-    };
+      if (pass.length()) {
+        password_hash = password_hasher::scramble(
+            auth_continue.auth_data().c_str(),
+            pass.c_str());
+        password_hash =
+            password_hasher::get_password_from_salt(password_hash);
 
-    if (error)
-      return error;
-
-    Mysqlx::Session::AuthenticateContinue &auth_continue =
-        *static_cast<Mysqlx::Session::AuthenticateContinue *>(
-             message.get());
-
-    std::string data;
-    std::string password_hash;
-
-    Mysqlx::Session::AuthenticateContinue auth_continue_response;
-
-    if (pass.length()) {
-      password_hash = password_hasher::scramble(
-          auth_continue.auth_data().c_str(),
-          pass.c_str());
-      password_hash =
-          password_hasher::get_password_from_salt(password_hash);
-
-      if (password_hash.empty()) {
-        return XError{CR_UNKNOWN_ERROR, ER_TEXT_HASHING_FUNCTION_FAILED};
+        if (password_hash.empty()) {
+          return XError{CR_UNKNOWN_ERROR, ER_TEXT_HASHING_FUNCTION_FAILED};
+        }
       }
+
+      data.append(db).push_back('\0');    // authz
+      data.append(user).push_back('\0');  // authc
+      data.append(password_hash);         // pass
+      auth_continue_response.set_auth_data(data);
+
+      return m_protocol->send(auth_continue_response);
     }
 
-    data.append(db).push_back('\0');    // authz
-    data.append(user).push_back('\0');  // authc
-    data.append(password_hash);         // pass
-    auth_continue_response.set_auth_data(data);
+  private:
+    Protocol_impl *m_protocol;
+  };
 
-    error = send(auth_continue_response);
+  return authenticate_challenge_response<Mysql41_continue_handler>(user,
+      pass, db);
+}
 
-    if (error)
-      return error;
-  }
+XError Protocol_impl::authenticate_sha256_memory(const std::string &user,
+    const std::string &pass, const std::string &db) {
 
-  {
-    std::unique_ptr<Message> message{
-      recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK,
-              &error)
-    };
+  class Sha256_memory_continue_handler {
+  public:
+    explicit Sha256_memory_continue_handler(Protocol_impl *protocol)
+      : m_protocol(protocol) {}
 
-    if (error)
-      return error;
-  }
+    std::string get_name() const { return "SHA256_MEMORY"; }
 
-  return {};
+    XError operator()(const std::string &user,
+        const std::string &pass,
+        const std::string &db,
+        const Mysqlx::Session::AuthenticateContinue &auth_continue) {
+
+      Mysqlx::Session::AuthenticateContinue auth_continue_response;
+
+      auto nonce = auth_continue.auth_data();
+      char sha256_scramble[SHA256_DIGEST_LENGTH] = {0};
+      if (xcl::generate_sha256_scramble(
+              reinterpret_cast<unsigned char*>(sha256_scramble),
+              SHA256_DIGEST_LENGTH, pass.c_str(), pass.length(), nonce.c_str(),
+              nonce.length()))
+        return XError{CR_UNKNOWN_ERROR, ER_TEXT_HASHING_FUNCTION_FAILED};
+
+      std::string scramble_hex(2 * SHA256_DIGEST_LENGTH + 1, '\0');
+      password_hasher::octet2hex(&scramble_hex[0], &sha256_scramble[0],
+          SHA256_DIGEST_LENGTH);
+      scramble_hex.pop_back(); // Skip the additional \0 sign added by octet2hex
+
+      std::string data;
+      data.append(db).push_back('\0');
+      data.append(user).push_back('\0');
+      data.append(scramble_hex);
+      auth_continue_response.set_auth_data(data);
+
+      return m_protocol->send(auth_continue_response);
+    }
+
+  private:
+    Protocol_impl *m_protocol;
+  };
+
+  return authenticate_challenge_response<Sha256_memory_continue_handler>(user,
+      pass, db);
 }
 
 XError Protocol_impl::authenticate_plain(

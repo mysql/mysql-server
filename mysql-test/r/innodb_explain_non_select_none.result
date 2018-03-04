@@ -1471,7 +1471,6 @@ Handler_read_first	1
 Handler_read_key	6
 Handler_read_rnd	1
 Handler_read_rnd_next	27
-Handler_update	1
 Sort_rows	1
 Sort_scan	1
 
@@ -1616,7 +1615,7 @@ Handler_read_first	1
 Handler_read_key	9
 Handler_read_rnd	5
 Handler_read_rnd_next	27
-Handler_update	5
+Handler_update	4
 Sort_rows	5
 Sort_scan	1
 
@@ -1889,12 +1888,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	5
+Handler_read_key	3
 Handler_read_rnd_next	6
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	2
-Handler_read_key	6
+Handler_read_key	4
 Handler_read_rnd	1
 Handler_read_rnd_next	8
 Handler_write	2
@@ -1917,12 +1916,12 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	3
-Handler_read_key	6
+Handler_read_key	4
 Handler_read_rnd_next	9
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	5
-Handler_read_key	10
+Handler_read_key	8
 Handler_read_rnd	2
 Handler_read_rnd_next	18
 Handler_update	1
@@ -1950,13 +1949,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	2
 Handler_read_next	3
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	3
 Handler_read_first	1
-Handler_read_key	3
+Handler_read_key	2
 Handler_read_next	3
 
 DROP TABLE t1;
@@ -1984,13 +1983,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	10
+Handler_read_key	8
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_first	1
-Handler_read_key	14
+Handler_read_key	12
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -2019,13 +2018,13 @@ Variable_name	Value
 # Status of "equivalent" SELECT query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	10
+Handler_read_key	8
 Handler_read_rnd_next	5
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	4
 Handler_read_first	1
-Handler_read_key	14
+Handler_read_key	12
 Handler_read_rnd	4
 Handler_read_rnd_next	5
 
@@ -2051,7 +2050,7 @@ Variable_name	Value
 Variable_name	Value
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_key	2
+Handler_read_key	1
 Handler_write	1
 
 DROP TABLE t1;
@@ -2083,7 +2082,7 @@ Handler_read_rnd_next	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	4
+Handler_read_key	3
 Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;

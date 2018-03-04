@@ -257,22 +257,22 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED '
 command_type NOT LIKE 'Prepare';
 argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server'
 GRANT INSERT ON `TEST`.* TO 'grant_user'@'%' IDENTIFIED WITH 'test_plugin_server' AS '<secret>'
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>'
+GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>'
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest'
-CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-GRANT PROXY ON ''@'' TO 'proxy_admin'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' WITH GRANT OPTION
+CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+GRANT PROXY ON ''@'' TO 'proxy_admin'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' WITH GRANT OPTION
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'mysql_native_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
+CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;

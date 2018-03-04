@@ -2,16 +2,16 @@
 --source include/not_windows.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Error\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[ERROR\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.*'.");
 call mtr.add_suppression("Plugin keyring_file reported");
-CALL mtr.add_suppression("\\[Warning\\] InnoDB: Failed to set O_DIRECT on file.*");
+CALL mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Failed to set O_DIRECT on file.*");
 
 # The below mtr suppression to avoid failure in solaris platform.
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to set DIRECTIO_ON on file.*");
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Failed to create check sector file*");
+CALL mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to set DIRECTIO_ON on file.*");
+CALL mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to create check sector file*");
 --enable_query_log
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR

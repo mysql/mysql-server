@@ -1,21 +1,30 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stddef.h>
+#include "plugin/keyring/common/keys_container.h"
 
-#include "keys_container.h"
+#include <stddef.h>
+#include <algorithm>
+
 #include "my_dbug.h"
 
 using std::string;
@@ -64,6 +73,13 @@ std::string Keys_container::get_keyring_storage_url()
   return keyring_storage_url;
 }
 
+void Keys_container::store_keys_metadata(IKey *key)
+{
+  /* if key metadata not present store it */
+  Key_metadata km(key->get_key_id(), key->get_user_id());
+  keys_metadata.push_back(km);
+}
+
 bool Keys_container::store_key_in_hash(IKey *key)
 {
   // TODO: This can be written more succinctly with C++17's try_emplace.
@@ -73,6 +89,7 @@ bool Keys_container::store_key_in_hash(IKey *key)
   else
   {
     keys_hash->emplace(signature, unique_ptr<IKey>(key));
+    store_keys_metadata(key);
     return false;
   }
 }
@@ -124,6 +141,20 @@ IKey*Keys_container::fetch_key(IKey *key)
   return key;
 }
 
+bool Keys_container::remove_keys_metadata(IKey *key)
+{
+  Key_metadata src(key->get_key_id(), key->get_user_id());
+  auto it= std::find_if(keys_metadata.begin(), keys_metadata.end(),
+    [src](Key_metadata const& dest) { return (*src.id == *dest.id &&
+                                              *src.user == *dest.user); });
+  if (it != keys_metadata.end())
+  {
+    keys_metadata.erase(it);
+    return false;
+  }
+  return true;
+}
+
 bool Keys_container::remove_key_from_hash(IKey *key)
 {
   auto it= keys_hash->find(*key->get_key_signature());
@@ -131,6 +162,7 @@ bool Keys_container::remove_key_from_hash(IKey *key)
     return true;
   it->second.release();  // Prevent erase from removing key from memory
   keys_hash->erase(it);
+  remove_keys_metadata(key);
   return false;
 }
 

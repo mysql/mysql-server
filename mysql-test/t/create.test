@@ -1811,13 +1811,13 @@ DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
 
 # Case 3: A database (fakely created using mkdir) and has an unrelated file in it's database
-#         directory. Dropping such database should throw ER_DB_DROP_EXISTS
+#         directory. Dropping such database should throw ER_SCHEMA_DIR_UNKNOWN
 #         error (creating a database with mkdir is not supported with new DD).
 --mkdir $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory
 --write_file $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory/intruder.txt
 EOF
 --replace_result $MYSQLD_DATADIR ./ \\ /
---error ER_DB_DROP_EXISTS
+--error ER_SCHEMA_DIR_UNKNOWN
 DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
 # Cleanup
 --remove_file $MYSQLD_DATADIR/db_created_with_mkdir_and_an_unrelated_file_in_data_directory/intruder.txt

@@ -10,12 +10,16 @@
 SET default_storage_engine=InnoDB;
 LET $MYSQLD_DATADIR = `select @@datadir`;
 
---echo # Suppress errors about too long filenames in error log.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number .* in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number .* means '.*'");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot create file .*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'create' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: File .* 'delete' returned OS error .*");
+--disable_query_log
+# Suppress errors about too long filenames in error log.
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Operating system error number .* in a file operation.");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Error number .* means '.*'");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: Cannot create file .*");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'create' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'stat' returned OS error .*");
+call mtr.add_suppression("\\[WARNING\\].*InnoDB: '.*' name too long, can't delete!");
+--enable_query_log
 
 --echo #
 --echo # MySQL limits each database and tablename identifier to 64 characters

@@ -207,22 +207,6 @@ set collation_connection=utf8mb4_general_ci;
 set names utf8mb4;
 
 #
-# Bug #3928 regexp [[:>:]] and UTF-8
-#
-set names utf8mb4;
-
-# This should return TRUE
-select  'вася'  rlike '[[:<:]]вася[[:>:]]';
-select  'вася ' rlike '[[:<:]]вася[[:>:]]';
-select ' вася'  rlike '[[:<:]]вася[[:>:]]';
-select ' вася ' rlike '[[:<:]]вася[[:>:]]';
-
-# This should return FALSE
-select  'васяz' rlike '[[:<:]]вася[[:>:]]';
-select 'zвася'  rlike '[[:<:]]вася[[:>:]]';
-select 'zвасяz' rlike '[[:<:]]вася[[:>:]]';
-
-#
 # Bug #4555
 # ALTER TABLE crashes mysqld with enum column collated utf8mb4_unicode_ci
 #

@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -32,6 +39,34 @@
 #define DEB_LCP(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_LCP(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_REL 1
+#ifdef DEBUG_LCP_REL
+#define DEB_LCP_REL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_REL(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_ALLOC 1
+#ifdef DEBUG_LCP_ALLOC
+#define DEB_LCP_ALLOC(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_ALLOC(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_FREE 1
+#ifdef DEBUG_LCP_FREE
+#define DEB_LCP_FREE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_FREE(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_SKIP 1
+#ifdef DEBUG_LCP_SKIP
+#define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP(arglist) do { } while (0)
 #endif
 
 //#define DEBUG_LCP_SCANNED_BIT 1
@@ -115,8 +150,10 @@
 Uint32*
 Dbtup::init_page_map_entry(Fragrecord *regFragPtr, Uint32 logicalPageId)
 {
-  DEB_LCP(("init_page_map_entry(%u,%u)",
+  DEB_LCP(("(%u)init_page_map_entry tab(%u,%u):%u",
           instance(),
+          regFragPtr->fragTableId,
+          regFragPtr->fragmentId,
           logicalPageId));
   DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
   Uint32 *prev_ptr = map.set(2 * logicalPageId + 1);
@@ -138,11 +175,11 @@ Dbtup::init_page_map_entry(Fragrecord *regFragPtr, Uint32 logicalPageId)
     regFragPtr->m_max_page_cnt = logicalPageId + 1;
     if (DBUG_PAGE_MAP)
     {
-      g_eventLogger->info("allocIP: tab(%u,%u), new max: %u, instance: %u",
+      g_eventLogger->info("(%u)allocIP: tab(%u,%u), new max: %u",
+                          instance(),
                           regFragPtr->fragTableId,
                           regFragPtr->fragmentId,
-                          regFragPtr->m_max_page_cnt,
-                          instance());
+                          regFragPtr->m_max_page_cnt);
     }
   }
   (void)insert_free_page_id_list(regFragPtr,
@@ -386,7 +423,7 @@ Dbtup::reset_lcp_scanned_bit(Fragrecord *regFragPtr, Uint32 logicalPageId)
 #ifdef DEBUG_LCP_SCANNED_BIT
   if ((*ptr) & LCP_SCANNED_BIT)
   {
-    g_eventLogger->info("(%u)tab(%u,%u).%u reset_lcp_scanned_bit",
+    g_eventLogger->info("(%u)tab(%u,%u):%u reset_lcp_scanned_bit",
       instance(),
       regFragPtr->fragTableId,
       regFragPtr->fragmentId,
@@ -441,7 +478,7 @@ Dbtup::insert_new_page_into_page_map(EmulatedJamBuffer *jamBuf,
   DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
   Uint32 pageId = regFragPtr->m_max_page_cnt;
   Uint32 *ptr;
-  Uint32 *prev_ptr;
+  Uint32 *prev_ptr = 0;
   if (pageId >= MAX_PAGES_IN_DYN_ARRAY ||
       ((prev_ptr = map.set(2 * pageId + 1)) == 0) ||
       ((ptr = map.set(2 * pageId)) == 0))
@@ -466,11 +503,11 @@ Dbtup::insert_new_page_into_page_map(EmulatedJamBuffer *jamBuf,
   regFragPtr->m_max_page_cnt = pageId + 1;
   if (DBUG_PAGE_MAP)
   {
-    g_eventLogger->info("tab(%u,%u), new maxII: %u for instance: %u",
+    g_eventLogger->info("(%u)tab(%u,%u), new maxII: %u",
+                        instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
-                        regFragPtr->m_max_page_cnt,
-                        instance());
+                        regFragPtr->m_max_page_cnt);
   }
   return pageId;
 }
@@ -494,7 +531,7 @@ Dbtup::remove_first_free_from_page_map(EmulatedJamBuffer *jamBuf,
 #ifdef DEBUG_LCP_SCANNED_BIT
   if (lcp_scanned_bit)
   {
-    g_eventLogger->info("(%u)tab(%u,%u).%u remove_first_free_from_page_map",
+    g_eventLogger->info("(%u)tab(%u,%u):%u remove_first_free_from_page_map",
                         instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
@@ -513,6 +550,11 @@ Dbtup::remove_first_free_from_page_map(EmulatedJamBuffer *jamBuf,
     *nextPrevPtr = FREE_PAGE_RNIL | FREE_PAGE_BIT | last_lcp_free_bit;
   }
   regFragPtr->m_free_page_id_list = next;
+  DEB_LCP_FREE(("(%u)m_free_page_id_list(1), tab(%u,%u):%u",
+                instance(),
+                regFragPtr->fragTableId,
+                regFragPtr->fragmentId,
+                next));
   return pageId;
 }
 
@@ -539,7 +581,7 @@ Dbtup::remove_page_id_from_dll(Fragrecord *fragPtrP,
 #ifdef DEBUG_LCP_SCANNED_BIT
     if (lcp_scanned_bit)
     {
-      g_eventLogger->info("(%u)tab(%u,%u).%u remove_page_id_from_dll",
+      g_eventLogger->info("(%u)tab(%u,%u):%u remove_page_id_from_dll",
                           instance(),
                           fragPtrP->fragTableId,
                           fragPtrP->fragmentId,
@@ -550,15 +592,29 @@ Dbtup::remove_page_id_from_dll(Fragrecord *fragPtrP,
   next &= PAGE_BIT_MASK;
   prev &= PAGE_BIT_MASK;
   if (next == FREE_PAGE_RNIL)
-   {
+  {
     jam();
     // This should be end of list...
     if (prev == FREE_PAGE_RNIL)
     {
       jam();
       /* page_no is both head and tail */
-      ndbrequire(fragPtrP->m_free_page_id_list == page_no);
+      if (fragPtrP->m_free_page_id_list != page_no)
+      {
+        g_eventLogger->info("(%u)m_free_page_id_list = %u,"
+                            " tab(%u,%u):%u",
+                            instance(),
+                            fragPtrP->m_free_page_id_list,
+                            fragPtrP->fragTableId,
+                            fragPtrP->fragmentId,
+                            page_no);
+        ndbrequire(fragPtrP->m_free_page_id_list == page_no);
+      }
       fragPtrP->m_free_page_id_list = FREE_PAGE_RNIL;
+      DEB_LCP_FREE(("(%u)m_free_page_id_list(2), tab(%u,%u):FREE_PAGE_RNIL",
+                     instance(),
+                     fragPtrP->fragTableId,
+                     fragPtrP->fragmentId));
     }
     else
     {
@@ -591,6 +647,11 @@ Dbtup::remove_page_id_from_dll(Fragrecord *fragPtrP,
       /* page_no is head but not tail */
       ndbrequire(fragPtrP->m_free_page_id_list == page_no);
       fragPtrP->m_free_page_id_list = next;
+      DEB_LCP_FREE(("(%u)m_free_page_id_list(3), tab(%u,%u):%u",
+                     instance(),
+                     fragPtrP->fragTableId,
+                     fragPtrP->fragmentId,
+                     next));
     }
     else
     {
@@ -650,11 +711,18 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
          * to do with the page whether to skip or record it as DELETE by
          * PAGEID.
          */
+        /* Coverage tested */
+        DEB_LCP_SKIP(("(%u)LCP_SKIP in tab(%u,%u):%u",
+                       instance(),
+                       fragPtrP->fragTableId,
+                       fragPtrP->fragmentId,
+                       page_no));
         pagePtr.p->set_page_to_skip_lcp();
       }
       else
       {
         jam();
+        /* Coverage tested */
         /**
          * The page had already been handled since it had been dropped
          * after LCP start and is now allocated again still before the
@@ -667,7 +735,7 @@ Dbtup::handle_lcp_skip_bit(EmulatedJamBuffer *jamBuf,
     {
       if (lcp_scanned_bit)
       {
-        g_eventLogger->info("(%u):lcp_scanned_bit crash on tab(%u,%u).%u",
+        g_eventLogger->info("(%u):lcp_scanned_bit crash on tab(%u,%u):%u",
                             instance(),
                             fragPtrP->fragTableId,
                             fragPtrP->fragmentId,
@@ -685,25 +753,29 @@ Dbtup::handle_new_page(EmulatedJamBuffer *jamBuf,
                        PagePtr pagePtr,
                        Uint32 page_no)
 {
+  DEB_LCP_ALLOC(("(%u)allocFragPage: tab(%u,%u) page(%u)",
+                 instance(),
+                 fragPtrP->fragTableId,
+                 fragPtrP->fragmentId,
+                 page_no));
   c_page_pool.getPtr(pagePtr);
   init_page(fragPtrP, pagePtr, page_no);
   handle_lcp_skip_bit(jamBuf, fragPtrP, pagePtr, page_no);
   convertThPage((Fix_page*)pagePtr.p, tabPtrP, MM);
   {
-    LocalDLFifoList<Page, ArrayPool<Page> >
-      free_pages(c_page_pool, fragPtrP->thFreeFirst);
+    LocalDLFifoList<Page_pool> free_pages(c_page_pool, fragPtrP->thFreeFirst);
     pagePtr.p->page_state = ZTH_MM_FREE;
     free_pages.addFirst(pagePtr);
   }
   if (DBUG_PAGE_MAP)
   {
-    g_eventLogger->info("tab(%u,%u) alloc -> (%u %u max: %u), instance: %u",
+    g_eventLogger->info("(%u)tab(%u,%u):%u alloc -> (%u max: %u)",
+                        instance(),
                         fragPtrP->fragTableId,
                         fragPtrP->fragmentId,
                         page_no,
                         pagePtr.i,
-                        fragPtrP->m_max_page_cnt,
-                        instance());
+                        fragPtrP->m_max_page_cnt);
   }
 
   do_check_page_map(fragPtrP);
@@ -735,10 +807,10 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
                                            regFragPtr,
                                            pagePtr,
                                            noOfPagesAllocated);
-    DEB_LCP(("allocFragPage(1): tab(%u,%u), page_id: (%u,%u)",
+    DEB_LCP(("(%u)allocFragPage(1): tab(%u,%u):%u",
+            instance(),
             regFragPtr->fragTableId,
             regFragPtr->fragmentId,
-            instance(),
             pageId));
     if (pageId == RNIL)
     {
@@ -751,10 +823,10 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
   {
     thrjam(jamBuf);
     pageId = remove_first_free_from_page_map(jamBuf, regFragPtr, pagePtr);
-    DEB_LCP(("allocFragPage(2): tab(%u,%u), page_id: (%u,%u)",
+    DEB_LCP(("(%u)allocFragPage(2): tab(%u,%u):%u",
+            instance(),
             regFragPtr->fragTableId,
             regFragPtr->fragmentId,
-            instance(),
             pageId));
   }
   if (DBUG_PAGE_MAP)
@@ -763,14 +835,14 @@ Dbtup::allocFragPage(EmulatedJamBuffer* jamBuf,
     Uint32 *ptr = map.set(2 * pageId);
     ndbrequire(ptr != 0);
     ndbassert((*ptr) != RNIL);
-    g_eventLogger->info("tab(%u,%u) allocRI(%u %u max: %u next: %x),inst:%u",
+    g_eventLogger->info("(%u)tab(%u,%u) allocRI(%u %u max: %u next: %x)",
+                        instance(),
                         regFragPtr->fragTableId,
                         regFragPtr->fragmentId,
                         pageId,
                         pagePtr.i,
                         regFragPtr->m_max_page_cnt,
-                        *ptr,
-                        instance());
+                        *ptr);
   }
   regFragPtr->noOfPages++;
   handle_new_page(jamBuf, regFragPtr, regTabPtr, pagePtr, pageId);
@@ -784,10 +856,10 @@ Dbtup::allocFragPage(Uint32 * err,
   PagePtr pagePtr;
   ndbrequire(page_no < MAX_PAGES_IN_DYN_ARRAY);
   DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
-  DEB_LCP(("allocFragPage(3): tab(%u,%u), page_id: (%u,%u)",
+  DEB_LCP(("(%u)allocFragPage(3): tab(%u,%u):%u",
+          instance(),
           fragPtrP->fragTableId,
           fragPtrP->fragmentId,
-          instance(),
           page_no));
   Uint32 *prev_ptr = map.set(2 * page_no + 1);
   if (unlikely(prev_ptr == 0))
@@ -850,14 +922,14 @@ Dbtup::allocFragPage(Uint32 * err,
   }
   if (DBUG_PAGE_MAP)
   {
-    g_eventLogger->info("tab(%u,%u) alloc(%u %u max: %u next: %x), inst:%u",
+    g_eventLogger->info("(%u)tab(%u,%u):%u alloc(%u max: %u next: %x)",
+                        instance(),
                         fragPtrP->fragTableId,
                         fragPtrP->fragmentId,
                         page_no,
                         pagePtr.i,
                         fragPtrP->m_max_page_cnt,
-                        *ptr,
-                        instance());
+                        *ptr);
   }
   Uint32 max = fragPtrP->m_max_page_cnt;
   fragPtrP->noOfPages++;
@@ -868,11 +940,11 @@ Dbtup::allocFragPage(Uint32 * err,
     fragPtrP->m_max_page_cnt = page_no + 1;
     if (DBUG_PAGE_MAP)
     {
-      g_eventLogger->info("tab(%u,%u) new max: %u, instance: %u",
+      g_eventLogger->info("(%u)tab(%u,%u) new max: %u",
+                          instance(),
                           fragPtrP->fragTableId,
                           fragPtrP->fragmentId,
-                          fragPtrP->m_max_page_cnt,
-                          instance());
+                          fragPtrP->m_max_page_cnt);
     }
   }
   handle_new_page(jamBuffer(), fragPtrP, tabPtrP, pagePtr, page_no);
@@ -889,16 +961,16 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
    * We optimise on that DynArr256 always will have the pair on the
    * same 256 byte page. Thus they lie consecutive to each other.
    */
-  DEB_LCP(("releaseFragPage: tab(%u,%u), pid: %u",
-          fragPtrP->fragTableId,
-          fragPtrP->fragmentId,
-          logicalPageId));
+  DEB_LCP_REL(("(%u)releaseFragPage: tab(%u,%u) page(%u)",
+               instance(),
+               fragPtrP->fragTableId,
+               fragPtrP->fragmentId,
+               logicalPageId));
   Uint32 *next = map.set(2 * logicalPageId);
   Uint32 *prev = map.set(2 * logicalPageId + 1);
   ndbrequire(next != 0 && prev != 0);
   ndbassert(((*prev) & FREE_PAGE_BIT) == FREE_PAGE_BIT);
 
-  bool all_part = true;
   bool page_freed = false;
   Uint32 lcp_scanned_bit = (*next) & LCP_SCANNED_BIT;
   Uint32 last_lcp_state = (*prev) & LAST_LCP_FREE_BIT;
@@ -910,7 +982,10 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
      * We use the method is_rowid_in_remaining_lcp_set. We set the
      * key to the page and beyond the last row in the page. This means
      * that if the page is not fully scanned yet we will set the
-     * LCP_SCANNED_BIT. Otherwise we will ignore it.
+     * LCP_SCANNED_BIT, in this case we might have already handled
+     * some of the rows, so there is a small probability that we will
+     * duplicate some DELETE BY ROWID, but it should only have a minor
+     * performance impact. Otherwise we will ignore it.
      */
     ScanOpPtr scanOp;
     Local_key key;
@@ -920,7 +995,8 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
     if (is_rowid_in_remaining_lcp_set(pagePtr.p,
                                       key,
                                       *scanOp.p,
-                                      1 /* Debug for LCP scanned bit */))
+                                      1 /* Debug for LCP scanned bit */) ||
+        pagePtr.p->is_page_to_skip_lcp())
     {
       jam();
       lcp_to_scan = true;
@@ -933,6 +1009,17 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
          * now before we release the page and record the needed
          * information. Also we haven't already dropped the page
          * already before in this LCP scan.
+         *
+         * is_rowid_in_remaining_lcp_set is normally false when
+         * is_page_to_skip_lcp is true. The problem however is that
+         * this is a state on the page, and the page is being dropped,
+         * so in this case we need to ensure that the page is not
+         * containing any row at restore. We ensure this by using
+         * a DELETE BY PAGEID in this case. We also flag that the
+         * page have been scanned for LCP in the page map. It is
+         * possible to arrive here after allocate, drop, allocate
+         * and drop again. In this case the LCP scanned bit will
+         * still be set and we can ignore the page.
          *
          * We will release the page during handle_lcp_drop_change
          * to ensure that we are certain to get the space we
@@ -955,8 +1042,24 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
          *
          * No need to clear the page to skip lcp flag here since the
          * page is dropped immediately following this.
+         *
+         * If last page state was D the page will be empty at the
+         * previous LCP, so this means that there is no need to
+         * delete rows that won't be there. There is not really any
+         * problem in performing deletes in this case, but it would
+         * cause unnecessary work. The rows that was present in the
+         * page at start of LCP have already been handled through
+         * LCP keep list.
+         *
+         * If last state was A there was a set of rows installed by
+         * the previous LCP, some of those rows will remain if we
+         * don't ensure that they are removed. So in this case we
+         * remove all rows on the page that hasn't got the LCP_SKIP
+         * flag set. Those rows with this flag set have been handled
+         * by the LCP keep list before arriving here.
          */
-        DEB_LCP_SCANNED_BIT(("(%u) Set lcp_scanned_bit on tab(%u,%u).%u",
+        bool is_change_part = c_backup->is_change_part_state(logicalPageId);
+        DEB_LCP_SCANNED_BIT(("(%u)Set lcp_scanned_bit on tab(%u,%u):%u",
                              instance(),
                              fragPtrP->fragTableId,
                              fragPtrP->fragmentId,
@@ -964,9 +1067,20 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
         lcp_scanned_bit = LCP_SCANNED_BIT;
         Uint32 new_last_lcp_state = pagePtr.p->is_page_to_skip_lcp() ?
                                     LAST_LCP_FREE_BIT : 0;
-        if (!all_part && (last_lcp_state == 0))
+        if (is_change_part && (last_lcp_state == 0))
         {
+          /**
+           * Page is a change page and last LCP state was A.
+           * We set page_freed to true, the reason is that we're
+           * "stealing" the page to be deleted for use by the
+           * LCP keep free list. This removes any possibility that
+           * we will run out of memory for this operation.
+           *
+           * The page is removed later when the LCP keep list operation
+           * is completed.
+           */
           jam();
+          /* Coverage tested */
           c_page_pool.getPtr(pagePtr);
           bool delete_by_pageid = pagePtr.p->is_page_to_skip_lcp();
           page_freed = true;
@@ -976,15 +1090,41 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
                                       pagePtr,
                                       delete_by_pageid);
         }
+        else
+        {
+          /* Coverage tested */
+          DEB_LCP_REL(("(%u) change_part: %u, last_lcp_state: %u "
+                    "in tab(%u,%u) page(%u)",
+                   instance(),
+                   is_change_part,
+                   last_lcp_state,
+                   fragPtrP->fragTableId,
+                   fragPtrP->fragmentId,
+                   logicalPageId));
+        }
         last_lcp_state = new_last_lcp_state;
       }
+      else
+      {
+        DEB_LCP_REL(("(%u)lcp_scanned_bit already set when page released"
+                     "in tab(%u,%u) page(%u)",
+                     instance(),
+                     fragPtrP->fragTableId,
+                     fragPtrP->fragmentId,
+                     logicalPageId));
+        /* ndbassert(false); COVERAGE TEST */
+      }
+    }
+    else
+    {
+      /* ndbassert(pagePtr.p->is_page_to_skip_lcp()); COVERAGE TEST */
     }
   }
   if (!lcp_to_scan)
   {
     if (unlikely(lcp_scanned_bit != 0))
     {
-      g_eventLogger->info("(%u),tab(%u,%u).%u crash lcp_scanned_bit set",
+      g_eventLogger->info("(%u)tab(%u,%u):%u crash lcp_scanned_bit set",
                           instance(),
                           fragPtrP->fragTableId,
                           fragPtrP->fragmentId,
@@ -1001,7 +1141,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
 #ifdef DEBUG_LCP_SCANNED_BIT
   if (lcp_scanned_bit)
   {
-    g_eventLogger->info("(%u)tab(%u,%u).%u set lcp_scanned_bit",
+    g_eventLogger->info("(%u)tab(%u,%u):%u set lcp_scanned_bit",
                         instance(),
                         fragPtrP->fragTableId,
                         fragPtrP->fragmentId,
@@ -1019,7 +1159,8 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   fragPtrP->noOfPages--;
   if (DBUG_PAGE_MAP)
   {
-    g_eventLogger->info("tab(%u,%u) release(%u %u)@%s",
+    g_eventLogger->info("(%u)tab(%u,%u):%u release(%u)@%s",
+                        instance(),
                         fragPtrP->fragTableId,
                         fragPtrP->fragmentId,
                         logicalPageId,
@@ -1049,6 +1190,11 @@ Dbtup::insert_free_page_id_list(Fragrecord *fragPtrP,
     *next = FREE_PAGE_RNIL | FREE_PAGE_BIT | lcp_scanned_bit;
     *prev = FREE_PAGE_RNIL | FREE_PAGE_BIT | last_lcp_state;
     fragPtrP->m_free_page_id_list = logicalPageId;
+    DEB_LCP_FREE(("(%u)m_free_page_id_list(4), tab(%u,%u):%u",
+                  instance(),
+                  fragPtrP->fragTableId,
+                  fragPtrP->fragmentId,
+                  logicalPageId));
     where = (const char*)"empty";
   }
   else
@@ -1057,6 +1203,11 @@ Dbtup::insert_free_page_id_list(Fragrecord *fragPtrP,
     *next = list | FREE_PAGE_BIT | lcp_scanned_bit;
     *prev = FREE_PAGE_RNIL | FREE_PAGE_BIT | last_lcp_state;
     fragPtrP->m_free_page_id_list = logicalPageId;
+    DEB_LCP_FREE(("(%u)m_free_page_id_list(5), tab(%u,%u):%u",
+                  instance(),
+                  fragPtrP->fragTableId,
+                  fragPtrP->fragmentId,
+                  logicalPageId));
     Uint32 *nextPrevPtr = map.set(2 * list + 1);
     ndbrequire(nextPrevPtr != 0);
     ndbassert((*nextPrevPtr) != RNIL);
@@ -1135,13 +1286,19 @@ Dbtup::rebuild_page_free_list(Signal* signal)
    * we need to have a well defined state of LAST_LCP_FREE.
    * Later allocations of new page ids are always assumed to not be part
    * of the last LCP.
+   *
+   * Using Partial LCP the restore process can call releaseFragPage.
+   * In this case *nextPtr isn't equal to RNIL, but FREE_PAGE_BIT of
+   * *nextPagePtr is set instead. So need to check for either of those
+   * two events.
    */
-  if (*nextPtr == RNIL)
+  if (*nextPtr == RNIL || ((((*nextPtr) & FREE_PAGE_BIT) != 0)))
   {
     jam();
     /**
      * An unallocated page id...put in free list
      */
+
 #if DBUG_PAGE_MAP
     const char * where;
 #endif
@@ -1150,6 +1307,11 @@ Dbtup::rebuild_page_free_list(Signal* signal)
       jam();
       ndbrequire(fragPtr.p->m_free_page_id_list == FREE_PAGE_RNIL);
       fragPtr.p->m_free_page_id_list = pageId;
+      DEB_LCP_FREE(("(%u)m_free_page_id_list(6), tab(%u,%u):%u",
+                    instance(),
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    pageId));
       *nextPtr = FREE_PAGE_RNIL | FREE_PAGE_BIT;
       *prevPtr = FREE_PAGE_RNIL | FREE_PAGE_BIT | LAST_LCP_FREE_BIT;
 #if DBUG_PAGE_MAP
@@ -1171,10 +1333,16 @@ Dbtup::rebuild_page_free_list(Signal* signal)
 #if DBUG_PAGE_MAP
       where = "tail";
 #endif
+      DEB_LCP_FREE(("(%u)tab(%u,%u):%u into free page id list",
+                    instance(),
+                    fragPtr.p->fragTableId,
+                    fragPtr.p->fragmentId,
+                    pageId));
     }
     tail = pageId;
 #if DBUG_PAGE_MAP
-    g_eventLogger->info("(tab(%u,%u) adding page %u to free list @ %s",
+    g_eventLogger->info("(%u)tab(%u,%u):%u adding page to free list @ %s",
+                        instance(),
                         fragPtr.p->fragTableId,
                         fragPtr.p->fragmentId,
                         pageId,
@@ -1185,6 +1353,13 @@ Dbtup::rebuild_page_free_list(Signal* signal)
   {
     jam();
     /* Clear LAST_LCP_FREE_BIT and set FREE_PAGE_BIT */
+    DEB_LCP_FREE(("(%u)tab(%u,%u):%u, next: %x, prev: %x",
+                   instance(),
+                   fragPtr.p->fragTableId,
+                   fragPtr.p->fragmentId,
+                   pageId,
+                   *nextPtr,
+                   *prevPtr));
     *prevPtr = (*prevPtr) & PAGE_BIT_MASK;
     *prevPtr = (*prevPtr) | FREE_PAGE_BIT;
   }

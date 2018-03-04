@@ -1,13 +1,20 @@
 /* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -24,13 +31,13 @@
 
 #include "my_dbug.h"
 #include "my_thread.h"
-#include "pfs_buffer_container.h"
-#include "pfs_column_types.h"
-#include "pfs_column_values.h"
-#include "pfs_global.h"
-#include "pfs_instr_class.h"
-#include "pfs_visitor.h"
 #include "sql/field.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs_column_values.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_visitor.h"
 
 THR_LOCK table_ews_by_thread_by_event_name::m_table_lock;
 
@@ -90,6 +97,8 @@ table_ews_by_thread_by_event_name::get_row_count(void)
 table_ews_by_thread_by_event_name::table_ews_by_thread_by_event_name()
   : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
 {
+  // For all cases except IDLE
+  m_normalizer = time_normalizer::get_wait();
 }
 
 bool
@@ -333,6 +342,7 @@ int
 table_ews_by_thread_by_event_name::make_row(PFS_thread *thread,
                                             PFS_instr_class *klass)
 {
+  time_normalizer *normalizer = m_normalizer;
   pfs_optimistic_state lock;
 
   /* Protect this reader against a thread termination */
@@ -363,8 +373,12 @@ table_ews_by_thread_by_event_name::make_row(PFS_thread *thread,
     return HA_ERR_RECORD_DELETED;
   }
 
-  get_normalizer(klass);
-  m_row.m_stat.set(m_normalizer, &visitor.m_stat);
+  if (klass->m_type == PFS_CLASS_IDLE)
+  {
+    normalizer = time_normalizer::get_idle();
+  }
+
+  m_row.m_stat.set(normalizer, &visitor.m_stat);
 
   return 0;
 }

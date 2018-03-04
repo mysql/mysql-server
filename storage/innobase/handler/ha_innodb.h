@@ -3,16 +3,24 @@
 Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -243,12 +251,12 @@ public:
 
 	/** Get storage-engine private data for a data dictionary table.
 	@param[in,out]	dd_table	data dictionary table definition
-	@param[in]	dd_version	data dictionary version
+	@param		reset		reset counters
 	@retval		true		an error occurred
 	@retval		false		success */
 	bool get_se_private_data(
 		dd::Table*	dd_table,
-		uint		dd_version);
+		bool		reset);
 
 	/** Add hidden columns and indexes to an InnoDB table definition.
 	@param[in,out]	dd_table	data dictionary cache object
@@ -725,15 +733,6 @@ trx_t*
 innobase_trx_allocate(
 	MYSQL_THD	thd);	/*!< in: user thread handle */
 
-/** Gets the InnoDB transaction handle for a MySQL handler object, creates
-an InnoDB transaction struct if the corresponding MySQL thread struct still
-lacks one.
-@param[in]	thd	MySQL thd (connection) object
-@return InnoDB transaction handle */
-trx_t*
-check_trx_exists(
-	THD*	thd);
-
 /** Match index columns between MySQL and InnoDB.
 This function checks whether the index column information
 is consistent between KEY info from mysql and that from innodb index.
@@ -838,7 +837,9 @@ public:
 		char*		remote_path,
 		char*		tablespace,
 		bool		file_per_table,
-		bool		skip_strict)
+		bool		skip_strict,
+		ulint		old_flags,
+		ulint		old_flags2)
 	:m_thd(thd),
 	m_trx(thd_to_trx(thd)),
 	m_form(form),
@@ -847,6 +848,8 @@ public:
 	m_remote_path(remote_path),
 	m_tablespace(tablespace),
 	m_innodb_file_per_table(file_per_table),
+	m_flags(old_flags),
+	m_flags2(old_flags2),
 	m_skip_strict(skip_strict)
 	{}
 
@@ -908,6 +911,14 @@ public:
 	ulint flags2() const
 	{ return(m_flags2); }
 
+	/** Reset table flags. */
+	void flags_reset()
+	{ m_flags = 0; }
+
+	/** Reset table flags2. */
+	void flags2_reset()
+	{ m_flags2 = 0; }
+
 	/** whether to skip strict check. */
 	bool skip_strict() const
 	{ return(m_skip_strict); }
@@ -925,6 +936,13 @@ public:
 		ut_ad(!(m_flags2 & DICT_TF2_INTRINSIC)
 		      || (m_flags2 & DICT_TF2_TEMPORARY));
 		return((m_flags2 & DICT_TF2_INTRINSIC) != 0);
+	}
+
+	/** @return true only if table is temporary and not intrinsic */
+	inline bool is_temp_table() const
+	{
+		return(((m_flags2 & DICT_TF2_TEMPORARY) != 0)
+		       && ((m_flags & DICT_TF2_INTRINSIC) == 0));
 	}
 
 	/** Prevent the created table to be evicted from cache, also all
@@ -1040,6 +1058,8 @@ public:
 					dict_table_t to be kept in memory
 	@param[in]	skip_strict	whether to skip strict check for create
 					option
+	@param[in]	old_flags	old Table flags
+	@param[in]	old_flags2	old Table flags2
 	@return	error number
 	@retval	0 on success */
 	template<typename Table>
@@ -1051,7 +1071,9 @@ public:
 		Table*		dd_tab,
 		bool		file_per_table,
 		bool		evictable,
-		bool		skip_strict);
+		bool		skip_strict,
+		ulint		old_flags,
+		ulint		old_flags2);
 
 	/** Drop an InnoDB table.
 	@tparam		Table		dd::Table or dd::Partition
@@ -1207,12 +1229,6 @@ by InnoDB.
 page_cur_mode_t
 convert_search_mode_to_innobase(
 	enum ha_rkey_function	find_flag);
-
-/** Commits a transaction in an InnoDB database.
-@param[in]	trx	Transaction handle. */
-void
-innobase_commit_low(
-	trx_t*	trx);
 
 extern bool	innobase_stats_on_metadata;
 

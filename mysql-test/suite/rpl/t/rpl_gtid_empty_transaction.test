@@ -91,8 +91,8 @@ ALTER TABLE t_ignore_wild ADD COLUMN b INT;
 INSERT INTO t_ignore_wild VALUES (1, 2);
 DROP TEMPORARY TABLE t_ignore_wild;
 
-# Verify that 8 GTIDs were generated.
---let $gtid_step_count= 8
+# Verify that 0 GTIDs were generated.
+--let $gtid_step_count= 0
 --source include/gtid_step_assert.inc
 
 # Verify that the GTIDs make it to every slave.
@@ -181,8 +181,8 @@ CREATE TEMPORARY TABLE t2 (a INT);
 ALTER TABLE t2 ADD COLUMN b INT;
 INSERT INTO t2 VALUES (1, 2);
 
-# assert exactly 3 GTIDs were generated
---let $gtid_step_count= 3
+# assert exactly 0 GTIDs were generated
+--let $gtid_step_count= 0
 --source include/gtid_step_assert.inc
 
 # Verify that the GTID gets replicated everywhere.

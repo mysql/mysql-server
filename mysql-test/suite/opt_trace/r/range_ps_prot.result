@@ -5237,10 +5237,10 @@ INDEX v_idx (v,i1)
 INSERT INTO t1 VALUES (1, 1, 9,'a'), (2, 2, 8,'b'), (3, 3, 7,'c'),
 (4, 4, 6,'d'), (5, 5, 5,'e');
 
-# Covering ROR intersect not chosen: only one scan used
+# Covering ROR intersect not chosen: Index with more keyparts found.
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,i1_idx,v_idx	i1_idx	5	const	1	20.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	range	PRIMARY,i1_idx,v_idx	v_idx	16	NULL	1	100.00	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
@@ -5457,16 +5457,14 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     {
                       "access_type": "ref",
                       "index": "i1_idx",
-                      "rows": 1,
-                      "cost": 0.35,
-                      "chosen": true
+                      "chosen": false,
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "access_type": "ref",
                       "index": "v_idx",
-                      "rows": 1,
-                      "cost": 0.35,
-                      "chosen": false
+                      "chosen": false,
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 1,
@@ -5479,13 +5477,13 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       } /* range_details */,
                       "resulting_rows": 1,
                       "cost": 0.46,
-                      "chosen": false
+                      "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 20,
-                "rows_for_plan": 0.2,
-                "cost_for_plan": 0.35,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1,
+                "cost_for_plan": 0.46,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -5498,7 +5496,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3))"
+                  "attached": "((`t1`.`v` = 'a') and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -5506,9 +5504,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "pushed_index_condition": "(`t1`.`pk` < 3)",
-                "table_condition_attached": "(`t1`.`v` = 'a')"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -5524,29 +5520,24 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
     }
   ] /* steps */
 }	0	0
-DROP INDEX i1_idx ON t1;
-CREATE INDEX i1_i2_idx ON t1 (i2,i1);
-ANALYZE TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 
-# Covering ROR intersect not chosen: cost
-EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3;
+# Chooses ROR intersect
+EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND pk < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,v_idx,i1_i2_idx	v_idx	12	const,const	1	20.00	Using index condition; Using where
+1	SIMPLE	t1	NULL	index_merge	PRIMARY,i1_idx	i1_idx,PRIMARY	9,4	NULL	1	100.00	Using intersect(i1_idx,PRIMARY); Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`v` = 'a') and (`test`.`t1`.`i2` = 1) and (`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
+Note	1003	/* select#1 */ select `test`.`t1`.`v` AS `v` from `test`.`t1` where ((`test`.`t1`.`i1` = 1) and (`test`.`t1`.`pk` < 3))
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
+EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND pk < 3	{
   "steps": [
     {
       "join_preparation": {
         "select#": 1,
         "steps": [
           {
-            "expanded_query": "/* select#1 */ select `t1`.`v` AS `v` from `t1` where ((`t1`.`i1` = 1) and (`t1`.`i2` = 1) and (`t1`.`v` = 'a') and (`t1`.`pk` < 3))"
+            "expanded_query": "/* select#1 */ select `t1`.`v` AS `v` from `t1` where ((`t1`.`i1` = 1) and (`t1`.`pk` < 3))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -5558,19 +5549,19 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "((`t1`.`i1` = 1) and (`t1`.`i2` = 1) and (`t1`.`v` = 'a') and (`t1`.`pk` < 3))",
+              "original_condition": "((`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
                 },
                 {
                   "transformation": "constant_propagation",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
-                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`) and multiple equal(1, `t1`.`i2`) and multiple equal('a', `t1`.`v`))"
+                  "resulting_condition": "((`t1`.`pk` < 3) and multiple equal(1, `t1`.`i1`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -5592,24 +5583,6 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
           },
           {
             "ref_optimizer_key_uses": [
-              {
-                "table": "`t1`",
-                "field": "v",
-                "equals": "'a'",
-                "null_rejecting": false
-              },
-              {
-                "table": "`t1`",
-                "field": "i1",
-                "equals": "1",
-                "null_rejecting": false
-              },
-              {
-                "table": "`t1`",
-                "field": "i2",
-                "equals": "1",
-                "null_rejecting": false
-              },
               {
                 "table": "`t1`",
                 "field": "i1",
@@ -5636,24 +5609,24 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       ] /* key_parts */
                     },
                     {
-                      "index": "v_idx",
+                      "index": "i1_idx",
                       "usable": true,
                       "key_parts": [
-                        "v",
                         "i1",
                         "pk"
                       ] /* key_parts */
                     },
                     {
-                      "index": "i1_i2_idx",
-                      "usable": true,
-                      "key_parts": [
-                        "i2",
-                        "i1",
-                        "pk"
-                      ] /* key_parts */
+                      "index": "v_idx",
+                      "usable": false,
+                      "cause": "not_applicable"
                     }
                   ] /* potential_range_indexes */,
+                  "best_covering_index_scan": {
+                    "index": "v_idx",
+                    "cost": 0.7519,
+                    "chosen": true
+                  } /* best_covering_index_scan */,
                   "setup_range_conditions": [
                   ] /* setup_range_conditions */,
                   "group_index_range": {
@@ -5676,9 +5649,9 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                         "chosen": true
                       },
                       {
-                        "index": "v_idx",
+                        "index": "i1_idx",
                         "ranges": [
-                          "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
+                          "1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5687,26 +5660,12 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                         "rows": 1,
                         "cost": 0.61,
                         "chosen": true
-                      },
-                      {
-                        "index": "i1_i2_idx",
-                        "ranges": [
-                          "1 <= i2 <= 1 AND 1 <= i1 <= 1 AND pk < 3"
-                        ] /* ranges */,
-                        "index_dives_for_eq_ranges": true,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
-                        "index_only": false,
-                        "rows": 1,
-                        "cost": 0.61,
-                        "chosen": false,
-                        "cause": "cost"
                       }
                     ] /* range_scan_alternatives */,
                     "analyzing_roworder_intersect": {
                       "intersecting_indexes": [
                         {
-                          "index": "v_idx",
+                          "index": "i1_idx",
                           "index_scan_cost": 0.25,
                           "cumulated_index_scan_cost": 0.25,
                           "disk_sweep_cost": 0.25,
@@ -5715,18 +5674,6 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                           "matching_rows_now": 1,
                           "isect_covering_with_this_index": false,
                           "chosen": true
-                        },
-                        {
-                          "index": "i1_i2_idx",
-                          "index_scan_cost": 0.25,
-                          "cumulated_index_scan_cost": 0.5,
-                          "disk_sweep_cost": 0,
-                          "cumulated_total_cost": 0.5,
-                          "usable": true,
-                          "matching_rows_now": 0.2,
-                          "isect_covering_with_this_index": true,
-                          "chosen": false,
-                          "cause": "does_not_reduce_cost"
                         }
                       ] /* intersecting_indexes */,
                       "clustered_pk": {
@@ -5752,10 +5699,10 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       "intersect_of": [
                         {
                           "type": "range_scan",
-                          "index": "v_idx",
+                          "index": "i1_idx",
                           "rows": 1,
                           "ranges": [
-                            "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
+                            "1 <= i1 <= 1 AND pk < 3"
                           ] /* ranges */
                         }
                       ] /* intersect_of */
@@ -5778,49 +5725,41 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                   "considered_access_paths": [
                     {
                       "access_type": "ref",
-                      "index": "v_idx",
-                      "rows": 1,
-                      "cost": 0.35,
-                      "chosen": true
-                    },
-                    {
-                      "access_type": "ref",
-                      "index": "i1_i2_idx",
-                      "rows": 1,
-                      "cost": 0.35,
-                      "chosen": false
+                      "index": "i1_idx",
+                      "chosen": false,
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 1,
                       "filtering_effect": [
                       ] /* filtering_effect */,
-                      "final_filtering_effect": 0.2,
+                      "final_filtering_effect": 1,
                       "access_type": "range",
                       "range_details": {
-                        "used_index": "intersect(v_idx,PRIMARY)"
+                        "used_index": "intersect(i1_idx,PRIMARY)"
                       } /* range_details */,
-                      "resulting_rows": 0.2,
+                      "resulting_rows": 1,
                       "cost": 0.4,
-                      "chosen": false
+                      "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "condition_filtering_pct": 20,
-                "rows_for_plan": 0.2,
-                "cost_for_plan": 0.35,
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 1,
+                "cost_for_plan": 0.4,
                 "chosen": true
               }
             ] /* considered_execution_plans */
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`v` = 'a') and (`t1`.`i2` = 1) and (`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
+              "original_condition": "((`t1`.`i1` = 1) and (`t1`.`pk` < 3))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`i2` = 1) and (`t1`.`pk` < 3))"
+                  "attached": "((`t1`.`i1` = 1) and (`t1`.`pk` < 3))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -5828,9 +5767,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "pushed_index_condition": "(`t1`.`pk` < 3)",
-                "table_condition_attached": "(`t1`.`i2` = 1)"
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -6057,7 +5994,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       "access_type": "ref",
                       "index": "PRIMARY",
                       "chosen": false,
-                      "cause": "unreliable_ref_cost_and_range_uses_more_keyparts"
+                      "cause": "range_uses_more_keyparts"
                     },
                     {
                       "rows_to_scan": 2,

@@ -26,12 +26,17 @@ drop table t1;
 
 create table t1 (xxx char(128));
 insert into t1 (xxx) values('this is some text: to test - out.reg exp (22/45)');
+--error ER_REGEXP_MISSING_CLOSE_BRACKET
 select * from t1 where xxx REGEXP '^this is some text: to test - out\\.reg exp [[(][0-9]+[/\\][0-9]+[])][ ]*$';
 drop table t1;
 
 #
 # Check with different character sets and collations
 #
+--echo # The Henry Spencer library used prior to ICU was inonsistent
+--echo # here. When the regular expression search is performed in a
+--echo # case-insensitive manner, both '[[:lower:]]' and '[[:upper:]]'
+--echo # will match.
 select _latin1 0xFF regexp _latin1 '[[:lower:]]' COLLATE latin1_bin;
 select _koi8r  0xFF regexp _koi8r  '[[:lower:]]' COLLATE koi8r_bin;
 select _latin1 0xFF regexp _latin1 '[[:upper:]]' COLLATE latin1_bin;
@@ -121,6 +126,6 @@ DO 1 regexp (multilinestring(point(1,1)));
 --echo #
 
 --disable_result_log
---error ER_STACK_OVERRUN_NEED_MORE
+--error ER_REGEXP_INTERNAL_ERROR
 SELECT '1' RLIKE RPAD('1', 10000, '(');
 --enable_result_log

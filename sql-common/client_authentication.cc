@@ -1,17 +1,29 @@
 /* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -33,6 +45,10 @@
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
+#if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
+#include <openssl/applink.c>
+#endif
+
 #else
 #include <openssl/ssl.h>
 using yaSSL::PEM_read_RSAPrivateKey;
@@ -63,6 +79,7 @@ int sha256_password_init(char *, size_t, int, va_list)
 
 int sha256_password_deinit(void)
 {
+  mysql_reset_server_public_key();
   mysql_mutex_destroy(&g_public_key_mutex);
   return 0;
 }
@@ -76,9 +93,10 @@ int sha256_password_deinit(void)
   @return Pointer to the RSA public key storage buffer
 */
 
+static RSA *g_public_key= NULL;
+
 static RSA *rsa_init(MYSQL *mysql)
 {
-  static RSA *g_public_key= NULL;
   RSA *key= NULL;
 
   mysql_mutex_lock(&g_public_key_mutex);
@@ -519,6 +537,18 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   }
 
   DBUG_RETURN(CR_OK);
+}
+
+void STDCALL
+mysql_reset_server_public_key(void)
+{
+  DBUG_ENTER("mysql_reset_server_public_key");
+  mysql_mutex_lock(&g_public_key_mutex);
+  if (g_public_key)
+    RSA_free(g_public_key);
+  g_public_key= NULL;
+  mysql_mutex_unlock(&g_public_key_mutex);
+  DBUG_VOID_RETURN;
 }
 
 #endif

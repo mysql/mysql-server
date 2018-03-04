@@ -1,18 +1,26 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017 Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -24,6 +32,7 @@ Created  10/2016 Jimmy Yamg
 *******************************************************/
 
 #include "sql_table.h"
+#ifndef UNIV_HOTBACKUP
 #include "dict0crea.h"
 #include "sql_base.h"
 #include "field.h"
@@ -59,20 +68,21 @@ dd_get_space_id(const dd::Partition& partition)
 	return(id);
 }
 
-/** partition name separator */
-extern const char*	part_sep;
+#ifdef DBUG_OFF
+#define	path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l))
+#else
+#define	path_to_tablename(t, n, l, f) filename_to_tablename((t), (n), (l), (f))
+#endif /* DBUG_OFF */
 
-/** sub-partition name separator */
-extern const char*	sub_sep;
-
-/** Parse a table file name into table name and database name
+/** Parse a table file name into table name and database name.
+Note the table name may have trailing TMP_POSTFIX for temporary table name.
 @param[in]	tbl_name	table name including database and table name
 @param[in,out]	dd_db_name	database name buffer to be filled
 @param[in,out]	dd_tbl_name	table name buffer to be filled
 @param[in,out]	dd_part_name	partition name to be filled if not nullptr
 @param[in,out]	dd_sub_name	sub-partition name to be filled if not nullptr
-@param[in,out]	is_temp_part	true if it is a temporary partition name which
-				ends with "#tmp".
+@param[in,out]	is_temp		true if it is a temporary table name which
+				ends with TMP_POSTFIX.
 @return true if table name is parsed properly, false if the table name
 is invalid */
 inline
@@ -83,14 +93,11 @@ dd_parse_tbl_name(
 	char*		dd_tbl_name,
 	char*		dd_part_name,
 	char*		dd_sub_name,
-	bool*		is_temp_part)
+	bool*		is_temp)
 {
 	char	db_buf[MAX_DATABASE_NAME_LEN + 1];
 	char	tbl_buf[MAX_TABLE_NAME_LEN + 1];
 	ulint	db_len = dict_get_db_name_len(tbl_name);
-	char*	is_part;
-	char*	is_sub;
-	char*	trailing_sharp;
 
 	if (db_len == 0) {
 		return(false);
@@ -99,58 +106,68 @@ dd_parse_tbl_name(
 	ut_ad(db_len <= MAX_DATABASE_NAME_LEN);
 	memcpy(db_buf, tbl_name, db_len);
 	db_buf[db_len] = 0;
-	memcpy(tbl_buf, tbl_name + db_len + 1,
-	       strlen(tbl_name) - db_len - 1);
-	tbl_buf[strlen(tbl_name) - db_len - 1] = 0;
 
-	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1
-#ifndef DBUG_OFF
-			      , true
-#endif /* DBUG_OFF */
-	);
+	size_t	tbl_len = strlen(tbl_name) - db_len - 1;
 
-	is_part = strstr(tbl_buf, part_sep);
+	memcpy(tbl_buf, tbl_name + db_len + 1, tbl_len);
+	tbl_buf[tbl_len] = 0;
+
+	filename_to_tablename(db_buf, dd_db_name, MAX_DATABASE_NAME_LEN + 1,
+			      true);
+
+	auto	is_part = strstr(tbl_buf, PART_SEPARATOR);
 
 	if (is_part != nullptr) {
 		*is_part = '\0';
+	} else {
+		if (tbl_len > TMP_POSTFIX_LEN
+		    && strcmp(tbl_buf + tbl_len - TMP_POSTFIX_LEN,
+			      TMP_POSTFIX) == 0) {
+			tbl_buf[tbl_len - TMP_POSTFIX_LEN] = '\0';
+			if (is_temp != nullptr) {
+				*is_temp = true;
+			}
+		}
 	}
 
-	filename_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1
-#ifndef DBUG_OFF
-			      , true
-#endif /* DBUG_OFF */
-	);
+	path_to_tablename(tbl_buf, dd_tbl_name, MAX_TABLE_NAME_LEN + 1, true);
 
 	if (is_part == nullptr || dd_part_name == nullptr) {
 		return(true);
 	}
 
-	is_sub = strstr(is_part + strlen(part_sep), sub_sep);
+	auto	is_sub = strstr(
+		is_part + PART_SEPARATOR_LEN, SUB_PART_SEPARATOR);
+
+	char*	trailing_sharp;
 
 	if (is_sub == nullptr) {
-		trailing_sharp = strchr(is_part + strlen(part_sep), '#');
+		trailing_sharp = strchr(is_part + PART_SEPARATOR_LEN, '#');
 	} else {
 		*is_sub = '\0';
-		trailing_sharp = strchr(is_sub + strlen(sub_sep), '#');
+		trailing_sharp = strchr(is_sub + SUB_PART_SEPARATOR_LEN, '#');
 	}
 
 	if (trailing_sharp != nullptr) {
-		ut_ad(strcmp(trailing_sharp, "#tmp") == 0);
+		ut_ad(strcmp(trailing_sharp, TMP_POSTFIX) == 0);
 		*trailing_sharp = '\0';
 
-		if (is_temp_part != nullptr) {
-			*is_temp_part = true;
+		if (is_temp != nullptr) {
+			*is_temp = true;
 		}
 	}
 
-	if (is_part && dd_part_name) {
-		filename_to_tablename(is_part + strlen(part_sep), dd_part_name,
-				      MAX_TABLE_NAME_LEN + 1);
+	if (is_part != nullptr && dd_part_name != nullptr ) {
 
-		if (is_sub && dd_sub_name) {
+		filename_to_tablename(
+			is_part + PART_SEPARATOR_LEN,
+			dd_part_name, MAX_TABLE_NAME_LEN + 1);
+
+		if (is_sub != nullptr && dd_sub_name != nullptr ) {
+
 			filename_to_tablename(
-				is_sub + strlen(sub_sep), dd_sub_name,
-				MAX_TABLE_NAME_LEN + 1);
+				is_sub + SUB_PART_SEPARATOR_LEN,
+				dd_sub_name, MAX_TABLE_NAME_LEN + 1);
 		}
 	}
 
@@ -466,6 +483,7 @@ dd_get_version(
 {
 	uint64_t		version = 0;
 	const dd::Properties&	p = dd_table->se_private_data();
+
 	if (!p.exists(dd_table_key_strings[DD_TABLE_VERSION])
 	    || p.get_uint64(dd_table_key_strings[DD_TABLE_VERSION],
 			    reinterpret_cast<uint64*>(&version))) {
@@ -474,3 +492,4 @@ dd_get_version(
 
 	return(version);
 }
+#endif /* !UNIV_HOTBACKUP */

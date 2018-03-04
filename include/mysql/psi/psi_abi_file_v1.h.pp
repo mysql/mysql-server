@@ -1,38 +1,13 @@
 #include "mysql/psi/psi_file.h"
-#include "my_inttypes.h"
-#include "my_config.h"
-typedef unsigned char uchar;
-typedef signed char int8;
-typedef unsigned char uint8;
-typedef short int16;
-typedef unsigned short uint16;
-typedef int int32;
-typedef unsigned int uint32;
-typedef unsigned long long int ulonglong;
-typedef long long int longlong;
-typedef longlong int64;
-typedef ulonglong uint64;
-typedef unsigned long long my_ulonglong;
-typedef intptr_t intptr;
-typedef ulonglong my_off_t;
-typedef ptrdiff_t my_ptrdiff_t;
-typedef int myf;
-#include "my_io.h"
-static inline int is_directory_separator(char c)
-{
-  return c == '/';
-}
-typedef int File;
-typedef mode_t MY_MODE;
-typedef socklen_t socket_len_t;
-typedef int my_socket;
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_file_bits.h"
-#include "my_inttypes.h"
-#include "my_io.h"
-#include "my_macros.h"
+#include <mysql/components/services/my_io_bits.h>
+typedef int File;
+typedef mode_t MY_MODE;
+typedef socklen_t socket_len_t;
+typedef int my_socket;
 typedef unsigned int PSI_file_key;
 struct PSI_file;
 typedef struct PSI_file PSI_file;
@@ -63,22 +38,22 @@ struct PSI_file_info_v1
 {
   PSI_file_key *m_key;
   const char *m_name;
-  uint m_flags;
+  unsigned int m_flags;
   int m_volatility;
   const char *m_documentation;
 };
 typedef struct PSI_file_info_v1 PSI_file_info_v1;
 struct PSI_file_locker_state_v1
 {
-  uint m_flags;
+  unsigned int m_flags;
   enum PSI_file_operation m_operation;
   struct PSI_file *m_file;
   const char *m_name;
   void *m_class;
   struct PSI_thread *m_thread;
   size_t m_number_of_bytes;
-  ulonglong m_timer_start;
-  ulonglong (*m_timer)(void);
+  unsigned long long m_timer_start;
+  unsigned long long (*m_timer)(void);
   void *m_wait;
 };
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
@@ -102,7 +77,7 @@ typedef struct PSI_file_locker *(*get_thread_file_descriptor_locker_v1_t)(
   enum PSI_file_operation op);
 typedef void (*start_file_open_wait_v1_t)(struct PSI_file_locker *locker,
                                           const char *src_file,
-                                          uint src_line);
+                                          unsigned int src_line);
 typedef struct PSI_file *(*end_file_open_wait_v1_t)(
   struct PSI_file_locker *locker, void *result);
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)(
@@ -112,14 +87,17 @@ typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)(
 typedef void (*start_file_wait_v1_t)(struct PSI_file_locker *locker,
                                      size_t count,
                                      const char *src_file,
-                                     uint src_line);
+                                     unsigned int src_line);
 typedef void (*end_file_wait_v1_t)(struct PSI_file_locker *locker,
                                    size_t count);
 typedef void (*start_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                            const char *src_file,
-                                           uint src_line);
+                                           unsigned int src_line);
 typedef void (*end_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                          int rc);
+typedef void (*end_file_rename_wait_v1_t)(struct PSI_file_locker *locker,
+                                          const char *old_name,
+                                          const char *new_name, int rc);
 typedef struct PSI_file_info_v1 PSI_file_info;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 struct PSI_file_bootstrap
@@ -144,6 +122,7 @@ struct PSI_file_service_v1
   end_file_wait_v1_t end_file_wait;
   start_file_close_wait_v1_t start_file_close_wait;
   end_file_close_wait_v1_t end_file_close_wait;
+  end_file_rename_wait_v1_t end_file_rename_wait;
 };
 typedef struct PSI_file_service_v1 PSI_file_service_t;
 extern PSI_file_service_t *psi_file_service;

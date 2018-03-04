@@ -3,12 +3,6 @@
 # up correctly and is able to shutdown with --innodb-force-recovery >= 3
 # after a crash with active user tranactions.
 
-#
-
-# Disabled in --log-bin runs until atomic DDL is properly supported in
-# binary log.
---source include/not_log_bin.inc
-
 --disable_query_log
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table `mysql`\..* in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table `test`\.`t1` in the cache');

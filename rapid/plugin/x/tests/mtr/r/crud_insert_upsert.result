@@ -49,8 +49,8 @@ doc
 {"_id": "3", "name": "foo", "email": "foo@ora.com"}
 0 rows affected
 
-Test1 - Match on _id and secondary key
---------------------------------------
+Test1 - Match on _id
+--------------------
 
 command ok
 
@@ -85,16 +85,14 @@ doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
-
-2 rows affected
-Got expected error (code 0)
+Got expected error: Unable upsert data in document collection 'col2' (code 5018)
 doc
-{"_id": "1", "name": "bla", "email": "foo@bar.com"}
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
 
-Test3 - Match on _id only
--------------------------
+Test3 - Match on _id only, missing secondary index
+--------------------------------------------------
 
 command ok
 
@@ -135,6 +133,155 @@ doc
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
 
+Test5 - Match on _id and secondary key (other field value updated)
+------------------------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+2 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "bla", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test6 - New unique document, with null on secondary key
+-------------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+1 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "bla", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+{"_id": "3", "name": "bla", "email": null}
+0 rows affected
+
+Test7 - New unique document, with missing field on secondary key
+----------------------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+1 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+{"_id": "3", "name": "bla"}
+0 rows affected
+
+Test8 - Match on _id only, null at secondary index
+--------------------------------------------------
+
+command ok
+
+command ok
+
+2 rows affected
+Records: 2  Duplicates: 0  Warnings: 0
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+2 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "bla", "email": null}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+
+Test9 - Match on _id and null value at secondary index
+------------------------------------------------------
+
+command ok
+
+command ok
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "bla"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+{"_id": "3", "name": "bla"}
+0 rows affected
+
+2 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "bla"}
+{"_id": "2", "name": "foo"}
+{"_id": "3", "name": "bla"}
+0 rows affected
+
+Test10 - No match, null value at secondary index
+------------------------------------------------
+
+command ok
+
+command ok
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "bla"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+{"_id": "3", "name": "bla"}
+0 rows affected
+
+1 rows affected
+Got expected error (code 0)
+doc
+{"_id": "1", "name": "bla"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+{"_id": "3", "name": "bla"}
+{"_id": "4", "name": "foo"}
+0 rows affected
+
 Test1-2 - Match on _id and secondary key (upsert two rows)
 ----------------------------------------------------------
 
@@ -173,14 +320,10 @@ doc
 {"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
-
-3 rows affected
-Records: 2  Duplicates: 1  Warnings: 0
-Got expected error (code 0)
+Got expected error: Unable upsert data in document collection 'col22' (code 5018)
 doc
-{"_id": "1", "name": "bla", "email": "foo@bar.com"}
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
-{"_id": "4", "name": "bla", "email": "bla@bla.com"}
 0 rows affected
 
 Test3-2 - Match on _id only (upsert two rows)
@@ -330,7 +473,7 @@ doc
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
 
-Test0-4 - No matches (drop _id coulmn)
+Test0-4 - No matches (drop _id column)
 --------------------------------------
 
 command ok
@@ -399,11 +542,9 @@ doc
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
-
-2 rows affected
-Got expected error (code 0)
+Got expected error: Unable upsert data in document collection 'col42' (code 5018)
 doc
-{"_id": "1", "name": "bla", "email": "foo@bar.com"}
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
 {"_id": "2", "name": "bla", "email": "bla@bar.com"}
 0 rows affected
 
@@ -450,12 +591,59 @@ doc
 
 2 rows affected
 Records: 2  Duplicates: 0  Warnings: 0
+Got expected error: Unable upsert data in document collection 'col44' (code 5018)
+doc
+{"_id": "1", "name": "foo", "email": "foo@bar.com"}
+{"_id": "2", "name": "bla", "email": "bla@bar.com"}
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+command ok
+
+command ok
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+Got expected error: Unable upsert data in document collection 'add_or_replace' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 
 2 rows affected
 Got expected error (code 0)
 doc
-{"_id": "1", "name": "foo", "email": "foo@bar.com"}
-{"_id": "2", "name": "foo", "email": "bla@bar.com"}
+{"_id": "document_001", "name": "basic"}
+{"_id": "document_002", "name": "advenced"}
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+command ok
+
+command ok
+
+command ok
+
+1 rows affected
+Got expected error (code 0)
+
+1 rows affected
+Got expected error (code 0)
+Got expected error: Unable upsert data in document collection 'multi' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+Got expected error: Unable upsert data in document collection 'multi' (code 5018)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
+doc
+{"_id": "001", "first": "A", "second": "A"}
+{"_id": "002", "first": "B", "second": "B"}
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"

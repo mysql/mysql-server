@@ -120,6 +120,7 @@ SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
+SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL event_scheduler=on;
 SET SESSION sql_log_bin= 0;
 ALTER EVENT event1 ENABLE;
@@ -128,6 +129,7 @@ SET SESSION sql_log_bin= 1;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL event_scheduler=on;
 SET SESSION sql_log_bin= 0;
 ALTER EVENT event2 ENABLE;
@@ -193,7 +195,7 @@ ALTER EVENT event1 DISABLE;
 DROP EVENT IF EXISTS test.event1;
 SET SESSION sql_log_bin= 1;
 
-SET GLOBAL event_scheduler=off;
+SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
 SET @@global.max_allowed_packet = @start_global_value_s1;
 
@@ -209,7 +211,7 @@ ALTER EVENT event2 DISABLE;
 DROP EVENT IF EXISTS test.event2;
 SET SESSION sql_log_bin= 1;
 
-SET GLOBAL event_scheduler=off;
+SET GLOBAL event_scheduler= @old_event_scheduler;
 SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
 SET @@global.max_allowed_packet = @start_global_value_s2;
 

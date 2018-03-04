@@ -235,6 +235,11 @@ COMMIT;
 
 DROP TABLE t2, t3;
 SET SESSION AUTOCOMMIT= 1;
+
+# The temporary table above will be binlogged in statement mode only, resulting
+# in different Rpl_semi_sync_master_yes_tx values in statement vs row/mixed. Reset it.
+FLUSH STATUS;
+
 --source include/sync_slave_sql_with_master.inc
 
 
@@ -465,7 +470,7 @@ create user rpl@127.0.0.1 identified by 'rpl';
 grant replication slave on *.* to rpl@127.0.0.1;
 flush privileges;
 --replace_column 2 ####
-change master to master_user='rpl',master_password='rpl';
+change master to master_user='rpl',master_password='rpl', get_master_public_key=1;
 source include/start_slave.inc;
 show status like 'Rpl_semi_sync_slave_status';
 source include/rpl_connection_master.inc;
@@ -617,7 +622,7 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 connection slave;
 --source include/stop_slave.inc
 --replace_column 2 ####
-change master to master_user='root',master_password='';
+change master to master_user='root',master_password='', get_master_public_key=0;
 source include/start_slave.inc;
 
 connection master;

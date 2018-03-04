@@ -2,20 +2,32 @@
    Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_config.h>
+#define LOG_SUBSYSTEM_TAG  MYSQLX_PLUGIN_NAME
+
+#include "my_config.h"
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
 #include <stdio.h>                            // Solaris header file bug.
@@ -23,12 +35,15 @@
 #include <limits>
 
 #include "my_inttypes.h"
-#include "mysqlx_version.h"
-#include "xpl_log.h"
-#include "xpl_performance_schema.h"
-#include "xpl_server.h"
-#include "xpl_session.h"
-#include "xpl_system_variables.h"
+#include "plugin/x/generated/mysqlx_version.h"
+#include "plugin/x/src/global_timeouts.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_performance_schema.h"
+#include "plugin/x/src/xpl_server.h"
+#include "plugin/x/src/xpl_session.h"
+#include "plugin/x/src/xpl_system_variables.h"
+#include "plugin/x/src/sha256_password_cache.h"
+#include "mysql/plugin_audit.h"
 
 #define BYTE(X)  (X)
 #define KBYTE(X) ((X) * 1024)
@@ -71,6 +86,10 @@ void check_exit_hook()
 
 } // namespace
 
+static SERVICE_TYPE(registry) *reg_srv= nullptr;
+SERVICE_TYPE(log_builtins) *log_bi= nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs= nullptr;
+
 
 /*
   Start the plugin: start webservers
@@ -85,7 +104,8 @@ void check_exit_hook()
  */
 int xpl_plugin_init(MYSQL_PLUGIN p)
 {
-
+  if (init_logging_service_for_plugin(&reg_srv))
+    return 1;
 
   xpl::Plugin_system_variables::clean_callbacks();
 
@@ -109,7 +129,10 @@ int xpl_plugin_init(MYSQL_PLUGIN p)
 int xpl_plugin_deinit(MYSQL_PLUGIN p)
 {
   check_exit_hook();
-  return xpl::Server::exit(p);
+  int res= xpl::Server::exit(p);
+
+  deinit_logging_service_for_plugin(&reg_srv);
+  return res;
 }
 
 
@@ -189,6 +212,33 @@ static MYSQL_SYSVAR_UINT(port_open_timeout, xpl::Plugin_system_variables::port_o
       "How long X Plugin is going to retry binding of server socket (in case of failure)",
       NULL, &xpl::Plugin_system_variables::update_func<unsigned int>, 0, 0, 120, 0);
 
+static MYSQL_THDVAR_UINT(wait_timeout, PLUGIN_VAR_OPCMDARG,
+      "Number or seconds that X Plugin must wait for activity on noninteractive connection",
+      NULL,
+      (&xpl::Server::thd_variable<uint32_t, &ngs::Client_interface::set_wait_timeout>),
+      Global_timeouts::Default::k_wait_timeout, 1, 2147483, 0);
+
+static MYSQL_SYSVAR_UINT(interactive_timeout,
+      xpl::Plugin_system_variables::m_interactive_timeout,
+      PLUGIN_VAR_OPCMDARG,
+      "Default value for \"mysqlx_wait_timeout\", when the connection is \
+interactive. The value defines number or seconds that X Plugin must wait for \
+activity on interactive connection",
+      NULL, &xpl::Plugin_system_variables::update_func<uint32_t>,
+      Global_timeouts::Default::k_interactive_timeout, 1, 2147483, 0);
+
+static MYSQL_THDVAR_UINT(read_timeout, PLUGIN_VAR_OPCMDARG,
+      "Number or seconds that X Plugin must wait for blocking read operation to complete",
+      NULL,
+      (&xpl::Server::thd_variable<uint32_t, &ngs::Client_interface::set_read_timeout>),
+      Global_timeouts::Default::k_read_timeout, 1, 2147483, 0);
+
+static MYSQL_THDVAR_UINT(write_timeout, PLUGIN_VAR_OPCMDARG,
+      "Number or seconds that X Plugin must wait for blocking write operation to complete",
+      NULL,
+      (&xpl::Server::thd_variable<uint32_t, &ngs::Client_interface::set_write_timeout>),
+      Global_timeouts::Default::k_write_timeout, 1, 2147483, 0);
+
 static struct st_mysql_sys_var* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(port),
   MYSQL_SYSVAR(max_connections),
@@ -206,6 +256,10 @@ static struct st_mysql_sys_var* xpl_plugin_system_variables[]= {
   MYSQL_SYSVAR(socket),
   MYSQL_SYSVAR(bind_address),
   MYSQL_SYSVAR(port_open_timeout),
+  MYSQL_SYSVAR(wait_timeout),
+  MYSQL_SYSVAR(interactive_timeout),
+  MYSQL_SYSVAR(read_timeout),
+  MYSQL_SYSVAR(write_timeout),
   NULL
 };
 
@@ -292,6 +346,7 @@ static struct st_mysql_show_var xpl_plugin_status[]=
   GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("connection_errors",        xpl::Global_status_variables::m_connection_errors_count),
   GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("worker_threads",           xpl::Global_status_variables::m_worker_thread_count),
   GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("worker_threads_active",    xpl::Global_status_variables::m_active_worker_thread_count),
+  GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG("aborted_clients",          xpl::Global_status_variables::m_aborted_clients),
 
   SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY("ssl_cipher_list", xpl::Client::get_status_ssl_cipher_list),
   SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_active",       bool,        ngs::IOptions_session::active_tls),
@@ -313,6 +368,103 @@ static struct st_mysql_show_var xpl_plugin_status[]=
   { NULL, NULL, SHOW_BOOL, SHOW_SCOPE_GLOBAL}
 };
 
+/**
+  Handle an authentication audit event.
+
+  @param [in] thd         MySQL Thread Handle
+  @param [in] event_class Event class information
+  @param [in] event       Event structure
+
+  @returns Success always.
+*/
+static int
+xpl_sha2_cache_cleaner_notify(MYSQL_THD thd,
+                              mysql_event_class_t event_class,
+                              const void *event) {
+  if (event_class == MYSQL_AUDIT_AUTHENTICATION_CLASS) {
+    const struct mysql_event_authentication *authentication_event =
+      (const struct mysql_event_authentication *) event;
+
+    mysql_event_authentication_subclass_t subclass =
+      authentication_event->event_subclass;
+
+    /*
+      If status is set to true, it indicates an error.
+      In which case, don't touch the cache.
+    */
+    if (authentication_event->status)
+      return 0;
+
+    auto server_obj_with_lock = xpl::Server::get_instance();
+
+    // Check if X Plugin was installed
+    if (nullptr == server_obj_with_lock.get())
+      return 0;
+
+    auto &sha256_password_cache =
+        (*server_obj_with_lock)->get_sha256_password_cache();
+    if (subclass == MYSQL_AUDIT_AUTHENTICATION_FLUSH) {
+      sha256_password_cache.clear();
+      return 0;
+    }
+
+    if (subclass == MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE ||
+        subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME ||
+        subclass == MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP) {
+#ifndef DBUG_OFF
+      // "user" variable is going to be unused when the DBUG_OFF is defined
+      auto user = authentication_event->user;
+      DBUG_ASSERT(user.str[user.length] == '\0');
+#endif  // DBUG_OFF
+      sha256_password_cache.remove(authentication_event->user.str,
+                                   authentication_event->host.str);
+    }
+  }
+  return 0;
+}
+
+/** st_mysql_audit for sha2_cache_cleaner plugin */
+struct st_mysql_audit xpl_sha2_cache_cleaner =
+{
+  MYSQL_AUDIT_INTERFACE_VERSION,                  /* interface version */
+  NULL,                                           /* release_thd() */
+  xpl_sha2_cache_cleaner_notify,                  /* event_notify() */
+  {0,                                             /* MYSQL_AUDIT_GENERAL_CLASS */
+   0,                                             /* MYSQL_AUDIT_CONNECTION_CLASS */
+   0,                                             /* MYSQL_AUDIT_PARSE_CLASS */
+   0,                                             /* MYSQL_AUDIT_AUTHORIZATION_CLASS */
+   0,                                             /* MYSQL_AUDIT_TABLE_ACCESS_CLASS */
+   0,                                             /* MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS */
+   0,                                             /* MYSQL_AUDIT_SERVER_STARTUP_CLASS */
+   0,                                             /* MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS */
+   0,                                             /* MYSQL_AUDIT_COMMAND_CLASS */
+   0,                                             /* MYSQL_AUDIT_QUERY_CLASS */
+   0,                                             /* MYSQL_AUDIT_STORED_PROGRAM_CLASS */
+   (unsigned long) MYSQL_AUDIT_AUTHENTICATION_ALL /* MYSQL_AUDIT_AUTHENTICATION_CLASS */
+  }
+};
+
+/** Init function for sha2_cache_cleaner */
+static int
+xpl_sha2_cache_cleaner_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+  // If cache cleaner plugin is initialized before the X plugin we set this
+  // flag so that we can enable cache when starting X plugin afterwards
+  xpl::g_cache_plugin_started = true;
+  auto server = xpl::Server::get_instance();
+  if (server)
+    (*server)->get_sha256_password_cache().enable();
+  return 0;
+}
+
+/** Deinit function for sha2_cache_cleaner */
+static int
+xpl_sha2_cache_cleaner_deinit(void *arg MY_ATTRIBUTE((unused))) {
+  xpl::g_cache_plugin_started = false;
+  auto server = xpl::Server::get_instance();
+  if (server)
+    (*server)->get_sha256_password_cache().disable();
+  return 0;
+}
 
 mysql_declare_plugin(xpl)
 {
@@ -330,5 +482,32 @@ mysql_declare_plugin(xpl)
   xpl_plugin_system_variables,  /* system var */
   NULL,                         /* options    */
   0                             /* flags      */
+},
+{
+  MYSQL_AUDIT_PLUGIN,                                  /* plugin type                   */
+  &xpl_sha2_cache_cleaner,                             /* type specific descriptor      */
+  "mysqlx_cache_cleaner",                              /* plugin name                   */
+  "Oracle Inc",                                        /* author                        */
+  "Cache cleaner for sha2 authentication in X plugin", /* description                   */
+  PLUGIN_LICENSE_GPL,                                  /* license                       */
+  xpl_sha2_cache_cleaner_init,                         /* plugin initializer            */
+  nullptr,                                             /* Uninstall notifier            */
+  xpl_sha2_cache_cleaner_deinit,                       /* plugin deinitializer          */
+  0x0100,                                              /* version (1.0)                 */
+  nullptr,                                             /* status variables              */
+  nullptr,                                             /* system variables              */
+  nullptr,                                             /* reserverd                     */
+  0                                                    /* flags                         */
 }
 mysql_declare_plugin_end;
+
+Global_timeouts get_global_timeouts() {
+  return {xpl::Plugin_system_variables::m_interactive_timeout,
+          THDVAR(nullptr, wait_timeout),
+          THDVAR(nullptr, read_timeout),
+          THDVAR(nullptr, write_timeout)};
+}
+
+void set_session_wait_timeout(THD *thd, const uint32_t wait_timeout) {
+  THDVAR(thd, wait_timeout) = wait_timeout;
+}

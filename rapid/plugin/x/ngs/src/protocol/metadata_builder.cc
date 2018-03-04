@@ -1,96 +1,79 @@
 /*
-* Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
-*
-* This program is free software; you can redistribute it and/or
-* modify it under the terms of the GNU General Public License as
-* published by the Free Software Foundation; version 2 of the
-* License.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-* GNU General Public License for more details.
-*
-* You should have received a copy of the GNU General Public License
-* along with this program; if not, write to the Free Software
-* Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-* 02110-1301  USA
-*/
+ * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
+ *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+ */
 
-#include "ngs/protocol/metadata_builder.h"
-#include "ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/protocol/metadata_builder.h"
 
-using namespace ngs;
+#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+
+
+namespace ngs {
 
 void Metadata_builder::encode_metadata(
   Output_buffer* out_buffer,
-  const std::string &catalog, const std::string &db_name,
-  const std::string &table_name, const std::string &org_table_name,
-  const std::string &col_name, const std::string &org_col_name,
-  uint64 collation, int type, int decimals,
-  uint32 flags, uint32 length, uint32 content_type)
-{
+  const Encode_column_info *column_info) {
+  const bool has_content_type = column_info->m_content_type != 0;
+  const bool write_text_info = !column_info->m_compact;
+
   start_message(out_buffer, Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
 
   // 1) FieldType
-  encode_int32(type);
+  encode_int32(column_info->m_type);
   // 2) Name
-  encode_string(col_name.c_str(), col_name.length());
+  encode_string(column_info->m_col_name,
+                write_text_info);
   // 3) OriginalName
-  encode_string(org_col_name.c_str(), org_col_name.length());
+  encode_string(column_info->m_org_col_name,
+                write_text_info);
   // 4) Table
-  encode_string(table_name.c_str(), table_name.length());
+  encode_string(column_info->m_table_name,
+                write_text_info);
   // 5) OriginalTable
-  encode_string(org_table_name.c_str(), org_table_name.length());
+  encode_string(column_info->m_org_table_name,
+                write_text_info);
   // 6) Schema
-  encode_string(db_name.c_str(), db_name.length());
+  encode_string(column_info->m_db_name,
+                write_text_info);
   // 7) Catalog
-  encode_string(catalog.c_str(), catalog.length());
+  encode_string(column_info->m_catalog,
+                write_text_info);
   // 8) Collation
-  encode_uint64(collation);
+  encode_uint64(column_info->m_collation,
+                column_info->m_has_collation);
   // 9) FractionalDigits
-  encode_uint32(decimals);
+  encode_uint32(column_info->m_decimals,
+                column_info->m_has_decimals);
   // 10) Length
-  encode_uint32(length);
+  encode_uint32(column_info->m_length,
+                column_info->m_has_length);
   // 11) Flags
-  encode_uint32(flags);
+  encode_uint32(column_info->m_flags,
+                column_info->m_has_flags);
   // 12) ContentType
-  encode_uint32(content_type, content_type != 0);
+  encode_uint32(column_info->m_content_type,
+                has_content_type);
 
   end_message();
 }
 
-void Metadata_builder::encode_metadata(
-  Output_buffer* out_buffer,
-  uint64 collation, int type, int decimals,
-  uint32 flags, uint32 length, uint32 content_type)
-{
-  start_message(out_buffer, Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA);
-
-  // 1) FieldType
-  encode_int32(type);
-  // 2) Name
-  encode_string("", 0, false);
-  // 3) OriginalName
-  encode_string("", 0, false);
-  // 4) Table
-  encode_string("", 0, false);
-  // 5) OriginalTable
-  encode_string("", 0, false);
-  // 6) Schema
-  encode_string("", 0, false);
-  // 7) Catalog
-  encode_string("", 0, false);
-  // 8) Collation
-  encode_uint64(collation);
-  // 9) FractionalDigits
-  encode_uint32(decimals);
-  // 10) Length
-  encode_uint32(length);
-  // 11) Flags
-  encode_uint32(flags);
-  // 12) ContentType
-  encode_uint32(content_type, content_type != 0);
-
-  end_message();
-}
+}  // namespace ngs

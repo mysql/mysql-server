@@ -23,6 +23,7 @@
 ##############################################################################
 
 --source include/big_test.inc
+--source include/have_ssl.inc
 --source include/have_mysqlx_plugin.inc
 --source ../inc/have_group_replication_plugin_base.inc
 
@@ -76,11 +77,11 @@ EOF
 
 # Starting GR on all the servers through mysqlx
 --echo Starting GR on server 1
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/bootstrap_server.tmp 2>&1
 --echo Starting GR on server 2
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
 --echo Starting GR on server 3
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/non_bootstrap_server.tmp 2>&1
 
 --echo Waiting for GR members to come online.
 --let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
@@ -389,7 +390,7 @@ Mysqlx.Crud.Find {
 EOF
 
 # Crud operations for collection characters
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/crud_on_server1.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/crud_on_server1.tmp 2>&1
 
 ## Wait for synchronization between the nodes.
 --source include/rpl_sync.inc
@@ -571,7 +572,7 @@ Mysqlx.Crud.Find {
 }
 -->recvresult
 EOF
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/crud_on_server2.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/crud_on_server2.tmp 2>&1
 
 ## Wait for synchronization between the nodes.
 --source include/rpl_sync.inc
@@ -769,7 +770,7 @@ Mysqlx.Sql.StmtExecute {
 }
 -->recvresult
 EOF
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/crud_on_server3.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/crud_on_server3.tmp 2>&1
 
 ## Cannot use diff_tables.inc because of the following warning.
 ## Warning 1235 This version of MySQL doesn't yet support 'sorting of
@@ -786,11 +787,11 @@ EOF
 
 # Stopping GR on all the servers
 --echo Stopping GR on server 1
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_1 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 --echo Stopping GR on server 2
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_2 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 --echo Stopping GR on server 3
---exec $MYSQLXTEST -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
+--exec $MYSQLXTEST --ssl-cipher='DHE-RSA-AES256-SHA' -u root --port=$MASTER_X_MYPORT_3 --file=$MYSQL_TMP_DIR/stop_group_replication.tmp 2>&1
 
 # Uninstall mysqlx
 --let $rpl_connection_name= server1

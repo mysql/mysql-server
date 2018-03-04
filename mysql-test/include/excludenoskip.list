@@ -108,6 +108,7 @@ not_have_innodb_4k.inc
 
 # 4.6 IP versions
 have_ipv4_mapped.inc
+have_lo0_local_scope.inc
 
 # 4.7 System variable which checks whether server has statement_timeout feature or
 # not.The value can be NO if the background thread used by this feature could
@@ -204,3 +205,8 @@ have_thread_prio.inc
 have_not_thread_prio.inc
 resource_group_init.inc
 have_mac_os.inc
+
+# 20.0 Library dependent tests
+# This file skips test for certain features in versions of the library where
+# the feature is missing.
+require_icu_version.inc

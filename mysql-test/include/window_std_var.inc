@@ -508,6 +508,8 @@ SELECT * FROM tj2;
 --echo With GROUP BY
 SELECT          COUNT(*) OVER (), MOD(STD(i),2) FROM tj2 GROUP BY i ;
 SELECT DISTINCT COUNT(*) OVER (), MOD(VARIANCE(i),2) FROM tj2 GROUP BY i ;
+SELECT DISTINCT COUNT(*) OVER (), MOD(STD(i),2) as a FROM tj2 GROUP BY i ORDER BY MOD(STD(i),2);
+SELECT DISTINCT COUNT(*) OVER (), MOD(STD(i),2) as a FROM tj2 GROUP BY i ORDER BY MOD(STD(i),2) DESC;
 
 --echo Bug fix GROUP BY with window function referring column used in grouping expression
 SELECT i, STD(i) OVER (), MOD(STD(i),2) FROM tj2 GROUP BY i ;

@@ -1,13 +1,20 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -18,30 +25,30 @@
 #ifndef __linux__
 #include <sys/sockio.h>
 #endif
-#include <netdb.h>
-
 #include <assert.h>
 #include <errno.h>
+#include <netdb.h>
 #include <stdlib.h>
 #include <string.h>
 
 #define BSD_COMP
 
-#include "simset.h"
-#include "sock_probe.h"
-#include "task.h"
-#include "task_debug.h"
-#include "task_net.h"
-#include "task_os.h"
-#include "x_platform.h"
-#include "xcom_base.h"
-#include "xcom_common.h"
-#include "xcom_memory.h"
-#include "xcom_profile.h"
-#include "xcom_transport.h"
-#include "xcom_vp.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/sock_probe.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_memory.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_transport.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 
-#define IF_INIT_BUF_SIZE 512
+/* Buffer size should be always a multiple of 'struct ifreq' size */
+#define IF_INIT_BUF_SIZE (sizeof(struct ifreq) * 10)
 #define IFRP_INIT_ARR_SIZE 64
 
 struct sock_probe {
@@ -85,10 +92,12 @@ static int init_sock_probe(sock_probe *s) {
    ioctl may overflow without returning an error. Thence we iterate to
    make sure that we don't fill up the buffer. Then, when finally ifc_len
    is smaller than the buffer size, we break the loop.
-   */
-  for (i = 0, bufsize = IF_INIT_BUF_SIZE; i == 0 || s->ifc.ifc_len >= bufsize;
-       i++, bufsize += IF_INIT_BUF_SIZE) {
-    if (!(s->ifbuf = (char *)realloc(s->ifbuf, (size_t)bufsize))) {
+  */
+  do
+  {
+    bufsize+= IF_INIT_BUF_SIZE;
+    if (!(s->ifbuf= (char *)realloc(s->ifbuf, (size_t)bufsize)))
+    {
       abrt = TRUE;
       /* Out of memory. */
       goto err;
@@ -100,15 +109,15 @@ static int init_sock_probe(sock_probe *s) {
         INVALID_SOCKET)
       goto err;
 
-    s->ifc.ifc_len = bufsize;
-    s->ifc.ifc_buf = s->ifbuf;
+    s->ifc.ifc_len= bufsize;
+    s->ifc.ifc_buf= s->ifbuf;
     /* Get information about IP interfaces on this machine.*/
     if (ioctl(s->tmp_socket, SIOCGIFCONF, (char *)&s->ifc) < 0) {
       DBGOUT(NUMEXP(errno); STREXP(strerror(errno)););
-      abrt = TRUE;
+      abrt= TRUE;
       goto err;
     }
-  }
+  } while (s->ifc.ifc_len >= bufsize);
 
   DBGOUT(STRLIT("Registering interfaces:"));
 

@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_handler.h"
 
@@ -362,34 +369,29 @@ int Trans_delegate::before_commit(THD *thd, bool all,
  Helper method to check if the given table has 'CASCADE' foreign key or not.
 
  @param[in]   table     Table object that needs to be verified.
- @param[in]   thd       Current execution thread.
 
  @return bool TRUE      If the table has 'CASCADE' foreign key.
               FALSE     If the table does not have 'CASCADE' foreign key.
 */
-bool has_cascade_foreign_key(TABLE *table, THD *thd)
+bool has_cascade_foreign_key(TABLE *table)
 {
   DBUG_ENTER("has_cascade_foreign_key");
-  List<FOREIGN_KEY_INFO> f_key_list;
-  table->file->get_foreign_key_list(thd, &f_key_list);
 
-  FOREIGN_KEY_INFO *f_key_info;
-  List_iterator_fast<FOREIGN_KEY_INFO> foreign_key_iterator(f_key_list);
-  while ((f_key_info=foreign_key_iterator++))
+  TABLE_SHARE_FOREIGN_KEY_INFO *fk= table->s->foreign_key;
+
+  for (uint i= 0; i < table->s->foreign_keys; i++)
   {
     /*
-     The possible values for update_method are
-     {"CASCADE", "SET NULL", "NO ACTION", "RESTRICT"}.
-
-     Hence we are avoiding the usage of strncmp
-     ("'update_method' value with 'CASCADE'") and just comparing
-     the first character of the update_method value with 'C'.
+      The supported values of update/delete_rule are: CASCADE, SET NULL,
+      NO ACTION, RESTRICT and SET DEFAULT.
     */
-    if (f_key_info->update_method->str[0] == 'C' ||
-        f_key_info->delete_method->str[0] == 'C')
+    if (dd::Foreign_key::RULE_CASCADE == fk[i].update_rule ||
+        dd::Foreign_key::RULE_CASCADE == fk[i].delete_rule ||
+        dd::Foreign_key::RULE_SET_NULL == fk[i].update_rule ||
+        dd::Foreign_key::RULE_SET_NULL == fk[i].delete_rule ||
+        dd::Foreign_key::RULE_SET_DEFAULT == fk[i].update_rule ||
+        dd::Foreign_key::RULE_SET_DEFAULT == fk[i].delete_rule)
     {
-      DBUG_ASSERT(!strncmp(f_key_info->update_method->str, "CASCADE", 7) ||
-                  !strncmp(f_key_info->delete_method->str, "CASCADE", 7));
       DBUG_RETURN(TRUE);
     }
   }
@@ -447,7 +449,7 @@ prepare_table_info(THD* thd,
       Find out if the table has foreign key with ON UPDATE/DELETE CASCADE
       clause.
     */
-    table_info.has_cascade_foreign_key= has_cascade_foreign_key(open_tables, thd);
+    table_info.has_cascade_foreign_key= has_cascade_foreign_key(open_tables);
 
     table_info_holder.push_back(table_info);
   }

@@ -1,13 +1,25 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
+
+  Without limiting anything contained in the foregoing, this file,
+  which is part of C Driver for MySQL (Connector/C), is also subject to the
+  Universal FOSS Exception, version 1.0, a copy of which can be found at
+  http://oss.oracle.com/licenses/universal-foss-exception.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
@@ -429,16 +441,31 @@ static ulonglong my_timer_init_frequency(MY_TIMER_INFO *mti)
 {
   int i;
   ulonglong time1, time2, time3, time4;
+  ulonglong time_limit;
   time1= my_timer_cycles();
   time2= my_timer_microseconds();
   time3= time2; /* Avoids a Microsoft/IBM compiler warning */
+  time_limit= time2 + 200;
   for (i= 0; i < MY_TIMER_ITERATIONS; ++i)
   {
     time3= my_timer_microseconds();
-    if (time3 - time2 > 200) break;
+    if (time3 > time_limit) break;
   }
   time4= my_timer_cycles() - mti->cycles.overhead;
   time4-= mti->microseconds.overhead;
+
+  if (time3 <= time2)
+  {
+    /*
+      Seen happening with ASAN / UBSAN builds.
+      my_timer_microseconds()
+      - either is not supported, always returns 0
+      - or is not monotonic, and can jump back.
+      Avoid division by 0 in such cases.
+    */
+    return 0;
+  }
+
   return (mti->microseconds.frequency * (time4 - time1)) / (time3 - time2);
 }
 
@@ -672,12 +699,22 @@ extern "C" void my_timer_init(MY_TIMER_INFO *mti)
       mti->cycles.frequency= mti->microseconds.frequency;
     else
     {
-      ulonglong time1, time2;
+      ulonglong time1, time2, lowest;
       time1= my_timer_init_frequency(mti);
       /* Repeat once in case there was an interruption. */
       time2= my_timer_init_frequency(mti);
-      if (time1 < time2) mti->cycles.frequency= time1;
-      else mti->cycles.frequency= time2;
+
+      lowest = 0;
+      if (time1 != 0)
+      {
+        lowest = time1;
+      }
+      if ((time2 != 0) && (time2 < lowest))
+      {
+        lowest = time2;
+      }
+
+      mti->cycles.frequency= lowest;
     }
   }
 

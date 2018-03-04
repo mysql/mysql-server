@@ -2,13 +2,20 @@
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -115,6 +122,7 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   m_sync_extent_pages_ongoing = false;
   m_lcp_loop_ongoing = false;
   m_lcp_outstanding = 0;
+  m_locked_pages_written = 0;
   m_lcp_table_id = RNIL;
   m_lcp_fragment_id = 0;
 
@@ -1499,7 +1507,7 @@ void Pgman::execSYNC_PAGE_CACHE_REQ(Signal *signal)
   ndbrequire(fragPtr.i != RNIL);
   ndbrequire(!m_sync_extent_pages_ongoing);
   ndbrequire(!m_lcp_loop_ongoing);
-  ndbrequire(!m_lcp_outstanding);
+  ndbrequire(m_lcp_outstanding == 0);
   ndbrequire(!m_extra_pgman);
   ndbrequire(m_lcp_table_id == RNIL);
 
@@ -1557,6 +1565,8 @@ Pgman::finish_lcp(Signal *signal,
   ndbrequire(!m_lcp_loop_ongoing);
   m_lcp_table_id = RNIL;
   m_lcp_fragment_id = 0;
+  ndbrequire(m_dirty_list_lcp.isEmpty());
+  ndbrequire(m_dirty_list_lcp_out.isEmpty());
   sendSignal(m_sync_page_cache_req.senderRef,
              GSN_SYNC_PAGE_CACHE_CONF,
              signal,
@@ -1592,6 +1602,62 @@ Pgman::start_lcp_loop(Signal *signal)
   m_lcp_loop_ongoing = true;
   signal->theData[0] = PgmanContinueB::LCP_LOOP;
   sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+}
+
+void
+Pgman::sendSYNC_PAGE_WAIT_REP(Signal *signal, bool normal_pages)
+{
+  Uint32 count;
+  Uint32 senderData;
+  BlockReference ref;
+  if (normal_pages)
+  {
+    jam();
+    count = m_dirty_list_lcp.getCount();
+    count += m_dirty_list_lcp_out.getCount();
+    ref = m_sync_page_cache_req.senderRef;
+    senderData = m_sync_page_cache_req.senderData;
+  }
+  else
+  {
+    count = m_locked_pages_written;
+    ref = m_sync_extent_pages_req.senderRef;
+    senderData = m_sync_extent_pages_req.senderData;
+  }
+  if (refToMain(ref) == BACKUP && signal != NULL)
+  {
+    /**
+     * This signal is only needed by Backup block to keep track
+     * of progress of the LCP to ensure that LCP watchdog is
+     * updated on every progress.
+     *
+     * When called from drop_page we don't have a signal object.
+     * At the same time we focus on IO progress and not on tables
+     * being dropped.
+     *
+     * We send it as direct signal for normal pages to avoid
+     * overhead of otherwise sending on A-level. A-level would
+     * be needed as SYNC_PAGE_CACHE_CONF is sent on A-level to
+     * avoid the signals to come in wrong order.
+     *
+     * For extent pages it must be a buffered but here it is
+     * sufficient to send on B-level since SYNC_EXTENT_PAGES_CONF
+     * is sent on B-level.
+     */
+    jam();
+    signal->theData[0] = senderData;
+    signal->theData[1] = count;
+    if (normal_pages)
+    {
+      jam();
+      EXECUTE_DIRECT(BACKUP, GSN_SYNC_PAGE_WAIT_REP, signal, 2);
+    }
+    else
+    {
+      jam();
+      sendSignal(ref, GSN_SYNC_PAGE_WAIT_REP, signal, 2, JBB);
+    }
+  }
 }
 
 void
@@ -1847,6 +1913,7 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
   m_sync_extent_order = req->lcpOrder;
   m_sync_extent_pages_ongoing = true;
   m_sync_extent_pages_req = *req;
+  m_locked_pages_written = 0;
   Page_sublist& pl = *m_page_sublist[Page_entry::SL_LOCKED];
   if (pl.first(ptr))
   {
@@ -1956,6 +2023,18 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
   m_global_page_pool.release(copy);
   ptr.p->m_copy_page_i = RNIL;
 
+  if (m_sync_extent_pages_ongoing)
+  {
+    jam();
+    /**
+     * Ensure that Backup block is notified of any progress we make on
+     * completing LCPs.
+     * Important that this is sent before we send SYNC_EXTENT_PAGES_CONF
+     * to ensure Backup block is prepared for receiving the signal.
+     */
+    m_locked_pages_written++;
+    sendSYNC_PAGE_WAIT_REP(signal, false);
+  }
   if (!m_lcp_loop_ongoing)
   {
     if (m_sync_extent_next_page_entry == RNIL)
@@ -2148,7 +2227,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
 
   ndbrequire(m_stats.m_current_io_waits > 0);
   m_stats.m_current_io_waits--;
-  remove_fragment_dirty_list(ptr, state);
+  remove_fragment_dirty_list(signal, ptr, state);
 
   if (state & Page_entry::LCP)
   {
@@ -2911,7 +2990,7 @@ Pgman::drop_page(Ptr<Page_entry> ptr, EmulatedJamBuffer *jamBuf)
        * Ensure we maintain dirty lists until also during drop fragment.
        * This ensures that our checks in various places remains valid.
        */
-      remove_fragment_dirty_list(ptr, orig_state);
+      remove_fragment_dirty_list(NULL, ptr, orig_state);
     }
     release_page_entry(ptr, jamBuf);
     return 1;
@@ -3904,7 +3983,9 @@ Pgman::insert_fragment_dirty_list(Ptr<Page_entry> ptr,
 }
 
 void
-Pgman::remove_fragment_dirty_list(Ptr<Page_entry> ptr, Page_state state)
+Pgman::remove_fragment_dirty_list(Signal *signal,
+                                  Ptr<Page_entry> ptr,
+                                  Page_state state)
 {
   if (state & Page_entry::LOCKED)
   {
@@ -3980,6 +4061,7 @@ Pgman::remove_fragment_dirty_list(Ptr<Page_entry> ptr, Page_state state)
                  ptr.p->m_fragment_id));
 
       m_dirty_list_lcp.remove(ptr);
+      sendSYNC_PAGE_WAIT_REP(signal, true);
     }
   }
   else if (ptr.p->m_dirty_state == Pgman::IN_LCP_OUT_LIST)
@@ -3995,6 +4077,7 @@ Pgman::remove_fragment_dirty_list(Ptr<Page_entry> ptr, Page_state state)
                ptr.p->m_table_id,
                ptr.p->m_fragment_id));
     m_dirty_list_lcp_out.remove(ptr);
+    sendSYNC_PAGE_WAIT_REP(signal, true);
   }
   else
   {

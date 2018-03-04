@@ -215,7 +215,7 @@ INSERT INTO gis_geometrycollection VALUES
                                                                 'MULTILINESTRING((0 0,10 10),(0 10,10 0)),'
                                                                 'MULTIPOLYGON(((0 0,0 5,5 5,5 0,0 0)),((5 5,5 10,10 10,10 5,5 5))))'))));
 # Creating a table with spatial index column
-CREATE TABLE geom_index (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY NOT NULL, SPATIAL INDEX(g));
+CREATE TABLE geom_index (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY NOT NULL SRID 0, SPATIAL INDEX(g));
 # Inserting geometry values
 INSERT INTO geom_index SELECT * FROM gis_point;
 INSERT INTO geom_index SELECT * FROM gis_linestring;

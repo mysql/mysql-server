@@ -1,7 +1,7 @@
 install plugin mysqlx soname "mysqlx.so";
 call mtr.add_suppression("Plugin mysqlx reported: .Failed at SSL configuration: .SSL context is not usable without certificate and private key..");
 call mtr.add_suppression("Plugin mysqlx reported: .SSL_CTX_load_verify_locations failed.");
-call mtr.add_suppression("Plugin mysqlx reported: '.*: Unsuccessful login attempt: Invalid user or password'");
+call mtr.add_suppression("Maximum number of authentication attempts reached, login failed");
 INSTALL PLUGIN test_plugin_server SONAME 'auth_test_plugin.so';
 INSTALL PLUGIN mysql_no_login SONAME 'mysql_no_login.so';
 CREATE USER xuser_test@localhost
@@ -16,7 +16,7 @@ user	plugin
 xuser_nologin	mysql_no_login
 xuser_test	test_plugin_server
 user	plugin
-root	mysql_native_password
+x_root	mysql_native_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	OFF
@@ -26,7 +26,7 @@ Mysqlx.Ok {
 }
 ok
 user	plugin
-root	mysql_native_password
+x_root	mysql_native_password
 0 rows affected
 Variable_name	Value
 Mysqlx_ssl_active	ON

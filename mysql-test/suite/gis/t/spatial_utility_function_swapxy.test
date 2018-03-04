@@ -314,3 +314,10 @@ DROP TABLE gis_multi_point;
 DROP TABLE gis_multi_linestring;
 DROP TABLE gis_multi_polygon;
 DROP TABLE gis_geometrycollection;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--error ER_SRS_NOT_FOUND
+DO ST_SWAPXY(x'0A000000010100000000000000000000000000000000000000');

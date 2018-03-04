@@ -1,0 +1,56 @@
+## Test cases for authorization plugins
+
+--source include/have_ssl.inc
+--let $dont_load_mysqlx_cleaner_plugin = 0
+--source include/xplugin_preamble.inc
+
+
+#
+## Setup
+#
+
+--write_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
+-->import connection_auth_mechanism_memory_helpers.macro
+
+callmacro Login_ok	REQUIRED	plain	xuser_native	;
+callmacro Login_ok	REQUIRED	plain	xuser_sha256	;
+callmacro Login_ok	REQUIRED	plain	xuser_cache2	;
+
+callmacro Login_ok	DISABLED	memory	xuser_native	;
+callmacro Login_ok	DISABLED	memory	xuser_sha256	;
+callmacro Login_ok	DISABLED	memory	xuser_cache2	;
+EOF
+
+--let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='AES256-SHA'
+--let $login_with_no_pass= --file=$MYSQL_TMP_DIR/try_login_using_memory.tmp
+
+
+# Create and configure xuser_* accounts that use native, sha256 and
+# cache_sha2 authentication plugins.
+
+--let $pass_native=''
+--let $pass_sha256=''
+--let $pass_cache2=''
+--source ../include/create_mysql_accounts_for_xplugin_tests.inc
+
+GRANT ALL ON *.* TO xuser_native@localhost;
+GRANT ALL ON *.* TO xuser_sha256@localhost;
+GRANT ALL ON *.* TO xuser_cache2@localhost;
+
+
+#
+## Test starts here
+#
+
+exec $MYSQLXTEST $login_with_no_pass 2>&1;
+
+
+#
+# Postamble
+#
+--remove_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
+
+--source ../include/remove_mysql_accounts_for_xplugin_tests.inc
+
+UNINSTALL PLUGIN mysqlx_cache_cleaner;
+UNINSTALL PLUGIN mysqlx;

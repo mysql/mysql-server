@@ -1,8 +1,8 @@
 create table t1 (
 a int,
 b int not null,
-c1 char(255),
-c2 char(255),
+c1 char(255) CHARSET latin1,
+c2 char(255) CHARSET latin1,
 key k1(b, c1, c2)
 )
 engine = ndb
@@ -31,7 +31,7 @@ select * from t1 as x, t1 as y
 where y.b = x.a and y.c1 = x.c1 and y.c2 = x.c1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2560	100.00	Parent of 2 pushed join@1; Using where with pushed condition ((`test`.`x`.`a` is not null) and (`test`.`x`.`c1` is not null) and (`test`.`x`.`c1` is not null))
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	ref	k1	k1	2046	test.x.a,test.x.c1,test.x.c1	10	100.00	Child of 'x' in pushed join@1
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	ref	k1	k1	516	test.x.a,test.x.c1,test.x.c1	10	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c1` AS `c1`,`test`.`x`.`c2` AS `c2`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c1` AS `c1`,`test`.`y`.`c2` AS `c2` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`c1` = `test`.`x`.`c1`) and (`test`.`y`.`c2` = `test`.`x`.`c1`) and (`test`.`y`.`b` = `test`.`x`.`a`))
 select count(*) from t1 as x, t1 as y

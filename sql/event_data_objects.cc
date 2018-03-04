@@ -1,13 +1,20 @@
 /* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -23,6 +30,7 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysqld.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/service_mysql_alloc.h"
@@ -58,6 +66,7 @@
 #include "sql/sql_time.h"                      // interval_type_to_name
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/transaction.h"
 #include "sql/thr_malloc.h"
                                                // date_add_interval,
                                                // calc_time_diff.
@@ -1285,6 +1294,11 @@ end:
       ulong saved_master_access;
 
       thd->set_query(sp_sql.c_ptr_safe(), sp_sql.length());
+      /*
+        Drop should be executed as a separate transaction.
+        Commit any open transaction before executing the drop event.
+      */
+      ret= trans_commit_stmt(thd) || trans_commit(thd);
 
       // Prevent InnoDB from automatically committing the InnoDB transaction
       // after updating the data-dictionary table.
@@ -1353,6 +1367,8 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql,
   append_identifier(thd, sp_sql, event_name.str,
                     event_name.length);
 
+  // Set query id for DROP EVENT constructed by the Event Scheduler..
+  thd->set_query_id(next_query_id());
   DBUG_RETURN(ret);
 }
 

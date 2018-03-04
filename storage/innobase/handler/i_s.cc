@@ -3,16 +3,24 @@
 Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -72,28 +80,28 @@ struct buf_page_desc_t{
 
 /** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
 in i_s_page_type[] array */
-#define I_S_PAGE_TYPE_INDEX		1
+constexpr size_t I_S_PAGE_TYPE_INDEX = 1;
 
 /** Any unassigned FIL_PAGE_TYPE will be treated as unknown. */
-#define	I_S_PAGE_TYPE_UNKNOWN		FIL_PAGE_TYPE_UNKNOWN
+constexpr auto I_S_PAGE_TYPE_UNKNOWN = FIL_PAGE_TYPE_UNKNOWN;
 
 /** R-tree index page */
-#define	I_S_PAGE_TYPE_RTREE		(FIL_PAGE_TYPE_LAST + 1)
+constexpr auto I_S_PAGE_TYPE_RTREE = (FIL_PAGE_TYPE_LAST + 1);
 
 /** Change buffer B-tree page */
-#define	I_S_PAGE_TYPE_IBUF		(FIL_PAGE_TYPE_LAST + 2)
+constexpr auto I_S_PAGE_TYPE_IBUF = (FIL_PAGE_TYPE_LAST + 2);
 
 /** SDI B-tree page */
-#define	I_S_PAGE_TYPE_SDI		(FIL_PAGE_TYPE_LAST + 3)
+constexpr auto I_S_PAGE_TYPE_SDI = (FIL_PAGE_TYPE_LAST + 3);
 
-#define I_S_PAGE_TYPE_LAST		I_S_PAGE_TYPE_SDI
+constexpr auto I_S_PAGE_TYPE_LAST = I_S_PAGE_TYPE_SDI;
 
-#define I_S_PAGE_TYPE_BITS		5
+constexpr auto I_S_PAGE_TYPE_BITS = 6;
 
 /* Check if we can hold all page types */
-#if I_S_PAGE_TYPE_LAST >= 1 << I_S_PAGE_TYPE_BITS
-# error i_s_page_type[] is too large
-#endif
+static_assert(
+        I_S_PAGE_TYPE_LAST < (1 << I_S_PAGE_TYPE_BITS),
+        "i_s_page_type[] is too large");
 
 /** Name string for File Page Types */
 static buf_page_desc_t	i_s_page_type[] = {
@@ -117,8 +125,16 @@ static buf_page_desc_t	i_s_page_type[] = {
 	{"ENCRYPTED_RTREE", FIL_PAGE_ENCRYPTED_RTREE},
 	{"SDI_BLOB", FIL_PAGE_SDI_BLOB},
 	{"SDI_COMPRESSED_BLOB", FIL_PAGE_SDI_ZBLOB},
-	{"COMPRESSED_BLOB3", FIL_PAGE_TYPE_ZBLOB3},
+	{"FIL_PAGE_TYPE_UNUSED", FIL_PAGE_TYPE_UNUSED},
 	{"RSEG_ARRAY", FIL_PAGE_TYPE_RSEG_ARRAY},
+	{"LOB_INDEX", FIL_PAGE_TYPE_LOB_INDEX},
+	{"LOB_DATA", FIL_PAGE_TYPE_LOB_DATA},
+	{"LOB_FIRST", FIL_PAGE_TYPE_LOB_FIRST},
+	{"ZLOB_FIRST", FIL_PAGE_TYPE_ZLOB_FIRST},
+	{"ZLOB_DATA", FIL_PAGE_TYPE_ZLOB_DATA},
+	{"ZLOB_INDEX", FIL_PAGE_TYPE_ZLOB_INDEX},
+	{"ZLOB_FRAG", FIL_PAGE_TYPE_ZLOB_FRAG},
+	{"ZLOB_FRAG_ENTRY", FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY},
 	{"RTREE_INDEX", I_S_PAGE_TYPE_RTREE},
 	{"IBUF_INDEX", I_S_PAGE_TYPE_IBUF},
 	{"SDI_INDEX", I_S_PAGE_TYPE_SDI}
@@ -5009,8 +5025,15 @@ i_s_innodb_set_page_type(
 	switch (page_info->page_type) {
 	case FIL_PAGE_TYPE_ZBLOB:
 	case FIL_PAGE_TYPE_ZBLOB2:
-	case FIL_PAGE_TYPE_ZBLOB3:
 	case FIL_PAGE_SDI_ZBLOB:
+	case FIL_PAGE_TYPE_LOB_INDEX:
+	case FIL_PAGE_TYPE_LOB_DATA:
+	case FIL_PAGE_TYPE_LOB_FIRST:
+	case FIL_PAGE_TYPE_ZLOB_FIRST:
+	case FIL_PAGE_TYPE_ZLOB_DATA:
+	case FIL_PAGE_TYPE_ZLOB_INDEX:
+	case FIL_PAGE_TYPE_ZLOB_FRAG:
+	case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
 		page_info->page_num = mach_read_from_4(
 			frame + FIL_PAGE_OFFSET);
 		page_info->space_id = mach_read_from_4(
@@ -6058,7 +6081,8 @@ i_s_innodb_tables_fill_table(
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
 
-	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_TABLES, &dd_tables);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				  dd_tables_name.c_str(), &dd_tables);
 
 	while (rec) {
 		dict_table_t*	table_rec;
@@ -6094,7 +6118,8 @@ i_s_innodb_tables_fill_table(
 	mem_heap_empty(heap);
 	mtr_start(&mtr);
 
-	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_PARTITIONS, &dd_tables);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				  dd_partitions_name.c_str(), &dd_tables);
 
 	while (rec) {
 		dict_table_t*	table_rec;
@@ -6396,7 +6421,8 @@ i_s_innodb_tables_fill_table_stats(
 	/* Prevent DDL to drop tables. */
 	mutex_enter(&dict_sys->mutex);
 	mtr_start(&mtr);
-	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_TABLES, &dd_tables);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, dd_tables_name.c_str(),
+				  &dd_tables);
 
 	while (rec) {
 		dict_table_t*	table_rec;
@@ -6681,7 +6707,8 @@ i_s_innodb_indexes_fill_table(
 	mtr_start(&mtr);
 
 	/* Start scan the mysql.indexes */
-	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr, DD_INDEXES, &dd_indexes);
+	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
+				  dd_indexes_name.c_str(), &dd_indexes);
 
 	/* Process each record in the table */
 	while (rec) {
@@ -6947,7 +6974,7 @@ i_s_innodb_columns_fill_table(
 
 	/* Start scan the mysql.columns */
 	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
-				  DD_COLUMNS, &dd_columns);
+				  dd_columns_name.c_str(), &dd_columns);
 
 	while (rec) {
 		dict_col_t	column_rec;
@@ -7162,7 +7189,7 @@ i_s_innodb_virtual_fill_table(
 
 	/* Start scan the mysql.columns */
 	rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
-				  DD_COLUMNS, &dd_columns);
+				  dd_columns_name.c_str(), &dd_columns);
 
 	while (rec) {
 		table_id_t	table_id;
@@ -7374,6 +7401,24 @@ static ST_FIELD_INFO	innodb_tablespaces_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define INNODB_TABLESPACES_SERVER_VESION 10
+	{STRUCT_FLD(field_name,		"SERVER_VERSION"),
+	 STRUCT_FLD(field_length,	10),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define INNODB_TABLESPACES_SPACE_VESION 11
+	{STRUCT_FLD(field_name,		"SPACE_VERSION"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 
 };
@@ -7384,6 +7429,8 @@ collected by scanning INNODB_TABLESPACESS table.
 @param[in]	space		space ID
 @param[in]	name		tablespace name
 @param[in]	flags		tablespace flags
+@param[in]	server_version	server version
+@param[in]	space_version	tablespace version
 @param[in,out]	table_to_fill	fill this table
 @return 0 on success */
 static
@@ -7393,6 +7440,8 @@ i_s_dict_fill_innodb_tablespaces(
 	space_id_t	space,
 	const char*	name,
 	ulint		flags,
+	uint32		server_version,
+	uint32		space_version,
 	TABLE*		table_to_fill)
 {
 
@@ -7402,8 +7451,17 @@ i_s_dict_fill_innodb_tablespaces(
 	const char*	row_format;
 	const page_size_t	page_size(flags);
 	const char*	space_type;
+	ulint		major_version = server_version / 10000;
+	ulint		minor_version = (server_version
+					 - (major_version *10000)) /100;
+	ulint		patch_version = server_version - (major_version * 10000)
+					- (minor_version * 100);
+	char            version_str[NAME_LEN];
 
 	DBUG_ENTER("i_s_dict_fill_innodb_tablespaces");
+
+	snprintf(version_str, NAME_LEN, "%ld.%ld.%ld", major_version,
+		 minor_version, patch_version);
 
 	if (fsp_is_system_or_temp_tablespace(space)) {
 		row_format = "Compact or Redundant";
@@ -7447,6 +7505,11 @@ i_s_dict_fill_innodb_tablespaces(
 	OK(field_store_string(fields[INNODB_TABLESPACES_SPACE_TYPE],
 			      space_type));
 
+	OK(field_store_string(fields[INNODB_TABLESPACES_SERVER_VESION],
+			      version_str));
+
+	OK(fields[INNODB_TABLESPACES_SPACE_VESION]->store(space_version, true));
+
 	char*	filepath = NULL;
 	if (FSP_FLAGS_HAS_DATA_DIR(flags)
 	    || FSP_FLAGS_GET_SHARED(flags)) {
@@ -7461,7 +7524,7 @@ i_s_dict_fill_innodb_tablespaces(
 			filepath = fil_space_get_first_path(space);
 			mutex_exit(&dict_sys->mutex);
 		} else {
-			filepath = fil_make_filepath(NULL, name, IBD, false);
+			filepath = Fil_path::make_ibd_from_table_name(name);
 		}
 	}
 
@@ -7549,24 +7612,29 @@ i_s_innodb_tablespaces_fill_table(
 	mtr_start(&mtr);
 
 	for (rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
-				       DD_TABLESPACES, &dd_spaces);
+				       dd_tablespaces_name.c_str(), &dd_spaces);
 	     rec != NULL;
 	     rec = dd_getnext_system_rec(&pcur, &mtr)) {
 
 		space_id_t	space;
 		char*		name;
 		uint		flags;
+		uint32		server_version;
+		uint32		space_version;
 
-		/* Extract necessary information from a INNODB_TABLESPACES row */
+		/* Extract necessary information from a INNODB_TABLESPACES
+		row */
 		ret = dd_process_dd_tablespaces_rec(
-			heap, rec, &space, &name, &flags, dd_spaces);
+			heap, rec, &space, &name, &flags, &server_version,
+			&space_version, dd_spaces);
 
 		mtr_commit(&mtr);
 		mutex_exit(&dict_sys->mutex);
 
 		if (ret && space != 0) {
 			i_s_dict_fill_innodb_tablespaces(
-				thd, space, name, flags, tables->table);
+				thd, space, name, flags, server_version,
+				space_version, tables->table);
 		}
 
 		mem_heap_empty(heap);
@@ -7659,7 +7727,6 @@ struct st_mysql_plugin	i_s_innodb_tablespaces =
 	/* unsigned long */
 	STRUCT_FLD(flags, 0UL),
 };
-
 
 /** INFORMATION_SCHEMA.INNODB_CACHED_INDEXES */
 
@@ -7767,7 +7834,8 @@ i_s_innodb_cached_indexes_fill_table(
 	/* Start the scan of INNODB_INDEXES. */
 	btr_pcur_t	pcur;
 	const rec_t* rec = dd_startscan_system(thd, &mdl, &pcur, &mtr,
-		DD_INDEXES, &dd_indexes);
+					       dd_indexes_name.c_str(),
+					       &dd_indexes);
 
 	/* Process each record in the table. */
 	while (rec != NULL) {

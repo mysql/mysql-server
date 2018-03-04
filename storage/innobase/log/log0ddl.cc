@@ -9,16 +9,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -498,6 +506,11 @@ DDL_Log_Table::insert(
 	dtuple_t*	entry;
 	ulint		flags = BTR_NO_LOCKING_FLAG;
 	mem_heap_t*	offsets_heap = mem_heap_create(1000);
+	static std::atomic<uint64_t>	count(0);
+
+	if (count++ % 64 == 0) {
+		log_free_check();
+	}
 
 	create_tuple(record);
 	entry = row_build_index_entry(m_tuple, NULL, index, m_heap);
@@ -792,6 +805,11 @@ DDL_Log_Table::remove(
 	dberr_t			error = DB_SUCCESS;
 	enum row_search_result	search_result;
 	ulint			flags = BTR_NO_LOCKING_FLAG;
+	static uint64_t		count = 0;
+
+	if (count++ % 64 == 0) {
+		log_free_check();
+	}
 
 	create_tuple(id, clust_index);
 
@@ -813,7 +831,8 @@ DDL_Log_Table::remove(
 	offsets = rec_get_offsets(btr_pcur_get_rec(&pcur), clust_index, NULL,
 				  ULINT_UNDEFINED, &m_heap);
 
-	row = row_build(ROW_COPY_DATA, clust_index, btr_pcur_get_rec(&pcur),
+	row = row_build(ROW_COPY_DATA, clust_index,
+			btr_pcur_get_rec(&pcur),
 			offsets, NULL, NULL, NULL, NULL, m_heap);
 
 	rec = btr_cur_get_rec(btr_cur);
@@ -1610,8 +1629,7 @@ Log_DDL::replay_delete_space_log(
 	space_id_t	space_id,
 	const char*	file_path)
 {
-	MDL_ticket*     sdi_mdl = nullptr;
-	THD*            thd = current_thd;
+	THD*	thd = current_thd;
 
 	/* Require the mutex to block key rotation. Please note that
 	here we don't know if this tablespace is encrypted or not,
@@ -1619,15 +1637,9 @@ Log_DDL::replay_delete_space_log(
 	mutex_enter(&master_key_id_mutex);
 
 	if (thd != nullptr) {
-
-		/* Acquire MDL on SDI table of tablespace. This is to prevent
-		concurrent DROP while purge is happening on SDI table */
-		ut_d(dberr_t err =)
-		dd_sdi_acquire_exclusive_mdl(thd, space_id, &sdi_mdl);
-
-		/* WL#9538 TODO: How to handle MDL acquisition failure. */
-		ut_ad(err == DB_SUCCESS);
-
+		/* For general tablespace, MDL on SDI tables is already
+		acquired at innobase_drop_tablespace() and for file_per_table
+		tablespace, MDL is acquired at row_drop_table_for_mysql() */
 		mutex_enter(&dict_sys->mutex);
 		dict_sdi_remove_from_cache(space_id, NULL, true);
 		mutex_exit(&dict_sys->mutex);

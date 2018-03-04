@@ -2,13 +2,20 @@
    Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -95,9 +102,9 @@ public:
     Uint32 m_magic;
   };
 
-  typedef RecordPool<Log_waiter, WOPool<Log_waiter> > Log_waiter_pool;
-  typedef SLFifoList<Log_waiter, Log_waiter_pool> Log_waiter_list;
-  typedef LocalSLFifoList<Log_waiter, Log_waiter_pool> Local_log_waiter_list;
+  typedef RecordPool<WOPool<Log_waiter> > Log_waiter_pool;
+  typedef SLFifoList<Log_waiter_pool> Log_waiter_list;
+  typedef LocalSLFifoList<Log_waiter_pool> Local_log_waiter_list;
   
   struct Undofile
   {
@@ -155,9 +162,9 @@ public:
     };
   };
 
-  typedef RecordPool<Undofile, RWPool<Undofile> > Undofile_pool;
-  typedef DLFifoList<Undofile, Undofile_pool> Undofile_list;
-  typedef LocalDLFifoList<Undofile, Undofile_pool> Local_undofile_list;
+  typedef RecordPool<RWPool<Undofile> > Undofile_pool;
+  typedef DLFifoList<Undofile_pool> Undofile_list;
+  typedef LocalDLFifoList<Undofile_pool> Local_undofile_list;
   typedef LocalDataBuffer<15,ArrayPool<DataBufferSegment<15> > > Page_map;
 
   struct Buffer_idx 
@@ -260,11 +267,11 @@ public:
     }
   };
 
-  typedef RecordPool<Logfile_group, RWPool<Logfile_group> > Logfile_group_pool;
-  typedef DLFifoList<Logfile_group, Logfile_group_pool> Logfile_group_list;
-  typedef LocalDLFifoList<Logfile_group, Logfile_group_pool> Local_logfile_group_list;
-  typedef KeyTable<Logfile_group_pool, Logfile_group> Logfile_group_hash;
-  typedef KeyTable<Logfile_group_pool, Logfile_group>::Iterator Logfile_group_hash_iterator;
+  typedef RecordPool<RWPool<Logfile_group> > Logfile_group_pool;
+  typedef DLFifoList<Logfile_group_pool> Logfile_group_list;
+  typedef LocalDLFifoList<Logfile_group_pool> Local_logfile_group_list;
+  typedef KeyTable<Logfile_group_pool> Logfile_group_hash;
+  typedef KeyTable<Logfile_group_pool>::Iterator Logfile_group_hash_iterator;
   enum CallbackIndex {
     // lgman
     COUNT_CALLBACKS = 1

@@ -1,17 +1,24 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -20,18 +27,17 @@
 #include <stddef.h>
 #include <string>
 
-#include "parsertest.h"
 #include "sql/item_func.h"
 #include "sql/sql_lex.h"
 #include "template_utils.h"
-#include "test_utils.h"
 #include "thr_lock.h"
+#include "unittest/gunit/parsertest.h"
+#include "unittest/gunit/test_utils.h"
 
 namespace table_factor_syntax_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
-using my_testing::expect_null;
 
 class TableFactorSyntaxTest : public ParserTest
 {
@@ -40,24 +46,26 @@ protected:
                                 bool expect_syntax_error)
   {
     SELECT_LEX *term1= parse(query, expect_syntax_error ? ER_PARSE_ERROR : 0);
-    expect_null<SELECT_LEX_UNIT>(term1->first_inner_unit());
-    expect_null<SELECT_LEX>(term1->next_select_in_list());
+    EXPECT_EQ(nullptr, term1->first_inner_unit());
+    EXPECT_EQ(nullptr, term1->next_select_in_list());
     EXPECT_EQ(1, term1->get_item_list()->head()->val_int());
 
     SELECT_LEX_UNIT *top_union= term1->master_unit();
-    expect_null<SELECT_LEX>(top_union->outer_select());
+    EXPECT_EQ(nullptr, top_union->outer_select());
 
     if (num_terms > 1)
     {
       SELECT_LEX *term2= term1->next_select();
       ASSERT_FALSE(term2 == NULL);
 
-      expect_null<SELECT_LEX_UNIT>(term2->first_inner_unit());
+      EXPECT_EQ(nullptr, term2->first_inner_unit());
       EXPECT_EQ(term1, term2->next_select_in_list());
       EXPECT_EQ(2, term2->get_item_list()->head()->val_int());
 
       if (num_terms <= 2)
-        expect_null<SELECT_LEX>(term2->next_select());
+      {
+        EXPECT_EQ(nullptr, term2->next_select());
+      }
 
       EXPECT_EQ(top_union, term2->master_unit());
     }
@@ -88,11 +96,11 @@ TEST_F(TableFactorSyntaxTest, Single)
 {
   SELECT_LEX *term=
     parse("SELECT 2 FROM (SELECT 1 FROM t1) dt;", 0);
-  expect_null<SELECT_LEX>(term->outer_select());
+  EXPECT_EQ(nullptr, term->outer_select());
   SELECT_LEX_UNIT *top_union= term->master_unit();
 
   EXPECT_EQ(term, top_union->first_select());
-  expect_null(term->next_select());
+  EXPECT_EQ(nullptr, term->next_select());
 
   ASSERT_EQ(1U, term->top_join_list.elements);
   EXPECT_STREQ("dt", term->top_join_list.head()->alias);
@@ -109,11 +117,11 @@ TEST_F(TableFactorSyntaxTest, TablelessTableSubquery)
 {
   SELECT_LEX *term=
     parse("SELECT 1 FROM (SELECT 2) a;", 0);
-  expect_null<SELECT_LEX>(term->outer_select());
+  EXPECT_EQ(nullptr, term->outer_select());
   SELECT_LEX_UNIT *top_union= term->master_unit();
 
   EXPECT_EQ(term, top_union->first_select());
-  expect_null(term->next_select());
+  EXPECT_EQ(nullptr, term->next_select());
 
   ASSERT_EQ(1U, term->top_join_list.elements);
   EXPECT_STREQ("a", term->top_join_list.head()->alias);
@@ -122,7 +130,7 @@ TEST_F(TableFactorSyntaxTest, TablelessTableSubquery)
 
   SELECT_LEX *inner_term= inner_union->first_select();
 
-  expect_null(inner_term->first_inner_unit());
+  EXPECT_EQ(nullptr, inner_term->first_inner_unit());
 
   EXPECT_NE(term, term->table_list.first->derived_unit()->first_select()) <<
     "No cycle in the AST, please.";
@@ -137,7 +145,7 @@ TEST_F(TableFactorSyntaxTest, Union)
   SELECT_LEX_UNIT *top_union= block->master_unit();
 
   EXPECT_EQ(block, top_union->first_select());
-  expect_null(block->next_select());
+  EXPECT_EQ(nullptr, block->next_select());
 
   TABLE_LIST *dt= block->table_list.first;
   EXPECT_EQ(dt, block->context.first_name_resolution_table);
@@ -161,14 +169,14 @@ TEST_F(TableFactorSyntaxTest, Union)
   EXPECT_EQ(t1, first_inner_block->context.first_name_resolution_table);
   EXPECT_EQ(t2, second_inner_block->context.first_name_resolution_table);
 
-  expect_null<st_nested_join>(t1->nested_join);
-  expect_null<st_nested_join>(t2->nested_join);
+  EXPECT_EQ(nullptr, t1->nested_join);
+  EXPECT_EQ(nullptr, t2->nested_join);
 
   check_query_block(first_inner_block, 1, "t1");
   check_query_block(second_inner_block, 2, "t2");
 
   EXPECT_FALSE(block->braces);
-  expect_null<SELECT_LEX>(block->outer_select());
+  EXPECT_EQ(nullptr, block->outer_select());
 }
 
 

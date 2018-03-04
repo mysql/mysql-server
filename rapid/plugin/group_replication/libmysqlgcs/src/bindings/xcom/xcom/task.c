@@ -1,13 +1,20 @@
 /* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -31,12 +38,16 @@
 #define _GNU_SOURCE
 #endif
 
-#include "x_platform.h"
-#include "xcom_profile.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
 #ifdef XCOM_HAVE_OPENSSL
-#include "openssl/err.h"
-#include "openssl/ssl.h"
+#ifdef WIN32
+// In OpenSSL before 1.1.0, we need this first.
+#include <winsock2.h>
+#endif  // WIN32
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 #endif
 
 #include <limits.h>
@@ -46,35 +57,36 @@
 #include <netdb.h>
 #endif
 
-#include <stdlib.h>
-#include "node_connection.h"
-#include "xcom_vp.h"
-
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
+#include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
 #ifdef __sun
 #include <procfs.h>
 #endif
 
-#include "simset.h"
-#include "task.h"
-#include "task_debug.h"
-#include "task_net.h"
-#include "task_os.h"
-#include "xcom_cfg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/simset.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_debug.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_net.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_os.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/site_def.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_base.h"
+
 #ifndef _WIN32
-#ifndef USE_SELECT
 #include <poll.h>
 #endif
-#endif
 
-#include "retry.h"
-#include "xdr_utils.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/retry.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xdr_utils.h"
 
 extern char *pax_op_to_str(int x);
 
@@ -83,15 +95,6 @@ task_arg null_arg = {a_end, {0}};
 struct iotasks;
 typedef struct iotasks iotasks;
 
-#ifdef USE_SELECT
-struct iotasks {
-  int maxfd;
-  fd_set read_set;
-  fd_set write_set;
-  fd_set err_set;
-  linkage tasks; /* OHKFIX Should be one each for read and write */
-};
-#else
 typedef struct {
   u_int pollfd_array_len;
   pollfd *pollfd_array_val;
@@ -112,7 +115,7 @@ struct iotasks {
   pollfd_array fd;
   task_env_p_array tasks;
 };
-#endif
+
 int task_errno = 0;
 static task_env *extract_first_delayed();
 static task_env *task_ref(task_env *t);
@@ -588,149 +591,7 @@ static task_env *extract_first_delayed() {
 }
 
 static iotasks iot;
-#ifdef USE_SELECT
-static void iotasks_init(iotasks *iot) {
-  iot->maxfd = 0;
-  FD_ZERO(&iot->read_set);
-  FD_ZERO(&iot->write_set);
-  FD_ZERO(&iot->err_set);
-  link_init(&iot->tasks, type_hash("task_env"));
-}
 
-static void iotasks_deinit(iotasks *iot)
-{
-	DBGOUT(FN);
-}
-
-#if TASK_DBUG_ON
-static void poll_debug() MY_ATTRIBUTE((unused));
-static void poll_debug() {
-  GET_GOUT;
-  if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE))
-    return;
-#if 0
-	NDBG(FD_SETSIZE, d);
-	PTREXP(&iot.tasks);
-	NDBG(iot.tasks.type, u);
-	NDBG(cardinal(&iot.tasks), d);
-	PTREXP(iot.tasks.suc);
-	PTREXP(iot.tasks.pred);
-#endif
-  FWD_ITER(&iot.tasks, task_env, STRLIT("->"); PTREXP(link_iter);
-           PTREXP(link_iter->l.suc); PTREXP(link_iter->l.pred);
-           NDBG(link_iter->waitfd, d);
-           NDBG(FD_ISSET(link_iter->waitfd, &iot.read_set), d);
-           NDBG(FD_ISSET(link_iter->waitfd, &iot.write_set), d);
-           NDBG(FD_ISSET(link_iter->waitfd, &iot.err_set), d););
-  PRINT_GOUT;
-  FREE_GOUT;
-}
-#endif
-
-static int check_completion(task_env *t, fd_set *r, fd_set *w, fd_set *e) {
-  int interrupt = 0;
-  assert(&t->l != &iot.tasks);
-  /* MAY_DBG(FN;
-          STREXP(t->name);
-          NDBG(t->waitfd,d);
-      NDBG(FD_ISSET(t->waitfd,r),d);
-      NDBG(FD_ISSET(t->waitfd,w),d);
-      NDBG(FD_ISSET(t->waitfd,e),d);
-  ); */
-  if (FD_ISSET(t->waitfd, e)) abort(); /* Close file here instead? */
-  interrupt = (t->time != 0.0 && t->time < task_now());
-  if (interrupt || /* timeout ? */
-      FD_ISSET(t->waitfd, r) || FD_ISSET(t->waitfd, w)) {
-    FD_CLR(t->waitfd, &iot.read_set);
-    FD_CLR(t->waitfd, &iot.write_set);
-    FD_CLR(t->waitfd, &iot.err_set);
-    t->interrupt = interrupt;
-    activate(t);
-    if (iot.maxfd - 1 == t->waitfd)
-      iot.maxfd = t->waitfd; /* Shrink set of watched files */
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
-static int poll_wait(int ms) {
-  /* Wait at most ms milliseconds */
-  int wake = 0;
-  struct timeval select_timeout;
-  MAY_DBG(FN; NDBG(ms, d));
-  if (ms < 0 || ms > 1000) ms = 1000; /* Wait at most 1000 ms */
-  /* convert milliseconds to seconds and microseconds */
-  select_timeout.tv_sec = ms / 1000;
-  select_timeout.tv_usec = (ms % 1000) * 1000;
-  {
-    result nfds = {0, 0};
-    fd_set r = iot.read_set;
-    fd_set w = iot.write_set;
-    fd_set e = iot.err_set;
-    MAY_DBG(FN; poll_debug());
-    SET_OS_ERR(0);
-    while ((nfds.val = select(iot.maxfd, &r, &w, &e, &select_timeout)) == -1) {
-      nfds.funerr = to_errno(GET_OS_ERR);
-      if (hard_select_err(nfds.funerr)) {
-        task_dump_err(nfds.funerr);
-        DBGOUT(STRLIT("select failed"); NDBG(iot.maxfd, d));
-        return 0;
-      }
-      SET_OS_ERR(0);
-      r = iot.read_set;
-      w = iot.write_set;
-      e = iot.err_set;
-    }
-    /* MAY_DBG(FN; poll_debug()); */
-    /* Wake up ready tasks */
-    /* if (nfds.val > 0) { */
-    /*   FWD_ITER(&iot.tasks, task_env,  */
-    /*            nfds.val -= check_completion(link_iter, &r, &w, &e);  */
-    /*            if (nfds.val == 0) break); */
-    /* } */
-    FWD_ITER(&iot.tasks, task_env,
-             if (check_completion(link_iter, &r, &w, &e)) wake = 1);
-  }
-  return wake;
-}
-
-static void add_fd(task_env *t, int fd, int op) {
-  MAY_DBG(FN; PTREXP(t); STREXP(t->name); NDBG(fd, d); NDBG(op, c));
-  assert(fd >= 0);
-  t->waitfd = fd;
-  if (fd >= iot.maxfd) iot.maxfd = fd + 1;
-  FD_CLR(fd, &iot.err_set);
-  if ('r' == op)
-    FD_SET(fd, &iot.read_set);
-  else
-    FD_SET(fd, &iot.write_set);
-  task_wait(t, &iot.tasks);
-  /* MAY_DBG(FN; poll_debug()); */
-}
-
-static void unpoll(int i) {
-  FD_CLR(i, &iot.read_set);
-  FD_CLR(i, &iot.write_set);
-  FD_CLR(i, &iot.err_set);
-}
-
-static void wake_all_io() {
-  FWD_ITER(&iot.tasks, task_env, unpoll(link_iter->waitfd);
-           activate(link_iter););
-}
-
-void remove_and_wakeup(int fd) {
-  MAY_DBG(FN; NDBG(fd, d));
-  FWD_ITER(&iot.tasks, task_env, if (fd == link_iter->waitfd) {
-    unpoll(link_iter->waitfd);
-    activate(link_iter);
-    if (iot.maxfd - 1 == link_iter->waitfd)
-      iot.maxfd = link_iter->waitfd; /* Shrink set of watched files */
-  });
-}
-
-#else
 static void iotasks_init(iotasks *iot)
  {
   DBGOUT(FN);
@@ -859,7 +720,6 @@ void remove_and_wakeup(int fd) {
   }
 }
 
-#endif
 task_env *stack = NULL;
 
 task_env *wait_io(task_env *t, int fd, int op) {
@@ -1084,11 +944,22 @@ static int msdiff(double time) {
   return (int)(1000.5 * (first_delayed()->time - time));
 }
 
+static should_exit_getter get_should_exit;
+
+void set_should_exit_getter(should_exit_getter x)  { get_should_exit = x; }
+
 static double idle_time = 0.0;
 void task_loop() {
+  task_env *t = 0;
   /* While there are tasks */
   for (;;) {
-    task_env *t = first_runnable();
+    //check forced exit callback
+    if(get_should_exit())
+    {
+      xcom_fsm(xa_exit, int_arg(0));
+    }
+
+    t = first_runnable();
     /* While runnable tasks */
     while (runnable_tasks()) {
       task_env *next = next_task(t);
@@ -1126,13 +997,8 @@ void task_loop() {
        Wait until something happens.
     */
 #ifdef DEBUG_TASKS
-#ifdef USE_SELECT
-    MAY_DBG(FN; STRLIT("waiting tasks time "); NDBG(seconds(), f);
-            NDBG(cardinal(&iot.tasks), d); NDBG(task_time_q.curn, d));
-#else
     MAY_DBG(FN; STRLIT("waiting tasks time "); NDBG(seconds(), f);
             NDBG(iot.nwait, d); NDBG(task_time_q.curn));
-#endif
 #endif
     {
       double time = seconds();
@@ -1177,9 +1043,9 @@ static int init_sockaddr(char *server, struct sockaddr_in *sock_addr,
                          socklen_t *sock_size, xcom_port port) {
   /* Get address of server */
   struct addrinfo *addr = 0;
-  
+
   checked_getaddrinfo(server, 0, 0, &addr);
-  
+
   if (!addr) return 0;
   /* Copy first address */
   memcpy(sock_addr, addr->ai_addr, addr->ai_addrlen);

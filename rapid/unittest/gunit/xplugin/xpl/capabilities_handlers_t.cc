@@ -1,17 +1,24 @@
 /* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; version 2 of the License.
+ it under the terms of the GNU General Public License, version 2.0,
+ as published by the Free Software Foundation.
+
+ This program is also distributed with certain software (including
+ but not limited to OpenSSL) that is licensed under separate terms,
+ as designated in a particular file or component or in included license
+ documentation.  The authors of MySQL hereby grant you an additional
+ permission to link the program and your derivative works with the
+ separately licensed software that they have included with MySQL.
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+ GNU General Public License, version 2.0, for more details.
 
  You should have received a copy of the GNU General Public License
  along with this program; if not, write to the Free Software
- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 #include "my_config.h"
@@ -19,13 +26,14 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "account_verification_handler.h"
-#include "mock/capabilities.h"
-#include "mock/ngs_general.h"
-#include "mock/session.h"
-#include "ngs/capabilities/handler_auth_mech.h"
-#include "ngs/capabilities/handler_tls.h"
-#include "rapid/plugin/x/src/sql_user_require.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_auth_mech.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_client_interactive.h"
+#include "plugin/x/ngs/include/ngs/capabilities/handler_tls.h"
+#include "plugin/x/src/account_verification_handler.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "unittest/gunit/xplugin/xpl/mock/capabilities.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace ngs
 {
@@ -360,6 +368,92 @@ TEST_F(CapabilityHanderAuthMechTestSuite, get_returnAuthMethodsFromServer_always
 }
 #endif  // HAVE_UBSAN
 
+class Capability_hander_client_interactive_test_suite : public Test
+{
+public:
+  Capability_hander_client_interactive_test_suite() = default;
+
+  void SetUp()
+  {
+    EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(false));
+    sut.reset(new Capability_client_interactive(mock_client));
+  }
+
+  ngs::unique_ptr<Capability_client_interactive> sut;
+  StrictMock<xpl::test::Mock_client> mock_client;
+};
+
+TEST_F(Capability_hander_client_interactive_test_suite,
+    is_supported_returns_true_always)
+{
+  ASSERT_TRUE(sut->is_supported());
+}
+
+TEST_F(Capability_hander_client_interactive_test_suite,
+    name_returns_client_interactive_always)
+{
+  ASSERT_STREQ("client.interactive", sut->name().c_str());
+}
+
+TEST_F(Capability_hander_client_interactive_test_suite,
+    get_when_client_is_interactive)
+{
+  EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(true));
+  sut.reset(new Capability_client_interactive(mock_client));
+
+  const bool  expected_result = true;
+  Any         any;
+
+  sut->get(any);
+
+  ASSERT_EQ(Any::SCALAR,     any.type());
+  ASSERT_EQ(Scalar::V_BOOL,  any.scalar().type());
+  ASSERT_EQ(expected_result, any.scalar().v_bool());
+}
+
+TEST_F(Capability_hander_client_interactive_test_suite,
+    get_when_client_is_not_interactive)
+{
+  EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(false));
+  sut.reset(new Capability_client_interactive(mock_client));
+
+  const bool  expected_result = false;
+  Any         any;
+
+  sut->get(any);
+
+  ASSERT_EQ(Any::SCALAR,     any.type());
+  ASSERT_EQ(Scalar::V_BOOL,  any.scalar().type());
+  ASSERT_EQ(expected_result, any.scalar().v_bool());
+}
+
+TEST_F(Capability_hander_client_interactive_test_suite,
+    set_and_commit_valid_type)
+{
+  Any any;
+  any.mutable_scalar()->set_type(Scalar::V_BOOL);
+  any.mutable_scalar()->set_v_bool(true);
+
+  ASSERT_TRUE(sut->set(any));
+
+  EXPECT_CALL(mock_client, set_is_interactive(true));
+
+  sut->commit();
+}
+
+TEST_F(Capability_hander_client_interactive_test_suite,
+    set_and_commit_invalid_type)
+{
+  Any any;
+  any.mutable_scalar()->set_type(Scalar::V_STRING);
+  any.mutable_scalar()->mutable_v_string()->set_value("invalid");
+
+  ASSERT_FALSE(sut->set(any));
+
+  EXPECT_CALL(mock_client, set_is_interactive(false));
+
+  sut->commit();
+}
 
 } // namespace test
 

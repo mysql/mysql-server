@@ -69,7 +69,7 @@ install_validate_password_sql_file () {
     initfile="$(mktemp /var/lib/mysql-files/install-validate-password-plugin.XXXXXX.sql)"
     chmod a+r "$initfile"
     echo "SET @@SESSION.SQL_LOG_BIN=0;" > "$initfile"
-    echo "INSERT INTO mysql.plugin (name, dl) VALUES ('validate_password', 'validate_password.so');" >> "$initfile"
+    echo "INSERT INTO mysql.component (component_id, component_group_id, component_urn) VALUES (1, 1, 'file://component_validate_password');" >> "$initfile"
     echo "$initfile"
 }
 

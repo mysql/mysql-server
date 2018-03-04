@@ -76,13 +76,13 @@ delimiter |;
 
 # Empty statement
 --disable_warnings ONCE
-drop procedure if exists empty|
-create procedure empty()
+drop procedure if exists `empty`|
+create procedure `empty`()
 begin
 end|
 
-call empty()|
-drop procedure empty|
+call `empty`()|
+drop procedure `empty`|
 
 # Scope test. This is legal (warnings might be possible in the future,
 # but for the time being, we just accept it).

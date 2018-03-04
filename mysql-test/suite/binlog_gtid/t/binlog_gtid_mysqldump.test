@@ -32,47 +32,37 @@ INSERT INTO t1 VALUES (2);
 --let $name = dump
 # Use --ignore-table=proc to workaround BUG#25295631.
 --let $program = $MYSQL_DUMP --all-databases --triggers --routines --events --ignore-table=mysql.proc
---let $iteration = 0
-while ($iteration < 2) {
 
-  --echo ==== $name and restore ====
+--echo ==== $name and restore ====
 
-  --echo # $name
-  # Apparently mysql.proc is not fully restored on the slave, so
-  # unless we remove it from the dump, check-testcase will fail.
-  --exec $PROGRAM >> $MYSQL_TMP_DIR/mysql$name.sql
+--echo # $name
+# Apparently mysql.proc is not fully restored on the slave, so
+# unless we remove it from the dump, check-testcase will fail.
+--exec $PROGRAM >> $MYSQL_TMP_DIR/mysql$name.sql
 
-  DROP TABLE t1;
-  RESET MASTER;
+DROP TABLE t1;
+RESET MASTER;
 
-  --echo # restore
-  --exec $MYSQL < $MYSQL_TMP_DIR/mysql$name.sql
+--echo # restore
+--exec $MYSQL < $MYSQL_TMP_DIR/mysql$name.sql
 
-  --echo ==== Verify after restoring from $name ====
+--echo ==== Verify after restoring from $name ====
 
-  --let $assert_text= GTID_EXECUTED should equal master GTID_EXECUTED after $name restored
-  --let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$gtid_executed"
-  --source include/assert.inc
-  --let $assert_text= GTID_PURGED should equal master GTID_EXECUTED after $name restored
-  --let $assert_cond= @@GLOBAL.GTID_PURGED = "$gtid_executed"
-  --source include/assert.inc
+--let $assert_text= GTID_EXECUTED should equal master GTID_EXECUTED after $name restored
+--let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$gtid_executed"
+--source include/assert.inc
+--let $assert_text= GTID_PURGED should equal master GTID_EXECUTED after $name restored
+--let $assert_cond= @@GLOBAL.GTID_PURGED = "$gtid_executed"
+--source include/assert.inc
 
-  --source include/restart_mysqld.inc
+--source include/restart_mysqld.inc
 
-  --let $assert_text= GTID_EXECUTED should equal master GTID_EXECUTED after server restarted
-  --let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$gtid_executed"
-  --source include/assert.inc
-  --let $assert_text= GTID_PURGED should equal master GTID_EXECUTED after server restarted
-  --let $assert_cond= @@GLOBAL.GTID_PURGED = "$gtid_executed"
-  --source include/assert.inc
-
-  # Set variables to use pump for next iteration
-  --let $name= pump
-  # Skip routines to workaround BUG#25292963
-  --let $program= $MYSQL_PUMP --add-drop-table --all-databases --include-routines=o
-
-  --inc $iteration
-}
+--let $assert_text= GTID_EXECUTED should equal master GTID_EXECUTED after server restarted
+--let $assert_cond= @@GLOBAL.GTID_EXECUTED = "$gtid_executed"
+--source include/assert.inc
+--let $assert_text= GTID_PURGED should equal master GTID_EXECUTED after server restarted
+--let $assert_cond= @@GLOBAL.GTID_PURGED = "$gtid_executed"
+--source include/assert.inc
 
 --echo ==== Clean up ====
 

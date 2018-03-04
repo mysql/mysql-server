@@ -2,17 +2,24 @@
    Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/spatial.h"
 
@@ -871,6 +878,51 @@ static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
 }
 
 
+/**
+   Check that a pair of geographic coordinates are within the valid range.
+
+   Checks if the coordinates are within the allowed range for geographic
+   coordinates. Valid range for longitude and latitude coordinates in geographic
+   spatial reference systems are (-180, 180) and [-90, 90] degrees,
+   respectively.
+
+   @param[in] x Longitude coordinate.
+   @param[in] y Latitude coordinate.
+   @param[in] srs_angular_unit Unit to radians conversion factor.
+   @param[out] long_out_of_range Longitude is out of range.
+   @param[out] lat_out_of_range Latitude is out of range.
+   @param[out] out_of_range_value The value that is out of range.
+
+   @retval false Coordinates are within allowed range.
+   @retval true Coordinates are not within allowed range.
+*/
+
+static bool check_coordinate_range(double x, double y,
+                                   double srs_angular_unit,
+                                   bool *long_out_of_range,
+                                   bool *lat_out_of_range,
+                                   double *out_of_range_value)
+{
+  // Check if longitude coordinates are within allowed range.
+  if (x * srs_angular_unit <= -M_PI || x * srs_angular_unit > M_PI)
+  {
+    *long_out_of_range= true;
+    *out_of_range_value= x;
+    return true;
+  }
+
+  // Check if latitude coordinates are within allowed range.
+  if (y * srs_angular_unit < -M_PI_2 || y * srs_angular_unit > M_PI_2)
+  {
+    *lat_out_of_range= true;
+    *out_of_range_value= y;
+    return true;
+  }
+
+  return false;
+}
+
+
 static uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
 {
   if (bo == Geometry::wkb_ndr)
@@ -1607,6 +1659,26 @@ bool Gis_point::reverse_coordinates()
   return false;
 }
 
+bool Gis_point::validate_coordinate_range(double srs_angular_unit,
+                                          bool *long_out_of_range,
+                                          bool *lat_out_of_range,
+                                          double *out_of_range_value)
+{
+  double x;
+  double y;
+
+  *long_out_of_range= false;
+  *lat_out_of_range= false;
+
+  if (get_x(&x) || get_y(&y))
+  {
+    return true; /* purecov: inspected */
+  }
+
+  return check_coordinate_range(x, y, srs_angular_unit, long_out_of_range,
+                                lat_out_of_range, out_of_range_value);
+}
+
 
 const Geometry::Class_info *Gis_point::get_class_info() const
 {
@@ -1880,6 +1952,40 @@ bool Gis_line_string::reverse_coordinates()
   return false;
 }
 
+
+bool Gis_line_string::validate_coordinate_range(double srs_angular_unit,
+                                                bool *long_out_of_range,
+                                                bool *lat_out_of_range,
+                                                double *out_of_range_value)
+{
+  uint32 num_of_points;
+  *long_out_of_range= false;
+  *lat_out_of_range= false;
+
+
+  if (num_points(&num_of_points))
+  {
+    return true; /* purecov: inspected */
+  }
+
+  for (uint32 i= 0; i < num_of_points; i++)
+  {
+    double x;
+    double y;
+
+    // +4 in below functions to skip numPoints field.
+    float8get(&x, get_cptr() + 4 + i * POINT_DATA_SIZE);
+    float8get(&y, get_cptr() + 4 + i * POINT_DATA_SIZE + SIZEOF_STORED_DOUBLE);
+
+    if (check_coordinate_range(x, y, srs_angular_unit, long_out_of_range,
+                               lat_out_of_range, out_of_range_value))
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
 
 const Geometry::Class_info *Gis_line_string::get_class_info() const
 {
@@ -2530,6 +2636,49 @@ bool Gis_polygon::reverse_coordinates()
   return false;
 }
 
+bool Gis_polygon::validate_coordinate_range(double srs_angular_unit,
+                                            bool *long_out_of_range,
+                                            bool *lat_out_of_range,
+                                            double *out_of_range_value)
+{
+  uint32 numrings;
+  *long_out_of_range= false;
+  *lat_out_of_range= false;
+
+  if (num_interior_ring(&numrings))
+  {
+    return true; /* purecov: inspected */
+  }
+
+  numrings+= 1; // Add exterior ring to number of rings.
+  uint32 current_data_offset= 4; // Add numRings header size to data offset.
+
+  for (uint32 i= 0; i < numrings; i++)
+  {
+    uint32 num_of_points= uint4korr(get_ucptr() + current_data_offset);
+    current_data_offset+= 4; // Add linear ring header size to data offset.
+
+    for (uint32 j= 0; j < num_of_points; j++)
+    {
+      double x;
+      double y;
+
+      float8get(&x, get_cptr() + current_data_offset);
+      float8get(&y, get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
+
+      if (check_coordinate_range(x, y, srs_angular_unit, long_out_of_range,
+                                 lat_out_of_range, out_of_range_value))
+      {
+        return true;
+      }
+
+      current_data_offset+= POINT_DATA_SIZE;
+    }
+  }
+
+  return false;
+}
+
 
 const Geometry::Class_info *Gis_polygon::get_class_info() const
 {
@@ -2842,6 +2991,44 @@ bool Gis_multi_point::reverse_coordinates()
   return false;
 }
 
+bool Gis_multi_point::validate_coordinate_range(double srs_angular_unit,
+                                                bool *long_out_of_range,
+                                                bool *lat_out_of_range,
+                                                double *out_of_range_value)
+{
+  uint32 num_of_points;
+  *long_out_of_range= false;
+  *lat_out_of_range= false;
+
+  if (num_geometries(&num_of_points))
+  {
+    return true; /* purecov: inspected */
+  }
+
+  uint32 current_data_offset= 4; // Add number of points header to offset.
+
+  for (uint32 i= 0; i < num_of_points; i++)
+  {
+    double x;
+    double y;
+
+    current_data_offset+= WKB_HEADER_SIZE; // Since each point includes a header.
+
+    float8get(&x, get_cptr() + current_data_offset);
+    float8get(&y, get_cptr() + current_data_offset + SIZEOF_STORED_DOUBLE);
+
+    if (check_coordinate_range(x, y, srs_angular_unit, long_out_of_range,
+                               lat_out_of_range, out_of_range_value))
+    {
+      return true;
+    }
+
+    current_data_offset+= POINT_DATA_SIZE;
+  }
+
+  return false;
+}
+
 
 const Geometry::Class_info *Gis_multi_point::get_class_info() const
 {
@@ -3130,6 +3317,48 @@ bool Gis_multi_line_string::reverse_coordinates()
 }
 
 
+bool Gis_multi_line_string::validate_coordinate_range(double srs_angular_unit,
+                                                      bool *long_out_of_range,
+                                                      bool *lat_out_of_range,
+                                                      double *out_of_range_value)
+{
+  uint32 num_of_linestrings;
+  *long_out_of_range= false;
+  *lat_out_of_range= false;
+
+  if (num_geometries(&num_of_linestrings))
+  {
+    return true; /* purecov: inspected */
+  }
+
+  for (uint32 i= 1; i <= num_of_linestrings; i++)
+  {
+    String result;
+
+    if (geometry_n(i, &result))
+    {
+      return true; /* purecov: inspected */
+    }
+
+    Geometry *g;
+    Geometry_buffer buffer;
+    if (!(g= Geometry::construct(&buffer, &result, false)))
+    {
+      return true; /* purecov: inspected */
+    }
+
+    if (g->validate_coordinate_range(srs_angular_unit, long_out_of_range,
+                                     lat_out_of_range, out_of_range_value))
+    {
+      return true;
+    }
+
+  }
+
+  return false;
+}
+
+
 const Geometry::Class_info *Gis_multi_line_string::get_class_info() const
 {
   return &multilinestring_class;
@@ -3392,6 +3621,48 @@ bool Gis_multi_polygon::reverse_coordinates()
     }
 
     current_data_offset+= result.length();
+  }
+
+  return false;
+}
+
+
+bool Gis_multi_polygon::validate_coordinate_range(double srs_angular_unit,
+                                                  bool *long_out_of_range,
+                                                  bool *lat_out_of_range,
+                                                  double *out_of_range_value)
+{
+  uint32 num_of_polygons;
+  *long_out_of_range= false;
+  *lat_out_of_range= false;
+
+  if (num_geometries(&num_of_polygons))
+  {
+    return true; /* purecov: inspected */
+  }
+
+  for (uint32 i= 1; i <= num_of_polygons; i++)
+  {
+    String result;
+
+    if (geometry_n(i, &result))
+    {
+      return true; /* purecov: inspected */
+    }
+
+    Geometry *g;
+    Geometry_buffer buffer;
+    if (!(g= Geometry::construct(&buffer, &result, false)))
+    {
+      return true; /* purecov: inspected */
+    }
+
+    if (g->validate_coordinate_range(srs_angular_unit, long_out_of_range,
+                                     lat_out_of_range, out_of_range_value))
+    {
+      return true;
+    }
+
   }
 
   return false;
@@ -3981,6 +4252,48 @@ bool Gis_geometry_collection::reverse_coordinates()
     }
 
     current_data_offset+= result.length();
+  }
+
+  return false;
+}
+
+
+bool Gis_geometry_collection::validate_coordinate_range(double srs_angular_unit,
+                                                        bool *long_out_of_range,
+                                                        bool *lat_out_of_range,
+                                                        double *out_of_range_value)
+{
+  uint32 num_of_geometries;
+  *long_out_of_range= false;
+  *lat_out_of_range= false;
+
+  if (num_geometries(&num_of_geometries))
+  {
+    return true; /* purecov: inspected */
+  }
+
+  for (uint32 i= 1; i <= num_of_geometries; i++)
+  {
+    String result;
+
+    if (geometry_n(i, &result))
+    {
+      return true; /* purecov: inspected */
+    }
+
+    Geometry *g;
+    Geometry_buffer buffer;
+    if (!(g= Geometry::construct(&buffer, &result, false)))
+    {
+      return true; /* purecov: inspected */
+    }
+
+    if (g->validate_coordinate_range(srs_angular_unit, long_out_of_range,
+                                     lat_out_of_range, out_of_range_value))
+    {
+      return true;
+    }
+
   }
 
   return false;
@@ -5515,14 +5828,8 @@ template void Gis_wkb_vector<Gis_point>::resize(size_t);
 template void Gis_wkb_vector<Gis_polygon>::resize(size_t);
 template void Gis_wkb_vector<Gis_polygon_ring>::resize(size_t);
 
-template void Gis_wkb_vector<Gis_point_spherical>::shallow_push(Geometry const*);
-
 template
 Gis_wkb_vector<Gis_line_string>::
-Gis_wkb_vector(const void*, size_t,
-               const Geometry::Flags_t&, gis::srid_t, bool);
-template
-Gis_wkb_vector<Gis_point_spherical>::
 Gis_wkb_vector(const void*, size_t,
                const Geometry::Flags_t&, gis::srid_t, bool);
 template

@@ -1,13 +1,20 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -545,8 +552,6 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               on the same index,
               (2) and that quick select uses more keyparts (i.e. it will
               scan equal/smaller interval then this ref(const))
-              (3) and E(#rows) for quick select is higher then our
-              estimate,
               Then use E(#rows) from quick select.
 
               One observation is that when there are multiple
@@ -562,12 +567,10 @@ Key_use* Optimize_table_order::find_best_ref(const JOIN_TAB *tab,
               TODO: figure this out and adjust the plan choice if needed.
             */
             if (!table_deps && table->quick_keys.is_set(key) &&     // (1)
-                table->quick_key_parts[key] > cur_used_keyparts &&  // (2)
-                cur_fanout < (double)table->quick_rows[key])        // (3)
+                table->quick_key_parts[key] > cur_used_keyparts)    // (2)
             {
               trace_access_idx.add("chosen", false).
-                add_alnum("cause",
-                          "unreliable_ref_cost_and_range_uses_more_keyparts");
+                add_alnum("cause", "range_uses_more_keyparts");
               continue;
             }
 
@@ -1275,7 +1278,7 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         !tab->join()->select_lex->sj_nests.is_empty() ||                   // 2d
         ((tab->join()->order || tab->join()->group_list) &&
          tab->join()->unit->select_limit_cnt != HA_POS_ERROR) ||           // 2e
-        thd->lex->describe)))                                              // 2f
+        thd->lex->is_explain())))                                          // 2f
     return COND_FILTER_ALLPASS;
 
   // No filtering is calculated if we expect less than one row to be fetched

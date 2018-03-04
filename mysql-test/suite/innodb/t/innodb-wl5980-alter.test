@@ -83,10 +83,6 @@ ALTER TABLE t1 CHANGE c1 c1 INT FIRST;
 
 -- source suite/innodb/include/innodb_dict.inc
 
-# Workaround until SQL-layer code properly supports renaming of columns in FKs
-# I.e. until bug #26659110 is fixed.
-ALTER TABLE t1c DROP FOREIGN KEY t1c2;
-
 ALTER TABLE t1 CHANGE C2 c3 INT;
 
 --echo ### files in MYSQL_DATA_DIR/test
@@ -232,15 +228,6 @@ ON i.TABLE_ID=st.TABLE_ID;
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 -- source suite/innodb/include/innodb_dict.inc
-
-# Workaround until SQL-layer code properly supports renaming of columns in FKs
-# I.e. until bug #26659110 is fixed.
-DROP TABLE t1c;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE t1c (c1 INT PRIMARY KEY, c2 INT, c3 INT, INDEX(c2), INDEX(c3),
-                  CONSTRAINT t1c2 FOREIGN KEY (c2) REFERENCES t1(c3),
-		  CONSTRAINT t1c3 FOREIGN KEY (c3) REFERENCES t1p(c2))
-ENGINE=InnoDB $data_directory_clause;
 
 --error ER_DROP_INDEX_FK
 ALTER TABLE t1 DROP INDEX c2;

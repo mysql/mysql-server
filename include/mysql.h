@@ -1,13 +1,25 @@
 /* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
+
+   Without limiting anything contained in the foregoing, this file,
+   which is part of C Driver for MySQL (Connector/C), is also subject to the
+   Universal FOSS Exception, version 1.0, a copy of which can be found at
+   http://oss.oracle.com/licenses/universal-foss-exception.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -147,30 +159,24 @@ typedef struct st_mysql_rows {
 
 typedef MYSQL_ROWS *MYSQL_ROW_OFFSET;	/* offset to current row */
 
-typedef struct embedded_query_result EMBEDDED_QUERY_RESULT;
 typedef struct st_mysql_data {
   MYSQL_ROWS *data;
-  struct embedded_query_result *embedded_info;
   MEM_ROOT *alloc;
   my_ulonglong rows;
   unsigned int fields;
-  /* extra info for embedded library */
-  void *extension;
 } MYSQL_DATA;
 
-enum mysql_option 
+enum mysql_option
 {
   MYSQL_OPT_CONNECT_TIMEOUT, MYSQL_OPT_COMPRESS, MYSQL_OPT_NAMED_PIPE,
   MYSQL_INIT_COMMAND, MYSQL_READ_DEFAULT_FILE, MYSQL_READ_DEFAULT_GROUP,
   MYSQL_SET_CHARSET_DIR, MYSQL_SET_CHARSET_NAME, MYSQL_OPT_LOCAL_INFILE,
   MYSQL_OPT_PROTOCOL, MYSQL_SHARED_MEMORY_BASE_NAME, MYSQL_OPT_READ_TIMEOUT,
   MYSQL_OPT_WRITE_TIMEOUT, MYSQL_OPT_USE_RESULT,
-  MYSQL_OPT_USE_REMOTE_CONNECTION, MYSQL_OPT_USE_EMBEDDED_CONNECTION,
-  MYSQL_OPT_GUESS_CONNECTION, MYSQL_SET_CLIENT_IP,
   MYSQL_REPORT_DATA_TRUNCATION, MYSQL_OPT_RECONNECT,
   MYSQL_PLUGIN_DIR, MYSQL_DEFAULT_AUTH,
   MYSQL_OPT_BIND,
-  MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT, 
+  MYSQL_OPT_SSL_KEY, MYSQL_OPT_SSL_CERT,
   MYSQL_OPT_SSL_CA, MYSQL_OPT_SSL_CAPATH, MYSQL_OPT_SSL_CIPHER,
   MYSQL_OPT_SSL_CRL, MYSQL_OPT_SSL_CRLPATH,
   MYSQL_OPT_CONNECT_ATTR_RESET, MYSQL_OPT_CONNECT_ATTR_ADD,
@@ -190,7 +196,7 @@ enum mysql_option
   @todo remove the "extension", move st_mysql_options completely
   out of mysql.h
 */
-struct st_mysql_options_extention; 
+struct st_mysql_options_extention;
 
 struct st_mysql_options {
   unsigned int connect_timeout, read_timeout, write_timeout;
@@ -206,28 +212,11 @@ struct st_mysql_options {
   char *ssl_cipher;				/* cipher to use */
   char *shared_memory_base_name;
   unsigned long max_allowed_packet;
-  bool unused6;                              /* Deprecated ! Former use_ssl */
   bool compress,named_pipe;
-  bool unused1;
-  bool unused2;
-  bool unused3;
-  bool unused4;
-  enum mysql_option methods_to_use;
-  union {
-    /*
-      The ip/hostname to use when authenticating
-      client against embedded server built with
-      grant tables - only used in embedded server
-    */
-    char *client_ip;
-
-    /*
-      The local address to bind when connecting to
-      remote server - not used in embedded server
-    */
-    char *bind_address;
-  } ci;
-  bool unused5;
+  /**
+    The local address to bind when connecting to remote server.
+  */
+  char *bind_address;
   /* 0 - never report, 1 - always report (default) */
   bool report_data_truncation;
 
@@ -302,19 +291,15 @@ typedef struct st_mysql
 
   /* session-wide random string */
   char	        scramble[SCRAMBLE_LENGTH+1];
-  bool unused1;
-  void *unused2, *unused3, *unused4, *unused5;
 
   LIST  *stmts;                     /* list of all statements */
   const struct st_mysql_methods *methods;
   void *thd;
   /*
-    Points to boolean flag in MYSQL_RES  or MYSQL_STMT. We set this flag 
+    Points to boolean flag in MYSQL_RES  or MYSQL_STMT. We set this flag
     from mysql_stmt_close if close had to cancel result set of this object.
   */
   bool *unbuffered_fetch_owner;
-  /* needed for embedded server - no net buffer to store the 'info' */
-  char *info_buffer;
   void *extension;
 } MYSQL;
 
@@ -770,6 +755,8 @@ int STDCALL mysql_next_result(MYSQL *mysql);
 int STDCALL mysql_stmt_next_result(MYSQL_STMT *stmt);
 void STDCALL mysql_close(MYSQL *sock);
 
+/* Public key reset */
+void STDCALL mysql_reset_server_public_key(void);
 
 /* status return codes */
 #define MYSQL_NO_DATA        100

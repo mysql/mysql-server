@@ -6,9 +6,6 @@
 # Outcome: T1 must commit, T3 must commit, T2 must commit
 #          after T3 (no data change).
 
-# Remove this work around after Bug#26629790
---source include/restart_mysqld.inc
-
 --source include/have_debug_sync.inc
 --source include/count_sessions.inc
 

@@ -1,17 +1,24 @@
 /* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; version 2 of the License.
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
+
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
 This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+GNU General Public License, version 2.0, for more details.
 
 You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
-Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "log_service_imp.h"
 
@@ -27,13 +34,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 extern REQUIRES_SERVICE_PLACEHOLDER(registry);
 
 
-static my_h_service                bls=        nullptr;
-static bool                        inited=     false;
-static bool                        failed=     false;
-static bool                        run_tests=  true;
-SERVICE_TYPE(log_builtins)        *log_bi=     nullptr;
-SERVICE_TYPE(log_builtins_filter) *log_bf=     nullptr;
-SERVICE_TYPE(log_builtins_string) *log_bs=     nullptr;
+static my_h_service                      bls=        nullptr;
+static bool                              inited=     false;
+static bool                              failed=     false;
+static bool                              run_tests=  true;
+SERVICE_TYPE(log_builtins)              *log_bi=     nullptr;
+SERVICE_TYPE(log_builtins_filter)       *log_bf=     nullptr;
+SERVICE_TYPE(log_builtins_filter_debug) *log_fd=     nullptr;
+SERVICE_TYPE(log_builtins_string)       *log_bs=     nullptr;
+log_filter_ruleset                      *test_rules= nullptr;
 
 
 /**
@@ -43,9 +52,10 @@ SERVICE_TYPE(log_builtins_string) *log_bs=     nullptr;
 
   @param   ll  a log_line with a list-item describing the variable
                (name, new value)
+
   @retval   0  for allow (including when we don't feel the event is for us),
-  @retval  -1  for deny (malformed input, caller broken)
-  @retval   1  for deny (wrong data-type, or invalid value submitted by user)
+  @retval  <0  deny (nullptr, malformed structures, etc. -- caller broken?)
+  @retval  >0  deny (user input rejected)
 */
 DEFINE_METHOD(int, log_service_imp::variable_check,
               (log_line *ll MY_ATTRIBUTE((unused))))
@@ -61,9 +71,10 @@ DEFINE_METHOD(int, log_service_imp::variable_check,
 
   @param  ll  a log_line with a list-item describing the variable
               (name, new value)
-  @retval  0  event is not for us
-  @retval -1  for failure (invalid input that wasn't caught in variable_check)
-  @retval >0  for success (at least one variable was processed successfully)
+
+  @retval  0  the event is not for us
+  @retval <0  for failure
+  @retval >0  for success (at least one item was updated)
 */
 DEFINE_METHOD(int, log_service_imp::variable_update,
               (log_line *ll MY_ATTRIBUTE((unused))))
@@ -144,15 +155,69 @@ static bool rule_delete(log_filter_ruleset *rs,
 
 #define KEY_PRS_ITEM    "meow"
 
-static void test_add_item_log_me(log_filter_ruleset *rs)
+static void test_add_item_log_me(log_filter_ruleset *rs,
+                                 const char *label, uint32 orig_count)
 {
   LogEvent().type(LOG_TYPE_ERROR)
             .string_value(KEY_PRS_ITEM, "test_me_for_presence")
             .string_value(KEY_DEL_ITEM, "delete_me_by_rule")
             .string_value(KEY_PRIO_CHANGE, VAL_PRIO_CHANGE)
             .source_file(MY_NAME)
-            .message("filter_rules: %d", rs->count);
+            .message("filter_rules: (add_item %s) %d",
+                     label, rs->count - orig_count);
 }
+
+/**
+  Show that flow control actually works.
+  This is intended to work in tandem with the log_components_filter.test;
+  the test sets up the filter-rules, and we provided some input to them.
+
+  @retval  0  success
+*/
+static int test_if_then_else()
+{
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(INFORMATION_LEVEL)
+            .int_value("wl9651_val1",    0)
+            .int_value("wl9651_val2",    1)
+            .int_value("wl9651_val3a",   1)
+            .int_value("wl9651_val3b",   2)
+            .int_value("wl9651_val3c",   3)
+            .message("WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS");
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(INFORMATION_LEVEL)
+            .int_value("wl9651_val1",    1)
+            .int_value("wl9651_val2",    2)
+            .int_value("wl9651_val3a",   0)
+            .int_value("wl9651_val3b",   2)
+            .int_value("wl9651_val3c",   3)
+            .message("WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE");
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(INFORMATION_LEVEL)
+            .int_value("wl9651_val1",    2)
+            .float_value("wl9651_val2",  3.1)
+            .int_value("wl9651_val3a",   1)
+            .int_value("wl9651_val3b",   0)
+            .int_value("wl9651_val3c",   3)
+            .message("WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE");
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(INFORMATION_LEVEL)
+            .int_value("wl9651_val1",    3)
+            .int_value("wl9651_val2",    4)
+            .int_value("wl9651_val3a",   1)
+            .int_value("wl9651_val3b",   2)
+            .int_value("wl9651_val3c",   0)
+            .message("WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE");
+  LogEvent().type(LOG_TYPE_ERROR)
+            .prio(INFORMATION_LEVEL)
+            .int_value("wl9651_val1",   -7)
+            .string_value("wl9651_val2","1")
+            .int_value("wl9651_val3a",   1)
+            .int_value("wl9651_val3c",   3)
+            .message("WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE");
+  return 0;
+}
+
 
 /**
   Show that adding key/value pairs actually works.
@@ -162,17 +227,18 @@ static void test_add_item_log_me(log_filter_ruleset *rs)
   @retval -2  could not initialize new rule
   @retval -3  could not acquire ruleset (to delete throttle)
 */
-static int test_add_item()
+static int test_add_item(log_filter_ruleset *rs)
 {
-  log_filter_ruleset *rs;
   log_filter_rule    *r;
   int                 rr= -99;
+  uint32              orig_count;
 
-  if ((rs= (log_filter_ruleset *)
-       log_bf->filter_ruleset_get(LOG_BUILTINS_LOCK_EXCLUSIVE)) == nullptr)
+  if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0)
     return -1;
 
-  if ((r= (log_filter_rule *) log_bf->filter_rule_init()) == nullptr)
+  orig_count= rs->count;
+
+  if ((r= (log_filter_rule *) log_bf->filter_rule_init(rs)) == nullptr)
   {
     rr= -2;
     goto done;
@@ -189,7 +255,7 @@ static int test_add_item()
     {
       // condition/comparator: equal (string)
       r->cond=  LOG_FILTER_COND_EQ;
-      // match information: type MySQL error code, class integer
+      // match information: generic lex string, class lex string
       d= log_bi->item_set_with_key(&r->match, LOG_ITEM_GEN_LEX_STRING, s,
                                    LOG_ITEM_FREE_KEY|LOG_ITEM_FREE_VALUE);
 
@@ -205,10 +271,10 @@ static int test_add_item()
           d->data_string.str= nullptr;
       }
 
-      // action/verb: prio, absolute
-      r->verb=  LOG_FILTER_PRIO_REL;
+      // action/verb: set numeric value
+      r->verb=  LOG_FILTER_ITEM_SET;
       // auxiliary information: new priority
-      log_bi->item_set(&r->aux, LOG_ITEM_GEN_INTEGER)->data_integer= 1;
+      log_bi->item_set(&r->aux, LOG_ITEM_LOG_PRIO)->data_integer= WARNING_LEVEL;
 
       // not requested by the user
       r->flags= LOG_FILTER_FLAG_SYNTHETIC;
@@ -217,7 +283,7 @@ static int test_add_item()
     }
   }
 
-  if ((r= (log_filter_rule *) log_bf->filter_rule_init()) == nullptr)
+  if ((r= (log_filter_rule *) log_bf->filter_rule_init(rs)) == nullptr)
   {
     rr= -2;
     goto done;
@@ -234,7 +300,7 @@ static int test_add_item()
     {
       // condition/comparator: not equal (string)
       r->cond=  LOG_FILTER_COND_NE;
-      // match information: type MySQL error code, class integer
+      // match information: generic lex string, class lex string
       d= log_bi->item_set_with_key(&r->match, LOG_ITEM_GEN_LEX_STRING, s,
                                    LOG_ITEM_FREE_KEY|LOG_ITEM_FREE_VALUE);
 
@@ -262,7 +328,7 @@ static int test_add_item()
     }
   }
 
-  if ((r= (log_filter_rule *) log_bf->filter_rule_init()) == nullptr)
+  if ((r= (log_filter_rule *) log_bf->filter_rule_init(rs)) == nullptr)
   {
     rr= -2;
     goto done;
@@ -279,12 +345,12 @@ static int test_add_item()
     {
       // condition/comparator: not equal (string)
       r->cond=  LOG_FILTER_COND_PRESENT;
-      // match information: type MySQL error code, class integer
+      // match information: generic lex string, class lex string
       d= log_bi->item_set_with_key(&r->match, LOG_ITEM_GEN_LEX_STRING, s,
                                    LOG_ITEM_FREE_KEY);
 
       // action/verb: add item
-      r->verb=  LOG_FILTER_ITEM_ADD;
+      r->verb=  LOG_FILTER_ITEM_SET;
       // auxiliary information: new priority
       d= log_bi->item_set_with_key(&r->aux, LOG_ITEM_GEN_LEX_STRING,
                                    KEY_ADD_ITEM, LOG_ITEM_FREE_NONE);
@@ -301,36 +367,35 @@ static int test_add_item()
     }
   }
 
-  log_bf->filter_ruleset_release();
+  log_bf->filter_ruleset_unlock(rs);
 
   // modify and log event
-  test_add_item_log_me(rs);
+  test_add_item_log_me(rs, "delta in medias res", orig_count);
 
-  if ((rs= (log_filter_ruleset *)
-       log_bf->filter_ruleset_get(LOG_BUILTINS_LOCK_EXCLUSIVE)) == nullptr)
+  if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0)
     return -3;
 
   assert(!rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_PRIO_CHANGE,
-                      LOG_FILTER_COND_EQ, LOG_FILTER_PRIO_REL));
+                      LOG_FILTER_COND_EQ, LOG_FILTER_ITEM_SET));
   assert(!rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_DEL_ITEM,
                       LOG_FILTER_COND_NE, LOG_FILTER_ITEM_DEL));
   assert(!rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_PRS_ITEM,
-                      LOG_FILTER_COND_PRESENT, LOG_FILTER_ITEM_ADD));
+                      LOG_FILTER_COND_PRESENT, LOG_FILTER_ITEM_SET));
 
   rr= 0;
 
 done:
   rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_PRIO_CHANGE,
-                      LOG_FILTER_COND_EQ, LOG_FILTER_PRIO_REL);
+                      LOG_FILTER_COND_EQ, LOG_FILTER_ITEM_SET);
   rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_DEL_ITEM,
                       LOG_FILTER_COND_NE, LOG_FILTER_ITEM_DEL);
   rule_delete(rs, LOG_ITEM_GEN_LEX_STRING, KEY_PRS_ITEM,
-                      LOG_FILTER_COND_PRESENT, LOG_FILTER_ITEM_ADD);
+                      LOG_FILTER_COND_PRESENT, LOG_FILTER_ITEM_SET);
 
-  log_bf->filter_ruleset_release();
+  log_bf->filter_ruleset_unlock(rs);
 
   // log unchanged event
-  test_add_item_log_me(rs);
+  test_add_item_log_me(rs, "delta ex post", orig_count);
 
   return rr;
 }
@@ -410,11 +475,11 @@ static int test_builtins()
   @retval -2  could not initialize new rule
   @retval -3  could not acquire ruleset (to delete throttle)
 */
-static int test_throttle()
+static int test_throttle(log_filter_ruleset *rs)
 {
-  log_filter_ruleset *rs;
   log_filter_rule    *r;
   int                 rr= -99;
+  uint32              orig_count;
 
   LogEvent().type(LOG_TYPE_ERROR)
             .prio(INFORMATION_LEVEL)
@@ -424,12 +489,23 @@ static int test_throttle()
                      ">3*yes per writer == filter fail. "
                      "0*yes == " MY_NAME " fail.");
 
-  if ((rs= (log_filter_ruleset *)
-       log_bf->filter_ruleset_get(LOG_BUILTINS_LOCK_EXCLUSIVE)) == nullptr)
-    return -1;
-
-  if ((r= (log_filter_rule *) log_bf->filter_rule_init()) == nullptr)
+  if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0)\
   {
+    LogEvent().type(LOG_TYPE_ERROR)
+              .prio(ERROR_LEVEL)
+              .message(MY_NAME ": could not get a lock on built-in filter's "
+                       "ruleset (for add)");
+    return -1;
+  }
+
+  orig_count= rs->count;
+
+  if ((r= (log_filter_rule *) log_bf->filter_rule_init(rs)) == nullptr)
+  {
+    LogEvent().type(LOG_TYPE_ERROR)
+              .prio(ERROR_LEVEL)
+              .message(MY_NAME
+                       ": could not init a rule in built-in filter's ruleset");
     rr= -2;
     goto done;
   }
@@ -452,13 +528,14 @@ static int test_throttle()
     rs->count++;
   }
 
-  log_bf->filter_ruleset_release();
+  log_bf->filter_ruleset_unlock(rs);
 
   LogEvent().type(LOG_TYPE_ERROR)
             .prio(INFORMATION_LEVEL)
             .source_line(__LINE__)
             .source_file(MY_NAME)
-            .message("filter_rules: %d", rs->count);
+            .message("filter_rules: (throttle: delta in medias res) %d",
+                     rs->count - orig_count);
 
   {
     int c;
@@ -471,9 +548,14 @@ static int test_throttle()
                 .lookup(ER_YES);
   }
 
-  if ((rs= (log_filter_ruleset *)
-       log_bf->filter_ruleset_get(LOG_BUILTINS_LOCK_EXCLUSIVE)) == nullptr)
+  if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0)
+  {
+    LogEvent().type(LOG_TYPE_ERROR)
+              .prio(ERROR_LEVEL)
+              .message(MY_NAME ": could not get a lock on built-in filter's "
+                       "ruleset (for delete)");
     return -3;
+  }
 
   rule_delete(rs, LOG_ITEM_SQL_ERRCODE, nullptr,
               LOG_FILTER_COND_EQ, LOG_FILTER_THROTTLE);
@@ -481,13 +563,13 @@ static int test_throttle()
   rr= 0;
 
 done:
-  log_bf->filter_ruleset_release();
+  log_bf->filter_ruleset_unlock(rs);
 
   LogEvent().type(LOG_TYPE_ERROR)
             .prio(INFORMATION_LEVEL)
             .source_line(__LINE__)
             .source_file(MY_NAME)
-            .message("filter_rules: %d", rs->count);
+            .message("filter_rules: (throttle: delta ex post) %d", rs->count - orig_count);
 
   return rr;
 }
@@ -774,14 +856,19 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance MY_ATTRIBUTE((unused)),
     */
     run_tests= false;
 
+    test_rules= log_fd->filter_debug_ruleset_get();
+
     // log a message from this here external service
     banner();
 
     // show that the rate-limiter actually works
-    test_throttle();
+    test_throttle(test_rules);
 
     // show that adding key/value pairs actually works
-    test_add_item();
+    test_add_item(test_rules);
+
+    // show that flow control works
+    test_if_then_else();
 
     // get coverage for assorted built-ins
     test_builtins();
@@ -795,6 +882,9 @@ DEFINE_METHOD(int, log_service_imp::run, (void *instance MY_ATTRIBUTE((unused)),
       to prevent potential endless loops!
     */
     failed= true;
+
+    // Do not release the rule-set here, as it's not ours.
+    test_rules= nullptr;
   }
 
   log_bi->line_item_iter_release(it);
@@ -817,6 +907,7 @@ mysql_service_status_t log_service_exit()
     log_service_release(log_bi);
     log_service_release(log_bs);
     log_service_release(log_bf);
+    log_service_release(log_fd);
 
     inited=     false;
     failed=     false;
@@ -851,6 +942,10 @@ mysql_service_status_t log_service_init()
        nullptr) ||
       mysql_service_registry->acquire("log_builtins_filter", &bls) ||
       ((log_bf= reinterpret_cast<SERVICE_TYPE(log_builtins_filter)*>(bls)) ==
+       nullptr) ||
+      mysql_service_registry->acquire("log_builtins_filter_debug", &bls) ||
+      ((log_fd=
+        reinterpret_cast<SERVICE_TYPE(log_builtins_filter_debug)*>(bls)) ==
        nullptr))
   {
     log_service_exit();

@@ -1,18 +1,24 @@
 /*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
-    This program is free software; you can redistribute it and/or
-    modify it under the terms of the GNU General Public License as
-    published by the Free Software Foundation; version 2 of the
-    License.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License, version 2.0,
+    as published by the Free Software Foundation.
+
+    This program is also distributed with certain software (including
+    but not limited to OpenSSL) that is licensed under separate terms,
+    as designated in a particular file or component or in included license
+    documentation.  The authors of MySQL hereby grant you an additional
+    permission to link the program and your derivative works with the
+    separately licensed software that they have included with MySQL.
 
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-    GNU General Public License for more details.
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License, version 2.0, for more details.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA */
+    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <stddef.h>
 
@@ -27,8 +33,12 @@
 #include "mysqld_error.h" /* To get ER_NOT_VALID_PASSWORD */
 #include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
+#include "sql/current_thd.h"
 #include "sql_string.h"
 
+#include <mysql/components/service_implementation.h>
+#include <mysql/components/services/validate_password.h>
+#include "components/mysql_server/server_component.h"
 
 /**
   Static name of the built in plugin used by mysql_password_policy_service_st
@@ -39,11 +49,12 @@ LEX_CSTRING validate_password_plugin= {
 };
 
 /**
-  Invoke the plugin to validate the input password.
+  Invoke the component/plugin to validate the input password.
 
   Implementation of a plugin service @ref mysql_password_policy_service_st
   method.
-  Calls the @ref validate_password_plugin plugin's @ref
+  Calls the @ref validate_password_plugin / validate_password_component
+  plugin's / component's @ref
   st_mysql_validate_password::validate_password method.
   Constructs a temporary binary @ref String object out of the password
   supplied.
@@ -62,39 +73,58 @@ int my_validate_password_policy(const char *password, unsigned int password_len)
 {
   plugin_ref plugin;
   String password_str;
+  my_h_service h_pv_svc= NULL;
+  SERVICE_TYPE(validate_password) *ret;
+  int res= 0;
 
   if (password)
   {
     String tmp_str(password, password_len, &my_charset_utf8_bin);
     password_str= tmp_str;
   }
-  plugin= my_plugin_lock_by_name(0, validate_password_plugin,
-                                 MYSQL_VALIDATE_PASSWORD_PLUGIN);
-  if (plugin)
+  if (!imp_mysql_server_registry.acquire("validate_password", &h_pv_svc))
   {
-    st_mysql_validate_password *password_validate=
-                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
-
-    if (!password_validate->validate_password(&password_str))
+    ret=
+      reinterpret_cast<SERVICE_TYPE(validate_password) *>(h_pv_svc);
+    if (ret->validate((void *)current_thd,
+                      (my_h_string)&password_str))
     {
       my_error(ER_NOT_VALID_PASSWORD, MYF(0));
-      plugin_unlock(0, plugin);
-      return (1);
+      res= 1;
     }
-    plugin_unlock(0, plugin);
+    imp_mysql_server_registry.release(h_pv_svc);
   }
-  return (0);
+  else
+  {
+    plugin= my_plugin_lock_by_name(0, validate_password_plugin,
+                                   MYSQL_VALIDATE_PASSWORD_PLUGIN);
+    if (plugin)
+    {
+      st_mysql_validate_password *password_validate=
+                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
+
+      if (!password_validate->validate_password(&password_str))
+      {
+        my_error(ER_NOT_VALID_PASSWORD, MYF(0));
+        res= 1;
+      }
+      plugin_unlock(0, plugin);
+    }
+  }
+
+  return res;
 }
 
 
 /**
-  Invoke the plugin to evalue the strength of a password.
+  Invoke the component/plugin to evalue the strength of a password.
 
   Implementation of a plugin service @ref mysql_password_policy_service_st
   method.
   Typically called when new user is created or exsisting password is changed.
-  Calls the @ref validate_password_plugin plugin's @ref
-  st_mysql_validate_password::get_password_strength method.
+  Calls the @ref validate_password_plugin / validate_password_component
+  plugin's / component's @ref st_mysql_validate_password::get_password_strength
+  method.
   Constructs a temporary binary @ref String object out of the password
   supplied.
 
@@ -109,20 +139,36 @@ int my_validate_password_policy(const char *password, unsigned int password_len)
 int my_calculate_password_strength(const char *password, unsigned int password_len)
 {
   int res= 0;
+  unsigned int strength;
   DBUG_ASSERT(password != NULL);
 
+  my_h_service h_pv_svc= NULL;
+  SERVICE_TYPE(validate_password) *ret;
   String password_str;
+
   if (password)
     password_str.set(password, password_len, &my_charset_utf8_bin);
-  plugin_ref plugin= my_plugin_lock_by_name(0, validate_password_plugin,
-                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
-  if (plugin)
+  if (!imp_mysql_server_registry.acquire("validate_password", &h_pv_svc))
   {
-    st_mysql_validate_password *password_strength=
-                      (st_mysql_validate_password *) plugin_decl(plugin)->info;
+    ret=
+      reinterpret_cast<SERVICE_TYPE(validate_password) *>(h_pv_svc);
+    if (!ret->get_strength((void *)current_thd,
+                           (my_h_string)&password_str, &strength))
+      res= strength;
+    imp_mysql_server_registry.release(h_pv_svc);
+  }
+  else
+  {
+    plugin_ref plugin= my_plugin_lock_by_name(0, validate_password_plugin,
+                                              MYSQL_VALIDATE_PASSWORD_PLUGIN);
+    if (plugin)
+    {
+      st_mysql_validate_password *password_strength=
+                       (st_mysql_validate_password *) plugin_decl(plugin)->info;
 
-    res= password_strength->get_password_strength(&password_str);
-    plugin_unlock(0, plugin);
+      res= password_strength->get_password_strength(&password_str);
+      plugin_unlock(0, plugin);
+    }
   }
   return(res);
 }

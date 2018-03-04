@@ -1,17 +1,24 @@
 /* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Process query expressions that are composed of
@@ -68,6 +75,7 @@
 #include "sql/thr_malloc.h"
 #include "sql/window.h"                         // Window
 #include "template_utils.h"
+#include "sql/table_function.h"                     // Table_function
 
 bool Query_result_union::prepare(List<Item>&, SELECT_LEX_UNIT *u)
 {
@@ -176,7 +184,6 @@ bool Query_result_union::create_result_table(THD *thd_arg,
         their columns' values, not in insertion order.
       */
       tmp_table_param.can_use_pk_for_unique= false;
-      tmp_table_param.allow_scan_from_position= true;
     }
     if (unit->mixed_union_operators())
     {
@@ -559,11 +566,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
   // global parameters.
   if (saved_fake_select_lex == NULL && // Don't overwrite on PS second prepare
       fake_select_lex != NULL)
-  {
-    thd->lock_query_plan();
     saved_fake_select_lex= fake_select_lex;
-    thd->unlock_query_plan();
-  }
 
   const bool simple_query_expression= is_simple();
 
@@ -576,11 +579,7 @@ bool SELECT_LEX_UNIT::prepare(THD *thd_arg, Query_result *sel_result,
             new (*THR_MALLOC) Query_result_union_direct(thd, sel_result, last_select)))
         goto err; /* purecov: inspected */
       if (fake_select_lex != NULL)
-      {
-        thd->lock_query_plan();
         fake_select_lex= NULL;
-        thd->unlock_query_plan();
-      }
       instantiate_tmp_table= false;
     }
     else
@@ -1588,7 +1587,11 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
       // Find a materialized view inside another view.
       destroy_materialized(thd, tl->merge_underlying_list);
     }
-    if (!tl->table)
+    else if (tl->is_table_function())
+    {
+      tl->table_function->cleanup();
+    }
+    if (tl->table == nullptr)
       continue;                                 // Not materialized
     if (tl->is_view_or_derived())
     {
@@ -1596,9 +1599,11 @@ static void destroy_materialized(THD *thd, TABLE_LIST *list)
       if (tl->common_table_expr())
         tl->common_table_expr()->tmp_tables.clear();
     }
-    else if (!tl->is_recursive_reference() && !tl->schema_table)
+    else if (!tl->is_recursive_reference() && !tl->schema_table &&
+             !tl->is_table_function())
       continue;
     free_tmp_table(thd, tl->table);
+    tl->table= nullptr;
   }
 }
 

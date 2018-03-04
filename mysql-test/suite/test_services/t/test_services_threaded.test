@@ -3,6 +3,9 @@
 call mtr.add_suppression("This is a warning from test plugin");
 call mtr.add_suppression("This is an error from test plugin");
 
+SET @orig_log_error_verbosity= @@global.log_error_verbosity;
+SET @@global.log_error_verbosity= 3;
+
 --echo ------ Run plugin ------------------------------------------------
 --replace_result $TESTSERVICESTHREADED TESTSERVICESTHREADED
 eval INSTALL PLUGIN test_services_threaded SONAME '$TESTSERVICESTHREADED';
@@ -20,6 +23,9 @@ source include/wait_condition.inc;
 --echo ------ Stop plugin -----------------------------------------------
 UNINSTALL PLUGIN test_services_threaded;
 
+# Restore log_error_verbosity
+SET @@global.log_error_verbosity= @orig_log_error_verbosity;
+
 --disable_warnings
 
 --echo ------ Service: my_snprintf --------------------------------------
@@ -28,10 +34,10 @@ cat_file $MYSQLD_DATADIR/test_services.log;
 remove_file $MYSQLD_DATADIR/test_services.log;
 
 --echo ------ Service: my_plugin_log_service ----------------------------
-CREATE TABLE t1 (c1 varchar(30), c2 TEXT);
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 
      FIELDS TERMINATED BY ' [';
-SELECT replace(c2,'\r','') FROM t1 WHERE c2 LIKE '%test_services_threaded%';
+SELECT replace(concat('[',c2,' [',c3),'\r','') AS msg FROM t1 WHERE c3 LIKE '%test_services_threaded%';
 DROP TABLE IF EXISTS t1;
 

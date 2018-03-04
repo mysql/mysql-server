@@ -42,6 +42,7 @@ SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))
 SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
 SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
 SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+# star_collection_elems contains at least one invalid geometry.
 SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
 
@@ -496,8 +497,10 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((100 100, 200 200))')
 --echo #====================================================================================
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('MULTILINESTRING((0 25,25 0,25 30))'),ST_GEOMFROMTEXT(@star_collection_elems)));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_lines_near_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=114;
 
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_lines_near_horizontal),ST_GEOMFROMTEXT(@star_collection_multilinestr)));
@@ -566,7 +569,6 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems)
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_of_elems_3)));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_of_elems)));
 
 --echo # Invalid geometry in input
@@ -580,7 +582,6 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collectio
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star),ST_GEOMFROMTEXT(@star_collection_elems_3)));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_elem_vertical),ST_GEOMFROMTEXT(@star_collection_elems)));
 
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=100;
@@ -643,7 +644,6 @@ SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gi
 --echo # multipolygon,polygon
 --echo #====================================================================================
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_elem_vertical)));
 
 --echo # Invalid geometry in input
@@ -653,7 +653,6 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star)
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('POLYGON((0 0,15 25,35 0,0 0))')));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=103;
 
 --echo #====================================================================================
@@ -717,10 +716,13 @@ SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_top_to_center))) FROM gis_geom
 --echo #====================================================================================
 --echo # geometrycollection,multilinestring
 --echo #====================================================================================
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_lines_near_vertical)));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTILINESTRING((0 30,30 30,0 35))')));
 
+--echo # Invalid geometry in input.
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
 
 --echo #====================================================================================
@@ -741,7 +743,6 @@ SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_elem_vertical))) FROM gis_geom
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_collection_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
 
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
@@ -772,15 +773,14 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION
 --echo #####################################################################################
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
 
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,100),ST_GEOMFROMTEXT(@star_center,100)));
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4326),ST_GEOMFROMTEXT(@star_center,4326)));
 
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,20000),ST_GEOMFROMTEXT(@star_center,20000)));
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4145)));
 
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,123456),ST_GEOMFROMTEXT(@star_center,123456)));
-
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
-
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4294967295),ST_GEOMFROMTEXT(@star_center,4294967295)));
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4135),ST_GEOMFROMTEXT(@star_center,4135)));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
@@ -798,13 +798,7 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4294967295000),ST_GEOMFROMTE
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top),ST_GEOMFROMTEXT(@star_center,4326)));
 
 --error ER_GIS_DIFFERENT_SRIDS
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,4326)));
-
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048576),ST_GEOMFROMTEXT(@star_center,1048576)));
-
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,1048575),ST_GEOMFROMTEXT(@star_center,1048575)));
-
-SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,0),ST_GEOMFROMTEXT(@star_center,0)));
+SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,4145),ST_GEOMFROMTEXT(@star_center,4326)));
 
 --error ER_DATA_OUT_OF_RANGE
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_top,-1),ST_GEOMFROMTEXT(@star_center,-1)));
@@ -889,19 +883,15 @@ SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),));
 SELECT ST_ASTEXT(ST_UNION(,ST_GEOMFROMTEXT(@star_top)));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT(@star_of_elems)));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(ST_GEOMFROMTEXT(@star_of_elems),ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(g,ST_GEOMFROMTEXT(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
 
 --echo # Invalid geometry in input
---error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_UNION(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 
 # Test with all combinations of geometry types, including types inside
@@ -1022,27 +1012,45 @@ SELECT ST_ASTEXT(ST_UNION(
   ST_GEOMFROMTEXT('POINT(0 0)', 2000)
 ));
 
---echo # Geographic SRS (should pass)
+--echo # Geographic SRS (should fail)
+--error ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS
 SELECT ST_ASTEXT(ST_UNION(
   ST_GEOMFROMTEXT('POINT(0 0)', 4326),
   ST_GEOMFROMTEXT('POINT(0 0)', 4326)
 ));
 
---echo # Undefined SRS (should pass with warning)
-# Assume SRID 24000000 is undefined
-SELECT ST_ASTEXT(ST_UNION(
-  ST_GEOMFROMTEXT('POINT(0 0)', 24000000),
-  ST_GEOMFROMTEXT('POINT(0 0)', 24000000)
-));
+--echo #
+--echo # Bug #25510403 SRID OF RESULT OF SET OPERATION IS DIFFERENT FROM INPUT
+--echo # GEOMETRIES
+--echo #
 
---echo # Unparseable SRS definition (should fail)
-# Assume SRID 24000001 is undefined
-INSERT INTO mysql.st_spatial_reference_systems(id, catalog_id, name,
-organization, organization_coordsys_id, definition, description)
-VALUES (24000001, 1, 'TEST24000001', 'Foo', 24000001, 'FOOBAR', '');
---error ER_SRS_PARSE_ERROR
-SELECT ST_ASTEXT(ST_UNION(
-  ST_GEOMFROMTEXT('POINT(0 0)', 24000001),
-  ST_GEOMFROMTEXT('POINT(0 0)', 24000001)
-));
-DELETE FROM mysql.st_spatial_reference_systems WHERE id = 24000001;
+SELECT ST_SRID(ST_Union(
+  ST_GeomFromText("MULTIPOLYGON(((0 0, 0 1, 1 1, 0 0)))", 2000),
+  ST_GeomFromText("MULTILINESTRING((1 1, 2 2))", 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Union(
+  ST_GeomFromText("LINESTRING(1 1, 2 2)", 2000),
+  ST_GeomFromText("MULTIPOLYGON(((0 0, 0 1, 1 1, 0 0)))", 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Union(
+  ST_GeomFromText("MULTIPOLYGON(((0 0, 0 1, 1 1, 0 0)))", 2000),
+  ST_GeomFromText("LINESTRING(1 1, 2 2)", 2000)
+)) AS result;
+
+SELECT ST_SRID(ST_Union(
+  ST_GeomFromText("MULTILINESTRING((1 1, 2 2))", 2000),
+  ST_GeomFromText("MULTIPOLYGON(((0 0, 0 1, 1 1, 0 0)))", 2000)
+)) AS result;
+
+--echo #
+--echo # WL#11096 Don't do Cartesian computations on geographic geometries
+--echo #
+
+--echo # Assume SRID 10 is not defined.
+--error ER_SRS_NOT_FOUND
+DO ST_UNION(
+  x'0A000000010100000000000000000000000000000000000000',
+  x'0A000000010100000000000000000000000000000000000000'
+);

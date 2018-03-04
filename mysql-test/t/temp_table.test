@@ -383,3 +383,31 @@ SELECT * FROM bogus.t1;
 
 --error ER_BAD_DB_ERROR
 SELECT * FROM bogus.t2;
+
+--echo #
+--echo # Bug#25951134: MEMORY LEAK OF INTERNAL TEMPORARY TABLES
+--echo #
+
+CREATE TABLE t1(a LONGTEXT);
+
+SELECT (EXISTS (SELECT 1 FROM t1
+GROUP BY (NOT EXISTS (SELECT 1 FROM (SELECT 1 FROM t1 GROUP BY a)r))))
+FROM t1;
+
+DROP TABLE t1;
+
+--echo # End of test for bug#25951134
+
+
+--echo #
+--echo # Bug#26126789: lock0lock.cc: ((m_mode - (0xful & m_mode)) - (0xf0ul & m_mode) - (256 & m_mode))
+--echo #
+
+--echo # Failed create of temporary table that would leave REPLACE flag in Innodb txn after
+--echo # the statement had finished
+--error ER_NO_DEFAULT_FOR_FIELD
+CREATE TEMPORARY TABLE t1 (a TEXT NOT NULL) REPLACE AS SELECT total_allocated FROM sys.memory_by_thread_by_current_bytes;
+
+--echo # Create table would assert because REPLACE setting is not compatible with MDL for CREATE
+CREATE TABLE IF NOT EXISTS t2 (a INT);
+DROP TABLE t2;

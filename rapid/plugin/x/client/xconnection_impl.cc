@@ -1,24 +1,33 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
+
+#include "plugin/x/client/xconnection_impl.h"
+
+#include "my_config.h"
 
 #include <errno.h>
 #include <cassert>
@@ -27,13 +36,10 @@
 #include <string>
 
 #include "errmsg.h"
-#include "my_config.h"
-#include "mysqlx_error.h"
+#include "plugin/x/client/xconnection_config.h"
+#include "plugin/x/client/xssl_config.h"
+#include "plugin/x/generated/mysqlx_error.h"
 #include "scope_guard.h"
-#include "xconnection_config.h"
-#include "xconnection_impl.h"
-
-#include "xssl_config.h"
 
 #ifndef WIN32
 #include <netdb.h>
@@ -87,11 +93,13 @@ class Connection_state: public XConnection::State {
       Vio *vio,
       const bool is_ssl_configured,
       const bool is_ssl_active,
-      const bool is_connected)
+      const bool is_connected,
+      const Connection_type connection_type)
   : m_vio(vio),
     m_is_ssl_configured(is_ssl_configured),
     m_is_ssl_active(is_ssl_active),
-    m_is_connected(is_connected) {
+    m_is_connected(is_connected),
+    m_connection_type(connection_type) {
   }
 
   bool is_ssl_configured() const override { return m_is_ssl_configured; }
@@ -116,10 +124,15 @@ class Connection_state: public XConnection::State {
         "");
   }
 
+  Connection_type get_connection_type() const override {
+    return m_connection_type;
+  }
+
   Vio *m_vio;
   bool m_is_ssl_configured;
   bool m_is_ssl_active;
   bool m_is_connected;
+  Connection_type m_connection_type;
 };
 
 const char *null_when_empty(const std::string &value) {
@@ -193,7 +206,11 @@ XError ssl_verify_server_cert(
     };
   }
 
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
   const auto cn = reinterpret_cast<char *>(ASN1_STRING_data(cn_asn1));
+#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  const auto cn = reinterpret_cast<const char *>(ASN1_STRING_get0_data(cn_asn1));
+#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   const auto cn_len = static_cast<size_t>(ASN1_STRING_length(cn_asn1));
 
   // There should not be any NULL embedded in the CN
@@ -247,6 +264,7 @@ Connection_impl::~Connection_impl() {
 
 XError Connection_impl::connect_to_localhost(
     const std::string &unix_socket) {
+  m_connection_type = Connection_type::Unix_socket;
   m_hostname = "localhost";
 #if defined(HAVE_SYS_UN_H)
   sockaddr_un addr;
@@ -270,11 +288,13 @@ XError Connection_impl::connect_to_localhost(
 
   auto error = connect(reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
 
-  if (error)
-    return error;
+  if (error) {
+    return XError(
+        CR_CONNECTION_ERROR,
+        std::string(error.what()) + ", while connecting to " + unix_socket);
+  }
 
   m_connected = true;
-
   return {};
 #else
   return XError(CR_SOCKET_CREATE_ERROR,
@@ -286,6 +306,7 @@ XError Connection_impl::connect(
     const std::string &host,
     const uint16_t port,
     const Internet_protocol ip_mode) {
+  m_connection_type = Connection_type::Tcp;
   struct addrinfo *res_lst, hints, *t_res;
   int gai_errno;
   char port_buf[NI_MAXSERV];
@@ -366,6 +387,13 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
   return XError();
 }
 
+my_socket Connection_impl::get_socket_fd() {
+  if (nullptr == m_vio)
+    return INVALID_SOCKET;
+
+  return vio_fd(m_vio);
+}
+
 std::string Connection_impl::get_socket_error_description(const int error_id) {
   std::string strerr;
 #ifdef _WIN32
@@ -427,7 +455,6 @@ XError Connection_impl::get_socket_error(const int error_id) {
     case SOCKET_ECONNRESET:
     case SOCKET_EPIPE:
       return XError(CR_SERVER_GONE_ERROR, ER_TEXT_SERVER_GONE);
-
     default:
       return XError(CR_UNKNOWN_ERROR, get_socket_error_description(error_id));
   }
@@ -551,6 +578,9 @@ XError Connection_impl::read(uint8_t *data_head,
       int vio_error = vio_errno(m_vio);
 
       if (SOCKET_EWOULDBLOCK == vio_error || vio_was_timeout(m_vio)) {
+        if (!vio_is_connected(m_vio))
+          return get_socket_error(SOCKET_ECONNRESET);
+
         return XError{ CR_X_READ_TIMEOUT,
           ER_TEXT_CANT_TIMEOUT_WHILE_READING };
       }
@@ -593,7 +623,8 @@ const XConnection::State &Connection_impl::state() {
       m_vio,
       m_context->m_ssl_config.is_configured(),
       m_ssl_active,
-      m_connected));
+      m_connected,
+      m_connection_type));
   return *m_state;
 }
 

@@ -636,3 +636,46 @@ CREATE FUNCTION f2() RETURNS INT return 2;
 DROP FUNCTION f2;
 DROP VIEW v1, v2, z1;
 DROP TABLE t1;
+#
+# Bug #27041536 "TRANS_TABLE || !CHANGED || THD->GET_TRANSACTION()->
+#                CANNOT_SAFELY_ROLLBACK..."
+#
+# Create view with dependency on table to be created by
+# CREATE TABLE SELECT.
+CREATE TABLE t1 (i INT);
+CREATE VIEW v1 AS SELECT * FROM t1;
+DROP TABLE t1;
+# The below statement caused assertion failure before the fix.
+CREATE TABLE t1 ENGINE=MyISAM SELECT 1 AS i;
+DROP TABLE t1;
+DROP VIEW v1;
+#
+# Bug#24619634 - mtr's check of main.mysqldump fails.
+#
+CREATE TABLE t1(f1 LONGTEXT);
+CREATE TABLE t2 (f2 INT);
+CREATE FUNCTION func(param LONGTEXT) RETURNS LONGTEXT RETURN param;
+CREATE VIEW v1 AS SELECT f2 FROM t2;
+CREATE VIEW v2 AS SELECT func(f1), f2
+FROM t1 AS stmt
+JOIN v1 AS tab1;
+SELECT table_name, view_definition FROM information_schema.views
+WHERE table_name='v2';
+TABLE_NAME	VIEW_DEFINITION
+v2	select `func`(`stmt`.`f1`) AS `func(f1)`,`tab1`.`f2` AS `f2` from (`test`.`t1` `stmt` join `test`.`v1` `tab1`)
+# Flush cached TABLE objects.
+FLUSH TABLES;
+# View v1 is dependent on t2 and view v2 is dependent on v1. Altering
+# table t2 updates view v1 and v2 metadata too.
+ALTER TABLE t2 MODIFY f2 LONGTEXT;
+# Without fix schema name is prefixed to the argument in function "func"
+# of view v2. View definition looks like below without the fix,
+# select `func`(`test`.`stmt`.`f1`) AS `func(f1)`,`tab1`.`f2` AS `f2` ..
+#                ^^^^^^
+SELECT table_name, view_definition FROM information_schema.views
+WHERE table_name='v2';
+TABLE_NAME	VIEW_DEFINITION
+v2	select `func`(`stmt`.`f1`) AS `func(f1)`,`tab1`.`f2` AS `f2` from (`test`.`t1` `stmt` join `test`.`v1` `tab1`)
+DROP TABLE t1, t2;
+DROP VIEW v1, v2;
+DROP FUNCTION func;

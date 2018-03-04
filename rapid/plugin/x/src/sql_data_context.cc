@@ -2,35 +2,40 @@
 /*
  * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; version 2 of the
- * License.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, version 2.0,
+ * as published by the Free Software Foundation.
  *
+ * This program is also distributed with certain software (including
+ * but not limited to OpenSSL) that is licensed under separate terms,
+ * as designated in a particular file or component or in included license
+ * documentation.  The authors of MySQL hereby grant you an additional
+ * permission to link the program and your derivative works with the
+ * separately licensed software that they have included with MySQL.
+ *  
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License, version 2.0, for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301  USA
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include "sql_data_context.h"
+#include "plugin/x/src/sql_data_context.h"
 
 #include <algorithm>
 
 #include "mysql/plugin.h"
 #include "mysql/service_command.h"
-#include "mysql_variables.h"
-#include "notices.h"
-#include "query_string_builder.h"
-#include "sql_user_require.h"
-#include "xpl_error.h"
-#include "xpl_log.h"
-#include "xpl_resultset.h"
+#include "plugin/x/src/mysql_variables.h"
+#include "plugin/x/src/notices.h"
+#include "plugin/x/src/query_string_builder.h"
+#include "plugin/x/src/sql_user_require.h"
+#include "plugin/x/src/xpl_error.h"
+#include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_resultset.h"
 
 namespace xpl {
 
@@ -159,9 +164,6 @@ bool Sql_data_context::wait_api_ready(ngs::function<bool()> exiting) {
   return result;
 }
 
-void Sql_data_context::detach() {
-  if (m_mysql_session) srv_session_detach(m_mysql_session);
-}
 
 Sql_data_context::~Sql_data_context() {
   if (m_mysql_session)
@@ -332,10 +334,23 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
   m_address = address ? address : "";
   m_db = db ? db : "";
 
-  log_debug("Switching security context to user %s@%s [%s]", username, hostname,
+  // Workaround for a limitation in security_context_lookup
+  // Empty string causes that IP check is not fully done.
+  // nullptr fixes the problem.
+  if (nullptr != hostname && 0 == strlen(hostname))
+    hostname = nullptr;
+
+  log_debug("Switching security context to user %s@%s [%s]",
+            username,
+            hostname,
             address);
-  if (security_context_lookup(scontext, m_username.c_str(), m_hostname.c_str(),
+
+  if (security_context_lookup(scontext, m_username.c_str(), hostname,
                               m_address.c_str(), m_db.c_str())) {
+    log_debug("Unable to switch security context to user %s@%s [%s]",
+              username,
+              hostname,
+              address);
     return ngs::Fatal(ER_X_SERVICE_ERROR, "Unable to switch context to user %s",
                       username);
   }
@@ -428,4 +443,32 @@ ngs::Error_code Sql_data_context::execute(const char *sql, std::size_t sql_len,
                                           ngs::Resultset_interface *rset) {
   return execute_sql(sql, sql_len, &rset->get_callbacks());
 }
+
+ngs::Error_code Sql_data_context::attach() {
+  THD *previous_thd = nullptr;
+
+  if (nullptr == m_mysql_session ||
+      srv_session_attach(m_mysql_session, &previous_thd)) {
+    return ngs::Error_code(
+        ER_X_SERVICE_ERROR,
+        "Internal error attaching");
+  }
+
+  DBUG_ASSERT(nullptr == previous_thd);
+
+  return {};
+}
+
+ngs::Error_code Sql_data_context::detach() {
+  if (nullptr == m_mysql_session ||
+      srv_session_detach(m_mysql_session)) {
+    return ngs::Error_code(
+        ER_X_SERVICE_ERROR,
+        "Internal error when detaching");
+  }
+
+  return {};
+}
+
+
 }  // namespace xpl

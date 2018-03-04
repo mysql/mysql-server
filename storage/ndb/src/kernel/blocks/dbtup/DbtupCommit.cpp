@@ -2,13 +2,20 @@
    Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -36,6 +43,41 @@ extern EventLogger *g_eventLogger;
 #define DEB_LCP(arglist) do { } while (0)
 #endif
 
+//#define DEBUG_DELETE_EXTRA 1
+#ifdef DEBUG_DELETE_EXTRA
+#define DEB_DELETE_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DELETE_EXTRA(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_INSERT_EXTRA 1
+#ifdef DEBUG_INSERT_EXTRA
+#define DEB_INSERT_EXTRA(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_INSERT_EXTRA(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_DEL 1
+#ifdef DEBUG_LCP_DEL
+#define DEB_LCP_DEL(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_DEL(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_SKIP 1
+#ifdef DEBUG_LCP_SKIP
+#define DEB_LCP_SKIP(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_LCP_SKIP_DELETE 1
+#ifdef DEBUG_LCP_SKIP_DELETE
+#define DEB_LCP_SKIP_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_LCP_SKIP_DELETE(arglist) do { } while (0)
+#endif
+
 //#define DEBUG_LCP_SCANNED_BIT 1
 #ifdef DEBUG_LCP_SCANNED_BIT
 #define DEB_LCP_SCANNED_BIT(arglist) do { g_eventLogger->info arglist ; } while (0)
@@ -48,6 +90,13 @@ extern EventLogger *g_eventLogger;
 #define DEB_PGMAN(arglist) do { g_eventLogger->info arglist ; } while (0)
 #else
 #define DEB_PGMAN(arglist) do { } while (0)
+#endif
+
+//#define DEBUG_DELETE 1
+#ifdef DEBUG_DELETE
+#define DEB_DELETE(arglist) do { g_eventLogger->info arglist ; } while (0)
+#else
+#define DEB_DELETE(arglist) do { } while (0)
 #endif
 
 void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
@@ -73,11 +122,17 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
     Local_key tmp;
     tmp.m_page_no= getRealpid(regFragPtr.p, frag_page_id); 
     tmp.m_page_idx= page_index;
+    DEB_DELETE(("(%u)dealloc tab(%u,%u), rowid(%u,%u)",
+                 instance(),
+                 regTabPtr.i,
+                 frag_id,
+                 frag_page_id,
+                 page_index));
     
     PagePtr pagePtr;
     Tuple_header* ptr= (Tuple_header*)get_ptr(&pagePtr, &tmp, regTabPtr.p);
 
-    ndbrequire(ptr->m_header_bits & Tuple_header::FREED);
+    ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
 
     if (regTabPtr.p->m_attributes[MM].m_no_of_varsize +
         regTabPtr.p->m_attributes[MM].m_no_of_dynamic)
@@ -259,7 +314,7 @@ Dbtup::dealloc_tuple(Signal* signal,
   Uint32 lcpScan_ptr_i= regFragPtr->m_lcp_scan_op;
 
   Uint32 bits = ptr->m_header_bits;
-  Uint32 extra_bits = Tuple_header::FREED;
+  Uint32 extra_bits = Tuple_header::FREE;
   if (bits & Tuple_header::DISK_PART)
   {
     jam();
@@ -306,17 +361,49 @@ Dbtup::dealloc_tuple(Signal* signal,
        * pages only.
        *
        */
+      /* Coverage tested */
       extra_bits |= Tuple_header::LCP_SKIP;
-      DEB_LCP(("tab(%u,%u), row_id(%u,%u), handle_lcp_keep_commit",
-              regFragPtr->fragTableId,
-              regFragPtr->fragmentId,
-              rowid.m_page_no,
-              rowid.m_page_idx));
+      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row_id(%u,%u),"
+                           " handle_lcp_keep_commit"
+                           ", set LCP_SKIP, bits: %x",
+                           instance(),
+                           regFragPtr->fragTableId,
+                           regFragPtr->fragmentId,
+                           rowid.m_page_no,
+                           rowid.m_page_idx,
+                           bits | extra_bits));
       handle_lcp_keep_commit(&rowid,
-                             req_struct, regOperPtr, regFragPtr, regTabPtr);
+                             req_struct,
+                             regOperPtr,
+                             regFragPtr,
+                             regTabPtr);
+    }
+    else
+    {
+      /* ndbassert(false);  COVERAGE TEST */
+      DEB_LCP_SKIP_DELETE(("(%u)tab(%u,%u), row_id(%u,%u) DELETE"
+                           " already LCP:ed",
+                           instance(),
+                           regFragPtr->fragTableId,
+                           regFragPtr->fragmentId,
+                           rowid.m_page_no,
+                           rowid.m_page_idx));
     }
   }
-  
+
+#ifdef DEBUG_DELETE_EXTRA
+  if (c_started)
+  {
+    Local_key rowid = regOperPtr->m_tuple_location;
+    rowid.m_page_no = page->frag_page_id;
+    DEB_DELETE_EXTRA(("(%u)tab(%u,%u),DELETE row_id(%u,%u)",
+                      instance(),
+                      regFragPtr->fragTableId,
+                      regFragPtr->fragmentId,
+                      rowid.m_page_no,
+                      rowid.m_page_idx));
+  }
+#endif
   ptr->m_header_bits = bits | extra_bits;
   
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
@@ -339,6 +426,11 @@ Dbtup::dealloc_tuple(Signal* signal,
     regFragPtr->m_lcp_changed_rows++;
   }
   setInvalidChecksum(ptr, regTabPtr);
+  if (regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
+  {
+    ndbrequire(regFragPtr->m_row_count > 0);
+    regFragPtr->m_row_count--;
+  }
 }
 
 void
@@ -368,6 +460,7 @@ Dbtup::handle_lcp_keep_commit(const Local_key* rowid,
                               Tablerec * regTabPtr)
 {
   bool disk = false;
+  /* Coverage tested */
   Uint32 sizes[4];
   Uint32 * copytuple = get_copy_tuple_raw(&opPtrP->m_copy_tuple_location);
   Tuple_header * dst = get_copy_tuple(copytuple);
@@ -749,9 +842,24 @@ Dbtup::commit_operation(Signal* signal,
     ndbassert(! (disk_ptr->m_header_bits & Tuple_header::FREE));
     copy_bits |= Tuple_header::DISK_PART;
   }
-  
-  if(lcpScan_ptr_i != RNIL && (bits & Tuple_header::ALLOC) &&
-     !(bits & (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE)))
+
+#ifdef DEBUG_INSERT_EXTRA
+  if (c_started)
+  {
+    Local_key rowid = regOperPtr->m_tuple_location;
+    rowid.m_page_no = pagePtr.p->frag_page_id;
+    g_eventLogger->info("(%u)tab(%u,%u) commit rowid(%u,%u)",
+                        instance(),
+                        regFragPtr->fragTableId,
+                        regFragPtr->fragmentId,
+                        rowid.m_page_no,
+                        rowid.m_page_idx);
+  }
+#endif
+  Uint32 lcp_bits = 0;
+  if (lcpScan_ptr_i != RNIL &&
+      (bits & Tuple_header::ALLOC) &&
+      !(bits & (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE)))
   {
     jam();
     ScanOpPtr scanOp;
@@ -771,7 +879,14 @@ Dbtup::commit_operation(Signal* signal,
          * in this case we avoid it by setting bit on Tuple header.
          */
         jam();
-        copy_bits |= Tuple_header::LCP_SKIP;
+        /* Coverage tested */
+        lcp_bits |= Tuple_header::LCP_SKIP;
+        DEB_LCP_SKIP(("(%u)Set LCP_SKIP on tab(%u,%u), rowid(%u,%u)",
+                      instance(),
+                      regFragPtr->fragTableId,
+                      regFragPtr->fragmentId,
+                      rowid.m_page_no,
+                      rowid.m_page_idx));
       }
       else
       {
@@ -781,23 +896,53 @@ Dbtup::commit_operation(Signal* signal,
          * this to ensure that it doesn't disappear with a later insert
          * operation.
          */
-        DEB_LCP(("(%u)Set LCP_DELETE on page: %u, idx: %u",
-                 instance(),
-                 rowid.m_page_no,
-                 rowid.m_page_idx));
+        /* Coverage tested */
+        DEB_LCP_DEL(("(%u)Set LCP_DELETE on tab(%u,%u), rowid(%u,%u)",
+                     instance(),
+                     regFragPtr->fragTableId,
+                     regFragPtr->fragmentId,
+                     rowid.m_page_no,
+                     rowid.m_page_idx));
         ndbassert(c_backup->is_partial_lcp_enabled());
-        copy_bits |= Tuple_header::LCP_DELETE;
+        lcp_bits |= Tuple_header::LCP_DELETE;
       }
     }
   }
   
+
+  /**
+   * Here we are copying header bits from the copy row to the main row.
+   * We need to ensure that a few bits are retained from the main row
+   * that are not necessarily set in the copy row.
+   *
+   * For example a row could have its LCP_SKIP set when it is updated
+   * or deleted before the LCP reaches it. After deleting it is important
+   * not to clear these when starting a new insert on the same row id.
+   * This is handled in DbtupExecQuery.cpp. Here we can be committing the
+   * same insert, so again it is important to not lose the LCP bits
+   * on the main row. The LCP bits are never needed on the copy row since
+   * the LCP only cares about the main rows. The LCP can even change
+   * the LCP bits between prepare and commit of a row change. Thus it is
+   * important to not lose the LCP_SKIP bit here.
+   *
+   * Similarly for LCP_DELETE we might lose the state after coming here
+   * again before the LCP have had time to come and reset the bits.
+   *
+   * Similarly it is very important to not transport those bits from the
+   * copy row back to the main row. These bits should only be used in the
+   * main row and we should never take those bits from the copy row back
+   * to the main row.
+   */
+
   Uint32 clear= 
     Tuple_header::ALLOC | Tuple_header::FREE | Tuple_header::COPY_TUPLE |
     Tuple_header::DISK_ALLOC | Tuple_header::DISK_INLINE | 
-    Tuple_header::MM_GROWN;
+    Tuple_header::MM_GROWN | Tuple_header::LCP_SKIP |
+    Tuple_header::LCP_DELETE;
   copy_bits &= ~(Uint32)clear;
+  lcp_bits |= (bits & (Tuple_header::LCP_SKIP | Tuple_header::LCP_DELETE));
 
-  tuple_ptr->m_header_bits= copy_bits;
+  tuple_ptr->m_header_bits= copy_bits | lcp_bits;
   tuple_ptr->m_operation_ptr_i= save;
 
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI &&
@@ -826,6 +971,10 @@ Dbtup::commit_operation(Signal* signal,
     regFragPtr->m_lcp_changed_rows++;
   }
   setChecksum(tuple_ptr, regTabPtr);
+  if (!regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
+  {
+    regFragPtr->m_row_count++;
+  }
 }
 
 void
@@ -1301,6 +1450,8 @@ skip_disk:
     c_undo_buffer.free_copy_tuple(&regOperPtr.p->m_copy_tuple_location);
   }
   
+  regFragPtr.p->m_committed_changes++;
+
   initOpConnection(regOperPtr.p);
   signal->theData[0] = 0;
 }

@@ -5,8 +5,11 @@
 
 --source include/no_valgrind_without_big.inc
 
-# Temporarily skipping the test when log-bin is enabled due to Bug#22472365
---source include/not_log_bin.inc
+# There are expected differences in explain output when run with and without
+# binary logging. Thus, test is updated to run with binary logging ON.
+# Testcase is skipped for binlog_format=MIXED and STATEMENT, since it mismatches
+# result file for used_columns output (Bug#22472365).
+--source include/have_binlog_format_row.inc
 
 # Optimizer plan are printed as part of the test-case and changing page
 # size will affect the optimizer plan numbers. so enable it only for 16K

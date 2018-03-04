@@ -1,13 +1,20 @@
 /* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+   it under the terms of the GNU General Public License, version 2.0,
+   as published by the Free Software Foundation.
+
+   This program is also distributed with certain software (including
+   but not limited to OpenSSL) that is licensed under separate terms,
+   as designated in a particular file or component or in included license
+   documentation.  The authors of MySQL hereby grant you an additional
+   permission to link the program and your derivative works with the
+   separately licensed software that they have included with MySQL.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU General Public License, version 2.0, for more details.
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
@@ -19,11 +26,13 @@
 #include <stddef.h>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_file.h"
+#include "sql_string.h"
 
 class THD;
 class set_var;
@@ -31,6 +40,19 @@ class sys_var;
 
 using std::string;
 using std::map;
+using std::vector;
+
+struct st_persist_var
+{
+  string key;
+  string value;
+  st_persist_var() {}
+  st_persist_var(const string key, const string value)
+  {
+    this->key= key;
+    this->value= value;
+  }
+};
 
 /**
   CLASS Persisted_variables_cache
@@ -41,8 +63,8 @@ using std::map;
   --------
   When first SET PERSIST statement is executed we instantiate
   Persisted_variables_cache which loads the config file if present into
-  m_persist_hash map. This is a singleton operation. m_persist_hash map is
-  an in-memory copy of config file itself. If the SET statement passes then
+  m_persist_variables vector. This is a singleton operation. m_persist_variables
+  is an in-memory copy of config file itself. If the SET statement passes then
   this in-memory is updated and flushed to file as an atomic operation.
 
   Next SET PERSIST statement would only update the in-memory copy and sync
@@ -83,15 +105,15 @@ public:
   */
   bool reset_persisted_variables(THD *thd, const char* name, bool if_exists);
   /**
-    Get persist hash
+    Get persisted variables
   */
-  map<string, string>* get_persist_hash();
+  vector<st_persist_var>* get_persisted_variables();
   /**
-    Get persist hash for static variables
+    Get persisted static variables
   */
-  map<string, string>* get_persist_ro_hash();
+  map<string, string>* get_persist_ro_variables();
   /**
-    append read only persisted variables to command line options with a
+    Append read only persisted variables to command line options with a
     separator.
   */
   bool append_read_only_variables(int *argc, char ***argv,
@@ -100,8 +122,8 @@ public:
 
 private:
   /* Helper function to get variable value */
-  static const char* get_variable_value(THD *thd,
-    sys_var *system_var, char* val_buf, size_t* val_length);
+  static String* get_variable_value(THD *thd,
+    sys_var *system_var, String *str);
   /* Helper function to get variable name */
   static const char* get_variable_name(sys_var *system_var);
 
@@ -112,22 +134,22 @@ private:
 
 private:
   /* In memory copy of persistent config file */
-  map<string, string> m_persist_hash;
-  /* copy of plugin variables whose plugin is not yet installed */
-  map<string, string> m_persist_plugin_hash;
+  vector<st_persist_var> m_persist_variables;
+  /* Copy of plugin variables whose plugin is not yet installed */
+  vector<st_persist_var> m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
-  map<string, string> m_persist_ro_hash;
+  map<string, string> m_persist_ro_variables;
 
-  mysql_mutex_t m_LOCK_persist_hash;
+  mysql_mutex_t m_LOCK_persist_variables;
   static Persisted_variables_cache* m_instance;
 
-  /* file handler members */
-  MYSQL_FILE *fd;
+  /* File handler members */
+  MYSQL_FILE *m_fd;
   string m_persist_filename;
   mysql_mutex_t m_LOCK_persist_file;
-  /* read only persisted options */
+  /* Read only persisted options */
   char** ro_persisted_argv;
-  /* read only persisted plugin options */
+  /* Read only persisted plugin options */
   char** ro_persisted_plugin_argv;
 };
 

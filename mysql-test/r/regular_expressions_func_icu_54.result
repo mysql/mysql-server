@@ -1,0 +1,37 @@
+SET NAMES utf8;
+select regexp_like('bbbbXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.X(.+)+X') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXcXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.X(.+)+XX') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.XX(.+)+X') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.X(.+)+X') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.X(.+)+XX') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.XX(.+)+X') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.X(.+)+[X]') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXcXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.X(.+)+[X][X]') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.XX(.+)+[X]') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.X(.+)+[X]') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.X(.+)+[X][X]') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.XX(.+)+[X]') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.[X](.+)+[X]') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXcXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.[X](.+)+[X][X]') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXcXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.[X][X](.+)+[X]') /* Result: yi */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.[X](.+)+[X]') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.[X](.+)+[X][X]') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.
+select regexp_like('bbbbXXXaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','.[X][X](.+)+[X]') /* Result: ni */;
+ERROR HY000: Timeout exceeded in regular expression match.

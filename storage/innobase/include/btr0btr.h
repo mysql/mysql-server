@@ -4,16 +4,24 @@ Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -37,7 +45,6 @@ Created 6/2/1994 Heikki Tuuri
 #include "page0cur.h"
 #include "univ.i"
 
-#ifndef UNIV_HOTBACKUP
 /** Maximum record size which can be stored on a page, without using the
 special big record storage structure */
 #define	BTR_PAGE_MAX_REC_SIZE	(UNIV_PAGE_SIZE / 2 - 200)
@@ -140,7 +147,6 @@ record is in spatial index */
 	((latch_mode) & ~(BTR_LATCH_FOR_INSERT		\
 			  | BTR_LATCH_FOR_DELETE	\
 			  | BTR_MODIFY_EXTERNAL))
-#endif /* UNIV_HOTBACKUP */
 
 /**************************************************************//**
 Report that an index page is corrupted. */
@@ -161,7 +167,6 @@ btr_corruption_report(
 		ut_error;					\
 	}
 
-#ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Gets the root node of a tree and sx-latches it for segment access.
 @return root page, sx-latched */
@@ -247,7 +252,6 @@ btr_block_get_func(
 # define btr_page_get(page_id, page_size, mode, index, mtr)	\
 	buf_block_get_frame(btr_block_get(page_id, page_size,	\
 					  mode, index, mtr))
-#endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
 @return index id */
@@ -257,7 +261,6 @@ btr_page_get_index_id(
 /*==================*/
 	const page_t*	page)	/*!< in: index page */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 /********************************************************//**
 Gets the node level field in an index page.
 @return level, leaf level == 0 */
@@ -496,7 +499,6 @@ btr_insert_on_non_leaf_level_func(
 	mtr_t*		mtr);	/*!< in: mtr */
 # define btr_insert_on_non_leaf_level(f,i,l,t,m)			\
 	btr_insert_on_non_leaf_level_func(f,i,l,t,__FILE__,__LINE__,m)
-#endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */
 void
@@ -504,7 +506,6 @@ btr_set_min_rec_mark(
 /*=================*/
 	rec_t*	rec,	/*!< in/out: record */
 	mtr_t*	mtr);	/*!< in: mtr */
-#ifndef UNIV_HOTBACKUP
 /*************************************************************//**
 Deletes on the upper level the node pointer to a page. */
 void
@@ -555,7 +556,6 @@ btr_discard_page(
 	btr_cur_t*	cursor,	/*!< in: cursor on the page to discard: not on
 				the root page */
 	mtr_t*		mtr);	/*!< in: mtr */
-#endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Parses the redo log record for setting an index record as the predefined
 minimum record.
@@ -582,7 +582,6 @@ btr_parse_page_reorganize(
 	buf_block_t*	block,	/*!< in: page to be reorganized, or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 	MY_ATTRIBUTE((warn_unused_result));
-#ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Gets the number of pages in a B-tree.
 @return number of pages, or ULINT_UNDEFINED if the index is unavailable */
@@ -708,7 +707,6 @@ btr_sdi_create_index(
 
 #define BTR_N_LEAF_PAGES	1
 #define BTR_TOTAL_SIZE		2
-#endif /* !UNIV_HOTBACKUP */
 
 #include "btr0btr.ic"
 

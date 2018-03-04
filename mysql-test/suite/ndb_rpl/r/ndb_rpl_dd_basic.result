@@ -19,7 +19,7 @@ INITIAL_SIZE 12M
 ENGINE NDB;
 alter tablespace ts1
 add datafile 'datafile02.dat'
-initial_size 4M engine=ndb;
+initial_size 4M;
 CREATE TABLE t1
 (pk1 int not null primary key, b int not null, c int not null)
 tablespace ts1 storage disk
@@ -49,7 +49,7 @@ INITIAL_SIZE 12M
 ENGINE NDB
 master-bin.000001	#	Query	#	#	use `test`; alter tablespace ts1
 add datafile 'datafile02.dat'
-initial_size 4M engine=ndb
+initial_size 4M
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1
 (pk1 int not null primary key, b int not null, c int not null)
 tablespace ts1 storage disk
@@ -62,11 +62,9 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 drop table t1;
 alter tablespace ts1
-drop datafile 'datafile.dat'
-engine=ndb;
+drop datafile 'datafile.dat';
 alter tablespace ts1
-drop datafile 'datafile02.dat'
-engine=ndb;
-DROP TABLESPACE ts1 ENGINE=NDB;
+drop datafile 'datafile02.dat';
+DROP TABLESPACE ts1;
 DROP LOGFILE GROUP lg1 ENGINE=NDB;
 include/rpl_end.inc

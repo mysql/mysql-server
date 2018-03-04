@@ -33,7 +33,7 @@
 --source include/rpl_connection.inc
 
 SET SESSION sql_log_bin=0;
-call mtr.add_suppression("\\[Warning\\] InnoDB: Database page corruption or a failed file read of page");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Database page corruption or a failed file read of page");
 SET SESSION sql_log_bin=1;
 
 # Extract the server_uuid

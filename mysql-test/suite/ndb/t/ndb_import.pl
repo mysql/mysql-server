@@ -300,11 +300,9 @@ sub run_import {
   push(@cmd, "\$NDB_IMPORT");
   push(@cmd, "--state-dir=$test->{statedir}");
   push(@cmd, "--keep-state");
+  push(@cmd, "--stats");
   push(@cmd, "--input-type=csv");
-  push(@cmd, "--input-workers=2");
   push(@cmd, "--output-type=ndb");
-  push(@cmd, "--output-workers=2");
-  push(@cmd, "--db-workers=2");
   push(@cmd, "--temperrors=100");
   if (defined($test->{csvfmt}{csvopt})) {
     push(@cmd, "--csvopt=$test->{csvfmt}{csvopt}");
@@ -321,7 +319,7 @@ sub run_import {
   if ($opts->{resumeopt}) {
     push(@cmd, "--resume");
   }
-  push(@cmd, "--verbose=1");
+  push(@cmd, "--log-level=1");
   push(@cmd, $test->{database});
   my $tables = $test->{tables};
   for my $table (@$tables) {

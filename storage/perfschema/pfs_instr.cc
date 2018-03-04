@@ -1,17 +1,24 @@
 /* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+  it under the terms of the GNU General Public License, version 2.0,
+  as published by the Free Software Foundation.
+
+  This program is also distributed with certain software (including
+  but not limited to OpenSSL) that is licensed under separate terms,
+  as designated in a particular file or component or in included license
+  documentation.  The authors of MySQL hereby grant you an additional
+  permission to link the program and your derivative works with the
+  separately licensed software that they have included with MySQL.
 
   This program is distributed in the hope that it will be useful,
   but WITHOUT ANY WARRANTY; without even the implied warranty of
   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+  GNU General Public License, version 2.0, for more details.
 
   You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software Foundation,
-  51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file storage/perfschema/pfs_instr.cc
@@ -27,16 +34,16 @@
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "pfs.h"
-#include "pfs_account.h"
-#include "pfs_buffer_container.h"
-#include "pfs_builtin_memory.h"
-#include "pfs_global.h"
-#include "pfs_host.h"
-#include "pfs_instr_class.h"
-#include "pfs_stat.h"
-#include "pfs_user.h"
-#include "sql/mysqld.h" // get_thd_status_var
+#include "sql/mysqld.h"  // get_thd_status_var
+#include "storage/perfschema/pfs.h"
+#include "storage/perfschema/pfs_account.h"
+#include "storage/perfschema/pfs_buffer_container.h"
+#include "storage/perfschema/pfs_builtin_memory.h"
+#include "storage/perfschema/pfs_global.h"
+#include "storage/perfschema/pfs_host.h"
+#include "storage/perfschema/pfs_instr_class.h"
+#include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/pfs_user.h"
 
 ulong nested_statement_lost = 0;
 
@@ -1044,6 +1051,156 @@ search:
   }
 
   return NULL;
+}
+
+/**
+  Find a file instrumentation instance by name, and rename it
+  @param thread                       the executing instrumented thread
+  @param old_filename                 the file to be renamed
+  @param old_len                      the length in bytes of the old filename
+  @param new_filename                 the new file name
+  @param new_len                      the length in bytes of the new filename
+*/
+void find_and_rename_file(PFS_thread *thread, const char *old_filename,
+                          uint old_len, const char *new_filename, uint new_len)
+{
+  PFS_file *pfs;
+
+  DBUG_ASSERT(thread != NULL);
+
+  LF_PINS *pins= get_filename_hash_pins(thread);
+  if (unlikely(pins == NULL))
+  {
+    global_file_container.m_lost++;
+    return;
+  }
+
+  /*
+    Normalize the old file name.
+  */
+  char safe_buffer[FN_REFLEN];
+  const char *safe_filename;
+
+  if (old_len >= FN_REFLEN)
+  {
+    memcpy(safe_buffer, old_filename, FN_REFLEN - 1);
+    safe_buffer[FN_REFLEN - 1]= 0;
+    safe_filename= safe_buffer;
+  }
+  else
+    safe_filename= old_filename;
+
+  char buffer[FN_REFLEN];
+  char dirbuffer[FN_REFLEN];
+  size_t dirlen;
+  const char *normalized_filename;
+  uint normalized_length;
+
+  dirlen= dirname_length(safe_filename);
+  if (dirlen == 0)
+  {
+    dirbuffer[0]= FN_CURLIB;
+    dirbuffer[1]= FN_LIBCHAR;
+    dirbuffer[2]= '\0';
+  }
+  else
+  {
+    memcpy(dirbuffer, safe_filename, dirlen);
+    dirbuffer[dirlen]= '\0';
+  }
+
+  if (my_realpath(buffer, dirbuffer, MYF(0)) != 0)
+  {
+    global_file_container.m_lost++;
+    return;
+  }
+
+  /* Append the unresolved file name to the resolved path */
+  char *ptr= buffer + strlen(buffer);
+  char *buf_end= &buffer[sizeof(buffer)-1];
+  if ((buf_end > ptr) && (*(ptr-1) != FN_LIBCHAR))
+    *ptr++= FN_LIBCHAR;
+  if (buf_end > ptr)
+    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  *buf_end= '\0';
+
+  normalized_filename= buffer;
+  normalized_length= (uint)strlen(normalized_filename);
+
+  PFS_file **entry;
+  entry= reinterpret_cast<PFS_file**>
+    (lf_hash_search(&filename_hash, pins,
+                    normalized_filename, normalized_length));
+
+  if (entry && (entry != MY_LF_ERRPTR))
+    pfs= *entry;
+  else
+  {
+    lf_hash_search_unpin(pins);
+    return;
+  }
+
+  lf_hash_delete(&filename_hash, pins,
+                 pfs->m_filename, pfs->m_filename_length);
+
+  /*
+    Normalize the new file name.
+  */
+  if (new_len >= FN_REFLEN)
+  {
+    memcpy(safe_buffer, new_filename, FN_REFLEN - 1);
+    safe_buffer[FN_REFLEN - 1]= 0;
+    safe_filename= safe_buffer;
+  }
+  else
+    safe_filename= new_filename;
+
+  dirlen= dirname_length(safe_filename);
+  if (dirlen == 0)
+  {
+    dirbuffer[0]= FN_CURLIB;
+    dirbuffer[1]= FN_LIBCHAR;
+    dirbuffer[2]= '\0';
+  }
+  else
+  {
+    memcpy(dirbuffer, safe_filename, dirlen);
+    dirbuffer[dirlen]= '\0';
+  }
+
+  if (my_realpath(buffer, dirbuffer, MYF(0)) != 0)
+  {
+    global_file_container.m_lost++;
+    return;
+  }
+
+  /* Append the unresolved file name to the resolved path */
+  ptr= buffer + strlen(buffer);
+  buf_end= &buffer[sizeof(buffer)-1];
+  if ((buf_end > ptr) && (*(ptr-1) != FN_LIBCHAR))
+    *ptr++= FN_LIBCHAR;
+  if (buf_end > ptr)
+    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
+  *buf_end= '\0';
+
+  normalized_filename= buffer;
+  normalized_length= (uint)strlen(normalized_filename);
+
+  strncpy(pfs->m_filename, normalized_filename, normalized_length);
+  pfs->m_filename[normalized_length]= '\0';
+  pfs->m_filename_length= normalized_length;
+
+  int res;
+  res= lf_hash_insert(&filename_hash, pins, &pfs);
+
+  if (likely(res == 0))
+    return;
+  else
+  {
+    global_file_container.deallocate(pfs);
+    global_file_container.m_lost++;
+    return;
+  }
 }
 
 /**

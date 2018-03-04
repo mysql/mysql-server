@@ -1,0 +1,13 @@
+--source include/have_ssl.inc
+--source include/not_windows.inc
+--source include/xplugin_preamble.inc
+
+--let $UNIX_SOCKET_TESTING= 0
+--let $USER_CIPHER= --ssl-cipher='DHE-RSA-AES256-SHA'
+
+--let $USER_AUTH_PLUGIN= 'mysql_native_password'
+--source ../include/connection_auth_same_user_name.inc
+
+--let $USER_AUTH_PLUGIN= 'sha256_password'
+--source ../include/connection_auth_same_user_name.inc
+UNINSTALL PLUGIN `mysqlx`;

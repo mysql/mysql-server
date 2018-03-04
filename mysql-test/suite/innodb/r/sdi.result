@@ -68,7 +68,7 @@ i int(10) unsigned not null auto_increment primary key,
 a varchar(255) not null,
 FULLTEXT KEY (a)
 ) ENGINE = INNODB;
-create table t15 (c1 int, c2 geometry not null, spatial index (c2)) engine=innodb;
+create table t15 (c1 int, c2 geometry not null SRID 0, spatial index (c2)) engine=innodb;
 CREATE TABLE t16 (
 a INT,
 b INT,
@@ -137,3 +137,20 @@ DROP TABLE t20;
 # Check SDI from t11.ibd
 # Create and drop tables in general tablespace. Shouldn't show t19, t20
 # restart
+#
+# Bug#27151163 - INNODB: ASSERTION FAILURE: DICT0SDI.CC:.*
+#
+CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
+CREATE DATABASE sdi;
+CREATE TABLE sdi.t1(i int) TABLESPACE ts1;
+# Shutdown the server
+# Remove ts1.ibd file
+# restart
+ALTER TABLE sdi.t1 ADD COLUMN j INT;
+ERROR HY000: Tablespace is missing for table `sdi`.`t1`.
+ALTER TABLE sdi.t1 RENAME COLUMN i to j;
+ERROR HY000: Tablespace is missing for table `sdi`.`t1`.
+ALTER TABLESPACE ts1 RENAME to ts2;
+ERROR HY000: Tablespace is missing for table ts1.
+DROP DATABASE sdi;
+DROP TABLESPACE ts1;

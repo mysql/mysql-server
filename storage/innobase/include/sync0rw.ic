@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -10,16 +10,24 @@ incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
 
 This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
+the terms of the GNU General Public License, version 2.0, as published by the
+Free Software Foundation.
+
+This program is also distributed with certain software (including but not
+limited to OpenSSL) that is licensed under separate terms, as designated in a
+particular file or component or in included license documentation. The authors
+of MySQL hereby grant you an additional permission to link the program and
+your derivative works with the separately licensed software that they have
+included with MySQL.
 
 This program is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+FOR A PARTICULAR PURPOSE. See the GNU General Public License, version 2.0,
+for more details.
 
 You should have received a copy of the GNU General Public License along with
 this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
 
@@ -261,7 +269,7 @@ does not support recusive x-locks: they should be handled by the caller and
 need not be atomic since they are performed by the current lock holder.
 Returns true if the decrement was made, false if not.
 @return true if decr occurs */
-UNIV_INLINE
+ALWAYS_INLINE
 bool
 rw_lock_lock_word_decr(
 /*===================*/
@@ -370,7 +378,7 @@ rw_lock_set_writer_id_and_recursion_flag(
 Low-level function which tries to lock an rw-lock in s-mode. Performs no
 spinning.
 @return TRUE if success */
-UNIV_INLINE
+ALWAYS_INLINE
 ibool
 rw_lock_s_lock_low(
 /*===============*/
@@ -772,7 +780,7 @@ pfs_rw_lock_free_func(
 Performance schema instrumented wrap function for rw_lock_s_lock_func()
 NOTE! Please use the corresponding macro rw_lock_s_lock(), not
 directly this function! */
-UNIV_INLINE
+ALWAYS_INLINE
 void
 pfs_rw_lock_s_lock_func(
 /*====================*/
@@ -974,7 +982,7 @@ pfs_rw_lock_sx_unlock_func(
 Performance schema instrumented wrap function for rw_lock_s_unlock_func()
 NOTE! Please use the corresponding macro pfs_rw_lock_s_unlock(), not
 directly this function! */
-UNIV_INLINE
+ALWAYS_INLINE
 void
 pfs_rw_lock_s_unlock_func(
 /*======================*/

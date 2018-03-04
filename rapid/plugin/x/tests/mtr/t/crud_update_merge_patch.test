@@ -2,6 +2,7 @@
 # Functional tests of WL#10797 - mysqlx.crud.Modify: MERGE_PATCH
 #
 --source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
 
 ## Test data
 CREATE SCHEMA xtest;
@@ -244,7 +245,7 @@ callmacro Document_UpdatePatchObj_Find
 	ER_SUCCESS
 	{"a":20, "_id": 1}
 	%PROTOBUF_FIELDS%
-	{"a": 20, "b": 10, "c": 40, "_id": 1};
+	{"a": 20, "b": 10, "c": 40.0, "_id": 1};
 
 
 #
@@ -324,7 +325,7 @@ EOF
 --echo # Requirement:
 --echo # * F8 - Must work for collections
 exec $MYSQLXTEST
-	--user=root
+	--user=x_root
 	--password=''
 	--schema=xtest
 	-v%NO_SUPPORTED_ON_COLLECTION%=ER_X_DOC_ID_MISSING
@@ -335,7 +336,7 @@ exec $MYSQLXTEST
 --echo # Requirement:
 --echo # * F10 - Must work for JSON document fields in tables
 exec $MYSQLXTEST
-	--user=root
+	--user=x_root
 	--password=''
 	--schema=xtest
 	-v%NO_SUPPORTED_ON_COLLECTION%=ER_SUCCESS
@@ -345,5 +346,6 @@ exec $MYSQLXTEST
 ## Postamble
 --remove_file $MYSQL_TMP_DIR/crud_update_merge.tmp
 
+--source include/xplugin_drop_user.inc
 DROP SCHEMA IF EXISTS xtest;
 UNINSTALL PLUGIN mysqlx;

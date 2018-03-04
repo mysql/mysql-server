@@ -211,19 +211,19 @@ SELECT @@global.session_track_system_variables;
 @@global.session_track_system_variables
 autocommit
 # check contents of persistent config file
-{ "mysql_server": {"concurrent_insert": "NEVER" , "general_log": "OFF" , "long_query_time": "2.999999" , "max_connections": "88" , "server_id": "9" , "session_track_system_variables": "autocommit" } }
+{ "mysql_server": {"general_log": "OFF" , "long_query_time": "2.999999" , "concurrent_insert": "NEVER" , "max_connections": "88" , "server_id": "9" , "session_track_system_variables": "autocommit" } }
 RESET PERSIST server_id;
 RESET PERSIST general_log;
 SET PERSIST max_connections=77;
 SET PERSIST session_track_system_variables='max_connections';
-{ "mysql_server": {"concurrent_insert": "NEVER" , "long_query_time": "2.999999" , "max_connections": "77" , "session_track_system_variables": "max_connections" } }
+{ "mysql_server": {"long_query_time": "2.999999" , "concurrent_insert": "NEVER" , "max_connections": "77" , "session_track_system_variables": "max_connections" } }
 SET PERSIST max_connections=99;
 RESET PERSIST session_track_system_variables;
 SET PERSIST concurrent_insert=ALWAYS;
-{ "mysql_server": {"concurrent_insert": "ALWAYS" , "long_query_time": "2.999999" , "max_connections": "99" } }
+{ "mysql_server": {"long_query_time": "2.999999" , "max_connections": "99" , "concurrent_insert": "ALWAYS" } }
 RESET PERSIST max_connections;
 SET PERSIST concurrent_insert=AUTO;
-{ "mysql_server": {"concurrent_insert": "AUTO" , "long_query_time": "2.999999" } }
+{ "mysql_server": {"long_query_time": "2.999999" , "concurrent_insert": "AUTO" } }
 # negative tests persist session only variables
 SET @@persist.sql_log_bin=0;
 ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
@@ -261,7 +261,7 @@ SELECT @@global.foreign_key_checks;
 1
 SET PERSIST foreign_key_checks=0;
 SET PERSIST flush_time=2;
-{ "mysql_server": {"concurrent_insert": "AUTO" , "flush_time": "2" , "foreign_key_checks": "OFF" , "long_query_time": "2.999999" , "max_heap_table_size": "999424" , "slave_net_timeout": "124" , "sort_buffer_size": "256000" } }# Restart server with persisted-globals-load=0
+{ "mysql_server": {"long_query_time": "2.999999" , "sort_buffer_size": "256000" , "concurrent_insert": "AUTO" , "slave_net_timeout": "124" , "max_heap_table_size": "999424" , "foreign_key_checks": "OFF" , "flush_time": "2" } }# Restart server with persisted-globals-load=0
 # should have default values
 SELECT @@global.sort_buffer_size;
 @@global.sort_buffer_size
@@ -302,6 +302,7 @@ SELECT @@global.foreign_key_checks;
 SELECT @@global.flush_time;
 @@global.flush_time
 2
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
 call mtr.add_suppression("\\[Warning\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
 # Restart server with persisted-globals-load=NULL
 # Should get warning in error log.
@@ -333,6 +334,8 @@ SELECT @@global.innodb_buffer_pool_size;
 @@global.innodb_buffer_pool_size
 25165824
 SET PERSIST innodb_buffer_pool_size=10*1024*1024;
+Warnings:
+Warning	1210	InnoDB: Cannot resize buffer pool to lesser than chunk size of 25165824 bytes.
 SELECT @@global.innodb_buffer_pool_size;
 @@global.innodb_buffer_pool_size
 25165824
@@ -342,7 +345,7 @@ SELECT @@global.innodb_buffer_pool_size;
 @@global.innodb_buffer_pool_size
 25165824
 # Check mysqld-auto.cnf file.
-{ "mysql_server": {"autocommit": "OFF" , "enforce_gtid_consistency": "ON" , "general_log": "ON" , "innodb_buffer_pool_size": "25165824" , "innodb_deadlock_detect": "OFF" } }
+{ "mysql_server": {"autocommit": "OFF" , "general_log": "ON" , "innodb_deadlock_detect": "OFF" , "enforce_gtid_consistency": "ON" , "innodb_buffer_pool_size": "25165824" } }
 #
 # Bug#26085712: SERVER FAILS TO START AFTER SET PERSIST GTID_MODE
 #                = ON_PERMISSIVE OR ON
