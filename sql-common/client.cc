@@ -110,6 +110,10 @@
 #define SOCKET_ERROR -1
 #endif
 
+#ifdef HAVE_OPENSSL
+#include <openssl/x509v3.h>
+#endif
+
 #include <mysql/client_plugin.h>
 #include <new>
 
@@ -2584,11 +2588,6 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
                                   const char **errptr) {
   SSL *ssl;
   X509 *server_cert = NULL;
-  char *cn = NULL;
-  int cn_loc = -1;
-  ASN1_STRING *cn_asn1 = NULL;
-  X509_NAME_ENTRY *cn_entry = NULL;
-  X509_NAME *subject = NULL;
   int ret_validation = 1;
 
   DBUG_ENTER("ssl_verify_server_cert");
@@ -2619,54 +2618,15 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
     are what we expect.
   */
 
-  /*
-   Some notes for future development
-   We should check host name in alternative name first and then if needed check
-   in common name. Currently yssl doesn't support alternative name.
-   openssl 1.0.2 support X509_check_host method for host name validation, we may
-   need to start using X509_check_host in the future.
-  */
-
-  subject = X509_get_subject_name((X509 *)server_cert);
-  // Find the CN location in the subject
-  cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
-  if (cn_loc < 0) {
-    *errptr = "Failed to get CN location in the certificate subject";
+  /* Use OpenSSL host check instead of our own if we have OpenSSL */
+  if (X509_check_host(server_cert, server_hostname, strlen(server_hostname),
+                      X509_CHECK_FLAG_NO_WILDCARDS, 0) != 1) {
+    *errptr = "Failed to verify the server certificate via X509_check_host";
     goto error;
-  }
-
-  // Get the CN entry for given location
-  cn_entry = X509_NAME_get_entry(subject, cn_loc);
-  if (cn_entry == NULL) {
-    *errptr = "Failed to get CN entry using CN location";
-    goto error;
-  }
-
-  // Get CN from common name entry
-  cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
-  if (cn_asn1 == NULL) {
-    *errptr = "Failed to get CN from CN entry";
-    goto error;
-  }
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  cn = (char *)ASN1_STRING_data(cn_asn1);
-#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  cn = (char *)ASN1_STRING_get0_data(cn_asn1);
-#endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-
-  // There should not be any NULL embedded in the CN
-  if ((size_t)ASN1_STRING_length(cn_asn1) != strlen(cn)) {
-    *errptr = "NULL embedded in the certificate CN";
-    goto error;
-  }
-
-  DBUG_PRINT("info", ("Server hostname in cert: %s", cn));
-  if (!strcmp(cn, server_hostname)) {
+  } else {
     /* Success */
     ret_validation = 0;
   }
-
   *errptr = "SSL certificate validation failure";
 
 error:
