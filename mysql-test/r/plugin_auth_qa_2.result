@@ -8,9 +8,9 @@ GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
 GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_user;
 SELECT user,plugin FROM mysql.user WHERE user != 'root';
 user	plugin
-mysql.infoschema	mysql_native_password
-mysql.session	mysql_native_password
-mysql.sys	mysql_native_password
+mysql.infoschema	caching_sha2_password
+mysql.session	caching_sha2_password
+mysql.sys	caching_sha2_password
 qa_test_1_dest	caching_sha2_password
 qa_test_1_user	qa_auth_interface
 SELECT @@proxy_user;

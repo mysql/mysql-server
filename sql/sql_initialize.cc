@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,7 @@
 #include "scripts/sql_commands_sys_schema.h"
 #include "scripts/sql_commands_system_data.h"
 #include "scripts/sql_commands_system_tables.h"
+#include "scripts/sql_commands_system_users.h"
 #include "sql/current_thd.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
@@ -66,32 +67,10 @@ static const char *initialization_data[] = {
     "GRANT ALL PRIVILEGES ON *.* TO root@localhost WITH GRANT OPTION;\n",
     "GRANT PROXY ON ''@'' TO 'root'@'localhost' WITH GRANT OPTION;\n", NULL};
 
-static const char *session_service_initialization_data[] = {
-    "CREATE USER 'mysql.session'@localhost IDENTIFIED "
-    "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
-    "ACCOUNT LOCK;\n",
-    "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;\n",
-    "GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;\n",
-    "GRANT SELECT ON performance_schema.* TO 'mysql.session'@localhost;\n",
-    "GRANT SUPER ON *.* TO 'mysql.session'@localhost;\n",
-    NULL};
-
-static const char *information_schema_owner_initialization_data[] = {
-    "CREATE USER 'mysql.infoschema'@localhost IDENTIFIED "
-    "WITH mysql_native_password AS '*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE' "
-    "ACCOUNT LOCK;\n",
-    "REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.infoschema'@localhost;\n",
-    "GRANT SELECT ON *.* TO 'mysql.infoschema'@localhost;\n", nullptr};
-
-static const char **cmds[] = {initialization_cmds,
-                              mysql_system_tables,
-                              initialization_data,
-                              mysql_system_data,
-                              fill_help_tables,
-                              session_service_initialization_data,
-                              information_schema_owner_initialization_data,
-                              mysql_sys_schema,
-                              NULL};
+static const char **cmds[] = {initialization_cmds, mysql_system_tables,
+                              initialization_data, mysql_system_data,
+                              fill_help_tables,    mysql_system_users,
+                              mysql_sys_schema,    nullptr};
 
 /** keep in sync with the above array */
 static const char *cmd_descs[] = {
@@ -100,10 +79,9 @@ static const char *cmd_descs[] = {
     "Filling in the system tables, part 1",
     "Filling in the system tables, part 2",
     "Filling in the mysql.help table",
-    "Creating user for internal session service",
-    "Creating user to be owner of views in information_schema",
+    "Creating the system users for internal usage",
     "Creating the sys schema",
-    NULL};
+    nullptr};
 
 static void generate_password(char *password, int size) {
 #define UPCHARS "QWERTYUIOPASDFGHJKLZXCVBNM"
