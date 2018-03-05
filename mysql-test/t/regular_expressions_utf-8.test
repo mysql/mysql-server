@@ -691,14 +691,6 @@ SELECT regexp_like( repeat(@v1, 'abc'), 'abc' );
 --echo #
 
 --error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
-SELECT regexp_replace((' F' ) ,'^ ','[,$' );
---error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
-SELECT regexp_replace(24031 ,''*' ','$>$' );
---error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
-SELECT regexp_replace('e C' ,'. ','$ ' );
---error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
-SELECT regexp_replace('%* ' ,'. ',' A*#$?$@^-' );
---error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
-SELECT regexp_replace(' 0(' ,'^ ','3$!' );
+SELECT regexp_replace( 'abc' , 'abc', '$abc' );
 
 --source ../mysql-test/include/cleanup_icu_utils.inc
