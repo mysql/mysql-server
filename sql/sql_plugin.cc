@@ -88,9 +88,10 @@
 #include "sql/psi_memory_key.h"
 #include "sql/records.h"  // READ_RECORD
 #include "sql/set_var.h"
-#include "sql/sql_audit.h"  // mysql_audit_acquire_plugins
-#include "sql/sql_base.h"   // close_mysql_tables
-#include "sql/sql_class.h"  // THD
+#include "sql/sql_audit.h"        // mysql_audit_acquire_plugins
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_base.h"         // close_mysql_tables
+#include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
@@ -2035,6 +2036,9 @@ static bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
       check_table_access(thd, INSERT_ACL, &tables, false, 1, false))
     DBUG_RETURN(true);
 
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    DBUG_RETURN(true);
+
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (!(table = open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(true);
@@ -2201,6 +2205,9 @@ static bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name) {
     DBUG_ASSERT(thd->is_error());
     DBUG_RETURN(true);
   }
+
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    DBUG_RETURN(true);
 
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -2815,6 +2822,8 @@ static void cleanup_variables(THD *thd, struct System_variables *vars) {
     mysql_mutex_lock(&thd->LOCK_thd_data);
 
     plugin_var_memalloc_free(&thd->variables);
+    /* Remove references to session_sysvar_res_mgr memory before freeing it. */
+    thd->variables.track_sysvars_ptr = NULL;
     thd->session_sysvar_res_mgr.deinit();
   }
   DBUG_ASSERT(vars->table_plugin == NULL);
@@ -3190,7 +3199,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root, st_plugin_int *p) {
   memset(opts, 0, sizeof(my_option) * count);
 
   /**
-    some plugin variables (those that don't have PLUGIN_VAR_NOSYSVAR flag)
+    some plugin variables (those that don't have PLUGIN_VAR_EXPERIMENTAL flag)
     have their names prefixed with the plugin name. Restore the names here
     to get the correct (not double-prefixed) help text.
     We won't need @@sysvars anymore and don't care about their proper names.
@@ -3340,7 +3349,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   for (opt = tmp->plugin->system_vars; opt && *opt; opt++) {
     SYS_VAR *o;
     const my_option **optp = (const my_option **)&opts;
-    if (((o = *opt)->flags & PLUGIN_VAR_NOSYSVAR)) continue;
+    if (((o = *opt)->flags & PLUGIN_VAR_EXPERIMENTAL)) continue;
     if ((var = find_bookmark(plugin_name.str, o->name, o->flags)))
       v = new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o);
     else {

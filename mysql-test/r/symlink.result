@@ -42,7 +42,7 @@ t9	CREATE TABLE `t9` (
   `b` char(16) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 alter table t9 rename t8, add column d int not null;
 alter table t8 rename t7;
 rename table t7 to t9;
@@ -55,7 +55,7 @@ t9	CREATE TABLE `t9` (
   `c` int(11) NOT NULL,
   `d` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 create database mysqltest;
 create table mysqltest.t9 (a int not null auto_increment, b char(16) not null, primary key (a)) 
 engine=myisam index directory="/this-dir-does-not-exist";
@@ -81,7 +81,7 @@ t9	CREATE TABLE `t9` (
   `c` int(11) NOT NULL,
   `d` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+) ENGINE=MyISAM AUTO_INCREMENT=16725 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 drop database mysqltest;
 create table t1 (a int not null) engine=myisam;
 alter table t1 data directory="MYSQLTEST_VARDIR/tmp";
@@ -91,7 +91,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add b int;
 alter table t1 data directory="MYSQLTEST_VARDIR/log";
 Warnings:
@@ -101,7 +101,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 index directory="MYSQLTEST_VARDIR/log";
 Warnings:
 Warning	1618	<INDEX DIRECTORY> option ignored
@@ -110,7 +110,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1(a INT) ENGINE = MYISAM
 DATA DIRECTORY='TEST_DIR/tmp'
@@ -127,13 +127,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
 create temporary table t1 (a int) engine=myisam data directory="MYSQLTEST_VARDIR/log" select 99 a;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/log/'
 create table t1 (a int) engine=myisam select 42 a;
 select * from t1;
 a
@@ -209,7 +209,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/' INDEX DIRECTORY='MYSQLTEST_VARDIR/run/'
 # CREATE TABLE LIKE statement on table with INDEX/DATA DIRECTORY
 # options should not fail. Per documentation newly created table
 # should not inherit value of these options from the original table.
@@ -219,7 +219,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop tables t1, t2;
 #
 # Test for bug #25514146 DB_NAME IS IGNORED WHEN CREATING TABLE

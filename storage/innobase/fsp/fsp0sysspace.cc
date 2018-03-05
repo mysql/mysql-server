@@ -151,16 +151,16 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
     ptr = parse_file_name(ptr);
 
     if (ptr == filepath) {
-      ib::error() << "File Path Specification '" << filepath_spec
-                  << "' is missing a file name.";
+      ib::error(ER_IB_MSG_431) << "File Path Specification '" << filepath_spec
+                               << "' is missing a file name.";
 
       ut_free(input_str);
       return (false);
     }
 
     if (*ptr == '\0') {
-      ib::error() << "File Path Specification '" << filepath_spec
-                  << "' is missing a file size.";
+      ib::error(ER_IB_MSG_432) << "File Path Specification '" << filepath_spec
+                               << "' is missing a file size.";
 
       ut_free(input_str);
       return (false);
@@ -172,8 +172,9 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 
     if (size == 0) {
     invalid_size:
-      ib::error() << "Invalid File Path Specification: '" << filepath_spec
-                  << "'. An invalid file size was specified.";
+      ib::error(ER_IB_MSG_433)
+          << "Invalid File Path Specification: '" << filepath_spec
+          << "'. An invalid file size was specified.";
 
       ut_free(input_str);
       return (false);
@@ -193,9 +194,10 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       }
 
       if (*ptr == ';') {
-        ib::error() << "Invalid File Path Specification: '" << filepath_spec
-                    << "'. Only the last"
-                       " file defined can be 'autoextend'.";
+        ib::error(ER_IB_MSG_434)
+            << "Invalid File Path Specification: '" << filepath_spec
+            << "'. Only the last"
+               " file defined can be 'autoextend'.";
 
         ut_free(input_str);
         return (false);
@@ -208,9 +210,10 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
 
     if (0 == strncmp(ptr, "raw", (sizeof "raw") - 1)) {
       if (!supports_raw) {
-        ib::error() << "Invalid File Path Specification: '" << filepath_spec
-                    << "' Tablespace"
-                       " doesn't support raw devices";
+        ib::error(ER_IB_MSG_435)
+            << "Invalid File Path Specification: '" << filepath_spec
+            << "' Tablespace"
+               " doesn't support raw devices";
 
         ut_free(input_str);
         return (false);
@@ -225,9 +228,9 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
       ptr++;
     } else if (*ptr != '\0') {
       ptr[0] = '\0';
-      ib::error() << "File Path Specification: '" << filepath_spec
-                  << "' has unrecognized characters after '" << input_str
-                  << "'";
+      ib::error(ER_IB_MSG_436)
+          << "File Path Specification: '" << filepath_spec
+          << "' has unrecognized characters after '" << input_str << "'";
 
       ut_free(input_str);
       return (false);
@@ -235,9 +238,9 @@ bool SysTablespace::parse_params(const char *filepath_spec, bool supports_raw) {
   }
 
   if (n_files == 0) {
-    ib::error() << "File Path Specification: '" << filepath_spec
-                << "' must contain"
-                   " at least one data file definition";
+    ib::error(ER_IB_MSG_437) << "File Path Specification: '" << filepath_spec
+                             << "' must contain"
+                                " at least one data file definition";
 
     ut_free(input_str);
     return (false);
@@ -341,15 +344,16 @@ dberr_t SysTablespace::check_size(Datafile &file) {
     if (file.m_size > rounded_size_pages ||
         (m_last_file_size_max > 0 &&
          m_last_file_size_max < rounded_size_pages)) {
-      ib::error() << "The Auto-extending " << name() << " data file '"
-                  << file.filepath()
-                  << "' is"
-                     " of a different size "
-                  << rounded_size_pages
-                  << " pages (rounded down to MB) than specified"
-                     " in the .cnf file: initial "
-                  << file.m_size << " pages, max " << m_last_file_size_max
-                  << " (relevant if non-zero) pages!";
+      ib::error(ER_IB_MSG_438)
+          << "The Auto-extending " << name() << " data file '"
+          << file.filepath()
+          << "' is"
+             " of a different size "
+          << rounded_size_pages
+          << " pages (rounded down to MB) than specified"
+             " in the .cnf file: initial "
+          << file.m_size << " pages, max " << m_last_file_size_max
+          << " (relevant if non-zero) pages!";
       return (DB_ERROR);
     }
 
@@ -357,13 +361,14 @@ dberr_t SysTablespace::check_size(Datafile &file) {
   }
 
   if (rounded_size_pages != file.m_size) {
-    ib::error() << "The " << name() << " data file '" << file.filepath()
-                << "' is of a different size " << rounded_size_pages
-                << " pages (rounded down to MB)"
-                   " than the "
-                << file.m_size
-                << " pages specified in"
-                   " the .cnf file!";
+    ib::error(ER_IB_MSG_439)
+        << "The " << name() << " data file '" << file.filepath()
+        << "' is of a different size " << rounded_size_pages
+        << " pages (rounded down to MB)"
+           " than the "
+        << file.m_size
+        << " pages specified in"
+           " the .cnf file!";
     return (DB_ERROR);
   }
 
@@ -377,10 +382,11 @@ dberr_t SysTablespace::set_size(Datafile &file) {
   ut_a(!srv_read_only_mode || m_ignore_read_only);
 
   /* We created the data file and now write it full of zeros */
-  ib::info() << "Setting file '" << file.filepath() << "' size to "
-             << (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
-             << " MB."
-                " Physically writing the file full; Please wait ...";
+  ib::info(ER_IB_MSG_440)
+      << "Setting file '" << file.filepath() << "' size to "
+      << (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT))
+      << " MB."
+         " Physically writing the file full; Please wait ...";
 
   bool success = os_file_set_size(
       file.m_filepath, file.m_handle, 0,
@@ -388,11 +394,13 @@ dberr_t SysTablespace::set_size(Datafile &file) {
       m_ignore_read_only ? false : srv_read_only_mode, true);
 
   if (success) {
-    ib::info() << "File '" << file.filepath() << "' size is now "
-               << (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)) << " MB.";
+    ib::info(ER_IB_MSG_441)
+        << "File '" << file.filepath() << "' size is now "
+        << (file.m_size >> (20 - UNIV_PAGE_SIZE_SHIFT)) << " MB.";
   } else {
-    ib::error() << "Could not set the file size of '" << file.filepath()
-                << "'. Probably out of disk space";
+    ib::error(ER_IB_MSG_442)
+        << "Could not set the file size of '" << file.filepath()
+        << "'. Probably out of disk space";
 
     return (DB_ERROR);
   }
@@ -457,9 +465,10 @@ dberr_t SysTablespace::open_file(Datafile &file) {
       srv_start_raw_disk_in_use = TRUE;
 
       if (srv_read_only_mode && !m_ignore_read_only) {
-        ib::error() << "Can't open a raw device '" << file.m_filepath
-                    << "' when"
-                       " --innodb-read-only is set";
+        ib::error(ER_IB_MSG_443)
+            << "Can't open a raw device '" << file.m_filepath
+            << "' when"
+               " --innodb-read-only is set";
 
         return (DB_ERROR);
       }
@@ -540,9 +549,10 @@ dberr_t SysTablespace::read_lsn_and_check_flags(lsn_t *flushed_lsn) {
   /* Make sure the tablespace space ID matches the
   space ID on the first page of the first datafile. */
   if (space_id() != it->m_space_id) {
-    ib::error() << "The " << name() << " data file '" << it->name()
-                << "' has the wrong space ID. It should be " << space_id()
-                << ", but " << it->m_space_id << " was found";
+    ib::error(ER_IB_MSG_444)
+        << "The " << name() << " data file '" << it->name()
+        << "' has the wrong space ID. It should be " << space_id() << ", but "
+        << it->m_space_id << " was found";
 
     it->close();
 
@@ -577,8 +587,9 @@ dberr_t SysTablespace::check_file_status(const Datafile &file,
   /* File exists but we can't read the rw-permission settings. */
   switch (err) {
     case DB_FAIL:
-      ib::error() << "os_file_get_status() failed on '" << file.filepath()
-                  << "'. Can't determine file permissions";
+      ib::error(ER_IB_MSG_445)
+          << "os_file_get_status() failed on '" << file.filepath()
+          << "'. Can't determine file permissions";
       err = DB_ERROR;
       reason = FILE_STATUS_RW_PERMISSION_ERROR;
       break;
@@ -593,8 +604,8 @@ dberr_t SysTablespace::check_file_status(const Datafile &file,
                               ? "writable"
                               : "readable";
 
-          ib::error() << "The " << name() << " data file"
-                      << " '" << file.name() << "' must be " << p;
+          ib::error(ER_IB_MSG_446) << "The " << name() << " data file"
+                                   << " '" << file.name() << "' must be " << p;
 
           err = DB_ERROR;
           reason = FILE_STATUS_READ_WRITE_ERROR;
@@ -602,9 +613,10 @@ dberr_t SysTablespace::check_file_status(const Datafile &file,
 
       } else {
         /* Not a regular file, bail out. */
-        ib::error() << "The " << name() << " data file '" << file.name()
-                    << "' is not a regular"
-                       " InnoDB data file.";
+        ib::error(ER_IB_MSG_447)
+            << "The " << name() << " data file '" << file.name()
+            << "' is not a regular"
+               " InnoDB data file.";
 
         err = DB_ERROR;
         reason = FILE_STATUS_NOT_REGULAR_FILE_ERROR;
@@ -629,8 +641,8 @@ dberr_t SysTablespace::file_not_found(Datafile &file, bool create_new_db) {
   file.m_exists = false;
 
   if (srv_read_only_mode && !m_ignore_read_only) {
-    ib::error() << "Can't create file '" << file.filepath()
-                << "' when --innodb-read-only is set";
+    ib::error(ER_IB_MSG_448) << "Can't create file '" << file.filepath()
+                             << "' when --innodb-read-only is set";
 
     return (DB_ERROR);
 
@@ -638,14 +650,15 @@ dberr_t SysTablespace::file_not_found(Datafile &file, bool create_new_db) {
     /* First data file. */
 
     if (space_id() == TRX_SYS_SPACE && create_new_db) {
-      ib::info() << "The first " << name() << " data file '" << file.name()
-                 << "' did not exist."
-                    " A new tablespace will be created!";
+      ib::info(ER_IB_MSG_449)
+          << "The first " << name() << " data file '" << file.name()
+          << "' did not exist."
+             " A new tablespace will be created!";
     }
 
   } else {
-    ib::info() << "Need to create a new " << name() << " data file '"
-               << file.name() << "'.";
+    ib::info(ER_IB_MSG_450) << "Need to create a new " << name()
+                            << " data file '" << file.name() << "'.";
   }
 
   /* We allow add new files at end even if dict_init_mode is
@@ -697,17 +710,17 @@ void SysTablespace::file_found(Datafile &file) {
 dberr_t SysTablespace::check_file_spec(bool create_new_db,
                                        ulint min_expected_size) {
   if (m_files.size() >= 1000) {
-    ib::error() << "There must be < 1000 data files in " << name() << " but "
-                << m_files.size()
-                << " have been"
-                   " defined.";
+    ib::error(ER_IB_MSG_451) << "There must be < 1000 data files in " << name()
+                             << " but " << m_files.size()
+                             << " have been"
+                                " defined.";
 
     return (DB_ERROR);
   }
 
   if (get_sum_of_sizes() < min_expected_size / UNIV_PAGE_SIZE) {
-    ib::error() << "Tablespace size must be at least "
-                << min_expected_size / (1024 * 1024) << " MB";
+    ib::error(ER_IB_MSG_452) << "Tablespace size must be at least "
+                             << min_expected_size / (1024 * 1024) << " MB";
 
     return (DB_ERROR);
   }
@@ -738,18 +751,19 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
         const char *p = (!srv_read_only_mode || m_ignore_read_only)
                             ? "writable"
                             : "readable";
-        ib::error() << "The " << name() << " data file"
-                    << " '" << it->name() << "' must be " << p;
+        ib::error(ER_IB_MSG_453) << "The " << name() << " data file"
+                                 << " '" << it->name() << "' must be " << p;
       }
 
       ut_a(err != DB_FAIL);
       break;
 
     } else if (create_new_db) {
-      ib::error() << "The " << name() << " data file '" << begin->m_name
-                  << "' was not found but"
-                     " one of the other data files '"
-                  << it->m_name << "' exists.";
+      ib::error(ER_IB_MSG_454)
+          << "The " << name() << " data file '" << begin->m_name
+          << "' was not found but"
+             " one of the other data files '"
+          << it->m_name << "' exists.";
 
       err = DB_ERROR;
       break;
@@ -761,11 +775,11 @@ dberr_t SysTablespace::check_file_spec(bool create_new_db,
 
   /* We assume doublewirte blocks in the first data file. */
   if (err == DB_SUCCESS && begin->m_size < TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3) {
-    ib::error() << "The " << name() << " data file "
-                << "'" << begin->name() << "' must be at least "
-                << TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3 * UNIV_PAGE_SIZE /
-                       (1024 * 1024)
-                << " MB";
+    ib::error(ER_IB_MSG_455)
+        << "The " << name() << " data file "
+        << "'" << begin->name() << "' must be at least "
+        << TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * 3 * UNIV_PAGE_SIZE / (1024 * 1024)
+        << " MB";
 
     err = DB_ERROR;
   }
@@ -833,8 +847,8 @@ dberr_t SysTablespace::open_or_create(bool is_temp, bool create_new_db,
 
     if (fil_fusionio_enable_atomic_write(it->m_handle)) {
       if (srv_use_doublewrite_buf) {
-        ib::info() << "FusionIO atomic IO enabled,"
-                      " disabling the double write buffer";
+        ib::info(ER_IB_MSG_456) << "FusionIO atomic IO enabled,"
+                                   " disabling the double write buffer";
 
         srv_use_doublewrite_buf = false;
       }

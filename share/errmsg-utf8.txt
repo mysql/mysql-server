@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1829,7 +1829,7 @@ ER_READY
         spa "%s: preparado para conexiones\nVersion: '%s'  socket: '%s'  port: %d"
         swe "%s: klar att ta emot klienter\nVersion: '%s'  socket: '%s'  port: %d"
         ukr "%s: Готовий для з'єднань!\nVersion: '%s'  socket: '%s'  port: %d"
-ER_NORMAL_SHUTDOWN  
+OBSOLETE_ER_NORMAL_SHUTDOWN
         cze "%s: normální ukončení\n"
         dan "%s: Normal nedlukning\n"
         nla "%s: Normaal afgesloten \n"
@@ -7791,6 +7791,9 @@ ER_AUDIT_LOG_USER_NAME_INVALID_CHARACTER
 ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
   eng "Invalid character in the host name."
 
+OBSOLETE_WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
+  eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
+
 #
 #  End of 5.7 error messages.
 #
@@ -8476,12 +8479,16 @@ ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE SR006
 ER_SRS_ATTRIBUTE_STRING_TOO_LONG SR006
   eng "Attribute %s is too long. The maximum length is %u characters."
 
+ER_SRS_NOT_GEOGRAPHIC 22S00
+  eng "Function %s is only defined for geographic spatial reference systems, but one of its arguments is in SRID %u, which is not geographic."
+
+ER_POLYGON_TOO_LARGE 22023
+  eng "Function %s encountered a polygon that was too large. Polygons must cover less than half the planet."
+
 #
 #  End of 8.0 error messages.
 #
 
-ER_OOM_SAVE_GTIDS
-  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
 
 #
 # Start of 8.0 Server error messages
@@ -8845,7 +8852,7 @@ ER_UNSUPPORTED_DATE
   eng "This MySQL server doesn't support dates later then 2038"
 
 ER_STARTING_AS
-  eng "%s (mysqld %s) starting as process %lu ..."
+  eng "%s (mysqld %s) starting as process %lu"
 
 ER_SHUTTING_DOWN_SLAVE_THREADS
   eng "Shutting down slave threads"
@@ -11230,7 +11237,7 @@ ER_FORCE_CLOSE_THREAD
   eng "%s: Forcing close of thread %ld  user: '%-.48s'."
 
 ER_SERVER_SHUTDOWN_COMPLETE  
-  eng "%s: Shutdown complete."
+  eng "%s: Shutdown complete (mysqld %s)  %s."
 
 ER_RPL_CANT_HAVE_SAME_BASENAME
   eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s' if --log-bin option is not used, default '%s' if --log-bin option is used without argument) and %s (default '%s') options to ensure they do not conflict."
@@ -11698,7 +11705,7 @@ ER_FAILED_TO_FIND_MYSQLD_STATUS
   eng "Unable to determine if daemon is running: %s (rc=%d)."
 
 ER_INNODB_ERROR_LOGGER_MSG
-  eng "InnoDB: %s"
+  eng "%s"
 
 ER_INNODB_ERROR_LOGGER_FATAL_MSG
   eng "[FATAL] InnoDB: %s"
@@ -11710,7 +11717,7 @@ ER_DEPRECATED_SYNTAX_NO_REPLACEMENT
   eng "The syntax '%s' is deprecated and will be removed in a future release."
 
 ER_DEPRECATE_MSG_NO_REPLACEMENT
-  eng "%s is deprecated and will be removed in a future release."
+  eng "'%s' is deprecated and will be removed in a future release."
 
 ER_LOG_PRINTF_MSG
   eng "%s"
@@ -13771,7 +13778,13 @@ ER_LDAP_AUTH_INFO_FOR_USER
   eng "User is authenticated as: %s external user: %s"
 
 ER_LDAP_AUTH_USER_GROUP_SEARCH_INFO
-  eng "Group search information: %s scope: %d filter: %s"
+  eng "Group search information base DN: %s scope: %d filter: %s attribute: %s"
+
+ER_LDAP_AUTH_GRP_SEARCH_SPECIAL_HDL
+  eng "Special handling for group search, {GA} found"
+
+ER_LDAP_AUTH_GRP_IS_FULL_DN
+  eng "Group search special handling, group full DN found. "
 
 ER_LDAP_AUTH_USER_NOT_FOUND_IN_ANY_GRP
   eng "User %s is not member of any group."
@@ -13964,6 +13977,3864 @@ ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED
 
 ER_KEYRING_MIGRATION_EXTRA_OPTIONS
   eng "Please specify options specific to keyring migration. Any additional options can be ignored. NOTE: Although some options are valid, migration tool can still report error example: plugin variables for which plugin is not loaded yet."
+
+ER_INVALID_DEFAULT_UTF8MB4_COLLATION
+  eng "Invalid default collation %s: utf8mb4_0900_ai_ci or utf8mb4_general_ci expected"
+
+ER_IB_MSG_0
+  eng "%s"
+
+ER_IB_MSG_1
+  eng "%s"
+
+ER_IB_MSG_2
+  eng "%s"
+
+ER_IB_MSG_3
+  eng "%s"
+
+ER_IB_MSG_4
+  eng "%s"
+
+ER_IB_MSG_5
+  eng "%s"
+
+ER_IB_MSG_6
+  eng "%s"
+
+ER_IB_MSG_7
+  eng "%s"
+
+ER_IB_MSG_8
+  eng "%s"
+
+ER_IB_MSG_9
+  eng "%s"
+
+ER_IB_MSG_10
+  eng "%s"
+
+ER_IB_MSG_11
+  eng "%s"
+
+ER_IB_MSG_12
+  eng "%s"
+
+ER_IB_MSG_13
+  eng "%s"
+
+ER_IB_MSG_14
+  eng "%s"
+
+ER_IB_MSG_15
+  eng "%s"
+
+ER_IB_MSG_16
+  eng "%s"
+
+ER_IB_MSG_17
+  eng "%s"
+
+ER_IB_MSG_18
+  eng "%s"
+
+ER_IB_MSG_19
+  eng "%s"
+
+ER_IB_MSG_20
+  eng "%s"
+
+ER_IB_MSG_21
+  eng "%s"
+
+ER_IB_MSG_22
+  eng "%s"
+
+ER_IB_MSG_23
+  eng "%s"
+
+ER_IB_MSG_24
+  eng "%s"
+
+ER_IB_MSG_25
+  eng "%s"
+
+ER_IB_MSG_26
+  eng "%s"
+
+ER_IB_MSG_27
+  eng "%s"
+
+ER_IB_MSG_28
+  eng "%s"
+
+ER_IB_MSG_29
+  eng "%s"
+
+ER_IB_MSG_30
+  eng "%s"
+
+ER_IB_MSG_31
+  eng "%s"
+
+ER_IB_MSG_32
+  eng "%s"
+
+ER_IB_MSG_33
+  eng "%s"
+
+ER_IB_MSG_34
+  eng "%s"
+
+ER_IB_MSG_35
+  eng "%s"
+
+ER_IB_MSG_36
+  eng "%s"
+
+ER_IB_MSG_37
+  eng "%s"
+
+ER_IB_MSG_38
+  eng "%s"
+
+ER_IB_MSG_39
+  eng "%s"
+
+ER_IB_MSG_40
+  eng "%s"
+
+ER_IB_MSG_41
+  eng "%s"
+
+ER_IB_MSG_42
+  eng "%s"
+
+ER_IB_MSG_43
+  eng "%s"
+
+ER_IB_MSG_44
+  eng "%s"
+
+ER_IB_MSG_45
+  eng "%s"
+
+ER_IB_MSG_46
+  eng "%s"
+
+ER_IB_MSG_47
+  eng "%s"
+
+ER_IB_MSG_48
+  eng "%s"
+
+ER_IB_MSG_49
+  eng "%s"
+
+ER_IB_MSG_50
+  eng "%s"
+
+ER_IB_MSG_51
+  eng "%s"
+
+ER_IB_MSG_52
+  eng "%s"
+
+ER_IB_MSG_53
+  eng "%s"
+
+ER_IB_MSG_54
+  eng "%s"
+
+ER_IB_MSG_55
+  eng "%s"
+
+ER_IB_MSG_56
+  eng "%s"
+
+ER_IB_MSG_57
+  eng "%s"
+
+ER_IB_MSG_58
+  eng "%s"
+
+ER_IB_MSG_59
+  eng "%s"
+
+ER_IB_MSG_60
+  eng "%s"
+
+ER_IB_MSG_61
+  eng "%s"
+
+ER_IB_MSG_62
+  eng "%s"
+
+ER_IB_MSG_63
+  eng "%s"
+
+ER_IB_MSG_64
+  eng "%s"
+
+ER_IB_MSG_65
+  eng "%s"
+
+ER_IB_MSG_66
+  eng "%s"
+
+ER_IB_MSG_67
+  eng "%s"
+
+ER_IB_MSG_68
+  eng "%s"
+
+ER_IB_MSG_69
+  eng "%s"
+
+ER_IB_MSG_70
+  eng "%s"
+
+ER_IB_MSG_71
+  eng "%s"
+
+ER_IB_MSG_72
+  eng "%s"
+
+ER_IB_MSG_73
+  eng "%s"
+
+ER_IB_MSG_74
+  eng "%s"
+
+ER_IB_MSG_75
+  eng "%s"
+
+ER_IB_MSG_76
+  eng "%s"
+
+ER_IB_MSG_77
+  eng "%s"
+
+ER_IB_MSG_78
+  eng "%s"
+
+ER_IB_MSG_79
+  eng "%s"
+
+ER_IB_MSG_80
+  eng "%s"
+
+ER_IB_MSG_81
+  eng "%s"
+
+ER_IB_MSG_82
+  eng "%s"
+
+ER_IB_MSG_83
+  eng "%s"
+
+ER_IB_MSG_84
+  eng "%s"
+
+ER_IB_MSG_85
+  eng "%s"
+
+ER_IB_MSG_86
+  eng "%s"
+
+ER_IB_MSG_87
+  eng "%s"
+
+ER_IB_MSG_88
+  eng "%s"
+
+ER_IB_MSG_89
+  eng "%s"
+
+ER_IB_MSG_90
+  eng "%s"
+
+ER_IB_MSG_91
+  eng "%s"
+
+ER_IB_MSG_92
+  eng "%s"
+
+ER_IB_MSG_93
+  eng "%s"
+
+ER_IB_MSG_94
+  eng "%s"
+
+ER_IB_MSG_95
+  eng "%s"
+
+ER_IB_MSG_96
+  eng "%s"
+
+ER_IB_MSG_97
+  eng "%s"
+
+ER_IB_MSG_98
+  eng "%s"
+
+ER_IB_MSG_99
+  eng "%s"
+
+ER_IB_MSG_100
+  eng "%s"
+
+ER_IB_MSG_101
+  eng "%s"
+
+ER_IB_MSG_102
+  eng "%s"
+
+ER_IB_MSG_103
+  eng "%s"
+
+ER_IB_MSG_104
+  eng "%s"
+
+ER_IB_MSG_105
+  eng "%s"
+
+ER_IB_MSG_106
+  eng "%s"
+
+ER_IB_MSG_107
+  eng "%s"
+
+ER_IB_MSG_108
+  eng "%s"
+
+ER_IB_MSG_109
+  eng "%s"
+
+ER_IB_MSG_110
+  eng "%s"
+
+ER_IB_MSG_111
+  eng "%s"
+
+ER_IB_MSG_112
+  eng "%s"
+
+ER_IB_MSG_113
+  eng "%s"
+
+ER_IB_MSG_114
+  eng "%s"
+
+ER_IB_MSG_115
+  eng "%s"
+
+ER_IB_MSG_116
+  eng "%s"
+
+ER_IB_MSG_117
+  eng "%s"
+
+ER_IB_MSG_118
+  eng "%s"
+
+ER_IB_MSG_119
+  eng "%s"
+
+ER_IB_MSG_120
+  eng "%s"
+
+ER_IB_MSG_121
+  eng "%s"
+
+ER_IB_MSG_122
+  eng "%s"
+
+ER_IB_MSG_123
+  eng "%s"
+
+ER_IB_MSG_124
+  eng "%s"
+
+ER_IB_MSG_125
+  eng "%s"
+
+ER_IB_MSG_126
+  eng "%s"
+
+ER_IB_MSG_127
+  eng "%s"
+
+ER_IB_MSG_128
+  eng "%s"
+
+ER_IB_MSG_129
+  eng "%s"
+
+ER_IB_MSG_130
+  eng "%s"
+
+ER_IB_MSG_131
+  eng "%s"
+
+ER_IB_MSG_132
+  eng "%s"
+
+ER_IB_MSG_133
+  eng "%s"
+
+ER_IB_MSG_134
+  eng "%s"
+
+ER_IB_MSG_135
+  eng "%s"
+
+ER_IB_MSG_136
+  eng "%s"
+
+ER_IB_MSG_137
+  eng "%s"
+
+ER_IB_MSG_138
+  eng "%s"
+
+ER_IB_MSG_139
+  eng "%s"
+
+ER_IB_MSG_140
+  eng "%s"
+
+ER_IB_MSG_141
+  eng "%s"
+
+ER_IB_MSG_142
+  eng "%s"
+
+ER_IB_MSG_143
+  eng "%s"
+
+ER_IB_MSG_144
+  eng "%s"
+
+ER_IB_MSG_145
+  eng "%s"
+
+ER_IB_MSG_146
+  eng "%s"
+
+ER_IB_MSG_147
+  eng "%s"
+
+ER_IB_MSG_148
+  eng "%s"
+
+ER_IB_MSG_149
+  eng "%s"
+
+ER_IB_MSG_150
+  eng "%s"
+
+ER_IB_MSG_151
+  eng "%s"
+
+ER_IB_MSG_152
+  eng "%s"
+
+ER_IB_MSG_153
+  eng "%s"
+
+ER_IB_MSG_154
+  eng "%s"
+
+ER_IB_MSG_155
+  eng "%s"
+
+ER_IB_MSG_156
+  eng "%s"
+
+ER_IB_MSG_157
+  eng "%s"
+
+ER_IB_MSG_158
+  eng "%s"
+
+ER_IB_MSG_159
+  eng "%s"
+
+ER_IB_MSG_160
+  eng "%s"
+
+ER_IB_MSG_161
+  eng "%s"
+
+ER_IB_MSG_162
+  eng "%s"
+
+ER_IB_MSG_163
+  eng "%s"
+
+ER_IB_MSG_164
+  eng "%s"
+
+ER_IB_MSG_165
+  eng "%s"
+
+ER_IB_MSG_166
+  eng "%s"
+
+ER_IB_MSG_167
+  eng "%s"
+
+ER_IB_MSG_168
+  eng "%s"
+
+ER_IB_MSG_169
+  eng "%s"
+
+ER_IB_MSG_170
+  eng "%s"
+
+ER_IB_MSG_171
+  eng "%s"
+
+ER_IB_MSG_172
+  eng "%s"
+
+ER_IB_MSG_173
+  eng "%s"
+
+ER_IB_MSG_174
+  eng "%s"
+
+ER_IB_MSG_175
+  eng "%s"
+
+ER_IB_MSG_176
+  eng "%s"
+
+ER_IB_MSG_177
+  eng "%s"
+
+ER_IB_MSG_178
+  eng "%s"
+
+ER_IB_MSG_179
+  eng "%s"
+
+ER_IB_MSG_180
+  eng "%s"
+
+ER_IB_MSG_181
+  eng "%s"
+
+ER_IB_MSG_182
+  eng "%s"
+
+ER_IB_MSG_183
+  eng "%s"
+
+ER_IB_MSG_184
+  eng "%s"
+
+ER_IB_MSG_185
+  eng "%s"
+
+ER_IB_MSG_186
+  eng "%s"
+
+ER_IB_MSG_187
+  eng "%s"
+
+ER_IB_MSG_188
+  eng "%s"
+
+ER_IB_MSG_189
+  eng "%s"
+
+ER_IB_MSG_190
+  eng "%s"
+
+ER_IB_MSG_191
+  eng "%s"
+
+ER_IB_MSG_192
+  eng "%s"
+
+ER_IB_MSG_193
+  eng "%s"
+
+ER_IB_MSG_194
+  eng "%s"
+
+ER_IB_MSG_195
+  eng "%s"
+
+ER_IB_MSG_196
+  eng "%s"
+
+ER_IB_MSG_197
+  eng "%s"
+
+ER_IB_MSG_198
+  eng "%s"
+
+ER_IB_MSG_199
+  eng "%s"
+
+ER_IB_MSG_200
+  eng "%s"
+
+ER_IB_MSG_201
+  eng "%s"
+
+ER_IB_MSG_202
+  eng "%s"
+
+ER_IB_MSG_203
+  eng "%s"
+
+ER_IB_MSG_204
+  eng "%s"
+
+ER_IB_MSG_205
+  eng "%s"
+
+ER_IB_MSG_206
+  eng "%s"
+
+ER_IB_MSG_207
+  eng "%s"
+
+ER_IB_MSG_208
+  eng "%s"
+
+ER_IB_MSG_209
+  eng "%s"
+
+ER_IB_MSG_210
+  eng "%s"
+
+ER_IB_MSG_211
+  eng "%s"
+
+ER_IB_MSG_212
+  eng "%s"
+
+ER_IB_MSG_213
+  eng "%s"
+
+ER_IB_MSG_214
+  eng "%s"
+
+ER_IB_MSG_215
+  eng "%s"
+
+ER_IB_MSG_216
+  eng "%s"
+
+ER_IB_MSG_217
+  eng "%s"
+
+ER_IB_MSG_218
+  eng "%s"
+
+ER_IB_MSG_219
+  eng "%s"
+
+ER_IB_MSG_220
+  eng "%s"
+
+ER_IB_MSG_221
+  eng "%s"
+
+ER_IB_MSG_222
+  eng "%s"
+
+ER_IB_MSG_223
+  eng "%s"
+
+ER_IB_MSG_224
+  eng "%s"
+
+ER_IB_MSG_225
+  eng "%s"
+
+ER_IB_MSG_226
+  eng "%s"
+
+ER_IB_MSG_227
+  eng "%s"
+
+ER_IB_MSG_228
+  eng "%s"
+
+ER_IB_MSG_229
+  eng "%s"
+
+ER_IB_MSG_230
+  eng "%s"
+
+ER_IB_MSG_231
+  eng "%s"
+
+ER_IB_MSG_232
+  eng "%s"
+
+ER_IB_MSG_233
+  eng "%s"
+
+ER_IB_MSG_234
+  eng "%s"
+
+ER_IB_MSG_235
+  eng "%s"
+
+ER_IB_MSG_236
+  eng "%s"
+
+ER_IB_MSG_237
+  eng "%s"
+
+ER_IB_MSG_238
+  eng "%s"
+
+ER_IB_MSG_239
+  eng "%s"
+
+ER_IB_MSG_240
+  eng "%s"
+
+ER_IB_MSG_241
+  eng "%s"
+
+ER_IB_MSG_242
+  eng "%s"
+
+ER_IB_MSG_243
+  eng "%s"
+
+ER_IB_MSG_244
+  eng "%s"
+
+ER_IB_MSG_245
+  eng "%s"
+
+ER_IB_MSG_246
+  eng "%s"
+
+ER_IB_MSG_247
+  eng "%s"
+
+ER_IB_MSG_248
+  eng "%s"
+
+ER_IB_MSG_249
+  eng "%s"
+
+ER_IB_MSG_250
+  eng "%s"
+
+ER_IB_MSG_251
+  eng "%s"
+
+ER_IB_MSG_252
+  eng "%s"
+
+ER_IB_MSG_253
+  eng "%s"
+
+ER_IB_MSG_254
+  eng "%s"
+
+ER_IB_MSG_255
+  eng "%s"
+
+ER_IB_MSG_256
+  eng "%s"
+
+ER_IB_MSG_257
+  eng "%s"
+
+ER_IB_MSG_258
+  eng "%s"
+
+ER_IB_MSG_259
+  eng "%s"
+
+ER_IB_MSG_260
+  eng "%s"
+
+ER_IB_MSG_261
+  eng "%s"
+
+ER_IB_MSG_262
+  eng "%s"
+
+ER_IB_MSG_263
+  eng "%s"
+
+ER_IB_MSG_264
+  eng "%s"
+
+ER_IB_MSG_265
+  eng "%s"
+
+ER_IB_MSG_266
+  eng "%s"
+
+ER_IB_MSG_267
+  eng "%s"
+
+ER_IB_MSG_268
+  eng "%s"
+
+ER_IB_MSG_269
+  eng "%s"
+
+ER_IB_MSG_270
+  eng "%s"
+
+ER_IB_MSG_271
+  eng "%s"
+
+ER_IB_MSG_272
+  eng "Table flags are %lx in the data dictionary but the flags in file %s  are %lx!"
+
+ER_IB_MSG_273
+  eng "Can't read encryption key from file %s!"
+
+ER_IB_MSG_274
+  eng "Cannot close file %s, because n_pending_flushes %lu"
+
+ER_IB_MSG_275
+  eng "Cannot close file %s, because modification count %llu != flush count %llu"
+
+ER_IB_MSG_276
+  eng "Cannot close file %s, because it is in use"
+
+ER_IB_MSG_277
+  eng "Open file list len in shard %lu is %lu"
+
+ER_IB_MSG_278
+  eng "Tablespace %s, waiting for IO to stop for %lu seconds"
+
+ER_IB_MSG_279
+  eng "%s"
+
+ER_IB_MSG_280
+  eng "%s"
+
+ER_IB_MSG_281
+  eng "%s"
+
+ER_IB_MSG_282
+  eng "%s"
+
+ER_IB_MSG_283
+  eng "%s"
+
+ER_IB_MSG_284
+  eng "You must raise the value of innodb_open_files in my.cnf! Remember that InnoDB keeps all log files and all system tablespace files open for the whole time mysqld is running, and needs to open also some .ibd files if the file-per-table storage model is used. Current open files %lu, max allowed open files %lu."
+
+ER_IB_MSG_285
+  eng "Max tablespace id is too high, %lu"
+
+ER_IB_MSG_286
+  eng "Trying to access missing tablespace %lu"
+
+ER_IB_MSG_287
+  eng "Trying to close/delete tablespace '%s' but there are %lu pending operations on it."
+
+ER_IB_MSG_288
+  eng "Trying to delete/close tablespace '%s' but there are %lu flushes and %lu pending I/O's on it."
+
+ER_IB_MSG_289
+  eng "%s"
+
+ER_IB_MSG_290
+  eng "Cannot delete tablespace %lu because it is not found in the tablespace memory cache."
+
+ER_IB_MSG_291
+  eng "While deleting tablespace %lu in DISCARD TABLESPACE. File rename/delete failed: %s"
+
+ER_IB_MSG_292
+  eng "Cannot delete tablespace %lu in DISCARD TABLESPACE: %s"
+
+ER_IB_MSG_293
+  eng "Cannot rename '%s' to '%s' for space ID %lu because the source file does not exist."
+
+ER_IB_MSG_294
+  eng "Cannot rename '%s' to '%s' for space ID %lu because the target file exists. Remove the target file and try again."
+
+ER_IB_MSG_295
+  eng "Cannot rename file '%s' (space id %lu) retried %lu times. There are either pending IOs or flushes or the file is being extended."
+
+ER_IB_MSG_296
+  eng "Cannot find space id %lu in the tablespace memory cache, though the file '%s' in a rename operation should have that ID."
+
+ER_IB_MSG_297
+  eng "Rename waiting for IO to resume"
+
+ER_IB_MSG_298
+  eng "Cannot find tablespace for '%s' in the tablespace memory cache"
+
+ER_IB_MSG_299
+  eng "Cannot find tablespace for '%s' in the tablespace memory cache"
+
+ER_IB_MSG_300
+  eng "Tablespace '%s' is already in the tablespace memory cache"
+
+ER_IB_MSG_301
+  eng "Cannot create file '%s'"
+
+ER_IB_MSG_302
+  eng "The file '%s' already exists though the corresponding table did not exist. Have you moved InnoDB .ibd files around without using the SQL commands DISCARD TABLESPACE and IMPORT TABLESPACE, or did mysqld crash in the middle of CREATE TABLE? You can resolve the problem by removing the file '%s' under the 'datadir' of MySQL."
+
+ER_IB_MSG_303
+  eng "posix_fallocate(): Failed to preallocate data for file %s, desired size %lu Operating system error number %d. Check that the disk is not full or a disk quota exceeded. Make sure the file system supports this function. Some operating system error numbers are described at %s operating-system-error-codes.html"
+
+ER_IB_MSG_304
+  eng "Could not write the first page to tablespace '%s'"
+
+ER_IB_MSG_305
+  eng "File flush of tablespace '%s' failed"
+
+ER_IB_MSG_306
+  eng "Could not find a valid tablespace file for `%s`. %s"
+
+ER_IB_MSG_307
+  eng "Ignoring data file '%s' with space ID %lu. Another data file called '%s' exists with the same space ID"
+
+ER_IB_MSG_308
+  eng "%s"
+
+ER_IB_MSG_309
+  eng "%s"
+
+ER_IB_MSG_310
+  eng "%s"
+
+ER_IB_MSG_311
+  eng "%s"
+
+ER_IB_MSG_312
+  eng "Can't set encryption information for tablespace %s!"
+
+ER_IB_MSG_313
+  eng "%s"
+
+ER_IB_MSG_314
+  eng "%s"
+
+ER_IB_MSG_315
+  eng "%s"
+
+ER_IB_MSG_316
+  eng "%s"
+
+ER_IB_MSG_317
+  eng "%s"
+
+ER_IB_MSG_318
+  eng "%s"
+
+ER_IB_MSG_319
+  eng "%s"
+
+ER_IB_MSG_320
+  eng "%s"
+
+ER_IB_MSG_321
+  eng "%s"
+
+ER_IB_MSG_322
+  eng "%s"
+
+ER_IB_MSG_323
+  eng "%s"
+
+ER_IB_MSG_324
+  eng "%s"
+
+ER_IB_MSG_325
+  eng "%s"
+
+ER_IB_MSG_326
+  eng "%s"
+
+ER_IB_MSG_327
+  eng "%s"
+
+ER_IB_MSG_328
+  eng "%s"
+
+ER_IB_MSG_329
+  eng "%s"
+
+ER_IB_MSG_330
+  eng "%s"
+
+ER_IB_MSG_331
+  eng "%s"
+
+ER_IB_MSG_332
+  eng "%s"
+
+ER_IB_MSG_333
+  eng "%s"
+
+ER_IB_MSG_334
+  eng "%s"
+
+ER_IB_MSG_335
+  eng "%s"
+
+ER_IB_MSG_336
+  eng "%s"
+
+ER_IB_MSG_337
+  eng "%s"
+
+ER_IB_MSG_338
+  eng "%s"
+
+ER_IB_MSG_339
+  eng "%s"
+
+ER_IB_MSG_340
+  eng "%s"
+
+ER_IB_MSG_341
+  eng "%s"
+
+ER_IB_MSG_342
+  eng "%s"
+
+ER_IB_MSG_343
+  eng "%s"
+
+ER_IB_MSG_344
+  eng "%s"
+
+ER_IB_MSG_345
+  eng "%s"
+
+ER_IB_MSG_346
+  eng "%s"
+
+ER_IB_MSG_347
+  eng "%s"
+
+ER_IB_MSG_348
+  eng "%s"
+
+ER_IB_MSG_349
+  eng "%s"
+
+ER_IB_MSG_350
+  eng "%s"
+
+ER_IB_MSG_351
+  eng "%s"
+
+ER_IB_MSG_352
+  eng "%s"
+
+ER_IB_MSG_353
+  eng "%s"
+
+ER_IB_MSG_354
+  eng "%s"
+
+ER_IB_MSG_355
+  eng "%s"
+
+ER_IB_MSG_356
+  eng "%s"
+
+ER_IB_MSG_357
+  eng "%s"
+
+ER_IB_MSG_358
+  eng "%s"
+
+ER_IB_MSG_359
+  eng "%s"
+
+ER_IB_MSG_360
+  eng "%s"
+
+ER_IB_MSG_361
+  eng "%s"
+
+ER_IB_MSG_362
+  eng "%s"
+
+ER_IB_MSG_363
+  eng "%s"
+
+ER_IB_MSG_364
+  eng "%s"
+
+ER_IB_MSG_365
+  eng "%s"
+
+ER_IB_MSG_366
+  eng "%s"
+
+ER_IB_MSG_367
+  eng "%s"
+
+ER_IB_MSG_368
+  eng "%s"
+
+ER_IB_MSG_369
+  eng "%s"
+
+ER_IB_MSG_370
+  eng "%s"
+
+ER_IB_MSG_371
+  eng "%s"
+
+ER_IB_MSG_372
+  eng "%s"
+
+ER_IB_MSG_373
+  eng "%s"
+
+ER_IB_MSG_374
+  eng "%s"
+
+ER_IB_MSG_375
+  eng "%s"
+
+ER_IB_MSG_376
+  eng "%s"
+
+ER_IB_MSG_377
+  eng "%s"
+
+ER_IB_MSG_378
+  eng "%s"
+
+ER_IB_MSG_379
+  eng "%s"
+
+ER_IB_MSG_380
+  eng "%s"
+
+ER_IB_MSG_381
+  eng "%s"
+
+ER_IB_MSG_382
+  eng "%s"
+
+ER_IB_MSG_383
+  eng "%s"
+
+ER_IB_MSG_384
+  eng "%s"
+
+ER_IB_MSG_385
+  eng "%s"
+
+ER_IB_MSG_386
+  eng "%s"
+
+ER_IB_MSG_387
+  eng "%s"
+
+ER_IB_MSG_388
+  eng "%s"
+
+ER_IB_MSG_389
+  eng "%s"
+
+ER_IB_MSG_390
+  eng "%s"
+
+ER_IB_MSG_391
+  eng "%s"
+
+ER_IB_MSG_392
+  eng "%s"
+
+ER_IB_MSG_393
+  eng "%s"
+
+ER_IB_MSG_394
+  eng "%s"
+
+ER_IB_MSG_395
+  eng "%s"
+
+ER_IB_MSG_396
+  eng "%s"
+
+ER_IB_MSG_397
+  eng "%s"
+
+ER_IB_MSG_398
+  eng "%s"
+
+ER_IB_MSG_399
+  eng "%s"
+
+ER_IB_MSG_400
+  eng "%s"
+
+ER_IB_MSG_401
+  eng "%s"
+
+ER_IB_MSG_402
+  eng "%s"
+
+ER_IB_MSG_403
+  eng "%s"
+
+ER_IB_MSG_404
+  eng "%s"
+
+ER_IB_MSG_405
+  eng "%s"
+
+ER_IB_MSG_406
+  eng "%s"
+
+ER_IB_MSG_407
+  eng "%s"
+
+ER_IB_MSG_408
+  eng "%s"
+
+ER_IB_MSG_409
+  eng "%s"
+
+ER_IB_MSG_410
+  eng "%s"
+
+ER_IB_MSG_411
+  eng "%s"
+
+ER_IB_MSG_412
+  eng "%s"
+
+ER_IB_MSG_413
+  eng "%s"
+
+ER_IB_MSG_414
+  eng "%s"
+
+ER_IB_MSG_415
+  eng "%s"
+
+ER_IB_MSG_416
+  eng "%s"
+
+ER_IB_MSG_417
+  eng "%s"
+
+ER_IB_MSG_418
+  eng "%s"
+
+ER_IB_MSG_419
+  eng "%s"
+
+ER_IB_MSG_420
+  eng "%s"
+
+ER_IB_MSG_421
+  eng "%s"
+
+ER_IB_MSG_422
+  eng "%s"
+
+ER_IB_MSG_423
+  eng "%s"
+
+ER_IB_MSG_424
+  eng "%s"
+
+ER_IB_MSG_425
+  eng "%s"
+
+ER_IB_MSG_426
+  eng "%s"
+
+ER_IB_MSG_427
+  eng "%s"
+
+ER_IB_MSG_428
+  eng "%s"
+
+ER_IB_MSG_429
+  eng "%s"
+
+ER_IB_MSG_430
+  eng "%s"
+
+ER_IB_MSG_431
+  eng "%s"
+
+ER_IB_MSG_432
+  eng "%s"
+
+ER_IB_MSG_433
+  eng "%s"
+
+ER_IB_MSG_434
+  eng "%s"
+
+ER_IB_MSG_435
+  eng "%s"
+
+ER_IB_MSG_436
+  eng "%s"
+
+ER_IB_MSG_437
+  eng "%s"
+
+ER_IB_MSG_438
+  eng "%s"
+
+ER_IB_MSG_439
+  eng "%s"
+
+ER_IB_MSG_440
+  eng "%s"
+
+ER_IB_MSG_441
+  eng "%s"
+
+ER_IB_MSG_442
+  eng "%s"
+
+ER_IB_MSG_443
+  eng "%s"
+
+ER_IB_MSG_444
+  eng "%s"
+
+ER_IB_MSG_445
+  eng "%s"
+
+ER_IB_MSG_446
+  eng "%s"
+
+ER_IB_MSG_447
+  eng "%s"
+
+ER_IB_MSG_448
+  eng "%s"
+
+ER_IB_MSG_449
+  eng "%s"
+
+ER_IB_MSG_450
+  eng "%s"
+
+ER_IB_MSG_451
+  eng "%s"
+
+ER_IB_MSG_452
+  eng "%s"
+
+ER_IB_MSG_453
+  eng "%s"
+
+ER_IB_MSG_454
+  eng "%s"
+
+ER_IB_MSG_455
+  eng "%s"
+
+ER_IB_MSG_456
+  eng "%s"
+
+ER_IB_MSG_457
+  eng "%s"
+
+ER_IB_MSG_458
+  eng "%s"
+
+ER_IB_MSG_459
+  eng "%s"
+
+ER_IB_MSG_460
+  eng "%s"
+
+ER_IB_MSG_461
+  eng "%s"
+
+ER_IB_MSG_462
+  eng "%s"
+
+ER_IB_MSG_463
+  eng "%s"
+
+ER_IB_MSG_464
+  eng "%s"
+
+ER_IB_MSG_465
+  eng "%s"
+
+ER_IB_MSG_466
+  eng "%s"
+
+ER_IB_MSG_467
+  eng "%s"
+
+ER_IB_MSG_468
+  eng "%s"
+
+ER_IB_MSG_469
+  eng "%s"
+
+ER_IB_MSG_470
+  eng "%s"
+
+ER_IB_MSG_471
+  eng "%s"
+
+ER_IB_MSG_472
+  eng "%s"
+
+ER_IB_MSG_473
+  eng "%s"
+
+ER_IB_MSG_474
+  eng "%s"
+
+ER_IB_MSG_475
+  eng "%s"
+
+ER_IB_MSG_476
+  eng "%s"
+
+ER_IB_MSG_477
+  eng "%s"
+
+ER_IB_MSG_478
+  eng "%s"
+
+ER_IB_MSG_479
+  eng "%s"
+
+ER_IB_MSG_480
+  eng "%s"
+
+ER_IB_MSG_481
+  eng "%s"
+
+ER_IB_MSG_482
+  eng "%s"
+
+ER_IB_MSG_483
+  eng "%s"
+
+ER_IB_MSG_484
+  eng "%s"
+
+ER_IB_MSG_485
+  eng "%s"
+
+ER_IB_MSG_486
+  eng "%s"
+
+ER_IB_MSG_487
+  eng "%s"
+
+ER_IB_MSG_488
+  eng "%s"
+
+ER_IB_MSG_489
+  eng "%s"
+
+ER_IB_MSG_490
+  eng "%s"
+
+ER_IB_MSG_491
+  eng "%s"
+
+ER_IB_MSG_492
+  eng "%s"
+
+ER_IB_MSG_493
+  eng "%s"
+
+ER_IB_MSG_494
+  eng "%s"
+
+ER_IB_MSG_495
+  eng "%s"
+
+ER_IB_MSG_496
+  eng "%s"
+
+ER_IB_MSG_497
+  eng "%s"
+
+ER_IB_MSG_498
+  eng "%s"
+
+ER_IB_MSG_499
+  eng "%s"
+
+ER_IB_MSG_500
+  eng "%s"
+
+ER_IB_MSG_501
+  eng "%s"
+
+ER_IB_MSG_502
+  eng "%s"
+
+ER_IB_MSG_503
+  eng "%s"
+
+ER_IB_MSG_504
+  eng "%s"
+
+ER_IB_MSG_505
+  eng "%s"
+
+ER_IB_MSG_506
+  eng "%s"
+
+ER_IB_MSG_507
+  eng "%s"
+
+ER_IB_MSG_508
+  eng "%s"
+
+ER_IB_MSG_509
+  eng "%s"
+
+ER_IB_MSG_510
+  eng "%s"
+
+ER_IB_MSG_511
+  eng "%s"
+
+ER_IB_MSG_512
+  eng "%s"
+
+ER_IB_MSG_513
+  eng "%s"
+
+ER_IB_MSG_514
+  eng "%s"
+
+ER_IB_MSG_515
+  eng "%s"
+
+ER_IB_MSG_516
+  eng "%s"
+
+ER_IB_MSG_517
+  eng "%s"
+
+ER_IB_MSG_518
+  eng "%s"
+
+ER_IB_MSG_519
+  eng "%s"
+
+ER_IB_MSG_520
+  eng "%s"
+
+ER_IB_MSG_521
+  eng "%s"
+
+ER_IB_MSG_522
+  eng "%s"
+
+ER_IB_MSG_523
+  eng "%s"
+
+ER_IB_MSG_524
+  eng "%s"
+
+ER_IB_MSG_525
+  eng "%s"
+
+ER_IB_MSG_526
+  eng "%s"
+
+ER_IB_MSG_527
+  eng "%s"
+
+ER_IB_MSG_528
+  eng "%s"
+
+ER_IB_MSG_529
+  eng "%s"
+
+ER_IB_MSG_530
+  eng "%s"
+
+ER_IB_MSG_531
+  eng "%s"
+
+ER_IB_MSG_532
+  eng "%s"
+
+ER_IB_MSG_533
+  eng "%s"
+
+ER_IB_MSG_534
+  eng "%s"
+
+ER_IB_MSG_535
+  eng "%s"
+
+ER_IB_MSG_536
+  eng "%s"
+
+ER_IB_MSG_537
+  eng "%s"
+
+ER_IB_MSG_538
+  eng "%s"
+
+ER_IB_MSG_539
+  eng "%s"
+
+ER_IB_MSG_540
+  eng "%s"
+
+ER_IB_MSG_541
+  eng "%s"
+
+ER_IB_MSG_542
+  eng "%s"
+
+ER_IB_MSG_543
+  eng "%s"
+
+ER_IB_MSG_544
+  eng "%s"
+
+ER_IB_MSG_545
+  eng "%s"
+
+ER_IB_MSG_546
+  eng "%s"
+
+ER_IB_MSG_547
+  eng "%s"
+
+ER_IB_MSG_548
+  eng "%s"
+
+ER_IB_MSG_549
+  eng "%s"
+
+ER_IB_MSG_550
+  eng "%s"
+
+ER_IB_MSG_551
+  eng "%s"
+
+ER_IB_MSG_552
+  eng "%s"
+
+ER_IB_MSG_553
+  eng "%s"
+
+ER_IB_MSG_554
+  eng "%s"
+
+ER_IB_MSG_555
+  eng "%s"
+
+ER_IB_MSG_556
+  eng "%s"
+
+ER_IB_MSG_557
+  eng "%s"
+
+ER_IB_MSG_558
+  eng "%s"
+
+ER_IB_MSG_559
+  eng "%s"
+
+ER_IB_MSG_560
+  eng "%s"
+
+ER_IB_MSG_561
+  eng "%s"
+
+ER_IB_MSG_562
+  eng "%s"
+
+ER_IB_MSG_563
+  eng "%s"
+
+ER_IB_MSG_564
+  eng "%s"
+
+ER_IB_MSG_565
+  eng "%s"
+
+ER_IB_MSG_566
+  eng "%s"
+
+ER_IB_MSG_567
+  eng "%s"
+
+ER_IB_MSG_568
+  eng "%s"
+
+ER_IB_MSG_569
+  eng "%s"
+
+ER_IB_MSG_570
+  eng "%s"
+
+ER_IB_MSG_571
+  eng "%s"
+
+ER_IB_MSG_572
+  eng "%s"
+
+ER_IB_MSG_573
+  eng "%s"
+
+ER_IB_MSG_574
+  eng "%s"
+
+ER_IB_MSG_575
+  eng "%s"
+
+ER_IB_MSG_576
+  eng "%s"
+
+ER_IB_MSG_577
+  eng "%s"
+
+ER_IB_MSG_578
+  eng "%s"
+
+ER_IB_MSG_579
+  eng "%s"
+
+ER_IB_MSG_580
+  eng "%s"
+
+ER_IB_MSG_581
+  eng "%s"
+
+ER_IB_MSG_582
+  eng "%s"
+
+ER_IB_MSG_583
+  eng "%s"
+
+ER_IB_MSG_584
+  eng "%s"
+
+ER_IB_MSG_585
+  eng "%s"
+
+ER_IB_MSG_586
+  eng "%s"
+
+ER_IB_MSG_587
+  eng "%s"
+
+ER_IB_MSG_588
+  eng "%s"
+
+ER_IB_MSG_589
+  eng "%s"
+
+ER_IB_MSG_590
+  eng "%s"
+
+ER_IB_MSG_591
+  eng "%s"
+
+ER_IB_MSG_592
+  eng "%s"
+
+ER_IB_MSG_593
+  eng "%s"
+
+ER_IB_MSG_594
+  eng "%s"
+
+ER_IB_MSG_595
+  eng "%s"
+
+ER_IB_MSG_596
+  eng "%s"
+
+ER_IB_MSG_597
+  eng "%s"
+
+ER_IB_MSG_598
+  eng "%s"
+
+ER_IB_MSG_599
+  eng "%s"
+
+ER_IB_MSG_600
+  eng "%s"
+
+ER_IB_MSG_601
+  eng "%s"
+
+ER_IB_MSG_602
+  eng "%s"
+
+ER_IB_MSG_603
+  eng "%s"
+
+ER_IB_MSG_604
+  eng "%s"
+
+ER_IB_MSG_605
+  eng "%s"
+
+ER_IB_MSG_606
+  eng "%s"
+
+ER_IB_MSG_607
+  eng "%s"
+
+ER_IB_MSG_608
+  eng "%s"
+
+ER_IB_MSG_609
+  eng "%s"
+
+ER_IB_MSG_610
+  eng "%s"
+
+ER_IB_MSG_611
+  eng "%s"
+
+ER_IB_MSG_612
+  eng "%s"
+
+ER_IB_MSG_613
+  eng "%s"
+
+ER_IB_MSG_614
+  eng "%s"
+
+ER_IB_MSG_615
+  eng "%s"
+
+ER_IB_MSG_616
+  eng "%s"
+
+ER_IB_MSG_617
+  eng "%s"
+
+ER_IB_MSG_618
+  eng "%s"
+
+ER_IB_MSG_619
+  eng "%s"
+
+ER_IB_MSG_620
+  eng "%s"
+
+ER_IB_MSG_621
+  eng "%s"
+
+ER_IB_MSG_622
+  eng "%s"
+
+ER_IB_MSG_623
+  eng "%s"
+
+ER_IB_MSG_624
+  eng "%s"
+
+ER_IB_MSG_625
+  eng "%s"
+
+ER_IB_MSG_626
+  eng "%s"
+
+ER_IB_MSG_627
+  eng "%s"
+
+ER_IB_MSG_628
+  eng "%s"
+
+ER_IB_MSG_629
+  eng "%s"
+
+ER_IB_MSG_630
+  eng "%s"
+
+ER_IB_MSG_631
+  eng "%s"
+
+ER_IB_MSG_632
+  eng "%s"
+
+ER_IB_MSG_633
+  eng "%s"
+
+ER_IB_MSG_634
+  eng "%s"
+
+ER_IB_MSG_635
+  eng "%s"
+
+ER_IB_MSG_636
+  eng "%s"
+
+ER_IB_MSG_637
+  eng "%s"
+
+ER_IB_MSG_638
+  eng "%s"
+
+ER_IB_MSG_639
+  eng "%s"
+
+ER_IB_MSG_640
+  eng "%s"
+
+ER_IB_MSG_641
+  eng "%s"
+
+ER_IB_MSG_642
+  eng "%s"
+
+ER_IB_MSG_643
+  eng "%s"
+
+ER_IB_MSG_644
+  eng "%s"
+
+ER_IB_MSG_645
+  eng "%s"
+
+ER_IB_MSG_646
+  eng "%s"
+
+ER_IB_MSG_647
+  eng "%s"
+
+ER_IB_MSG_648
+  eng "%s"
+
+ER_IB_MSG_649
+  eng "%s"
+
+ER_IB_MSG_650
+  eng "%s"
+
+ER_IB_MSG_651
+  eng "%s"
+
+ER_IB_MSG_652
+  eng "%s"
+
+ER_IB_MSG_653
+  eng "%s"
+
+ER_IB_MSG_654
+  eng "%s"
+
+ER_IB_MSG_655
+  eng "%s"
+
+ER_IB_MSG_656
+  eng "%s"
+
+ER_IB_MSG_657
+  eng "%s"
+
+ER_IB_MSG_658
+  eng "%s"
+
+ER_IB_MSG_659
+  eng "%s"
+
+ER_IB_MSG_660
+  eng "%s"
+
+ER_IB_MSG_661
+  eng "%s"
+
+ER_IB_MSG_662
+  eng "%s"
+
+ER_IB_MSG_663
+  eng "%s"
+
+ER_IB_MSG_664
+  eng "The transaction log size is too large for innodb_log_buffer_size (%lu >= %lu / 2). Trying to extend it."
+
+ER_IB_MSG_665
+  eng "innodb_log_buffer_size was extended to %lu bytes."
+
+ER_IB_MSG_666
+  eng "The transaction log files are too small for the single transaction log (size=%lu). So, the last checkpoint age might exceed the log group capacity %llu."
+
+ER_IB_MSG_667
+  eng "The age of the last checkpoint is %llu, which exceeds the log group capacity %llu."
+
+ER_IB_MSG_668
+  eng "Cannot continue operation. ib_logfiles are too small for innodb_thread_concurrency %lu. The combined size of ib_logfiles should be bigger than 200 kB * innodb_thread_concurrency. To get mysqld to start up, set innodb_thread_concurrency in my.cnf to a lower value, for example, to 8. After an ERROR-FREE shutdown of mysqld you can adjust the size of ib_logfiles. %s"
+
+ER_IB_MSG_669
+  eng "Redo log was encrypted, but keyring plugin is not loaded."
+
+ER_IB_MSG_670
+  eng "Read redo log encryption metadata successful."
+
+ER_IB_MSG_671
+  eng "Can't set redo log tablespace encryption metadata."
+
+ER_IB_MSG_672
+  eng "Cannot read the encryption information in log file header, please check if keyring plugin loaded and the key file exists."
+
+ER_IB_MSG_673
+  eng "Can't set redo log tablespace to be encrypted in read-only mode."
+
+ER_IB_MSG_674
+  eng "Can't set redo log tablespace to be encrypted."
+
+ER_IB_MSG_675
+  eng "Can't set redo log tablespace to be encrypted."
+
+ER_IB_MSG_676
+  eng "Redo log encryption is enabled."
+
+ER_IB_MSG_677
+  eng "Flush Waiting for archiver to to catch up lag LSN: %llu"
+
+ER_IB_MSG_678
+  eng "Flush overwriting data to archive - wait too long (1 minute) lag LSN: %llu"
+
+ER_IB_MSG_679
+  eng "%s"
+
+ER_IB_MSG_680
+  eng "Starting shutdown..."
+
+ER_IB_MSG_681
+  eng "Waiting for %s to exit"
+
+ER_IB_MSG_682
+  eng "Waiting for %lu active transactions to finish"
+
+ER_IB_MSG_683
+  eng "Waiting for master thread to be suspended"
+
+ER_IB_MSG_684
+  eng "Waiting for page_cleaner to finish flushing of buffer pool"
+
+ER_IB_MSG_685
+  eng "Pending checkpoint_writes: %lu. Pending log flush writes: %lu."
+
+ER_IB_MSG_686
+  eng "Waiting for %lu buffer page I/Os to complete"
+
+ER_IB_MSG_687
+  eng "MySQL has requested a very fast shutdown without flushing the InnoDB buffer pool to data files. At the next mysqld startup InnoDB will do a crash recovery!"
+
+ER_IB_MSG_688
+  eng "Background thread %s woke up during shutdown"
+
+ER_IB_MSG_689
+  eng "Waiting for archiver to finish archiving page and log"
+
+ER_IB_MSG_690
+  eng "Background thread %s woke up during shutdown"
+
+ER_IB_MSG_691
+  eng "Waiting for dirty buffer pages to be flushed"
+
+ER_IB_MSG_692
+  eng "Log sequence number at shutdown %llu is lower than at startup %llu!"
+
+ER_IB_MSG_693
+  eng "Waiting for archiver to finish archiving page and log"
+
+ER_IB_MSG_694
+  eng "############### CORRUPT LOG RECORD FOUND ###############"
+
+ER_IB_MSG_695
+  eng "Log record type %d, page %lu:%lu. Log parsing proceeded successfully up to %llu. Previous log record type %d, is multi %lu Recv offset %lu, prev %lu"
+
+ER_IB_MSG_696
+  eng "Hex dump starting %lu bytes before and ending %lu bytes after the corrupted record:"
+
+ER_IB_MSG_697
+  eng "Set innodb_force_recovery to ignore this error."
+
+ER_IB_MSG_698
+  eng "The log file may have been corrupt and it is possible that the log scan did not proceed far enough in recovery! Please run CHECK TABLE on your InnoDB tables to check that they are ok! If mysqld crashes after this recovery; %s"
+
+ER_IB_MSG_699
+  eng "%lu pages with log records were left unprocessed!"
+
+ER_IB_MSG_700
+  eng "%s"
+
+ER_IB_MSG_701
+  eng "%s"
+
+ER_IB_MSG_702
+  eng "Invalid redo log header checksum."
+
+ER_IB_MSG_703
+  eng "Unsupported redo log format (%lu). The redo log was created before MySQL 5.7.9"
+
+ER_IB_MSG_704
+  eng "Redo log format is v%lu. The redo log was created before MySQL 8.0.3."
+
+ER_IB_MSG_705
+  eng "Unknown redo log format (%lu). Please follow the instructions at %s upgrading-downgrading.html."
+
+ER_IB_MSG_706
+  eng "No valid checkpoint found (corrupted redo log). You can try --innodb-force-recovery=6 as a last resort."
+
+ER_IB_MSG_707
+  eng "Applying a batch of %lu redo log records ..."
+
+ER_IB_MSG_708
+  eng "%s"
+
+ER_IB_MSG_709
+  eng "%s"
+
+ER_IB_MSG_710
+  eng "Apply batch completed!"
+
+ER_IB_MSG_711
+  eng "%s"
+
+ER_IB_MSG_712
+  eng "%s"
+
+ER_IB_MSG_713
+  eng "%s"
+
+ER_IB_MSG_714
+  eng "%s"
+
+ER_IB_MSG_715
+  eng "%s"
+
+ER_IB_MSG_716
+  eng "%s"
+
+ER_IB_MSG_717
+  eng "An optimized(without redo logging) DDL operation has been performed. All modified pages may not have been flushed to the disk yet.\nThis offline backup may not be consistent"
+
+ER_IB_MSG_718
+  eng "Extending tablespace : %lu space name: %s to new size: %lu pages during recovery."
+
+ER_IB_MSG_719
+  eng "Could not extend tablespace: %lu space name: %s to new size: %lu pages during recovery."
+
+ER_IB_MSG_720
+  eng "Log block %lu at lsn %llu has valid header, but checksum field contains %lu, should be %lu."
+
+ER_IB_MSG_721
+  eng "Recovery skipped, --innodb-read-only set!"
+
+ER_IB_MSG_722
+  eng "Log scan progressed past the checkpoint LSN %llu."
+
+ER_IB_MSG_723
+  eng "Log parsing buffer overflow. Recovery may have failed!"
+
+ER_IB_MSG_724
+  eng "Set innodb_force_recovery to ignore this error.";
+
+ER_IB_MSG_725
+  eng "Doing recovery: scanned up to log sequence number %llu"
+
+ER_IB_MSG_726
+  eng "Database was not shutdown normally!"
+
+ER_IB_MSG_727
+  eng "Starting crash recovery."
+
+ER_IB_MSG_728
+  eng "The user has set SRV_FORCE_NO_LOG_REDO on, skipping log redo"
+
+ER_IB_MSG_729
+  eng "Cannot restore from mysqlbackup, InnoDB running in read-only mode!"
+
+ER_IB_MSG_730
+  eng "The log file was created by mysqlbackup --apply-log at %s. The following crash recovery is part of a normal restore."
+
+ER_IB_MSG_731
+  eng "Opening cloned database"
+
+ER_IB_MSG_732
+  eng "Redo log is from an earlier version, v%lu."
+
+ER_IB_MSG_733
+  eng "Redo log format v%lu not supported. Current supported format is v%lu."
+
+ER_IB_MSG_734
+  eng "Are you sure you are using the right ib_logfiles to start up the database? Log sequence number in the ib_logfiles is %llu, less than the log sequence number in the first system tablespace file header, %llu."
+
+ER_IB_MSG_735
+  eng "The log sequence number %llu in the system tablespace does not match the log sequence number %llu in the ib_logfiles!"
+
+ER_IB_MSG_736
+  eng "Can't initiate database recovery, running in read-only-mode."
+
+ER_IB_MSG_737
+  eng "We scanned the log up to %llu. A checkpoint was at %llu and the maximum LSN on a database page was %llu. It is possible that the database is now corrupt!"
+
+ER_IB_MSG_738
+  eng "Waiting for recv_writer to finish flushing of buffer pool"
+
+ER_IB_MSG_739
+  eng "%s"
+
+ER_IB_MSG_740
+  eng "%s"
+
+ER_IB_MSG_741
+  eng "%s"
+
+ER_IB_MSG_742
+  eng "%s"
+
+ER_IB_MSG_743
+  eng "%s"
+
+ER_IB_MSG_744
+  eng "%s"
+
+ER_IB_MSG_745
+  eng "%s"
+
+ER_IB_MSG_746
+  eng "%s"
+
+ER_IB_MSG_747
+  eng "%s"
+
+ER_IB_MSG_748
+  eng "%s"
+
+ER_IB_MSG_749
+  eng "%s"
+
+ER_IB_MSG_750
+  eng "%s"
+
+ER_IB_MSG_751
+  eng "%s"
+
+ER_IB_MSG_752
+  eng "%s"
+
+ER_IB_MSG_753
+  eng "%s"
+
+ER_IB_MSG_754
+  eng "%s"
+
+ER_IB_MSG_755
+  eng "%s"
+
+ER_IB_MSG_756
+  eng "%s"
+
+ER_IB_MSG_757
+  eng "%s"
+
+ER_IB_MSG_758
+  eng "%s"
+
+ER_IB_MSG_759
+  eng "%s"
+
+ER_IB_MSG_760
+  eng "%s"
+
+ER_IB_MSG_761
+  eng "%s"
+
+ER_IB_MSG_762
+  eng "%s"
+
+ER_IB_MSG_763
+  eng "%s"
+
+ER_IB_MSG_764
+  eng "%s"
+
+ER_IB_MSG_765
+  eng "%s"
+
+ER_IB_MSG_766
+  eng "%s"
+
+ER_IB_MSG_767
+  eng "%s"
+
+ER_IB_MSG_768
+  eng "%s"
+
+ER_IB_MSG_769
+  eng "%s"
+
+ER_IB_MSG_770
+  eng "%s"
+
+ER_IB_MSG_771
+  eng "%s"
+
+ER_IB_MSG_772
+  eng "%s"
+
+ER_IB_MSG_773
+  eng "%s"
+
+ER_IB_MSG_774
+  eng "%s"
+
+ER_IB_MSG_775
+  eng "%s"
+
+ER_IB_MSG_776
+  eng "%s"
+
+ER_IB_MSG_777
+  eng "%s"
+
+ER_IB_MSG_778
+  eng "%s"
+
+ER_IB_MSG_779
+  eng "%s"
+
+ER_IB_MSG_780
+  eng "%s"
+
+ER_IB_MSG_781
+  eng "%s"
+
+ER_IB_MSG_782
+  eng "%s"
+
+ER_IB_MSG_783
+  eng "%s"
+
+ER_IB_MSG_784
+  eng "%s"
+
+ER_IB_MSG_785
+  eng "%s"
+
+ER_IB_MSG_786
+  eng "%s"
+
+ER_IB_MSG_787
+  eng "%s"
+
+ER_IB_MSG_788
+  eng "%s"
+
+ER_IB_MSG_789
+  eng "%s"
+
+ER_IB_MSG_790
+  eng "%s"
+
+ER_IB_MSG_791
+  eng "%s"
+
+ER_IB_MSG_792
+  eng "%s"
+
+ER_IB_MSG_793
+  eng "%s"
+
+ER_IB_MSG_794
+  eng "%s"
+
+ER_IB_MSG_795
+  eng "%s"
+
+ER_IB_MSG_796
+  eng "%s"
+
+ER_IB_MSG_797
+  eng "%s"
+
+ER_IB_MSG_798
+  eng "%s"
+
+ER_IB_MSG_799
+  eng "%s"
+
+ER_IB_MSG_800
+  eng "%s"
+
+ER_IB_MSG_801
+  eng "%s"
+
+ER_IB_MSG_802
+  eng "%s"
+
+ER_IB_MSG_803
+  eng "%s"
+
+ER_IB_MSG_804
+  eng "%s"
+
+ER_IB_MSG_805
+  eng "%s"
+
+ER_IB_MSG_806
+  eng "%s"
+
+ER_IB_MSG_807
+  eng "%s"
+
+ER_IB_MSG_808
+  eng "%s"
+
+ER_IB_MSG_809
+  eng "%s"
+
+ER_IB_MSG_810
+  eng "%s"
+
+ER_IB_MSG_811
+  eng "%s"
+
+ER_IB_MSG_812
+  eng "%s"
+
+ER_IB_MSG_813
+  eng "%s"
+
+ER_IB_MSG_814
+  eng "%s"
+
+ER_IB_MSG_815
+  eng "%s"
+
+ER_IB_MSG_816
+  eng "%s"
+
+ER_IB_MSG_817
+  eng "%s"
+
+ER_IB_MSG_818
+  eng "%s"
+
+ER_IB_MSG_819
+  eng "%s"
+
+ER_IB_MSG_820
+  eng "%s"
+
+ER_IB_MSG_821
+  eng "%s"
+
+ER_IB_MSG_822
+  eng "%s"
+
+ER_IB_MSG_823
+  eng "%s"
+
+ER_IB_MSG_824
+  eng "%s"
+
+ER_IB_MSG_825
+  eng "%s"
+
+ER_IB_MSG_826
+  eng "%s"
+
+ER_IB_MSG_827
+  eng "%s"
+
+ER_IB_MSG_828
+  eng "%s"
+
+ER_IB_MSG_829
+  eng "%s"
+
+ER_IB_MSG_830
+  eng "%s"
+
+ER_IB_MSG_831
+  eng "%s"
+
+ER_IB_MSG_832
+  eng "%s"
+
+ER_IB_MSG_833
+  eng "%s"
+
+ER_IB_MSG_834
+  eng "%s"
+
+ER_IB_MSG_835
+  eng "%s"
+
+ER_IB_MSG_836
+  eng "%s"
+
+ER_IB_MSG_837
+  eng "%s"
+
+ER_IB_MSG_838
+  eng "%s"
+
+ER_IB_MSG_839
+  eng "%s"
+
+ER_IB_MSG_840
+  eng "%s"
+
+ER_IB_MSG_841
+  eng "%s"
+
+ER_IB_MSG_842
+  eng "%s"
+
+ER_IB_MSG_843
+  eng "%s"
+
+ER_IB_MSG_844
+  eng "%s"
+
+ER_IB_MSG_845
+  eng "%s"
+
+ER_IB_MSG_846
+  eng "%s"
+
+ER_IB_MSG_847
+  eng "%s"
+
+ER_IB_MSG_848
+  eng "%s"
+
+ER_IB_MSG_849
+  eng "%s"
+
+ER_IB_MSG_850
+  eng "%s"
+
+ER_IB_MSG_851
+  eng "%s"
+
+ER_IB_MSG_852
+  eng "%s"
+
+ER_IB_MSG_853
+  eng "%s"
+
+ER_IB_MSG_854
+  eng "%s"
+
+ER_IB_MSG_855
+  eng "%s"
+
+ER_IB_MSG_856
+  eng "%s"
+
+ER_IB_MSG_857
+  eng "%s"
+
+ER_IB_MSG_858
+  eng "%s"
+
+ER_IB_MSG_859
+  eng "%s"
+
+ER_IB_MSG_860
+  eng "%s"
+
+ER_IB_MSG_861
+  eng "%s"
+
+ER_IB_MSG_862
+  eng "%s"
+
+ER_IB_MSG_863
+  eng "%s"
+
+ER_IB_MSG_864
+  eng "%s"
+
+ER_IB_MSG_865
+  eng "%s"
+
+ER_IB_MSG_866
+  eng "%s"
+
+ER_IB_MSG_867
+  eng "%s"
+
+ER_IB_MSG_868
+  eng "%s"
+
+ER_IB_MSG_869
+  eng "%s"
+
+ER_IB_MSG_870
+  eng "%s"
+
+ER_IB_MSG_871
+  eng "%s"
+
+ER_IB_MSG_872
+  eng "%s"
+
+ER_IB_MSG_873
+  eng "%s"
+
+ER_IB_MSG_874
+  eng "%s"
+
+ER_IB_MSG_875
+  eng "%s"
+
+ER_IB_MSG_876
+  eng "%s"
+
+ER_IB_MSG_877
+  eng "%s"
+
+ER_IB_MSG_878
+  eng "%s"
+
+ER_IB_MSG_879
+  eng "%s"
+
+ER_IB_MSG_880
+  eng "%s"
+
+ER_IB_MSG_881
+  eng "%s"
+
+ER_IB_MSG_882
+  eng "%s"
+
+ER_IB_MSG_883
+  eng "%s"
+
+ER_IB_MSG_884
+  eng "%s"
+
+ER_IB_MSG_885
+  eng "%s"
+
+ER_IB_MSG_886
+  eng "%s"
+
+ER_IB_MSG_887
+  eng "%s"
+
+ER_IB_MSG_888
+  eng "%s"
+
+ER_IB_MSG_889
+  eng "%s"
+
+ER_IB_MSG_890
+  eng "%s"
+
+ER_IB_MSG_891
+  eng "%s"
+
+ER_IB_MSG_892
+  eng "%s"
+
+ER_IB_MSG_893
+  eng "%s"
+
+ER_IB_MSG_894
+  eng "%s"
+
+ER_IB_MSG_895
+  eng "%s"
+
+ER_IB_MSG_896
+  eng "%s"
+
+ER_IB_MSG_897
+  eng "%s"
+
+ER_IB_MSG_898
+  eng "%s"
+
+ER_IB_MSG_899
+  eng "%s"
+
+ER_IB_MSG_900
+  eng "%s"
+
+ER_IB_MSG_901
+  eng "%s"
+
+ER_IB_MSG_902
+  eng "%s"
+
+ER_IB_MSG_903
+  eng "%s"
+
+ER_IB_MSG_904
+  eng "%s"
+
+ER_IB_MSG_905
+  eng "%s"
+
+ER_IB_MSG_906
+  eng "%s"
+
+ER_IB_MSG_907
+  eng "%s"
+
+ER_IB_MSG_908
+  eng "%s"
+
+ER_IB_MSG_909
+  eng "%s"
+
+ER_IB_MSG_910
+  eng "%s"
+
+ER_IB_MSG_911
+  eng "%s"
+
+ER_IB_MSG_912
+  eng "%s"
+
+ER_IB_MSG_913
+  eng "%s"
+
+ER_IB_MSG_914
+  eng "%s"
+
+ER_IB_MSG_915
+  eng "%s"
+
+ER_IB_MSG_916
+  eng "%s"
+
+ER_IB_MSG_917
+  eng "%s"
+
+ER_IB_MSG_918
+  eng "%s"
+
+ER_IB_MSG_919
+  eng "%s"
+
+ER_IB_MSG_920
+  eng "%s"
+
+ER_IB_MSG_921
+  eng "%s"
+
+ER_IB_MSG_922
+  eng "%s"
+
+ER_IB_MSG_923
+  eng "%s"
+
+ER_IB_MSG_924
+  eng "%s"
+
+ER_IB_MSG_925
+  eng "%s"
+
+ER_IB_MSG_926
+  eng "%s"
+
+ER_IB_MSG_927
+  eng "%s"
+
+ER_IB_MSG_928
+  eng "%s"
+
+ER_IB_MSG_929
+  eng "%s"
+
+ER_IB_MSG_930
+  eng "%s"
+
+ER_IB_MSG_931
+  eng "%s"
+
+ER_IB_MSG_932
+  eng "%s"
+
+ER_IB_MSG_933
+  eng "%s"
+
+ER_IB_MSG_934
+  eng "%s"
+
+ER_IB_MSG_935
+  eng "%s"
+
+ER_IB_MSG_936
+  eng "%s"
+
+ER_IB_MSG_937
+  eng "%s"
+
+ER_IB_MSG_938
+  eng "%s"
+
+ER_IB_MSG_939
+  eng "%s"
+
+ER_IB_MSG_940
+  eng "%s"
+
+ER_IB_MSG_941
+  eng "%s"
+
+ER_IB_MSG_942
+  eng "%s"
+
+ER_IB_MSG_943
+  eng "%s"
+
+ER_IB_MSG_944
+  eng "%s"
+
+ER_IB_MSG_945
+  eng "%s"
+
+ER_IB_MSG_946
+  eng "%s"
+
+ER_IB_MSG_947
+  eng "%s"
+
+ER_IB_MSG_948
+  eng "%s"
+
+ER_IB_MSG_949
+  eng "%s"
+
+ER_IB_MSG_950
+  eng "%s"
+
+ER_IB_MSG_951
+  eng "%s"
+
+ER_IB_MSG_952
+  eng "%s"
+
+ER_IB_MSG_953
+  eng "%s"
+
+ER_IB_MSG_954
+  eng "%s"
+
+ER_IB_MSG_955
+  eng "%s"
+
+ER_IB_MSG_956
+  eng "%s"
+
+ER_IB_MSG_957
+  eng "%s"
+
+ER_IB_MSG_958
+  eng "%s"
+
+ER_IB_MSG_959
+  eng "%s"
+
+ER_IB_MSG_960
+  eng "%s"
+
+ER_IB_MSG_961
+  eng "%s"
+
+ER_IB_MSG_962
+  eng "%s"
+
+ER_IB_MSG_963
+  eng "%s"
+
+ER_IB_MSG_964
+  eng "%s"
+
+ER_IB_MSG_965
+  eng "%s"
+
+ER_IB_MSG_966
+  eng "%s"
+
+ER_IB_MSG_967
+  eng "%s"
+
+ER_IB_MSG_968
+  eng "%s"
+
+ER_IB_MSG_969
+  eng "%s"
+
+ER_IB_MSG_970
+  eng "%s"
+
+ER_IB_MSG_971
+  eng "%s"
+
+ER_IB_MSG_972
+  eng "%s"
+
+ER_IB_MSG_973
+  eng "%s"
+
+ER_IB_MSG_974
+  eng "%s"
+
+ER_IB_MSG_975
+  eng "%s"
+
+ER_IB_MSG_976
+  eng "%s"
+
+ER_IB_MSG_977
+  eng "%s"
+
+ER_IB_MSG_978
+  eng "%s"
+
+ER_IB_MSG_979
+  eng "%s"
+
+ER_IB_MSG_980
+  eng "%s"
+
+ER_IB_MSG_981
+  eng "%s"
+
+ER_IB_MSG_982
+  eng "%s"
+
+ER_IB_MSG_983
+  eng "%s"
+
+ER_IB_MSG_984
+  eng "%s"
+
+ER_IB_MSG_985
+  eng "%s"
+
+ER_IB_MSG_986
+  eng "%s"
+
+ER_IB_MSG_987
+  eng "%s"
+
+ER_IB_MSG_988
+  eng "%s"
+
+ER_IB_MSG_989
+  eng "%s"
+
+ER_IB_MSG_990
+  eng "%s"
+
+ER_IB_MSG_991
+  eng "%s"
+
+ER_IB_MSG_992
+  eng "%s"
+
+ER_IB_MSG_993
+  eng "%s"
+
+ER_IB_MSG_994
+  eng "%s"
+
+ER_IB_MSG_995
+  eng "%s"
+
+ER_IB_MSG_996
+  eng "%s"
+
+ER_IB_MSG_997
+  eng "%s"
+
+ER_IB_MSG_998
+  eng "%s"
+
+ER_IB_MSG_999
+  eng "%s"
+
+ER_IB_MSG_1000
+  eng "%s"
+
+ER_IB_MSG_1001
+  eng "%s"
+
+ER_IB_MSG_1002
+  eng "%s"
+
+ER_IB_MSG_1003
+  eng "%s"
+
+ER_IB_MSG_1004
+  eng "%s"
+
+ER_IB_MSG_1005
+  eng "%s"
+
+ER_IB_MSG_1006
+  eng "%s"
+
+ER_IB_MSG_1007
+  eng "%s"
+
+ER_IB_MSG_1008
+  eng "%s"
+
+ER_IB_MSG_1009
+  eng "%s"
+
+ER_IB_MSG_1010
+  eng "%s"
+
+ER_IB_MSG_1011
+  eng "%s"
+
+ER_IB_MSG_1012
+  eng "%s"
+
+ER_IB_MSG_1013
+  eng "%s"
+
+ER_IB_MSG_1014
+  eng "%s"
+
+ER_IB_MSG_1015
+  eng "%s"
+
+ER_IB_MSG_1016
+  eng "%s"
+
+ER_IB_MSG_1017
+  eng "%s"
+
+ER_IB_MSG_1018
+  eng "%s"
+
+ER_IB_MSG_1019
+  eng "%s"
+
+ER_IB_MSG_1020
+  eng "%s"
+
+ER_IB_MSG_1021
+  eng "%s"
+
+ER_IB_MSG_1022
+  eng "%s"
+
+ER_IB_MSG_1023
+  eng "%s"
+
+ER_IB_MSG_1024
+  eng "%s"
+
+ER_IB_MSG_1025
+  eng "%s"
+
+ER_IB_MSG_1026
+  eng "%s"
+
+ER_IB_MSG_1027
+  eng "%s"
+
+ER_IB_MSG_1028
+  eng "%s"
+
+ER_IB_MSG_1029
+  eng "%s"
+
+ER_IB_MSG_1030
+  eng "%s"
+
+ER_IB_MSG_1031
+  eng "%s"
+
+ER_IB_MSG_1032
+  eng "%s"
+
+ER_IB_MSG_1033
+  eng "%s"
+
+ER_IB_MSG_1034
+  eng "%s"
+
+ER_IB_MSG_1035
+  eng "%s"
+
+ER_IB_MSG_1036
+  eng "%s"
+
+ER_IB_MSG_1037
+  eng "%s"
+
+ER_IB_MSG_1038
+  eng "%s"
+
+ER_IB_MSG_1039
+  eng "%s"
+
+ER_IB_MSG_1040
+  eng "%s"
+
+ER_IB_MSG_1041
+  eng "%s"
+
+ER_IB_MSG_1042
+  eng "%s"
+
+ER_IB_MSG_1043
+  eng "%s"
+
+ER_IB_MSG_1044
+  eng "%s"
+
+ER_IB_MSG_1045
+  eng "%s"
+
+ER_IB_MSG_1046
+  eng "Old log sequence number %llu was greater than the new log sequence number%llu. Please submit a bug report to http://bugs.mysql.com"
+
+ER_IB_MSG_1047
+  eng "Semaphore wait has lasted > %lu seconds. We intentionally crash the server because it appears to be hung."
+
+ER_IB_MSG_1048
+  eng "Waiting for %lu table(s) to be dropped"
+
+ER_IB_MSG_1049
+  eng "Waiting for change buffer merge to complete number of bytes of change buffer just merged: %lu"
+
+ER_IB_MSG_1050
+  eng "Can't set undo tablespace(s) to be encrypted since --innodb_undo_tablespaces=0."
+
+ER_IB_MSG_1051
+  eng "Can't set undo tablespace(s) to be encrypted in read-only-mode."
+
+ER_IB_MSG_1052
+  eng "Can't set undo tablespace number %lu to be encrypted."
+
+ER_IB_MSG_1053
+  eng "Can't set undo tablespace number %lu to be encrypted. Failed to write header page."
+
+ER_IB_MSG_1054
+  eng "Can't set undo tablespace number %lu to be encrypted. Error %d - %s"
+
+ER_IB_MSG_1055
+  eng "Encryption is enabled for undo tablespace number %lu."
+
+ER_IB_MSG_1056
+  eng "Can't rotate encryption on undo tablespace number %lu."
+
+ER_IB_MSG_1057
+  eng "Encryption is enabled for undo tablespace number %lu."
+
+ER_IB_MSG_1058
+  eng "os_file_get_status() failed on '%s'. Can't determine file permissions."
+
+ER_IB_MSG_1059
+  eng "%s can't be opened in %s mode."
+
+ER_IB_MSG_1060
+  eng "'%s' not a regular file."
+
+ER_IB_MSG_1061
+  eng "Cannot create %s"
+
+ER_IB_MSG_1062
+  eng "Setting log file %s size to %lu MB"
+
+ER_IB_MSG_1063
+  eng "Cannot set log file %s to size %lu MB"
+
+ER_IB_MSG_1064
+  eng "Cannot create log files in read-only mode"
+
+ER_IB_MSG_1065
+  eng "Redo log encryption is enabled, but the keyring plugin is not loaded."
+
+ER_IB_MSG_1066
+  eng "Cannot create file for log file %s."
+
+ER_IB_MSG_1067
+  eng "Renaming log file %s to %s"
+
+ER_IB_MSG_1068
+  eng "New log files created, LSN=%llu"
+
+ER_IB_MSG_1069
+  eng "Unable to open '%s'."
+
+ER_IB_MSG_1070
+  eng "Cannot create construction log file for undo tablespace ID=%lu"
+
+ER_IB_MSG_1071
+  eng "Creating UNDO Tablespace %s"
+
+ER_IB_MSG_1072
+  eng "Setting file %s size to %lu MB"
+
+ER_IB_MSG_1073
+  eng "Physically writing the file full"
+
+ER_IB_MSG_1074
+  eng "Error in creating %s: probably out of disk space"
+
+ER_IB_MSG_1075
+  eng "Can't set encryption metadata for space %s"
+
+ER_IB_MSG_1076
+  eng "Cannot read first page of '%s' - %s"
+
+ER_IB_MSG_1077
+  eng "Undo tablespace number %lu was being truncated when mysqld quit."
+
+ER_IB_MSG_1078
+  eng "Cannot recover a truncated undo tablespace in read-only mode"
+
+ER_IB_MSG_1079
+  eng "Reconstructing undo tablespace number %lu"
+
+ER_IB_MSG_1080
+  eng "Cannot create %s because %s already uses Space ID=%lu! Did you change innodb_undo_directory?"
+
+ER_IB_MSG_1081
+  eng "UNDO tablespace %s must be %s"
+
+ER_IB_MSG_1082
+  eng "Error creating file for %s"
+
+ER_IB_MSG_1083
+  eng "Error reading encryption for %s"
+
+ER_IB_MSG_1084
+  eng "Unable to open undo tablespace number %lu"
+
+ER_IB_MSG_1085
+  eng "Opened %lu existing undo tablespaces."
+
+ER_IB_MSG_1086
+  eng "Cannot create undo tablespaces since innodb_%s has been set. Using %lu existing undo tablespaces."
+
+ER_IB_MSG_1087
+  eng "Cannot continue InnoDB startup in %s mode because there are no existing undo tablespaces found."
+
+ER_IB_MSG_1088
+  eng "Could not create undo tablespace number %lu"
+
+ER_IB_MSG_1089
+  eng "Error %d - %s - opening newly created undo tablespace number %lu"
+
+ER_IB_MSG_1090
+  eng "Created %lu undo tablespaces."
+
+ER_IB_MSG_1091
+  eng "Unable to create encrypted undo tablespace number %lu. please check if the keyring plugin is initialized correctly"
+
+ER_IB_MSG_1092
+  eng "Encryption is enabled for undo tablespace number %lu."
+
+ER_IB_MSG_1093
+  eng "nable to initialize the header page in undo tablespace number %lu."
+
+ER_IB_MSG_1094
+  eng "Cannot delete old undo tablespaces because they contain undo logs for XA PREPARED transactions."
+
+ER_IB_MSG_1095
+  eng "Upgrading %lu existing undo tablespaces that were tracked in the system tablespace to %lu new independent undo tablespaces."
+
+ER_IB_MSG_1096
+  eng "Deleting %lu new independent undo tablespaces that we just created."
+
+ER_IB_MSG_1097
+  eng "Waiting for purge to start"
+
+ER_IB_MSG_1098
+  eng "Creating shared tablespace for temporary tables"
+
+ER_IB_MSG_1099
+  eng "The %s data file must be writable!"
+
+ER_IB_MSG_1100
+  eng "Could not create the shared %s."
+
+ER_IB_MSG_1101
+  eng "Unable to create the shared %s."
+
+ER_IB_MSG_1102
+  eng "The %s data file cannot be re-opened after check_file_spec() succeeded!"
+
+ER_IB_MSG_1103
+  eng "%d threads created by InnoDB had not exited at shutdown!"
+
+ER_IB_MSG_1104
+  eng "InnoDB Database creation was aborted %swith error %s. You may need to delete the ibdata1 file before trying to start up again."
+
+ER_IB_MSG_1105
+  eng "Plugin initialization aborted %swith error %s."
+
+ER_IB_MSG_1106
+  eng "Waiting for %lu buffer page I/Os to complete"
+
+ER_IB_MSG_1107
+  eng "PUNCH HOLE support available"
+
+ER_IB_MSG_1108
+  eng "PUNCH HOLE support not available"
+
+ER_IB_MSG_1109
+  eng "Size of InnoDB's ulint is %lu but size of void* is %lu. The sizes should be the same so that on a 64-bit platforms you can allocate more than 4 GB of memory."
+
+ER_IB_MSG_1110
+  eng "Database upgrade cannot be accomplished in read-only mode."
+
+ER_IB_MSG_1111
+  eng "Database upgrade cannot be accomplished with innodb_force_recovery > 0"
+
+ER_IB_MSG_1112
+  eng "%s"
+
+ER_IB_MSG_1113
+  eng "%s"
+
+ER_IB_MSG_1114
+  eng "%s"
+
+ER_IB_MSG_1115
+  eng "%s"
+
+ER_IB_MSG_1116
+  eng "%s"
+
+ER_IB_MSG_1117
+  eng "%s"
+
+ER_IB_MSG_1118
+  eng "%s"
+
+ER_IB_MSG_1119
+  eng "%s"
+
+ER_IB_MSG_1120
+  eng "%s"
+
+ER_IB_MSG_1121
+  eng "%s"
+
+ER_IB_MSG_1122
+  eng "MySQL was built without a memory barrier capability on this architecture, which might allow a mutex/rw_lock violation under high thread concurrency. This may cause a hang."
+
+ER_IB_MSG_1123
+  eng "Compressed tables use zlib %s"
+
+ER_IB_MSG_1124
+  eng "%s"
+
+ER_IB_MSG_1125
+  eng "Startup called second time during the process lifetime. In the MySQL Embedded Server Library you cannot call server_init() more than once during the process lifetime."
+
+ER_IB_MSG_1126
+  eng "%s"
+
+ER_IB_MSG_1127
+  eng "Unable to create monitor file %s: %s"
+
+ER_IB_MSG_1128
+  eng "Disabling background log and ibuf IO write threads."
+
+ER_IB_MSG_1129
+  eng "Cannot initialize AIO sub-system"
+
+ER_IB_MSG_1130
+  eng "Initializing buffer pool, total size = %lf%c, instances = %lu, chunk size =%lf%c "
+
+ER_IB_MSG_1131
+  eng "Cannot allocate memory for the buffer pool"
+
+ER_IB_MSG_1132
+  eng "Completed initialization of buffer pool"
+
+ER_IB_MSG_1133
+  eng "Small buffer pool size (%luM), the flst_validate() debug function can cause a deadlock if the buffer pool fills up."
+
+ER_IB_MSG_1134
+  eng "Could not open or create the system tablespace. If you tried to add new data files to the system tablespace, and it failed here, you should now edit innodb_data_file_path in my.cnf back to what it was, and remove the new ibdata files InnoDB created in this failed attempt. InnoDB only wrote those files full of zeros, but did not yet use them in any way. But be careful: do not remove old data files which contain your precious data!"
+
+ER_IB_MSG_1135
+  eng "Cannot create log files because data files are corrupt or the database was not shut down cleanly after creating the data files."
+
+ER_IB_MSG_1136
+  eng "Only one log file found"
+
+ER_IB_MSG_1137
+  eng "Log file %s size %llu is not a multiple of innodb_page_size"
+
+ER_IB_MSG_1138
+  eng "Log file %s is of different size %llu bytes than other log files %llu bytes!"
+
+ER_IB_MSG_1139
+  eng "Use --innodb-directories to find the tablespace files. If that fails then use --innodb-force-recovery=1 to ignore this and to permanently lose all changes to the missing tablespace(s)"
+
+ER_IB_MSG_1140
+  eng "The log file may have been corrupt and it is possible that the log scan or parsing did not proceed far enough in recovery. Please run CHECK TABLE on your InnoDB tables to check that they are ok! It may be safest to recover your InnoDB database from a backup!"
+
+ER_IB_MSG_1141
+  eng "Cannot resize log files in read-only mode."
+
+ER_IB_MSG_1142
+  eng "Cannot open DD tablespace."
+
+ER_IB_MSG_1143
+  eng "Starting to delete and rewrite log files."
+
+ER_IB_MSG_1144
+  eng "Undo from 5.7 found. It will be purged"
+
+ER_IB_MSG_1145
+  eng "%s"
+
+ER_IB_MSG_1146
+  eng "%s"
+
+ER_IB_MSG_1147
+  eng "Tablespace size stored in header is %lu pages, but the sum of data file sizes is %lu pages"
+
+ER_IB_MSG_1148
+  eng "Cannot start InnoDB. The tail of the system tablespace is missing. Have you edited innodb_data_file_path in my.cnf in an inappropriate way, removing ibdata files from there? You can set innodb_force_recovery=1 in my.cnf to force a startup if you are trying to recover a badly corrupt database."
+
+ER_IB_MSG_1149
+  eng "ablespace size stored in header is %lu pages, but the sum of data file sizes is only %lu pages"
+
+ER_IB_MSG_1150
+  eng "Cannot start InnoDB. The tail of the system tablespace is missing. Have you edited innodb_data_file_path in my.cnf in an InnoDB: inappropriate way, removing ibdata files from there? You can set innodb_force_recovery=1 in my.cnf to force InnoDB: a startup if you are trying to recover a badly corrupt database."
+
+ER_IB_MSG_1151
+  eng "%s started; log sequence number %llu"
+
+ER_IB_MSG_1152
+  eng "%s"
+
+ER_IB_MSG_1153
+  eng "Waiting for dict_stats_thread to exit"
+
+ER_IB_MSG_1154
+  eng "Query counter shows %lu queries still inside InnoDB at shutdown"
+
+ER_IB_MSG_1155
+  eng "Shutdown completed; log sequence number %llu"
+
+ER_IB_MSG_1156
+  eng "Cannot continue operation."
+
+ER_IB_MSG_1157
+  eng "%s"
+
+ER_IB_MSG_1158
+  eng "%s"
+
+ER_IB_MSG_1159
+  eng "%s"
+
+ER_IB_MSG_1160
+  eng "%s"
+
+ER_IB_MSG_1161
+  eng "%s"
+
+ER_IB_MSG_1162
+  eng "%s"
+
+ER_IB_MSG_1163
+  eng "%s"
+
+ER_IB_MSG_1164
+  eng "%s"
+
+ER_IB_MSG_1165
+  eng "%s"
+
+ER_IB_MSG_1166
+  eng "%s"
+
+ER_IB_MSG_1167
+  eng "%s"
+
+ER_IB_MSG_1168
+  eng "%s"
+
+ER_IB_MSG_1169
+  eng "%s"
+
+ER_IB_MSG_1170
+  eng "%s"
+
+ER_IB_MSG_1171
+  eng "%s"
+
+ER_IB_MSG_1172
+  eng "%s"
+
+ER_IB_MSG_1173
+  eng "%s"
+
+ER_IB_MSG_1174
+  eng "%s"
+
+ER_IB_MSG_1175
+  eng "%s"
+
+ER_IB_MSG_1176
+  eng "%s"
+
+ER_IB_MSG_1177
+  eng "%s"
+
+ER_IB_MSG_1178
+  eng "%s"
+
+ER_IB_MSG_1179
+  eng "%s"
+
+ER_IB_MSG_1180
+  eng "%s"
+
+ER_IB_MSG_1181
+  eng "%s"
+
+ER_IB_MSG_1182
+  eng "%s"
+
+ER_IB_MSG_1183
+  eng "%s"
+
+ER_IB_MSG_1184
+  eng "%s"
+
+ER_IB_MSG_1185
+  eng "%s"
+
+ER_IB_MSG_1186
+  eng "%s"
+
+ER_IB_MSG_1187
+  eng "%s"
+
+ER_IB_MSG_1188
+  eng "%s"
+
+ER_IB_MSG_1189
+  eng "%s"
+
+ER_IB_MSG_1190
+  eng "%s"
+
+ER_IB_MSG_1191
+  eng "%s"
+
+ER_IB_MSG_1192
+  eng "%s"
+
+ER_IB_MSG_1193
+  eng "%s"
+
+ER_IB_MSG_1194
+  eng "%s"
+
+ER_IB_MSG_1195
+  eng "%s"
+
+ER_IB_MSG_1196
+  eng "%s"
+
+ER_IB_MSG_1197
+  eng "%s"
+
+ER_IB_MSG_1198
+  eng "%s"
+
+ER_IB_MSG_1199
+  eng "%s"
+
+ER_IB_MSG_1200
+  eng "%s"
+
+ER_IB_MSG_1201
+  eng "%s"
+
+ER_IB_MSG_1202
+  eng "%s"
+
+ER_IB_MSG_1203
+  eng "%s"
+
+ER_IB_MSG_1204
+  eng "%s"
+
+ER_IB_MSG_1205
+  eng "%s"
+
+ER_IB_MSG_1206
+  eng "%s"
+
+ER_IB_MSG_1207
+  eng "%s"
+
+ER_IB_MSG_1208
+  eng "%s"
+
+ER_IB_MSG_1209
+  eng "%s"
+
+ER_IB_MSG_1210
+  eng "%s"
+
+ER_IB_MSG_1211
+  eng "%s"
+
+ER_IB_MSG_1212
+  eng "%s"
+
+ER_IB_MSG_1213
+  eng "%s"
+
+ER_IB_MSG_1214
+  eng "Can't create UNDO tablespace %s %s"
+
+ER_IB_MSG_1215
+  eng "%s"
+
+ER_IB_MSG_1216
+  eng "%s"
+
+ER_IB_MSG_1217
+  eng "%s"
+
+ER_IB_MSG_1218
+  eng "%s"
+
+ER_IB_MSG_1219
+  eng "%s"
+
+ER_IB_MSG_1220
+  eng "%s"
+
+ER_IB_MSG_1221
+  eng "%s"
+
+ER_IB_MSG_1222
+  eng "%s"
+
+ER_IB_MSG_1223
+  eng "%s"
+
+ER_IB_MSG_1224
+  eng "%s"
+
+ER_IB_MSG_1225
+  eng "%s"
+
+ER_IB_MSG_1226
+  eng "%s"
+
+ER_IB_MSG_1227
+  eng "%s"
+
+ER_IB_MSG_1228
+  eng "%s"
+
+ER_IB_MSG_1229
+  eng "%s"
+
+ER_IB_MSG_1230
+  eng "%s"
+
+ER_IB_MSG_1231
+  eng "%s"
+
+ER_IB_MSG_1232
+  eng "%s"
+
+ER_IB_MSG_1233
+  eng "%s"
+
+ER_IB_MSG_1234
+  eng "%s"
+
+ER_IB_MSG_1235
+  eng "%s"
+
+ER_IB_MSG_1236
+  eng "%s"
+
+ER_IB_MSG_1237
+  eng "%s"
+
+ER_IB_MSG_1238
+  eng "%s"
+
+ER_IB_MSG_1239
+  eng "%s"
+
+ER_IB_MSG_1240
+  eng "%s"
+
+ER_IB_MSG_1241
+  eng "%s"
+
+ER_IB_MSG_1242
+  eng "%s"
+
+ER_IB_MSG_1243
+  eng "%s"
+
+ER_IB_MSG_1244
+  eng "%s"
+
+ER_IB_MSG_1245
+  eng "%s"
+
+ER_IB_MSG_1246
+  eng "%s"
+
+ER_IB_MSG_1247
+  eng "%s"
+
+ER_IB_MSG_1248
+  eng "%s"
+
+ER_IB_MSG_1249
+  eng "%s"
+
+ER_IB_MSG_1250
+  eng "%s"
+
+ER_IB_MSG_1251
+  eng "%s"
+
+ER_IB_MSG_1252
+  eng "%s"
+
+ER_IB_MSG_1253
+  eng "%s"
+
+ER_IB_MSG_1254
+  eng "%s"
+
+ER_IB_MSG_1255
+  eng "%s"
+
+ER_IB_MSG_1256
+  eng "%s"
+
+ER_IB_MSG_1257
+  eng "%s"
+
+ER_IB_MSG_1258
+  eng "%s"
+
+ER_IB_MSG_1259
+  eng "%s"
+
+ER_IB_MSG_1260
+  eng "%s"
+
+ER_IB_MSG_1261
+  eng "%s"
+
+ER_IB_MSG_1262
+  eng "%s"
+
+ER_IB_MSG_1263
+  eng "%s"
+
+ER_IB_MSG_1264
+  eng "%s"
+
+ER_IB_MSG_1265
+  eng "%s"
+
+ER_IB_MSG_1266
+  eng "%s"
+
+ER_IB_MSG_1267
+  eng "%s"
+
+ER_IB_MSG_1268
+  eng "%s"
+
+ER_IB_MSG_1269
+  eng "%s"
+
+ER_IB_MSG_1270
+  eng "%s"
+
+ER_RPL_SLAVE_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
+
+ER_RPL_SLAVE_IO_THREAD_STOP_CMD_EXEC_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
+
+ER_RPL_GTID_UNSAFE_STMT_ON_NON_TRANS_TABLE
+  eng "Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
+
+ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT
+  eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
+
+ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE
+  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
+
+ER_BINLOG_ROW_VALUE_OPTION_IGNORED
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be ignored and updates will be written in full format to binary log."
+
+ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED
+  eng "When %.192s, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log."
+
+ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%%."
+
+ER_CONNECTION_ABORTED
+  eng "Aborted connection %u to db: '%-.192s' user: '%-.48s' host: '%-.64s' (%-.64s)."
+
+ER_NORMAL_SERVER_SHUTDOWN
+  eng "%s: Normal shutdown."
+
+ER_KEYRING_MIGRATE_FAILED
+  eng "Can not perform keyring migration : %s."
+
+ER_GRP_RPL_LOWER_CASE_TABLE_NAMES_DIFF_FROM_GRP
+  eng "The member is configured with a lower_case_table_names option value '%u' different from the group '%u'. The member will now exit the group. If there is existing data on member, it may be incompatible with group if it was created with a lower_case_table_names value different from the group."
+
+ER_OOM_SAVE_GTIDS
+  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
+
+ER_LCTN_NOT_FOUND
+  eng "The lower_case_table_names setting for the data dictionary was not found. Starting the server using lower_case_table_names = '%u'."
 
 #
 # End of 8.0 Server error messages.

@@ -163,6 +163,7 @@ check_plugin_dir.inc
 
 # 12.0 Tests that do/don't need group replication plugin.
 have_group_replication_plugin.inc
+have_group_replication_plugin_base.inc
 not_group_replication_plugin.inc
 
 # 13.0 Memcached plugin is not available on all PB2 builds. Only supported by
@@ -182,6 +183,7 @@ not_mts_slave_parallel_workers.inc
 have_slave_repository_type_table.inc
 not_relay_log_info_file.inc
 not_master_info_file.inc
+have_transaction_write_set_extraction.inc
 
 # 16.0 Thread stack overrun on debug/sparc when built with Developer Studio
 not_sparc_debug.inc

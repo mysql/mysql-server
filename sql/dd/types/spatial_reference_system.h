@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,8 +132,60 @@ class Spatial_reference_system : virtual public Entity_object {
   virtual double prime_meridian() const = 0;
   virtual bool positive_east() const = 0;
   virtual bool positive_north() const = 0;
+
+  /// Converts a coordinate value from the SRS unit to radians.
+  ///
+  /// The conversion does not take axis direction or meridian shifting into
+  /// account.
+  ///
+  /// @param[in] d Value in the SRS unit.
+  ///
+  /// @return Value in radians.
   virtual double to_radians(double d) const = 0;
+
+  /// Converts a coordinate value from radians to the SRS unit.
+  ///
+  /// The conversion does not take axis direction or meridian shifting into
+  /// account.
+  ///
+  /// @param[in] d Value in radians.
+  ///
+  /// @return Value in the SRS unit.
   virtual double from_radians(double d) const = 0;
+
+  /// Converts a latitude value from the SRS unit and direction to the in-memory
+  /// representation of latitude (radians, positive North).
+  ///
+  /// @param[in] d Latitude in the SRS unit and axis direction.
+  ///
+  /// @return Latitude in radians, positive North.
+  virtual double to_normalized_latitude(double d) const = 0;
+
+  /// Converts a latitude value from the in-memory representation of latitude
+  /// (radians, positive North) to the SRS unit and direction.
+  ///
+  /// @param[in] d Latitude in radians, positive North.
+  ///
+  /// @return Latitude in the SRS unit and axis direction.
+  virtual double from_normalized_latitude(double d) const = 0;
+
+  /// Converts a longitude value from the SRS unit, direction and meridian to
+  /// the in-memory representation of longitude (radians, positive East,
+  /// Greenwich meridian).
+  ///
+  /// @param[in] d Longitude in the SRS unit, axis direction and meridian.
+  ///
+  /// @return Longitude in radians, positive East, Greenwich meridian.
+  virtual double to_normalized_longitude(double d) const = 0;
+
+  /// Converts a longitude value from the in-memory representation of longitude
+  /// (radians, positive East, Greenwich meridian) to the SRS unit, direction
+  /// and meridian.
+  ///
+  /// @param[in] d Longitude in radians, positive East, Greenwich meridian.
+  ///
+  /// @return Longitude in the SRS unit, axis direction and meridian.
+  virtual double from_normalized_longitude(double d) const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // description

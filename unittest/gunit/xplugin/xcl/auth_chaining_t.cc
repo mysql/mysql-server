@@ -46,8 +46,177 @@ class Auth_chaining_test_suite : public Xcl_session_impl_tests {
         .WillRepeatedly(Return(is_enabled));
   }
 
+  void fill(Mysqlx::Datatypes::Array *cap,
+            const std::vector<std::string> &values) {
+    for (const auto &value : values) {
+      auto any = cap->add_value();
+      any->set_type(Mysqlx::Datatypes::Any_Type_SCALAR);
+
+      auto scalar = any->mutable_scalar();
+
+      scalar->set_type(Mysqlx::Datatypes::Scalar_Type_V_STRING);
+
+      scalar->mutable_v_string()->set_value(value);
+    }
+  }
+
+  template <typename... Types>
+  Mysqlx::Connection::Capabilities *make_capability(const Types &... values) {
+    auto result = new Mysqlx::Connection::Capabilities();
+    auto cap = result->add_capabilities();
+
+    cap->set_name("authentication.mechanisms");
+    auto value = cap->mutable_value();
+
+    value->set_type(Mysqlx::Datatypes::Any_Type_ARRAY);
+
+    fill(value->mutable_array(), {values...});
+
+    return result;
+  }
+
+  XError m_ok_auth{ngs::Authentication_interface::Status::Succeeded, ""};
   XError m_failed_auth{ngs::Authentication_interface::Status::Failed, ""};
 };
+
+TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_nothing) {
+  set_ssl_state(true);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          "FROM_CAPABILITIES");
+
+  EXPECT_CALL(*m_mock_protocol, execute_fetch_capabilities_raw(_))
+      .WillOnce(Return(make_capability()));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  ASSERT_EQ(CR_X_INVALID_AUTH_METHOD,
+            m_sut->connect("host", 1290, "user", "pass", "schema").error());
+}
+
+TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_plain_no_ssl) {
+  set_ssl_state(false);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          "FROM_CAPABILITIES");
+
+  EXPECT_CALL(*m_mock_protocol, execute_fetch_capabilities_raw(_))
+      .WillOnce(Return(make_capability("PLAIN")));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  ASSERT_EQ(CR_X_INVALID_AUTH_METHOD,
+            m_sut->connect("host", 1290, "user", "pass", "schema").error());
+}
+
+TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_plain) {
+  set_ssl_state(true);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          "FROM_CAPABILITIES");
+
+  EXPECT_CALL(*m_mock_protocol, execute_fetch_capabilities_raw(_))
+      .WillOnce(Return(make_capability("PLAIN")));
+
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
+      .WillOnce(Return(m_failed_auth));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  m_sut->connect("host", 1290, "user", "pass", "schema");
+}
+
+TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_mysql41) {
+  set_ssl_state(true);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          "FROM_CAPABILITIES");
+
+  EXPECT_CALL(*m_mock_protocol, execute_fetch_capabilities_raw(_))
+      .WillOnce(Return(make_capability("MYSQL41")));
+
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
+      .WillOnce(Return(m_failed_auth));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  m_sut->connect("host", 1290, "user", "pass", "schema");
+}
+
+TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_memory) {
+  set_ssl_state(true);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          "FROM_CAPABILITIES");
+
+  EXPECT_CALL(*m_mock_protocol, execute_fetch_capabilities_raw(_))
+      .WillOnce(Return(make_capability("SHA256_MEMORY")));
+
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
+      .WillOnce(Return(m_failed_auth));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  m_sut->connect("host", 1290, "user", "pass", "schema");
+}
+
+TEST_F(Auth_chaining_test_suite,
+       cap_auth_method_server_supports_memory_and_unk) {
+  set_ssl_state(true);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          "FROM_CAPABILITIES");
+
+  EXPECT_CALL(*m_mock_protocol, execute_fetch_capabilities_raw(_))
+      .WillOnce(Return(make_capability("SHA256_MEMORY", "UNK")));
+
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
+      .WillOnce(Return(m_failed_auth));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  m_sut->connect("host", 1290, "user", "pass", "schema");
+}
+
+TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_all_ssl) {
+  set_ssl_state(true);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          "FROM_CAPABILITIES");
+
+  EXPECT_CALL(*m_mock_protocol, execute_fetch_capabilities_raw(_))
+      .WillOnce(Return(make_capability("SHA256_MEMORY", "PLAIN", "MYSQL41")));
+
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
+      .WillOnce(Return(m_failed_auth));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  m_sut->connect("host", 1290, "user", "pass", "schema");
+}
+
+TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_all_non_ssl) {
+  set_ssl_state(false);
+  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                          "FROM_CAPABILITIES");
+
+  EXPECT_CALL(*m_mock_protocol, execute_fetch_capabilities_raw(_))
+      .WillOnce(Return(make_capability("SHA256_MEMORY", "MYSQL41")));
+
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
+      .WillOnce(Return(m_failed_auth));
+
+  EXPECT_CALL(m_mock_connection_state, get_connection_type())
+      .WillOnce(Return(Connection_type::Tcp));
+
+  m_sut->connect("host", 1290, "user", "pass", "schema");
+}
 
 TEST_F(Auth_chaining_test_suite, auto_auth_method) {
   set_ssl_state(true);
@@ -94,9 +263,19 @@ TEST_F(Auth_chaining_test_suite, auto_auth_method_unix_socket_connection) {
 
 TEST_F(Auth_chaining_test_suite, ambigous_auth_method) {
   set_ssl_state(false);
-  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
-                          std::vector<std::string>{"AUTO", "PLAIN"});
-  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, _)).Times(0);
+  ASSERT_EQ(
+      CR_X_UNSUPPORTED_OPTION_VALUE,
+      m_sut
+          ->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                             std::vector<std::string>{"AUTO", "PLAIN"})
+          .error());
+
+  // Default value is not changed
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
+      .WillOnce(Return(m_failed_auth));
+
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
   m_sut->connect("host", 1290, "user", "pass", "schema");
@@ -104,9 +283,19 @@ TEST_F(Auth_chaining_test_suite, ambigous_auth_method) {
 
 TEST_F(Auth_chaining_test_suite, ambigous_auth_method_multiple_auto) {
   set_ssl_state(false);
-  m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
-                          std::vector<std::string>{"AUTO", "AUTO"});
-  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, _)).Times(0);
+  ASSERT_EQ(
+      CR_X_UNSUPPORTED_OPTION_VALUE,
+      m_sut
+          ->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
+                             std::vector<std::string>{"AUTO", "AUTO"})
+          .error());
+
+  // Default value is not changed
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
+      .WillOnce(Return(m_failed_auth));
+
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
   m_sut->connect("host", 1290, "user", "pass", "schema");
@@ -116,9 +305,10 @@ TEST_F(Auth_chaining_test_suite,
        auto_auth_method_in_compatibility_mode_with_ssl_disabled) {
   set_ssl_state(false);
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
-                          std::vector<std::string>{"AUTO"});
-  m_sut->set_mysql_option(XSession::Mysqlx_option::Compatibility_mode, true);
+                          std::vector<std::string>{"FALLBACK"});
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
       .WillOnce(Return(m_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
@@ -129,9 +319,10 @@ TEST_F(Auth_chaining_test_suite,
        auto_auth_method_in_compatibility_mode_with_ssl_enabled) {
   set_ssl_state(true);
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
-                          std::vector<std::string>{"AUTO"});
-  m_sut->set_mysql_option(XSession::Mysqlx_option::Compatibility_mode, true);
+                          std::vector<std::string>{"FALLBACK"});
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
       .WillOnce(Return(m_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
@@ -142,9 +333,10 @@ TEST_F(Auth_chaining_test_suite,
        auto_auth_method_in_compatibility_mode_using_unix_socket) {
   set_ssl_state(false);
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
-                          std::vector<std::string>{"AUTO"});
-  m_sut->set_mysql_option(XSession::Mysqlx_option::Compatibility_mode, true);
+                          std::vector<std::string>{"FALLBACK"});
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
+      .WillOnce(Return(m_failed_auth));
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
       .WillOnce(Return(m_failed_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Unix_socket));
@@ -233,7 +425,8 @@ TEST_F(Auth_chaining_test_suite, only_plain_method_ssl_disabled) {
   set_ssl_state(false);
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
                           std::vector<std::string>{"PLAIN"});
-  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, _)).Times(0);
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
+      .WillOnce(Return(m_ok_auth));
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
   m_sut->connect("host", 1290, "user", "pass", "schema");
@@ -294,16 +487,26 @@ TEST_F(Auth_chaining_test_suite, duplicate_auth_methods) {
 
 TEST_F(Auth_chaining_test_suite, sequence_with_plain_and_no_ssl) {
   set_ssl_state(false);
+
+  // SSL is disables still force PLAIN authentication
   m_sut->set_mysql_option(
       XSession::Mysqlx_option::Authentication_method,
       std::vector<std::string>{"MYSQL41", "PLAIN", "SHA256_MEMORY"});
+
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
       .WillOnce(Return(m_failed_auth));
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
       .WillOnce(Return(m_failed_auth));
+  // If client specified PLAIN, lets execute it
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
+      .WillOnce(Return(m_failed_auth));
+
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
-  m_sut->connect("host", 1290, "user", "pass", "schema");
+
+  // PLAIN & NON SSL must result in following error
+  ASSERT_EQ(CR_X_INVALID_AUTH_METHOD,
+            m_sut->connect("host", 1290, "user", "pass", "schema").error());
 }
 
 TEST_F(Auth_chaining_test_suite, sequence_successfull_auth_attempt) {

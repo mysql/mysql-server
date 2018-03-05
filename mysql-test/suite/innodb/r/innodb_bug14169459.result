@@ -21,13 +21,13 @@ Table	Create Table
 t14169459_1	CREATE TEMPORARY TABLE `t14169459_1` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t14169459_2;
 Table	Create Table
 t14169459_2	CREATE TABLE `t14169459_2` (
   `a` int(11) DEFAULT NULL,
   `b` text
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ### directory of MYSQL_DATA_DIR/test
 t14169459_2.ibd
 ### directory of MYSQL_TMP_DIR/mysqld.1

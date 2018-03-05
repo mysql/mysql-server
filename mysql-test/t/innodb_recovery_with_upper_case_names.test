@@ -60,5 +60,5 @@ use test;
 DROP DATABASE MYDB;
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing");
 --enable_query_log

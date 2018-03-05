@@ -128,6 +128,7 @@ class Sys_var_integer;
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED +
 #define NON_PERSIST sys_var::NOTPERSIST +
+#define PERSIST_AS_READONLY sys_var::PERSIST_AS_READ_ONLY +
 
 /*
   Sys_var_bit meaning is reversed, like in
@@ -2218,13 +2219,14 @@ class Sys_var_gtid_purged : public sys_var {
     String *res = var->value->val_str(&str);
     if (!res) DBUG_RETURN(true);
     var->save_result.string_value.str =
-        thd->strmake(res->c_ptr_safe(), res->length());
+        thd->strmake(res->c_ptr(), res->length());
     if (!var->save_result.string_value.str) {
       my_error(ER_OUT_OF_RESOURCES, MYF(0));  // thd->strmake failed
       DBUG_RETURN(true);
     }
     var->save_result.string_value.length = res->length();
-    bool ret = Gtid_set::is_valid(res->c_ptr_safe()) ? false : true;
+    bool ret =
+        Gtid_set::is_valid(var->save_result.string_value.str) ? false : true;
     DBUG_PRINT("info", ("ret=%d", ret));
     DBUG_RETURN(ret);
   }

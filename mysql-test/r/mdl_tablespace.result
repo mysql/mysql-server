@@ -693,7 +693,7 @@ Table	Create Table
 t1_new	CREATE TABLE `t1_new` (
   `pk` int(11) NOT NULL,
   PRIMARY KEY (`pk`)
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1_new;
 CREATE TABLE t2_new LIKE t2_src;
 SHOW CREATE TABLE t2_new;
@@ -701,7 +701,7 @@ Table	Create Table
 t2_new	CREATE TABLE `t2_new` (
   `pk` int(11) NOT NULL,
   PRIMARY KEY (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2_new;
 #
 # Reset DEBUG_SYNC and drop objects.

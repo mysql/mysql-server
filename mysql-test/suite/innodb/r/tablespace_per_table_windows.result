@@ -30,7 +30,7 @@ Table	Create Table
 this_sixty_four_byte_name_is_not_too_long_______________________	CREATE TABLE `this_sixty_four_byte_name_is_not_too_long_______________________` (
   `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   UNIQUE KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ---- list_files MYSQLD_DATADIR/this_sixty_four_byte_name_is_not_too_long_______________________
 this_sixty_four_byte_name_is_not_too_long_______________________.ibd
 SELECT name FROM information_schema.innodb_tables WHERE name LIKE '%long%';

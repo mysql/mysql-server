@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -625,5 +625,29 @@ void Geographic_multipolygon::push_back(Geometry &&py) {
 }
 
 bool Geographic_multipolygon::empty() const { return m_polygons.empty(); }
+
+const char *type_to_name(Geometry_type type) {
+  switch (type) {
+    case Geometry_type::kPoint:
+      return "POINT";
+    case Geometry_type::kLinestring:
+      return "LINESTRING";
+    case Geometry_type::kPolygon:
+      return "POLYGON";
+    case Geometry_type::kGeometrycollection:
+      return "GEOMCOLLECTION";
+    case Geometry_type::kMultipoint:
+      return "MULTIPOINT";
+    case Geometry_type::kMultilinestring:
+      return "MULTILINESTRING";
+    case Geometry_type::kMultipolygon:
+      return "MULTIPOLYGON";
+    default:
+      /* purecov: begin inspected */
+      DBUG_ASSERT(false);
+      return "UNKNOWN";
+      /* purecov: end */
+  }
+}
 
 }  // namespace gis

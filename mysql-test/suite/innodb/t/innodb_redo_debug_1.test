@@ -1,0 +1,51 @@
+#------------------------------------------------------------------------------
+# Redo log optimization
+# Test aims to verify recovery works when server is stopped in debug point
+# 1) log_buffer_write_completed_before_store
+# 2) log_buffer_write_before_memcpy
+# 3) log_buffer_set_first_record_group_before_update
+# 4) log_advance_ready_for_write_before_update
+# 5) log_advance_ready_for_write_before_reclaim
+#------------------------------------------------------------------------------
+
+# Test uses debug binary
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--echo # Test with log_buffer_write_completed_before_store
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_buffer_write_completed_before_store;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_buffer_write_before_memcpy
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_buffer_write_before_memcpy;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_buffer_set_first_record_group_before_update
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_buffer_set_first_record_group_before_update;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_advance_ready_for_write_before_update
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_advance_ready_for_write_before_update;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_advance_ready_for_write_before_reclaim
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_advance_ready_for_write_before_reclaim;
+--source suite/innodb/include/innodb_redo_debug.inc

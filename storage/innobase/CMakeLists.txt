@@ -129,9 +129,13 @@ SET(INNOBASE_SOURCES
 	lock/lock0prdt.cc
 	lock/lock0lock.cc
 	lock/lock0wait.cc
+	log/log0buf.cc
+	log/log0chkp.cc
+	log/log0ddl.cc
 	log/log0log.cc
 	log/log0recv.cc
-	log/log0ddl.cc
+	log/log0test.cc
+	log/log0write.cc
 	mach/mach0data.cc
 	mtr/mtr0log.cc
 	mtr/mtr0mtr.cc
@@ -199,8 +203,8 @@ IF(WITH_INNODB)
 ENDIF()
 
 ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
-SET_TARGET_PROPERTIES(innodb_zipdecompress PROPERTIES
-  COMPILE_DEFINITIONS "UNIV_LIBRARY")
+TARGET_COMPILE_DEFINITIONS(
+  innodb_zipdecompress PRIVATE UNIV_LIBRARY UNIV_NO_ERR_MSGS)
 ADD_DEPENDENCIES(innodb_zipdecompress GenError)
 
 UNSET(NUMA_LIBRARY)

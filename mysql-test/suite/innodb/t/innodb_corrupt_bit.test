@@ -95,9 +95,9 @@ select z from corrupt_bit_test_ā limit 10;
 drop table corrupt_bit_test_ā;
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Load table `corrupted`\\.`t[16]` failed, the table contains a corrupted clustered index");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot open table corrupted/t[16]");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to find tablespace for table `corrupted`\\.`t[56]` in the cache");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Load table `corrupted`\\.`t[16]` failed, the table contains a corrupted clustered index");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot open table corrupted/t[16]");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table `corrupted`\\.`t[56]` in the cache");
 --enable_query_log
 
 CREATE DATABASE corrupted;

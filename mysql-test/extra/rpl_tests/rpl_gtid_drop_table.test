@@ -256,7 +256,7 @@ DROP TEMPORARY TABLE IF EXISTS temp_ignore, temp_trans_t1;
 #
 --source include/rpl_connection_master.inc
 SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("InnoDB: Error: table .* does not exist in the InnoDB internal");
+call mtr.add_suppression("Error: table .* does not exist in the InnoDB internal");
 SET SESSION sql_log_bin= 1;
 
 CREATE DATABASE test2;

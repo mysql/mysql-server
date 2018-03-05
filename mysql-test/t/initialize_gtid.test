@@ -19,7 +19,6 @@
 --let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql
 
 # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 USE mysql;
 
 --echo # Create bootstrap file

@@ -1152,14 +1152,14 @@ byte *page_cur_parse_insert_rec(
   /* Build the inserted record to buf */
 
   if (UNIV_UNLIKELY(mismatch_index >= UNIV_PAGE_SIZE)) {
-    ib::fatal() << "is_short " << is_short << ", "
-                << "info_and_status_bits " << info_and_status_bits
-                << ", offset " << page_offset(cursor_rec)
-                << ","
-                   " o_offset "
-                << origin_offset << ", mismatch index " << mismatch_index
-                << ", end_seg_len " << end_seg_len << " parsed len "
-                << (ptr - ptr2);
+    ib::fatal(ER_IB_MSG_859)
+        << "is_short " << is_short << ", "
+        << "info_and_status_bits " << info_and_status_bits << ", offset "
+        << page_offset(cursor_rec)
+        << ","
+           " o_offset "
+        << origin_offset << ", mismatch index " << mismatch_index
+        << ", end_seg_len " << end_seg_len << " parsed len " << (ptr - ptr2);
   }
 
   ut_memcpy(buf, rec_get_start(cursor_rec, offsets), mismatch_index);
@@ -2277,8 +2277,8 @@ byte *page_cur_parse_delete_rec(
 
     page_cur_position(rec, block, &cursor);
 #ifdef UNIV_HOTBACKUP
-    ib::trace() << "page_cur_parse_delete_rec { page: " << page << ", "
-                << "offset: " << offset << ", rec: " << rec << "\n";
+    ib::trace_1() << "page_cur_parse_delete_rec { page: " << page << ", "
+                  << "offset: " << offset << ", rec: " << rec << "\n";
 #endif /* UNIV_HOTBACKUP */
     ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 

@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0sea.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
+#include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -227,11 +228,12 @@ void ibuf_count_check(const page_id_t &page_id) {
     return;
   }
 
-  ib::fatal() << "UNIV_IBUF_COUNT_DEBUG limits space_id and page_no"
-                 " and breaks crash recovery. space_id="
-              << page_id.space() << ", should be 0<=space_id<"
-              << IBUF_COUNT_N_SPACES << ". page_no=" << page_id.page_no()
-              << ", should be 0<=page_no<" << IBUF_COUNT_N_PAGES;
+  ib::fatal(ER_IB_MSG_605)
+      << "UNIV_IBUF_COUNT_DEBUG limits space_id and page_no"
+         " and breaks crash recovery. space_id="
+      << page_id.space() << ", should be 0<=space_id<" << IBUF_COUNT_N_SPACES
+      << ". page_no=" << page_id.page_no() << ", should be 0<=page_no<"
+      << IBUF_COUNT_N_PAGES;
 }
 #endif
 
@@ -2255,6 +2257,9 @@ static ulint ibuf_merge_pages(
 
   *n_pages = 0;
 
+  /* Check if there is enough reusable space in redo log files. */
+  log_free_check();
+
   ibuf_mtr_start(&mtr);
 
   /* Open a cursor to a randomly chosen leaf of the tree, at a random
@@ -2336,7 +2341,7 @@ ulint ibuf_merge_space(space_id_t space) /*!< in: tablespace id to merge */
   } else {
     sum_sizes = ibuf_get_merge_pages(&pcur, space, IBUF_MAX_N_PAGES_MERGED,
                                      &pages[0], &spaces[0], &n_pages, &mtr);
-    ib::info() << "Size of pages merged " << sum_sizes;
+    ib::info(ER_IB_MSG_606) << "Size of pages merged " << sum_sizes;
   }
 
   ibuf_mtr_commit(&mtr);
@@ -3264,8 +3269,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 func_exit:
 #ifdef UNIV_IBUF_COUNT_DEBUG
   if (err == DB_SUCCESS) {
-    ib::info() << "Incrementing ibuf count of page " << page_id << " from "
-               << ibuf_count_get(space, page_no) << " by 1";
+    ib::info(ER_IB_MSG_607)
+        << "Incrementing ibuf count of page " << page_id << " from "
+        << ibuf_count_get(space, page_no) << " by 1";
 
     ibuf_count_set(page_id, ibuf_count_get(page_id) + 1);
   }
@@ -3474,9 +3480,10 @@ static rec_t *ibuf_insert_to_index_page_low(
 
   page = buf_block_get_frame(block);
 
-  ib::error() << "Insert buffer insert fails; page free "
-              << page_get_max_insert_size(page, 1) << ", dtuple size "
-              << rec_get_converted_size(index, entry, 0);
+  ib::error(ER_IB_MSG_608) << "Insert buffer insert fails; page free "
+                           << page_get_max_insert_size(page, 1)
+                           << ", dtuple size "
+                           << rec_get_converted_size(index, entry, 0);
 
   fputs("InnoDB: Cannot insert index record ", stderr);
   dtuple_print(stderr, entry);
@@ -3490,10 +3497,11 @@ static rec_t *ibuf_insert_to_index_page_low(
   old_bits = ibuf_bitmap_page_get_bits(bitmap_page, block->page.id,
                                        block->page.size, IBUF_BITMAP_FREE, mtr);
 
-  ib::error() << "page " << block->page.id << ", size "
-              << block->page.size.physical() << ", bitmap bits " << old_bits;
+  ib::error(ER_IB_MSG_609) << "page " << block->page.id << ", size "
+                           << block->page.size.physical() << ", bitmap bits "
+                           << old_bits;
 
-  ib::error() << BUG_REPORT_MSG;
+  ib::error(ER_IB_MSG_610) << BUG_REPORT_MSG;
 
   ut_ad(0);
   DBUG_RETURN(NULL);
@@ -3532,34 +3540,37 @@ static void ibuf_insert_to_index_page(
 
   if (UNIV_UNLIKELY(dict_table_is_comp(index->table) !=
                     (ibool) !!page_is_comp(page))) {
-    ib::warn() << "Trying to insert a record from the insert"
-                  " buffer to an index page but the 'compact' flag does"
-                  " not match!";
+    ib::warn(ER_IB_MSG_611)
+        << "Trying to insert a record from the insert"
+           " buffer to an index page but the 'compact' flag does"
+           " not match!";
     goto dump;
   }
 
   rec = page_rec_get_next(page_get_infimum_rec(page));
 
   if (page_rec_is_supremum(rec)) {
-    ib::warn() << "Trying to insert a record from the insert"
-                  " buffer to an index page but the index page"
-                  " is empty!";
+    ib::warn(ER_IB_MSG_612) << "Trying to insert a record from the insert"
+                               " buffer to an index page but the index page"
+                               " is empty!";
     goto dump;
   }
 
   if (!rec_n_fields_is_sane(index, rec, entry)) {
-    ib::warn() << "Trying to insert a record from the insert"
-                  " buffer to an index page but the number of fields"
-                  " does not match!";
+    ib::warn(ER_IB_MSG_613)
+        << "Trying to insert a record from the insert"
+           " buffer to an index page but the number of fields"
+           " does not match!";
     rec_print(stderr, rec, index);
   dump:
     dtuple_print(stderr, entry);
     ut_ad(0);
 
-    ib::warn() << "The table where this index record belongs"
-                  " is now probably corrupt. Please run CHECK TABLE on"
-                  " your tables. "
-               << BUG_REPORT_MSG;
+    ib::warn(ER_IB_MSG_614)
+        << "The table where this index record belongs"
+           " is now probably corrupt. Please run CHECK TABLE on"
+           " your tables. "
+        << BUG_REPORT_MSG;
 
     DBUG_VOID_RETURN;
   }
@@ -3619,8 +3630,8 @@ static void ibuf_insert_to_index_page(
 
       DBUG_EXECUTE_IF("crash_after_log_ibuf_upd_inplace",
                       log_buffer_flush_to_disk();
-                      ib::info() << "Wrote log record for ibuf"
-                                    " update in place operation";
+                      ib::info(ER_IB_MSG_615) << "Wrote log record for ibuf"
+                                                 " update in place operation";
                       DBUG_SUICIDE(););
 
       goto updated_in_place;
@@ -3704,7 +3715,7 @@ static void ibuf_set_del_mark(
     const page_t *page = page_cur_get_page(&page_cur);
     const buf_block_t *block = page_cur_get_block(&page_cur);
 
-    ib::error() << "Unable to find a record to delete-mark";
+    ib::error(ER_IB_MSG_616) << "Unable to find a record to delete-mark";
     fputs("InnoDB: tuple ", stderr);
     dtuple_print(stderr, entry);
     fputs(
@@ -3713,10 +3724,11 @@ static void ibuf_set_del_mark(
         stderr);
     rec_print(stderr, page_cur_get_rec(&page_cur), index);
 
-    ib::error() << "page " << block->page.id << " (" << page_get_n_recs(page)
-                << " records, index id " << btr_page_get_index_id(page) << ").";
+    ib::error(ER_IB_MSG_617)
+        << "page " << block->page.id << " (" << page_get_n_recs(page)
+        << " records, index id " << btr_page_get_index_id(page) << ").";
 
-    ib::error() << BUG_REPORT_MSG;
+    ib::error(ER_IB_MSG_618) << BUG_REPORT_MSG;
     ut_ad(0);
   }
 }
@@ -3758,7 +3770,7 @@ static void ibuf_delete(const dtuple_t *entry, /*!< in: entry */
         !(REC_INFO_DELETED_FLAG & rec_get_info_bits(rec, page_is_comp(page)))) {
       /* Refuse to purge the last record or a
       record that has not been marked for deletion. */
-      ib::error() << "Unable to purge a record";
+      ib::error(ER_IB_MSG_619) << "Unable to purge a record";
       fputs("InnoDB: tuple ", stderr);
       dtuple_print(stderr, entry);
       fputs(
@@ -3832,11 +3844,11 @@ static ibool ibuf_restore_pos(
     entry.  Do not complain. */
     ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
   } else {
-    ib::error() << "ibuf cursor restoration fails!."
-                   " ibuf record inserted to page "
-                << space << ":" << page_no;
+    ib::error(ER_IB_MSG_620) << "ibuf cursor restoration fails!."
+                                " ibuf record inserted to page "
+                             << space << ":" << page_no;
 
-    ib::error() << BUG_REPORT_MSG;
+    ib::error(ER_IB_MSG_621) << BUG_REPORT_MSG;
 
     rec_print_old(stderr, btr_pcur_get_rec(pcur));
     rec_print_old(stderr, pcur->old_rec);
@@ -3844,7 +3856,7 @@ static ibool ibuf_restore_pos(
 
     rec_print_old(stderr, page_rec_get_next(btr_pcur_get_rec(pcur)));
 
-    ib::fatal() << "Failed to restore ibuf position.";
+    ib::fatal(ER_IB_MSG_622) << "Failed to restore ibuf position.";
   }
 
   return (FALSE);
@@ -3884,7 +3896,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool ibuf_delete_rec(
     btr_cur_set_deleted_flag_for_ibuf(btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
 
     ibuf_mtr_commit(mtr);
-    log_write_up_to(LSN_MAX, true);
+    log_buffer_flush_to_disk();
     DBUG_SUICIDE();
   }
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -3910,8 +3922,9 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool ibuf_delete_rec(
     }
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
-    ib::info() << "Decrementing ibuf count of space " << space << " page "
-               << page_no << " from " << ibuf_count_get(page_id) << " by 1";
+    ib::info(ER_IB_MSG_623)
+        << "Decrementing ibuf count of space " << space << " page " << page_no
+        << " from " << ibuf_count_get(page_id) << " by 1";
 
     ibuf_count_set(page_id, ibuf_count_get(page_id) - 1);
 #endif /* UNIV_IBUF_COUNT_DEBUG */
@@ -4081,18 +4094,18 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
         !page_is_leaf(block->frame)) {
       corruption_noticed = true;
 
-      ib::error() << "Corruption in the tablespace. Bitmap"
-                     " shows insert buffer records to page "
-                  << page_id << " though the page type is "
-                  << fil_page_get_type(block->frame)
-                  << ", which is not an index leaf page. We try"
-                     " to resolve the problem by skipping the"
-                     " insert buffer merge for this page. Please"
-                     " run CHECK TABLE on your tables to determine"
-                     " if they are corrupt after this.";
+      ib::error(ER_IB_MSG_624) << "Corruption in the tablespace. Bitmap"
+                                  " shows insert buffer records to page "
+                               << page_id << " though the page type is "
+                               << fil_page_get_type(block->frame)
+                               << ", which is not an index leaf page. We try"
+                                  " to resolve the problem by skipping the"
+                                  " insert buffer merge for this page. Please"
+                                  " run CHECK TABLE on your tables to determine"
+                                  " if they are corrupt after this.";
 
-      ib::error() << "Please submit a detailed bug"
-                     " report to http://bugs.mysql.com";
+      ib::error(ER_IB_MSG_625) << "Please submit a detailed bug"
+                                  " report to http://bugs.mysql.com";
       ut_ad(0);
     }
   }

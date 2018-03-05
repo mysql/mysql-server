@@ -218,9 +218,6 @@ static long innobase_open_files;
 static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
 
-static ulong innodb_log_buffer_size;
-static ulonglong innodb_log_file_size;
-
 extern thread_local ulint ut_rnd_ulint_counter;
 
 /** Percentage of the buffer pool to reserve for 'old' blocks.
@@ -590,15 +587,18 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(fts_pll_tokenize_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(log_flush_order_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(hash_table_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_checkpointer_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_closer_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_flusher_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_write_notifier_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_flush_notifier_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_sys_arch_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(log_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(mutex_list_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_sys_arch_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -661,9 +661,8 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
     PSI_RWLOCK_KEY(buf_block_debug_latch, 0, PSI_DOCUMENT_ME),
 #endif /* UNIV_DEBUG */
     PSI_RWLOCK_KEY(dict_operation_lock, 0, PSI_DOCUMENT_ME),
-    PSI_RWLOCK_KEY(dict_persist_checkpoint, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(fil_space_latch, 0, PSI_DOCUMENT_ME),
-    PSI_RWLOCK_KEY(checkpoint_lock, 0, PSI_DOCUMENT_ME),
+    PSI_RWLOCK_KEY(log_sn_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(undo_spaces_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(rsegs_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(fts_cache_rw_lock, 0, PSI_DOCUMENT_ME),
@@ -691,6 +690,12 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_KEY(io_read_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(io_write_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(buf_resize_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_writer_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_closer_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_checkpointer_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_flusher_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_write_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_flush_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(recv_writer_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(srv_error_monitor_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(srv_lock_timeout_thread, 0, 0, PSI_DOCUMENT_ME),
@@ -2051,6 +2056,7 @@ const char *innobase_basename(const char *path_name) {
 
   return ((name) ? name : "null");
 }
+
 #ifndef UNIV_HOTBACKUP
 
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
@@ -3000,7 +3006,7 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
         msg << ", moved count " << moved_count;
       }
 
-      ib::info() << msg.str();
+      ib::info(ER_IB_MSG_525) << msg.str();
 
       start_time = ut_time();
 
@@ -3085,19 +3091,19 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
 
       case Fil_state::MISSING:
 
-        ib::warn() << prefix << "Tablespace " << space_id << ","
-                   << " name '" << space_name << "',"
-                   << " file '" << dd_path << "'"
-                   << " is missing!";
+        ib::warn(ER_IB_MSG_526) << prefix << "Tablespace " << space_id << ","
+                                << " name '" << space_name << "',"
+                                << " file '" << dd_path << "'"
+                                << " is missing!";
 
         continue;
 
       case Fil_state::DELETED:
 
-        ib::warn() << prefix << "Tablespace " << space_id << ","
-                   << " name '" << space_name << "',"
-                   << " file '" << dd_path << "'"
-                   << " was deleted!";
+        ib::warn(ER_IB_MSG_527) << prefix << "Tablespace " << space_id << ","
+                                << " name '" << space_name << "',"
+                                << " file '" << dd_path << "'"
+                                << " was deleted!";
 
         continue;
 
@@ -3111,20 +3117,21 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
           break;
         }
 
-        ib::info() << prefix << "DD ID: " << tablespace->id() << " - "
-                   << "Tablespace " << space_id << ","
-                   << " name '" << space_name << "',"
-                   << " file '" << dd_path << "'"
-                   << " has been moved to"
-                   << " '" << new_path << "'";
+        ib::info(ER_IB_MSG_528)
+            << prefix << "DD ID: " << tablespace->id() << " - "
+            << "Tablespace " << space_id << ","
+            << " name '" << space_name << "',"
+            << " file '" << dd_path << "'"
+            << " has been moved to"
+            << " '" << new_path << "'";
 
         filename = new_path.c_str();
 
         if (*moved_count == MOVED_FILES_PRINT_THRESHOLD) {
-          ib::info() << prefix << "Too many files have"
-                     << " have been moved, disabling"
-                     << " logging of detailed"
-                     << " messages";
+          ib::info(ER_IB_MSG_529) << prefix << "Too many files have"
+                                  << " have been moved, disabling"
+                                  << " logging of detailed"
+                                  << " messages";
         }
 
       case Fil_state::RENAMED:
@@ -3142,16 +3149,16 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
       case DB_CANNOT_OPEN_FILE:
       case DB_WRONG_FILE_NAME:
       default:
-        ib::info() << prefix << "Tablespace " << space_id << ","
-                   << " name '" << space_name << "',"
-                   << " unable to open file"
-                   << " '" << filename << "' - " << ut_strerr(err);
+        ib::info(ER_IB_MSG_530) << prefix << "Tablespace " << space_id << ","
+                                << " name '" << space_name << "',"
+                                << " unable to open file"
+                                << " '" << filename << "' - " << ut_strerr(err);
     }
   }
 
   if (!print_msg) {
-    ib::info() << prefix << "Validated " << count << "/" << (end - begin)
-               << "  tablespaces";
+    ib::info(ER_IB_MSG_531) << prefix << "Validated " << count << "/"
+                            << (end - begin) << "  tablespaces";
   }
 
   mem_heap_free(heap);
@@ -3219,7 +3226,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(
 
   mutex_exit(&dict_sys->mutex);
 
-  ib::info() << "Reading DD tablespace files";
+  ib::info(ER_IB_MSG_532) << "Reading DD tablespace files";
 
   if (dc->fetch_global_components(&tablespaces)) {
     /* Failed to fetch the tablespaces from the DD. */
@@ -3568,6 +3575,7 @@ static
 }
 
 #ifndef UNIV_HOTBACKUP
+
 /** Minimum expected tablespace size. (5M) */
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
@@ -3595,11 +3603,12 @@ static void innodb_buffer_pool_size_init() {
         } else
           srv_buf_pool_size = static_cast<ulint>(server_mem * 0.75 * GB);
       } else {
-        ib::warn() << "Option innodb_dedicated_server"
-                      " is ignored for"
-                      " innodb_buffer_pool_size because"
-                      " innodb_buffer_pool_size="
-                   << srv_buf_pool_curr_size << " is specified explicitly.";
+        ib::warn(ER_IB_MSG_533)
+            << "Option innodb_dedicated_server"
+               " is ignored for"
+               " innodb_buffer_pool_size because"
+               " innodb_buffer_pool_size="
+            << srv_buf_pool_curr_size << " is specified explicitly.";
       }
     }
   }
@@ -3631,12 +3640,13 @@ static void innodb_buffer_pool_size_init() {
       limitation that if the user started with =0, we
       will not emit a warning here, but we should actually
       do so. */
-      ib::info() << "Adjusting innodb_buffer_pool_instances"
-                    " from "
-                 << srv_buf_pool_instances
-                 << " to 1"
-                    " since innodb_buffer_pool_size is less than "
-                 << BUF_POOL_SIZE_THRESHOLD / (1024 * 1024) << " MiB";
+      ib::info(ER_IB_MSG_534)
+          << "Adjusting innodb_buffer_pool_instances"
+             " from "
+          << srv_buf_pool_instances
+          << " to 1"
+             " since innodb_buffer_pool_size is less than "
+          << BUF_POOL_SIZE_THRESHOLD / (1024 * 1024) << " MiB";
     }
 
     srv_buf_pool_instances = 1;
@@ -3733,11 +3743,21 @@ static int innodb_init_params() {
     DBUG_RETURN(HA_ERR_INITIALIZATION);
   }
 
+  ut_a(srv_log_buffer_size % OS_FILE_LOG_BLOCK_SIZE == 0);
+  ut_a(srv_log_buffer_size > 0);
+
+  ut_a(srv_log_write_ahead_size % OS_FILE_LOG_BLOCK_SIZE == 0);
+  ut_a(srv_log_write_ahead_size > 0);
+
+  ut_a(srv_log_file_size % UNIV_PAGE_SIZE == 0);
+  ut_a(srv_log_file_size > 0);
+
   acquire_sysvar_source_service();
   /* If innodb_dedicated_server == ON */
   if (srv_dedicated_server && sysvar_source_svc != nullptr) {
     static const char *variable_name = "innodb_log_file_size";
-    enum enum_variable_source source;
+    enum_variable_source source;
+
     if (!sysvar_source_svc->get(
             variable_name, static_cast<unsigned int>(strlen(variable_name)),
             &source)) {
@@ -3746,25 +3766,24 @@ static int innodb_init_params() {
         if (server_mem < 1.0) {
           ;
         } else if (server_mem <= 4.0) {
-          innodb_log_file_size = 128ULL * MB;
+          srv_log_file_size = 128ULL * MB;
         } else if (server_mem <= 8.0) {
-          innodb_log_file_size = 512ULL * MB;
+          srv_log_file_size = 512ULL * MB;
         } else if (server_mem <= 16.0) {
-          innodb_log_file_size = 1024ULL * MB;
+          srv_log_file_size = 1024ULL * MB;
         } else {
-          innodb_log_file_size = 2048ULL * MB;
+          srv_log_file_size = 2048ULL * MB;
         }
       } else {
-        ib::warn() << "Option innodb_dedicated_server"
-                      " is ignored for innodb_log_file_size"
-                      " because innodb_log_file_size="
-                   << innodb_log_file_size << " is specified explicitly.";
+        ib::warn(ER_IB_MSG_535)
+            << "Option innodb_dedicated_server is ignored for "
+            << "innodb_log_file_size"
+            << " because innodb_log_file_size=" << srv_log_file_size
+            << " is specified explicitly.";
       }
     }
   }
   release_sysvar_source_service();
-
-  srv_log_file_size = innodb_log_file_size;
 
   if (srv_n_log_files * srv_log_file_size >=
       512ULL * 1024ULL * 1024ULL * 1024ULL) {
@@ -3773,21 +3792,20 @@ static int innodb_init_params() {
     bytes, then we have a limit of 512 GB. If that limit is to
     be raised, then log_block_convert_lsn_to_no() must be
     modified. */
-    ib::error() << "Combined size of log files must be < 512 GB";
+    ib::error(ER_IB_MSG_536) << "Combined size of log files must be < 512 GB";
 
     DBUG_RETURN(HA_ERR_INITIALIZATION);
   }
 
-  srv_log_file_size /= UNIV_PAGE_SIZE;
-
-  if (srv_n_log_files * srv_log_file_size >= PAGE_NO_MAX) {
+  if (srv_n_log_files * srv_log_file_size / UNIV_PAGE_SIZE >= PAGE_NO_MAX) {
     /* fil_io() is used for IO to log files and it takes page_id_t
     as an argument which uses page_no_t. So any page number must
     be < PAGE_NO_MAX. This means that a redo log file size is
     limited to PAGE_NO_MAX * UNIV_PAGE_SIZE which is 64 TB with
     16k page size. */
-    ib::error() << "Combined size of log files must be < "
-                << PAGE_NO_MAX / 1073741824 * UNIV_PAGE_SIZE << " GB";
+    ib::error(ER_IB_MSG_537)
+        << "Combined size of log files must be < "
+        << PAGE_NO_MAX / 1073741824 * UNIV_PAGE_SIZE << " GB";
 
     DBUG_RETURN(HA_ERR_INITIALIZATION);
   }
@@ -3818,9 +3836,10 @@ static int innodb_init_params() {
   }
 
   if (UNIV_PAGE_SIZE_DEF != srv_page_size) {
-    ib::warn() << "innodb-page-size has been changed from the"
-                  " default value "
-               << UNIV_PAGE_SIZE_DEF << " to " << srv_page_size << ".";
+    ib::warn(ER_IB_MSG_538)
+        << "innodb-page-size has been changed from the"
+           " default value "
+        << UNIV_PAGE_SIZE_DEF << " to " << srv_page_size << ".";
   }
 
   if (srv_log_write_ahead_size > srv_page_size) {
@@ -3840,7 +3859,7 @@ static int innodb_init_params() {
 
   srv_use_doublewrite_buf = (ibool)innobase_use_doublewrite;
 
-  innodb_log_checksums_func_update(innodb_log_checksums);
+  innodb_log_checksums_func_update(srv_log_checksums);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
   if ((os_use_large_pages = opt_large_pages)) {
@@ -3858,8 +3877,8 @@ static int innodb_init_params() {
   }
 
   if (innobase_open_files > (long)open_files_limit) {
-    ib::warn() << "innodb_open_files should not be greater"
-                  " than the open_files_limit.\n";
+    ib::warn(ER_IB_MSG_539) << "innodb_open_files should not be greater"
+                               " than the open_files_limit.\n";
     if (innobase_open_files > (long)table_cache_size) {
       innobase_open_files = table_cache_size;
     }
@@ -3867,8 +3886,6 @@ static int innodb_init_params() {
 
   srv_max_n_open_files = (ulint)innobase_open_files;
   srv_innodb_status = (ibool)innobase_create_status_file;
-
-  srv_print_verbose_log = 1;
 
   /* Round up fts_sort_pll_degree to nearest power of 2 number */
   for (num_pll_degree = 1; num_pll_degree < fts_sort_pll_degree;
@@ -3893,7 +3910,7 @@ static int innodb_init_params() {
       srv_read_only_mode || srv_force_recovery > SRV_FORCE_NO_TRX_UNDO;
 
   if (srv_read_only_mode) {
-    ib::info() << "Started in read only mode";
+    ib::info(ER_IB_MSG_540) << "Started in read only mode";
 
     /* There is no write except to intrinsic table and so turn-off
     doublewrite mechanism completely. */
@@ -3902,7 +3919,7 @@ static int innodb_init_params() {
 
 #ifdef LINUX_NATIVE_AIO
   if (srv_use_native_aio) {
-    ib::info() << "Using Linux native AIO";
+    ib::info(ER_IB_MSG_541) << "Using Linux native AIO";
   }
 #elif !defined _WIN32
   /* Currently native AIO is supported only on windows and linux
@@ -3918,17 +3935,19 @@ static int innodb_init_params() {
       os_is_o_direct_supported()) {
     static const char *variable_name = "innodb_flush_method";
     enum enum_variable_source source;
+
     if (!sysvar_source_svc->get(variable_name, strlen(variable_name),
                                 &source)) {
       /* If innodb_flush_method is not specified explicitly */
       if (source == COMPILED) {
         innodb_flush_method = static_cast<ulong>(SRV_UNIX_O_DIRECT_NO_FSYNC);
       } else {
-        ib::warn() << "Option innodb_dedicated_server"
-                      " is ignored for innodb_flush_method"
-                      "because innodb_flush_method="
-                   << innodb_flush_method_names[innodb_flush_method]
-                   << " is specified explicitly.";
+        ib::warn(ER_IB_MSG_542)
+            << "Option innodb_dedicated_server"
+               " is ignored for innodb_flush_method"
+               "because innodb_flush_method="
+            << innodb_flush_method_names[innodb_flush_method]
+            << " is specified explicitly.";
       }
     }
   }
@@ -4010,9 +4029,9 @@ static int innodb_init_params() {
   run with --help --verbose options. */
   ulint srv_buf_pool_size_org = 0;
   if (opt_help && opt_verbose && srv_buf_pool_size > srv_buf_pool_def_size) {
-    ib::warn() << "Setting innodb_buf_pool_size to " << srv_buf_pool_def_size
-               << " for fast startup, "
-               << "when running with --help --verbose options.";
+    ib::warn(ER_IB_MSG_543) << "Setting innodb_buf_pool_size to "
+                            << srv_buf_pool_def_size << " for fast startup, "
+                            << "when running with --help --verbose options.";
     srv_buf_pool_size_org = srv_buf_pool_size;
     srv_buf_pool_size = srv_buf_pool_def_size;
   }
@@ -4030,8 +4049,6 @@ static int innodb_init_params() {
     is number of buffer pool instances. */
     srv_n_page_cleaners = srv_buf_pool_instances;
   }
-
-  srv_log_buffer_size = innodb_log_buffer_size / UNIV_PAGE_SIZE;
 
   srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
 
@@ -4223,11 +4240,11 @@ static int innodb_init(void *p) {
 
 #ifdef UNIV_DEBUG
   if (mysql_pfs_key_t::get_count() != global_count) {
-    ib::error() << "You have created new InnoDB PFS key(s) but "
-                << mysql_pfs_key_t::get_count() - global_count
-                << " key(s) is/are not registered with PFS. Please"
-                << " register the keys in PFS arrays in"
-                << " ha_innodb.cc.";
+    ib::error(ER_IB_MSG_544) << "You have created new InnoDB PFS key(s) but "
+                             << mysql_pfs_key_t::get_count() - global_count
+                             << " key(s) is/are not registered with PFS. Please"
+                             << " register the keys in PFS arrays in"
+                             << " ha_innodb.cc.";
 
     DBUG_RETURN(HA_ERR_INITIALIZATION);
   }
@@ -4243,14 +4260,14 @@ static int innodb_init(void *p) {
   innodb_init_abort(). */
 
   if (!srv_sys_space.parse_params(innobase_data_file_path, true)) {
-    ib::error() << "Unable to parse innodb_data_file_path="
-                << innobase_data_file_path;
+    ib::error(ER_IB_MSG_545)
+        << "Unable to parse innodb_data_file_path=" << innobase_data_file_path;
     DBUG_RETURN(innodb_init_abort());
   }
 
   if (!srv_tmp_space.parse_params(innobase_temp_data_file_path, false)) {
-    ib::error() << "Unable to parse innodb_temp_data_file_path="
-                << innobase_temp_data_file_path;
+    ib::error(ER_IB_MSG_546) << "Unable to parse innodb_temp_data_file_path="
+                             << innobase_temp_data_file_path;
     DBUG_RETURN(innodb_init_abort());
   }
 
@@ -4411,9 +4428,9 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
     srv_start_purge_threads();
 
     while (trx_sys->rseg_history_len != 0) {
-      ib::info() << "Waiting for purge to become empty:"
-                 << " current purge history len is "
-                 << trx_sys->rseg_history_len;
+      ib::info(ER_IB_MSG_547)
+          << "Waiting for purge to become empty:"
+          << " current purge history len is " << trx_sys->rseg_history_len;
       sleep(1);
     }
 
@@ -4819,8 +4836,9 @@ static int innobase_rollback(
 #ifdef UNIV_DEBUG
       char buffer[1024];
 
-      ib::info() << "Forced rollback : "
-                 << thd_security_context(thd, buffer, sizeof(buffer), 512);
+      ib::info(ER_IB_MSG_548)
+          << "Forced rollback : "
+          << thd_security_context(thd, buffer, sizeof(buffer), 512);
 #endif /* UNIV_DEBUG */
       trx->state = TRX_STATE_NOT_STARTED;
     }
@@ -5053,9 +5071,9 @@ static int innobase_close_connection(
       } else {
         log_errlog(WARNING_LEVEL, ER_INNODB_CLOSING_CONNECTION_ROLLS_BACK,
                    trx->undo_no);
-        ut_d(ib::warn() << "trx: " << trx
-                        << " started on: " << innobase_basename(trx->start_file)
-                        << ":" << trx->start_line);
+        ut_d(ib::warn(ER_IB_MSG_549)
+             << "trx: " << trx << " started on: "
+             << innobase_basename(trx->start_file) << ":" << trx->start_line);
         innobase_rollback_trx(trx);
         free_trx = true;
       }
@@ -5446,17 +5464,18 @@ static void test_ut_format_name() {
     ut_a(ret == buf);
 
     if (strcmp(buf, test_data[i].expected) == 0) {
-      ib::info() << "ut_format_name(" << test_data[i].name << ", buf, "
-                 << test_data[i].buf_size
-                 << "),"
-                    " expected "
-                 << test_data[i].expected << ", OK";
+      ib::info(ER_IB_MSG_550) << "ut_format_name(" << test_data[i].name
+                              << ", buf, " << test_data[i].buf_size
+                              << "),"
+                                 " expected "
+                              << test_data[i].expected << ", OK";
     } else {
-      ib::error() << "ut_format_name(" << test_data[i].name << ", buf, "
-                  << test_data[i].buf_size
-                  << "),"
-                     " expected "
-                  << test_data[i].expected << ", ERROR: got " << buf;
+      ib::error(ER_IB_MSG_551)
+          << "ut_format_name(" << test_data[i].name << ", buf, "
+          << test_data[i].buf_size
+          << "),"
+             " expected "
+          << test_data[i].expected << ", ERROR: got " << buf;
       ut_error;
     }
   }
@@ -5900,7 +5919,7 @@ void ha_innobase::innobase_initialize_autoinc() {
     updates to the table. */
     auto_inc = 0;
 
-    ib::info() << "Unable to determine the AUTOINC column name";
+    ib::info(ER_IB_MSG_552) << "Unable to determine the AUTOINC column name";
   }
 
   if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -5941,10 +5960,10 @@ void ha_innobase::innobase_initialize_autoinc() {
       err = row_search_max_autoinc(index, col_name, &read_auto_inc);
 
       if (read_auto_inc > 0) {
-        ib::warn() << "Reading max(auto_inc_col) = " << read_auto_inc
-                   << " for table " << index->table->name
-                   << ", because there was an IMPORT"
-                   << " without cfg file.";
+        ib::warn(ER_IB_MSG_553)
+            << "Reading max(auto_inc_col) = " << read_auto_inc << " for table "
+            << index->table->name << ", because there was an IMPORT"
+            << " without cfg file.";
       }
 
     } else {
@@ -5965,22 +5984,22 @@ void ha_innobase::innobase_initialize_autoinc() {
         break;
       }
       case DB_RECORD_NOT_FOUND:
-        ib::error() << "MySQL and InnoDB data dictionaries are"
-                       " out of sync. Unable to find the AUTOINC"
-                       " column "
-                    << col_name
-                    << " in the InnoDB"
-                       " table "
-                    << index->table->name
-                    << ". We set"
-                       " the next AUTOINC column value to 0, in"
-                       " effect disabling the AUTOINC next value"
-                       " generation.";
+        ib::error(ER_IB_MSG_554) << "MySQL and InnoDB data dictionaries are"
+                                    " out of sync. Unable to find the AUTOINC"
+                                    " column "
+                                 << col_name
+                                 << " in the InnoDB"
+                                    " table "
+                                 << index->table->name
+                                 << ". We set"
+                                    " the next AUTOINC column value to 0, in"
+                                    " effect disabling the AUTOINC next value"
+                                    " generation.";
 
-        ib::info() << "You can either set the next AUTOINC"
-                      " value explicitly using ALTER TABLE or fix"
-                      " the data dictionary by recreating the"
-                      " table.";
+        ib::info(ER_IB_MSG_555) << "You can either set the next AUTOINC"
+                                   " value explicitly using ALTER TABLE or fix"
+                                   " the data dictionary by recreating the"
+                                   " table.";
 
         /* This will disable the AUTOINC generation. */
         auto_inc = 0;
@@ -6141,15 +6160,15 @@ int ha_innobase::open(const char *name, int, uint open_flags,
         table->s->fields != dict_table_get_n_tot_u_cols(ib_table)) ||
        (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID) &&
         (table->s->fields != dict_table_get_n_tot_u_cols(ib_table) - 1)))) {
-    ib::warn() << "Table " << norm_name << " contains "
-               << ib_table->get_n_user_cols()
-               << " user"
-                  " defined columns in InnoDB, but "
-               << table->s->fields
-               << " columns in MySQL. Please check"
-                  " INFORMATION_SCHEMA.INNODB_COLUMNS and " REFMAN
-                  "innodb-troubleshooting.html for how to resolve the"
-                  " issue.";
+    ib::warn(ER_IB_MSG_556)
+        << "Table " << norm_name << " contains " << ib_table->get_n_user_cols()
+        << " user"
+           " defined columns in InnoDB, but "
+        << table->s->fields
+        << " columns in MySQL. Please check"
+           " INFORMATION_SCHEMA.INNODB_COLUMNS and " REFMAN
+           "innodb-troubleshooting.html for how to resolve the"
+           " issue.";
 
     /* Mark this table as corrupted, so the drop table
     or force recovery can still use it, but not others. */
@@ -6181,11 +6200,12 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       log_errlog(ERROR_LEVEL, ER_INNODB_CANT_OPEN_TABLE, norm_name);
     }
 
-    ib::warn() << "Cannot open table " << norm_name
-               << " from the"
-                  " internal data dictionary of InnoDB though the .frm"
-                  " file for the table exists. "
-               << TROUBLESHOOTING_MSG;
+    ib::warn(ER_IB_MSG_557)
+        << "Cannot open table " << norm_name
+        << " from the"
+           " internal data dictionary of InnoDB though the .frm"
+           " file for the table exists. "
+        << TROUBLESHOOTING_MSG;
 
     free_share(m_share);
     set_my_errno(ENOENT);
@@ -7527,11 +7547,11 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
     DBUG_RETURN(HA_ERR_TABLE_READONLY);
   } else if (m_prebuilt->trx != trx) {
-    ib::error() << "The transaction object for the table handle is"
-                   " at "
-                << static_cast<const void *>(m_prebuilt->trx)
-                << ", but for the current thread it is at "
-                << static_cast<const void *>(trx);
+    ib::error(ER_IB_MSG_558) << "The transaction object for the table handle is"
+                                " at "
+                             << static_cast<const void *>(m_prebuilt->trx)
+                             << ", but for the current thread it is at "
+                             << static_cast<const void *>(trx);
 
     fputs("InnoDB: Dump of 200 bytes around m_prebuilt: ", stderr);
     ut_print_buf(stderr, ((const byte *)m_prebuilt) - 100, 200);
@@ -8021,27 +8041,28 @@ static dberr_t calc_row_difference(
       Doc ID must also be updated. Otherwise, return
       error */
       if (changes_fts_column && !changes_fts_doc_col) {
-        ib::warn() << "A new Doc ID must be supplied"
-                      " while updating FTS indexed columns.";
+        ib::warn(ER_IB_MSG_559) << "A new Doc ID must be supplied"
+                                   " while updating FTS indexed columns.";
         return (DB_FTS_INVALID_DOCID);
       }
 
       /* Doc ID must monotonically increase */
       ut_ad(innodb_table->fts->cache);
       if (doc_id < prebuilt->table->fts->cache->next_doc_id) {
-        ib::warn() << "FTS Doc ID must be larger than "
-                   << innodb_table->fts->cache->next_doc_id - 1 << " for table "
-                   << innodb_table->name;
+        ib::warn(ER_IB_MSG_560) << "FTS Doc ID must be larger than "
+                                << innodb_table->fts->cache->next_doc_id - 1
+                                << " for table " << innodb_table->name;
 
         return (DB_FTS_INVALID_DOCID);
       } else if ((doc_id - prebuilt->table->fts->cache->next_doc_id) >=
                  FTS_DOC_ID_MAX_STEP) {
-        ib::warn() << "Doc ID " << doc_id
-                   << " is too"
-                      " big. Its difference with largest"
-                      " Doc ID used "
-                   << prebuilt->table->fts->cache->next_doc_id - 1
-                   << " cannot exceed or equal to " << FTS_DOC_ID_MAX_STEP;
+        ib::warn(ER_IB_MSG_561)
+            << "Doc ID " << doc_id
+            << " is too"
+               " big. Its difference with largest"
+               " Doc ID used "
+            << prebuilt->table->fts->cache->next_doc_id - 1
+            << " cannot exceed or equal to " << FTS_DOC_ID_MAX_STEP;
       }
 
       trx->fts_next_doc_id = doc_id;
@@ -9091,15 +9112,15 @@ FT_INFO *ha_innobase::ft_init_ext(uint flags,  /* in: */
 
   if (fts_enable_diag_print) {
     {
-      ib::info out;
+      ib::info out(ER_IB_MSG_1220);
       out << "keynr=" << keynr << ", '";
       out.write(key->ptr(), key->length());
     }
 
     if (flags & FT_BOOL) {
-      ib::info() << "BOOL search";
+      ib::info(ER_IB_MSG_562) << "BOOL search";
     } else {
-      ib::info() << "NL search";
+      ib::info(ER_IB_MSG_563) << "NL search";
     }
   }
 
@@ -9395,7 +9416,7 @@ next_record:
  */
 
 void ha_innobase::ft_end() {
-  ib::info() << "ft_end()";
+  ib::info(ER_IB_MSG_564) << "ft_end()";
 
   rnd_end();
 }
@@ -10007,7 +10028,7 @@ inline int create_index(
     size_t geom_col_idx;
     for (geom_col_idx = 0; geom_col_idx < dd_index->elements().size();
          ++geom_col_idx) {
-      if (!dd_index->elements()[geom_col_idx]->column().is_hidden()) break;
+      if (!dd_index->elements()[geom_col_idx]->column().is_se_hidden()) break;
     }
     const dd::Column &col = dd_index->elements()[geom_col_idx]->column();
     has_srid = col.srs_id().has_value();
@@ -10244,8 +10265,9 @@ bool create_table_info_t::create_option_data_directory_is_valid() {
                  "InnoDB: DATA DIRECTORY is not in a valid location."
                  " It is not found in innodb_directories.");
 
-    ib::error() << "Cannot create table " << m_table_name << " in directory "
-                << file_path << " because it is not in a valid location.";
+    ib::error(ER_IB_MSG_565)
+        << "Cannot create table " << m_table_name << " in directory "
+        << file_path << " because it is not in a valid location.";
 
     is_valid = false;
   }
@@ -10333,6 +10355,24 @@ bool innobase_is_valid_tablespace_name(bool tablespace_ddl, const char *name) {
 @return true if valid, false if not. */
 bool create_table_info_t::create_option_tablespace_is_valid() {
   if (!m_use_shared_space) {
+    /* Do not allow creation of a temp table
+    with innodb_file_per_table option. */
+    if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+        tablespace_is_file_per_table(m_create_info)) {
+      if (THDVAR(m_thd, strict_mode)) {
+        /* Return error if STRICT mode is enabled. */
+        my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+                        "InnoDB: innodb_file_per_table option"
+                        " not supported for temporary tables.",
+                        MYF(0));
+        return (false);
+      }
+      /* STRICT mode turned off. Proceed with the execution with a warning. */
+      push_warning_printf(
+          m_thd, Sql_condition::SL_WARNING, ER_ILLEGAL_HA_CREATE_OPTION,
+          "InnoDB: innodb_file_per_table option ignored"
+          " while creating temporary table with INNODB_STRICT_MODE=OFF.");
+    }
     return (true);
   }
 
@@ -12230,7 +12270,7 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
     error = dict_stats_rename_table(norm_from, norm_to, errstr, sizeof(errstr));
 
     if (error != DB_SUCCESS) {
-      ib::error() << errstr;
+      ib::error(ER_IB_MSG_566) << errstr;
 
       push_warning(thd, Sql_condition::SL_WARNING, ER_LOCK_WAIT_TIMEOUT,
                    errstr);
@@ -12385,7 +12425,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
     } else {
       /* Add hidden FTS_DOC_ID column */
       dd::Column *col = dd_table->add_column();
-      col->set_hidden(true);
+      col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
       col->set_name(FTS_DOC_ID_COL_NAME);
       col->set_type(dd::enum_column_types::LONGLONG);
       col->set_nullable(false);
@@ -12468,7 +12508,7 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
 
   for (const dd::Column *c :
        const_cast<const dd::Table *>(dd_table)->columns()) {
-    if (c->is_hidden() || c->is_virtual()) {
+    if (c->is_se_hidden() || c->is_virtual()) {
       continue;
     }
 
@@ -12675,10 +12715,11 @@ int ha_innobase::discard_or_import_tablespace(bool discard,
                                            m_prebuilt->trx);
 
   } else if (!dict_table->ibd_file_missing) {
-    ib::error() << "Unable to import tablespace " << dict_table->name
-                << " because it already"
-                   " exists.  Please DISCARD the tablespace"
-                   " before IMPORT.";
+    ib::error(ER_IB_MSG_567)
+        << "Unable to import tablespace " << dict_table->name
+        << " because it already"
+           " exists.  Please DISCARD the tablespace"
+           " before IMPORT.";
     ib_senderrf(m_prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
                 ER_TABLESPACE_EXISTS, dict_table->name.m_name);
 
@@ -13077,9 +13118,9 @@ static int validate_create_tablespace_info(THD *thd,
   But for InnoDB datafiles, we always assume it is a directory
   separator and convert these to '/' */
   if (strchr(filepath, '\\') != nullptr) {
-    ib::warn() << "Converting backslash to forward slash in"
-                  " ADD DATAFILE "
-               << filepath.path();
+    ib::warn(ER_IB_MSG_568) << "Converting backslash to forward slash in"
+                               " ADD DATAFILE "
+                            << filepath.path();
   }
 #endif /* _WIN32 */
 
@@ -13924,8 +13965,8 @@ static ulonglong innobase_peek_autoinc(dict_table_t *innodb_table,
   auto_inc = dict_table_autoinc_read(innodb_table);
 
   if (auto_inc == 0 && print_note) {
-    ib::info() << "AUTOINC next value generation is disabled for "
-               << innodb_table->name;
+    ib::info(ER_IB_MSG_569) << "AUTOINC next value generation is disabled for "
+                            << innodb_table->name;
   }
 
   dict_table_autoinc_unlock(innodb_table);
@@ -14712,16 +14753,17 @@ static bool innobase_get_tablespace_statistics(
     } else if (space->files.size() == 1) {
       file = &f;
 
-      ib::info() << "Tablespace '" << tablespace_name << "'"
-                 << " DD filename '" << name << "' doesn't "
-                 << " match the InnoDB filename '" << f.name << "'";
+      ib::info(ER_IB_MSG_570)
+          << "Tablespace '" << tablespace_name << "'"
+          << " DD filename '" << name << "' doesn't "
+          << " match the InnoDB filename '" << f.name << "'";
     }
   }
 
   if (file == nullptr) {
-    ib::warn() << "Tablespace '" << tablespace_name << "'"
-               << " filename is unknown. Use --innodb-directories"
-               << " to locate of the file.";
+    ib::warn(ER_IB_MSG_571) << "Tablespace '" << tablespace_name << "'"
+                            << " filename is unknown. Use --innodb-directories"
+                            << " to locate of the file.";
 
     my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
 
@@ -15221,10 +15263,9 @@ static FOREIGN_KEY_INFO *get_foreign_key_info(
                               true, DICT_ERR_IGNORE_NONE);
 
     if (ref_table == NULL) {
-      ib::info() << "Foreign Key referenced table "
-                 << foreign->referenced_table_name
-                 << " not found for foreign table "
-                 << foreign->foreign_table_name;
+      ib::info(ER_IB_MSG_572)
+          << "Foreign Key referenced table " << foreign->referenced_table_name
+          << " not found for foreign table " << foreign->foreign_table_name;
     } else {
       dd_table_close(ref_table, thd, &mdl, true);
     }
@@ -16122,7 +16163,7 @@ static bool innobase_lock_hton_log(handlerton *hton) {
   DBUG_ENTER("innodb_lock_hton_log");
   DBUG_ASSERT(hton == innodb_hton_ptr);
 
-  log_lock();
+  log_position_lock(*log_sys);
 
   DBUG_RETURN(ret_val);
 }
@@ -16136,7 +16177,7 @@ static bool innobase_unlock_hton_log(handlerton *hton) {
   DBUG_ENTER("innodb_unlock_hton_log");
   DBUG_ASSERT(hton == innodb_hton_ptr);
 
-  log_unlock();
+  log_position_unlock(*log_sys);
 
   DBUG_RETURN(ret_val);
 }
@@ -16153,7 +16194,7 @@ static bool innobase_collect_hton_log_info(handlerton *hton, Json_dom *json) {
   DBUG_ENTER("innodb_collect_hton_log_info");
   DBUG_ASSERT(hton == innodb_hton_ptr);
 
-  log_collect_lsn_info(&lsn, &lsn_checkpoint);
+  log_position_collect_lsn_info(*log_sys, &lsn, &lsn_checkpoint);
 
   Json_object *json_engines = static_cast<Json_object *>(json);
   Json_object json_innodb;
@@ -17437,8 +17478,8 @@ static void innodb_buffer_pool_size_update(THD *thd, SYS_VAR *var,
 
   os_event_set(srv_buf_resize_event);
 
-  ib::info() << export_vars.innodb_buffer_pool_resize_status
-             << " (new size: " << in_val << " bytes)";
+  ib::info(ER_IB_MSG_573) << export_vars.innodb_buffer_pool_resize_status
+                          << " (new size: " << in_val << " bytes)";
 
   *static_cast<longlong *>(var_ptr) = in_val;
 }
@@ -17617,7 +17658,8 @@ static void innodb_save_page_no(THD *thd,         /*!< in: thread handle */
 {
   srv_saved_page_number_debug = *static_cast<const ulong *>(save);
 
-  ib::info() << "Saving InnoDB page number: " << srv_saved_page_number_debug;
+  ib::info(ER_IB_MSG_1257) << "Saving InnoDB page number: "
+                           << srv_saved_page_number_debug;
 }
 
 /** Make the first page of given user tablespace dirty. */
@@ -17652,8 +17694,9 @@ static void innodb_make_page_dirty(
   if (block != NULL) {
     byte *page = block->frame;
 
-    ib::info() << "Dirtying page: "
-               << page_id_t(page_get_space_id(page), page_get_page_no(page));
+    ib::info(ER_IB_MSG_574)
+        << "Dirtying page: "
+        << page_id_t(page_get_space_id(page), page_get_page_no(page));
 
     mlog_write_ulint(page + FIL_PAGE_TYPE, fil_page_get_type(page), MLOG_2BYTES,
                      &mtr);
@@ -17895,6 +17938,10 @@ static int innodb_monitor_validate(
   ut_a(value != NULL);
 
   name = value->val_str(value, buff, &len);
+
+  if (name == nullptr) {
+    return (1);
+  }
 
   /* Check if the value is a valid string. */
   size_t valid_len;
@@ -18207,19 +18254,20 @@ static void innodb_undo_tablespaces_update(THD *thd, SYS_VAR *var,
   }
 
   if (srv_read_only_mode) {
-    ib::warn() << "Cannot set innodb_undo_tablespaces to " << target
-               << " when in read-only mode.";
+    ib::warn(ER_IB_MSG_575) << "Cannot set innodb_undo_tablespaces to "
+                            << target << " when in read-only mode.";
     return;
   }
 
   if (srv_force_recovery > 0) {
-    ib::warn() << "Cannot set innodb_undo_tablespaces to " << target
-               << " when in innodb_force_recovery > 0.";
+    ib::warn(ER_IB_MSG_576) << "Cannot set innodb_undo_tablespaces to "
+                            << target << " when in innodb_force_recovery > 0.";
     return;
   }
 
   if (srv_undo_tablespaces_update(target) != DB_SUCCESS) {
-    ib::warn() << "Failed to set innodb_undo_tablespaces to " << target << ".";
+    ib::warn(ER_IB_MSG_577)
+        << "Failed to set innodb_undo_tablespaces to " << target << ".";
     return;
   }
 
@@ -18242,19 +18290,20 @@ static void innodb_rollback_segments_update(THD *thd, SYS_VAR *var,
   }
 
   if (srv_read_only_mode) {
-    ib::warn() << "Cannot set innodb_rollback_segments to " << target
-               << " when in read-only mode";
+    ib::warn(ER_IB_MSG_578) << "Cannot set innodb_rollback_segments to "
+                            << target << " when in read-only mode";
     return;
   }
 
   if (srv_force_recovery > 0) {
-    ib::warn() << "Cannot set innodb_rollback_segments to " << target
-               << " when in innodb_force_recovery > 0";
+    ib::warn(ER_IB_MSG_579) << "Cannot set innodb_rollback_segments to "
+                            << target << " when in innodb_force_recovery > 0";
     return;
   }
 
   if (!trx_rseg_adjust_rollback_segments(srv_undo_tablespaces, target)) {
-    ib::warn() << "Failed to set innodb_rollback_segments to " << target;
+    ib::warn(ER_IB_MSG_580)
+        << "Failed to set innodb_rollback_segments to " << target;
     return;
   }
 
@@ -18462,16 +18511,44 @@ static void checkpoint_now_set(THD *thd /*!< in: thread handle */
                                                  check function */
 {
   if (*(bool *)save && !srv_checkpoint_disabled) {
-    while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
-      log_make_checkpoint_at(LSN_MAX, TRUE);
+    /* Note that it's defined only when UNIV_DEBUG is defined.
+    It seems to be very risky feature. Fortunately it is used
+    only inside mtr tests. */
 
-      fil_flush_file_spaces(to_int(FIL_TYPE_LOG));
+    while (log_make_latest_checkpoint(*log_sys)) {
+      /* Creating checkpoint could itself result in
+      new log records. Hence we repeat until:
+              last_checkpoint_lsn = log_get_lsn(). */
     }
 
-    dberr_t err = fil_write_flushed_lsn(log_sys->lsn);
+    dberr_t err = fil_write_flushed_lsn(log_sys->last_checkpoint_lsn);
 
     ut_a(err == DB_SUCCESS);
   }
+}
+
+/** Updates srv_checkpoint_disabled - allowing or disallowing checkpoints.
+This is called when user invokes SET GLOBAL innodb_checkpoints_disabled=0/1.
+After checkpoints are disabled, there will be no write of a checkpoint,
+until checkpoints are re-enabled (log_sys->checkpointer_mutex protects that)
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+static void checkpoint_disabled_update(THD *thd, SYS_VAR *var, void *var_ptr,
+                                       const void *save) {
+  /* We need to acquire the checkpointer_mutex, to ensure that
+  after we have finished this function, there will be no new
+  checkpoint written (e.g. in case there is currently curring
+  checkpoint). When checkpoint is being written, the same mutex
+  is acquired, current value of srv_checkpoint_disabled is checked,
+  and if checkpoints are disabled, we cancel writing the checkpoint. */
+
+  log_checkpointer_mutex_enter(*log_sys);
+
+  srv_checkpoint_disabled = *static_cast<const bool *>(save);
+
+  log_checkpointer_mutex_exit(*log_sys);
 }
 
 /** Force a dirty pages flush now. */
@@ -18609,11 +18686,14 @@ static void innodb_log_write_ahead_size_update(
     const void *save) /*!< in: immediate result
                       from check function */
 {
-  ulong val = OS_FILE_LOG_BLOCK_SIZE;
+  ulong val = INNODB_LOG_WRITE_AHEAD_SIZE_MIN;
   ulong in_val = *static_cast<const ulong *>(save);
 
   while (val < in_val) {
     val = val * 2;
+  }
+  if (val > INNODB_LOG_WRITE_AHEAD_SIZE_MAX) {
+    val = INNODB_LOG_WRITE_AHEAD_SIZE_MAX;
   }
 
   if (val > UNIV_PAGE_SIZE) {
@@ -18621,21 +18701,79 @@ static void innodb_log_write_ahead_size_update(
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "innodb_log_write_ahead_size cannot"
                         " be set higher than innodb_page_size.");
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                        "Setting innodb_log_write_ahead_size"
-                        " to %lu",
-                        UNIV_PAGE_SIZE);
   } else if (val != in_val) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "innodb_log_write_ahead_size should be"
-                        " set 2^n value and larger than 512.");
+                        " set to power of 2, in range [%lu,%lu]",
+                        INNODB_LOG_WRITE_AHEAD_SIZE_MIN,
+                        INNODB_LOG_WRITE_AHEAD_SIZE_MAX);
+  }
+
+  if (val != in_val) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "Setting innodb_log_write_ahead_size"
                         " to %lu",
                         val);
   }
 
-  srv_log_write_ahead_size = val;
+  log_write_ahead_resize(*log_sys, val);
+}
+
+/** Update the system variable innodb_log_buffer_size using the "saved"
+value. This function is registered as a callback with MySQL.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static void innodb_log_buffer_size_update(THD *thd, SYS_VAR *var, void *var_ptr,
+                                          const void *save) {
+  const ulong val = *static_cast<const ulong *>(save);
+
+  ib::info(ER_IB_MSG_1255) << "Setting innodb_log_buffer_size to " << val;
+
+  if (!log_buffer_resize(*log_sys, val)) {
+    /* This could happen if we tried to decrease size of the
+    log buffer but we had more data in the log buffer than
+    the new size. We could have asked for writing the data to
+    disk, after x-locking the log buffer, but this could lead
+    to deadlock if there was no space in log files and checkpoint
+    was required (because checkpoint writes new redo records
+    when persisting dd table buffer). That's why we don't ask
+    for writing to disk. */
+
+    ib::error(ER_IB_MSG_1256) << "Failed to change size of the log buffer."
+                                 " Try flushing the log buffer first.";
+  }
+}
+
+/** Update the system variable innodb_thread_concurrency using the "saved"
+value. This function is registered as a callback with MySQL.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *var,
+                                             void *var_ptr, const void *save) {
+  log_t &log = *log_sys;
+
+  log_checkpointer_mutex_enter(log);
+  log_writer_mutex_enter(log);
+
+  srv_thread_concurrency = *static_cast<const ulong *>(save);
+
+  if (!log_calc_max_ages(*log_sys)) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "Current innodb_thread_concurrency"
+                        " is too big for safety of log files."
+                        " Consider decreasing it or increase"
+                        " number of log files.");
+  } else {
+    ib::info(ER_IB_MSG_1270)
+        << "Set innodb_thread_concurrency to " << srv_thread_concurrency;
+  }
+
+  log_writer_mutex_exit(log);
+  log_checkpointer_mutex_exit(log);
 }
 
 /** Update innodb_status_output or innodb_status_output_locks,
@@ -18660,9 +18798,7 @@ static void innodb_log_checksums_update(THD *thd, SYS_VAR *var, void *var_ptr,
   bool check = *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
 
   /* Make sure we are the only log user */
-  mutex_enter(&log_sys->mutex);
   innodb_log_checksums_func_update(check);
-  mutex_exit(&log_sys->mutex);
 }
 
 static SHOW_VAR innodb_status_variables_export[] = {
@@ -18699,7 +18835,7 @@ static MYSQL_SYSVAR_ENUM(
     &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(
-    log_checksums, innodb_log_checksums, PLUGIN_VAR_RQCMDARG,
+    log_checksums, srv_log_checksums, PLUGIN_VAR_RQCMDARG,
     "Whether to compute and require checksums for InnoDB redo log blocks", NULL,
     innodb_log_checksums_update, TRUE);
 
@@ -18752,8 +18888,8 @@ static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
                          checkpoint_now_set, FALSE);
 
 static MYSQL_SYSVAR_BOOL(checkpoint_disabled, srv_checkpoint_disabled,
-                         PLUGIN_VAR_OPCMDARG, "Disable checkpoints", NULL, NULL,
-                         FALSE);
+                         PLUGIN_VAR_OPCMDARG, "Disable checkpoints", NULL,
+                         checkpoint_disabled_update, FALSE);
 
 static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
                          PLUGIN_VAR_OPCMDARG, "Force dirty page flush now",
@@ -18814,7 +18950,7 @@ static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
                           PLUGIN_VAR_OPCMDARG,
                           "Set to 0 (write and flush once per second),"
-                          " 1 (write and flush at each commit)"
+                          " 1 (write and flush at each commit),"
                           " or 2 (write at commit, flush once per second).",
                           NULL, NULL, 1, 0, 2, 0);
 
@@ -18891,7 +19027,7 @@ static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
 
 static MYSQL_SYSVAR_BOOL(
     status_file, innobase_create_status_file,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOSYSVAR,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_EXPERIMENTAL,
     "Enable SHOW ENGINE INNODB STATUS output in the innodb_status.<pid> file",
     NULL, NULL, FALSE);
 
@@ -19218,31 +19354,191 @@ static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
                           NULL, UNIV_PAGE_SIZE_DEF, UNIV_PAGE_SIZE_MIN,
                           UNIV_PAGE_SIZE_MAX, 0);
 
-static MYSQL_SYSVAR_ULONG(log_buffer_size, innodb_log_buffer_size,
-                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                          "The size of the buffer which InnoDB uses to write "
-                          "log to the log files on disk.",
-                          NULL, NULL, 16 * 1024 * 1024L, 256 * 1024L, ULONG_MAX,
-                          1024);
+static MYSQL_SYSVAR_ULONG(
+    log_buffer_size, srv_log_buffer_size, PLUGIN_VAR_RQCMDARG,
+    "The size of the buffer which InnoDB uses to write log to the log files"
+    " on disk.",
+    NULL, innodb_log_buffer_size_update, INNODB_LOG_BUFFER_SIZE_DEFAULT,
+    INNODB_LOG_BUFFER_SIZE_MIN, INNODB_LOG_BUFFER_SIZE_MAX, 1024);
 
-static MYSQL_SYSVAR_ULONGLONG(log_file_size, innodb_log_file_size,
+static MYSQL_SYSVAR_ULONGLONG(log_file_size, srv_log_file_size,
                               PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                              "Size of each log file in a log group.", NULL,
-                              NULL, 48 * 1024 * 1024L, 4 * 1024 * 1024L,
-                              ULLONG_MAX, 1024 * 1024L);
-
-static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
-                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                          "Number of log files in the log group. InnoDB writes "
-                          "to the files in a circular fashion.",
-                          NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
+                              "Size of each log file (in bytes).", NULL, NULL,
+                              48 * 1024 * 1024L, 4 * 1024 * 1024L, ULLONG_MAX,
+                              1024 * 1024L);
 
 static MYSQL_SYSVAR_ULONG(
-    log_write_ahead_size, srv_log_write_ahead_size, PLUGIN_VAR_RQCMDARG,
-    "Redo log write ahead unit size to avoid read-on-write,"
-    " it should match the OS cache block IO size",
-    NULL, innodb_log_write_ahead_size_update, 8 * 1024L, OS_FILE_LOG_BLOCK_SIZE,
-    UNIV_PAGE_SIZE_DEF, OS_FILE_LOG_BLOCK_SIZE);
+    log_files_in_group, srv_n_log_files,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Number of log files (when multiplied by innodb_log_file_size gives total "
+    "size"
+    " of log files). InnoDB writes to files in a circular fashion.",
+    NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
+                          PLUGIN_VAR_RQCMDARG,
+                          "Log write ahead unit size to avoid read-on-write,"
+                          " it should match the OS cache block IO size.",
+                          NULL, innodb_log_write_ahead_size_update,
+                          INNODB_LOG_WRITE_AHEAD_SIZE_DEFAULT,
+                          INNODB_LOG_WRITE_AHEAD_SIZE_MIN,
+                          INNODB_LOG_WRITE_AHEAD_SIZE_MAX,
+                          OS_FILE_LOG_BLOCK_SIZE);
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_events, srv_log_write_events,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of events used for notifications about log write.", NULL, NULL,
+    INNODB_LOG_EVENTS_DEFAULT, INNODB_LOG_EVENTS_MIN, INNODB_LOG_EVENTS_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flush_events, srv_log_flush_events,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of events used for notifications about log flush.", NULL, NULL,
+    INNODB_LOG_EVENTS_DEFAULT, INNODB_LOG_EVENTS_MIN, INNODB_LOG_EVENTS_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_recent_written_size, srv_log_recent_written_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
+    "Size of a small buffer, which allows concurrent writes to log buffer.",
+    NULL, NULL, INNODB_LOG_RECENT_WRITTEN_SIZE_DEFAULT,
+    INNODB_LOG_RECENT_WRITTEN_SIZE_MIN, INNODB_LOG_RECENT_WRITTEN_SIZE_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_recent_closed_size, srv_log_recent_closed_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
+    "Size of a small buffer, which allows to break requirement for total order"
+    " of dirty pages, when they are added to flush lists.",
+    NULL, NULL, INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT,
+    INNODB_LOG_RECENT_CLOSED_SIZE_MIN, INNODB_LOG_RECENT_CLOSED_SIZE_MAX, 0);
+
+static MYSQL_SYSVAR_UINT(
+    log_spin_cpu_abs_lwm, srv_log_spin_cpu_abs_lwm, PLUGIN_VAR_RQCMDARG,
+    "Minimum value of cpu time for which spin-delay is used."
+    " Expressed in percentage of single cpu core.",
+    NULL, NULL, INNODB_LOG_SPIN_CPU_ABS_LWM_DEFAULT, 0, UINT_MAX, 0);
+
+static MYSQL_SYSVAR_UINT(
+    log_spin_cpu_pct_hwm, srv_log_spin_cpu_pct_hwm, PLUGIN_VAR_RQCMDARG,
+    "Maximum value of cpu time for which spin-delay is used."
+    " Expressed in percentage of all cpu cores.",
+    NULL, NULL, INNODB_LOG_SPIN_CPU_PCT_HWM_DEFAULT, 0, 100, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_write_spin_delay, srv_log_wait_for_write_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, when spinning and waiting for log buffer"
+    " written up to given LSN, before we fallback to loop with sleeps."
+    " This is not used when user thread has to wait for log flushed to disk.",
+    NULL, NULL, INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_write_timeout, srv_log_wait_for_write_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Timeout used when waiting for redo write (microseconds).", NULL, NULL,
+    INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_flush_spin_delay, srv_log_wait_for_flush_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, when spinning and waiting for log flushed.",
+    NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_flush_spin_hwm, srv_log_wait_for_flush_spin_hwm,
+    PLUGIN_VAR_RQCMDARG,
+    "Maximum value of average log flush time for which spin-delay is used."
+    " When flushing takes longer, user threads no longer spin when waiting for"
+    "flushed redo. Expressed in microseconds.",
+    NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_HWM_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_flush_timeout, srv_log_wait_for_flush_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Timeout used when waiting for redo flush (microseconds).", NULL, NULL,
+    INNODB_LOG_WAIT_FOR_FLUSH_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_max_size, srv_log_write_max_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Size available for next write, which satisfies log_writer thread"
+    " when it follows links in recent written buffer.",
+    NULL, NULL, INNODB_LOG_WRITE_MAX_SIZE_DEFAULT, 0, ULONG_MAX,
+    OS_FILE_LOG_BLOCK_SIZE);
+
+static MYSQL_SYSVAR_ULONG(
+    log_writer_spin_delay, srv_log_writer_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log writer thread is waiting"
+    " for new data to write without sleeping.",
+    NULL, NULL, INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_writer_timeout, srv_log_writer_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Initial timeout used to wait on event in log writer thread (microseconds)",
+    NULL, NULL, INNODB_LOG_WRITER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_checkpoint_every, srv_log_checkpoint_every,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Checkpoints are executed at least every that many milliseconds.", NULL,
+    NULL, INNODB_LOG_CHECKPOINT_EVERY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flusher_spin_delay, srv_log_flusher_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log flusher thread is waiting"
+    " for new data to flush, without sleeping.",
+    NULL, NULL, INNODB_LOG_FLUSHER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(log_flusher_timeout, srv_log_flusher_timeout,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+                          "Initial timeout used to wait on event in log "
+                          "flusher thread (microseconds)",
+                          NULL, NULL, INNODB_LOG_FLUSHER_TIMEOUT_DEFAULT, 0,
+                          ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_notifier_spin_delay, srv_log_write_notifier_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log write notifier thread is waiting"
+    " for advanced write_lsn, without sleeping.",
+    NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_notifier_timeout, srv_log_write_notifier_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Initial timeout used to wait on event in log write notifier thread"
+    " (microseconds)",
+    NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flush_notifier_spin_delay, srv_log_flush_notifier_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log flush notifier thread is waiting"
+    " for advanced flushed_to_disk_lsn, without sleeping.",
+    NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flush_notifier_timeout, srv_log_flush_notifier_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Initial timeout used to wait on event in log flush notifier thread"
+    " (microseconds)",
+    NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_closer_spin_delay, srv_log_closer_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log closer thread is waiting"
+    " for dirty pages added.",
+    NULL, NULL, INNODB_LOG_CLOSER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_closer_timeout, srv_log_closer_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Initial sleep time in log closer thread (microseconds)", NULL, NULL,
+    INNODB_LOG_CLOSER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_UINT(
     old_blocks_pct, innobase_old_blocks_pct, PLUGIN_VAR_RQCMDARG,
@@ -19277,7 +19573,8 @@ static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
                           "environments. Sets the maximum number of threads "
                           "allowed inside InnoDB. Value 0 will disable the "
                           "thread throttling.",
-                          NULL, NULL, 0, 0, 1000, 0);
+                          NULL, innodb_thread_concurrency_update, 0, 0, 1000,
+                          0);
 
 static MYSQL_SYSVAR_ULONG(
     adaptive_max_sleep_delay, srv_adaptive_max_sleep_delay, PLUGIN_VAR_RQCMDARG,
@@ -19673,6 +19970,29 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_files_in_group),
     MYSQL_SYSVAR(log_write_ahead_size),
     MYSQL_SYSVAR(log_group_home_dir),
+    MYSQL_SYSVAR(log_write_events),
+    MYSQL_SYSVAR(log_flush_events),
+    MYSQL_SYSVAR(log_recent_written_size),
+    MYSQL_SYSVAR(log_recent_closed_size),
+    MYSQL_SYSVAR(log_spin_cpu_abs_lwm),
+    MYSQL_SYSVAR(log_spin_cpu_pct_hwm),
+    MYSQL_SYSVAR(log_wait_for_write_spin_delay),
+    MYSQL_SYSVAR(log_wait_for_write_timeout),
+    MYSQL_SYSVAR(log_wait_for_flush_spin_delay),
+    MYSQL_SYSVAR(log_wait_for_flush_spin_hwm),
+    MYSQL_SYSVAR(log_wait_for_flush_timeout),
+    MYSQL_SYSVAR(log_write_max_size),
+    MYSQL_SYSVAR(log_writer_spin_delay),
+    MYSQL_SYSVAR(log_writer_timeout),
+    MYSQL_SYSVAR(log_checkpoint_every),
+    MYSQL_SYSVAR(log_flusher_spin_delay),
+    MYSQL_SYSVAR(log_flusher_timeout),
+    MYSQL_SYSVAR(log_write_notifier_spin_delay),
+    MYSQL_SYSVAR(log_write_notifier_timeout),
+    MYSQL_SYSVAR(log_flush_notifier_spin_delay),
+    MYSQL_SYSVAR(log_flush_notifier_timeout),
+    MYSQL_SYSVAR(log_closer_spin_delay),
+    MYSQL_SYSVAR(log_closer_timeout),
     MYSQL_SYSVAR(log_compressed_pages),
     MYSQL_SYSVAR(max_dirty_pages_pct),
     MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
@@ -19728,6 +20048,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(random_read_ahead),
     MYSQL_SYSVAR(read_ahead_threshold),
     MYSQL_SYSVAR(read_only),
+
     MYSQL_SYSVAR(io_capacity),
     MYSQL_SYSVAR(io_capacity_max),
     MYSQL_SYSVAR(page_cleaners),
@@ -20162,7 +20483,7 @@ dfield_t *innobase_get_computed_value(
 
   if (ret != 0) {
 #ifdef INNODB_VIRTUAL_DEBUG
-    ib::warn() << "Compute virtual column values failed ";
+    ib::warn(ER_IB_MSG_581) << "Compute virtual column values failed ";
     fputs("InnoDB: Cannot compute value for following record ", stderr);
     dtuple_print(stderr, row);
 #endif /* INNODB_VIRTUAL_DEBUG */

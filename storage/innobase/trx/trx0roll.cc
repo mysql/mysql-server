@@ -445,8 +445,8 @@ dberr_t trx_rollback_to_savepoint_for_mysql(
     case TRX_STATE_NOT_STARTED:
     case TRX_STATE_FORCED_ROLLBACK:
 
-      ib::error() << "Transaction has a savepoint " << savep->name
-                  << " though it is not started";
+      ib::error(ER_IB_MSG_1185) << "Transaction has a savepoint " << savep->name
+                                << " though it is not started";
 
       return (DB_ERROR);
 
@@ -596,8 +596,8 @@ static void trx_rollback_active(trx_t *trx) /*!< in/out: transaction */
 
   const trx_id_t trx_id = trx_get_id_for_print(trx);
 
-  ib::info() << "Rolling back trx with id " << trx_id << ", " << rows_to_undo
-             << unit << " rows to undo";
+  ib::info(ER_IB_MSG_1186) << "Rolling back trx with id " << trx_id << ", "
+                           << rows_to_undo << unit << " rows to undo";
 
   que_run_threads(thr);
   ut_a(roll_node->undo_thr != NULL);
@@ -611,7 +611,8 @@ static void trx_rollback_active(trx_t *trx) /*!< in/out: transaction */
 
   ut_a(trx->lock.que_state == TRX_QUE_RUNNING);
 
-  ib::info() << "Rollback of trx with id " << trx_id << " completed";
+  ib::info(ER_IB_MSG_1187) << "Rollback of trx with id " << trx_id
+                           << " completed";
 
   mem_heap_free(heap);
 
@@ -647,7 +648,8 @@ static ibool trx_rollback_resurrected(
   switch (state) {
     case TRX_STATE_COMMITTED_IN_MEMORY:
       trx_sys_mutex_exit();
-      ib::info() << "Cleaning up trx with id " << trx_get_id_for_print(trx);
+      ib::info(ER_IB_MSG_1188)
+          << "Cleaning up trx with id " << trx_get_id_for_print(trx);
 
       trx_cleanup_at_db_startup(trx);
       trx_free_resurrected(trx);
@@ -685,8 +687,8 @@ void trx_rollback_or_clean_recovered(
   ut_ad(!all || trx_sys_need_rollback());
 
   if (all) {
-    ib::info() << "Starting in background the rollback"
-                  " of uncommitted transactions";
+    ib::info(ER_IB_MSG_1189) << "Starting in background the rollback"
+                                " of uncommitted transactions";
   }
 
   /* Note: For XA recovered transactions, we rely on MySQL to
@@ -720,8 +722,8 @@ void trx_rollback_or_clean_recovered(
   } while (trx != NULL);
 
   if (all) {
-    ib::info() << "Rollback of non-prepared transactions"
-                  " completed";
+    ib::info(ER_IB_MSG_1190) << "Rollback of non-prepared transactions"
+                                " completed";
   }
 }
 

@@ -7,21 +7,21 @@ let MYSQLD_DATADIR=`select @@datadir`;
 let PAGE_SIZE=`select @@innodb_page_size`;
 
 -- disable_query_log
-call mtr.add_suppression("InnoDB: innodb_force_recovery is on.");
-call mtr.add_suppression("InnoDB: Tablespace open failed for.*bug16720368");
-call mtr.add_suppression("InnoDB: Failed to find tablespace.*bug16720368");
-call mtr.add_suppression("InnoDB: Header page contains inconsistent data in .*bug16720368.ibd");
-call mtr.add_suppression("InnoDB: Corrupted page.*could not be found in the doublewrite buffer");
-call mtr.add_suppression("InnoDB: Could not find.*test/bug16720368");
-call mtr.add_suppression("InnoDB: .*test.*bug16720368.*missing");
-call mtr.add_suppression("InnoDB: Ignoring tablespace `test/bug16720368` because it could not be opened");
+call mtr.add_suppression("innodb_force_recovery is on.");
+call mtr.add_suppression("Tablespace open failed for.*bug16720368");
+call mtr.add_suppression("Failed to find tablespace.*bug16720368");
+call mtr.add_suppression("Header page contains inconsistent data in .*bug16720368.ibd");
+call mtr.add_suppression("Corrupted page.*could not be found in the doublewrite buffer");
+call mtr.add_suppression("Could not find.*test/bug16720368");
+call mtr.add_suppression(".*test.*bug16720368.*missing");
+call mtr.add_suppression("Ignoring tablespace `test/bug16720368` because it could not be opened");
 call mtr.add_suppression("Found 1 prepared XA transactions");
-call mtr.add_suppression("InnoDB: Operating system error.*in a file operation");
-call mtr.add_suppression("InnoDB: \(The error means\|If you are\)");
+call mtr.add_suppression("Operating system error.*in a file operation");
+call mtr.add_suppression("\(The error means\|If you are\)");
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");
-call mtr.add_suppression("InnoDB: Error number [0-9]* means 'Resource temporarily unavailable'");
+call mtr.add_suppression("Error number [0-9]* means 'Resource temporarily unavailable'");
 call mtr.add_suppression("Skip updating information_schema metadata in InnoDB read-only mode.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Tablespace [0-9]+, name 'test.*bug16720368', unable to open file '.*test.*bug16720368.ibd' - Data structure corruption");
+call mtr.add_suppression(".*MY-\d+.* Tablespace [0-9]+, name 'test.*bug16720368', unable to open file '.*test.*bug16720368.ibd' - Data structure corruption");
 call mtr.add_suppression("Skipped updating resource group metadata in InnoDB read only mode.");
 -- enable_query_log
 
@@ -144,7 +144,7 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 -- error 1,42
 -- exec $MYSQLD_CMD --core-file --console > $SEARCH_FILE 2>&1;
 
-let SEARCH_PATTERN= \[ERROR\].*InnoDB: Could not find any file associated with the tablespace ID:.*;
+let SEARCH_PATTERN= \[ERROR\].*Could not find any file associated with the tablespace ID:.*;
 -- source include/search_pattern.inc
 
 -- move_file $MYSQLD_DATADIR/bug16735660.omg $MYSQLD_DATADIR/test/bug16735660.ibd

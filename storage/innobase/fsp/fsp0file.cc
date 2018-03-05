@@ -95,7 +95,7 @@ dberr_t Datafile::open_or_create(bool read_only_mode) {
 
   if (!success) {
     m_last_os_error = os_file_get_last_error(true);
-    ib::error() << "Cannot open datafile '" << m_filepath << "'";
+    ib::error(ER_IB_MSG_390) << "Cannot open datafile '" << m_filepath << "'";
     return (DB_CANNOT_OPEN_FILE);
   }
 
@@ -130,8 +130,8 @@ dberr_t Datafile::open_read_only(bool strict) {
 
   if (strict) {
     m_last_os_error = os_file_get_last_error(true);
-    ib::error() << "Cannot open datafile for read-only: '" << m_filepath
-                << "' OS error: " << m_last_os_error;
+    ib::error(ER_IB_MSG_391) << "Cannot open datafile for read-only: '"
+                             << m_filepath << "' OS error: " << m_last_os_error;
   }
 
   return (DB_CANNOT_OPEN_FILE);
@@ -158,8 +158,8 @@ dberr_t Datafile::open_read_write(bool read_only_mode) {
 
   if (!success) {
     m_last_os_error = os_file_get_last_error(true);
-    ib::error() << "Cannot open datafile for read-write: '" << m_filepath
-                << "'";
+    ib::error(ER_IB_MSG_392)
+        << "Cannot open datafile for read-write: '" << m_filepath << "'";
     return (DB_CANNOT_OPEN_FILE);
   }
 
@@ -346,8 +346,8 @@ dberr_t Datafile::read_first_page(bool read_only_mode) {
       break;
 
     } else {
-      ib::error() << "Cannot read first page of '" << m_filepath << "' "
-                  << ut_strerr(err);
+      ib::error(ER_IB_MSG_393) << "Cannot read first page of '" << m_filepath
+                               << "' " << ut_strerr(err);
       break;
     }
   }
@@ -415,17 +415,18 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, ulint flags,
   /* else do not use this tablespace. */
   m_is_valid = false;
 
-  ib::error() << "In file '" << m_filepath
-              << "', tablespace id and"
-                 " flags are "
-              << m_space_id << " and " << m_flags
-              << ", but in"
-                 " the InnoDB data dictionary they are "
-              << space_id << " and " << flags
-              << ". Have you moved InnoDB .ibd files around without"
-                 " using the commands DISCARD TABLESPACE and IMPORT TABLESPACE?"
-                 " "
-              << TROUBLESHOOT_DATADICT_MSG;
+  ib::error(ER_IB_MSG_394)
+      << "In file '" << m_filepath
+      << "', tablespace id and"
+         " flags are "
+      << m_space_id << " and " << m_flags
+      << ", but in"
+         " the InnoDB data dictionary they are "
+      << space_id << " and " << flags
+      << ". Have you moved InnoDB .ibd files around without"
+         " using the commands DISCARD TABLESPACE and IMPORT TABLESPACE?"
+         " "
+      << TROUBLESHOOT_DATADICT_MSG;
 
   return (DB_ERROR);
 }
@@ -441,8 +442,8 @@ m_is_valid is also set true on success, else false. */
 dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
   dberr_t err;
 
-  ut_ad(is_open());
   ut_ad(!srv_read_only_mode);
+  ut_ad(is_open());
 
   err = validate_first_page(space_id, 0, false);
 
@@ -466,19 +467,20 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
       close();
       err = open_read_write(srv_read_only_mode);
       if (err != DB_SUCCESS) {
-        ib::error() << "Datafile '" << m_filepath
-                    << "' could not"
-                       " be opened in read-write mode so that the"
-                       " doublewrite pages could be restored.";
+        ib::error(ER_IB_MSG_395) << "Datafile '" << m_filepath
+                                 << "' could not"
+                                    " be opened in read-write mode so that the"
+                                    " doublewrite pages could be restored.";
         return (err);
       };
 
       err = find_space_id();
       if (err != DB_SUCCESS || m_space_id == 0) {
-        ib::error() << "Datafile '" << m_filepath
-                    << "' is"
-                       " corrupted. Cannot determine the space ID from"
-                       " the first 64 pages.";
+        ib::error(ER_IB_MSG_396)
+            << "Datafile '" << m_filepath
+            << "' is"
+               " corrupted. Cannot determine the space ID from"
+               " the first 64 pages.";
         return (err);
       }
 
@@ -554,11 +556,11 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
   } else if (univ_page_size.logical() != page_size.logical()) {
     /* Page size must be univ_page_size. */
 
-    ib::error() << "Data file '" << m_filepath << "' uses page size "
-                << page_size.logical()
-                << ", but the innodb_page_size"
-                   " start-up parameter is "
-                << univ_page_size.logical();
+    ib::error(ER_IB_MSG_397) << "Data file '" << m_filepath
+                             << "' uses page size " << page_size.logical()
+                             << ", but the innodb_page_size"
+                                " start-up parameter is "
+                             << univ_page_size.logical();
 
     free_first_page();
 
@@ -579,9 +581,9 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
   by another tablespace. */
 
 #ifndef UNIV_HOTBACKUP
-    ut_d(ib::info() << "Tablespace file '" << filepath() << "' ID mismatch"
-                    << ", expected " << space_id << " but found "
-                    << m_space_id);
+    ut_d(ib::info(ER_IB_MSG_398)
+         << "Tablespace file '" << filepath() << "' ID mismatch"
+         << ", expected " << space_id << " but found " << m_space_id);
 #else  /* !UNIV_HOTBACKUP */
     ib::trace_2() << "Tablespace file '" << filepath() << "' ID mismatch"
                   << ", expected " << space_id << " but found " << m_space_id;
@@ -613,9 +615,10 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
   }
 
   if (error_txt != NULL) {
-    ib::error() << error_txt << " in datafile: " << m_filepath
-                << ", Space ID:" << m_space_id << ", Flags: " << m_flags << ". "
-                << TROUBLESHOOT_DATADICT_MSG;
+    ib::error(ER_IB_MSG_399)
+        << error_txt << " in datafile: " << m_filepath
+        << ", Space ID:" << m_space_id << ", Flags: " << m_flags << ". "
+        << TROUBLESHOOT_DATADICT_MSG;
     m_is_valid = false;
 
     free_first_page();
@@ -635,11 +638,12 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
 
     if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,
                                        m_encryption_iv, m_first_page)) {
-      ib::error() << "Encryption information in"
-                  << " datafile: " << m_filepath << " can't be decrypted"
-                  << " , please confirm the keyfile"
-                  << " is match and keyring plugin"
-                  << " is loaded.";
+      ib::error(ER_IB_MSG_401)
+          << "Encryption information in"
+          << " datafile: " << m_filepath << " can't be decrypted"
+          << " , please confirm the keyfile"
+          << " is match and keyring plugin"
+          << " is loaded.";
 
       m_is_valid = false;
       free_first_page();
@@ -649,9 +653,9 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
       m_encryption_iv = NULL;
       return (DB_INVALID_ENCRYPTION_META);
     } else {
-      ib::info() << "Read encryption metadata from " << m_filepath
-                 << " successfully, encryption"
-                 << " of this tablespace enabled.";
+      ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
+                              << " successfully, encryption"
+                              << " of this tablespace enabled.";
     }
 
     if (recv_recovery_is_on() &&
@@ -672,12 +676,12 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
     }
 
     /* Make sure the space_id has not already been opened. */
-    ib::error() << "Attempted to open a previously opened"
-                   " tablespace. Previous tablespace "
-                << prev_name << " at filepath: " << prev_filepath
-                << " uses space ID: " << m_space_id
-                << ". Cannot open filepath: " << m_filepath
-                << " which uses the same space ID.";
+    ib::error(ER_IB_MSG_403) << "Attempted to open a previously opened"
+                                " tablespace. Previous tablespace "
+                             << prev_name << " at filepath: " << prev_filepath
+                             << " uses space ID: " << m_space_id
+                             << ". Cannot open filepath: " << m_filepath
+                             << " which uses the same space ID.";
 
     ut_free(prev_name);
     ut_free(prev_filepath);
@@ -703,7 +707,8 @@ dberr_t Datafile::find_space_id() {
   file_size = os_file_get_size(m_handle);
 
   if (file_size == (os_offset_t)-1) {
-    ib::error() << "Could not get file size of datafile '" << m_filepath << "'";
+    ib::error(ER_IB_MSG_404)
+        << "Could not get file size of datafile '" << m_filepath << "'";
     return (DB_CORRUPTION);
   }
 
@@ -726,8 +731,8 @@ dberr_t Datafile::find_space_id() {
       --page_count;
     }
 
-    ib::info() << "Page size:" << page_size
-               << ". Pages to analyze:" << page_count;
+    ib::info(ER_IB_MSG_405)
+        << "Page size:" << page_size << ". Pages to analyze:" << page_count;
 
     byte *buf = static_cast<byte *>(ut_malloc_nokey(2 * UNIV_PAGE_SIZE_MAX));
 
@@ -751,14 +756,14 @@ dberr_t Datafile::find_space_id() {
                              UNIV_PAGE_SIZE_MAX);
 
           if (err != DB_SUCCESS) {
-            ib::info() << "READ FAIL: "
-                       << "page_no:" << j;
+            ib::info(ER_IB_MSG_406) << "READ FAIL: "
+                                    << "page_no:" << j;
             continue;
           }
         }
 
       } else if (err != DB_SUCCESS) {
-        ib::info() << "READ FAIL: page_no:" << j;
+        ib::info(ER_IB_MSG_407) << "READ FAIL: page_no:" << j;
 
         continue;
       }
@@ -797,8 +802,9 @@ dberr_t Datafile::find_space_id() {
         space_id_t space_id = mach_read_from_4(page + FIL_PAGE_SPACE_ID);
 
         if (space_id > 0) {
-          ib::info() << "VALID: space:" << space_id << " page_no:" << j
-                     << " page_size:" << page_size;
+          ib::info(ER_IB_MSG_408)
+              << "VALID: space:" << space_id << " page_no:" << j
+              << " page_size:" << page_size;
 
           ++valid_pages;
 
@@ -809,20 +815,21 @@ dberr_t Datafile::find_space_id() {
 
     ut_free(buf);
 
-    ib::info() << "Page size: " << page_size
-               << ". Possible space_id count:" << verify.size();
+    ib::info(ER_IB_MSG_409) << "Page size: " << page_size
+                            << ". Possible space_id count:" << verify.size();
 
     const ulint pages_corrupted = 3;
 
     for (ulint missed = 0; missed <= pages_corrupted; ++missed) {
       for (Pages::const_iterator it = verify.begin(); it != verify.end();
            ++it) {
-        ib::info() << "space_id:" << it->first
-                   << ", Number of pages matched: " << it->second << "/"
-                   << valid_pages << " (" << page_size << ")";
+        ib::info(ER_IB_MSG_410)
+            << "space_id:" << it->first
+            << ", Number of pages matched: " << it->second << "/" << valid_pages
+            << " (" << page_size << ")";
 
         if (it->second == (valid_pages - missed)) {
-          ib::info() << "Chosen space:" << it->first;
+          ib::info(ER_IB_MSG_411) << "Chosen space:" << it->first;
 
           m_space_id = it->first;
           return (DB_SUCCESS);
@@ -847,9 +854,10 @@ dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
     in the doublewrite buffer, then the recovery is going to fail
     now. Hence this is treated as an error. */
 
-    ib::error() << "Corrupted page " << page_id_t(m_space_id, restore_page_no)
-                << " of datafile '" << m_filepath
-                << "' could not be found in the doublewrite buffer.";
+    ib::error(ER_IB_MSG_412)
+        << "Corrupted page " << page_id_t(m_space_id, restore_page_no)
+        << " of datafile '" << m_filepath
+        << "' could not be found in the doublewrite buffer.";
 
     return (DB_CORRUPTION);
   }
@@ -861,11 +869,12 @@ dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
 
   ut_a(page_get_page_no(page) == restore_page_no);
 
-  ib::info() << "Restoring page " << page_id_t(m_space_id, restore_page_no)
-             << " of datafile '" << m_filepath
-             << "' from the doublewrite buffer. Writing "
-             << page_size.physical() << " bytes into file '" << m_filepath
-             << "'";
+  ib::info(ER_IB_MSG_413) << "Restoring page "
+                          << page_id_t(m_space_id, restore_page_no)
+                          << " of datafile '" << m_filepath
+                          << "' from the doublewrite buffer. Writing "
+                          << page_size.physical() << " bytes into file '"
+                          << m_filepath << "'";
 
   IORequest request(IORequest::WRITE);
 

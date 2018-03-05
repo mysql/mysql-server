@@ -2,7 +2,7 @@ drop database if exists mysqltest1;
 create schema foo;
 show create schema foo;
 Database	Create Database
-foo	CREATE DATABASE `foo` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+foo	CREATE DATABASE `foo` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show schemas like 'foo';
 Database (foo)
 foo
@@ -168,7 +168,7 @@ SET @@session.lock_wait_timeout= @start_session_value;
 CREATE SCHEMA s;
 SHOW CREATE SCHEMA s;
 Database	Create Database
-s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+s	CREATE DATABASE `s` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 USE s;
 ALTER SCHEMA s DEFAULT COLLATE= utf8_general_ci;
 SHOW CREATE SCHEMA s;

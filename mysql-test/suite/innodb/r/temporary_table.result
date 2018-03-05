@@ -101,7 +101,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   `f` float DEFAULT NULL,
   `c` char(100) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 insert into t1 values (100, 1.1, 'pune');
 insert into t1 values (99, 1.2, 'mumbai');
 insert into t1 values (98, 1.3, 'jaipur');
@@ -386,7 +386,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -406,7 +406,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -426,7 +426,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -449,7 +449,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -474,7 +474,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -501,7 +501,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -524,7 +524,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=8
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -544,7 +544,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -574,7 +574,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -596,7 +596,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -618,7 +618,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -636,7 +636,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -654,7 +654,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -693,7 +693,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -749,7 +749,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `c` char(10) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 SELECT count(*) AS `Expect 1` FROM information_schema.innodb_temp_table_info;
 Expect 1
 1
@@ -801,7 +801,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 set innodb_strict_mode = OFF;
 ALTER TABLE t1 ROW_FORMAT = COMPRESSED;
 Warnings:
@@ -833,7 +833,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
 set innodb_strict_mode = OFF;
 ALTER TABLE t1 KEY_BLOCK_SIZE = 0;
 Warnings:
@@ -844,7 +844,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`) KEY_BLOCK_SIZE=8
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 ALTER TABLE t1 ROW_FORMAT = DYNAMIC;
 set innodb_strict_mode = ON;
 ALTER TABLE t1 ADD COLUMN j INT;
@@ -854,7 +854,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `i` int(11) NOT NULL,
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`i`) KEY_BLOCK_SIZE=8
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 DROP TABLE t1, space_id;
 set innodb_strict_mode = OFF;
 "testing temp tablespace non-support for raw device"

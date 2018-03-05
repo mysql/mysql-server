@@ -18,14 +18,14 @@ Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` int(11) DEFAULT NULL,
   `b` char(30) DEFAULT 'Default'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table test.index_tab;
 Table	Create Table
 index_tab	CREATE TABLE `index_tab` (
   `a` int(11) DEFAULT NULL,
   `b` char(30) DEFAULT 'Default',
   UNIQUE KEY `uidx` (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 truncate table performance_schema.events_waits_history_long;
 update performance_schema.setup_consumers set enabled='YES';
 # Printing of 100 inserts per table is suppressed

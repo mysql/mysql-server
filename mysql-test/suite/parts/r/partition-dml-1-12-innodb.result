@@ -13,7 +13,7 @@ t1	CREATE TABLE `t1` (
   `col_2_int` int(11) NOT NULL,
   PRIMARY KEY (`col_2_int`),
   KEY `idx1` (`col_1_int`,`col_2_int`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY ()
 PARTITIONS 4 */
 # test handler read forward

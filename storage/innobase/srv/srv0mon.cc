@@ -61,6 +61,29 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define MONITOR_BUF_PAGE_WRITTEN(name, description, code) \
   MONITOR_BUF_PAGE(name, description, code, "written", PAGE_WRITTEN)
 
+#define MONITOR_WAIT_STATS_EX(name, module, description, code, wrap) \
+  wrap(name "no_waits", module, description, MONITOR_NONE,           \
+       MONITOR_DEFAULT_START, code##NO_WAITS),                       \
+      wrap(name "waits", module, description, MONITOR_NONE,          \
+           MONITOR_DEFAULT_START, code##WAITS),                      \
+      wrap(name "wait_loops", module, description, MONITOR_NONE,     \
+           MONITOR_DEFAULT_START, code##WAIT_LOOPS)
+
+#define MONITOR_WAIT_STATS_SIMPLE_WRAP(a1, a2, a3, a4, a5, a6) \
+  { a1, a2, a3, a4, a5, a6 }
+
+#define MONITOR_WAIT_STATS(name, module, description, code) \
+  MONITOR_WAIT_STATS_EX(name, module, description, code,    \
+                        MONITOR_WAIT_STATS_SIMPLE_WRAP)
+
+#define MONITOR_BUF_PAGE_WRITTEN_WAIT_STATS_WRAP(name, module, description, a, \
+                                                 b, code)                      \
+  MONITOR_BUF_PAGE_WRITTEN(name, description, code)
+
+#define MONITOR_BUF_PAGE_WRITTEN_WAIT_STATS(name, description, code) \
+  MONITOR_WAIT_STATS_EX(name, "", description, code,                 \
+                        MONITOR_BUF_PAGE_WRITTEN_WAIT_STATS_WRAP)
+
 /** This array defines basic static information of monitor counters,
 including each monitor's name, module it belongs to, a short
 description and its property/type and corresponding monitor_id.
@@ -638,6 +661,9 @@ static monitor_info_t innodb_counter_info[] = {
     MONITOR_BUF_PAGE_WRITTEN("other", "other/unknown (old version InnoDB)",
                              OTHER),
 
+    MONITOR_BUF_PAGE_WRITTEN_WAIT_STATS(
+        "on_log_", "Waits on redo flushed when flushing pages", ON_LOG_),
+
     /* ========== Counters for OS level operations ========== */
     {"module_os", "os", "OS Level Operation", MONITOR_MODULE,
      MONITOR_DEFAULT_START, MONITOR_MODULE_OS},
@@ -713,6 +739,10 @@ static monitor_info_t innodb_counter_info[] = {
     {"trx_active_transactions", "transaction", "Number of active transactions",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_TRX_ACTIVE},
 
+    MONITOR_WAIT_STATS("trx_on_log_", "transaction",
+                       "Waits for redo during transaction commits",
+                       MONITOR_TRX_ON_LOG_),
+
     {"trx_rseg_history_len", "transaction",
      "Length of the TRX_RSEG_HISTORY list",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT |
@@ -760,70 +790,142 @@ static monitor_info_t innodb_counter_info[] = {
      MONITOR_DISPLAY_CURRENT, MONITOR_DEFAULT_START,
      MONITOR_PURGE_RESUME_COUNT},
 
-    /* ========== Counters for Recovery Module ========== */
-    {"module_log", "recovery", "Recovery Module", MONITOR_MODULE,
-     MONITOR_DEFAULT_START, MONITOR_MODULE_RECOVERY},
+    /* ========== Counters for Redo log Module ========== */
+    {"module_log", "log", "Redo log Module", MONITOR_MODULE,
+     MONITOR_DEFAULT_START, MONITOR_MODULE_REDO_LOG},
 
-    {"log_checkpoints", "recovery", "Number of checkpoints", MONITOR_NONE,
-     MONITOR_DEFAULT_START, MONITOR_NUM_CHECKPOINT},
-
-    {"log_lsn_last_flush", "recovery", "LSN of Last flush",
+    {"log_lsn_last_flush", "log", "LSN of last flush",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_FLUSHDISK},
 
-    {"log_lsn_last_checkpoint", "recovery", "LSN at last checkpoint",
+    {"log_lsn_last_checkpoint", "log", "LSN at last checkpoint",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_CHECKPOINT},
 
-    {"log_lsn_current", "recovery", "Current LSN value",
+    {"log_lsn_current", "log", "Current LSN value",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_CURRENT},
 
-    {"log_lsn_checkpoint_age", "recovery",
-     "Current LSN value minus LSN at last checkpoint", MONITOR_NONE,
-     MONITOR_DEFAULT_START, MONITOR_LSN_CHECKPOINT_AGE},
+    {"log_lsn_checkpoint_age", "log",
+     "Current LSN value minus LSN at last checkpoint",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_CHECKPOINT_AGE},
 
-    {"log_lsn_buf_pool_oldest", "recovery",
+    {"log_lsn_buf_pool_oldest", "log",
      "The oldest modified block LSN in the buffer pool",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
-     MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_OLDEST_LSN},
+     MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_OLDEST_LSN_APPROX},
 
-    {"log_max_modified_age_async", "recovery",
+    {"log_max_modified_age_async", "log",
      "Maximum LSN difference; when exceeded, start asynchronous preflush",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_MAX_AGE_ASYNC},
 
-    {"log_max_modified_age_sync", "recovery",
+    {"log_max_modified_age_sync", "log",
      "Maximum LSN difference; when exceeded, start synchronous preflush",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_MAX_AGE_SYNC},
 
-    {"log_pending_log_flushes", "recovery", "Pending log flushes", MONITOR_NONE,
-     MONITOR_DEFAULT_START, MONITOR_PENDING_LOG_FLUSH},
-
-    {"log_pending_checkpoint_writes", "recovery", "Pending checkpoints",
-     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_PENDING_CHECKPOINT_WRITE},
-
-    {"log_num_log_io", "recovery", "Number of log I/Os", MONITOR_NONE,
-     MONITOR_DEFAULT_START, MONITOR_LOG_IO},
-
-    {"log_waits", "recovery",
+    {"log_waits", "log",
      "Number of log waits due to small log buffer (innodb_log_waits)",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WAITS},
 
-    {"log_write_requests", "recovery",
-     "Number of log write requests (innodb_log_write_requests)",
+    {"log_write_requests", "log", "Number of log write requests",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITE_REQUEST},
 
-    {"log_writes", "recovery", "Number of log writes (innodb_log_writes)",
+    {"log_writes", "log", "Number of log writes",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_WRITES},
 
-    {"log_padded", "recovery", "Bytes of log padded for log write ahead",
-     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DEFAULT_ON),
-     MONITOR_DEFAULT_START, MONITOR_OVLD_LOG_PADDED},
+    {"log_flush_total_time", "log", "Total time spent on fsync for log files",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_TOTAL_TIME},
+
+    {"log_flush_max_time", "log",
+     "Maximum time spent on fsync for log files (during last "
+     "innodb_flushing_avg_loops)",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_MAX_TIME},
+
+    {"log_flush_avg_time", "log",
+     "Average time spent on fsync for log files (during last "
+     "innodb_flushing_avg_loops)",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_AVG_TIME},
+
+    {"log_flush_lsn_avg_rate", "log",
+     "Average redo flushing rate (during last innodb_flushing_avg_loops)",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_FLUSH_LSN_AVG_RATE},
+
+    {"log_full_block_writes", "log",
+     "Number of log writes for full (completed) log blocks", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_LOG_FULL_BLOCK_WRITES},
+
+    {"log_partial_block_writes", "log",
+     "Number of log writes for partial (incompleted) log blocks", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_LOG_PARTIAL_BLOCK_WRITES},
+
+    {"log_padded", "log", "Bytes of log padded for log write ahead",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_LOG_PADDED},
+
+    {"log_next_file", "log", "Number of new log files created.", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_LOG_NEXT_FILE},
+
+    {"log_checkpoints", "log", "Number of checkpoints", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_LOG_CHECKPOINTS},
+
+    MONITOR_WAIT_STATS("log_writer_", "log",
+                       "Waits on task in log_writer thread",
+                       MONITOR_LOG_WRITER_),
+
+    MONITOR_WAIT_STATS("log_flusher_", "log",
+                       "Waits on task in log_flusher thread",
+                       MONITOR_LOG_FLUSHER_),
+
+    MONITOR_WAIT_STATS("log_write_notifier_", "log",
+                       "Waits on task in log_write_notifier thread",
+                       MONITOR_LOG_WRITE_NOTIFIER_),
+
+    MONITOR_WAIT_STATS("log_flush_notifier_", "log",
+                       "Waits on task in log_flush_notifier_thread",
+                       MONITOR_LOG_FLUSH_NOTIFIER_),
+
+    MONITOR_WAIT_STATS(
+        "log_on_write_", "log",
+        "Waits in user threads on log_writer+log_write_notifier",
+        /* Note: requests to flush log up to lsn are not counted here!
+        This counter is used only, when fsync is not required afterwards
+        (when we rely on FS cache). */
+        MONITOR_LOG_ON_WRITE_),
+
+    MONITOR_WAIT_STATS(
+        "log_on_flush_", "log",
+        "Waits in user threads on log_flusher+log_flush_notifier",
+        /* Note: requests, for which it is sufficient to do write without
+        fsync, are not counted here! This counter is used only, when we
+        need data fsynced. */
+        MONITOR_LOG_ON_FLUSH_),
+
+    {"log_on_recent_written_wait_loops", "log",
+     "Loops of waits in user threads on space in log.recent_written",
+     /* Non-zero values of the counter => writes to log buffer are delayed.
+     Then innodb_log_recent_written_slots should be increased. */
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_LOG_ON_RECENT_WRITTEN_WAIT_LOOPS},
+
+    {"log_on_recent_closed_wait_loops", "log",
+     "Loops of waits in user threads on space in log.recent_closed",
+     /* Non-zero values of the counter => writes to log buffer are delayed.
+     Then innodb_log_recent_closed_slots should be increased. */
+     MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_LOG_ON_RECENT_CLOSED_WAIT_LOOPS},
+
+    MONITOR_WAIT_STATS("log_on_buffer_space_", "log",
+                       "Waits in user threads on space in log buffer",
+                       MONITOR_LOG_ON_BUFFER_SPACE_),
+
+    MONITOR_WAIT_STATS("log_on_file_space_", "log",
+                       "Waits in user threads on space in log files",
+                       MONITOR_LOG_ON_FILE_SPACE_),
 
     /* ========== Counters for Page Compression ========== */
     {"module_compress", "compression", "Page Compression Info", MONITOR_MODULE,
@@ -993,10 +1095,6 @@ static monitor_info_t innodb_counter_info[] = {
      "Time (in microseconds) spent to process change buffer merge",
      MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_SRV_IBUF_MERGE_MICROSECOND},
 
-    {"innodb_log_flush_usec", "server",
-     "Time (in microseconds) spent to flush log records", MONITOR_NONE,
-     MONITOR_DEFAULT_START, MONITOR_SRV_LOG_FLUSH_MICROSECOND},
-
     {"innodb_mem_validate_usec", "server",
      "Time (in microseconds) spent to do memory validation", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_SRV_MEM_VALIDATE_MICROSECOND},
@@ -1012,10 +1110,6 @@ static monitor_info_t innodb_counter_info[] = {
     {"innodb_dict_lru_count", "server",
      "Number of tables evicted from DICT LRU list", MONITOR_NONE,
      MONITOR_DEFAULT_START, MONITOR_SRV_DICT_LRU_EVICT_COUNT},
-
-    {"innodb_checkpoint_usec", "server",
-     "Time (in microseconds) spent by master thread to do checkpoint",
-     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_SRV_CHECKPOINT_MICROSECOND},
 
     {"innodb_dblwr_writes", "server",
      "Number of doublewrite operations that have been performed"
@@ -1148,9 +1242,29 @@ static monitor_info_t innodb_counter_info[] = {
     {"latch", "sync", "Latch monitoring control", MONITOR_HIDDEN,
      MONITOR_DEFAULT_START, MONITOR_LATCHES},
 
+    /* ========== CPU usage ========== */
+    {"module_cpu", "cpu", "CPU counters reflecting current usage of CPU",
+     MONITOR_NONE, MONITOR_DEFAULT_START, MONITOR_MODULE_CPU},
+
+    {"cpu_utime_abs", "cpu", "Total CPU user time spent", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_CPU_UTIME_ABS},
+
+    {"cpu_stime_abs", "cpu", "Total CPU system time spent", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_CPU_STIME_ABS},
+
+    {"cpu_utime_pct", "cpu", "Relative CPU user time spent", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_CPU_UTIME_PCT},
+
+    {"cpu_stime_pct", "cpu", "Relative CPU system time spent", MONITOR_NONE,
+     MONITOR_DEFAULT_START, MONITOR_CPU_STIME_PCT},
+
+    {"cpu_n", "cpu", "Number of cpus", MONITOR_NONE, MONITOR_DEFAULT_START,
+     MONITOR_CPU_N},
+
     /* ========== To turn on/off reset all counters ========== */
     {"all", "All Counters", "Turn on/off and reset all counters",
-     MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_ALL_COUNTER}};
+     MONITOR_MODULE, MONITOR_DEFAULT_START, MONITOR_ALL_COUNTER},
+};
 
 /* The "innodb_counter_value" array stores actual counter values */
 monitor_value_t innodb_counter_value[NUM_MONITOR];
@@ -1249,8 +1363,9 @@ void srv_mon_set_module_control(
     should be aware some counters are already on before
     turn them on again (which could reset counter value) */
     if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
-      ib::info() << "Monitor '" << srv_mon_get_name((monitor_id_t)ix)
-                 << "' is already enabled.";
+      ib::info(ER_IB_MSG_1045)
+          << "Monitor '" << srv_mon_get_name((monitor_id_t)ix)
+          << "' is already enabled.";
       continue;
     }
 
@@ -1511,10 +1626,6 @@ void srv_mon_process_existing_counter(
       value = srv_stats.log_writes;
       break;
 
-    case MONITOR_OVLD_LOG_PADDED:
-      value = srv_stats.log_padded;
-      break;
-
     /* innodb_dblwr_writes */
     case MONITOR_OVLD_SRV_DBLWR_WRITES:
       value = srv_stats.dblwr_writes;
@@ -1672,15 +1783,19 @@ void srv_mon_process_existing_counter(
       break;
 
     case MONITOR_OVLD_LSN_CURRENT:
-      value = (mon_type_t)log_sys->lsn;
+      value = (mon_type_t)log_get_lsn(*log_sys);
       break;
 
-    case MONITOR_OVLD_BUF_OLDEST_LSN:
-      value = (mon_type_t)buf_pool_get_oldest_modification();
+    case MONITOR_OVLD_BUF_OLDEST_LSN_APPROX:
+      value = (mon_type_t)buf_pool_get_oldest_modification_approx();
       break;
 
     case MONITOR_OVLD_LSN_CHECKPOINT:
       value = (mon_type_t)log_sys->last_checkpoint_lsn;
+      break;
+
+    case MONITOR_OVLD_LSN_CHECKPOINT_AGE:
+      value = (mon_type_t)log_get_checkpoint_age(*log_sys);
       break;
 
     case MONITOR_OVLD_MAX_AGE_ASYNC:

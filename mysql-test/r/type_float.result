@@ -96,7 +96,7 @@ t2	CREATE TABLE `t2` (
   `col2` double(22,5) DEFAULT NULL,
   `col3` double DEFAULT NULL,
   `col4` double DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t2;
 create table t1 (a float);
 insert into t1 values (1);
@@ -239,7 +239,7 @@ show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `d` double(18,9) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2, t3;
 create table t1 select  105213674794682365.00 + 0.0 x;
 show warnings;

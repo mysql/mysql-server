@@ -7,10 +7,10 @@
 --echo #
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot allocate .*");
-call mtr.add_suppression("InnoDB: .* failed to allocate the chunk array");
-call mtr.add_suppression("InnoDB: .* failed to allocate new memory");
-call mtr.add_suppression("InnoDB: .* failed; errno 12");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot allocate .*");
+call mtr.add_suppression(".* failed to allocate the chunk array");
+call mtr.add_suppression(".* failed to allocate new memory");
+call mtr.add_suppression(".* failed; errno 12");
 
 set @before_innodb_buffer_pool_size = @@innodb_buffer_pool_size;
 --enable_query_log

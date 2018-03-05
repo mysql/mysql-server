@@ -2,7 +2,7 @@
 --source include/have_innodb_max_16k.inc
 
 --echo #
---echo # WL#8960 InnoDB: Partial update of LOB.
+--echo # WL#8960  Partial update of LOB.
 --echo # Check backward compatibility.
 --echo #
 

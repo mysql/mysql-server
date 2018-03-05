@@ -16,3 +16,33 @@ SET DEBUG ='+d, simulate_max_char_col';
 --error ER_GET_ERRNO, ER_GET_ERRNO
 create table t1(f1 varchar(1000))engine=innodb;
 SET DEBUG ='-d, simulate_max_char_col';
+
+--echo #
+--echo # Bug #27361662  ERROR NOT THROWN ON CREATING TEMPORARY TABLE IN
+--echo # INNODB_FILE_PER_TABLE TABLESPACE
+--echo #
+
+--echo "Try creating temporary table with innodb_file_per_table option with STRICT mode"
+# Enable STRICT mode
+SET innodb_strict_mode = ON;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
+
+# Validate that the table is not created
+--error ER_NO_SUCH_TABLE
+SELECT COUNT(*) FROM t1;
+
+--echo "Try creating temporary table with innodb_file_per_table option without STRICT mode"
+# Disable STRICT mode
+SET innodb_strict_mode = OFF;
+CREATE TEMPORARY TABLE t1(c1 int) TABLESPACE innodb_file_per_table;
+
+SHOW WARNINGS;
+
+# Validate temporary table exists
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+
+# Reset STRICT mode to default
+SET innodb_strict_mode = default;

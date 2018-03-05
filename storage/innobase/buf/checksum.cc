@@ -168,22 +168,32 @@ inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
 
     /* Since we are going to reset the page LSN during the import
     phase it makes no sense to spam the log with error messages. */
+    current_lsn = log_get_lsn(*log_sys);
 
-    if (log_peek_lsn(&current_lsn) && current_lsn < page_lsn) {
+    if (current_lsn < page_lsn) {
       const space_id_t space_id =
           mach_read_from_4(read_buf + FIL_PAGE_SPACE_ID);
       const page_no_t page_no = mach_read_from_4(read_buf + FIL_PAGE_OFFSET);
 
-      ib::error() << "Page " << page_id_t(space_id, page_no)
-                  << " log sequence number " << page_lsn
-                  << " is in the future! Current system"
-                  << " log sequence number " << current_lsn << ".";
+      auto space = fil_space_get(space_id);
 
-      ib::error() << "Your database may be corrupt or"
-                     " you may have copied the InnoDB"
-                     " tablespace but not the InnoDB"
-                     " log files. "
-                  << FORCE_RECOVERY_MSG;
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_146)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "Tablespace '" << space->name << "'"
+          << " Page " << page_id_t(space_id, page_no) << " log sequence number "
+          << page_lsn << " is in the future! Current system"
+          << " log sequence number " << current_lsn << ".";
+
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_147)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "Your database may be corrupt or you may have copied the InnoDB"
+          << " tablespace but not the InnoDB log files. " << FORCE_RECOVERY_MSG;
     }
   }
 #endif /* !UNIV_HOTBACKUP && !UNIV_LIBRARY */
@@ -707,17 +717,22 @@ void BlockReporter::page_warn_strict_checksum(
       ut_error;
   }
 
-  ib::warn() << "innodb_checksum_algorithm is set to \""
-             << buf_checksum_algorithm_name(curr_algo) << "\""
-             << " but the page " << page_id << " contains a valid checksum \""
-             << buf_checksum_algorithm_name(page_checksum) << "\". "
-             << " Accepting the page as valid. Change"
-             << " innodb_checksum_algorithm to \""
-             << buf_checksum_algorithm_name(curr_algo_nonstrict)
-             << "\" to silently accept such pages or rewrite all pages"
-             << " so that they contain \""
-             << buf_checksum_algorithm_name(curr_algo_nonstrict)
-             << "\" checksum.";
+#ifdef UNIV_NO_ERR_MSGS
+  ib::warn()
+#else
+  ib::warn(ER_IB_MSG_148)
+#endif /* UNIV_NO_ERR_MSGS */
+
+      << "innodb_checksum_algorithm is set to \""
+      << buf_checksum_algorithm_name(curr_algo) << "\""
+      << " but the page " << page_id << " contains a valid checksum \""
+      << buf_checksum_algorithm_name(page_checksum) << "\". "
+      << " Accepting the page as valid. Change"
+      << " innodb_checksum_algorithm to \""
+      << buf_checksum_algorithm_name(curr_algo_nonstrict)
+      << "\" to silently accept such pages or rewrite all pages"
+      << " so that they contain \""
+      << buf_checksum_algorithm_name(curr_algo_nonstrict) << "\" checksum.";
 }
 
 /** Print the given page_id_t object.

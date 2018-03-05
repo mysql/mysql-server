@@ -117,7 +117,7 @@ table1	CREATE TABLE `table1` (
   `$ix_it_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint(4) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_it_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -242,7 +242,7 @@ table1	CREATE TABLE `table1` (
   `$ix_it_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint(3) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_it_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -367,7 +367,7 @@ table1	CREATE TABLE `table1` (
   `$ix_it2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyint(2) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_it2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -492,7 +492,7 @@ table1	CREATE TABLE `table1` (
   `$ix_is_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint(6) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_is_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -617,7 +617,7 @@ table1	CREATE TABLE `table1` (
   `$ix_is_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint(5) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_is_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -742,7 +742,7 @@ table1	CREATE TABLE `table1` (
   `$ix_is4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` smallint(4) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_is4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12345","_id":1}')
 
@@ -877,7 +877,7 @@ table1	CREATE TABLE `table1` (
   `$ix_im_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint(9) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_im_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -1002,7 +1002,7 @@ table1	CREATE TABLE `table1` (
   `$ix_im_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint(8) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_im_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -1127,7 +1127,7 @@ table1	CREATE TABLE `table1` (
   `$ix_im7_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` mediumint(7) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_im7_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12345678","_id":1}')
 
@@ -1262,7 +1262,7 @@ table1	CREATE TABLE `table1` (
   `$ix_i_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` int(11) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_i_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -1387,7 +1387,7 @@ table1	CREATE TABLE `table1` (
   `$ix_i_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` int(10) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_i_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -1512,7 +1512,7 @@ table1	CREATE TABLE `table1` (
   `$ix_i6_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` int(6) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_i6_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"1234567","_id":1}')
 
@@ -1647,7 +1647,7 @@ table1	CREATE TABLE `table1` (
   `$ix_ib_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint(20) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ib_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -1772,7 +1772,7 @@ table1	CREATE TABLE `table1` (
   `$ix_ib_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint(20) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ib_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -1897,7 +1897,7 @@ table1	CREATE TABLE `table1` (
   `$ix_ib13_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint(13) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ib13_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"123456789012345","_id":1}')
 
@@ -2032,7 +2032,7 @@ table1	CREATE TABLE `table1` (
   `$ix_ib22_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` bigint(22) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ib22_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -2157,7 +2157,7 @@ table1	CREATE TABLE `table1` (
   `$ix_fr_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` double GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_fr_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -2282,7 +2282,7 @@ table1	CREATE TABLE `table1` (
   `$ix_fr_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` double unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_fr_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -2407,7 +2407,7 @@ table1	CREATE TABLE `table1` (
   `$ix_f_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` float GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_f_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -2532,7 +2532,7 @@ table1	CREATE TABLE `table1` (
   `$ix_f_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` float unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_f_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -2657,7 +2657,7 @@ table1	CREATE TABLE `table1` (
   `$ix_fd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` double GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_fd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -2782,7 +2782,7 @@ table1	CREATE TABLE `table1` (
   `$ix_fd_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` double unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_fd_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -2907,7 +2907,7 @@ table1	CREATE TABLE `table1` (
   `$ix_fd7_4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` double(7,4) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_fd7_4_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"123.1234","_id":1}')
 
@@ -3042,7 +3042,7 @@ table1	CREATE TABLE `table1` (
   `$ix_xd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` decimal(10,0) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_xd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -3167,7 +3167,7 @@ table1	CREATE TABLE `table1` (
   `$ix_xd10_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` decimal(10,0) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_xd10_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"123456.123","_id":1}')
 
@@ -3302,7 +3302,7 @@ table1	CREATE TABLE `table1` (
   `$ix_xd8_2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70` decimal(8,2) unsigned GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_xd8_2_ur_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"123456.123","_id":1}')
 
@@ -3437,7 +3437,7 @@ table1	CREATE TABLE `table1` (
   `$ix_xn_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` decimal(10,0) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_xn_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -3562,7 +3562,7 @@ table1	CREATE TABLE `table1` (
   `$ix_xn10_2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` decimal(10,2) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_xn10_2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12345.123456","_id":1}')
 
@@ -3697,7 +3697,7 @@ table1	CREATE TABLE `table1` (
   `$ix_xn5_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` decimal(5,0) GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.col')) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_xn5_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12345.123456","_id":1}')
 
@@ -3832,7 +3832,7 @@ table1	CREATE TABLE `table1` (
   `$ix_d_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` date GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_d_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -3957,7 +3957,7 @@ table1	CREATE TABLE `table1` (
   `$ix_dt_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` time GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_dt_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -4082,7 +4082,7 @@ table1	CREATE TABLE `table1` (
   `$ix_dt2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` time(2) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_dt2_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"12:13:44","_id":1}')
 
@@ -4217,7 +4217,7 @@ table1	CREATE TABLE `table1` (
   `$ix_ds_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` timestamp GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ds_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -4342,7 +4342,7 @@ table1	CREATE TABLE `table1` (
   `$ix_ds6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` timestamp(6) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_ds6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"2038-01-19 03:14:07.123456","_id":1}')
 
@@ -4477,7 +4477,7 @@ table1	CREATE TABLE `table1` (
   `$ix_dd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` datetime GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_dd_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -4602,7 +4602,7 @@ table1	CREATE TABLE `table1` (
   `$ix_dd6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` datetime(6) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_dd6_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -4727,7 +4727,7 @@ table1	CREATE TABLE `table1` (
   `$ix_dy_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` year(4) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_dy_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -4853,7 +4853,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"QUITE LOOOONG STRING","_id":1}')
 
@@ -4993,7 +4993,7 @@ table1	CREATE TABLE `table1` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"LONG LONG STRING, LONGER THAN INDEX SIZE","_id":1}')
 
@@ -5132,7 +5132,7 @@ table1	CREATE TABLE `table1` (
   `$ix_t_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` bit(1) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_t_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -5257,7 +5257,7 @@ table1	CREATE TABLE `table1` (
   `$ix_bt50_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` tinyblob GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_bt50_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"BLOB BLOB BLOB BLOB BLOB VALUE LONG VALUE 0123456789 BLOB01234567890123456789","_id":1}')
 
@@ -5392,7 +5392,7 @@ table1	CREATE TABLE `table1` (
   `$ix_t30_r_193639E0029FB71DA5916BDF64B75D481FD4CF70` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.col'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `ix` (`$ix_t30_r_193639E0029FB71DA5916BDF64B75D481FD4CF70`(30))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table1(doc) VALUES('{"col":"TEXT LONGER THAN INDEX SIZE WHICH EQUALS 30 1234567890","_id":1}')
 
@@ -6065,7 +6065,7 @@ table1	CREATE TABLE `table1` (
   KEY `fulltext_idx_1` (`SUBJECT`(100)),
   KEY `fulltext_idx_2` (`SUBJECT`(100)),
   KEY `fulltext_idx_3` (`book`(100))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SHOW INDEX FROM xplugintest.table1
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
@@ -6120,7 +6120,7 @@ table1	CREATE TABLE `table1` (
   KEY `fulltext_idx_1` (`SUBJECT`(100)),
   KEY `fulltext_idx_2` (`SUBJECT`(100)),
   KEY `fulltext_idx_3` (`book`(100))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection_index"
@@ -6234,7 +6234,7 @@ table1	CREATE TABLE `table1` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `SUBJECT` text GENERATED ALWAYS AS (json_extract(`doc`,_utf8mb4'$.subject')) STORED,
   `book` text
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN ALTER TABLE xplugintest.table1 DROP COLUMN subject
 
@@ -6334,7 +6334,7 @@ table2	CREATE TABLE `table2` (
   `LastName` varchar(255) NOT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `idx2` (`LastName`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 drop index using namespace=sql
 send Mysqlx.Sql.StmtExecute {

@@ -30,6 +30,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 1/20/1994 Heikki Tuuri
  ***********************************************************************/
 
+/**************************************************/ /**
+ @page PAGE_INNODB_UTILS Innodb utils
+
+ Useful data structures:
+ - @ref Link_buf - to track concurrent operations
+ - @ref Sharded_rw_lock - sharded rw-lock (very fast s-lock, slow x-lock)
+
+ *******************************************************/
+
 #ifndef ut0ut_h
 #define ut0ut_h
 
@@ -53,9 +62,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stdarg.h>
 #include "ut/ut.h"
+#include "ut0dbg.h"
+
+#ifndef UNIV_NO_ERR_MSGS
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
+#include "sql/derror.h"
+#endif /* !UNIV_NO_ERR_MSGS */
 
 /** Index name prefix in fast index creation, as a string constant */
 #define TEMP_INDEX_PREFIX_STR "\377"
+
+/** Get the format string for the logger.
+@param[in]	errcode		The error code from share/errmsg-*.txt
+@return the message string or nullptr */
+const char *srv_get_server_errmsgs(int errcode);
 
 /** Time stamp */
 typedef time_t ib_time_t;
@@ -103,7 +124,9 @@ independent way by using YieldProcessor. */
       os_thread_sleep(2000 /* 2 ms */);                              \
     }                                                                \
   } while (0)
-#endif /* !UNIV_HOTBACKUP */
+#else                  /* !UNIV_HOTBACKUP */
+#define UT_RELAX_CPU() /* No op */
+#endif                 /* !UNIV_HOTBACKUP */
 
 #define ut_max std::max
 #define ut_min std::min
@@ -351,6 +374,27 @@ to forward operator<< to the underlying std::ostringstream object.  Do not
 use this class directly, instead use one of the derived classes. */
 class logger {
  public:
+  /** Destructor */
+  virtual ~logger();
+
+#ifndef UNIV_NO_ERR_MSGS
+
+  /** Format an error message.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  logger &log(int err, Args &&... args) {
+    ut_a(m_err == ER_IB_MSG_0);
+
+    m_err = err;
+
+    m_oss << msg(err, std::forward<Args>(args)...);
+
+    return (*this);
+  }
+
+#endif /* !UNIV_NO_ERR_MSGS */
+
   template <typename T>
   logger &operator<<(const T &rhs) {
     m_oss << rhs;
@@ -358,27 +402,106 @@ class logger {
   }
 
   /** Write the given buffer to the internal string stream object.
-  @param[in]	buf	the buffer whose contents will be logged.
-  @param[in]	count	the length of the buffer buf.
+  @param[in]	buf		the buffer contents to log.
+  @param[in]	count		the length of the buffer buf.
   @return the output stream into which buffer was written. */
   std::ostream &write(const char *buf, std::streamsize count) {
     return (m_oss.write(buf, count));
   }
 
   /** Write the given buffer to the internal string stream object.
-  @param[in]	buf	the buffer whose contents will be logged.
-  @param[in]	count	the length of the buffer buf.
+  @param[in]	buf		the buffer contents to log
+  @param[in]	count		the length of the buffer buf.
   @return the output stream into which buffer was written. */
   std::ostream &write(const byte *buf, std::streamsize count) {
     return (m_oss.write(reinterpret_cast<const char *>(buf), count));
   }
 
+ public:
+  /** For converting the message into a string. */
   std::ostringstream m_oss;
 
+#ifndef UNIV_NO_ERR_MSGS
+  /** Error code in errmsg-*.txt */
+  int m_err{};
+
+  /** Error logging level. */
+  loglevel m_level{INFORMATION_LEVEL};
+#endif /* !UNIV_NO_ERR_MSGS */
+
+#ifdef UNIV_HOTBACKUP
+  /** For MEB trace infrastructure. */
+  int m_trace_level{};
+#endif /* UNIV_HOTBACKUP */
+
  protected:
-  /* This class must not be used directly, hence making the default
-  constructor protected. */
-  logger() {}
+#ifndef UNIV_NO_ERR_MSGS
+  /** String prefix for all log messages. */
+#if defined(__SUNPRO_CC)
+  static const char *PREFIX;
+#else
+  /** String prefix for all log messages. */
+  static constexpr const char *PREFIX = "InnoDB: ";
+#endif /* __SUNPRO_CC */
+
+  /** Format an error message.
+  @param[in]	err	Error code from errmsg-*.txt.
+  @param[in]	args	Variable length argument list */
+  template <class... Args>
+  static std::string msg(int err, Args &&... args) {
+    const char *fmt = srv_get_server_errmsgs(err);
+
+    int ret;
+    char buf[LOG_BUFF_MAX];
+
+    ret = snprintf(buf, sizeof(buf), fmt, std::forward<Args>(args)...);
+
+    std::string str;
+
+    if (ret > 0 && (size_t)ret < sizeof(buf)) {
+      str.append(buf);
+    }
+
+    return (str);
+  }
+
+ protected:
+  /** Constructor.
+  @param[in]	level		Logging level
+  @param[in]	err		Error message code. */
+  logger(loglevel level, int err) : m_err(err), m_level(level) {
+    /* Note: Dummy argument to avoid the warning:
+
+    "format not a string literal and no format arguments"
+    "[-Wformat-security]"
+
+    The warning only kicks in if the call is of the form:
+
+       snprintf(buf, sizeof(buf), str);
+    */
+
+    m_oss << PREFIX;
+    m_oss << msg(err, "");
+  }
+
+  /** Constructor.
+  @param[in]	level		Logging level
+  @param[in]	err		Error message code.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit logger(loglevel level, int err, Args &&... args)
+      : m_err(err), m_level(level) {
+    m_oss << PREFIX;
+    m_oss << msg(err, std::forward<Args>(args)...);
+  }
+
+  /** Constructor
+  @param[in]	level		Log error level */
+  explicit logger(loglevel level) : m_err(ER_IB_MSG_0), m_level(level) {
+    m_oss << PREFIX;
+  }
+
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 
 /** The class info is used to emit informational log messages.  It is to be
@@ -394,21 +517,63 @@ statement.  If a named object is created, then the log message will be emitted
 only when it goes out of scope or destroyed. */
 class info : public logger {
  public:
+#ifndef UNIV_NO_ERR_MSGS
+
+  /** Default constructor uses ER_IB_MSG_0 */
+  info() : logger(INFORMATION_LEVEL) {}
+
+  /** Constructor.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit info(int err, Args &&... args)
+      : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {}
+#else
+  /** Destructor */
   ~info();
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 
 /** The class warn is used to emit warnings.  Refer to the documentation of
 class info for further details. */
 class warn : public logger {
  public:
+#ifndef UNIV_NO_ERR_MSGS
+  /** Default constructor uses ER_IB_MSG_0 */
+  warn() : logger(WARNING_LEVEL) {}
+
+  /** Constructor.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit warn(int err, Args &&... args)
+      : logger(WARNING_LEVEL, err, std::forward<Args>(args)...) {}
+
+#else
+  /** Destructor */
   ~warn();
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 
 /** The class error is used to emit error messages.  Refer to the
 documentation of class info for further details. */
 class error : public logger {
  public:
+#ifndef UNIV_NO_ERR_MSGS
+  /** Default constructor uses ER_IB_MSG_0 */
+  error() : logger(ERROR_LEVEL) {}
+
+  /** Constructor.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit error(int err, Args &&... args)
+      : logger(ERROR_LEVEL, err, std::forward<Args>(args)...) {}
+
+#else
+  /** Destructor */
   ~error();
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 
 /** The class fatal is used to emit an error message and stop the server
@@ -416,53 +581,175 @@ by crashing it.  Use this class when MySQL server needs to be stopped
 immediately.  Refer to the documentation of class info for usage details. */
 class fatal : public logger {
  public:
-  ~fatal() MY_ATTRIBUTE((noreturn));
+#ifndef UNIV_NO_ERR_MSGS
+  /** Default constructor uses ER_IB_MSG_0 */
+  fatal() : logger(ERROR_LEVEL) { m_oss << "[FATAL]"; }
+
+  /** Default constructor uses ER_IB_MSG_0 */
+  explicit fatal(int err) : logger(ERROR_LEVEL) {
+    m_oss << "[FATAL]";
+
+    m_oss << msg(err, "");
+  }
+
+  /** Constructor.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit fatal(int err, Args &&... args) : logger(ERROR_LEVEL, err) {
+    m_oss << "[FATAL]";
+
+    m_oss << msg(err, std::forward<Args>(args)...);
+  }
+
+  /** Destructor. */
+  virtual ~fatal();
+#else
+  /** Destructor. */
+  ~fatal();
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 
 /** Emit an error message if the given predicate is true, otherwise emit a
 warning message */
 class error_or_warn : public logger {
  public:
-  error_or_warn(bool pred) : m_error(pred) {}
+#ifndef UNIV_NO_ERR_MSGS
 
-  ~error_or_warn();
+  /** Default constructor uses ER_IB_MSG_0
+  @param[in]	pred		True if it's a warning. */
+  error_or_warn(bool pred) : logger(pred ? ERROR_LEVEL : WARNING_LEVEL) {}
 
- private:
-  const bool m_error;
+  /** Constructor.
+  @param[in]	pred		True if it's a warning.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit error_or_warn(bool pred, int err, Args &&... args)
+      : logger(pred ? ERROR_LEVEL : WARNING_LEVEL, err,
+               std::forward<Args>(args)...) {}
+
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 
 /** Emit a fatal message if the given predicate is true, otherwise emit a
 error message. */
 class fatal_or_error : public logger {
  public:
-  fatal_or_error(bool pred) : m_fatal(pred) {}
+#ifndef UNIV_NO_ERR_MSGS
+  /** Default constructor uses ER_IB_MSG_0
+  @param[in]	fatal		true if it's a fatal message */
+  fatal_or_error(bool fatal) : logger(ERROR_LEVEL), m_fatal(fatal) {
+    if (m_fatal) {
+      m_oss << "[fatal]";
+    }
+  }
 
-  ~fatal_or_error();
+  /** Constructor.
+  @param[in]	fatal		true if it's a fatal message
+  @param[in]	err		Error code from errmsg-*.txt. */
+  template <class... Args>
+  explicit fatal_or_error(bool fatal, int err)
+      : logger(ERROR_LEVEL, err), m_fatal(fatal) {
+    if (m_fatal) {
+      m_oss << "[fatal]";
+    }
 
+    m_oss << msg(err, "");
+  }
+
+  /** Constructor.
+  @param[in]	fatal		true if it's a fatal message
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit fatal_or_error(bool fatal, int err, Args &&... args)
+      : logger(ERROR_LEVEL, err), m_fatal(fatal) {
+    if (m_fatal) {
+      m_oss << "[fatal]";
+    }
+
+    m_oss << msg(err, std::forward<Args>(args)...);
+  }
+
+  /** Destructor */
+  virtual ~fatal_or_error();
+#else
+  /** Constructor */
+  fatal_or_error(bool fatal) : m_fatal(fatal) {}
+#endif /* !UNIV_NO_ERR_MSGS */
  private:
+  /** If true then assert after printing an error message. */
   const bool m_fatal;
 };
 
 #ifdef UNIV_HOTBACKUP
 /**  The class trace is used to emit informational log messages. only when
 trace level is set in the MEB code */
-class trace : public logger {
+class trace_1 : public logger {
  public:
-  ~trace();
+#ifndef UNIV_NO_ERR_MSGS
+  /** Default constructor uses ER_IB_MSG_0 */
+  trace_1() : logger(INFORMATION_LEVEL) { m_trace_level = 1; }
+
+  /** Constructor.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit trace_1(int err, Args &&... args)
+      : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {
+    m_trace_level = 1;
+  }
+
+#else
+  /** Constructor */
+  trace_1();
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 
 /**  The class trace_2 is used to emit informational log messages only when
 trace level 2 is set in the MEB code */
 class trace_2 : public logger {
  public:
-  ~trace_2();
+#ifndef UNIV_NO_ERR_MSGS
+  /** Default constructor uses ER_IB_MSG_0 */
+  trace_2() : logger(INFORMATION_LEVEL) { m_trace_level = 2; }
+
+  /** Constructor.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit trace_2(int err, Args &&... args)
+      : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {
+    m_trace_level = 2;
+  }
+#else
+  /** Destructor. */
+  trace_2();
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 
 /**  The class trace_3 is used to emit informational log messages only when
 trace level 3 is set in the MEB code */
 class trace_3 : public logger {
  public:
-  ~trace_3();
+#ifndef UNIV_NO_ERR_MSGS
+  /** Default constructor uses ER_IB_MSG_0 */
+  trace_3() : logger(INFORMATION_LEVEL) { m_trace_level = 3; }
+
+  /** Constructor.
+  @param[in]	err		Error code from errmsg-*.txt.
+  @param[in]	args		Variable length argument list */
+  template <class... Args>
+  explicit trace_3(int err, Args &&... args)
+      : logger(INFORMATION_LEVEL, err, std::forward<Args>(args)...) {
+    m_trace_level = 3;
+  }
+
+#else
+  /** Destructor. */
+  trace_3();
+#endif /* !UNIV_NO_ERR_MSGS */
 };
 #endif /* UNIV_HOTBACKUP */
 }  // namespace ib
@@ -474,6 +761,23 @@ replaced by '_'.
 void meb_sprintf_timestamp_without_extra_chars(char *buf);
 #endif /* UNIV_HOTBACKUP */
 
+struct Wait_stats {
+  uint64_t wait_loops;
+
+  explicit Wait_stats(uint64_t wait_loops = 0) : wait_loops(wait_loops) {}
+
+  Wait_stats &operator+=(const Wait_stats &rhs) {
+    wait_loops += rhs.wait_loops;
+    return (*this);
+  }
+
+  Wait_stats operator+(const Wait_stats &rhs) const {
+    return (Wait_stats{wait_loops + rhs.wait_loops});
+  }
+
+  bool any_waits() const { return (wait_loops != 0); }
+};
+
 #include "ut0ut.ic"
 
-#endif
+#endif /* !ut0ut_h */

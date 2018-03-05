@@ -114,7 +114,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 # Case1: insert on encrypt and non encrypt table in parallel during kill
 # In connection con1 - Running insert on encrypt table
 call tde_db.populate_t_encrypt();

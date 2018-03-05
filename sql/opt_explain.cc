@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,9 @@ const char *join_type_str[] = {
 static const enum_query_type cond_print_flags =
     enum_query_type(QT_ORDINARY | QT_SHOW_SELECT_NUMBER);
 
-static const char plan_not_ready[] = "Plan isn't ready yet";
+/// First string: for regular EXPLAIN; second: for EXPLAIN CONNECTION
+static const char *plan_not_ready[] = {"Not optimized, outer query is empty",
+                                       "Plan isn't ready yet"};
 
 /**
   A base for all Explain_* classes
@@ -551,7 +553,7 @@ enum_parsing_context Explain_no_table::get_subquery_context(
   if (context == CTX_OPTIMIZED_AWAY_SUBQUERY) return context;
   if (context == CTX_DERIVED)
     return context;
-  else if (message != plan_not_ready)
+  else if (message != plan_not_ready[explain_other])
     /*
       When zero result is given all subqueries are considered as optimized
       away.
@@ -578,7 +580,6 @@ bool Explain::explain_subqueries() {
 
   for (SELECT_LEX_UNIT *unit = select_lex->first_inner_unit(); unit;
        unit = unit->next_unit()) {
-    DBUG_ASSERT(explain_other || unit->is_optimized());
     SELECT_LEX *sl = unit->first_select();
     enum_parsing_context context = get_subquery_context(unit);
     if (context == CTX_NONE) context = CTX_OPTIMIZED_AWAY_SUBQUERY;
@@ -1178,10 +1179,15 @@ bool Explain_join::shallow_explain() {
     return true; /* purecov: inspected */
   if (begin_sort_context(ESC_DISTINCT, CTX_DISTINCT))
     return true; /* purecov: inspected */
+
+  qep_row *order_by_distinct = fmt->entry();
+  qep_row *windowing = nullptr;
+
   if (join->m_windowing_steps) {
     if (begin_sort_context(ESC_WINDOWING, CTX_WINDOW))
       return true; /* purecov: inspected */
-    fmt->entry()->m_windows = &select_lex->m_windows;
+
+    windowing = fmt->entry();
     if (!fmt->is_hierarchical()) {
       /*
         TRADITIONAL prints nothing for window functions, except the use of a
@@ -1190,17 +1196,57 @@ bool Explain_join::shallow_explain() {
       push_warning(thd, Sql_condition::SL_NOTE, ER_WINDOW_EXPLAIN_JSON,
                    ER_THD(thd, ER_WINDOW_EXPLAIN_JSON));
     }
+    windowing->m_windows = &select_lex->m_windows;
+    if (join->windowing_cost > 0)
+      windowing->col_read_cost.set(join->windowing_cost);
   }
+
   if (begin_sort_context(ESC_GROUP_BY, CTX_GROUP_BY))
     return true; /* purecov: inspected */
 
+  qep_row *order_by_distinct_or_grouping = fmt->entry();
+
   if (join->sort_cost > 0.0) {
     /*
-      Due to begin_sort_context() calls above, fmt->entry() returns another
-      context than stored in join_entry.
+      This sort is for GROUP BY, ORDER BY, DISTINCT so we attach its cost to
+      them, by checking which is in use. When there is no windowing, we ascribe
+      this cost always to the GROUP BY, if there is one, since ORDER
+      BY/DISTINCT sorts in those cases are elided, else to ORDER BY, or
+      DISTINCT.  With windowing, both GROUP BY and ORDER BY/DISTINCT may carry
+      sorting costs.
     */
-    DBUG_ASSERT(fmt->entry() != join_entry || !fmt->is_hierarchical());
-    fmt->entry()->col_read_cost.set(join->sort_cost);
+    if (join->m_windowing_steps) {
+      int atrs = 0;  // attribute sorting costs to pre-window and/or post-window
+      if (order_by_distinct_or_grouping != windowing &&
+          join->explain_flags.get(ESC_GROUP_BY, ESP_USING_FILESORT)) {
+        // We have a group by: assign it cost iff is used sorting
+        order_by_distinct_or_grouping->col_read_cost.set(join->sort_cost);
+        atrs++;
+      }
+      if (order_by_distinct != join_entry &&
+          (join->explain_flags.get(ESC_ORDER_BY, ESP_USING_FILESORT) ||
+           join->explain_flags.get(ESC_DISTINCT, ESP_USING_FILESORT))) {
+        order_by_distinct->col_read_cost.set(join->sort_cost);
+        atrs++;
+      }
+
+      if (atrs == 2) {
+        /*
+          We do sorting twice because of intervening windowing sorts, so
+          increase total correspondingly. It has already been added to
+          best_read once in the optimizer.
+        */
+        join_entry->col_read_cost.set(join->best_read + join->sort_cost);
+      }
+    } else {
+      /*
+        Due to begin_sort_context() calls above, fmt->entry() returns another
+        context than stored in join_entry.
+      */
+      DBUG_ASSERT(order_by_distinct_or_grouping != join_entry ||
+                  !fmt->is_hierarchical());
+      order_by_distinct_or_grouping->col_read_cost.set(join->sort_cost);
+    }
   }
 
   if (begin_sort_context(ESC_BUFFER_RESULT, CTX_BUFFER_RESULT))
@@ -1804,7 +1850,8 @@ bool explain_single_table_modification(THD *ethd, const Modification_plan *plan,
   }
 
   if (!plan || plan->zero_result) {
-    ret = Explain_no_table(ethd, select, plan ? plan->message : plan_not_ready,
+    ret = Explain_no_table(ethd, select,
+                           plan ? plan->message : plan_not_ready[other],
                            CTX_JOIN, HA_POS_ERROR)
               .send();
   } else {
@@ -1843,11 +1890,11 @@ bool explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
   trace_exec.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
   JOIN *join = select_lex->join;
+  const bool other = (select_lex->master_unit()->thd != ethd);
 
   if (!join || join->get_plan_state() == JOIN::NO_PLAN)
-    return explain_no_table(ethd, select_lex, plan_not_ready, ctx);
+    return explain_no_table(ethd, select_lex, plan_not_ready[other], ctx);
 
-  const bool other = (join->thd != ethd);
   THD::Query_plan const *query_plan = &join->thd->query_plan;
 
   // Check access rights for views

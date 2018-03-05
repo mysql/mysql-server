@@ -606,10 +606,10 @@ void File_query_log::check_and_print_write_error() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .errcode(ER_ERROR_ON_WRITE)
+        .errcode(ER_FAILED_TO_WRITE_TO_FILE)
         .os_errno(errno)
         .os_errmsg(errbuf)
-        .lookup(ER_ERROR_ON_WRITE, name, errno, errbuf);
+        .lookup(ER_FAILED_TO_WRITE_TO_FILE, name, errno, errbuf);
   }
 }
 

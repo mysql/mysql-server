@@ -1582,26 +1582,34 @@ TEST_F(CacheStorageTest, PartitionTest) {
   }
 }
 
-// Test that SPI chache evicts entries when it exceeds max size
-TEST_F(CacheStorageTest, TestSPICache) {
-  dd::cache::SPI_lru_cache_owner_ptr cache;
+TEST_F(CacheStorageTest, CloneInternalPointersTest) {
+  std::unique_ptr<dd::Table> tab{dd::create_object<dd::Table>()};
 
-  // Load the cache
-  for (dd::Object_id i = 0; i < 1024; ++i) {
-    EXPECT_FALSE(dd_cache_unittest::is_cached(cache, i));
-    dd_cache_unittest::insert(cache, i);
-    EXPECT_TRUE(dd_cache_unittest::is_cached(cache, i));
-  }
+  dd::Column *col1 = tab->add_column();
+  dd::Index *index1 = tab->add_index();
+  index1->add_element(col1);
 
-  // Add more ids and verify that the expected id is evicted
-  for (dd::Object_id i = 1024; i < 2048; ++i) {
-    dd::Object_id victim = i % 1024;
-    EXPECT_FALSE(dd_cache_unittest::is_cached(cache, i));
-    EXPECT_TRUE(dd_cache_unittest::is_cached(cache, victim));
-    dd_cache_unittest::insert(cache, i);
-    EXPECT_TRUE(dd_cache_unittest::is_cached(cache, i));
-    EXPECT_FALSE(dd_cache_unittest::is_cached(cache, victim));
-  }
+  dd::Column *col2 = tab->add_column();
+  dd::Index *index2 = tab->add_index();
+  index2->add_element(col2);
+
+  tab->add_partition()->add_index(index1);
+  tab->add_partition()->add_index(index2);
+
+  std::unique_ptr<dd::Table> clone{tab->clone()};
+  const dd::Table &cr = *clone;
+  const dd::Table::Column_collection &clone_cols = cr.columns();
+  EXPECT_EQ(2u, clone_cols.size());
+  const dd::Table::Index_collection &clone_indices = cr.indexes();
+  EXPECT_EQ(2u, clone_indices.size());
+  const dd::Table::Partition_collection &clone_parts = cr.partitions();
+  EXPECT_EQ(2u, clone_parts.size());
+
+  EXPECT_EQ(clone_cols[0], &clone_indices[0]->elements().front()->column());
+  EXPECT_EQ(clone_cols[1], &clone_indices[1]->elements().front()->column());
+
+  EXPECT_EQ(clone_indices[0], &clone_parts[0]->indexes().front()->index());
+  EXPECT_EQ(clone_indices[1], &clone_parts[1]->indexes().front()->index());
 }
 
 #endif /* !DBUG_OFF */

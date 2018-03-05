@@ -50,6 +50,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <time.h>
 
+#include <chrono>
+
 #include "btr0sea.h"
 #include "buf0flu.h"
 #include "buf0lru.h"
@@ -64,6 +66,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "mem0mem.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -88,6 +91,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifdef UNIV_HOTBACKUP
 #include "page0size.h"
+#else
+/** Structure with state of srv background threads. */
+Srv_threads srv_threads;
+
+/** Structure with cpu usage information. */
+Srv_cpu_usage srv_cpu_usage;
 #endif /* UNIV_HOTBACKUP */
 
 #ifdef INNODB_DD_TABLE
@@ -103,15 +112,6 @@ ulint srv_fatal_semaphore_wait_threshold = 600;
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
 ulint srv_dml_needed_delay = 0;
-
-ibool srv_monitor_active = FALSE;
-ibool srv_error_monitor_active = FALSE;
-
-ibool srv_buf_dump_thread_active = FALSE;
-
-bool srv_buf_resize_thread_active = false;
-
-bool srv_dict_stats_thread_active = false;
 
 const char *srv_main_thread_op_info = "";
 
@@ -210,27 +210,128 @@ extern bool trx_commit_disallowed;
 char *srv_log_group_home_dir = NULL;
 
 /** Enable or disable Encrypt of REDO tablespace. */
-bool srv_redo_log_encrypt = FALSE;
+bool srv_redo_log_encrypt = false;
 
 ulong srv_n_log_files = SRV_N_LOG_FILES_MAX;
+
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
 (innodb_log_file_size), the redo log will be rebuilt and this size
 will be initialized to srv_log_file_size_requested.
 When upgrading from a previous redo log format, this will be set to 0,
-and writing to the redo log is not allowed.
-
-During startup, this is in bytes, and later converted to pages. */
+and writing to the redo log is not allowed. Expressed in bytes. */
 ulonglong srv_log_file_size;
-/** The value of the startup parameter innodb_log_file_size */
+
+/** The value of the startup parameter innodb_log_file_size. */
 ulonglong srv_log_file_size_requested;
-/* size in database pages */
+
+/** Space for log buffer, expressed in bytes. Note, that log buffer
+will use only the largest power of two, which is not greater than
+the assigned space. */
 ulong srv_log_buffer_size;
+
+/** When log writer follows links in the log recent written buffer,
+it stops when it has reached at least that many bytes to write,
+limiting how many bytes can be written in single call. */
+ulong srv_log_write_max_size;
+
+/** Size of block, used for writing ahead to avoid read-on-write. */
+ulong srv_log_write_ahead_size;
+
+/** Number of events used for notifications about redo write. */
+ulong srv_log_write_events;
+
+/** Number of events used for notifications about redo flush. */
+ulong srv_log_flush_events;
+
+/** Number of slots in a small buffer, which is used to allow concurrent
+writes to log buffer. The slots are addressed by LSN values modulo number
+of the slots. */
+ulong srv_log_recent_written_size;
+
+/** Number of slots in a small buffer, which is used to break requirement
+for total order of dirty pages, when they are added to flush lists.
+The slots are addressed by LSN values modulo number of the slots. */
+ulong srv_log_recent_closed_size;
+
+/** Minimum absolute value of cpu time for which spin-delay is used. */
+uint srv_log_spin_cpu_abs_lwm;
+
+/** Maximum percentage of cpu time for which spin-delay is used. */
+uint srv_log_spin_cpu_pct_hwm;
+
+/** Number of spin iterations, when spinning and waiting for log buffer
+written up to given LSN, before we fallback to loop with sleeps.
+This is not used when user thread has to wait for log flushed to disk. */
+ulong srv_log_wait_for_write_spin_delay;
+
+/** Timeout used when waiting for redo write (microseconds). */
+ulong srv_log_wait_for_write_timeout;
+
+/** Number of spin iterations, when spinning and waiting for log flushed. */
+ulong srv_log_wait_for_flush_spin_delay;
+
+/** Maximum value of average log flush time for which spin-delay is used.
+When flushing takes longer, user threads no longer spin when waiting for
+flushed redo. Expressed in microseconds. */
+ulong srv_log_wait_for_flush_spin_hwm;
+
+/** Timeout used when waiting for redo flush (microseconds). */
+ulong srv_log_wait_for_flush_timeout;
+
+/** Number of spin iterations, for which log writer thread is waiting
+for new data to write or flush without sleeping. */
+ulong srv_log_writer_spin_delay;
+
+/** Initial timeout used to wait on writer_event. */
+ulong srv_log_writer_timeout;
+
+/** Number of milliseconds every which a periodical checkpoint is written
+by the log checkpointer thread (unless periodical checkpoints are disabled,
+which is a case during initial phase of startup). */
+ulong srv_log_checkpoint_every;
+
+/** Number of spin iterations, for which log flusher thread is waiting
+for new data to flush, without sleeping. */
+ulong srv_log_flusher_spin_delay;
+
+/** Initial timeout used to wait on flusher_event. */
+ulong srv_log_flusher_timeout;
+
+/** Number of spin iterations, for which log write notifier thread is waiting
+for advanced flushed_to_disk_lsn without sleeping. */
+ulong srv_log_write_notifier_spin_delay;
+
+/** Initial timeout used to wait on write_notifier_event. */
+ulong srv_log_write_notifier_timeout;
+
+/** Number of spin iterations, for which log flush notifier thread is waiting
+for advanced flushed_to_disk_lsn without sleeping. */
+ulong srv_log_flush_notifier_spin_delay;
+
+/** Initial timeout used to wait on flush_notifier_event. */
+ulong srv_log_flush_notifier_timeout;
+
+/** Number of spin iterations, for which log closerr thread is waiting
+for a reachable untraversed link in recent_closed. */
+ulong srv_log_closer_spin_delay;
+
+/** Initial sleep used in log closer after spin delay is finished. */
+ulong srv_log_closer_timeout;
+
+/** Whether to generate and require checksums on the redo log pages. */
+bool srv_log_checksums;
+
+#ifdef UNIV_DEBUG
+
+bool srv_checkpoint_disabled = false;
+
+#endif /* UNIV_DEBUG */
+
 ulong srv_flush_log_at_trx_commit = 1;
 uint srv_flush_log_at_timeout = 1;
 ulong srv_page_size = UNIV_PAGE_SIZE_DEF;
 ulong srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
-ulong srv_log_write_ahead_size = 0;
 
 page_size_t univ_page_size(0, 0, false);
 
@@ -420,9 +521,6 @@ static ulint srv_n_rows_read_old = 0;
 
 ulint srv_truncated_status_writes = 0;
 
-/* Set the following to 0 if you want InnoDB to write messages on
-stderr on startup/shutdown. */
-ibool srv_print_verbose_log = TRUE;
 bool srv_print_innodb_monitor = FALSE;
 bool srv_print_innodb_lock_monitor = FALSE;
 
@@ -474,11 +572,6 @@ static ulint srv_main_shutdown_loops = 0;
 /** Log writes involving flush. */
 static ulint srv_log_writes_and_flush = 0;
 
-/* This is only ever touched by the master thread. It records the
-time when the last flush of log file has happened. The master
-thread ensures that we flush the log files at least once per
-second. */
-static time_t srv_last_log_flush_time;
 #endif /* !UNIV_HOTBACKUP */
 
 /* Interval in seconds at which various tasks are performed by the
@@ -489,7 +582,6 @@ defined as 5, 10, 15, 60 then all tasks will be performed when
 current_time % 60 == 0 and no tasks will be performed when
 current_time % 5 != 0. */
 
-#define SRV_MASTER_CHECKPOINT_INTERVAL (7)
 #define SRV_MASTER_DICT_LRU_INTERVAL (47)
 
 /** Acquire the system_mutex. */
@@ -1042,8 +1134,8 @@ void srv_free(void) {
 
 /** Initializes the synchronization primitives, memory system, and the thread
  local storage. */
-static void srv_general_init(void) {
-  sync_check_init();
+static void srv_general_init() {
+  sync_check_init(srv_max_n_threads);
   /* Reset the system variables in the recovery module. */
   recv_sys_var_init();
   os_thread_open();
@@ -1075,7 +1167,7 @@ static void srv_refresh_innodb_monitor_stats(void) {
   btr_cur_n_sea_old = btr_cur_n_sea;
   btr_cur_n_non_sea_old = btr_cur_n_non_sea;
 
-  log_refresh_stats();
+  log_refresh_stats(*log_sys);
 
   buf_refresh_io_stats_all();
 
@@ -1221,7 +1313,7 @@ ibool srv_printf_innodb_monitor(
       "LOG\n"
       "---\n",
       file);
-  log_print(file);
+  log_print(*log_sys, file);
 
   fputs(
       "----------------------\n"
@@ -1461,8 +1553,6 @@ void srv_monitor_thread() {
 
   ut_ad(!srv_read_only_mode);
 
-  srv_monitor_active = TRUE;
-
   srv_last_monitor_time = last_monitor_time = ut_time();
   mutex_skipped = 0;
   last_srv_print_monitor = srv_print_innodb_monitor;
@@ -1532,7 +1622,8 @@ loop:
   goto loop;
 
 exit_func:
-  srv_monitor_active = FALSE;
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_monitor_thread_active = false;
 }
 
 /** A thread which prints warnings about semaphore waits which have lasted
@@ -1552,21 +1643,16 @@ void srv_error_monitor_thread() {
 
   ut_ad(!srv_read_only_mode);
 
-  old_lsn = srv_start_lsn;
-
-  srv_error_monitor_active = TRUE;
+  old_lsn = log_get_lsn(*log_sys);
 
 loop:
   /* Try to track a strange bug reported by Harald Fuchs and others,
   where the lsn seems to decrease at times */
 
-  new_lsn = log_get_lsn();
+  new_lsn = log_get_lsn(*log_sys);
 
   if (new_lsn < old_lsn) {
-    ib::error() << "Old log sequence number " << old_lsn << " was"
-                << " greater than the new log sequence number " << new_lsn
-                << ". Please submit a bug report to"
-                   " http://bugs.mysql.com";
+    ib::error(ER_IB_MSG_1046, old_lsn, new_lsn);
     ut_ad(0);
   }
 
@@ -1593,10 +1679,7 @@ loop:
       os_thread_eq(waiter, old_waiter)) {
     fatal_cnt++;
     if (fatal_cnt > 10) {
-      ib::fatal() << "Semaphore wait has lasted > "
-                  << srv_fatal_semaphore_wait_threshold
-                  << " seconds. We intentionally crash the"
-                     " server because it appears to be hung.";
+      ib::fatal(ER_IB_MSG_1047, srv_fatal_semaphore_wait_threshold);
     }
   } else {
     fatal_cnt = 0;
@@ -1617,7 +1700,8 @@ loop:
     goto loop;
   }
 
-  srv_error_monitor_active = FALSE;
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_error_monitor_thread_active = false;
 }
 
 /** Increment the server activity count. */
@@ -1629,29 +1713,28 @@ Send the threads wakeup signal.
 NOTE: this check is part of the final shutdown, when the first phase of
 shutdown has already been completed.
 @see srv_pre_dd_shutdown()
-@see srv_master_thread_active()
 @return name of thread that is active
 @retval NULL if no thread is active */
 const char *srv_any_background_threads_are_active() {
   const char *thread_active = NULL;
 
-  ut_ad(!srv_dict_stats_thread_active);
+  ut_ad(!srv_threads.m_dict_stats_thread_active);
 
   if (srv_read_only_mode) {
-    if (srv_buf_resize_thread_active) {
+    if (srv_threads.m_buf_resize_thread_active) {
       thread_active = "buf_resize_thread";
     }
     os_event_set(srv_buf_resize_event);
     return (thread_active);
-  } else if (srv_error_monitor_active) {
+  } else if (srv_threads.m_error_monitor_thread_active) {
     thread_active = "srv_error_monitor_thread";
-  } else if (lock_sys->timeout_thread_active) {
+  } else if (srv_threads.m_timeout_thread_active) {
     thread_active = "srv_lock_timeout thread";
-  } else if (srv_monitor_active) {
+  } else if (srv_threads.m_monitor_thread_active) {
     thread_active = "srv_monitor_thread";
-  } else if (srv_buf_dump_thread_active) {
+  } else if (srv_threads.m_buf_dump_thread_active) {
     thread_active = "buf_dump_thread";
-  } else if (srv_buf_resize_thread_active) {
+  } else if (srv_threads.m_buf_resize_thread_active) {
     thread_active = "buf_resize_thread";
   }
 
@@ -1677,7 +1760,7 @@ bool srv_master_thread_active() {
     return (false);
   }
 
-  ut_a(!srv_dict_stats_thread_active);
+  ut_a(!srv_threads.m_dict_stats_thread_active);
   srv_sys_mutex_enter();
   ut_a(srv_sys->n_threads_active[SRV_WORKER] == 0);
   ut_a(srv_sys->n_threads_active[SRV_PURGE] == 0);
@@ -1759,22 +1842,6 @@ ibool srv_check_activity(
   return (srv_sys->activity_count != old_activity_count);
 }
 
-/** The master thread is tasked to ensure that flush of log file happens
- once every second in the background. This is to ensure that not more
- than one second of trxs are lost in case of crash when
- innodb_flush_logs_at_trx_commit != 1 */
-static void srv_sync_log_buffer_in_background(void) {
-  time_t current_time = time(NULL);
-
-  srv_main_thread_op_info = "flushing log";
-  if (difftime(current_time, srv_last_log_flush_time) >=
-      srv_flush_log_at_timeout) {
-    log_buffer_sync_in_background(true);
-    srv_last_log_flush_time = current_time;
-    srv_log_writes_and_flush++;
-  }
-}
-
 /** Make room in the table cache by evicting an unused table.
  @return number of tables evicted. */
 static ulint srv_master_evict_from_table_cache(
@@ -1816,17 +1883,13 @@ static void srv_shutdown_print_master_pending(
     *last_print_time = ut_time();
 
     if (n_tables_to_drop) {
-      ib::info() << "Waiting for " << n_tables_to_drop
-                 << " table(s) to be dropped";
+      ib::info(ER_IB_MSG_1048, n_tables_to_drop);
     }
 
     /* Check change buffer merge, we only wait for change buffer
     merge if it is a slow shutdown */
     if (!srv_fast_shutdown && n_bytes_merged) {
-      ib::info() << "Waiting for change buffer merge to"
-                    " complete number of bytes of change buffer"
-                    " just merged: "
-                 << n_bytes_merged;
+      ib::info(ER_IB_MSG_1049, n_bytes_merged);
     }
   }
 }
@@ -1875,6 +1938,223 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 }
 #endif /* UNIV_DEBUG */
 
+/** Calculates difference between two timeval values.
+@param[in]	a	later timeval
+@param[in]	b	earlier timeval
+@return a - b; number of microseconds between b and a */
+MY_ATTRIBUTE((unused))
+static int64_t timeval_diff_us(timeval a, timeval b) {
+  return ((a.tv_sec - b.tv_sec) * 1000000LL + a.tv_usec - b.tv_usec);
+}
+
+#ifdef UNIV_LINUX
+
+/** Updates statistics about current CPU usage. */
+static void srv_update_cpu_usage() {
+  using Clock = std::chrono::high_resolution_clock;
+  using Clock_point = std::chrono::time_point<Clock>;
+
+  static Clock_point last_time = Clock::now();
+
+  static timeval last_cpu_utime;
+  static timeval last_cpu_stime;
+  static bool last_cpu_times_set = false;
+
+  Clock_point cur_time = Clock::now();
+
+  const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
+                             cur_time - last_time)
+                             .count();
+
+  if (time_diff < 100 * 1000LL) {
+    return;
+  }
+  last_time = cur_time;
+
+  rusage usage;
+  if (getrusage(RUSAGE_SELF, &usage) != 0) {
+    return;
+  }
+
+  if (!last_cpu_times_set) {
+    last_cpu_utime = usage.ru_utime;
+    last_cpu_stime = usage.ru_stime;
+    last_cpu_times_set = true;
+    return;
+  }
+
+  const auto cpu_utime_diff = timeval_diff_us(usage.ru_utime, last_cpu_utime);
+  last_cpu_utime = usage.ru_utime;
+
+  const auto cpu_stime_diff = timeval_diff_us(usage.ru_stime, last_cpu_stime);
+  last_cpu_stime = usage.ru_stime;
+
+  /* Calculate absolute. */
+
+  double cpu_utime = cpu_utime_diff * 100.0 / time_diff;
+  MONITOR_SET(MONITOR_CPU_UTIME_ABS, int64_t(cpu_utime));
+  srv_cpu_usage.utime_abs = cpu_utime;
+
+  double cpu_stime = cpu_stime_diff * 100.0 / time_diff;
+  MONITOR_SET(MONITOR_CPU_STIME_ABS, int64_t(cpu_stime));
+  srv_cpu_usage.stime_abs = cpu_stime;
+
+  /* Calculate relative. */
+
+  cpu_set_t cs;
+  CPU_ZERO(&cs);
+  if (sched_getaffinity(0, sizeof(cs), &cs) != 0) {
+    return;
+  }
+
+  int n_cpu = 0;
+  constexpr int MAX_CPU_N = 128;
+  for (int i = 0; i < MAX_CPU_N; ++i) {
+    if (CPU_ISSET(i, &cs)) {
+      ++n_cpu;
+    }
+  }
+
+  srv_cpu_usage.n_cpu = n_cpu;
+  MONITOR_SET(MONITOR_CPU_N, int64_t(n_cpu));
+
+  if (n_cpu == 0) {
+    return;
+  }
+
+  cpu_utime /= n_cpu;
+  MONITOR_SET(MONITOR_CPU_UTIME_PCT, int64_t(cpu_utime));
+  srv_cpu_usage.utime_pct = cpu_utime;
+
+  cpu_stime /= n_cpu;
+  MONITOR_SET(MONITOR_CPU_STIME_PCT, int64_t(cpu_stime));
+  srv_cpu_usage.stime_pct = cpu_stime;
+}
+#else /* !UNIV_LINUX */
+#ifdef _WIN32
+/** Convert a FILETIME to microseconds.
+Do not cast a pointer to a FILETIME structure to either a ULARGE_INTEGER* or
+__int64* value because it can cause alignment faults on 64-bit Windows.
+*/
+static uint64 FILETIME_to_microseconds(const FILETIME &ft) {
+  ULARGE_INTEGER ulg;
+  ulg.HighPart = ft.dwHighDateTime;
+  ulg.LowPart = ft.dwLowDateTime;
+  return ulg.QuadPart / 10;
+}
+
+/** Updates statistics about current CPU usage. */
+static void srv_update_cpu_usage() {
+  using Clock = std::chrono::high_resolution_clock;
+  using Clock_point = std::chrono::time_point<Clock>;
+
+  static Clock_point last_time = Clock::now();
+
+  static uint64 last_cpu_utime;
+  static uint64 last_cpu_stime;
+  static bool last_cpu_times_set = false;
+
+  Clock_point cur_time = Clock::now();
+
+  const auto time_diff = std::chrono::duration_cast<std::chrono::microseconds>(
+                             cur_time - last_time)
+                             .count();
+
+  if (time_diff < 100 * 1000LL) {
+    return;
+  }
+  last_time = cur_time;
+
+  FILETIME process_creation_time;
+  FILETIME process_exit_time;
+  FILETIME process_kernel_time;
+  FILETIME process_user_time;
+
+  if (!GetProcessTimes(GetCurrentProcess(), &process_creation_time,
+                       &process_exit_time, &process_kernel_time,
+                       &process_user_time)) {
+    return;
+  }
+
+  uint64 cur_cpu_utime = FILETIME_to_microseconds(process_user_time);
+  uint64 cur_cpu_stime = FILETIME_to_microseconds(process_kernel_time);
+  if (!last_cpu_times_set) {
+    last_cpu_utime = cur_cpu_utime;
+    last_cpu_stime = cur_cpu_stime;
+    last_cpu_times_set = true;
+    return;
+  }
+
+  const auto cpu_utime_diff = cur_cpu_utime - last_cpu_utime;
+  last_cpu_utime = cur_cpu_utime;
+
+  const auto cpu_stime_diff = cur_cpu_stime - last_cpu_stime;
+  last_cpu_stime = cur_cpu_stime;
+
+  /* Calculate absolute. */
+
+  double cpu_utime = cpu_utime_diff * 100.0 / time_diff;
+  MONITOR_SET(MONITOR_CPU_UTIME_ABS, int64_t(cpu_utime));
+  srv_cpu_usage.utime_abs = cpu_utime;
+
+  double cpu_stime = cpu_stime_diff * 100.0 / time_diff;
+  MONITOR_SET(MONITOR_CPU_STIME_ABS, int64_t(cpu_stime));
+  srv_cpu_usage.stime_abs = cpu_stime;
+
+  /* Calculate relative. */
+
+  DWORD_PTR process_affinity_mask;
+  DWORD_PTR system_affinity_mask;
+  if (!GetProcessAffinityMask(GetCurrentProcess(), &process_affinity_mask,
+                              &system_affinity_mask)) {
+    return;
+  }
+
+  /* If the system has more than 64 processors and the current process
+     contains threads in multiple groups, GetProcessAffinityMask returns
+     zero for both affinity masks.
+  */
+  if ((process_affinity_mask == 0) && (system_affinity_mask == 0)) {
+    return;
+  }
+
+  int n_cpu = 0;
+  constexpr int MAX_CPU_N = 64;
+  uint64 j = 1;
+  for (int i = 0; i < MAX_CPU_N; ++i) {
+    if (j & process_affinity_mask) {
+      ++n_cpu;
+    }
+    j = j << 1;
+  }
+
+  srv_cpu_usage.n_cpu = n_cpu;
+  MONITOR_SET(MONITOR_CPU_N, int64_t(n_cpu));
+
+  if (n_cpu == 0) {
+    return;
+  }
+
+  cpu_utime /= n_cpu;
+  MONITOR_SET(MONITOR_CPU_UTIME_PCT, int64_t(cpu_utime));
+  srv_cpu_usage.utime_pct = cpu_utime;
+
+  cpu_stime /= n_cpu;
+  MONITOR_SET(MONITOR_CPU_STIME_PCT, int64_t(cpu_stime));
+  srv_cpu_usage.stime_pct = cpu_stime;
+}
+#else
+static void srv_update_cpu_usage() {
+  srv_cpu_usage.utime_pct = 0;
+  srv_cpu_usage.utime_abs = 0;
+  srv_cpu_usage.stime_pct = 0;
+  srv_cpu_usage.stime_abs = 0;
+  srv_cpu_usage.n_cpu = 1;
+}
+#endif
+
+#endif /* UNIV_LINUX || WIN32 */
+
 /** Perform the tasks that the master thread is supposed to do when the
  server is active. There are two types of tasks. The first category is
  of such tasks which are performed at each inovcation of this function.
@@ -1906,22 +2186,11 @@ static void srv_master_do_active_tasks(void) {
     return;
   }
 
-  /* make sure that there is enough reusable space in the redo
-  log files */
-  srv_main_thread_op_info = "checking free log space";
-  log_free_check();
-
   /* Do an ibuf merge */
   srv_main_thread_op_info = "doing insert buffer merge";
   counter_time = ut_time_us(NULL);
   ibuf_merge_in_background(false);
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_IBUF_MERGE_MICROSECOND,
-                                 counter_time);
-
-  /* Flush logs if needed */
-  srv_main_thread_op_info = "flushing log";
-  srv_sync_log_buffer_in_background();
-  MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_LOG_FLUSH_MICROSECOND,
                                  counter_time);
 
   /* Now see if various tasks that are performed at defined
@@ -1931,9 +2200,7 @@ static void srv_master_do_active_tasks(void) {
     return;
   }
 
-  if (srv_shutdown_state > 0) {
-    return;
-  }
+  srv_update_cpu_usage();
 
   if (cur_time % SRV_MASTER_DICT_LRU_INTERVAL == 0) {
     srv_main_thread_op_info = "enforcing dict cache limit";
@@ -1942,18 +2209,6 @@ static void srv_master_do_active_tasks(void) {
       MONITOR_INC_VALUE(MONITOR_SRV_DICT_LRU_EVICT_COUNT, n_evicted);
     }
     MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_DICT_LRU_MICROSECOND,
-                                   counter_time);
-  }
-
-  if (srv_shutdown_state > 0) {
-    return;
-  }
-
-  /* Make a new checkpoint */
-  if (cur_time % SRV_MASTER_CHECKPOINT_INTERVAL == 0) {
-    srv_main_thread_op_info = "making checkpoint";
-    log_checkpoint(TRUE, FALSE);
-    MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
                                    counter_time);
   }
 }
@@ -1987,11 +2242,6 @@ static void srv_master_do_idle_tasks(void) {
     return;
   }
 
-  /* make sure that there is enough reusable space in the redo
-  log files */
-  srv_main_thread_op_info = "checking free log space";
-  log_free_check();
-
   /* Do an ibuf merge */
   counter_time = ut_time_us(NULL);
   srv_main_thread_op_info = "doing insert buffer merge";
@@ -2003,27 +2253,14 @@ static void srv_master_do_idle_tasks(void) {
     return;
   }
 
+  srv_update_cpu_usage();
+
   srv_main_thread_op_info = "enforcing dict cache limit";
   ulint n_evicted = srv_master_evict_from_table_cache(100);
   if (n_evicted != 0) {
     MONITOR_INC_VALUE(MONITOR_SRV_DICT_LRU_EVICT_COUNT, n_evicted);
   }
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_DICT_LRU_MICROSECOND,
-                                 counter_time);
-
-  /* Flush logs if needed */
-  srv_sync_log_buffer_in_background();
-  MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_LOG_FLUSH_MICROSECOND,
-                                 counter_time);
-
-  if (srv_shutdown_state > 0) {
-    return;
-  }
-
-  /* Make a new checkpoint */
-  srv_main_thread_op_info = "making checkpoint";
-  log_checkpoint(TRUE, FALSE);
-  MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_SRV_CHECKPOINT_MICROSECOND,
                                  counter_time);
 }
 
@@ -2058,11 +2295,6 @@ static ibool srv_master_do_shutdown_tasks(
   srv_main_thread_op_info = "doing background drop tables";
   n_tables_to_drop = row_drop_tables_for_mysql_in_background();
 
-  /* make sure that there is enough reusable space in the redo
-  log files */
-  srv_main_thread_op_info = "checking free log space";
-  log_free_check();
-
   /* In case of normal shutdown we don't do ibuf merge or purge */
   if (srv_fast_shutdown == 1) {
     goto func_exit;
@@ -2072,17 +2304,9 @@ static ibool srv_master_do_shutdown_tasks(
   srv_main_thread_op_info = "doing insert buffer merge";
   n_bytes_merged = ibuf_merge_in_background(true);
 
-  /* Flush logs if needed */
-  srv_sync_log_buffer_in_background();
-
 func_exit:
-  /* Make a new checkpoint about once in 10 seconds */
-  srv_main_thread_op_info = "making checkpoint";
-
-  log_checkpoint(TRUE, FALSE);
-
   /* Print progress message every 60 seconds during shutdown */
-  if (srv_shutdown_state > 0 && srv_print_verbose_log) {
+  if (srv_shutdown_state > 0) {
     srv_shutdown_print_master_pending(last_print_time, n_tables_to_drop,
                                       n_bytes_merged);
   }
@@ -2095,12 +2319,13 @@ It will try to enable the undo log encryption and write the metadata to
 undo log file header, if innodb_undo_log_encrypt is ON. */
 static void srv_enable_undo_encryption_if_set() {
   fil_space_t *space;
-  const char *cant_set_undo_tablespace = "Can't set undo tablespace";
-  const char *to_be_encrypted = " to be encrypted";
 
   if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
     return;
   }
+
+  //"Can't set undo tablespace(s) to be encrypted since
+  //--innodb_undo_tablespaces=0."
 
   /* Check if encryption for undo log is enabled or not. If it's
   enabled, we will store the encryption metadata to the space header
@@ -2108,15 +2333,13 @@ static void srv_enable_undo_encryption_if_set() {
   if (srv_undo_log_encrypt) {
     if (undo::spaces->empty()) {
       srv_undo_log_encrypt = false;
-      ib::error() << cant_set_undo_tablespace << "s" << to_be_encrypted
-                  << ", since innodb_undo_tablespaces=0.";
+      ib::error(ER_IB_MSG_1050);
       return;
     }
 
     if (srv_read_only_mode) {
       srv_undo_log_encrypt = false;
-      ib::error() << cant_set_undo_tablespace << "s" << to_be_encrypted
-                  << " in read-only mode.";
+      ib::error(ER_IB_MSG_1051);
       return;
     }
 
@@ -2148,6 +2371,10 @@ static void srv_enable_undo_encryption_if_set() {
       Encryption::random_value(key);
       Encryption::random_value(iv);
 
+      /* Make sure that there is enough reusable
+      space in the redo log files. */
+      log_free_check();
+
       mtr_start(&mtr);
 
       mtr_x_lock_space(space, &mtr);
@@ -2156,8 +2383,9 @@ static void srv_enable_undo_encryption_if_set() {
 
       if (!Encryption::fill_encryption_info(key, iv, encrypt_info, false)) {
         srv_undo_log_encrypt = false;
-        ib::error() << cant_set_undo_tablespace << " number "
-                    << undo_space->num() << to_be_encrypted << ".";
+
+        ib::error(ER_IB_MSG_1052, undo_space->num());
+
         mtr_commit(&mtr);
         undo::spaces->s_unlock();
         return;
@@ -2165,10 +2393,9 @@ static void srv_enable_undo_encryption_if_set() {
         if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info,
                                          true, &mtr)) {
           srv_undo_log_encrypt = false;
-          ib::error() << cant_set_undo_tablespace << " number "
-                      << undo_space->num() << to_be_encrypted
-                      << ". Failed to write header"
-                      << " page.";
+
+          ib::error(ER_IB_MSG_1053);
+
           mtr_commit(&mtr);
           undo::spaces->s_unlock();
           return;
@@ -2177,20 +2404,20 @@ static void srv_enable_undo_encryption_if_set() {
         err = fil_set_encryption(space->id, Encryption::AES, key, iv);
         if (err != DB_SUCCESS) {
           srv_undo_log_encrypt = false;
-          ib::error() << cant_set_undo_tablespace << " number "
-                      << undo_space->num() << to_be_encrypted
-                      << ". Error=" << err << ".";
+
+          ib::error(ER_IB_MSG_1054, err, ut_strerr(err));
+
           mtr_commit(&mtr);
           undo::spaces->s_unlock();
           return;
         } else {
-          ib::info() << "Encryption is enabled"
-                        " for undo tablespace number "
-                     << undo::id2num(undo_space->id()) << ".";
+          auto id = undo::id2num(undo_space->id());
+
+          ib::info(ER_IB_MSG_1055, id);
 #ifdef UNIV_ENCRYPT_DEBUG
           ut_print_buf(stderr, key, 32);
           ut_print_buf(stderr, iv, 32);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
         }
       }
       mtr_commit(&mtr);
@@ -2224,6 +2451,10 @@ static void srv_enable_undo_encryption_if_set() {
 
     ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
 
+    /* Make sure that there is enough reusable
+    space in the redo log files. */
+    log_free_check();
+
     mtr_start(&mtr);
 
     mtr_x_lock_space(space, &mtr);
@@ -2231,13 +2462,9 @@ static void srv_enable_undo_encryption_if_set() {
     memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
     if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
-      ib::error() << "Can't rotate encryption on undo"
-                     " tablespace number "
-                  << undo::id2num(space->id) << ".";
+      ib::error(ER_IB_MSG_1056, undo::id2num(space->id));
     } else {
-      ib::info() << "Encryption is enabled"
-                    " for undo tablespace number "
-                 << undo::id2num(space->id) << ".";
+      ib::info(ER_IB_MSG_1057, undo::id2num(space->id));
     }
     mtr_commit(&mtr);
   }
@@ -2284,6 +2511,12 @@ loop:
 
     MONITOR_INC(MONITOR_MASTER_THREAD_SLEEP);
 
+    /* Just in case - if there is not much free space in redo,
+    try to avoid asking for troubles because of extra work
+    performed in such background thread. */
+    srv_main_thread_op_info = "checking free log space";
+    log_free_check();
+
     if (srv_check_activity(old_activity_count)) {
       old_activity_count = srv_get_activity_count();
       srv_master_do_active_tasks();
@@ -2321,8 +2554,12 @@ suspend_thread:
     goto loop;
   }
 
+  srv_main_thread_op_info = "exiting";
   destroy_thd(thd);
   my_thread_end();
+
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_master_thread_active = false;
 }
 
 /**
@@ -2797,4 +3034,9 @@ bool srv_purge_threads_active() {
 
   return (false);
 }
+
 #endif /* !UNIV_HOTBACKUP */
+
+const char *srv_get_server_errmsgs(int errcode) {
+  return (error_message_for_error_log(errcode));
+}

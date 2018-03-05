@@ -27,12 +27,12 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 truncate table t1;
-call mtr.add_suppression("InnoDB: page [0-9]+ in the doublewrite buffer is not within space bounds.*");
+call mtr.add_suppression("page [0-9]+ in the doublewrite buffer is not within space bounds.*");
 START TRANSACTION;
 CALL insert_t1(5000);
 COMMIT;

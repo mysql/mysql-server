@@ -24,10 +24,10 @@ DROP TABLE t1;
 #
 ###################################################################
 #
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number .* in a file operation");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot open datafile for read-only");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot delete tablespace .* because it is not found in the tablespace memory cache");
 # 1. Schemata
 # 1.1 Fail while storing dd object during create.
 SET DEBUG= '+d, fail_while_storing_dd_object';
@@ -234,7 +234,7 @@ t2	CREATE TABLE `t2` (
   `fk` int(11) DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT foreign_key_column_usage.referenced_column_name
 FROM mysql.foreign_key_column_usage, mysql.foreign_keys, mysql.tables

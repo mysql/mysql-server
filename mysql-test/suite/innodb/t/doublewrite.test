@@ -11,7 +11,7 @@ SET GLOBAL innodb_fast_shutdown = 0;
 --source include/restart_mysqld.inc
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: Database page [0-9]+:1 contained only zeroes.");
+call mtr.add_suppression("Database page [0-9]+:1 contained only zeroes.");
 call mtr.add_suppression("Header page consists of zero bytes");
 call mtr.add_suppression("Checksum mismatch in datafile");
 call mtr.add_suppression("but the innodb_page_size start-up parameter is");
@@ -50,7 +50,7 @@ where name = 'test/t1' into @space_id;
 flush tables t1 for export;
 unlock tables;
 
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 
 begin;
 insert into t1 values (6, repeat('%', 12));
@@ -96,7 +96,7 @@ where name = 'test/t1' into @space_id;
 flush tables t1 for export;
 unlock tables;
 
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 
 begin;
 insert into t1 values (6, repeat('%', 12));
@@ -140,7 +140,7 @@ where name = 'test/t1' into @space_id;
 flush tables t1 for export;
 unlock tables;
 
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 
 begin;
 insert into t1 values (6, repeat('%', 400));
@@ -185,7 +185,7 @@ where name = 'test/t1' into @space_id;
 flush tables t1 for export;
 unlock tables;
 
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 
 begin;
 insert into t1 values (6, repeat('%', 400));

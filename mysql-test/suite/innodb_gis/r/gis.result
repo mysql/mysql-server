@@ -580,7 +580,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `ST_GeomFromWKB(ST_AsWKB(POINT(1,3)))` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 CREATE TABLE `t1` (`object_id` bigint(20) unsigned NOT NULL default '0', `geo`

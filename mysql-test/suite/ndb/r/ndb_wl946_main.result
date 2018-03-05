@@ -43,7 +43,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -134,7 +134,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1099869477618
@@ -188,7 +188,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -279,7 +279,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
 count(*)	sum(crc32(concat(a,b,c,d,e,f)))
 500	1091780159996
@@ -334,7 +334,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -370,7 +370,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -421,7 +421,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -457,7 +457,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -519,7 +519,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
@@ -570,7 +570,7 @@ t1	CREATE TABLE `t1` (
   KEY `dx` (`d`),
   KEY `ex` (`e`),
   KEY `fx` (`f`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Attributes:
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000

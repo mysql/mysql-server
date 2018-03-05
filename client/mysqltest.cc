@@ -427,6 +427,7 @@ enum enum_commands {
   Q_DISABLE_METADATA,
   Q_EXEC,
   Q_EXECW,
+  Q_EXEC_BACKGROUND,
   Q_DELIMITER,
   Q_DISABLE_ABORT_ON_ERROR,
   Q_ENABLE_ABORT_ON_ERROR,
@@ -497,14 +498,15 @@ const char *command_names[] = {
     "disable_connect_log", "wait_for_slave_to_stop", "enable_warnings",
     "disable_warnings", "enable_info", "disable_info",
     "enable_session_track_info", "disable_session_track_info",
-    "enable_metadata", "disable_metadata", "exec", "execw", "delimiter",
-    "disable_abort_on_error", "enable_abort_on_error", "vertical_results",
-    "horizontal_results", "query_vertical", "query_horizontal", "sorted_result",
-    "lowercase_result", "start_timer", "end_timer", "character_set",
-    "disable_ps_protocol", "enable_ps_protocol", "disable_reconnect",
-    "enable_reconnect", "if", "disable_parsing", "enable_parsing",
-    "replace_regex", "replace_numeric_round", "remove_file", "file_exists",
-    "write_file", "copy_file", "perl", "die",
+    "enable_metadata", "disable_metadata", "exec", "execw",
+    "exec_in_background", "delimiter", "disable_abort_on_error",
+    "enable_abort_on_error", "vertical_results", "horizontal_results",
+    "query_vertical", "query_horizontal", "sorted_result", "lowercase_result",
+    "start_timer", "end_timer", "character_set", "disable_ps_protocol",
+    "enable_ps_protocol", "disable_reconnect", "enable_reconnect", "if",
+    "disable_parsing", "enable_parsing", "replace_regex",
+    "replace_numeric_round", "remove_file", "file_exists", "write_file",
+    "copy_file", "perl", "die",
 
     /* Don't execute any more commands, compare result */
     "exit", "skip", "chmod", "append_file", "cat_file", "diff_files",
@@ -2689,11 +2691,14 @@ static void replace_crlf_with_lf(char *buf) {
 ///
 /// @param command Pointer to the st_command structure which holds the
 ///                arguments and information for the command.
+/// @param run_in_background Specifies if command should be run in background.
+///                          In such case we don't wait nor attempt to read the
+///                          output.
 ///
 /// @note
 /// It is recommended to use mysqltest command(s) like "remove_file"
 /// instead of executing the shell commands using 'exec' command.
-static void do_exec(struct st_command *command) {
+static void do_exec(struct st_command *command, bool run_in_background) {
   int error;
   FILE *res_file;
   char *cmd = command->first_argument;
@@ -2726,6 +2731,20 @@ static void do_exec(struct st_command *command) {
     ;
 #endif
 
+  if (run_in_background) {
+    /* Add an invocation of "START /B" on Windows, append " &" on Linux*/
+    DYNAMIC_STRING ds_tmp;
+#ifdef WIN32
+    init_dynamic_string(&ds_tmp, "START /B ", ds_cmd.length + 9, 256);
+    dynstr_append_mem(&ds_tmp, ds_cmd.str, ds_cmd.length);
+#else
+    init_dynamic_string(&ds_tmp, ds_cmd.str, ds_cmd.length + 2, 256);
+    dynstr_append_mem(&ds_tmp, " &", 2);
+#endif
+    dynstr_set(&ds_cmd, ds_tmp.str);
+    dynstr_free(&ds_tmp);
+  }
+
   // exec command is interpreted externally and will not take newlines
   while (replace(&ds_cmd, "\n", 1, " ", 1) == 0)
     ;
@@ -2746,44 +2765,46 @@ static void do_exec(struct st_command *command) {
     die("popen(\"%s\", \"r\") failed", command->first_argument);
   }
 
-  char buf[512];
-  std::string str;
-  while (std::fgets(buf, sizeof(buf), res_file)) {
-    if (strlen(buf) < 1) continue;
+  if (!run_in_background) {
+    char buf[512];
+    std::string str;
+    while (std::fgets(buf, sizeof(buf), res_file)) {
+      if (strlen(buf) < 1) continue;
 
 #ifdef WIN32
-    // Replace CRLF char with LF.
-    // See bug#22608247 and bug#22811243
-    DBUG_ASSERT(!strcmp(mode, "rb"));
-    replace_crlf_with_lf(buf);
+      // Replace CRLF char with LF.
+      // See bug#22608247 and bug#22811243
+      DBUG_ASSERT(!strcmp(mode, "rb"));
+      replace_crlf_with_lf(buf);
 #endif
-    if (trace_exec) {
-      fprintf(stdout, "%s", buf);
-      fflush(stdout);
-    }
-    if (disable_result_log) {
-      buf[strlen(buf) - 1] = 0;
-      DBUG_PRINT("exec_result", ("%s", buf));
-    } else {
-      // Read the file line by line. Check if the buffer read from the
-      // file ends with EOL character.
-      if ((buf[strlen(buf) - 1] != '\n' && strlen(buf) < (sizeof(buf) - 1)) ||
-          (buf[strlen(buf) - 1] == '\n')) {
-        // Found EOL
-        if (str.length()) {
-          // Temporary string exists, append the current buffer read
-          // to the temporary string.
-          str.append(buf);
-          replace_dynstr_append(&ds_res, str.c_str());
-          str.clear();
-        } else {
-          // Entire line is read at once
-          replace_dynstr_append(&ds_res, buf);
-        }
+      if (trace_exec) {
+        fprintf(stdout, "%s", buf);
+        fflush(stdout);
+      }
+      if (disable_result_log) {
+        buf[strlen(buf) - 1] = 0;
+        DBUG_PRINT("exec_result", ("%s", buf));
       } else {
-        // The buffer read from the file doesn't end with EOL character,
-        // store it in a temporary string.
-        str.append(buf);
+        // Read the file line by line. Check if the buffer read from the
+        // file ends with EOL character.
+        if ((buf[strlen(buf) - 1] != '\n' && strlen(buf) < (sizeof(buf) - 1)) ||
+            (buf[strlen(buf) - 1] == '\n')) {
+          // Found EOL
+          if (str.length()) {
+            // Temporary string exists, append the current buffer read
+            // to the temporary string.
+            str.append(buf);
+            replace_dynstr_append(&ds_res, str.c_str());
+            str.clear();
+          } else {
+            // Entire line is read at once
+            replace_dynstr_append(&ds_res, buf);
+          }
+        } else {
+          // The buffer read from the file doesn't end with EOL character,
+          // store it in a temporary string.
+          str.append(buf);
+        }
       }
     }
   }
@@ -9145,7 +9166,11 @@ int main(int argc, char **argv) {
           break;
         case Q_EXEC:
         case Q_EXECW:
-          do_exec(command);
+          do_exec(command, false);
+          command_executed++;
+          break;
+        case Q_EXEC_BACKGROUND:
+          do_exec(command, true);
           command_executed++;
           break;
         case Q_START_TIMER:

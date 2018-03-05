@@ -27,7 +27,7 @@ drop table t1;
 #
 # Test how failed call to Partition_handler::truncate_partition()
 # is handled.
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Missing .ibd file for table `test`\.`t1` .* ");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Missing .ibd file for table `test`\.`t1` .* ");
 create table t1 (id int)
 partition by range (id)
 (partition p0 values less than (1000),

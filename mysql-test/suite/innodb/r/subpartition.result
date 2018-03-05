@@ -22,7 +22,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -41,7 +41,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -62,7 +62,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -83,7 +83,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -108,7 +108,7 @@ Table	Create Table
 partitioned	CREATE TABLE `partitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_level` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `partition_level` ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `table_level` ENGINE = InnoDB,
@@ -136,7 +136,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -184,7 +184,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -204,7 +204,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -225,7 +225,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -246,7 +246,7 @@ Table	Create Table
 subpartitioned	CREATE TABLE `subpartitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY HASH (`a`)
 (PARTITION p0 VALUES LESS THAN (0)
@@ -272,7 +272,7 @@ Table	Create Table
 partitioned	CREATE TABLE `partitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB,
@@ -299,7 +299,7 @@ Table	Create Table
 partitioned	CREATE TABLE `partitioned` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 (PARTITION p0 VALUES LESS THAN (0) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/table/' ENGINE = InnoDB,
  PARTITION p1 VALUES LESS THAN (16) TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/partition/' ENGINE = InnoDB,

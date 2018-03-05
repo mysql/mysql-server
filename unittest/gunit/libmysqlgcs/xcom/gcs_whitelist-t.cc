@@ -154,11 +154,12 @@ TEST_F(GcsWhitelist, ListWithHostname) {
   params.add_parameter("bootstrap_group", "true");
   params.add_parameter("poll_spin_loops", "100");
 
-  char machine_hostname[MAXHOSTNAMELEN];
-  gethostname(machine_hostname, MAXHOSTNAMELEN);
+  vector<char> machine_hostname;
+  machine_hostname.resize(MAXHOSTNAMELEN);
+  gethostname(machine_hostname.data(), MAXHOSTNAMELEN);
 
   std::ostringstream assembled_whitelist;
-  assembled_whitelist << machine_hostname;
+  assembled_whitelist << machine_hostname.data();
   assembled_whitelist << "/16,";
   assembled_whitelist << "localhost/32";
   params.add_parameter("ip_whitelist", assembled_whitelist.str().c_str());
@@ -194,11 +195,12 @@ TEST_F(GcsWhitelist, ListWithUnresolvableHostname) {
   params.add_parameter("bootstrap_group", "true");
   params.add_parameter("poll_spin_loops", "100");
 
-  char machine_hostname[MAXHOSTNAMELEN];
-  gethostname(machine_hostname, MAXHOSTNAMELEN);
+  vector<char> machine_hostname;
+  machine_hostname.resize(MAXHOSTNAMELEN);
+  gethostname(machine_hostname.data(), MAXHOSTNAMELEN);
 
   std::ostringstream assembled_whitelist;
-  assembled_whitelist << machine_hostname;
+  assembled_whitelist << machine_hostname.data();
   assembled_whitelist << "/16,";
   assembled_whitelist << "unresolvablehostname/32,";
   assembled_whitelist << "localhost/32";

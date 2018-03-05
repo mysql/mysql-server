@@ -35,7 +35,6 @@ SET @@persist_only.autocommit=0, @@session.auto_increment_offset=10, @@persist.m
 SET @@persist.concurrent_insert=ALWAYS, @@session.autocommit=0, @@global.auto_increment_offset=10, @@persist_only.max_allowed_packet=8388608;
 SET @@global.autocommit=0, @@persist_only.auto_increment_offset=10, @@persist.autocommit=0, @@session.max_error_count= 128;
 # Restart server
-CALL mtr.add_suppression("InnoDB: *");
 CALL mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
 # default values
 SELECT @@global.binlog_gtid_simple_recovery;

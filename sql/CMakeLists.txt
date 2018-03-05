@@ -246,7 +246,9 @@ SET(SQL_GIS_SOURCES
   gis/touches.cc
   gis/union.cc
   gis/within.cc
-  gis/wkb_parser.cc
+  gis/wkb.cc
+  gis/wkb_size_visitor.cc
+  gis/wkb_visitor.cc
   item_geofunc.cc
   item_geofunc_buffer.cc
   item_geofunc_internal.cc

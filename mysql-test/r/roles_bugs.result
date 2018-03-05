@@ -16,7 +16,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `CURRENT_ROLE` longtext CHARACTER SET utf8,
   `ROLES_GRAPHML` longtext CHARACTER SET utf8
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # create some roles
 CREATE ROLE r1;

@@ -18,7 +18,7 @@ Table	Create Table
 no_index_tab	CREATE TEMPORARY TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into marker set a = 1;
 insert into test.no_index_tab set a = 'foo', b = 1;
 insert into marker set a = 1;

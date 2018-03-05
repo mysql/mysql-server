@@ -1102,6 +1102,9 @@ The following options may be given as the first argument:
  --shared-memory     Enable the shared memory
  --shared-memory-base-name=name 
  Base name of shared memory
+ --show-create-table-verbosity 
+ When this option is enabled, it increases the verbosity
+ of 'SHOW CREATE TABLE'.
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1610,6 +1613,7 @@ session-track-transaction-info OFF
 sha256-password-proxy-users FALSE
 shared-memory FALSE
 shared-memory-base-name MYSQL
+show-create-table-verbosity FALSE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE

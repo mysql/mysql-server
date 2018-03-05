@@ -313,7 +313,7 @@ class ut0lock_free_hash : public ::testing::Test {
   static void SetUpTestCase() {
     srv_max_n_threads = 1024;
 
-    sync_check_init();
+    sync_check_init(srv_max_n_threads);
     os_thread_open();
   }
 

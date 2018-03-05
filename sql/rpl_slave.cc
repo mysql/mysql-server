@@ -8791,15 +8791,10 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
   mi->channel_wrlock();
 
   if (connection_param->user || connection_param->password) {
-#if defined(HAVE_OPENSSL)
-    if (!thd->get_protocol()->get_ssl())
+    if (!thd->get_ssl()) {
       push_warning(thd, Sql_condition::SL_NOTE, ER_INSECURE_PLAIN_TEXT,
                    ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
-#endif
-#if !defined(HAVE_OPENSSL)
-    push_warning(thd, Sql_condition::SL_NOTE, ER_INSECURE_PLAIN_TEXT,
-                 ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
-#endif
+    }
   }
 
   lock_slave_threads(mi);  // this allows us to cleanly read slave_running
@@ -9021,7 +9016,10 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
         that there are no % in the error message or change the logging API
         to use verbatim() to avoid % substitutions.
       */
-      LogErr(WARNING_LEVEL, slave_errno);
+      longlong log_errno = (slave_errno == ER_STOP_SLAVE_SQL_THREAD_TIMEOUT)
+                               ? ER_RPL_SLAVE_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
+                               : ER_RPL_SLAVE_IO_THREAD_STOP_CMD_EXEC_TIMEOUT;
+      LogErr(WARNING_LEVEL, log_errno);
     }
     if (net_report) my_error(slave_errno, MYF(0));
     DBUG_RETURN(1);
@@ -9390,15 +9388,10 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong)mi->get_master_log_pos()));
 
   if (lex_mi->user || lex_mi->password) {
-#if defined(HAVE_OPENSSL)
-    if (!thd->get_protocol()->get_ssl())
+    if (!thd->get_ssl()) {
       push_warning(thd, Sql_condition::SL_NOTE, ER_INSECURE_PLAIN_TEXT,
                    ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
-#endif
-#if !defined(HAVE_OPENSSL)
-    push_warning(thd, Sql_condition::SL_NOTE, ER_INSECURE_PLAIN_TEXT,
-                 ER_THD(thd, ER_INSECURE_PLAIN_TEXT));
-#endif
+    }
     push_warning(thd, Sql_condition::SL_NOTE, ER_INSECURE_CHANGE_MASTER,
                  ER_THD(thd, ER_INSECURE_CHANGE_MASTER));
   }

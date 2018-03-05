@@ -1,7 +1,7 @@
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
-call mtr.add_suppression("InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("The error means that another program is using InnoDB's files");
+call mtr.add_suppression("Operating system error number .* in a file operation");
 # Create encrypt table before loading keyring plugin
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -37,7 +37,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO tde_db.t_encrypt(c4,c7) VALUES('{ "key_a": 1, "key_b": 2, "key_c": 3 }',ST_GeomFromText('POINT(383293632 1754448)'));
 INSERT INTO tde_db.t_encrypt(c4,c7) select c4,c7 from tde_db.t_encrypt;
 SELECT c4,c5,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
@@ -56,7 +56,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   `c7` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 # In connection 1
 LOCK TABLES tde_db.t_encrypt WRITE;
 # In connection default
@@ -107,7 +107,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL,
   `c3` blob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO tde_db.t_encrypt VALUES(0, "aaaaa",repeat('A', 20000));
 INSERT INTO tde_db.t_encrypt select * from tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt select * from tde_db.t_encrypt;
@@ -245,7 +245,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC ENCRYPTION='Y'
 COUNT(*)
 32
 c2	c4	c5	ST_AsText(c7)
@@ -298,7 +298,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC ENCRYPTION='Y'
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC ENCRYPTION='Y'
 # restart with keying
 # restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
@@ -329,7 +329,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT ENCRYPTION='Y'
 COUNT(*)
 32
 c2	c4	c5	ST_AsText(c7)
@@ -382,7 +382,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT ENCRYPTION='Y'
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT ENCRYPTION='Y'
 # restart with keying
 # restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
@@ -413,7 +413,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT ENCRYPTION='Y'
 COUNT(*)
 32
 c2	c4	c5	ST_AsText(c7)
@@ -466,7 +466,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT ENCRYPTION='Y'
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT ENCRYPTION='Y'
 # restart with keying
 # restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
@@ -497,7 +497,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
 COUNT(*)
 32
 c2	c4	c5	ST_AsText(c7)
@@ -550,7 +550,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED ENCRYPTION='Y'
 # restart with keying
 # restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
@@ -581,7 +581,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 ENCRYPTION='Y'
 COUNT(*)
 32
 c2	c4	c5	ST_AsText(c7)
@@ -634,7 +634,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 ENCRYPTION='Y'
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 ENCRYPTION='Y'
 # restart with keying
 # restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring --plugin-dir=KEYRING_PLUGIN_PATH
 SELECT c2,c4,c5,c6,ST_AsText(c7) FROM tde_db.t_encrypt LIMIT 10;
@@ -666,7 +666,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
   `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   PRIMARY KEY (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 /*!50100 PARTITION BY RANGE (`c2`)
 (PARTITION p1 VALUES LESS THAN (4) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (8) ENGINE = InnoDB,
@@ -753,7 +753,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c5` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_a')) STORED,
   `c6` int(11) GENERATED ALWAYS AS (json_extract(`c4`,_utf8mb4'$.key_b')) VIRTUAL,
   PRIMARY KEY (`c2`)
-) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB AUTO_INCREMENT=101 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 /*!50100 PARTITION BY RANGE (`c2`)
 (PARTITION p1 VALUES LESS THAN (4) ENGINE = InnoDB,
  PARTITION p2 VALUES LESS THAN (8) ENGINE = InnoDB,
@@ -847,7 +847,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c7` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c2`),
   SPATIAL KEY `idx2` (`c7`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 # In connection con1 - Running insert
 call tde_db.populate_t_encrypt();
 # In connection con2 - Running insert
@@ -1054,7 +1054,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL,
   `c3` blob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO tde_db.t_encrypt VALUES(0, "aaaaa",repeat('A', 20000));
 INSERT INTO tde_db.t_encrypt select * from tde_db.t_encrypt;
 INSERT INTO tde_db.t_encrypt select * from tde_db.t_encrypt;
@@ -1190,7 +1190,7 @@ t_encrypt	CREATE TABLE `t_encrypt` (
   `c3` blob,
   PRIMARY KEY (`c1`),
   FULLTEXT KEY `idx1` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 CREATE TABLE tde_db.t_encrypt2 (f1 INT PRIMARY KEY, f2 CHAR(100),
 FOREIGN KEY (f1) REFERENCES tde_db.t_encrypt(c1) ON UPDATE CASCADE) ENCRYPTION="Y" ENGINE=InnoDB;
 CREATE TRIGGER tde_db.trigger_encrypt_table AFTER INSERT ON tde_db.t_encrypt

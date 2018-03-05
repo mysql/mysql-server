@@ -65,7 +65,7 @@ Table	Create Table
 t_select_priv	CREATE TABLE `t_select_priv` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 ** SHOW CREATE TABLE will fail if there is no grants at all: 
 show create table mysqltest_db1.t_no_priv;

@@ -641,7 +641,7 @@ ALTER TABLE tab ROW_FORMAT=REDUNDANT;
 
 SHOW CREATE TABLE tab;
 
---echo # failed: 1478: InnoDB: Tablespace `ts1` cannot contain a COMPRESSED table
+--echo # failed: 1478:  Tablespace `ts1` cannot contain a COMPRESSED table
 #ALTER TABLE tab ROW_FORMAT=COMPRESSED;
 
 SHOW CREATE TABLE tab;

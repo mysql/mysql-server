@@ -1585,8 +1585,8 @@ struct dict_table_t {
   /** metadata version number of dd::Table::se_private_data() */
   uint64_t version;
 
-  /** table dirty_status, which is protected by dict_persist->mutex */
-  table_dirty_status dirty_status;
+  /** table dynamic metadata status, protected by dict_persist->mutex */
+  std::atomic<table_dirty_status> dirty_status;
 
 #ifndef UNIV_HOTBACKUP
   /** Node of the dirty table list of tables, which is protected
@@ -2241,55 +2241,6 @@ class AutoIncPersister : public Persister {
   is complete and we get everything, 0 if the buffer is incomplete */
   ulint read(PersistentTableMetadata &metadata, const byte *buffer, ulint size,
              bool *corrupt) const;
-};
-
-/** We can use this class to log autoinc counter. Since we want to
-acquire dict_persist_t::lock before logging and release the lock
-after the mtr commits, so we wrap these details in this class. */
-class AutoIncLogMtr {
- public:
-  /** Constructor
-  @param[in]	mtr	the mtr to be used */
-  AutoIncLogMtr(mtr_t *mtr)
-      : m_mtr(mtr),
-#ifdef UNIV_DEBUG
-        m_locked(),
-#endif /* UNIV_DEBUG */
-        m_logged() {
-  }
-
-  /** Destructor */
-  ~AutoIncLogMtr() { ut_ad(!m_locked); }
-
-  /** Start the internal mtr */
-  void start() { m_mtr->start(); }
-
-  /** Get the internal mtr object, if we want to call functions in mtr_t
-  @return the mtr */
-  mtr_t *get_mtr() { return (m_mtr); }
-
-  /** Write redo logs for autoinc counter that is to be inserted or to
-  update the existing one, if the counter is bigger than current one.
-  This function should be called only once at most per mtr, and work with
-  the commit() to finish the complete logging & commit
-  @param[in]	table	table
-  @param[in]	counter	counter to be logged */
-  void log(dict_table_t *table, ib_uint64_t counter);
-
-  /** Commit the internal mtr, and some cleanup if necessary */
-  void commit();
-
- private:
-  /** mtr to be used */
-  mtr_t *m_mtr;
-
-#ifdef UNIV_DEBUG
-  /** True if dict_persist_t::lock is held now, otherwise false */
-  bool m_locked;
-#endif /* UNIV_DEBUG */
-
-  /** True if counter has been logged, otherwise false */
-  bool m_logged;
 };
 
 /** Container of persisters used in the system. Currently we don't need

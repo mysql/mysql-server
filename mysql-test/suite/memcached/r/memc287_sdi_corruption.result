@@ -20,7 +20,7 @@ Get rec(type:id) is t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `idx1` (`c3`),
   KEY `idx2` (`c2`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL innodb_buf_flush_list_now = 1;
 # restart: --innodb_buffer_pool_load_at_startup=OFF
 Get rec(type:id) is t1	CREATE TABLE `t1` (
@@ -30,7 +30,7 @@ Get rec(type:id) is t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `idx1` (`c3`),
   KEY `idx2` (`c2`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY,
 c2 VARCHAR(30),
@@ -47,7 +47,7 @@ Get rec(type:id) is t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `idx1` (`c3`),
   KEY `idx2` (`c2`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL innodb_buf_flush_list_now = 1;
 # restart: --innodb_buffer_pool_load_at_startup=OFF
 Get rec(type:id) is t1	CREATE TABLE `t1` (
@@ -57,7 +57,7 @@ Get rec(type:id) is t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `idx1` (`c3`),
   KEY `idx2` (`c2`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (c1 INT PRIMARY KEY,
 c2 VARCHAR(30),
@@ -75,7 +75,7 @@ Get rec(type:id) is t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `idx1` (`c3`),
   KEY `idx2` (`c2`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart: --log-error=MYSQLTEST_VARDIR/tmp/crash.log --innodb_buffer_pool_load_at_startup=OFF
 # restart: --innodb_buffer_pool_load_at_startup=OFF
 Pattern "InnoDB: Unable to read page \[page id: space=\d+, page number=\d+\] into the buffer pool after \d+ attempts" found

@@ -2537,7 +2537,7 @@ MSCFILE_DIRS           =
 # contain dia files that are included in the documentation (see the \diafile
 # command).
 
-DIAFILE_DIRS           =
+DIAFILE_DIRS           = doxygen_resources
 
 # When using plantuml, the PLANTUML_JAR_PATH tag should be used to specify the
 # path where java can find the plantuml.jar file. If left blank, it is assumed

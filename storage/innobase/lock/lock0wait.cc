@@ -162,11 +162,12 @@ static srv_slot_t *lock_wait_table_reserve_slot(
     }
   }
 
-  ib::error() << "There appear to be " << srv_max_n_threads
-              << " user"
-                 " threads currently waiting inside InnoDB, which is the upper"
-                 " limit. Cannot continue operation. Before aborting, we print"
-                 " a list of waiting threads.";
+  ib::error(ER_IB_MSG_646)
+      << "There appear to be " << srv_max_n_threads
+      << " user"
+         " threads currently waiting inside InnoDB, which is the upper"
+         " limit. Cannot continue operation. Before aborting, we print"
+         " a list of waiting threads.";
   lock_wait_table_print();
 
   ut_error;
@@ -453,8 +454,6 @@ void lock_wait_timeout_thread() {
 
   ut_ad(!srv_read_only_mode);
 
-  lock_sys->timeout_thread_active = true;
-
   do {
     srv_slot_t *slot;
 
@@ -490,5 +489,6 @@ void lock_wait_timeout_thread() {
 
   } while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
-  lock_sys->timeout_thread_active = false;
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_timeout_thread_active = false;
 }

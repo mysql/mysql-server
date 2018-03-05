@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,11 +110,12 @@
 #include "sql/rpl_handler.h"  // RUN_HOOK
 #include "sql/rpl_rli.h"      //Relay_log_information
 #include "sql/session_tracker.h"
-#include "sql/sp.h"         // Sroutine_hash_entry
-#include "sql/sp_cache.h"   // sp_cache_version
-#include "sql/sp_head.h"    // sp_head
-#include "sql/sql_audit.h"  // mysql_audit_table_access_notify
-#include "sql/sql_class.h"  // THD
+#include "sql/sp.h"               // Sroutine_hash_entry
+#include "sql/sp_cache.h"         // sp_cache_version
+#include "sql/sp_head.h"          // sp_head
+#include "sql/sql_audit.h"        // mysql_audit_table_access_notify
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_data_change.h"
 #include "sql/sql_error.h"    // Sql_condition
@@ -533,7 +534,7 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   MDL_request_list mdl_requests;
   for (const auto column : table_def->columns()) {
-    if (column->is_hidden()) continue;
+    if (column->is_se_hidden()) continue;
 
     MDL_key mdl_key;
     dd::Column_statistics::create_mdl_key(schema->name(), table_def->name(),
@@ -549,7 +550,7 @@ static bool read_histograms(THD *thd, TABLE_SHARE *share,
     return true; /* purecov: deadcode */
 
   for (const auto column : table_def->columns()) {
-    if (column->is_hidden()) continue;
+    if (column->is_se_hidden()) continue;
 
     const histograms::Histogram *histogram = nullptr;
     if (histograms::find_histogram(thd, schema->name().c_str(),
@@ -3155,8 +3156,44 @@ retry_share : {
     else if (table_list->i_s_requested_object & OPEN_TABLE_ONLY)
       my_error(ER_NO_SUCH_TABLE, MYF(0), table_list->db,
                table_list->table_name);
-    else /* Open view */
+    else if (table_list->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) {
+      /*
+        Skip reading the view definition if the open is for a table to be
+        created. This scenario will happen only when there exists a view and
+        the current CREATE TABLE request is with the same name.
+      */
+      release_table_share(share);
+      mysql_mutex_unlock(&LOCK_open);
+
+      /*
+        For SP and PS, LEX objects are created at the time of statement prepare.
+        And open_table() is called for every execute after that. Skip creation
+        of LEX objects if it is already present.
+      */
+      if (!table_list->is_view()) {
+        Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+        /*
+          Since we are skipping parse_view_definition(), which creates view LEX
+          object used by the executor and other parts of the code to detect the
+          presence of a view, a dummy LEX object needs to be created.
+        */
+        table_list->set_view_query((LEX *)new (thd->mem_root) st_lex_local);
+        if (!table_list->is_view()) DBUG_RETURN(true);
+
+        table_list->view_db.str = table_list->db;
+        table_list->view_db.length = table_list->db_length;
+        table_list->view_name.str = table_list->table_name;
+        table_list->view_name.length = table_list->table_name_length;
+      }
+
+      DBUG_RETURN(false);
+    } else {
+      /*
+        Read definition of existing view.
+      */
       view_open_result = open_and_read_view(thd, share, table_list);
+    }
 
     /* TODO: Don't free this */
     release_table_share(share);
@@ -5470,6 +5507,20 @@ int run_before_dml_hook(THD *thd) {
 }
 
 /**
+  Check whether a table being opened is a temporary table.
+
+  @param table  table being opened
+
+  @return true if a table is temporary table, else false
+*/
+
+static inline bool is_temporary_table_being_opened(TABLE_LIST *table) {
+  return table->open_type == OT_TEMPORARY_ONLY ||
+         (table->open_type == OT_TEMPORARY_OR_BASE &&
+          is_temporary_table(table));
+}
+
+/**
   Acquire IX metadata locks on tablespace names used by LOCK
   TABLES or by a DDL statement.
 
@@ -5533,10 +5584,7 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
     if (table->mdl_request.type != MDL_SHARED_READ_ONLY &&
         (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
          table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE) &&
-        table->open_type != OT_TEMPORARY_ONLY &&
-        !(table->open_type == OT_TEMPORARY_OR_BASE &&
-          is_temporary_table(table)) &&
-        !table->is_system_view) {
+        !is_temporary_table_being_opened(table) && !table->is_system_view) {
       // We have basically three situations here:
       //
       // 1. Lock only the target tablespace name and tablespace
@@ -5611,9 +5659,11 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
   MDL_request_list mdl_requests;
   TABLE_LIST *table;
   MDL_request global_request;
+  MDL_request backup_lock_request;
   malloc_unordered_set<TABLE_LIST *, schema_hash, schema_key_equal> schema_set(
       PSI_INSTRUMENT_ME);
   bool need_global_read_lock_protection = false;
+  bool acquire_backup_lock = false;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
 
@@ -5621,12 +5671,27 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
   //          construct a list of requests for table MDL locks.
   for (table = tables_start; table && table != tables_end;
        table = table->next_global) {
-    if ((!table->mdl_request.is_ddl_or_lock_tables_lock_request() &&
-         table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) ||
-        table->open_type == OT_TEMPORARY_ONLY ||
-        (table->open_type == OT_TEMPORARY_OR_BASE &&
-         is_temporary_table(table))) {
+    if (is_temporary_table_being_opened(table)) {
       continue;
+    }
+
+    if (!table->mdl_request.is_ddl_or_lock_tables_lock_request() &&
+        table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) {
+      continue;
+    } else {
+      /*
+        MDL_request::is_ddl_or_lock_tables_lock_request() returns true for
+        DDL and LOCK TABLES statements. Since there isn't a way on MDL API level
+        to determine whether a lock being acquired is requested as part of
+        handling the statement LOCK TABLES, such check will be done by comparing
+        a value of lex->sql_command against the constant SQLCOM_LOCK_TABLES.
+        Also we shouldn't acquire IX backup lock in case a table being opened
+        with requested MDL_SHARED_READ_ONLY lock. For example, such use case
+        takes place when FLUSH PRIVILEGES executed.
+      */
+      if (thd->lex->sql_command != SQLCOM_LOCK_TABLES &&
+          table->mdl_request.type != MDL_SHARED_READ_ONLY)
+        acquire_backup_lock = true;
     }
 
     if (table->mdl_request.type != MDL_SHARED_READ_ONLY) {
@@ -5674,6 +5739,12 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
     }
   }
 
+  if (acquire_backup_lock) {
+    MDL_REQUEST_INIT(&backup_lock_request, MDL_key::BACKUP_LOCK, "", "",
+                     MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+    mdl_requests.push_front(&backup_lock_request);
+  }
+
   // Phase 3: Acquire the locks which have been requested so far.
   if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
     return true;
@@ -5711,9 +5782,7 @@ static bool open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table = tables_start; table && table != tables_end;
        table = table->next_global) {
     if (!table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
-        table->open_type == OT_TEMPORARY_ONLY ||
-        (table->open_type == OT_TEMPORARY_OR_BASE &&
-         is_temporary_table(table))) {
+        is_temporary_table_being_opened(table)) {
       continue;
     }
 
@@ -5746,6 +5815,36 @@ static bool open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
       if (!find_table_for_mdl_upgrade(thd, table->db, table->table_name, false))
         return true;
     }
+  }
+
+  return false;
+}
+
+/**
+  Iterate along a list of tables and acquire BACKUP LOCK in shared mode
+  in case a strong MDL request (DDL/LOCK TABLES-type) was specified
+  for a table.
+
+  @param[in]  thd      Thread context.
+  @param[in]  tables_start  Pointer to a start of a list of tables to iterate
+  @param[in]  tables_end    Pointer to a end of a list of tables where to stop
+
+  @return  false on success, true on error.
+*/
+
+static bool acquire_backup_lock_in_lock_tables_mode(THD *thd,
+                                                    TABLE_LIST *tables_start,
+                                                    TABLE_LIST *tables_end) {
+  TABLE_LIST *table;
+  DBUG_ASSERT(thd->locked_tables_mode);
+
+  for (table = tables_start; table && table != tables_end;
+       table = table->next_global) {
+    if (is_temporary_table_being_opened(table)) continue;
+
+    if (table->mdl_request.is_ddl_or_lock_tables_lock_request() &&
+        table->mdl_request.type != MDL_SHARED_READ_ONLY)
+      return acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout);
   }
 
   return false;
@@ -5839,8 +5938,9 @@ restart:
         Under LOCK TABLES, we can't acquire new locks, so we instead
         need to check if appropriate locks were pre-acquired.
       */
-      if (open_tables_check_upgradable_mdl(thd, *start,
-                                           thd->lex->first_not_own_table())) {
+      TABLE_LIST *end_table = thd->lex->first_not_own_table();
+      if (open_tables_check_upgradable_mdl(thd, *start, end_table) ||
+          acquire_backup_lock_in_lock_tables_mode(thd, *start, end_table)) {
         error = true;
         goto err;
       }

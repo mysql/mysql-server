@@ -2,7 +2,7 @@
 # Bug #20476395 DICT_LOAD_FOREIGNS() FAILED IN
 # COMMIT_INPLACE_ALTER_TABLE
 #
-call mtr.add_suppression("InnoDB: Failed to load table");
+call mtr.add_suppression("Failed to load table");
 create database bug;
 use bug;
 create table parent(a serial) engine=innodb;

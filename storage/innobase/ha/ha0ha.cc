@@ -437,10 +437,10 @@ ibool ha_validate(hash_table_t *table, /*!< in: hash table */
     for (node = static_cast<ha_node_t *>(cell->node); node != 0;
          node = node->next) {
       if (hash_calc_hash(node->fold, table) != i) {
-        ib::error() << "Hash table node fold value " << node->fold
-                    << " does not match the"
-                       " cell number "
-                    << i << ".";
+        ib::error(ER_IB_MSG_522) << "Hash table node fold value " << node->fold
+                                 << " does not match the"
+                                    " cell number "
+                                 << i << ".";
 
         ok = FALSE;
       }

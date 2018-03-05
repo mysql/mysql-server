@@ -696,8 +696,8 @@ static void dict_stats_update_transient(
   } else if (index == NULL) {
     /* Table definition is corrupt */
 
-    ib::warn() << "Table " << table->name
-               << " has no indexes. Cannot calculate statistics.";
+    ib::warn(ER_IB_MSG_221) << "Table " << table->name
+                            << " has no indexes. Cannot calculate statistics.";
     dict_stats_empty_table(table);
     return;
   }
@@ -2035,9 +2035,10 @@ static dberr_t dict_stats_save_index_stat(dict_index_t *index, lint last_update,
                             trx);
 
   if (ret != DB_SUCCESS) {
-    ib::error() << "Cannot save index statistics for table "
-                << index->table->name << ", index " << index->name
-                << ", stat name \"" << stat_name << "\": " << ut_strerr(ret);
+    ib::error(ER_IB_MSG_222)
+        << "Cannot save index statistics for table " << index->table->name
+        << ", index " << index->name << ", stat name \"" << stat_name
+        << "\": " << ut_strerr(ret);
   }
 
   return (ret);
@@ -2106,8 +2107,8 @@ static dberr_t dict_stats_save(dict_table_t *table_orig,
                             NULL);
 
   if (ret != DB_SUCCESS) {
-    ib::error() << "Cannot save table statistics for table " << table->name
-                << ": " << ut_strerr(ret);
+    ib::error(ER_IB_MSG_223) << "Cannot save table statistics for table "
+                             << table->name << ": " << ut_strerr(ret);
 
     rw_lock_x_unlock(dict_operation_lock);
 
@@ -2470,7 +2471,8 @@ static ibool dict_stats_fetch_index_stats_step(
       dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8), table_utf8,
                    sizeof(table_utf8));
 
-      ib::info out;
+      ib::info out(ER_IB_MSG_1218);
+
       out << "Ignoring strange row from " << INDEX_STATS_NAME_PRINT
           << " WHERE"
              " database_name = '"
@@ -2495,7 +2497,8 @@ static ibool dict_stats_fetch_index_stats_step(
       dict_fs2utf8(table->name.m_name, db_utf8, sizeof(db_utf8), table_utf8,
                    sizeof(table_utf8));
 
-      ib::info out;
+      ib::info out(ER_IB_MSG_1219);
+
       out << "Ignoring strange row from " << INDEX_STATS_NAME_PRINT
           << " WHERE"
              " database_name = '"
@@ -2689,8 +2692,9 @@ storage */
   ut_ad(!mutex_own(&dict_sys->mutex));
 
   if (table->ibd_file_missing) {
-    ib::warn() << "Cannot calculate statistics for table " << table->name
-               << " because the .ibd file is missing. " << TROUBLESHOOTING_MSG;
+    ib::warn(ER_IB_MSG_224)
+        << "Cannot calculate statistics for table " << table->name
+        << " because the .ibd file is missing. " << TROUBLESHOOTING_MSG;
 
     dict_stats_empty_table(table);
     return (DB_TABLESPACE_DELETED);
@@ -2793,32 +2797,33 @@ storage */
             return (dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT));
           }
 
-          ib::info() << "Trying to use table " << table->name
-                     << " which has persistent statistics enabled,"
-                        " but auto recalculation turned off and the"
-                        " statistics do not exist in " TABLE_STATS_NAME_PRINT
-                        " and " INDEX_STATS_NAME_PRINT
-                        ". Please either run \"ANALYZE TABLE "
-                     << table->name
-                     << ";\" manually or enable the"
-                        " auto recalculation with \"ALTER TABLE "
-                     << table->name
-                     << " STATS_AUTO_RECALC=1;\"."
-                        " InnoDB will now use transient statistics for "
-                     << table->name << ".";
+          ib::info(ER_IB_MSG_225)
+              << "Trying to use table " << table->name
+              << " which has persistent statistics enabled,"
+                 " but auto recalculation turned off and the"
+                 " statistics do not exist in " TABLE_STATS_NAME_PRINT
+                 " and " INDEX_STATS_NAME_PRINT
+                 ". Please either run \"ANALYZE TABLE "
+              << table->name
+              << ";\" manually or enable the"
+                 " auto recalculation with \"ALTER TABLE "
+              << table->name
+              << " STATS_AUTO_RECALC=1;\"."
+                 " InnoDB will now use transient statistics for "
+              << table->name << ".";
 
           break;
         default:
 
           dict_stats_table_clone_free(t);
 
-          ib::error() << "Error fetching persistent statistics"
-                         " for table "
-                      << table->name
-                      << " from " TABLE_STATS_NAME_PRINT
-                         " and " INDEX_STATS_NAME_PRINT ": "
-                      << ut_strerr(err)
-                      << ". Using transient stats method instead.";
+          ib::error(ER_IB_MSG_226)
+              << "Error fetching persistent statistics"
+                 " for table "
+              << table->name
+              << " from " TABLE_STATS_NAME_PRINT " and " INDEX_STATS_NAME_PRINT
+                 ": "
+              << ut_strerr(err) << ". Using transient stats method instead.";
 
           break;
       }
@@ -3332,9 +3337,10 @@ void dict_stats_evict_tablespaces() {
     err = fil_close_tablespace(trx, space_id_index_stats);
 
     if (err != DB_SUCCESS) {
-      ib::info() << "dict_stats_evict_tablespace: "
-                 << " fil_close_tablespace(" << space_id_index_stats
-                 << ") failed! " << ut_strerr(err);
+      ib::info(ER_IB_MSG_227)
+          << "dict_stats_evict_tablespace: "
+          << " fil_close_tablespace(" << space_id_index_stats << ") failed! "
+          << ut_strerr(err);
     }
   }
 
@@ -3344,9 +3350,10 @@ void dict_stats_evict_tablespaces() {
     err = fil_close_tablespace(trx, space_id_table_stats);
 
     if (err != DB_SUCCESS) {
-      ib::info() << "dict_stats_evict_tablespace: "
-                 << " fil_close_tablespace(" << space_id_index_stats
-                 << ") failed! " << ut_strerr(err);
+      ib::info(ER_IB_MSG_228)
+          << "dict_stats_evict_tablespace: "
+          << " fil_close_tablespace(" << space_id_index_stats << ") failed! "
+          << ut_strerr(err);
     }
   }
 

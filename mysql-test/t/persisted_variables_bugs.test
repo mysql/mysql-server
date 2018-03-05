@@ -65,5 +65,73 @@ SELECT @a;
 RESET PERSIST;
 SET GLOBAL max_binlog_cache_size= DEFAULT;
 
+--echo #
+--echo # Bug #27536421: SET PERSIST CHANGES THE VALUE OF OPTIMIZER_TRACE_OFFSET
+--echo #                AFTER RESTART
+--echo #
+
+# default value
+SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
+       @@global.auto_increment_increment, @@global.auto_increment_offset,
+       @@global.binlog_error_action, @@global.binlog_format,
+       @@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
+       @@global.innodb_monitor_disable, @@global.histogram_generation_max_mem_size,
+       @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
+       @@global.max_join_size;
+
+# SHOW_SIGNED_LONG
+SET PERSIST optimizer_trace_offset = default;
+# SHOW_MY_BOOL
+SET PERSIST activate_all_roles_on_login= ON;
+# SHOW_LONG
+SET PERSIST auto_increment_increment= 4, auto_increment_offset= 2;
+# SHOW_CHAR
+SET PERSIST binlog_error_action= IGNORE_ERROR, binlog_format= ROW;
+# SHOW_INT
+SET PERSIST cte_max_recursion_depth= 4294967295, eq_range_index_dive_limit= 4294967295;
+# SHOW_CHAR_PTR
+SET PERSIST innodb_monitor_disable='latch';
+# SHOW_DOUBLE
+SET PERSIST innodb_max_dirty_pages_pct= 97.3;
+# SHOW_LEX_STRING
+SET PERSIST init_connect='SET autocommit=0';
+# SHOW_HA_ROWS
+SET PERSIST max_join_size= 18446744073709551615;
+
+# persisted value
+SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
+       @@global.auto_increment_increment, @@global.auto_increment_offset,
+       @@global.binlog_error_action, @@global.binlog_format,
+       @@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
+       @@global.innodb_monitor_disable,
+       @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
+       @@global.max_join_size;
+
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+SELECT @@global.optimizer_trace_offset;
+--echo # Restart server
+--source include/restart_mysqld.inc
+
+# persisted value after restart
+SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
+       @@global.auto_increment_increment, @@global.auto_increment_offset,
+       @@global.binlog_error_action, @@global.binlog_format,
+       @@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
+       @@global.innodb_monitor_disable,
+       @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
+       @@global.max_join_size;
+
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+
+--echo # Cleanup
+RESET PERSIST;
+SET GLOBAL optimizer_trace_offset = default, activate_all_roles_on_login = default,
+       auto_increment_increment = default, auto_increment_offset = default,
+       binlog_error_action = default, binlog_format = default,
+       cte_max_recursion_depth = default, eq_range_index_dive_limit = default,
+       innodb_monitor_disable = default,
+       innodb_max_dirty_pages_pct = default, init_connect = default,
+       max_join_size = default;
+
 --echo # End of the 8.0 tests
 

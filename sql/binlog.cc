@@ -2279,6 +2279,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     DBUG_ASSERT(cache_mngr || !xs->is_binlogged() ||
                 !(is_open() && thd->variables.option_bits & OPTION_BIN_LOG));
 
+    is_empty = !xs->is_binlogged();
     if ((error = do_binlog_xa_commit_rollback(thd, xs->get_xid(), false)))
       goto end;
     cache_mngr = thd_get_cache_mngr(thd);
@@ -2291,7 +2292,6 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     unless XA-ROLLBACK that yet to run rollback_low().
   */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty()) {
-    is_empty = true;
     goto end;
   }
 
@@ -2467,7 +2467,7 @@ end:
       XA-rollback ignores the gtid_state, if the transaciton
       is empty.
     */
-    if (is_empty) gtid_state->update_on_rollback(thd);
+    if (is_empty && !thd->slave_thread) gtid_state->update_on_rollback(thd);
     /*
       XA-rollback commits the new gtid_state, if transaction
       is not empty.
@@ -8917,6 +8917,7 @@ commit_stage:
     thd->commit_error, which is returned below.
   */
   (void)finish_commit(thd);
+  DEBUG_SYNC(thd, "bgc_after_commit_stage_before_rotation");
 
   /*
     If we need to rotate, we do it without commit error.
@@ -10238,10 +10239,14 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
   @param error_code The error code to use, if error or warning is to
   be generated.
 
+  @param log_error_code The error code to use, if error message is to
+  be logged.
+
   @retval false Error was generated.
   @retval true No error was generated (possibly a warning was generated).
 */
-static bool handle_gtid_consistency_violation(THD *thd, int error_code) {
+static bool handle_gtid_consistency_violation(THD *thd, int error_code,
+                                              int log_error_code) {
   DBUG_ENTER("handle_gtid_consistency_violation");
 
   enum_gtid_type gtid_next_type = thd->variables.gtid_next.type;
@@ -10309,7 +10314,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code) {
     if (gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN) {
       // Need to print to log so that replication admin knows when users
       // have adjusted their workloads.
-      LogErr(WARNING_LEVEL, error_code);
+      LogErr(WARNING_LEVEL, log_error_code);
       // Need to print to client so that users can adjust their workload.
       push_warning(thd, Sql_condition::SL_WARNING, error_code,
                    ER_THD(thd, error_code));
@@ -10348,8 +10353,9 @@ bool THD::is_ddl_gtid_compatible() {
       and then written to the slave's binary log as two separate
       transactions with the same GTID.
     */
-    bool ret =
-        handle_gtid_consistency_violation(this, ER_GTID_UNSAFE_CREATE_SELECT);
+    bool ret = handle_gtid_consistency_violation(
+        this, ER_GTID_UNSAFE_CREATE_SELECT,
+        ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT);
     DBUG_RETURN(ret);
   } else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
@@ -10363,7 +10369,8 @@ bool THD::is_ddl_gtid_compatible() {
     */
     if (in_multi_stmt_transaction_mode() || in_sub_stmt) {
       bool ret = handle_gtid_consistency_violation(
-          this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION);
+          this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
+          ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE);
       DBUG_RETURN(ret);
     }
   }
@@ -10413,7 +10420,8 @@ bool THD::is_dml_gtid_compatible(bool some_transactional_table,
         is_current_stmt_binlog_format_row()) &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0)) {
     DBUG_RETURN(handle_gtid_consistency_violation(
-        this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE));
+        this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE,
+        ER_RPL_GTID_UNSAFE_STMT_ON_NON_TRANS_TABLE));
   }
 
   DBUG_RETURN(true);

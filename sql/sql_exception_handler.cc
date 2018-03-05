@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -48,11 +48,11 @@
 #include <stdexcept>  // Other std exceptions
 #include <string>
 
-#include "my_inttypes.h"       // MYF
-#include "my_sys.h"            // my_error
-#include "mysqld_error.h"      // Error codes
-#include "sql/gis/functor.h"   // gis::not_implemented_exception
-#include "sql/gis/gc_utils.h"  // gis::invalid_geometry_exception
+#include "my_inttypes.h"      // MYF
+#include "my_sys.h"           // my_error
+#include "mysqld_error.h"     // Error codes
+#include "sql/gis/functor.h"  // gis::not_implemented_exception
+#include "sql/gis/gc_utils.h"  // gis::invalid_geometry_exception, gis::too_large_polygon_exception
 
 void handle_std_exception(const char *funcname) {
   try {
@@ -111,6 +111,8 @@ void handle_gis_exception(const char *funcname) {
     my_error(er_variant, MYF(0), funcname, e.typenames());
   } catch (const gis::invalid_geometry_exception &e) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), funcname);
+  } catch (const gis::too_large_polygon_exception &e) {
+    my_error(ER_POLYGON_TOO_LARGE, MYF(0), funcname);
   } catch (const boost::geometry::centroid_exception &) {
     my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), funcname);
   } catch (const boost::geometry::overlay_invalid_input_exception &) {

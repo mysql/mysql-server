@@ -390,7 +390,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `code` varchar(8) DEFAULT NULL,
   `a` varchar(1) CHARACTER SET big5 NOT NULL DEFAULT ''
-) ENGINE=default_engine DEFAULT CHARSET=utf8mb4
+) ENGINE=default_engine DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 28672

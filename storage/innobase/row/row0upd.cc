@@ -1927,8 +1927,8 @@ static void srv_mbr_print(const byte *data) {
   data += sizeof(double);
   d = mach_double_read(data);
 
-  ib::info() << "GIS MBR INFO: " << a << " and " << b << ", " << c << ", " << d
-             << "\n";
+  ib::info(ER_IB_MSG_1043) << "GIS MBR INFO: " << a << " and " << b << ", " << c
+                           << ", " << d << "\n";
 }
 
 /** Updates a secondary index entry of a row.
@@ -2093,10 +2093,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         break;
       }
 
-      ib::error() << "Record in index " << index->name << " of table "
-                  << index->table->name
-                  << " was not found on update: " << *entry
-                  << " at: " << rec_index_print(rec, index);
+      ib::error(ER_IB_MSG_1044)
+          << "Record in index " << index->name << " of table "
+          << index->table->name << " was not found on update: " << *entry
+          << " at: " << rec_index_print(rec, index);
       srv_mbr_print((unsigned char *)entry->fields[0].data);
 #ifdef UNIV_DEBUG
       mtr_commit(&mtr);
@@ -2416,9 +2416,8 @@ ib_uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
 some bigger value, we need to log the new autoinc counter. We will
 use the given mtr to do logging for performance reasons.
 @param[in]	node	row update node
-@param[in,out]	mtr	mtr */
-static void row_upd_check_autoinc_counter(const upd_node_t *node,
-                                          AutoIncLogMtr *mtr) {
+@param[in,out]	mtr	mini-transaction */
+static void row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   dict_table_t *table = node->table;
 
   if (!dict_table_has_autoinc_col(table) || table->is_temporary() ||
@@ -2455,7 +2454,7 @@ static void row_upd_check_autoinc_counter(const upd_node_t *node,
   this is safer than checking with the counter in table
   object. */
   if (new_counter > old_counter) {
-    mtr->log(table, new_counter);
+    dict_table_autoinc_log(table, new_counter, mtr);
   }
 }
 
@@ -2479,7 +2478,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
   btr_cur_t *btr_cur;
   dberr_t err;
   const dtuple_t *rebuilt_old_pk = NULL;
-  AutoIncLogMtr autoinc_mtr(mtr);
   trx_id_t trx_id = thr_get_trx(thr)->id;
   trx_t *trx = thr_get_trx(thr);
 
@@ -2502,7 +2500,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
 
   /* Check and log if necessary at the beginning, to prevent any
   further potential deadlock */
-  row_upd_check_autoinc_counter(node, &autoinc_mtr);
+  row_upd_check_autoinc_counter(node, mtr);
 
   /* Try optimistic updating of the record, keeping changes within
   the page; we do not check locks because we assume the x-lock on the
@@ -2511,19 +2509,18 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
   if (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE) {
     err = btr_cur_update_in_place(flags | BTR_NO_LOCKING_FLAG, btr_cur, offsets,
                                   node->update, node->cmpl_info, thr,
-                                  thr_get_trx(thr)->id, autoinc_mtr.get_mtr());
+                                  thr_get_trx(thr)->id, mtr);
   } else {
-    err = btr_cur_optimistic_update(flags | BTR_NO_LOCKING_FLAG, btr_cur,
-                                    &offsets, offsets_heap, node->update,
-                                    node->cmpl_info, thr, thr_get_trx(thr)->id,
-                                    autoinc_mtr.get_mtr());
+    err = btr_cur_optimistic_update(
+        flags | BTR_NO_LOCKING_FLAG, btr_cur, &offsets, offsets_heap,
+        node->update, node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
   }
 
   if (err == DB_SUCCESS) {
     goto success;
   }
 
-  autoinc_mtr.commit();
+  mtr->commit();
 
   if (buf_LRU_buf_pool_running_out()) {
     err = DB_LOCK_TABLE_FULL;
@@ -2532,7 +2529,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
   /* We may have to modify the tree structure: do a pessimistic descent
   down the index tree */
 
-  autoinc_mtr.start();
+  mtr->start();
 
   /* Disable REDO logging as lifetime of temp-tables is limited to
   server or connection lifetime and so REDO information is not needed
@@ -2540,7 +2537,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
   Disable locking as temp-tables are not shared across connection. */
   if (index->table->is_temporary()) {
     flags |= BTR_NO_LOCKING_FLAG;
-    autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
+    mtr->set_log_mode(MTR_LOG_NO_REDO);
 
     if (index->table->is_intrinsic()) {
       flags |= BTR_NO_UNDO_LOG_FLAG;
@@ -2553,7 +2550,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
   the same transaction do not modify the record in the meantime.
   Therefore we can assert that the restoration of the cursor succeeds. */
 
-  ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, autoinc_mtr.get_mtr()));
+  ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
 
   ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
                               dict_table_is_comp(index->table)));
@@ -2565,14 +2562,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
   err = btr_cur_pessimistic_update(
       flags | BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur, &offsets,
       offsets_heap, heap, &big_rec, node->update, node->cmpl_info, thr, trx_id,
-      trx->undo_no, autoinc_mtr.get_mtr());
+      trx->undo_no, mtr);
   if (big_rec) {
     ut_a(err == DB_SUCCESS);
 
     DEBUG_SYNC_C("before_row_upd_extern");
-    err = lob::btr_store_big_rec_extern_fields(trx, pcur, node->update, offsets,
-                                               big_rec, autoinc_mtr.get_mtr(),
-                                               lob::OPCODE_UPDATE);
+    err = lob::btr_store_big_rec_extern_fields(
+        trx, pcur, node->update, offsets, big_rec, mtr, lob::OPCODE_UPDATE);
     DEBUG_SYNC_C("after_row_upd_extern");
   }
 
@@ -2592,7 +2588,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
     }
   }
 
-  autoinc_mtr.commit();
+  mtr->commit();
 
 func_exit:
   if (heap) {

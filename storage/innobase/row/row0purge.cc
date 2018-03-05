@@ -351,11 +351,12 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
     marked for deletion. */
     if (!rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
                               dict_table_is_comp(index->table))) {
-      ib::error() << "tried to purge non-delete-marked record"
-                     " in index "
-                  << index->name << " of table " << index->table->name
-                  << ": tuple: " << *entry << ", record: "
-                  << rec_index_print(btr_cur_get_rec(btr_cur), index);
+      ib::error(ER_IB_MSG_1007)
+          << "tried to purge non-delete-marked record"
+             " in index "
+          << index->name << " of table " << index->table->name
+          << ": tuple: " << *entry
+          << ", record: " << rec_index_print(btr_cur_get_rec(btr_cur), index);
 
       ut_ad(0);
 
@@ -467,12 +468,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
         /* Only delete-marked records should be purged. */
         if (!rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
                                   dict_table_is_comp(index->table))) {
-          ib::error() << "tried to purge non-delete-marked"
-                         " record"
-                         " in index "
-                      << index->name << " of table " << index->table->name
-                      << ": tuple: " << *entry << ", record: "
-                      << rec_index_print(btr_cur_get_rec(btr_cur), index);
+          ib::error(ER_IB_MSG_1008)
+              << "tried to purge non-delete-marked"
+                 " record"
+                 " in index "
+              << index->name << " of table " << index->table->name
+              << ": tuple: " << *entry << ", record: "
+              << rec_index_print(btr_cur_get_rec(btr_cur), index);
           ut_ad(0);
 
           btr_pcur_close(&pcur);
@@ -499,9 +501,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
           which mean search is still depending
           on it, so do not delete */
 #ifdef UNIV_DEBUG
-            ib::info() << "skip purging last"
-                          " record on page "
-                       << page_get_page_no(page) << ".";
+            ib::info(ER_IB_MSG_1009) << "skip purging last"
+                                        " record on page "
+                                     << page_get_page_no(page) << ".";
 #endif /* UNIV_DEBUG */
 
             btr_pcur_close(&pcur);
@@ -1212,9 +1214,9 @@ bool purge_node_t::validate_pcur() {
   int st = cmp_dtuple_rec(ref, pcur.old_rec, clust_index, offsets);
 
   if (st != 0) {
-    ib::error() << "Purge node pcur validation failed";
-    ib::error() << rec_printer(ref).str();
-    ib::error() << rec_printer(pcur.old_rec, offsets).str();
+    ib::error(ER_IB_MSG_1010) << "Purge node pcur validation failed";
+    ib::error(ER_IB_MSG_1011) << rec_printer(ref).str();
+    ib::error(ER_IB_MSG_1012) << rec_printer(pcur.old_rec, offsets).str();
     return (false);
   }
 

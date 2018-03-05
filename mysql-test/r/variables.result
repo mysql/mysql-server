@@ -696,7 +696,7 @@ t1	CREATE TABLE `t1` (
   `c3` mediumint(9) DEFAULT NULL,
   `c4` int(11) DEFAULT NULL,
   `c5` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @arg00= 8, @arg01= 8.8, @arg02= 'a string', @arg03= 0.2e0;
 create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3, @arg03 as c4;
@@ -707,7 +707,7 @@ t1	CREATE TABLE `t1` (
   `c2` decimal(65,30) DEFAULT NULL,
   `c3` longtext,
   `c4` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
@@ -1385,20 +1385,20 @@ SELECT @@global.binlog_expire_logs_seconds INTO @old_seconds;
 SET @@global.binlog_expire_logs_seconds = 0;
 SELECT @@global.expire_logs_days INTO @old_eld;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = -1;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '-1'
 needs to've been adjusted (0)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = 11;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @old_mode=@@sql_mode;
 SET SESSION sql_mode = 'TRADITIONAL';
 SET GLOBAL expire_logs_days = 100;
@@ -1408,33 +1408,33 @@ SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 11
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET SESSION sql_mode = @old_mode;
 SET GLOBAL expire_logs_days = 100;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '100'
 needs to've been adjusted (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = 11;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = 99;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 needs to pass with no warnings (99)
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL expire_logs_days = @old_eld;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET GLOBAL binlog_expire_logs_seconds= @old_seconds;
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
@@ -1486,7 +1486,7 @@ DELETE FROM t1 ORDER BY (@@GLOBAL.INIT_FILE) ASC LIMIT 10;
 SET @@sql_safe_updates= @bug42778;
 DROP TABLE t1;
 #
-# BUG#10206 - InnoDB: Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
+# BUG#10206 -  Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
 #
 SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
 # Set the max_binlog_cache_size to size more than 4GB. 
@@ -1550,7 +1550,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(1) unsigned NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET @@global.max_binlog_cache_size=DEFAULT;
 SET @@global.binlog_cache_size=DEFAULT;

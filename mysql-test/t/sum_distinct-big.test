@@ -2,6 +2,7 @@
 # Various tests for SUM(DISTINCT ...)
 #
 
+--source include/not_sparc_debug.inc
 --source include/big_test.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;

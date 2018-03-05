@@ -32,6 +32,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/task_arg.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/x_platform.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_common.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_profile.h"
 
 #ifdef __cplusplus
 extern "C" {

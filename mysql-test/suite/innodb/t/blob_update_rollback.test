@@ -1,7 +1,7 @@
 --source include/have_innodb_max_16k.inc
 
 --echo #
---echo # WL#8985: InnoDB: Refactor compressed BLOB code to facilitate partial
+--echo # WL#8985:  Refactor compressed BLOB code to facilitate partial
 --echo # fetch/update
 --echo #
 

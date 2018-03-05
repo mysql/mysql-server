@@ -10,5 +10,5 @@ about:text	CREATE TABLE `about:text` (
   `_id` int(11) NOT NULL AUTO_INCREMENT,
   `about:text` varchar(255) NOT NULL DEFAULT '',
   PRIMARY KEY (`_id`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table `about:text`;

@@ -55,6 +55,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include "mysql/components/services/log_builtins.h"
+#include "sql/derror.h"
+
+#ifndef UNIV_NO_ERR_MSGS
+#if defined(__SUNPRO_CC)
+const char *ib::logger::PREFIX = "InnoDB: ";
+#endif /*  __SUNPRO_CC */
+#endif /* !UNIV_NO_ERR_MSGS */
+
 #ifdef _WIN32
 using time_fn = VOID(WINAPI *)(_Out_ LPFILETIME);
 static time_fn ut_get_system_time_as_file_time = GetSystemTimeAsFileTime;
@@ -79,7 +88,12 @@ bool ut_win_init_time() {
   }
   DWORD error = GetLastError();
 #ifndef UNIV_HOTBACKUP
+#ifndef UNIV_NO_ERR_MSGS
   log_errlog(ERROR_LEVEL, ER_WIN_LOAD_LIBRARY_FAILED, "kernel32.dll", error);
+#else
+  ib::error() << "LoadLibrary(\"kernel32.dll\") failed:"
+              << " GetLastError returns " << error;
+#endif /* UNIV_NO_ERR_MSGS */
 #else  /* !UNIV_HOTBACKUP */
   fprintf(stderr,
           "LoadLibrary(\"kernel32.dll\") failed:"
@@ -151,7 +165,14 @@ int ut_usectime(ulint *sec, /*!< out: seconds since the Epoch */
 
     if (ret == -1) {
       errno_gettimeofday = errno;
-      ib::error() << "gettimeofday(): " << strerror(errno_gettimeofday);
+
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1213)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "gettimeofday(): " << strerror(errno_gettimeofday);
+
       os_thread_sleep(100000); /* 0.1 sec */
       errno = errno_gettimeofday;
     } else {
@@ -621,41 +642,25 @@ size_t ut_basename_noext(const char *file, char *base, size_t base_size) {
 
 #endif /* UNIV_PFS_MEMORY */
 
-#ifndef UNIV_HOTBACKUP
 namespace ib {
 
-info::~info() {
-  log_errlog(INFORMATION_LEVEL, ER_INNODB_ERROR_LOGGER_MSG,
-             m_oss.str().c_str());
+#if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
+
+logger::~logger() {
+  auto s = m_oss.str();
+
+  LogEvent()
+      .type(LOG_TYPE_ERROR)
+      .prio(m_level)
+      .errcode(m_err)
+      .subsys("InnoDB")
+      .verbatim(s.c_str());
 }
 
-warn::~warn() {
-  log_errlog(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
-}
+fatal::~fatal() { ut_error; }
 
-error::~error() {
-  log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
-}
+fatal_or_error::~fatal_or_error() { ut_a(!m_fatal); }
 
-fatal::~fatal() {
-  log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_FATAL_MSG,
-             m_oss.str().c_str());
-  ut_error;
-}
-
-error_or_warn::~error_or_warn() {
-  if (m_error) {
-    log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
-  } else {
-    log_errlog(WARNING_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
-  }
-}
-
-fatal_or_error::~fatal_or_error() {
-  log_errlog(ERROR_LEVEL, ER_INNODB_ERROR_LOGGER_MSG, m_oss.str().c_str());
-  ut_a(!m_fatal);
-}
+#endif /* !UNIV_NO_ERR_MSGS */
 
 }  // namespace ib
-
-#endif /* !UNIV_HOTBACKUP */

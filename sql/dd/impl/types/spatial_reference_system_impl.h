@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -249,6 +249,34 @@ class Spatial_reference_system_impl : public Entity_object_impl,
     DBUG_ASSERT(is_geographic());
     DBUG_ASSERT(angular_unit() > 0.0);
     return d / angular_unit();
+  }
+
+  double to_normalized_latitude(double d) const override {
+    double latitude = to_radians(d);
+    if (!positive_north()) latitude *= -1.0;
+    return latitude;
+  }
+
+  double from_normalized_latitude(double d) const override {
+    double latitude = from_radians(d);
+    if (!positive_north()) latitude *= -1.0;
+    return latitude;
+  }
+
+  double to_normalized_longitude(double d) const override {
+    double longitude = d;
+    if (!positive_east()) longitude *= -1.0;
+    longitude += prime_meridian();
+    longitude *= angular_unit();
+    return longitude;
+  }
+
+  double from_normalized_longitude(double d) const override {
+    double longitude = d;
+    longitude /= angular_unit();
+    longitude -= prime_meridian();
+    if (!positive_east()) longitude *= -1.0;
+    return longitude;
   }
 
   /////////////////////////////////////////////////////////////////////////

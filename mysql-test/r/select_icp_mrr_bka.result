@@ -3974,7 +3974,7 @@ t1	CREATE TABLE `t1` (
   `i` decimal(19,0) NOT NULL DEFAULT '0',
   `c` decimal(19,0) NOT NULL DEFAULT '0',
   `co` decimal(19,0) NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select 
 if(1, cast(1111111111111111111 as unsigned), 1) i,

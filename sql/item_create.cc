@@ -832,6 +832,50 @@ class Srid_instantiator {
   }
 };
 
+class Latitude_instantiator {
+ public:
+  static const uint Min_argcount = 1;
+  static const uint Max_argcount = 2;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    switch (args->elements()) {
+      case 1:
+        return new (thd->mem_root)
+            Item_func_st_latitude_observer(POS(), (*args)[0]);
+      case 2:
+        return new (thd->mem_root)
+            Item_func_st_latitude_mutator(POS(), (*args)[0], (*args)[1]);
+      default:
+        /* purecov: begin deadcode */
+        DBUG_ASSERT(false);
+        return nullptr;
+        /* purecov: end */
+    }
+  }
+};
+
+class Longitude_instantiator {
+ public:
+  static const uint Min_argcount = 1;
+  static const uint Max_argcount = 2;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    switch (args->elements()) {
+      case 1:
+        return new (thd->mem_root)
+            Item_func_st_longitude_observer(POS(), (*args)[0]);
+      case 2:
+        return new (thd->mem_root)
+            Item_func_st_longitude_mutator(POS(), (*args)[0], (*args)[1]);
+      default:
+        /* purecov: begin deadcode */
+        DBUG_ASSERT(false);
+        return nullptr;
+        /* purecov: end */
+    }
+  }
+};
+
 class X_instantiator {
  public:
   static const uint Min_argcount = 1;
@@ -840,10 +884,10 @@ class X_instantiator {
   Item *instantiate(THD *thd, PT_item_list *args) {
     switch (args->elements()) {
       case 1:
-        return new (thd->mem_root) Item_func_get_x(POS(), (*args)[0]);
+        return new (thd->mem_root) Item_func_st_x_observer(POS(), (*args)[0]);
       case 2:
         return new (thd->mem_root)
-            Item_func_set_x(POS(), (*args)[0], (*args)[1]);
+            Item_func_st_x_mutator(POS(), (*args)[0], (*args)[1]);
       default:
         DBUG_ASSERT(false);
         return nullptr;
@@ -859,10 +903,10 @@ class Y_instantiator {
   Item *instantiate(THD *thd, PT_item_list *args) {
     switch (args->elements()) {
       case 1:
-        return new (thd->mem_root) Item_func_get_y(POS(), (*args)[0]);
+        return new (thd->mem_root) Item_func_st_y_observer(POS(), (*args)[0]);
       case 2:
         return new (thd->mem_root)
-            Item_func_set_y(POS(), (*args)[0], (*args)[1]);
+            Item_func_st_y_mutator(POS(), (*args)[0], (*args)[1]);
       default:
         DBUG_ASSERT(false);
         return nullptr;
@@ -1505,12 +1549,14 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_ISSIMPLE", SQL_FN(Item_func_st_issimple, 1)},
     {"ST_ISVALID", SQL_FN(Item_func_isvalid, 1)},
     {"ST_LATFROMGEOHASH", SQL_FN(Item_func_latfromgeohash, 1)},
+    {"ST_LATITUDE", SQL_FACTORY(Latitude_instantiator)},
     {"ST_LENGTH", SQL_FN(Item_func_st_length, 1)},
     {"ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator)},
     {"ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator)},
     {"ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator)},
     {"ST_LINESTRINGFROMWKB", SQL_FACTORY(Linestringfromwkb_instantiator)},
     {"ST_LONGFROMGEOHASH", SQL_FN(Item_func_longfromgeohash, 1)},
+    {"ST_LONGITUDE", SQL_FACTORY(Longitude_instantiator)},
     {"ST_MAKEENVELOPE", SQL_FN(Item_func_make_envelope, 2)},
     {"ST_MLINEFROMTEXT", SQL_FACTORY(Mlinefromtext_instantiator)},
     {"ST_MLINEFROMWKB", SQL_FACTORY(Mlinefromwkb_instantiator)},

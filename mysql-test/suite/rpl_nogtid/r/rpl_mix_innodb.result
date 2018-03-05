@@ -47,7 +47,7 @@ SHOW CREATE TABLE mysqltest1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 -------- switch to master --------
 INSERT INTO mysqltest1.t1 SET f1= 1;
 DROP TEMPORARY TABLE mysqltest1.tmp;
@@ -69,7 +69,7 @@ SHOW CREATE TABLE mysqltest1.tmp2;
 Table	Create Table
 tmp2	CREATE TEMPORARY TABLE `tmp2` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ######### Must return no rows here #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)

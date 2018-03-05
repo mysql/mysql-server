@@ -204,9 +204,10 @@ dberr_t zReader::fetch() {
         /* fall through */
       default:
         err = DB_FAIL;
-        ib::error() << "inflate() of compressed BLOB page "
-                    << page_id_t(m_rctx.m_space_id, curr_page_no)
-                    << " returned " << zlib_err << " (" << m_stream.msg << ")";
+        ib::error(ER_IB_MSG_630)
+            << "inflate() of compressed BLOB page "
+            << page_id_t(m_rctx.m_space_id, curr_page_no) << " returned "
+            << zlib_err << " (" << m_stream.msg << ")";
         /* fall through */
         ut_error;
       case Z_BUF_ERROR:
@@ -609,9 +610,10 @@ static void btr_check_blob_fil_page_type(space_id_t space_id, page_no_t page_no,
       }
 #endif /* !UNIV_DEBUG */
 
-      ib::fatal() << "FIL_PAGE_TYPE=" << type << " on BLOB "
-                  << (read ? "read" : "purge") << " space " << space_id
-                  << " page " << page_no << " flags " << flags;
+      ib::fatal(ER_IB_MSG_631)
+          << "FIL_PAGE_TYPE=" << type << " on BLOB "
+          << (read ? "read" : "purge") << " space " << space_id << " page "
+          << page_no << " flags " << flags;
   }
 }
 

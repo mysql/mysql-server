@@ -403,7 +403,7 @@ int JOIN::optimize() {
     List_iterator<Window> li(m_windows);
     Window *w;
     while ((w = li++))
-      if (w->needs_sorting() && !w->sort_redundant()) {
+      if (w->needs_sorting()) {
         m_windows_sort = true;
         break;
       }
@@ -747,8 +747,12 @@ int JOIN::optimize() {
     if (ha_make_pushed_joins(thd, &plan)) DBUG_RETURN(1);
   }
 
-  // Update m_current_query_cost to reflect actual need of filesort.
-  if (sort_cost > 0.0 && !explain_flags.any(ESP_USING_FILESORT)) {
+  /*
+    If we decided to not sort after all, update m_current_query_cost.
+    Windowing sorts are handled elsewhere
+  */
+  if (sort_cost > 0.0 &&
+      !explain_flags.any(ESP_USING_FILESORT, ESC_WINDOWING)) {
     best_read -= sort_cost;
     sort_cost = 0.0;
     if (thd->lex->is_single_level_stmt()) thd->m_current_query_cost = best_read;
@@ -2968,7 +2972,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
       break;
 
     case SJ_OPT_DUPS_WEEDOUT:
-      // This strategy allows the same join buffering as a regular join would.
+    // This strategy allows the same join buffering as a regular join would.
     case SJ_OPT_NONE:
       break;
   }
@@ -7288,7 +7292,7 @@ bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args) {
       case Item_sum::AVG_DISTINCT_FUNC:
       case Item_sum::SUM_DISTINCT_FUNC:
         if (sum_item->get_arg_count() == 1) break;
-        /* fall through */
+      /* fall through */
       default:
         return false;
     }

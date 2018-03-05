@@ -1,8 +1,8 @@
 set names utf8;
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: A new Doc ID must be supplied while updating FTS indexed columns.");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A new Doc ID must be supplied while updating FTS indexed columns.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* FTS Doc ID must be larger than [0-9]+ for table `test`.`t1`");
 CREATE TABLE t1 (
 id1 INT ,
 a1 VARCHAR(200) ,
@@ -187,7 +187,7 @@ t2	CREATE TABLE `t2` (
   KEY `FTS_DOC_ID` (`FTS_DOC_ID`),
   FULLTEXT KEY `idx` (`s2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`FTS_DOC_ID`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 update t1 set s1 = 3 where s1=1;
@@ -240,7 +240,7 @@ id1	a1	b1
 SELECT * FROM t2 WHERE a2 LIKE '%tutorial%';
 id2	a2	b2
 DROP TABLE t2 , t1;
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: FTS Doc ID must be larger than 3 for table `test`.`t2`");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* FTS Doc ID must be larger than 3 for table `test`.`t2`");
 CREATE TABLE t1 (
 id1 INT ,
 a1 VARCHAR(200) ,

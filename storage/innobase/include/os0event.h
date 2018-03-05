@@ -61,6 +61,8 @@ Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
 void os_event_set(os_event_t event); /*!< in/out: event to set */
 
+bool os_event_try_set(os_event_t event);
+
 /**
 Check if the event is set.
 @return true if set */
@@ -122,6 +124,8 @@ ulint os_event_wait_time_low(
 @param e - event to wait on.
 @param t - timeout in microseconds */
 #define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
+
+#include "os0event.ic"
 
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !os0event_h */

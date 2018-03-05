@@ -4644,13 +4644,12 @@ void MDL_ticket_store::remove(enum_mdl_duration dur, MDL_ticket *ticket) {
 
   auto foundrng = m_map->equal_range(ticket->get_key());
 
-  auto foundit =
-      std::find_if(foundrng.first, foundrng.second,
-                   [dur, ticket](const Ticket_map::value_type &vt) {
-                     auto &th = vt.second;
-                     DBUG_ASSERT(th.m_ticket != ticket || th.m_dur == dur);
-                     return (th.m_ticket == ticket);
-                   });
+  auto foundit = std::find_if(
+      foundrng.first, foundrng.second, [&](const Ticket_map::value_type &vt) {
+        auto &th = vt.second;
+        DBUG_ASSERT(th.m_ticket != ticket || th.m_dur == dur);
+        return (th.m_ticket == ticket);
+      });
   DBUG_ASSERT(foundit != foundrng.second);
   if (foundit != foundrng.second) {
     m_map->erase(foundit);

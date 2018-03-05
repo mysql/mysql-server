@@ -39,11 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0types.h"
 #include "dyn0buf.h"
 #include "fil0fil.h"
-#include "log0types.h"
-#include "mtr0types.h"
-#include "my_compiler.h"
-#include "trx0types.h"
-#include "univ.i"
+#include "srv0srv.h"
 
 /** Start a mini-transaction. */
 #define mtr_start(m) (m)->start()
@@ -154,10 +150,6 @@ savepoint. */
 
 /** Forward declaration of a tablespace object */
 struct fil_space_t;
-
-/** Append records to the system-wide redo log buffer.
-@param[in]	log	redo log records */
-void mtr_write_log(const mtr_buf_t *log);
 
 /** Mini-transaction memo stack slot. */
 struct mtr_memo_slot_t {

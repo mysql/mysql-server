@@ -2,7 +2,7 @@
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc
 --disable_query_log
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+CALL mtr.add_suppression("\\[ERROR\\]  Could not find a valid tablespace file for");
 --enable_query_log
 
 LET $innodb_ddl_log_crash_reset_debug_orig = `SELECT @@innodb_ddl_log_crash_reset_debug`;

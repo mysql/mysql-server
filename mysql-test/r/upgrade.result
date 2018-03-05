@@ -9,12 +9,12 @@ create table `#mysql50#mysqltest-1`.`t1` (a int);
 create table `#mysql50#mysqltest-1`.`#mysql50#t-1` (a int);
 show create database `mysqltest1`;
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show create database `mysqltest-1`;
 ERROR 42000: Unknown database 'mysqltest-1'
 show create database `#mysql50#mysqltest-1`;
 Database	Create Database
-#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show tables in `mysqltest1`;
 Tables_in_mysqltest1
 #mysql50#t-1
@@ -25,10 +25,10 @@ Tables_in_#mysql50#mysqltest-1
 t1
 show create database `mysqltest1`;
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show create database `#mysql50#mysqltest-1`;
 Database	Create Database
-#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+#mysql50#mysqltest-1	CREATE DATABASE `#mysql50#mysqltest-1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show tables in `mysqltest1`;
 Tables_in_mysqltest1
 #mysql50#t-1

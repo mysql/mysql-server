@@ -30,7 +30,7 @@
 -- source include/master-slave.inc
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: Cannot add field");
+call mtr.add_suppression("Cannot add field");
 --enable_query_log
 
 -- disable_warnings

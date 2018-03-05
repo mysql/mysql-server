@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -59,9 +59,10 @@ that the LOB partial update feature code is hit.
 @param[in]	uf	the update field information
 @param[in]	index	index where partial update happens.*/
 static void print_partial_update_hit(upd_field_t *uf, dict_index_t *index) {
-  ib::info() << "LOB partial update of field=(" << uf->mysql_field->field_name
-             << ") on index=(" << index->name << ") in table=("
-             << index->table_name << ")";
+  ib::info(ER_IB_MSG_632) << "LOB partial update of field=("
+                          << uf->mysql_field->field_name << ") on index=("
+                          << index->name << ") in table=(" << index->table_name
+                          << ")";
 }
 #endif /* UNIV_DEBUG */
 

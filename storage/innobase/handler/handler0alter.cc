@@ -2060,7 +2060,7 @@ static void innobase_create_index_def(const TABLE *altered_table,
       size_t geom_col_idx;
       for (geom_col_idx = 0; geom_col_idx < dd_index->elements().size();
            ++geom_col_idx) {
-        if (!dd_index->elements()[geom_col_idx]->column().is_hidden()) break;
+        if (!dd_index->elements()[geom_col_idx]->column().is_se_hidden()) break;
       }
       const dd::Column &col = dd_index->elements()[geom_col_idx]->column();
       bool has_value = col.srs_id().has_value();
@@ -3172,9 +3172,9 @@ static dberr_t innobase_check_gis_columns(Alter_inplace_info *ha_alter_info,
     const char *col_name = table->get_col_name(col_nr);
     col->mtype = DATA_GEOMETRY;
 
-    ib::info() << "Updated mtype of column" << col_name << " in table "
-               << table->name << ", whose id is " << table->id
-               << " to DATA_GEOMETRY";
+    ib::info(ER_IB_MSG_598)
+        << "Updated mtype of column" << col_name << " in table " << table->name
+        << ", whose id is " << table->id << " to DATA_GEOMETRY";
   }
 
   DBUG_RETURN(DB_SUCCESS);
@@ -6869,7 +6869,7 @@ rollback_trx:
     ut_ad(!trx->fts_trx);
 
     DBUG_EXECUTE_IF("innodb_alter_commit_crash_after_commit",
-                    log_make_checkpoint_at(LSN_MAX, TRUE);
+                    log_make_latest_checkpoint();
                     log_buffer_flush_to_disk(); DBUG_SUICIDE(););
   }
 

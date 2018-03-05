@@ -194,7 +194,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
   `t1_i` int(11) DEFAULT NULL,
   `t1_c` char(10) DEFAULT NULL,
   UNIQUE KEY `pri_index` (`t1_i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1 where t1_f > 2.2;
 ERROR 42S22: Unknown column 't1_f' in 'where clause'
 alter table t1 add index sec_index2(t1_c), algorithm=inplace;

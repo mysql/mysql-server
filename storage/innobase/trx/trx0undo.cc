@@ -412,9 +412,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t trx_undo_seg_create(
   slot_no = trx_rsegf_undo_find_free(rseg_hdr, mtr);
 
   if (slot_no == ULINT_UNDEFINED) {
-    ib::warn() << "Cannot find a free slot for an undo log. Do"
-                  " you have too many active transactions running"
-                  " concurrently?";
+    ib::warn(ER_IB_MSG_1212) << "Cannot find a free slot for an undo log. Do"
+                                " you have too many active transactions running"
+                                " concurrently?";
 
     return (DB_TOO_MANY_CONCURRENT_TRXS);
   }

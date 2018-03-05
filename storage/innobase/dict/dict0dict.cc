@@ -215,6 +215,14 @@ static void dict_index_remove_from_cache_low(
     dict_index_t *index, /*!< in, own: index */
     ibool lru_evict);    /*!< in: TRUE if page being evicted
                          to make room in the table LRU list */
+
+/** Calculate and update the redo log margin for current tables which
+have some changed dynamic metadata in memory and have not been written
+back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
+to stop user threads when redo log is running out of space and they
+do not hold latches (log.sn_limit_for_start). */
+static void dict_persist_update_log_margin(void);
+
 /** Removes a table object from the dictionary cache. */
 static void dict_table_remove_from_cache_low(
     dict_table_t *table, /*!< in, own: table */
@@ -740,6 +748,59 @@ void dict_table_autoinc_initialize(
   table->autoinc = value;
 }
 
+/** Write redo logs for autoinc counter that is to be inserted, or to
+update some existing smaller one to bigger.
+@param[in,out]	table	InnoDB table object
+@param[in]	value	AUTOINC counter to log
+@param[in,out]	mtr	mini-transaction */
+void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr) {
+  bool log = false;
+
+  mutex_enter(table->autoinc_persisted_mutex);
+
+  if (table->autoinc_persisted < value) {
+    dict_table_autoinc_persisted_update(table, value);
+
+    /* The only concern here is some concurrent thread may
+    change the dirty_status to METADATA_BUFFERED. And the
+    only function is dict_table_persist_to_dd_table_buffer_low(),
+    which could be called by checkpoint and will first set the
+    dirty_status to METADATA_BUFFERED, and then write back
+    the latest changes to DDTableBuffer, all of which are under
+    protection of dict_persist->mutex.
+
+    If that function sets the dirty_status to METADATA_BUFFERED
+    first, below checking will force current thread to wait on
+    dict_persist->mutex. Above update to AUTOINC would be either
+    written back to DDTableBuffer or not. But the redo logs for
+    current change won't be counted into current checkpoint.
+    See how log_sys->dict_suggest_checkpoint_lsn is set. So
+    even a crash after below redo log flushed, no change lost.
+
+    If that function sets the dirty_status after below checking,
+    which means current change would be written back to
+    DDTableBuffer. It's also safe. */
+    if (table->dirty_status.load() == METADATA_DIRTY) {
+      ut_ad(table->in_dirty_dict_tables_list);
+    } else {
+      dict_table_mark_dirty(table);
+    }
+
+    log = true;
+  }
+
+  mutex_exit(table->autoinc_persisted_mutex);
+
+  if (log) {
+    PersistentTableMetadata metadata(table->id, table->version);
+    metadata.set_autoinc(value);
+
+    Persister *persister = dict_persist->persisters->get(PM_TABLE_AUTO_INC);
+    persister->write_log(table->id, metadata, mtr);
+    /* No need to flush due to performance reason */
+  }
+}
+
 /** Get all the FTS indexes on a table.
 @param[in]	table	table
 @param[out]	indexes	all FTS indexes on this table
@@ -1036,9 +1097,9 @@ dict_table_t *dict_table_open_on_name(
         mutex_exit(&dict_sys->mutex);
       }
 
-      ib::info() << "Table " << table->name
-                 << " is corrupted. Please drop the table"
-                    " and recreate it";
+      ib::info(ER_IB_MSG_175) << "Table " << table->name
+                              << " is corrupted. Please drop the table"
+                                 " and recreate it";
       DBUG_RETURN(NULL);
     }
 
@@ -1198,14 +1259,14 @@ void dict_table_add_to_cache(dict_table_t *table, ibool can_be_evicted,
 
   ut_ad(dict_lru_validate());
 
-  table->dirty_status = METADATA_CLEAN;
+  table->dirty_status.store(METADATA_CLEAN);
 
   dict_sys->size +=
       mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
-  DBUG_EXECUTE_IF("dd_upgrade",
-                  if (srv_is_upgrade_mode && srv_upgrade_old_undo_found) {
-                    ib::info() << "Adding table to cache: " << table->name;
-                  });
+  DBUG_EXECUTE_IF(
+      "dd_upgrade", if (srv_is_upgrade_mode && srv_upgrade_old_undo_found) {
+        ib::info(ER_IB_MSG_176) << "Adding table to cache: " << table->name;
+      });
 }
 
 /** Test whether a table can be evicted from the LRU cache.
@@ -1437,8 +1498,8 @@ dberr_t dict_table_rename_in_cache(
   if (strlen(table->name.m_name) + 1 <= sizeof(old_name)) {
     strcpy(old_name, table->name.m_name);
   } else {
-    ib::fatal() << "Too long table name: " << table->name << ", max length is "
-                << MAX_FULL_NAME_LEN;
+    ib::fatal(ER_IB_MSG_177) << "Too long table name: " << table->name
+                             << ", max length is " << MAX_FULL_NAME_LEN;
   }
 
   fold = ut_fold_string(new_name);
@@ -1453,10 +1514,11 @@ dberr_t dict_table_rename_in_cache(
                   if (table2 == NULL) { table2 = (dict_table_t *)-1; });
 
   if (table2 != nullptr) {
-    ib::error() << "Cannot rename table '" << old_name << "' to '" << new_name
-                << "' since the"
-                   " dictionary cache already contains '"
-                << new_name << "'.";
+    ib::error(ER_IB_MSG_178)
+        << "Cannot rename table '" << old_name << "' to '" << new_name
+        << "' since the"
+           " dictionary cache already contains '"
+        << new_name << "'.";
 
     return (DB_ERROR);
   }
@@ -1487,15 +1549,15 @@ dberr_t dict_table_rename_in_cache(
          err == DB_IO_ERROR);
 
     if (err == DB_IO_ERROR) {
-      ib::info() << "IO error while deleting: " << table->space
-                 << " during rename of '" << old_name << "' to"
-                 << " '" << new_name << "'";
+      ib::info(ER_IB_MSG_179) << "IO error while deleting: " << table->space
+                              << " during rename of '" << old_name << "' to"
+                              << " '" << new_name << "'";
     }
 
     /* Delete any temp file hanging around. */
     if (os_file_status(filepath, &exists, &ftype) && exists &&
         !os_file_delete_if_exists(innodb_temp_file_key, filepath, NULL)) {
-      ib::info() << "Delete of " << filepath << " failed.";
+      ib::info(ER_IB_MSG_180) << "Delete of " << filepath << " failed.";
     }
 
     ut_free(filepath);
@@ -1821,11 +1883,11 @@ static void dict_table_remove_from_cache_low(
   /* We first dirty read the status which could be changed from
   METADATA_DIRTY to METADATA_BUFFERED by checkpoint, and check again
   when persistence is necessary */
-  switch (table->dirty_status) {
+  switch (table->dirty_status.load()) {
     case METADATA_DIRTY:
       /* Write back the dirty metadata to DDTableBuffer */
       dict_table_persist_to_dd_table_buffer(table);
-      ut_ad(table->dirty_status != METADATA_DIRTY);
+      ut_ad(table->dirty_status.load() != METADATA_DIRTY);
       /* Fall through */
     case METADATA_BUFFERED:
       /* We have to remove it away here, since it's evicted.
@@ -2506,13 +2568,13 @@ static void dict_index_remove_from_cache_low(
 
     if (retries % 500 == 0) {
       /* No luck after 5 seconds of wait. */
-      ib::error() << "Waited for " << retries / 100
-                  << " secs for hash index"
-                     " ref_count ("
-                  << ref_count
-                  << ") to drop to 0."
-                     " index: "
-                  << index->name << " table: " << table->name;
+      ib::error(ER_IB_MSG_181) << "Waited for " << retries / 100
+                               << " secs for hash index"
+                                  " ref_count ("
+                               << ref_count
+                               << ") to drop to 0."
+                                  " index: "
+                               << index->name << " table: " << table->name;
     }
 
     /* To avoid a hang here we commit suicide if the
@@ -2657,8 +2719,9 @@ static ibool dict_index_find_cols(const dict_table_t *table,
   dup_err:
 #ifdef UNIV_DEBUG
     /* It is an error not to find a matching column. */
-    ib::error() << "No matching column for " << field->name << " in index "
-                << index->name << " of table " << table->name;
+    ib::error(ER_IB_MSG_182)
+        << "No matching column for " << field->name << " in index "
+        << index->name << " of table " << table->name;
 #endif /* UNIV_DEBUG */
     return (FALSE);
 
@@ -3991,7 +4054,8 @@ static dberr_t dict_create_foreign_constraints_low(trx_t *trx, mem_heap_t *heap,
   ptr = dict_scan_table_name(cs, ptr, &table_to_alter, &mdl, name, &success,
                              heap, &referenced_table_name);
   if (!success) {
-    ib::error() << "Could not find the table being ALTERED in: " << sql_string;
+    ib::error(ER_IB_MSG_183)
+        << "Could not find the table being ALTERED in: " << sql_string;
 
     return (DB_ERROR);
   }
@@ -5057,9 +5121,6 @@ void dict_persist_init(void) {
 
   mutex_create(LATCH_ID_DICT_PERSIST_DIRTY_TABLES, &dict_persist->mutex);
 
-  rw_lock_create(dict_persist_checkpoint_key, &dict_persist->lock,
-                 SYNC_PERSIST_CHECKPOINT);
-
 #ifndef UNIV_HOTBACKUP
   UT_LIST_INIT(dict_persist->dirty_dict_tables,
                &dict_table_t::dirty_dict_tables);
@@ -5070,6 +5131,10 @@ void dict_persist_init(void) {
   dict_persist->persisters = UT_NEW_NOKEY(Persisters());
   dict_persist->persisters->add(PM_INDEX_CORRUPTED);
   dict_persist->persisters->add(PM_TABLE_AUTO_INC);
+
+#ifndef UNIV_HOTBACKUP
+  dict_persist_update_log_margin();
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Clear the structure */
@@ -5081,8 +5146,6 @@ void dict_persist_close(void) {
 #endif /* !UNIV_HOTBACKUP */
 
   mutex_free(&dict_persist->mutex);
-
-  rw_lock_free(&dict_persist->lock);
 
   ut_free(dict_persist);
 }
@@ -5147,11 +5210,12 @@ bool dict_table_apply_dynamic_metadata(
       /* In some cases, we could only load some indexes
       of a table but not all(See dict_load_indexes()).
       So we might not find it here */
-      ib::info() << "Failed to find the index: " << index_id.m_index_id
-                 << " in space: " << index_id.m_space_id
-                 << " of table: " << table->name << "(table id: " << table->id
-                 << "). The index should have been dropped"
-                 << " or couldn't be loaded.";
+      ib::info(ER_IB_MSG_184)
+          << "Failed to find the index: " << index_id.m_index_id
+          << " in space: " << index_id.m_space_id
+          << " of table: " << table->name << "(table id: " << table->id
+          << "). The index should have been dropped"
+          << " or couldn't be loaded.";
     }
   }
 
@@ -5259,7 +5323,7 @@ void dict_table_load_dynamic_metadata(dict_table_t *table) {
     In both cases, we don't have to change the dirty_status */
     if (is_dirty) {
       UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
-      table->dirty_status = METADATA_BUFFERED;
+      table->dirty_status.store(METADATA_BUFFERED);
       ut_d(table->in_dirty_dict_tables_list = true);
     }
   }
@@ -5278,7 +5342,7 @@ void dict_table_mark_dirty(dict_table_t *table) {
 
   mutex_enter(&dict_persist->mutex);
 
-  switch (table->dirty_status) {
+  switch (table->dirty_status.load()) {
     case METADATA_DIRTY:
       break;
     case METADATA_CLEAN:
@@ -5287,8 +5351,11 @@ void dict_table_mark_dirty(dict_table_t *table) {
       ut_d(table->in_dirty_dict_tables_list = true);
       /* Fall through */
     case METADATA_BUFFERED:
-      table->dirty_status = METADATA_DIRTY;
+      table->dirty_status.store(METADATA_DIRTY);
       ++dict_persist->num_dirty_tables;
+#ifndef UNIV_HOTBACKUP
+      dict_persist_update_log_margin();
+#endif /* !UNIV_HOTBACKUP */
   }
 
   ut_ad(table->in_dirty_dict_tables_list);
@@ -5308,49 +5375,32 @@ to set it directly.
 void dict_set_corrupted(dict_index_t *index) {
   dict_table_t *table = index->table;
 
-  /* Acquire lock at first, so that setting index as corrupted would be
-  protected, in case that some checkpoint would flush the table to
-  DDTableBuffer right after setting corrupted and mark the table as
-  METADATA_BUFFERED, but here we would set it to METADATA_DIRTY again. */
-  rw_lock_s_lock(&dict_persist->lock);
-
-  if (!(index->type & DICT_CORRUPT)) {
-    index->type |= DICT_CORRUPT;
-
-    if (!srv_read_only_mode && !table->is_temporary()) {
-      /* In RO mode, we should be able to mark the
-      in memory indexes as corrupted but do not log it.
-      Also, no need to log for temporary table */
-      PersistentTableMetadata metadata(table->id, table->version);
-      metadata.add_corrupted_index(index_id_t(index->space, index->id));
-
-      Persister *persister = dict_persist->persisters->get(PM_INDEX_CORRUPTED);
-      ut_ad(persister != NULL);
-
-#ifndef UNIV_HOTBACKUP
-      mtr_t mtr;
-
-      mtr.start();
-      persister->write_log(table->id, metadata, &mtr);
-      mtr.commit();
-
-      /* Try to flush the log immediately, so that
-      in most cases the corrupted bit would be
-      persisted in redo log */
-      log_write_up_to(mtr.commit_lsn(), true);
-#endif /* !UNIV_HOTBACKUP */
-
-      dict_table_mark_dirty(table);
-    }
+  if (index->type & DICT_CORRUPT) {
+    return;
   }
 
-  /* Release the lock after adding the table to dirty table list, so
-  a checkpoint happens after the mtr commits could always write back
-  the table's metadata. Otherwise, checkpoint could not find the table
-  in dirty table's list and not write it back, after the checkpoint
-  finishes and then a crash, the corrupted bit written here would
-  get lost. */
-  rw_lock_s_unlock(&dict_persist->lock);
+  index->type |= DICT_CORRUPT;
+
+  if (!srv_read_only_mode && !table->is_temporary()) {
+    PersistentTableMetadata metadata(table->id, table->version);
+    metadata.add_corrupted_index(index_id_t(index->space, index->id));
+
+    Persister *persister = dict_persist->persisters->get(PM_INDEX_CORRUPTED);
+    ut_ad(persister != NULL);
+
+#ifndef UNIV_HOTBACKUP
+    mtr_t mtr;
+
+    mtr.start();
+    persister->write_log(table->id, metadata, &mtr);
+    mtr.commit();
+
+    /* Make sure the corruption bit won't be lost */
+    log_write_up_to(*log_sys, mtr.commit_lsn(), true);
+#endif /* !UNIV_HOTBACKUP */
+
+    dict_table_mark_dirty(table);
+  }
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -5360,7 +5410,7 @@ DD TABLE BUFFER table. This is the low level function to write back.
 static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
   ut_ad(dict_sys != NULL);
   ut_ad(mutex_own(&dict_persist->mutex));
-  ut_ad(table->dirty_status == METADATA_DIRTY);
+  ut_ad(table->dirty_status.load() == METADATA_DIRTY);
   ut_ad(table->in_dirty_dict_tables_list);
   ut_ad(!table->is_temporary());
 
@@ -5368,6 +5418,11 @@ static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
   PersistentTableMetadata metadata(table->id, table->version);
   byte buffer[REC_MAX_DATA_SIZE];
   ulint size;
+
+  /* Here the status gets changed first, to make concurrent
+  update to this table to wait on dict_persist_t::mutex.
+  See dict_table_autoinc_log(), etc. */
+  table->dirty_status.store(METADATA_BUFFERED);
 
   dict_init_dynamic_metadata(table, &metadata);
 
@@ -5377,9 +5432,11 @@ static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
       table_buffer->replace(table->id, table->version, buffer, size);
   ut_a(error == DB_SUCCESS);
 
-  table->dirty_status = METADATA_BUFFERED;
   ut_ad(dict_persist->num_dirty_tables > 0);
   --dict_persist->num_dirty_tables;
+#ifndef UNIV_HOTBACKUP
+  dict_persist_update_log_margin();
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Write back the dirty persistent dynamic metadata of the table
@@ -5391,11 +5448,9 @@ void dict_table_persist_to_dd_table_buffer(dict_table_t *table) {
 
   mutex_enter(&dict_persist->mutex);
 
-  if (table->dirty_status != METADATA_DIRTY) {
-    /* This is a double check, since we call this function
-    without holding dict_sys->mutex by
-    dict_index_remove_from_cache_low() and the dirty_status
-    maybe changed by checkpoint etc. */
+  if (table->dirty_status.load() != METADATA_DIRTY) {
+    /* Double check the status, since a concurrent checkpoint
+    may have already changed the status to not dirty */
     mutex_exit(&dict_persist->mutex);
     return;
   }
@@ -5408,35 +5463,33 @@ void dict_table_persist_to_dd_table_buffer(dict_table_t *table) {
 }
 
 /** Check if any table has any dirty persistent data, if so
-write dirty persistent data of table to DD TABLE BUFFER table accordingly
-@return true if any table is dirty and write to DD TABLE BUFFER would
-possibly be done */
-bool dict_persist_to_dd_table_buffer(void) {
+write dirty persistent data of table to mysql.innodb_dynamic_metadata
+accordingly. */
+void dict_persist_to_dd_table_buffer() {
   bool persisted = false;
 
   if (dict_sys == nullptr) {
-    return (persisted);
+    log_sys->dict_suggest_checkpoint_lsn = 0;
+    return;
   }
 
   mutex_enter(&dict_persist->mutex);
 
   if (UT_LIST_GET_LEN(dict_persist->dirty_dict_tables) == 0) {
     mutex_exit(&dict_persist->mutex);
-    return (persisted);
+    log_sys->dict_suggest_checkpoint_lsn = 0;
+    return;
   }
 
   for (dict_table_t *table = UT_LIST_GET_FIRST(dict_persist->dirty_dict_tables);
        table != NULL;) {
-    ut_ad(table->dirty_status == METADATA_DIRTY ||
-          table->dirty_status == METADATA_BUFFERED);
-
     dict_table_t *next = UT_LIST_GET_NEXT(dirty_dict_tables, table);
 
-#ifdef UNIV_DEBUG
-    ut_a(next == NULL || next->magic_n == DICT_TABLE_MAGIC_N);
-#endif /* UNIV_DEBUG */
+    ut_ad(table->dirty_status.load() == METADATA_DIRTY ||
+          table->dirty_status.load() == METADATA_BUFFERED);
+    ut_ad(next == NULL || next->magic_n == DICT_TABLE_MAGIC_N);
 
-    if (table->dirty_status == METADATA_DIRTY) {
+    if (table->dirty_status.load() == METADATA_DIRTY) {
       dict_table_persist_to_dd_table_buffer_low(table);
       persisted = true;
     }
@@ -5446,15 +5499,28 @@ bool dict_persist_to_dd_table_buffer(void) {
 
   ut_ad(dict_persist->num_dirty_tables == 0);
 
+  if (persisted) {
+    /* Get this lsn with dict_persist->mutex held,
+    so no other concurrent dynamic metadata change logs
+    would be before this lsn. */
+    log_sys->dict_suggest_checkpoint_lsn = log_get_lsn(*log_sys);
+  }
+
   mutex_exit(&dict_persist->mutex);
-  return (persisted);
+
+  if (persisted) {
+    log_buffer_flush_to_disk();
+  }
 }
 
-/** Calcualte the redo log margin for current tables which have some changed
-dynamic metadata in memory and have not been written back to
-mysql.innodb_dynamic_metadata
-@return the rough redo log margin for current dynamic metadata changes */
-uint64_t dict_persist_log_margin() {
+#ifndef UNIV_HOTBACKUP
+
+/** Calculate and update the redo log margin for current tables which
+have some changed dynamic metadata in memory and have not been written
+back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
+to stop user threads when redo log is running out of space and they
+do not hold latches (log.sn_limit_for_start). */
+static void dict_persist_update_log_margin() {
   /* Below variables basically considers only the AUTO_INCREMENT counter
   and a small margin for corrupted indexes. */
 
@@ -5488,10 +5554,19 @@ uint64_t dict_persist_log_margin() {
     num_tables = num_tables / tables_per_split;
   }
 
-  return (num_dirty_tables * log_margin_per_table_no_split +
-          total_splits * log_margin_per_split_no_root +
-          (num_dirty_tables == 0 ? 0 : log_margin_per_split_root));
+  const auto margin = (num_dirty_tables * log_margin_per_table_no_split +
+                       total_splits * log_margin_per_split_no_root +
+                       (num_dirty_tables == 0 ? 0 : log_margin_per_split_root));
+
+  if (log_sys != nullptr) {
+    /* Update margin for redo log */
+    log_sys->dict_persist_margin.store(margin);
+
+    /* Update log.sn_limit_for_start. */
+    log_update_limits(*log_sys);
+  }
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in the list of tables
@@ -5542,7 +5617,7 @@ void dict_ind_init(void) {
 }
 
 /** Frees dict_ind_redundant. */
-static void dict_ind_free(void) {
+void dict_ind_free(void) {
   dict_table_t *table;
 
   table = dict_ind_redundant->table;
@@ -6849,66 +6924,6 @@ ulint AutoIncPersister::read(PersistentTableMetadata &metadata,
   return (consumed);
 }
 
-#ifndef UNIV_HOTBACKUP
-/** Write redo logs for autoinc counter that is to be inserted or to
-update the existing one, if the counter is bigger than current one.
-This function should be called only once at most per mtr, and work with
-the commit() to finish the complete logging & commit
-@param[in]	table	table
-@param[in]	counter	counter to be logged */
-void AutoIncLogMtr::log(dict_table_t *table, ib_uint64_t counter) {
-  ut_ad(!m_locked);
-  rw_lock_s_lock(&dict_persist->lock);
-  ut_d(m_locked = true);
-
-  mutex_enter(table->autoinc_persisted_mutex);
-
-  if (table->autoinc_persisted < counter) {
-    dict_table_autoinc_persisted_update(table, counter);
-
-    if (table->dirty_status == METADATA_DIRTY) {
-      /* On checkpoint, the dirty_status
-      would be changed from METADATA_DIRTY to
-      METADATA_BUFFERED. During checkpoint,
-      the rw-lock in dict_persist should prevent
-      checkpoint changing the status. */
-      ut_ad(table->in_dirty_dict_tables_list);
-    } else {
-      dict_table_mark_dirty(table);
-    }
-
-    m_logged = true;
-  }
-
-  mutex_exit(table->autoinc_persisted_mutex);
-
-  if (m_logged) {
-    PersistentTableMetadata metadata(table->id, table->version);
-    metadata.set_autoinc(counter);
-
-    Persister *persister = dict_persist->persisters->get(PM_TABLE_AUTO_INC);
-
-    /* No need to flush the logs now for performance reasons. */
-    persister->write_log(table->id, metadata, m_mtr);
-  } else {
-    rw_lock_s_unlock(&dict_persist->lock);
-    ut_d(m_locked = false);
-  }
-}
-
-/** Commit the internal mtr, and some cleanup if necessary */
-void AutoIncLogMtr::commit() {
-  m_mtr->commit();
-
-  if (m_logged) {
-    ut_ad(m_locked);
-    ut_d(m_locked = false);
-
-    rw_lock_s_unlock(&dict_persist->lock);
-  }
-}
-#endif /* !UNIV_HOTBACKUP */
-
 /** Destructor */
 Persisters::~Persisters() {
   persisters_t::iterator iter;
@@ -7118,8 +7133,9 @@ void dict_upgrade_evict_tables_cache() {
     prev_table = UT_LIST_GET_PREV(table_LRU, table);
 
     if (!dict_table_is_system(table->id)) {
-      DBUG_EXECUTE_IF("dd_upgrade", ib::info() << "Moving table " << table->name
-                                               << " from non-LRU to LRU";);
+      DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_185)
+                                        << "Moving table " << table->name
+                                        << " from non-LRU to LRU";);
 
       dict_table_move_from_non_lru_to_lru(table);
     }
@@ -7134,8 +7150,9 @@ void dict_upgrade_evict_tables_cache() {
 
     ut_ad(dict_table_can_be_evicted(table));
 
-    DBUG_EXECUTE_IF("dd_upgrade",
-                    ib::info() << "Evicting table: LRU: " << table->name;);
+    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_186)
+                                      << "Evicting table: LRU: "
+                                      << table->name;);
 
     dict_table_remove_from_cache_low(table, TRUE);
 

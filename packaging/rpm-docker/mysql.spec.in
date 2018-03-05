@@ -34,8 +34,8 @@
 
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
-%{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - (GPL)}
-%{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
+%{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - GPL}
+%{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 %global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
@@ -245,21 +245,21 @@ rm -f %{buildroot}%{_libdir}/mysql/plugin/libtest_*.so
 rm -f %{buildroot}%{_libdir}/pkgconfig/mysqlclient.pc
 
 # No need for these scripts
-rm -f %{buildroot}%{_datadir}/mysql/{mysql.server,mysqld_multi.server,mysql-log-rotate}
+rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-log-rotate}
 
 # Extra files/dirs removed from Cluster build
 %if 0%{?cluster}
 rm -rf %{buildroot}/usr/share/mysql/mcc
 rm -f %{buildroot}/lib/memcached_path.pl
 rm -f %{buildroot}/%{_libdir}/mysql/libndbclient*
-rm -rf %{buildroot}%{_datadir}/mysql/nodejs/
-rm -rf %{buildroot}%{_datadir}/mysql/java/
+rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
+rm -rf %{buildroot}%{_datadir}/mysql-*/java/
 %endif
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
-rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql
-rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
+rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
+rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -305,8 +305,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/memclient
 %attr(755, root, root) %{_sbindir}/memcached
 %attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
-%attr(644, root, root) %{_datadir}/mysql/ndb_dist_priv.sql
-%{_datadir}/mysql/memcache-api/
+%attr(644, root, root) %{_datadir}/mysql-*/ndb_dist_priv.sql
+%{_datadir}/mysql-*/memcache-api/
 %endif
 
 %attr(755, root, root) %{_sbindir}/mysqld
@@ -340,55 +340,54 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/locking_service.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_no_login.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/mysqlx.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
-%dir %{_datadir}/mysql/
-%{_datadir}/mysql/charsets/
-%{_datadir}/mysql/bulgarian/
-%{_datadir}/mysql/czech/
-%{_datadir}/mysql/danish/
-%{_datadir}/mysql/dutch/
-%{_datadir}/mysql/english/
-%{_datadir}/mysql/estonian/
-%{_datadir}/mysql/french/
-%{_datadir}/mysql/german/
-%{_datadir}/mysql/greek/
-%{_datadir}/mysql/hungarian/
-%{_datadir}/mysql/italian/
-%{_datadir}/mysql/japanese/
-%{_datadir}/mysql/korean/
-%{_datadir}/mysql/norwegian-ny/
-%{_datadir}/mysql/norwegian/
-%{_datadir}/mysql/polish/
-%{_datadir}/mysql/portuguese/
-%{_datadir}/mysql/romanian/
-%{_datadir}/mysql/russian/
-%{_datadir}/mysql/serbian/
-%{_datadir}/mysql/slovak/
-%{_datadir}/mysql/spanish/
-%{_datadir}/mysql/swedish/
-%{_datadir}/mysql/ukrainian/
-%attr(644, root, root) %{_datadir}/mysql/errmsg-utf8.txt
-%attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_sys_schema.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_test_data_timezone.sql
-%attr(644, root, root) %{_datadir}/mysql/dictionary.txt
-%attr(644, root, root) %{_datadir}/mysql/innodb_memcached_config.sql
-%attr(644, root, root) %{_datadir}/mysql/install_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql/uninstall_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql/magic
+%dir %{_datadir}/mysql-*/
+%{_datadir}/mysql-*/charsets/
+%{_datadir}/mysql-*/bulgarian/
+%{_datadir}/mysql-*/czech/
+%{_datadir}/mysql-*/danish/
+%{_datadir}/mysql-*/dutch/
+%{_datadir}/mysql-*/english/
+%{_datadir}/mysql-*/estonian/
+%{_datadir}/mysql-*/french/
+%{_datadir}/mysql-*/german/
+%{_datadir}/mysql-*/greek/
+%{_datadir}/mysql-*/hungarian/
+%{_datadir}/mysql-*/italian/
+%{_datadir}/mysql-*/japanese/
+%{_datadir}/mysql-*/korean/
+%{_datadir}/mysql-*/norwegian-ny/
+%{_datadir}/mysql-*/norwegian/
+%{_datadir}/mysql-*/polish/
+%{_datadir}/mysql-*/portuguese/
+%{_datadir}/mysql-*/romanian/
+%{_datadir}/mysql-*/russian/
+%{_datadir}/mysql-*/serbian/
+%{_datadir}/mysql-*/slovak/
+%{_datadir}/mysql-*/spanish/
+%{_datadir}/mysql-*/swedish/
+%{_datadir}/mysql-*/ukrainian/
+%attr(644, root, root) %{_datadir}/mysql-*/errmsg-utf8.txt
+%attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
+%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
+%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
+%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/magic
 
 %if 0%{?commercial}
 %attr(755, root, root) %{_bindir}/mysqlbackup
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
-%attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
+%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_okv.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_encrypted_file.so
@@ -396,7 +395,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
-%attr(644, root, root) %{_datadir}/mysql/linux_install_firewall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %endif
 
 %dir %attr(750, mysql, mysql) /var/lib/mysql

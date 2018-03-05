@@ -33,7 +33,7 @@ t1	CREATE TABLE `t1` (
   `blob_column` longblob,
   `vchar_column` varchar(100) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 DROP PROCEDURE test.p1;
 DROP FUNCTION test.fn1;
 DROP TABLE test.t1;

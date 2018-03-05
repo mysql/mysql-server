@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -474,6 +474,8 @@ bool start_archiver_background() {
   ret = os_file_create_directory(ARCH_DIR, false);
 
   if (ret) {
+    archiver_is_active = true;
+
     os_thread_create(archiver_thread_key, archiver_thread);
   } else {
     my_error(ER_CANT_CREATE_FILE, MYF(0), ARCH_DIR, errno,
@@ -495,8 +497,6 @@ void archiver_thread() {
   bool page_abort = false;
   bool page_wait = false;
 
-  archiver_is_active = true;
-
   while (true) {
     if (!log_abort) {
       /* Archive available redo log data. */
@@ -504,7 +504,7 @@ void archiver_thread() {
                                         &log_wait);
 
       if (log_abort) {
-        ib::info() << "Exiting Log Archiver";
+        ib::info(ER_IB_MSG_13) << "Exiting Log Archiver";
       }
 
       log_init = false;
@@ -515,7 +515,7 @@ void archiver_thread() {
       page_abort = arch_page_sys->archive(&page_wait);
 
       if (page_abort) {
-        ib::info() << "Exiting Page Archiver";
+        ib::info(ER_IB_MSG_14) << "Exiting Page Archiver";
       }
     }
 

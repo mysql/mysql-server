@@ -11,8 +11,8 @@
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
-call mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+call mtr.add_suppression("Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("Warning: database page corruption or a failed");
 
 SET GLOBAL innodb_file_per_table=on;
 

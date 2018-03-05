@@ -120,8 +120,8 @@ void dict_hdr_get_new_id(table_id_t *table_id,      /*!< out: table id
     entering into reserved range of table_ids for SDI
     tables */
     if (id >= dict_sdi_get_table_id(0)) {
-      ib::fatal() << "InnoDB is running out of table_ids"
-                  << " Please dump and reload the database";
+      ib::fatal(ER_IB_MSG_160) << "InnoDB is running out of table_ids"
+                               << " Please dump and reload the database";
     }
 
     mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, id, &mtr);
@@ -426,8 +426,8 @@ dberr_t dict_boot(void) {
 
   if (srv_force_recovery != SRV_FORCE_NO_LOG_REDO && srv_read_only_mode &&
       !ibuf_is_empty()) {
-    ib::error() << "Change buffer must be empty when"
-                   " --innodb-read-only is set!";
+    ib::error(ER_IB_MSG_161) << "Change buffer must be empty when"
+                                " --innodb-read-only is set!";
 
     err = DB_ERROR;
   }

@@ -178,6 +178,9 @@ bool recovery_get_public_key_var = false;
 /* Write set extraction algorithm*/
 int write_set_extraction_algorithm = HASH_ALGORITHM_OFF;
 
+/* Lower case table name */
+uint gr_lower_case_table_names = 0;
+
 /* Generic components variables */
 ulong components_stop_timeout_var = LONG_TIMEOUT;
 
@@ -507,7 +510,7 @@ int initialize_plugin_and_join(
   bool read_only_mode = false, super_read_only_mode = false;
 
   st_server_ssl_variables server_ssl_variables = {false, NULL, NULL, NULL, NULL,
-                                                  NULL,  NULL, NULL, NULL};
+                                                  NULL,  NULL, NULL, NULL, 0};
 
   char *hostname, *uuid;
   uint port;
@@ -722,7 +725,8 @@ int configure_group_member_manager(char *hostname, char *uuid, uint port,
       gcs_local_member_identifier, Group_member_info::MEMBER_OFFLINE,
       local_member_plugin_version, gtid_assignment_block_size_var,
       Group_member_info::MEMBER_ROLE_SECONDARY, single_primary_mode_var,
-      enforce_update_everywhere_checks_var, member_weight_var);
+      enforce_update_everywhere_checks_var, member_weight_var,
+      gr_lower_case_table_names);
 
   // Create the membership info visible for the group
   delete group_member_mgr;
@@ -1663,6 +1667,9 @@ static int check_if_server_properly_configured() {
         ER_GRP_RPL_SINGLE_PRIM_MODE_NOT_ALLOWED_WITH_UPDATE_EVERYWHERE);
     DBUG_RETURN(1);
   }
+
+  gr_lower_case_table_names = startup_pre_reqs.lower_case_table_names;
+  DBUG_ASSERT(gr_lower_case_table_names <= 2);
 
   DBUG_RETURN(0);
 }

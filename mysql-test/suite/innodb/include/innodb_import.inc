@@ -1149,9 +1149,9 @@ DROP TABLE trigger_table;
 
 --disable_query_log
 call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
-call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
-call mtr.add_suppression("InnoDB: Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
+call mtr.add_suppression("Error: tablespace id and flags in file '.*'.*");
+call mtr.add_suppression("The table .* doesn't have a corresponding tablespace, it was discarded");
+call mtr.add_suppression("Unable to import tablespace .* because it already exists.  Please DISCARD the tablespace before IMPORT.");
 --enable_query_log
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd

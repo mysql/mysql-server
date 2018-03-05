@@ -70,3 +70,21 @@ CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET new.a= 1;
 RENAME TABLE t1 TO T1;
 ALTER TABLE T1 RENAME t1;
 DROP TABLE t1;
+#
+# Bug #27309094: REJECT LCTN CHANGING AFTER --INITIALIZE
+#
+# Verify that we are not allowed to restart the server with a
+# lower_case_table_names setting different than the setting
+# use during --initialize.
+#
+# 1. Shut server down.
+# 2. initialize the server.
+# 3. Restart the server with a different lower_case_table_names setting. Should fail.
+# 4. Look for error.
+#    Found lower_case_table_names error 1 times.
+# 5. Restart the server against default datadir.
+# 6. Cleanup.
+#    Delete $DDIR.
+#    Delete sql files.
+#    Delete log files.
+#    Delete expect files.

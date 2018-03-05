@@ -569,7 +569,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
 
   if (n_created > 0 && type != TEMP && !srv_read_only_mode &&
       srv_force_recovery == 0) {
-    log_make_checkpoint_at(LSN_MAX, TRUE);
+    log_make_latest_checkpoint();
   }
 
   std::ostringstream loc;
@@ -590,21 +590,21 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
     if (srv_read_only_mode || srv_force_recovery > 0) {
       bool use_and = srv_read_only_mode && srv_force_recovery > 0;
 
-      ib::info() << "Could not create all " << target_rsegs
-                 << " rollback segments in " << loc.str() << " because "
-                 << (srv_read_only_mode ? " read-only mode is set" : "")
-                 << (use_and ? " and" : "")
-                 << (srv_force_recovery > 0 ? " innodb_force_recovery is set"
-                                            : "")
-                 << ". Only " << n_known << " are active.";
+      ib::info(ER_IB_MSG_1191)
+          << "Could not create all " << target_rsegs << " rollback segments in "
+          << loc.str() << " because "
+          << (srv_read_only_mode ? " read-only mode is set" : "")
+          << (use_and ? " and" : "")
+          << (srv_force_recovery > 0 ? " innodb_force_recovery is set" : "")
+          << ". Only " << n_known << " are active.";
 
       srv_rollback_segments =
           ut_min(srv_rollback_segments, static_cast<ulong>(n_known));
 
     } else if (creating_rsegs) {
-      ib::warn() << "Could not create all " << target_rsegs
-                 << " rollback segments in " << loc.str() << ". Only "
-                 << n_known << " are active.";
+      ib::warn(ER_IB_MSG_1192)
+          << "Could not create all " << target_rsegs << " rollback segments in "
+          << loc.str() << ". Only " << n_known << " are active.";
 
       srv_rollback_segments =
           ut_min(srv_rollback_segments, static_cast<ulong>(n_known));
@@ -613,17 +613,20 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
     }
 
   } else if (n_created > 0) {
-    ib::info() << "Created " << n_created << " and tracked " << n_tracked
-               << " new rollback segment(s) in " << loc.str() << ". "
-               << target_rsegs << " are now active.";
+    ib::info(ER_IB_MSG_1193)
+        << "Created " << n_created << " and tracked " << n_tracked
+        << " new rollback segment(s) in " << loc.str() << ". " << target_rsegs
+        << " are now active.";
 
   } else if (n_tracked > 0) {
-    ib::info() << "Using " << n_tracked << " more rollback segment(s) in "
-               << loc.str() << ". " << target_rsegs << " are now active.";
+    ib::info(ER_IB_MSG_1194)
+        << "Using " << n_tracked << " more rollback segment(s) in " << loc.str()
+        << ". " << target_rsegs << " are now active.";
 
   } else if (target_rsegs < n_known) {
-    ib::info() << target_rsegs << " rollback segment(s) are now active in "
-               << loc.str() << ".";
+    ib::info(ER_IB_MSG_1195)
+        << target_rsegs << " rollback segment(s) are now active in "
+        << loc.str() << ".";
   }
 
   return (success);

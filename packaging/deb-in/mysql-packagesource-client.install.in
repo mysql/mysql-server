@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,16 @@ usr/bin/mysqlslap
 # charsets
 usr/share/mysql/charsets/*.xml
 usr/share/mysql/charsets/README
-@DEB_INSTALL_MAN_CLIENT@
+# man pages
+usr/share/man/man1/myisam_ftdump.1
+usr/share/man/man1/mysql_config_editor.1
+usr/share/man/man1/mysqladmin.1
+usr/share/man/man1/mysqlcheck.1
+usr/share/man/man1/mysqldumpslow.1
+usr/share/man/man1/mysqlimport.1
+usr/share/man/man1/mysqlman.1
+usr/share/man/man1/mysqlshow.1
+usr/share/man/man1/mysqlslap.1
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client/

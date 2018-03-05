@@ -45,8 +45,7 @@ SET SESSION sql_log_bin= 1;
 --echo #    replication
 --echo ############################################################
 
---let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
---let $assert_only_after = CURRENT_TEST: group_replication.gr_start_onboot_fail_restore_read_mode
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_start_onboot_fail_restore_read_mode.1.err
 --let $assert_count = 1
 --let $assert_select = Timeout on wait for view after joining group
 --let $assert_text = Found the expected Group Replication start error in the server log

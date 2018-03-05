@@ -1,3 +1,5 @@
+--source include/not_valgrind.inc
+--source include/not_sparc_debug.inc
 --source include/big_test.inc
 
 --echo # ----------------------------------------------------------------------

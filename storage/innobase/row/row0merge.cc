@@ -119,20 +119,22 @@ class index_tuple_info_t {
     dberr_t error = DB_SUCCESS;
     dtuple_t *dtuple;
     ulint count = 0;
+    bool force_log_free_check = false;
+
     const ulint flag = BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG |
                        BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG;
 
     ut_ad(dict_index_is_spatial(m_index));
 
     DBUG_EXECUTE_IF("row_merge_instrument_log_check_flush",
-                    log_sys->check_flush_or_checkpoint = true;);
+                    force_log_free_check = true;);
 
     for (idx_tuple_vec::iterator it = m_dtuple_vec->begin();
          it != m_dtuple_vec->end(); ++it) {
       dtuple = *it;
       ut_ad(dtuple);
 
-      if (log_sys->check_flush_or_checkpoint) {
+      if (log_needs_free_check() || force_log_free_check) {
         if (!(*mtr_committed)) {
           /* Since the data of the tuple pk fields
           are pointers of cluster rows. After mtr
@@ -155,6 +157,8 @@ class index_tuple_info_t {
         }
 
         log_free_check();
+
+        force_log_free_check = false;
       }
 
       mtr.start();
@@ -582,9 +586,9 @@ static ulint row_merge_buf_add(row_merge_buf_t *buf, dict_index_t *fts_index,
               static_cast<byte *>(dfield_get_data(doc_field)));
 
           if (*doc_id == 0) {
-            ib::warn() << "FTS Doc ID is"
-                          " zero. Record"
-                          " skipped";
+            ib::warn(ER_IB_MSG_964) << "FTS Doc ID is"
+                                       " zero. Record"
+                                       " skipped";
             DBUG_RETURN(0);
           }
         }
@@ -995,7 +999,7 @@ ibool row_merge_read(int fd,                 /*!< in: file descriptor */
 #endif /* POSIX_FADV_DONTNEED */
 
   if (err != DB_SUCCESS) {
-    ib::error() << "Failed to read merge block at " << ofs;
+    ib::error(ER_IB_MSG_965) << "Failed to read merge block at " << ofs;
   }
 
   DBUG_RETURN(err == DB_SUCCESS);
@@ -2333,9 +2337,9 @@ all_done:
     } while (!all_exit && trial_count < max_trial_count);
 
     if (!all_exit) {
-      ib::fatal() << "Not all child sort threads exited"
-                     " when creating FTS index '"
-                  << fts_sort_idx->name << "'";
+      ib::fatal(ER_IB_MSG_966) << "Not all child sort threads exited"
+                                  " when creating FTS index '"
+                               << fts_sort_idx->name << "'";
     }
   }
 
@@ -3216,7 +3220,7 @@ int row_merge_file_create_low(const char *path) {
 #endif /* UNIV_PFS_IO */
 
   if (fd < 0) {
-    ib::error() << "Cannot create temporary merge file";
+    ib::error(ER_IB_MSG_967) << "Cannot create temporary merge file";
     return (-1);
   }
   return (fd);
@@ -3645,10 +3649,10 @@ dberr_t row_merge_build_indexes(
         }
 
         if (!all_exit) {
-          ib::error() << "Not all child merge"
-                         " threads exited when creating"
-                         " FTS index '"
-                      << indexes[i]->name << "'";
+          ib::error(ER_IB_MSG_968) << "Not all child merge"
+                                      " threads exited when creating"
+                                      " FTS index '"
+                                   << indexes[i]->name << "'";
         }
       } else {
         /* This cannot report duplicates; an
@@ -3704,7 +3708,8 @@ dberr_t row_merge_build_indexes(
     }
 
     if (indexes[i]->type & DICT_FTS && fts_enable_diag_print) {
-      ib::info() << "Finished building full-text index " << indexes[i]->name;
+      ib::info(ER_IB_MSG_969)
+          << "Finished building full-text index " << indexes[i]->name;
     }
   }
 

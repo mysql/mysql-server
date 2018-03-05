@@ -1002,7 +1002,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   bool has_vgc = false;
   for (const dd::Column *col_obj : tab_obj->columns()) {
     // Skip hidden columns
-    if (col_obj->is_hidden()) continue;
+    if (col_obj->is_se_hidden()) continue;
 
     /*
       Fill details of each column.
@@ -1047,7 +1047,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
 
     for (const dd::Column *col_obj2 : tab_obj->columns()) {
       // Skip hidden columns
-      if (col_obj2->is_hidden()) continue;
+      if (col_obj2->is_se_hidden()) continue;
 
       if (col_obj2->is_virtual()) {
         // Fill details of each column.

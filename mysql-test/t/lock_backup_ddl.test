@@ -48,6 +48,19 @@ CREATE TEMPORARY TABLE temptable_1 (tt1 int);
 INSERT INTO temptable_1 SELECT * FROM t1;
 SELECT * FROM temptable_1;
 
+--error ER_LOCK_WAIT_TIMEOUT,ER_FEATURE_UNSUPPORTED
+CREATE RESOURCE GROUP rg1 TYPE=USER;
+
+--disable_parsing
+# Enable the following two test cases after the bug#27574375 be fixed.
+--error ER_LOCK_WAIT_TIMEOUT
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 5 BUCKETS;
+
+--error ER_LOCK_WAIT_TIMEOUT
+ANALYZE TABLE t1 DROP HISTOGRAM ON a;
+
+--enable_parsing
+
 --connection default
 UNLOCK INSTANCE;
 

@@ -31,7 +31,6 @@ START GROUP_REPLICATION;
 UNLOCK TABLES;
 
 Add data on the non-donor member
-CREATE TABLE test.t2 (a int primary key);
 USE test;
 
 #Validating the records in server3#
@@ -39,5 +38,4 @@ USE test;
 include/rpl_sync.inc
 
 DROP TABLE test.t1;
-DROP TABLE test.t2;
 include/group_replication_end.inc

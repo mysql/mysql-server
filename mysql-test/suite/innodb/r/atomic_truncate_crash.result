@@ -1,4 +1,4 @@
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+CALL mtr.add_suppression(".*Could not find a valid tablespace file for");
 CREATE TABLE t2 (a INT);
 INSERT INTO t2 VALUES(10);
 INSERT INTO t2 VALUES(11);

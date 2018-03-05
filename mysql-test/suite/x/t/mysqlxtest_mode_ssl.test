@@ -18,12 +18,6 @@ call mtr.add_suppression(".*Failed to set up SSL.*");
 -->assert_eq %EXPECT%	%IS_SSL_ACTIVE%
 EOF
 
---let $USE_SOCKET= '--socket=$MASTER_X_MYSOCK'
---source ../include/mysqlxtest_mode_ssl.inc
-
-let $restart_parameters=restart: ;
---source ../include/restart_mysqld_and_wait_for_xplugin.inc
-
 --let $USE_SOCKET=
 --source ../include/mysqlxtest_mode_ssl.inc
 

@@ -13,8 +13,8 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 -- disable_query_log
 
 call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: in ALTER TABLE `test`.`t1`");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: in RENAME TABLE table `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* in ALTER TABLE `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* in RENAME TABLE table `test`.`t1`");
 SET @innodb_thread_concurrency_orig = @@innodb_thread_concurrency;
 -- enable_query_log
 

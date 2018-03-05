@@ -450,7 +450,7 @@ worklog5743	CREATE TABLE `worklog5743` (
   `a` text NOT NULL,
   KEY `idx1` (`a`(768)),
   KEY `idx2` (`a`(768))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 drop table worklog5743;
 SET sql_mode= default;
 create table worklog5743(a TEXT not null) charset latin1 ROW_FORMAT=REDUNDANT;

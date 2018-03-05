@@ -5736,6 +5736,7 @@ extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a, Item_result b);
 extern bool resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
+extern bool is_null_on_empty_table(THD *thd, Item_field *i);
 
 extern const String my_null_string;
 void convert_and_print(String *from_str, String *to_str,

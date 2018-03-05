@@ -87,6 +87,20 @@ struct os_event {
     mutex.exit();
   }
 
+  bool try_set() UNIV_NOTHROW {
+    if (mutex.try_lock()) {
+      if (!m_set) {
+        broadcast();
+      }
+
+      mutex.exit();
+
+      return (true);
+    }
+
+    return (false);
+  }
+
   int64_t reset() UNIV_NOTHROW {
     mutex.enter();
 
@@ -281,9 +295,13 @@ bool os_event::timed_wait(
       break;
 
     default:
-      ib::error() << "pthread_cond_timedwait() returned: " << ret
-                  << ": abstime={" << abstime->tv_sec << "," << abstime->tv_nsec
-                  << "}";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_742)
+#endif /* !UNIV_NO_ERR_MSGS */
+          << "pthread_cond_timedwait() returned: " << ret << ": abstime={"
+          << abstime->tv_sec << "," << abstime->tv_nsec << "}";
       ut_error;
   }
 
@@ -449,6 +467,8 @@ void os_event_set(os_event_t event) /*!< in/out: event to set */
 {
   event->set();
 }
+
+bool os_event_try_set(os_event_t event) { return (event->try_set()); }
 
 /**
 Resets an event semaphore to the nonsignaled state. Waiting threads will

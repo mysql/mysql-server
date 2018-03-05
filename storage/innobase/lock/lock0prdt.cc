@@ -134,7 +134,7 @@ static bool lock_prdt_consistent(lock_prdt_t *prdt1, lock_prdt_t *prdt2,
       ret = mbr_within_cmp(srs, mbr1, mbr2);
       break;
     default:
-      ib::error() << "invalid operator " << action;
+      ib::error(ER_IB_MSG_645) << "invalid operator " << action;
       ut_error;
   }
 

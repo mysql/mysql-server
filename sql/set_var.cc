@@ -401,8 +401,8 @@ void sys_var::do_deprecated_warning(THD *thd) {
        there is no replacement for the syntax
     */
     uint errmsg = deprecation_substitute[0] == '\0'
-                      ? ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT
-                      : ER_WARN_DEPRECATED_SYNTAX;
+                      ? ER_DEPRECATE_MSG_NO_REPLACEMENT
+                      : ER_DEPRECATE_MSG_WITH_REPLACEMENT;
     if (thd)
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_DEPRECATED_SYNTAX, ER_THD(thd, errmsg), buf1,

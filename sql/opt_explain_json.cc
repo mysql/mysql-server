@@ -1216,11 +1216,10 @@ class window_ctx : public join_ctx {
       }
       if (!w->outtable_param()->m_window_short_circuit)
         to.add(K_USING_TMP_TABLE, true);
-      if (w->needs_sorting() && !w->sort_redundant() &&
-          w->effective_order_by()) {
+      if (w->needs_sorting()) {
         obj->add(K_USING_FILESORT, true);
         Opt_trace_array sort_order(json, K_FILESORT_KEY);
-        ORDER *ord = w->sorting_order(nullptr);
+        ORDER *ord = w->sorting_order();
         for (; ord != NULL; ord = ord->next) {
           String str;
           (*ord->item)
@@ -1249,6 +1248,9 @@ class window_ctx : public join_ctx {
     windows.end();
     return join_ctx::format_body(json, obj);
   }
+
+ protected:
+  const char *get_cost_tag() { return K_SORT_COST; }
 };
 
 bool join_ctx::find_and_set_derived(context *subquery) {

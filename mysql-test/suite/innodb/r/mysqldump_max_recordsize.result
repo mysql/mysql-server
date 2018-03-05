@@ -105,8 +105,8 @@ SELECT @@innodb_page_size;
 SELECT @@innodb_strict_mode;
 @@innodb_strict_mode
 1
-Pattern "\[ERROR\] \[[^]]*\] InnoDB: Cannot add field \`col32\` in table \`test\`.\`tab1\` because after adding it, the row size is 8192" found
-Pattern "\[ERROR\] \[[^]]*\] InnoDB: Cannot add field \`col32\` in table \`test\`.\`tab2\` because after adding it, the row size is 8192" found
+Pattern "\[ERROR\] .*MY-\d+.* Cannot add field \`col32\` in table \`test\`.\`tab1\` because after adding it, the row size is 8192" found
+Pattern "\[ERROR\] .*MY-\d+.* Cannot add field \`col32\` in table \`test\`.\`tab2\` because after adding it, the row size is 8192" found
 USE test;
 SHOW TABLES;
 Tables_in_test

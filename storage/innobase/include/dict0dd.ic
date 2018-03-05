@@ -187,7 +187,7 @@ inline dd::Column *dd_add_hidden_column(dd::Table *dd_table, const char *name,
   }
 
   dd::Column *col = dd_table->add_column();
-  col->set_hidden(true);
+  col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
   col->set_name(name);
   col->set_type(type);
   col->set_nullable(false);

@@ -55,7 +55,7 @@ override_dh_auto_configure:
 		-DWITH_INNODB_MEMCACHED=1 \
 		-DWITH_MECAB=system \
 		-DWITH_NUMA=ON \
-		-DCOMPILATION_COMMENT="MySQL @DEB_PRODUCTNAMEC@ Server (@DEB_LICENSENAME@)" \
+		-DCOMPILATION_COMMENT="MySQL @DEB_PRODUCTNAMEC@ Server - @DEB_LICENSENAME@" \
 		-DINSTALL_LAYOUT=DEB \
 		-DDEB_PRODUCT=@DEB_PRODUCT@ \
 		@DEB_CMAKE_EXTRAS@
@@ -109,4 +109,5 @@ override_dh_install:
 		-Xusr/share/mysql/LICENSE-test \
 		-Xusr/share/mysql/README-test \
 		-Xusr/share/mysql/docs/mysql.info \
+		-Xusr/share/mysql/docs/ChangeLog \
 		-Xusr/share/man/man1/mysqlman.1

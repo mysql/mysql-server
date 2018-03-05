@@ -785,11 +785,13 @@ loop:
     num_doc_processed++;
 
     if (fts_enable_diag_print && num_doc_processed % 10000 == 1) {
-      ib::info() << "Number of documents processed: " << num_doc_processed;
+      ib::info(ER_IB_MSG_928)
+          << "Number of documents processed: " << num_doc_processed;
 #ifdef FTS_INTERNAL_DIAG_PRINT
       for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
-        ib::info() << "ID " << psort_info->psort_id << ", partition " << i
-                   << ", word " << mycount[i];
+        ib::info(ER_IB_MSG_929)
+            << "ID " << psort_info->psort_id << ", partition " << i << ", word "
+            << mycount[i];
       }
 #endif
     }
@@ -833,11 +835,12 @@ loop:
     } else if (retried > 10000) {
       ut_ad(!doc_item);
       /* retied too many times and cannot get new record */
-      ib::error() << "FTS parallel sort processed " << num_doc_processed
-                  << " records, the sort queue has "
-                  << UT_LIST_GET_LEN(psort_info->fts_doc_list)
-                  << " records. But sort cannot get the next"
-                     " records";
+      ib::error(ER_IB_MSG_930)
+          << "FTS parallel sort processed " << num_doc_processed
+          << " records, the sort queue has "
+          << UT_LIST_GET_LEN(psort_info->fts_doc_list)
+          << " records. But sort cannot get the next"
+             " records";
       goto exit;
     }
   } else if (psort_info->state == FTS_PARENT_EXITING) {
@@ -1079,10 +1082,10 @@ static dberr_t row_merge_write_fts_word(
     error = row_merge_write_fts_node(ins_ctx, &word->text, fts_node);
 
     if (error != DB_SUCCESS) {
-      ib::error() << "Failed to write word " << word->text.f_str
-                  << " to FTS auxiliary"
-                     " index table, error ("
-                  << ut_strerr(error) << ")";
+      ib::error(ER_IB_MSG_931) << "Failed to write word " << word->text.f_str
+                               << " to FTS auxiliary"
+                                  " index table, error ("
+                               << ut_strerr(error) << ")";
       ret = error;
     }
 
@@ -1453,7 +1456,8 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
   }
 
   if (fts_enable_diag_print) {
-    ib::info() << "InnoDB_FTS: to inserted " << count_diag << " records";
+    ib::info(ER_IB_MSG_932)
+        << "InnoDB_FTS: to inserted " << count_diag << " records";
   }
 
   /* Initialize related variables if creating FTS indexes */
@@ -1604,7 +1608,7 @@ exit:
   mem_heap_free(heap);
 
   if (fts_enable_diag_print) {
-    ib::info() << "InnoDB_FTS: inserted " << count << " records";
+    ib::info(ER_IB_MSG_933) << "InnoDB_FTS: inserted " << count << " records";
   }
 
   return (error);

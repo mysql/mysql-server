@@ -2,8 +2,8 @@
 --source include/not_windows.inc
 
 --disable_query_log
-CALL mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number");
-CALL mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means mysqld does not have the access");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number");
+CALL mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means mysqld does not have the access");
 --enable_query_log
 
 --error ER_GET_ERRNO,1

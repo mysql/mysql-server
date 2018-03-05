@@ -79,7 +79,7 @@ Table	Create Table
 table1	CREATE TABLE `table1` (
   `_id` int(11) DEFAULT NULL,
   `doc` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SHOW CREATE TABLE table2
 Table	Create Table
@@ -87,7 +87,7 @@ table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SHOW CREATE TABLE xplugintest_1.table2
 Table	Create Table
@@ -95,7 +95,7 @@ table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO table2 (doc) VALUES ('{"a":1,"_id":[100,200]}')
 
@@ -117,7 +117,7 @@ Table	Create Table
 table1	CREATE TABLE `table1` (
   `_id` int(11) DEFAULT NULL,
   `doc` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SHOW CREATE TABLE table2
 Table	Create Table
@@ -126,7 +126,7 @@ table2	CREATE TABLE `table2` (
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `col1` int(11) DEFAULT NULL,
   PRIMARY KEY (`_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":2,"_id":[300,400]}',300)
 
@@ -214,7 +214,7 @@ Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `col1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP TABLE table2
 
@@ -250,7 +250,7 @@ table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
   `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN CREATE TABLE table2_tmp ( col1 INT)
 
@@ -410,7 +410,7 @@ RUN SHOW CREATE TABLE xplugintest.table_sql
 Table	Create Table
 table_sql	CREATE TABLE `table_sql` (
   `doc` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN INSERT INTO xplugintest.table_sql (doc) VALUES ('{"_id":"200"}')
 

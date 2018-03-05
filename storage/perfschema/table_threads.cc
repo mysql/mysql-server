@@ -318,6 +318,17 @@ int table_threads::make_row(PFS_thread *pfs) {
         stage_class->m_name + stage_class->m_prefix_length;
     m_row.m_processlist_state_length =
         stage_class->m_name_length - stage_class->m_prefix_length;
+    if (m_row.m_processlist_state_length > 64) {
+      /*
+        Column PROCESSLIST_STATE is VARCHAR(64)
+        for compatibility reasons with the historical
+        INFORMATION_SCHEMA.PROCESSLIST table.
+        Stages however can have longer names.
+        We silently truncate data here,
+        so it fits into PROCESSLIST_STATE.
+      */
+      m_row.m_processlist_state_length = 64;
+    }
   } else {
     m_row.m_processlist_state_length = 0;
   }
@@ -410,17 +421,10 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 9: /* PROCESSLIST_STATE */
-          /* This column's datatype is declared as varchar(64). Thread's state
-             message cannot be more than 64 characters. Otherwise, we will end
-             up in 'data truncated' warning/error (depends sql_mode setting)
-             when server is updating this column for those threads. To prevent
-             this kind of issue, an assert is added.
-           */
-          DBUG_ASSERT(m_row.m_processlist_state_length <= f->char_length());
-          if (m_row.m_processlist_state_length > 0)
+          if (m_row.m_processlist_state_length > 0) {
             set_field_varchar_utf8(f, m_row.m_processlist_state_ptr,
                                    m_row.m_processlist_state_length);
-          else {
+          } else {
             f->set_null();
           }
           break;

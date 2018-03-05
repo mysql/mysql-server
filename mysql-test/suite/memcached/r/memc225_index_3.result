@@ -125,7 +125,7 @@ t1	CREATE TABLE `t1` (
   `c5` int(11) DEFAULT NULL,
   PRIMARY KEY (`c11`),
   UNIQUE KEY `it1` (`c11`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 connection mysqltest1;
 Here the memcached results after set:
 Hamburg|Norderstedt

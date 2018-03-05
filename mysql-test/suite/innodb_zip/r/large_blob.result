@@ -1,7 +1,7 @@
 #
 # This tests the use of large blobs in InnoDB.
 #
-call mtr.add_suppression("InnoDB: Warning: a long semaphore wait");
+call mtr.add_suppression("Warning: a long semaphore wait");
 SET GLOBAL innodb_file_per_table = OFF;
 #
 # System tablespace, Row Format = Redundant

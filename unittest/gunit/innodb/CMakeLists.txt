@@ -1,4 +1,4 @@
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 INCLUDE_DIRECTORIES(
   ${GTEST_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/storage/innobase/include
 )
 
@@ -30,6 +31,7 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/innobase/innodb.cmake)
 SET(TESTS
   #example
   ha_innodb
+  log0log
   mem0mem
   ut0crc32
   ut0lock_free_hash

@@ -722,10 +722,10 @@ static int trx_i_s_common_fill_table(
   trx_i_s_cache_end_write(cache);
 
   if (trx_i_s_cache_is_truncated(cache)) {
-    ib::warn() << "Data in " << table_name
-               << " truncated due to"
-                  " memory limit of "
-               << TRX_I_S_MEM_LIMIT << " bytes";
+    ib::warn(ER_IB_MSG_599) << "Data in " << table_name
+                            << " truncated due to"
+                               " memory limit of "
+                            << TRX_I_S_MEM_LIMIT << " bytes";
   }
 
   ret = 0;
@@ -738,13 +738,13 @@ static int trx_i_s_common_fill_table(
     }
 
   } else {
-    ib::error() << "trx_i_s_common_fill_table() was"
-                   " called to fill unknown table: "
-                << table_name
-                << "."
-                   " This function only knows how to fill"
-                   " innodb_trx, innodb_locks and"
-                   " innodb_lock_waits tables.";
+    ib::error(ER_IB_MSG_600) << "trx_i_s_common_fill_table() was"
+                                " called to fill unknown table: "
+                             << table_name
+                             << "."
+                                " This function only knows how to fill"
+                                " innodb_trx, innodb_locks and"
+                                " innodb_lock_waits tables.";
 
     ret = 1;
   }
@@ -1768,9 +1768,15 @@ static int i_s_metrics_fill(
     }
 
     /* Fill in counter's basic information */
+    ut_a(strlen(monitor_info->monitor_name) <= NAME_LEN);
+
     OK(field_store_string(fields[METRIC_NAME], monitor_info->monitor_name));
 
+    ut_a(strlen(monitor_info->monitor_module) <= NAME_LEN);
+
     OK(field_store_string(fields[METRIC_SUBSYS], monitor_info->monitor_module));
+
+    ut_a(strlen(monitor_info->monitor_desc) <= NAME_LEN);
 
     OK(field_store_string(fields[METRIC_DESC], monitor_info->monitor_desc));
 
@@ -2753,14 +2759,14 @@ static dberr_t i_s_fts_index_table_fill_selected(
       fts_sql_rollback(trx);
 
       if (error == DB_LOCK_WAIT_TIMEOUT) {
-        ib::warn() << "Lock wait timeout reading"
-                      " FTS index. Retrying!";
+        ib::warn(ER_IB_MSG_601) << "Lock wait timeout reading"
+                                   " FTS index. Retrying!";
 
         trx->error_state = DB_SUCCESS;
       } else {
-        ib::error() << "Error occurred while reading"
-                       " FTS index: "
-                    << ut_strerr(error);
+        ib::error(ER_IB_MSG_602) << "Error occurred while reading"
+                                    " FTS index: "
+                                 << ut_strerr(error);
         break;
       }
     }
@@ -6481,8 +6487,8 @@ static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
 
     switch (err) {
       case DB_FAIL:
-        ib::warn() << "File '" << filepath << "', failed to get "
-                   << "stats";
+        ib::warn(ER_IB_MSG_603) << "File '" << filepath << "', failed to get "
+                                << "stats";
         break;
 
       case DB_SUCCESS:
@@ -6490,7 +6496,8 @@ static int i_s_dict_fill_innodb_tablespaces(THD *thd, space_id_t space,
         break;
 
       default:
-        ib::error() << "File '" << filepath << "' " << ut_strerr(err);
+        ib::error(ER_IB_MSG_604)
+            << "File '" << filepath << "' " << ut_strerr(err);
         break;
     }
 

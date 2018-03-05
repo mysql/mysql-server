@@ -24,14 +24,14 @@ tab1	CREATE TABLE `tab1` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`) USING BTREE
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
@@ -39,7 +39,7 @@ tab3	CREATE TABLE `tab3` (
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
 (PARTITION P0 DATA DIRECTORY = 'db_directory1/db_directory1/' ENGINE = InnoDB,
  PARTITION P1 DATA DIRECTORY = 'db_directory1/db_directory1/' ENGINE = InnoDB) */
@@ -68,7 +68,7 @@ tab3	CREATE TABLE `tab3` (
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
 (PARTITION P0 DATA DIRECTORY = 'db_directory2/undo_directory' ENGINE = InnoDB,
  PARTITION P1 DATA DIRECTORY = 'db_directory2/undo_directory' ENGINE = InnoDB) */
@@ -95,14 +95,14 @@ tab1	CREATE TABLE `tab1` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`) USING BTREE
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab3;
 Table	Create Table
 tab3	CREATE TABLE `tab3` (
@@ -110,7 +110,7 @@ tab3	CREATE TABLE `tab3` (
   `ename` varchar(30) DEFAULT NULL,
   `sal` decimal(3,0) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
 (PARTITION P0 DATA DIRECTORY = 'undo_directory/undo_directory' ENGINE = InnoDB,
  PARTITION P1 DATA DIRECTORY = 'undo_directory/undo_directory' ENGINE = InnoDB) */
@@ -150,7 +150,7 @@ Table	Create Table
 tab4	CREATE TABLE `tab4` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
-) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO tab4 VALUES(1, 'VISH');
 CREATE TABLESPACE ts3 ADD DATAFILE 'UNDO_DIRECTORY/undo_directory/ts3.ibd' Engine=InnoDB;
 CREATE TABLE tab5(c1 int, c2 varchar(10)) TABLESPACE=ts3;
@@ -159,7 +159,7 @@ Table	Create Table
 tab5	CREATE TABLE `tab5` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
-) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO tab5 VALUES(1, 'VISH');
 DROP TABLE tab1;
 DROP TABLE tab2;
@@ -181,7 +181,7 @@ tab3	CREATE TABLE `tab3` (
   `sal` decimal(3,0) DEFAULT NULL,
   `c3` varchar(15) DEFAULT NULL,
   KEY `ix1` (`ename`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 /*!50100 PARTITION BY HASH (`empno`)
 (PARTITION P0 DATA DIRECTORY = 'db_directory1/db_directory1' ENGINE = InnoDB,
  PARTITION P1 DATA DIRECTORY = 'db_directory1/db_directory1' ENGINE = InnoDB) */
@@ -190,13 +190,13 @@ Table	Create Table
 tab4	CREATE TABLE `tab4` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
-) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts2` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab5;
 Table	Create Table
 tab5	CREATE TABLE `tab5` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
-) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts3` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW VARIABLES LIKE '%directories%';
 Variable_name	Value
 innodb_directories	'db_directory1/db_directory1'

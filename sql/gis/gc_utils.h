@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_GC_UTILS_H_INCLUDED
 #define SQL_GIS_GC_UTILS_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,12 @@ namespace gis {
 /// Thrown when it is discovered that at an input parameter contains an invalid
 /// geometry.
 class invalid_geometry_exception : public std::exception {};
+
+/// Too large polygon exception.
+///
+/// Thrown when it is discovered that at a polygon covers half the globe or
+/// more. Boost Geometry doesn't handle such polygons.
+class too_large_polygon_exception : public std::exception {};
 
 /// Splits a geometrycollection into points, linestrings and polygons.
 ///

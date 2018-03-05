@@ -832,7 +832,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     buffer.append(STRING_WITH_LEN(" /*!40100"));
     buffer.append(STRING_WITH_LEN(" DEFAULT CHARACTER SET "));
     buffer.append(create.default_table_charset->csname);
-    if (!(create.default_table_charset->state & MY_CS_PRIMARY)) {
+    if (!(create.default_table_charset->state & MY_CS_PRIMARY) ||
+        create.default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
       buffer.append(STRING_WITH_LEN(" COLLATE "));
       buffer.append(create.default_table_charset->name);
     }
@@ -1323,7 +1324,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
         or was explicitly assigned.
       */
       if (!(field->charset()->state & MY_CS_PRIMARY) ||
-          column_has_explicit_collation) {
+          column_has_explicit_collation ||
+          (field->charset() == &my_charset_utf8mb4_0900_ai_ci &&
+           share->table_charset != &my_charset_utf8mb4_0900_ai_ci)) {
         packet->append(STRING_WITH_LEN(" COLLATE "));
         packet->append(field->charset()->name);
       }
@@ -1560,7 +1563,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
           (create_info_arg->used_fields & HA_CREATE_USED_DEFAULT_CHARSET)) {
         packet->append(STRING_WITH_LEN(" DEFAULT CHARSET="));
         packet->append(share->table_charset->csname);
-        if (!(share->table_charset->state & MY_CS_PRIMARY)) {
+        if (!(share->table_charset->state & MY_CS_PRIMARY) ||
+            share->table_charset == &my_charset_utf8mb4_0900_ai_ci) {
           packet->append(STRING_WITH_LEN(" COLLATE="));
           packet->append(table->s->table_charset->name);
         }
@@ -1611,7 +1615,17 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
-    if (create_info.row_type != ROW_TYPE_DEFAULT) {
+
+    /*
+      If 'show_create_table_verbosity' is enabled, the row format would
+      be displayed in the output of SHOW CREATE TABLE even if default
+      row format is used. Otherwise only the explicitly mentioned
+      row format would be displayed.
+    */
+    if (thd->variables.show_create_table_verbosity) {
+      packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
+      packet->append(ha_row_type[(uint)share->real_row_type]);
+    } else if (create_info.row_type != ROW_TYPE_DEFAULT) {
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint)create_info.row_type]);
     }
