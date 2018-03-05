@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB, 2008 Sun Microsystems, Inc.
-    Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -192,9 +191,10 @@ SimpleProperties::Reader::readValue(){
 
 SimpleProperties::UnpackStatus 
 SimpleProperties::unpack(Reader & it, void * dst, 
-			 const SP2StructMapping _map[], Uint32 mapSz,
-			 bool ignoreMinMax,
-			 bool ignoreUnknownKeys){
+			 const SP2StructMapping _map[], Uint32 mapSz){
+
+  static const bool ignoreUnknownKeys = true;
+
   do {
     if(!it.valid())
       break;
@@ -215,22 +215,14 @@ SimpleProperties::unpack(Reader & it, void * dst,
 	switch(it.getValueType()){
 	case Uint32Value:{
 	  const Uint32 val = it.getUint32();
-	  if(!ignoreMinMax){
-	    if(val < _map[i].minValue)
-	      return ValueTooLow;
-	    if(val > _map[i].maxValue)
-	      return ValueTooHigh;
-	  }
 	  * ((Uint32 *)_dst) = val;
 	  break;
         }
 	case BinaryValue:
         case StringValue:{
 	  unsigned len = it.getValueLen();
-	  if(len < _map[i].minValue)
-	    return ValueTooLow;
-	  if(len > _map[i].maxValue)
-	    return ValueTooHigh;
+          if(_map[i].maxLength && len > _map[i].maxLength)
+	    return ValueTooLong;
           it.getString(_dst);
           break;
 	}
@@ -249,8 +241,9 @@ SimpleProperties::unpack(Reader & it, void * dst,
 
 SimpleProperties::UnpackStatus 
 SimpleProperties::pack(Writer & it, const void * __src, 
-		       const SP2StructMapping _map[], Uint32 mapSz,
-		       bool ignoreMinMax){
+		       const SP2StructMapping _map[], Uint32 mapSz) {
+
+  static const bool ignoreMinMax = true;
 
   const char * _src = (const char *)__src;
 
@@ -263,31 +256,20 @@ SimpleProperties::pack(Writer & it, const void * __src,
       break;
     case SimpleProperties::Uint32Value:{
       Uint32 val = * ((Uint32*)src);
-      if(!ignoreMinMax){
-	if(val < _map[i].minValue)
-	  return ValueTooLow;
-	if(val > _map[i].maxValue)
-	  return ValueTooHigh;
-      }
       ok = it.add(_map[i].Key, val);
     }
       break;
     case SimpleProperties::BinaryValue:{
       const char * src_len = _src + _map[i].Length_Offset;
       Uint32 len = *((Uint32*)src_len);
-      if(!ignoreMinMax){
-	if(len > _map[i].maxValue)
-	  return ValueTooHigh;
-      }
+      if((!ignoreMinMax) && _map[i].maxLength && len > _map[i].maxLength)
+        return ValueTooLong;
       ok = it.add(_map[i].Key, src, len);
       break;
     }
     case SimpleProperties::StringValue:
-      if(!ignoreMinMax){
-	size_t len = strlen(src);
-	if(len > _map[i].maxValue)
-	  return ValueTooHigh;
-      }
+      if((!ignoreMinMax) && _map[i].maxLength && strlen(src) > _map[i].maxLength)
+        return ValueTooLong;
       ok = it.add(_map[i].Key, src);
       break;
     }

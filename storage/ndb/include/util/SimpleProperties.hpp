@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,8 +60,7 @@ public:
     Uint16 Key;
     size_t Offset;
     ValueType Type;
-    Uint32 minValue;
-    Uint32 maxValue;
+    Uint32 maxLength;
     size_t Length_Offset; // Offset used for looking up length of
                           // data if Type = BinaryValue
   };
@@ -73,8 +72,8 @@ public:
     Eof = 0,            // Success, end of SimpleProperties object reached
     Break = 1,          // Success 
     TypeMismatch = 2,
-    ValueTooLow = 3,
-    ValueTooHigh = 4,
+    __unused__ = 3,
+    ValueTooLong = 4,
     UnknownKey = 5,
     OutOfMemory = 6     // Only used when packing
   };
@@ -83,17 +82,14 @@ public:
    * Unpack
    */
   class Reader;
-  static UnpackStatus unpack(class Reader & it, 
-			     void * dst, 
-			     const SP2StructMapping[], Uint32 mapSz,
-			     bool ignoreMinMax,
-			     bool ignoreUnknownKeys);
+  static UnpackStatus unpack(class Reader &,
+			     void * dst,
+			     const SP2StructMapping[], Uint32 mapSz);
   
   class Writer;
   static UnpackStatus pack(class Writer &,
 			   const void * src,
-			   const SP2StructMapping[], Uint32 mapSz, 
-			   bool ignoreMinMax);
+			   const SP2StructMapping[], Uint32 mapSz);
   
   /**
    * Reader class
