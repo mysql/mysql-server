@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4875,6 +4875,8 @@ public:
   virtual bool write_data_body(IO_CACHE *file);
 
   virtual Log_event_type get_type_code() { return ROWS_QUERY_LOG_EVENT; }
+
+  virtual bool is_valid() const { return m_rows_query != NULL; }
 
   virtual int get_data_size()
   {

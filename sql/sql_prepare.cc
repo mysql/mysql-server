@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3219,8 +3219,11 @@ void Prepared_statement::setup_set_params()
     because we want to look it up in the query cache) or not.
   */
   if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command)) ||
-      opt_log || opt_slow_log ||
-      query_cache_is_cacheable_query(lex))
+      opt_log || opt_slow_log || query_cache_is_cacheable_query(lex)
+#ifndef EMBEDDED_LIBRARY
+      || is_global_audit_mask_set()
+#endif
+     )
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
