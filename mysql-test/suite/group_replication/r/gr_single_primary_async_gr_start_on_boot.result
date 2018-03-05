@@ -40,16 +40,16 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 
 # 8. start slave and verify for error ER_SLAVE_FATAL_ERROR
 START SLAVE FOR CHANNEL 'ch3_2';
-include/wait_for_slave_io_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
-include/wait_for_slave_sql_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 9. start slave io and verify for error ER_SLAVE_FATAL_ERROR
 START SLAVE IO_THREAD FOR CHANNEL 'ch3_2';
-include/wait_for_slave_io_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 10. start slave sql and verify for error ER_SLAVE_FATAL_ERROR
 START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
-include/wait_for_slave_sql_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 11. Verify occurrence of error message
 Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member' in the input file: 2
@@ -71,7 +71,7 @@ include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 
 # 16. Wait for channel ch3_2 to error out and verify IO and SQL THREADS are OFF
-include/wait_for_slave_sql_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 include/assert.inc [Verify channel ch3_2 IO_THREAD is OFF]
 include/assert.inc [Verify channel ch3_2 SQL_THREAD is OFF]
 

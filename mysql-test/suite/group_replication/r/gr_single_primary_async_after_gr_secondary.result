@@ -30,16 +30,16 @@ INSERT INTO test.t2 VALUES (1);
 # 4.1 start slave and verify for error ER_SLAVE_FATAL_ERROR
 [connection server2]
 START SLAVE FOR CHANNEL 'ch3_2';
-include/wait_for_slave_io_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
-include/wait_for_slave_sql_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 4.2 start slave io and verify for error ER_SLAVE_FATAL_ERROR
 START SLAVE IO_THREAD FOR CHANNEL 'ch3_2';
-include/wait_for_slave_io_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_io_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 4.3 start slave sql and verify for error ER_SLAVE_FATAL_ERROR
 START SLAVE SQL_THREAD FOR CHANNEL 'ch3_2';
-include/wait_for_slave_sql_error.inc [errno=1593 FOR CHANNEL 'ch3_2']
+include/wait_for_slave_sql_error.inc [errno=13117 FOR CHANNEL 'ch3_2']
 
 # 5. Verify occurrence of error message
 Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
