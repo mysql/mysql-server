@@ -1475,8 +1475,7 @@ DbUtil::prepareOperation(Signal* signal,
     SimpleProperties::UnpackStatus unpackStatus;
     unpackStatus = SimpleProperties::unpack(dictInfoReader, &tableDesc, 
 					    DictTabInfo::TableMapping, 
-					    DictTabInfo::TableMappingSize, 
-					    true, true);
+					    DictTabInfo::TableMappingSize);
     ndbrequire(unpackStatus == SimpleProperties::Break);
     
     /************************
@@ -1504,8 +1503,7 @@ DbUtil::prepareOperation(Signal* signal,
       }
       unpackStatus = SimpleProperties::unpack(dictInfoReader, &attrDesc, 
 					      DictTabInfo::AttributeMapping, 
-					      DictTabInfo::AttributeMappingSize,
-					      true, true);
+					      DictTabInfo::AttributeMappingSize);
       ndbrequire(unpackStatus == SimpleProperties::Break);
       //attrDesc.print(stdout);
       

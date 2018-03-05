@@ -95,8 +95,8 @@ unpack(Uint32 * pages, Uint32 len){
 
   SimplePropertiesLinearReader it(pages, len);
   SimpleProperties::UnpackStatus status;
-  while((status = SimpleProperties::unpack(it, &test, test_map, test_map_sz, 
-					   true, false)) == SimpleProperties::Break){
+  while((status = SimpleProperties::unpack(it, &test, test_map, test_map_sz))
+          == SimpleProperties::Break){
     ndbout << "test.val1 = " << test.val1 << endl;
     ndbout << "test.val7 = " << test.val7 << endl;
     ndbout << "test.val3 = " << test.val3 << endl;

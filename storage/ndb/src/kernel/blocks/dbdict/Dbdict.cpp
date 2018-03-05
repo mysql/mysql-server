@@ -1134,7 +1134,7 @@ Dbdict::packFilegroupIntoPages(SimpleProperties::Writer & w,
   s = SimpleProperties::pack(w,
 			     &fg,
 			     DictFilegroupInfo::Mapping,
-			     DictFilegroupInfo::MappingSize, true);
+			     DictFilegroupInfo::MappingSize);
 
   ndbrequire(s == SimpleProperties::Eof);
 }
@@ -1163,7 +1163,7 @@ Dbdict::packFileIntoPages(SimpleProperties::Writer & w,
   s = SimpleProperties::pack(w,
 			     &f,
 			     DictFilegroupInfo::FileMapping,
-			     DictFilegroupInfo::FileMappingSize, true);
+			     DictFilegroupInfo::FileMappingSize);
 
   ndbrequire(s == SimpleProperties::Eof);
 }
@@ -5619,8 +5619,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   c_tableDesc.init();
   status = SimpleProperties::unpack(it, &c_tableDesc,
 				    DictTabInfo::TableMapping,
-				    DictTabInfo::TableMappingSize,
-				    true, true);
+				    DictTabInfo::TableMappingSize);
 
   if(status != SimpleProperties::Break){
     parseP->errorCode = CreateTableRef::InvalidFormat;
@@ -6310,8 +6309,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     DictTabInfo::Attribute attrDesc; attrDesc.init();
     status = SimpleProperties::unpack(it, &attrDesc,
 				      DictTabInfo::AttributeMapping,
-				      DictTabInfo::AttributeMappingSize,
-				      true, true);
+				      DictTabInfo::AttributeMappingSize);
 
     if(status != SimpleProperties::Break){
       parseP->errorCode = CreateTableRef::InvalidFormat;
@@ -13232,8 +13230,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
     SimpleProperties::UnpackStatus status =
       SimpleProperties::unpack(
           r, &tableDesc,
-          DictTabInfo::TableMapping, DictTabInfo::TableMappingSize,
-          true, true);
+          DictTabInfo::TableMapping, DictTabInfo::TableMappingSize);
     if (status != SimpleProperties::Eof ||
         tableDesc.TableName[0] == 0)
     {
@@ -20386,8 +20383,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
   SimpleProperties::UnpackStatus status =
     SimpleProperties::unpack(r, &tableDesc,
 			     DictTabInfo::TableMapping,
-			     DictTabInfo::TableMappingSize,
-			     true, true);
+			     DictTabInfo::TableMappingSize);
 
   if (status != SimpleProperties::Eof ||
       tableDesc.TableName[0] == 0)
@@ -21393,8 +21389,7 @@ Dbdict::dropTrigger_parse(Signal* signal, bool master,
     SimpleProperties::UnpackStatus status =
       SimpleProperties::unpack(
           r, &tableDesc,
-          DictTabInfo::TableMapping, DictTabInfo::TableMappingSize,
-          true, true);
+          DictTabInfo::TableMapping, DictTabInfo::TableMappingSize);
 
     if (status != SimpleProperties::Eof ||
         tableDesc.TableName[0] == 0)
@@ -23685,8 +23680,7 @@ Dbdict::createFile_parse(Signal* signal, bool master,
   SimpleProperties::UnpackStatus status;
   status = SimpleProperties::unpack(it, &f,
 				    DictFilegroupInfo::FileMapping,
-				    DictFilegroupInfo::FileMappingSize,
-				    true, true);
+				    DictFilegroupInfo::FileMappingSize);
 
   if (status != SimpleProperties::Eof)
   {
@@ -24418,8 +24412,7 @@ Dbdict::createFilegroup_parse(Signal* signal, bool master,
   SimpleProperties::UnpackStatus status =
     SimpleProperties::unpack(it, &fg,
                              DictFilegroupInfo::Mapping,
-                             DictFilegroupInfo::MappingSize,
-                             true, true);
+                             DictFilegroupInfo::MappingSize);
 
   if(status != SimpleProperties::Eof)
   {
@@ -26943,8 +26936,7 @@ Dbdict::createFK_parse(Signal* signal, bool master,
   SimpleProperties::UnpackStatus status =
     SimpleProperties::unpack(it, &fk,
                              DictForeignKeyInfo::Mapping,
-                             DictForeignKeyInfo::MappingSize,
-                             true, true);
+                             DictForeignKeyInfo::MappingSize);
 
   if(status != SimpleProperties::Eof)
   {
@@ -27436,7 +27428,7 @@ Dbdict::packFKIntoPages(SimpleProperties::Writer & w,
   s = SimpleProperties::pack(w,
 			     &fk,
 			     DictForeignKeyInfo::Mapping,
-			     DictForeignKeyInfo::MappingSize, true);
+			     DictForeignKeyInfo::MappingSize);
   ndbrequire(s == SimpleProperties::Eof);
 }
 
@@ -33690,8 +33682,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     SimplePropertiesSectionReader it(objInfoPtr, getSectionSegmentPool());
     status = SimpleProperties::unpack(it, &hm,
 				      DictHashMapInfo::Mapping,
-				      DictHashMapInfo::MappingSize,
-				      true, true);
+				      DictHashMapInfo::MappingSize);
 
     if (ERROR_INSERTED(6204))
     {
@@ -33826,7 +33817,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     s = SimpleProperties::pack(w,
                                &hm,
                                DictHashMapInfo::Mapping,
-                               DictHashMapInfo::MappingSize, true);
+                               DictHashMapInfo::MappingSize);
     ndbrequire(s == SimpleProperties::Eof);
     w.getPtr(objInfoPtr);
 
@@ -34276,7 +34267,7 @@ Dbdict::packHashMapIntoPages(SimpleProperties::Writer & w,
   s = SimpleProperties::pack(w,
 			     &hm,
 			     DictHashMapInfo::Mapping,
-			     DictHashMapInfo::MappingSize, true);
+			     DictHashMapInfo::MappingSize);
 
   ndbrequire(s == SimpleProperties::Eof);
 }

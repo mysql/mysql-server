@@ -3773,7 +3773,7 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
     s = SimpleProperties::pack(w,
                                &fg,
                                DictFilegroupInfo::Mapping,
-                               DictFilegroupInfo::MappingSize, true);
+                               DictFilegroupInfo::MappingSize);
 
 
     Uint32 length = w.getWordsUsed();
@@ -3810,7 +3810,7 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
     s = SimpleProperties::pack(w,
                                &f,
                                DictFilegroupInfo::FileMapping,
-                               DictFilegroupInfo::FileMappingSize, true);
+                               DictFilegroupInfo::FileMappingSize);
 
     Uint32 length = w.getWordsUsed();
     LinearSectionPtr ptr[3];

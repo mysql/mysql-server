@@ -3041,8 +3041,7 @@ Suma::Table::parseTable(SegmentedSectionPtr ptr,
   DictTabInfo::Table tableDesc; tableDesc.init();
   s = SimpleProperties::unpack(it, &tableDesc, 
 			       DictTabInfo::TableMapping, 
-			       DictTabInfo::TableMappingSize, 
-			       true, true);
+			       DictTabInfo::TableMappingSize);
 
   jamBlock(&suma);
   suma.suma_ndbrequire(s == SimpleProperties::Break);

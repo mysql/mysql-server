@@ -6734,8 +6734,7 @@ Backup::parseTableDescription(Signal* signal,
   SimpleProperties::UnpackStatus stat;
   stat = SimpleProperties::unpack(it, &tmpTab, 
 				  DictTabInfo::TableMapping, 
-				  DictTabInfo::TableMappingSize, 
-				  true, true);
+				  DictTabInfo::TableMappingSize);
   ndbrequire(stat == SimpleProperties::Break);
 
   bool lcp = ptr.p->is_lcp();
@@ -6783,8 +6782,7 @@ Backup::parseTableDescription(Signal* signal,
     DictTabInfo::Attribute tmp; tmp.init();
     stat = SimpleProperties::unpack(it, &tmp, 
 				    DictTabInfo::AttributeMapping, 
-				    DictTabInfo::AttributeMappingSize,
-				    true, true);
+				    DictTabInfo::AttributeMappingSize);
     
     ndbrequire(stat == SimpleProperties::Break);
     it.next(); // Move Past EndOfAttribute

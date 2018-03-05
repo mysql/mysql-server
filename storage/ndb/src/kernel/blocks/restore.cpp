@@ -2735,8 +2735,7 @@ Restore::parse_table_description(Signal* signal, FilePtr file_ptr,
   SimpleProperties::UnpackStatus stat;
   stat = SimpleProperties::unpack(it, &tmpTab, 
 				  DictTabInfo::TableMapping, 
-				  DictTabInfo::TableMappingSize, 
-				  true, true);
+				  DictTabInfo::TableMappingSize);
   ndbrequire(stat == SimpleProperties::Break);
   
   if(tmpTab.TableId != file_ptr.p->m_table_id)

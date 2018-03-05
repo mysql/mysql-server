@@ -3417,8 +3417,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
   tableDesc->init();
   s = SimpleProperties::unpack(it, tableDesc, 
 			       DictTabInfo::TableMapping, 
-			       DictTabInfo::TableMappingSize, 
-			       true, true);
+			       DictTabInfo::TableMappingSize);
   
   if(s != SimpleProperties::Break){
     free(tableDesc);
@@ -3558,8 +3557,7 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     s = SimpleProperties::unpack(it, 
 				 &attrDesc, 
 				 DictTabInfo::AttributeMapping, 
-				 DictTabInfo::AttributeMappingSize, 
-				 true, true);
+				 DictTabInfo::AttributeMappingSize);
     if(s != SimpleProperties::Break){
       delete impl;
       free(tableDesc);
@@ -4565,7 +4563,7 @@ loop:
   s = SimpleProperties::pack(w, 
 			     tmpTab,
 			     DictTabInfo::TableMapping, 
-			     DictTabInfo::TableMappingSize, true);
+			     DictTabInfo::TableMappingSize);
   
   if(s != SimpleProperties::Eof){
     abort();
@@ -4686,7 +4684,7 @@ loop:
     s = SimpleProperties::pack(w, 
 			       &tmpAttr,
 			       DictTabInfo::AttributeMapping, 
-			       DictTabInfo::AttributeMappingSize, true);
+			       DictTabInfo::AttributeMappingSize);
     w.add(DictTabInfo::AttributeEnd, 1);
   }
 
@@ -8950,7 +8948,7 @@ NdbDictInterface::create_file(const NdbFileImpl & file,
   s = SimpleProperties::pack(w, 
 			     &f,
 			     DictFilegroupInfo::FileMapping, 
-			     DictFilegroupInfo::FileMappingSize, true);
+			     DictFilegroupInfo::FileMappingSize);
   
   if(s != SimpleProperties::Eof){
     abort();
@@ -9162,7 +9160,7 @@ NdbDictInterface::create_filegroup(const NdbFilegroupImpl & group,
   s = SimpleProperties::pack(w, 
 			     &fg,
 			     DictFilegroupInfo::Mapping, 
-			     DictFilegroupInfo::MappingSize, true);
+			     DictFilegroupInfo::MappingSize);
   
   if(s != SimpleProperties::Eof){
     abort();
@@ -9415,8 +9413,7 @@ NdbDictInterface::parseFilegroupInfo(NdbFilegroupImpl &dst,
   DictFilegroupInfo::Filegroup fg; fg.init();
   status = SimpleProperties::unpack(it, &fg, 
 				    DictFilegroupInfo::Mapping, 
-				    DictFilegroupInfo::MappingSize, 
-				    true, true);
+				    DictFilegroupInfo::MappingSize);
   
   if(status != SimpleProperties::Eof){
     return CreateFilegroupRef::InvalidFormat;
@@ -9597,8 +9594,7 @@ NdbDictInterface::parseFileInfo(NdbFileImpl &dst,
   DictFilegroupInfo::File f; f.init();
   status = SimpleProperties::unpack(it, &f,
 				    DictFilegroupInfo::FileMapping,
-				    DictFilegroupInfo::FileMappingSize,
-				    true, true);
+				    DictFilegroupInfo::FileMappingSize);
 
   if(status != SimpleProperties::Eof){
     return CreateFilegroupRef::InvalidFormat;
@@ -9769,8 +9765,7 @@ NdbDictInterface::parseHashMapInfo(NdbHashMapImpl &dst,
   hm->init();
   status = SimpleProperties::unpack(it, hm,
                                     DictHashMapInfo::Mapping,
-                                    DictHashMapInfo::MappingSize,
-                                    true, true);
+                                    DictHashMapInfo::MappingSize);
 
   if(status != SimpleProperties::Eof){
     delete hm;
@@ -9826,7 +9821,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
     s = SimpleProperties::pack(w,
                                hm,
                                DictHashMapInfo::Mapping,
-                               DictHashMapInfo::MappingSize, true);
+                               DictHashMapInfo::MappingSize);
     
     if(s != SimpleProperties::Eof)
     {
@@ -10073,7 +10068,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
   s = SimpleProperties::pack(w,
                              &fk,
                              DictForeignKeyInfo::Mapping,
-                             DictForeignKeyInfo::MappingSize, true);
+                             DictForeignKeyInfo::MappingSize);
 
   if (s != SimpleProperties::Eof)
   {
@@ -10233,8 +10228,7 @@ NdbDictInterface::parseForeignKeyInfo(NdbForeignKeyImpl &dst,
   DictForeignKeyInfo::ForeignKey fk; fk.init();
   status = SimpleProperties::unpack(it, &fk,
 				    DictForeignKeyInfo::Mapping,
-				    DictForeignKeyInfo::MappingSize,
-				    true, true);
+				    DictForeignKeyInfo::MappingSize);
 
   if(status != SimpleProperties::Eof)
   {
