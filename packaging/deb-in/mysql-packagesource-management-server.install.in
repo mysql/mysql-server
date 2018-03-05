@@ -22,5 +22,5 @@
 usr/sbin/ndb_mgmd
 usr/share/man/man8/ndb_mgmd.8*
 # legal
-usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server/
-usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server/
+usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server/
+usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server/

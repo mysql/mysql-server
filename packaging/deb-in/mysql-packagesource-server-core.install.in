@@ -86,12 +86,12 @@ usr/lib/mysql/plugin/version_token.so
 usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/connection_control.so
 # support files
-usr/share/mysql/dictionary.txt
-usr/share/mysql/magic
-usr/share/mysql/mysql-log-rotate
+usr/share/mysql-@MYSQL_BASE_VERSION@/dictionary.txt
+usr/share/mysql-@MYSQL_BASE_VERSION@/magic
+usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-log-rotate
 # localized error msgs
-usr/share/mysql/*/errmsg.sys
-usr/share/mysql/errmsg-utf8.txt
+usr/share/mysql-@MYSQL_BASE_VERSION@/*/errmsg.sys
+usr/share/mysql-@MYSQL_BASE_VERSION@/errmsg-utf8.txt
 # legal
-usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/
-usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/
+usr/share/mysql-@MYSQL_BASE_VERSION@/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/
+usr/share/mysql-@MYSQL_BASE_VERSION@/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-server-core/
