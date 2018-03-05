@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -425,6 +425,7 @@ get_server_startup_prerequirements(Trans_context_info& requirements,
   requirements.parallel_applier_type= mts_parallel_option;
   requirements.parallel_applier_workers= opt_mts_slave_parallel_workers;
   requirements.parallel_applier_preserve_commit_order= opt_slave_preserve_commit_order;
+  requirements.lower_case_table_names = lower_case_table_names;
 }
 #endif //HAVE_REPLICATION
 

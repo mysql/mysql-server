@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2278,7 +2278,9 @@ st_select_lex::st_select_lex
   outer_join(0),
   opt_hints_qb(NULL),
   m_agg_func_used(false),
-  sj_candidates(NULL)
+  m_json_agg_func_used(false),
+  sj_candidates(NULL),
+  hidden_order_field_count(0)
 {
 }
 

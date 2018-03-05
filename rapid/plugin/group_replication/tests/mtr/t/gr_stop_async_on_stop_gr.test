@@ -134,6 +134,7 @@ INSERT INTO t1 VALUES (1);
 --source include/rpl_connection.inc
 
 --let $rpl_channel_name=ch2_1
+--let $slave_io_errno= 1
 --source include/wait_for_slave_to_stop.inc
 --let $rpl_channel_name=
 

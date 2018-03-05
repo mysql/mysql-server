@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1167,11 +1167,14 @@ void end_binlog(PRINT_EVENT_INFO *print_event_info)
   Print the given event, and either delete it or delegate the deletion
   to someone else.
 
-  The deletion may be delegated in two cases: (1) the event is a
-  Format_description_log_event, and is saved in
-  glob_description_event; (2) the event is a Create_file_log_event,
-  and is saved in load_processor.
-
+  The deletion may be delegated in these cases:
+  (1) the event is a Format_description_log_event, and is saved in
+      glob_description_event.
+  (2) the event is a Create_file_log_event, and is saved in load_processor.
+  (3) the event is an Intvar, Rand or User_var event, it will be kept until
+      the subsequent Query_log_event.
+  (4) the event is a Table_map_log_event, it will be kept until the subsequent
+      Rows_log_event.
   @param[in,out] print_event_info Parameters and context state
   determining how to print.
   @param[in] ev Log_event to process.

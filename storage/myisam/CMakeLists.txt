@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
 				mi_rfirst.c mi_rlast.c mi_rnext.c mi_rnext_same.c mi_rprev.c mi_rrnd.c
 				mi_rsame.c mi_rsamepos.c mi_scan.c mi_search.c mi_static.c mi_statrec.c
 				mi_unique.c mi_update.c mi_write.c rt_index.c rt_key.c rt_mbr.c
-				rt_split.c sort.c sp_key.c mi_extrafunc.h myisamdef.h
+				rt_split.c sort.cc sp_key.c mi_extrafunc.h myisamdef.h
 				rt_index.h mi_rkey.c)
 
 MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES} 

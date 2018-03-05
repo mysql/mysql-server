@@ -1321,7 +1321,7 @@ void JOIN::test_skip_sort()
       is going to be used as it is applied now only for one table queries
       with covering indexes.
     */
-    if (!(select_lex->active_options() & SELECT_BIG_RESULT) ||
+    if (!(select_lex->active_options() & SELECT_BIG_RESULT || with_json_agg) ||
         (tab->quick() &&
          tab->quick()->get_type() ==
            QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))

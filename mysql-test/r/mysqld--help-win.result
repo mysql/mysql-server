@@ -1060,6 +1060,9 @@ The following options may be given as the first argument:
  --show-compatibility-56 
  SHOW commands / INFORMATION_SCHEMA tables compatible with
  MySQL 5.6
+ --show-create-table-verbosity 
+ When this option is enabled, it increases the verbosity
+ of 'SHOW CREATE TABLE'.
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1554,6 +1557,7 @@ sha256-password-proxy-users FALSE
 shared-memory FALSE
 shared-memory-base-name MYSQL
 show-compatibility-56 FALSE
+show-create-table-verbosity FALSE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE

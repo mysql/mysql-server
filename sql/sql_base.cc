@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3409,18 +3409,54 @@ retry_share:
       goto err_unlock;
     }
 
-    /* Open view */
-    bool view_open_result= open_and_read_view(thd, share, table_list);
+    /*
+      Read definition of the existing view, unless the open is for a table
+      to be created. This scenario will happen only when there exists a view and
+      the current CREATE TABLE request is with the same name.
+    */
+    if (table_list->open_strategy != TABLE_LIST::OPEN_FOR_CREATE)
+    {
+      bool view_open_result= open_and_read_view(thd, share, table_list);
 
-    /* TODO: Don't free this */
-    release_table_share(share);
-    mysql_mutex_unlock(&LOCK_open);
+      /* TODO: Don't free this */
+      release_table_share(share);
+      mysql_mutex_unlock(&LOCK_open);
 
-    if (view_open_result)
-      DBUG_RETURN(true);
+      if (view_open_result)
+        DBUG_RETURN(true);
 
-    if (parse_view_definition(thd, table_list))
-      DBUG_RETURN(true);
+      if (parse_view_definition(thd, table_list))
+        DBUG_RETURN(true);
+    }
+    else
+    {
+      release_table_share(share);
+      mysql_mutex_unlock(&LOCK_open);
+
+      /*
+        For SP and PS, LEX objects are created at the time of statement prepare.
+        And open_table() is called for every execute after that. Skip creation
+        of LEX objects if it is already present.
+      */
+      if (!table_list->is_view())
+      {
+        Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+        /*
+          Since we are skipping parse_view_definition(), which creates view LEX
+          object used by the executor and other parts of the code to detect the
+          presence of a view, a dummy LEX object needs to be created.
+        */
+        table_list->set_view_query((LEX *) new(thd->mem_root) st_lex_local);
+        if (!table_list->is_view())
+          DBUG_RETURN(true);
+
+        table_list->view_db.str= table_list->db;
+        table_list->view_db.length= table_list->db_length;
+        table_list->view_name.str= table_list->table_name;
+        table_list->view_name.length= table_list->table_name_length;
+      }
+    }
 
     DBUG_ASSERT(table_list->is_view());
 

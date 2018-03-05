@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@
 #include "x_platform.h"
 
 /* Buffer size should be always a multiple of 'struct ifreq' size */
-#define IF_INIT_BUF_SIZE (sizeof(struct ifreq) * 10)
+#define IF_INIT_BUF_SIZE ((int)sizeof(struct ifreq) * 10)
 #define IFRP_INIT_ARR_SIZE 64
 
 struct sock_probe

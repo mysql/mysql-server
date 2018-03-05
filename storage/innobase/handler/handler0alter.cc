@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -4251,6 +4251,19 @@ prepare_inplace_alter_table_dict(
 		for create index */
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_INDEX) {
+                        for (ulint i = 0;
+                             i < ctx->num_to_add_vcol;
+                             i++) {
+                                /* Set mbminmax for newly added column */
+                                ulint   i_mbminlen, i_mbmaxlen;
+                                dtype_get_mblen(ctx->add_vcol[i].m_col.mtype,
+                                                ctx->add_vcol[i].m_col.prtype,
+                                                &i_mbminlen, &i_mbmaxlen);
+
+				dtype_set_mbminmaxlen(
+					(dtype_t*) &ctx->add_vcol[i].m_col,
+					i_mbminlen, i_mbmaxlen);
+                        }
 			add_v = static_cast<dict_add_v_col_t*>(
 				mem_heap_alloc(ctx->heap, sizeof *add_v));
 			add_v->n_v_col = ctx->num_to_add_vcol;
@@ -5321,18 +5334,24 @@ alter_fill_stored_column(
 	dict_s_col_list**	s_cols,
 	mem_heap_t**		s_heap)
 {
-       ulint   n_cols = altered_table->s->fields;
+	ulint   n_cols = altered_table->s->fields;
+	ulint	stored_col_no = 0;
 
 	for (ulint i = 0; i < n_cols; i++) {
 		Field* field = altered_table->field[i];
 		dict_s_col_t	s_col;
+
+		if (!innobase_is_v_fld(field)) {
+			stored_col_no++;
+		}
 
 		if (!innobase_is_s_fld(field)) {
 			continue;
 		}
 
 		ulint	num_base = field->gcol_info->non_virtual_base_columns();
-		dict_col_t*	col = dict_table_get_nth_col(table, i);
+		dict_col_t*	col
+			= dict_table_get_nth_col(table, stored_col_no);
 
 		s_col.m_col = col;
 		s_col.s_pos = i;
@@ -7189,13 +7208,15 @@ innobase_rename_or_enlarge_columns_cache(
 }
 
 /** Get the auto-increment value of the table on commit.
-@param ha_alter_info Data used during in-place alter
-@param ctx In-place ALTER TABLE context
-@param altered_table MySQL table that is being altered
-@param old_table MySQL table as it is before the ALTER operation
-@return the next auto-increment value (0 if not present) */
+@param[in]  ha_alter_info Data used during in-place alter
+@param[in,out]  ctx In-place ALTER TABLE context.
+		return autoinc value in ctx->max_autoinc
+@param[in]  altered_table MySQL table that is being altered
+@param[in]  old_table MySQL table as it is before the ALTER operation
+@retval true Failure
+@retval false Success*/
 static MY_ATTRIBUTE((warn_unused_result))
-ulonglong
+bool
 commit_get_autoinc(
 /*===============*/
 	Alter_inplace_info*	ha_alter_info,
@@ -7203,23 +7224,27 @@ commit_get_autoinc(
 	const TABLE*		altered_table,
 	const TABLE*		old_table)
 {
-	ulonglong		max_autoinc;
-
 	DBUG_ENTER("commit_get_autoinc");
 
 	if (!altered_table->found_next_number_field) {
 		/* There is no AUTO_INCREMENT column in the table
 		after the ALTER operation. */
-		max_autoinc = 0;
+		ctx->max_autoinc = 0;
 	} else if (ctx->add_autoinc != ULINT_UNDEFINED) {
 		/* An AUTO_INCREMENT column was added. Get the last
 		value from the sequence, which may be based on a
 		supplied AUTO_INCREMENT value. */
-		max_autoinc = ctx->sequence.last();
+		ctx->max_autoinc = ctx->sequence.last();
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
 		   && (ha_alter_info->create_info->used_fields
 		       & HA_CREATE_USED_AUTO)) {
+
+		/* Check if the table is discarded */
+		if(dict_table_is_discarded(ctx->old_table)) {
+			DBUG_RETURN(true);
+		}
+
 		/* An AUTO_INCREMENT value was supplied, but the table was not
 		rebuilt. Get the user-supplied value or the last value from the
 		sequence. */
@@ -7232,7 +7257,8 @@ commit_get_autoinc(
 		dict_index_t*	index = dict_table_get_index_on_first_col(
 			ctx->old_table, autoinc_field->field_index);
 
-		max_autoinc = ha_alter_info->create_info->auto_increment_value;
+		ctx->max_autoinc =
+			ha_alter_info->create_info->auto_increment_value;
 
 		dict_table_autoinc_lock(ctx->old_table);
 
@@ -7241,15 +7267,15 @@ commit_get_autoinc(
 
 		if (err != DB_SUCCESS) {
 			ut_ad(0);
-			max_autoinc = 0;
-		} else if (max_autoinc <= max_value_table) {
+			ctx->max_autoinc = 0;
+		} else if (ctx->max_autoinc <= max_value_table) {
 			ulonglong	col_max_value;
 			ulonglong	offset;
 
 			col_max_value = autoinc_field->get_max_int_value();
 
 			offset = ctx->prebuilt->autoinc_offset;
-			max_autoinc = innobase_next_autoinc(
+			ctx->max_autoinc = innobase_next_autoinc(
 				max_value_table, 1, 1, offset,
 				col_max_value);
 		}
@@ -7259,11 +7285,11 @@ commit_get_autoinc(
 		Read the old counter value from the table. */
 		ut_ad(old_table->found_next_number_field);
 		dict_table_autoinc_lock(ctx->old_table);
-		max_autoinc = ctx->old_table->autoinc;
+		ctx->max_autoinc = ctx->old_table->autoinc;
 		dict_table_autoinc_unlock(ctx->old_table);
 	}
 
-	DBUG_RETURN(max_autoinc);
+	DBUG_RETURN(false);
 }
 
 /** Add or drop foreign key constraints to the data dictionary tables,
@@ -8361,9 +8387,13 @@ ha_innobase::commit_inplace_alter_table(
 
 		DBUG_ASSERT(new_clustered == ctx->need_rebuild());
 
-		ctx->max_autoinc = commit_get_autoinc(
-			ha_alter_info, ctx, altered_table, table);
-
+		if (commit_get_autoinc(ha_alter_info, ctx, altered_table,
+			table)) {
+			fail = true;
+			my_error(ER_TABLESPACE_DISCARDED, MYF(0),
+				 table->s->table_name.str);
+			goto rollback_trx;
+		}
 		if (ctx->need_rebuild()) {
 			ctx->tmp_name = dict_mem_create_temporary_tablename(
 				ctx->heap, ctx->new_table->name.m_name,
@@ -8396,7 +8426,7 @@ ha_innobase::commit_inplace_alter_table(
 		}
 #endif
 	}
-
+rollback_trx:
 	/* Commit or roll back the changes to the data dictionary. */
 
 	if (fail) {

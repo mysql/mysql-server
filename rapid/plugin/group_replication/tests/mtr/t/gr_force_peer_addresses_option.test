@@ -37,7 +37,7 @@ call mtr.add_suppression("Unable to start Group Replication on boot");
 call mtr.add_suppression("force_members can only be updated when Group Replication is running*");
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
 call mtr.add_suppression("\\[GCS\\] Peer address .* is not valid.");
-call mtr.add_suppression("\\[GCS\\] The peers list contains invalid addresses.Please provide a list with only valid addresses.");
+call mtr.add_suppression("\\[GCS\\] The peers list contains invalid addresses. Please provide a list with only valid addresses.");
 call mtr.add_suppression("Error setting group_replication_force_members value .* on group communication interfaces");
 call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
 SET SESSION sql_log_bin= 1;

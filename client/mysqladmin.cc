@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1092,12 +1092,14 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
 
       /* Warn about password being set in non ssl connection */
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-      uint ssl_mode;
-      if (!mysql_get_option(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode) &&
-          ssl_mode <= SSL_MODE_PREFERRED)
       {
-        fprintf(stderr, "Warning: Since password will be sent to server in "
-                "plain text, use ssl connection to ensure password safety.\n");
+        uint ssl_mode= 0;
+        if (!mysql_get_option(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode) &&
+            ssl_mode <= SSL_MODE_PREFERRED)
+        {
+          fprintf(stderr, "Warning: Since password will be sent to server in "
+                  "plain text, use ssl connection to ensure password safety.\n");
+        }
       }
 #endif
       memset(buff, 0, sizeof(buff));

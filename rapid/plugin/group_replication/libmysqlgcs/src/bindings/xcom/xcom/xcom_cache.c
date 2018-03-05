@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -183,13 +183,18 @@ static lru_machine *lru_get()
 	if (!link_empty(&probation_lru)) {
 		retval = (lru_machine * ) link_first(&probation_lru);
 	} else {
-		retval = (lru_machine * ) link_first(&protected_lru);
-		/* Since this machine is in in the cache, we need to update
-		last_removed_cache */
-		last_removed_cache = retval->pax.synode;
-
+	/* Find the first non-busy instance in the LRU */
+	FWD_ITER(&protected_lru, lru_machine,
+		if (!is_busy_machine(&link_iter->pax)) {
+			retval = link_iter;
+			/* Since this machine is in in the cache, we need to update
+			last_removed_cache */
+			last_removed_cache = retval->pax.synode;
+			break;
+		}
+	)
 	}
-	assert(!is_busy_machine(&retval->pax));
+	assert(retval && !is_busy_machine(&retval->pax));
 	return retval;
 }
 
@@ -252,7 +257,7 @@ void deinit_cache()
 
 /* static synode_no log_tail; */
 
-pax_machine *get_cache(synode_no synode)
+pax_machine *get_cache_no_touch(synode_no synode)
 {
   pax_machine * retval = hash_get(synode);
   /* DBGOUT(FN; SYCEXP(synode); STREXP(task_name())); */
@@ -268,6 +273,13 @@ pax_machine *get_cache(synode_no synode)
     init_pax_machine(retval, l, synode); /* Initialize */
     hash_in(retval);            /* Insert in hash table again */
   }
+  MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
+  return retval;
+}
+
+pax_machine *get_cache(synode_no synode)
+{
+  pax_machine * retval = get_cache_no_touch(synode);
   lru_touch_hit(retval); /* Insert in protected_lru */
   MAY_DBG(FN; SYCEXP(synode); PTREXP(retval));
   return retval;
@@ -465,8 +477,10 @@ size_t add_cache_size(size_t x)
 {
        cache_size += x;
        if (DBG_CACHE_SIZE && x)
-               G_MESSAGE("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
-                         (long unsigned int)cache_size, (long unsigned int)x);
+       {
+         G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
+                 (long unsigned int)cache_size, (long unsigned int)x);
+       }
        return cache_size;
 }
 
@@ -475,8 +489,10 @@ size_t sub_cache_size(size_t x)
 {
        cache_size -= x;
        if (DBG_CACHE_SIZE && x)
-               G_MESSAGE("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
-                         (long unsigned int)cache_size, (long unsigned int)x);
+       {
+         G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
+                 (long unsigned int)cache_size, (long unsigned int)x);
+       }
        return cache_size;
 }
 

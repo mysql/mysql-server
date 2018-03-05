@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -730,7 +730,7 @@ bool GRANT_TABLE::init(TABLE *col_privs)
 
     if (!col_privs->key_info)
     {
-      my_error(ER_TABLE_CORRUPT, MYF(0), col_privs->s->db.str,
+      my_error(ER_MISSING_KEY, MYF(0), col_privs->s->db.str,
                col_privs->s->table_name.str);
       return true;
     }
@@ -1495,8 +1495,18 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
    We need to check whether we are working with old database layout. This
    might be the case for instance when we are running mysql_upgrade.
   */
-  table_schema= user_table_schema_factory.get_user_table_schema(table);
-  is_old_db_layout= user_table_schema_factory.is_old_user_table_schema(table);
+  if (user_table_schema_factory.user_table_schema_check(table))
+  {
+    table_schema= user_table_schema_factory.get_user_table_schema(table);
+    is_old_db_layout= user_table_schema_factory.is_old_user_table_schema(table);
+  }
+  else
+  {
+    sql_print_error("[FATAL] mysql.user table is damaged. "
+                    "Please run mysql_upgrade.");
+    end_read_record(&read_record_info);
+    goto end;
+  }
 
   allow_all_hosts=0;
   int read_rec_errcode;

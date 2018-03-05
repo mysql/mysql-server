@@ -39,7 +39,7 @@ let $DDIR= `select @@datadir`;
 
 --echo # start mysqladmin with shutdown option.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root shutdown 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root shutdown 2>&1
 --source include/wait_until_disconnected.inc
 
 --echo # start the mysql server with init file and shutdown command.

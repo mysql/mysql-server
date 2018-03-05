@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 
 #include "gcs_xcom_state_exchange.h"
 #include "gcs_xcom_group_member_information.h"
+#include "gcs_xcom_group_management.h"
 #include "gcs_xcom_interface.h"
 #include "gcs_xcom_notification.h"
 
@@ -96,18 +97,21 @@ public:
     Gcs_xcom_state_exchange_interface *state_exchange,
     Gcs_xcom_view_change_control_interface *view_control,
     bool boot,
-    My_xp_socket_util *socket_util);
+    My_xp_socket_util *socket_util,
+    Gcs_xcom_group_management *xcom_management);
 
   virtual ~Gcs_xcom_control();
 
   // Gcs_control_interface implementation
   enum_gcs_error join();
 
+  enum_gcs_error do_join(const bool retry=true);
+
   /*
     Responsible for doing the heavy lifting related to the join
     operation.
   */
-  enum_gcs_error do_join();
+  enum_gcs_error retry_do_join();
 
   enum_gcs_error leave();
 
@@ -219,6 +223,16 @@ public:
   */
   bool is_xcom_running();
 
+
+  /*
+    Configure how many times the node will try to join a group.
+
+    @param[in] join_attempts number of attempts to join
+    @param[in] join_sleep_time time between attempts to join
+  */
+  void set_join_behavior(unsigned int join_attempts,
+                         unsigned int join_sleep_time);
+
 private:
   void init_me();
 
@@ -314,7 +328,6 @@ private:
 
   // Information about the local membership of this node
   Gcs_member_identifier *m_local_member_id;
-  unsigned int          m_local_member_id_hash;
 
   // A reference of the State Exchange algorithm implementation
   Gcs_xcom_state_exchange_interface *m_state_exchange;
@@ -325,15 +338,24 @@ private:
   // XCom main loop
   My_xp_thread_impl m_xcom_thread;
 
-  /* The hash of this client. */
-  unsigned int m_hash;
-
+  /*
+     Structure that contains the identification of this node
+     from XCOM's perspective
+  */
   node_list m_node_list_me;
 
-  /* UUID of this node */
-  unsigned int m_uuid;
-
   My_xp_socket_util* m_socket_util;
+
+  /*
+    Number of attempts to join a group before giving up and reporting
+    an error.
+  */
+  unsigned int m_join_attempts;
+
+  /*
+    Number of time in seconds to wait between attempts to join a group.
+  */
+  unsigned int m_join_sleep_time;
 
 protected:
   /*
@@ -359,6 +381,11 @@ protected:
   Gcs_xcom_engine *m_gcs_engine;
 
 private:
+  /*
+    Reference to the management interface.
+  */
+  Gcs_xcom_group_management *m_xcom_management;
+
   /*
     Disabling the copy constructor and assignment operator.
   */

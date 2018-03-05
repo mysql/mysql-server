@@ -10,10 +10,13 @@
 # --let $slave_param_value= No
 # [--let $slave_param_comparison= [ < | <= | >= | > | = | != ]]
 # [--let $slave_timeout= NUMBER]
+# [--let $slave_error_param= [Last_SQL_Errno | Last_IO_Errno]]
 # [--let $slave_error_param= [Slave_SQL_Errno | Slave_IO_Errno]]
 # [--let $slave_io_running_check_disable= 1]
 # [--let $rpl_channel_name= NAME]
 # [--let $rpl_debug= 1]
+# [--let $slave_io_errno= NUMBER [, NUMBER ...] [# comment]]
+# [--let $slave_sql_errno= NUMBER [, NUMBER ...] [# comment]]
 # --source include/wait_for_slave_param.inc
 #
 # Parameters:
@@ -39,9 +42,11 @@
 #   setting $slave_timeout. The unit is one second.
 #
 # $slave_error_param
-#   If set, this script will check if the column of the output from
-#   SHOW SLAVE STATUS named $slave_error_param is nonzero.  If it is,
-#   this script will faile immediately.  Typically, this should be set
+#   If set, this script will check for errors in the column of the
+#   output from SHOW SLAVE STATUS named $slave_error_param while
+#   waiting for the parameter. Once finding an error that is not
+#   expected (see $slave_io_errno and $slave_sql_errno parameters)
+#   this script will fail immediately. Typically, this should be set
 #   to Last_IO_Errno or Last_SQL_Errno.
 #
 # $slave_io_running_check_disable
@@ -52,6 +57,12 @@
 #
 # $rpl_debug
 #   See include/rpl_init.inc
+#
+# $slave_io_errno
+#   See include/wait_for_slave_io_error.inc
+#
+# $slave_sql_errno
+#   See include/wait_for_slave_sql_error.inc
 #
 # ==== mysqltest variables configured by this file ====
 #
@@ -84,9 +95,16 @@ if ($VALGRIND_TEST) {
   let $_slave_timeout= `select $_slave_timeout * 6`;
 }
 
-if ($slave_error_param == '')
+if ($slave_error_param)
 {
-  --let $slave_error_param= 1
+  if ($slave_error_param != "Last_SQL_Errno")
+  {
+    if ($slave_error_param != "Last_IO_Errno")
+    {
+      --echo *** slave_error_param = $slave_error_param
+      --die slave_error_param must be null, Last_SQL_Errno or Last_IO_Errno
+    }
+  }
 }
 
 let $_slave_param_comparison= $slave_param_comparison;
@@ -118,6 +136,11 @@ if (!$slave_io_running_check_disable)
   }
 }
 
+
+# Strip away comments on $slave_io_errno and $slave_sql_errno parameters
+--let $_slave_io_errno= `SELECT IF(LOCATE('#', '$slave_io_errno') != 0, SUBSTR('$slave_io_errno', 1, LOCATE('#', '$slave_io_errno') - 1), '$slave_io_errno')`
+--let $_slave_sql_errno= `SELECT IF(LOCATE('#', '$slave_sql_errno') != 0, SUBSTR('$slave_sql_errno', 1, LOCATE('#', '$slave_sql_errno') - 1), '$slave_sql_errno')`
+
 --let $_slave_timeout_counter= `select $_slave_timeout * $sleep_freq`
 --let $_slave_continue= 1
 while ($_slave_continue)
@@ -125,9 +148,29 @@ while ($_slave_continue)
   --let $_show_slave_status_value= query_get_value($slave_param_statement, $slave_param, 1)
 
   # Check if an error condition is reached.
-  if (!$slave_error_param)
+  if ($slave_error_param)
   {
     --let $_show_slave_status_error_value= query_get_value($slave_param_statement, $slave_error_param, 1)
+
+    # Check if the error condition was expected
+    if ($_show_slave_status_error_value)
+    {
+      --let $_expected_error=
+      if ($slave_error_param == "Last_IO_Errno")
+      {
+        --let $_expected_error=`SELECT FIND_IN_SET('$_show_slave_status_error_value','$_slave_io_errno')`
+      }
+      if ($slave_error_param == "Last_SQL_Errno")
+      {
+        --let $_expected_error=`SELECT FIND_IN_SET('$_show_slave_status_error_value','$_slave_sql_errno')`
+      }
+      # If the error is an expected error, just ignore it
+      if ($_expected_error)
+      {
+        --let $_show_slave_status_error_value=
+      }
+    }
+
     if ($_show_slave_status_error_value)
     {
       --echo **** ERROR: $slave_error_param = '$_show_slave_status_error_value' while waiting for slave parameter $slave_param $_slave_param_comparison $slave_param_value ****

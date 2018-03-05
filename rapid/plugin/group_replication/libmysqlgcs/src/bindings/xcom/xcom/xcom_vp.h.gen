@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,6 +35,7 @@ enum xcom_proto {
 	x_1_0 = 1,
 	x_1_1 = 2,
 	x_1_2 = 3,
+	x_1_3 = 4,
 };
 typedef enum xcom_proto xcom_proto;
 
@@ -400,7 +401,7 @@ typedef struct pax_msg_1_2 pax_msg_1_2;
 #ifndef PAX_MSG_TYPEDEF
 #define PAX_MSG_TYPEDEF
 typedef pax_msg_1_2 pax_msg;
-extern  bool_t xdr_pax_msg (XDR *, pax_msg*);
+extern bool_t xdr_pax_msg (XDR *, pax_msg*);
 #endif
 
 typedef char *file_name;
@@ -461,8 +462,8 @@ extern  bool_t xdr_config_ptr (XDR *, config_ptr*);
 extern  bool_t xdr_configs (XDR *, configs*);
 extern  bool_t xdr_gcs_snapshot (XDR *, gcs_snapshot*);
 extern  bool_t xdr_client_reply_code (XDR *, client_reply_code*);
-extern  bool_t xdr_pax_msg_1_1(XDR *, pax_msg_1_1*);
-extern  bool_t xdr_pax_msg_1_2(XDR *, pax_msg_1_2*);
+extern  bool_t xdr_pax_msg_1_1 (XDR *, pax_msg_1_1*);
+extern  bool_t xdr_pax_msg_1_2 (XDR *, pax_msg_1_2*);
 extern  bool_t xdr_file_name (XDR *, file_name*);
 extern  bool_t xdr_file_name_array (XDR *, file_name_array*);
 extern  bool_t xdr_file_copy_data (XDR *, file_copy_data*);
@@ -508,8 +509,8 @@ extern bool_t xdr_config_ptr ();
 extern bool_t xdr_configs ();
 extern bool_t xdr_gcs_snapshot ();
 extern bool_t xdr_client_reply_code ();
-extern bool_t xdr_pax_msg_1_1();
-extern bool_t xdr_pax_msg_1_2();
+extern bool_t xdr_pax_msg_1_1 ();
+extern bool_t xdr_pax_msg_1_2 ();
 extern bool_t xdr_file_name ();
 extern bool_t xdr_file_name_array ();
 extern bool_t xdr_file_copy_data ();

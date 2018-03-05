@@ -1,5 +1,7 @@
 call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_RESULT' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_STATUS' cannot be aborted.");
 call mtr.add_suppression("Command 'Ping' cannot be aborted.");
 INSTALL PLUGIN null_audit SONAME 'adt_null.<expected_extension>';
 ################
@@ -34,6 +36,81 @@ SELECT 1;
 SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="14";ABORT_RET';
 mysqld is alive
 SET @@GLOBAL.null_audit_event_order_check = NULL;
+#############
+## GENERAL ##
+#############
+##########################
+## ABORT GENERAL RESULT ##
+##########################
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;ABORT_RET';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+##########################################
+## ABORT GENERAL RESULT WITH MY_MESSAGE ##
+##########################################
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;ABORT_RET';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+##########################
+## ABORT GENERAL STATUS ##
+##########################
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;ABORT_RET';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+##########################################
+## ABORT GENERAL STATUS WITH MY_MESSAGE ##
+##########################################
+SET @@null_audit_abort_message = "Abort with my_message.";
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_start_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;ABORT_RET';
+SELECT 1;
+1
+1
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
 ###########
 ## QUERY ##
 ###########

@@ -259,3 +259,14 @@ DROP TABLE t1;
 
 --echo # End of test for Bug#22364401
 
+--echo #
+--echo # Bug #27422376: NEWDATE TYPE IS LEAKING OUT
+--echo #
+
+--enable_metadata
+SELECT CAST('2018-01-28 00:00:01' AS DATE) UNION
+SELECT CAST('2018-01-28 00:00:01' AS DATE);
+
+SELECT CAST('2018-01-28 00:00:01' AS DATE) UNION ALL
+SELECT CAST('2018-01-28 00:00:01' AS DATE);
+--disable_metadata

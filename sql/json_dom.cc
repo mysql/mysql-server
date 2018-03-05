@@ -1225,6 +1225,7 @@ bool Json_object::consume(Json_object *other)
       this_iter->second= merge_doms(this_iter->second, value);
       if (this_iter->second == NULL)
         return true;                          /* purecov: inspected */
+      this_iter->second->set_parent(this);
     }
   }
 
@@ -1236,7 +1237,10 @@ Json_dom *Json_object::get(const std::string &key) const
   const Json_object_map::const_iterator iter= m_map.find(key);
 
   if (iter != m_map.end())
+  {
+    DBUG_ASSERT(iter->second->parent() == this);
     return iter->second;
+  }
 
   return NULL;
 }
@@ -1258,6 +1262,18 @@ bool Json_object::remove(const Json_dom *child)
   } // end of loop through children
 
   return false;
+}
+
+
+bool Json_object::remove(const std::string &key)
+{
+  Json_object_map::iterator it= m_map.find(key);
+  if (it == m_map.end())
+    return false;
+
+  delete it->second;
+  m_map.erase(it);
+  return true;
 }
 
 
@@ -1307,6 +1323,68 @@ void Json_object::clear()
     delete iter->second;
   }
   m_map.clear();
+}
+
+
+bool Json_object::merge_patch(Json_object *patch)
+{
+  std::auto_ptr<Json_object> aptr(patch); // We own it, and must make sure
+                                          // to delete it.
+
+  for (Json_object_map::iterator it= patch->m_map.begin();
+       it != patch->m_map.end(); ++it)
+  {
+    const std::string &patch_key= it->first;
+    std::auto_ptr<Json_dom> patch_value(it->second);
+    it->second= NULL;
+
+    // Remove the member if the value in the patch is the null literal.
+    if (patch_value->json_type() == Json_dom::J_NULL)
+    {
+      remove(patch_key);
+      continue;
+    }
+
+    // See if the target has this member, add it if not.
+    std::pair<Json_object_map::iterator, bool>
+      target_pair= m_map.insert(std::make_pair(patch_key,
+                                               static_cast<Json_dom*>(NULL)));
+
+    std::auto_ptr<Json_dom> target_value(target_pair.first->second);
+    target_pair.first->second= NULL;
+
+    /*
+      If the value in the patch is not an object and not the null
+      literal, the new value is the patch.
+    */
+    if (patch_value->json_type() != Json_dom::J_OBJECT)
+    {
+      patch_value->set_parent(this);
+      target_pair.first->second= patch_value.release();
+      continue;
+    }
+
+    /*
+      If there is no target value, or if the target value is not an
+      object, use an empty object as the target value.
+    */
+    if (target_value.get() == NULL ||
+        target_value->json_type() != Json_dom::J_OBJECT)
+    {
+      target_value.reset(new (std::nothrow) Json_object());
+    }
+
+    // Recursively merge the target value with the patch.
+    Json_object *target_obj= down_cast<Json_object*>(target_value.get());
+    if (target_obj == NULL ||
+        target_obj->merge_patch(down_cast<Json_object*>(patch_value.release())))
+      return true;                            /* purecov: inspected */
+
+    target_value->set_parent(this);
+    target_pair.first->second= target_value.release();
+  }
+
+  return false;
 }
 
 
@@ -1486,21 +1564,6 @@ void Json_array::clear()
 
 
 /**
-  Reserve space in a buffer. In order to avoid frequent reallocations,
-  allocate a new buffer at least as twice as large as the current
-  buffer if there is not enough space.
-
-  @param[in, out] buffer  the buffer in which to reserve space
-  @param[in]      needed  the number of bytes to reserve
-  @return false if successful, true if memory could not be allocated
-*/
-static bool reserve(String *buffer, size_t needed)
-{
-  return buffer->reserve(needed, buffer->alloced_length());
-}
-
-
-/**
   Perform quoting on a JSON string to make an external representation
   of it. it wraps double quotes (text quotes) around the string (cptr)
   an also performs escaping according to the following table:
@@ -1534,7 +1597,7 @@ static bool reserve(String *buffer, size_t needed)
 */
 bool double_quote(const char *cptr, size_t length, String *buf)
 {
-  if (reserve(buf, 2 + length) || buf->append('"'))
+  if (buf->append('"'))
     return true;                              /* purecov: inspected */
 
   for (size_t i= 0; i < length; i++)
@@ -1567,7 +1630,7 @@ bool double_quote(const char *cptr, size_t length, String *buf)
 
     if (done)
     {
-      if (reserve(buf, 2) || buf->append(esc[0]) || buf->append(esc[1]))
+      if (buf->append(esc[0]) || buf->append(esc[1]))
         return true;                          /* purecov: inspected */
     }
     else if (((cptr[i] & ~0x7f) == 0) && // bit 8 not set
@@ -1577,17 +1640,17 @@ bool double_quote(const char *cptr, size_t length, String *buf)
         Unprintable control character, use hex a hexadecimal number.
         The meaning of such a number determined by ISO/IEC 10646.
       */
-      if (reserve(buf, 5) || buf->append("\\u00") ||
+      if (buf->append("\\u00") ||
           buf->append(_dig_vec_lower[(cptr[i] & 0xf0) >> 4]) ||
           buf->append(_dig_vec_lower[(cptr[i] & 0x0f)]))
         return true;                          /* purecov: inspected */
     }
-    else if (reserve(buf, 1) || buf->append(cptr[i]))
+    else if (buf->append(cptr[i]))
     {
       return true;                            /* purecov: inspected */
     }
   }
-  return reserve(buf, 1) || buf->append('"');
+  return buf->append('"');
 }
 
 
@@ -1754,9 +1817,8 @@ Json_wrapper_object_iterator::elt() const
 }
 
 
-Json_wrapper::Json_wrapper(Json_dom *dom_value) :
-  m_is_dom(true), m_dom_alias(false), m_value(),
-  m_id(NULL), m_dom_value(dom_value)
+Json_wrapper::Json_wrapper(Json_dom *dom_value)
+  : m_is_dom(true), m_dom_alias(false), m_value(), m_dom_value(dom_value)
 {
   if (!dom_value)
   {
@@ -1782,15 +1844,8 @@ void Json_wrapper::steal(Json_wrapper *old)
   }
 }
 
-Json_wrapper::Json_wrapper(const json_binary::Value &value) :
-  m_is_dom(false), m_dom_alias(false), m_value(value),
-  m_id(NULL), m_dom_value(NULL)
-{}
-
-
-Json_wrapper::Json_wrapper(const json_binary::Value &value, const char *id) :
-  m_is_dom(false), m_dom_alias(false), m_value(value),
-  m_id(id), m_dom_value(NULL)
+Json_wrapper::Json_wrapper(const json_binary::Value &value)
+  : m_is_dom(false), m_dom_alias(false), m_value(value), m_dom_value(NULL)
 {}
 
 
@@ -1798,11 +1853,9 @@ Json_wrapper::Json_wrapper(const Json_wrapper &old) :
   m_is_dom(old.m_is_dom),
   m_dom_alias(old.m_dom_alias),
   m_value(old.m_value),
-  m_id(old.m_id),
   m_dom_value(old.m_is_dom ?
               (m_dom_alias? old.m_dom_value : old.m_dom_value->clone()) :
-              NULL),
-  m_tmp(old.m_tmp)
+              NULL)
 {}
 
 
@@ -1848,10 +1901,8 @@ Json_wrapper &Json_wrapper::operator=(const Json_wrapper& from)
   {
     m_dom_value= NULL;
     m_value= from.m_value;
-    m_id= from.m_id;
   }
 
-  m_tmp= from.m_tmp;
   return *this;
 }
 
@@ -1882,22 +1933,20 @@ Json_dom *Json_wrapper::clone_dom()
 }
 
 
-json_binary::Value Json_wrapper::to_value()
+bool Json_wrapper::to_binary(String *str) const
 {
   if (empty())
   {
-    return json_binary::Value();
+    /* purecov: begin inspected */
+    my_error(ER_INVALID_JSON_BINARY_DATA, MYF(0));
+    return true;
+    /* purecov: end */
   }
 
   if (m_is_dom)
-  {
-    if (json_binary::serialize(m_dom_value, &m_tmp))
-      return json_binary::Value(json_binary::Value::ERROR);
+    return json_binary::serialize(m_dom_value, str);
 
-    return json_binary::parse_binary(m_tmp.ptr(), m_tmp.length());
-  }
-
-  return m_value;
+  return m_value.raw_binary(str);
 }
 
 
@@ -1927,7 +1976,24 @@ static int print_string(String *buffer, bool json_quoted,
 {
   return json_quoted ?
     double_quote(data, length, buffer) :
-    (reserve(buffer, length) || buffer->append(data, length));
+    buffer->append(data, length);
+}
+
+
+/**
+  Helper function for wrapper_to_string() which adds a newline and indentation
+  up to the specified level.
+
+  @param[in,out] buffer  the buffer to write to
+  @param[in]     level   how many nesting levels to add indentation for
+  @retval false on success
+  @retval true on error
+*/
+static bool newline_and_indent(String *buffer, size_t level)
+{
+  // Append newline and two spaces per indentation level.
+  return buffer->append('\n') ||
+    buffer->fill(buffer->length() + level * 2, ' ');
 }
 
 
@@ -1937,10 +2003,20 @@ static int print_string(String *buffer, bool json_quoted,
   recursively. The depth parameter keeps track of the current nesting
   level. When it reaches JSON_DOCUMENT_MAX_DEPTH, it gives up in order
   to avoid running out of stack space.
+
+  @param[in]     wr          the value to convert to a string
+  @param[in,out] buffer      the buffer to write to
+  @param[in]     json_quoted quote strings if true
+  @param[in]     pretty      add newlines and indentation if true
+  @param[in]     func_name   the name of the calling function
+  @param[in]     depth       the nesting level of @a wr
+
+  @retval false on success
+  @retval true on error
 */
 static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
-                              bool json_quoted, const char *func_name,
-                              size_t depth)
+                              bool json_quoted, bool pretty,
+                              const char *func_name, size_t depth)
 {
   if (check_json_depth(++depth))
     return true;
@@ -1953,7 +2029,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
   case Json_dom::J_TIMESTAMP:
     {
       // Make sure the buffer has space for the datetime and the quotes.
-      if (reserve(buffer, MAX_DATE_STRING_REP_LENGTH + 2))
+      if (buffer->reserve(MAX_DATE_STRING_REP_LENGTH + 2))
         return true;                           /* purecov: inspected */
       MYSQL_TIME t;
       wr.get_datetime(&t);
@@ -1968,39 +2044,38 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_ARRAY:
     {
-      /*
-        Reserve some space up front. We know we need at least 3 bytes
-        per array element (at least one byte for the element, one byte
-        for the comma, and one byte for the space).
-      */
-      size_t array_len= wr.length();
-      if (reserve(buffer, 3 * array_len) || buffer->append('['))
+      if (buffer->append('['))
         return true;                           /* purecov: inspected */
 
+      size_t array_len= wr.length();
       for (uint32 i= 0; i < array_len; ++i)
       {
-        if (i > 0 && (reserve(buffer, 2) || buffer->append(", ")))
+        if (i > 0 && buffer->append(pretty ? "," : ", "))
           return true;                         /* purecov: inspected */
 
-        if (wrapper_to_string(wr[i], buffer, true, func_name, depth))
+        if (pretty && newline_and_indent(buffer, depth))
+          return true;                         /* purecov: inspected */
+
+        if (wrapper_to_string(wr[i], buffer, true, pretty, func_name, depth))
           return true;                         /* purecov: inspected */
       }
-      if (reserve(buffer, 1) || buffer->append(']'))
+
+      if (pretty && array_len > 0 && newline_and_indent(buffer, depth - 1))
         return true;                           /* purecov: inspected */
+
+      if (buffer->append(']'))
+        return true;                           /* purecov: inspected */
+
       break;
     }
   case Json_dom::J_BOOLEAN:
-    {
-      const char *str= wr.get_boolean() ? "true" : "false";
-      size_t str_len= std::strlen(str);
-      if (reserve(buffer, str_len) || buffer->append(str, str_len))
-        return true;                          /* purecov: inspected */
-      break;
-    }
+    if (buffer->append(wr.get_boolean() ? "true" : "false"))
+      return true;                             /* purecov: inspected */
+    break;
   case Json_dom::J_DECIMAL:
     {
       int length= DECIMAL_MAX_STR_LENGTH + 1;
-      if (reserve(buffer, length))
+      if (buffer->reserve(length))
         return true;                           /* purecov: inspected */
       char *ptr= const_cast<char *>(buffer->ptr()) + buffer->length();
       my_decimal m;
@@ -2012,7 +2087,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_DOUBLE:
     {
-      if (reserve(buffer, MY_GCVT_MAX_FIELD_WIDTH + 1))
+      if (buffer->reserve(MY_GCVT_MAX_FIELD_WIDTH + 1))
         return true;                           /* purecov: inspected */
       double d= wr.get_double();
       size_t len= my_gcvt(d, MY_GCVT_ARG_DOUBLE, MY_GCVT_MAX_FIELD_WIDTH,
@@ -2023,48 +2098,47 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_INT:
     {
-      if (reserve(buffer, MAX_BIGINT_WIDTH + 1) ||
-          buffer->append_longlong(wr.get_int()))
+      if (buffer->append_longlong(wr.get_int()))
         return true;                           /* purecov: inspected */
       break;
     }
   case Json_dom::J_NULL:
-    if (reserve(buffer, 4) || buffer->append("null"))
+    if (buffer->append("null"))
       return true;                             /* purecov: inspected */
     break;
   case Json_dom::J_OBJECT:
     {
-      /*
-        Reserve some space up front to reduce the number of
-        reallocations needed. We know we need at least seven bytes per
-        member in the object. Two bytes for the quotes around the key
-        name, two bytes for the colon and space between the key and
-        the value, one byte for the value, and two bytes for the comma
-        and space between members. We're generous and assume at least
-        one byte in the key name as well, so we reserve eight bytes per
-        member.
-      */
-      if (reserve(buffer, 2 + 8 * wr.length()) || buffer->append('{'))
+      if (buffer->append('{'))
         return true;                           /* purecov: inspected */
-      uint32 i= 0;
+
+      bool first= true;
       for (Json_wrapper_object_iterator iter= wr.object_iterator();
            !iter.empty(); iter.next())
       {
-        if (i++ > 0 && (reserve(buffer, 2) || buffer->append(", ")))
+        if (!first && buffer->append(pretty ? "," : ", "))
+          return true;                         /* purecov: inspected */
+
+        first= false;
+
+        if (pretty && newline_and_indent(buffer, depth))
           return true;                         /* purecov: inspected */
 
         const std::string &key= iter.elt().first;
         const char *key_data= key.c_str();
         size_t key_length= key.length();
-        if (reserve(buffer, key_length + 4) ||
-            print_string(buffer, true, key_data, key_length) ||
-            reserve(buffer, 2) || buffer->append(": ") ||
-            wrapper_to_string(iter.elt().second, buffer, true, func_name,
-                              depth))
+        if (print_string(buffer, true, key_data, key_length) ||
+            buffer->append(": ") ||
+            wrapper_to_string(iter.elt().second, buffer, true, pretty,
+                              func_name, depth))
           return true;                         /* purecov: inspected */
       }
-      if (reserve(buffer, 1) || buffer->append('}'))
+
+      if (pretty && wr.length() > 0 && newline_and_indent(buffer, depth - 1))
         return true;                           /* purecov: inspected */
+
+      if (buffer->append('}'))
+        return true;                           /* purecov: inspected */
+
       break;
     }
   case Json_dom::J_OPAQUE:
@@ -2082,18 +2156,15 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       const size_t needed=
         static_cast<size_t>(base64_needed_encoded_length(wr.get_data_length()));
 
-      const char *prefix= "base64:type";
-      const size_t prefix_len= std::strlen(prefix);
-      if (reserve(buffer, prefix_len + MAX_INT_WIDTH + 3 + needed) ||
-          single_quote(buffer, json_quoted) ||
-          buffer->append(prefix, prefix_len) ||
+      if (single_quote(buffer, json_quoted) ||
+          buffer->append("base64:type") ||
           buffer->append_ulonglong(wr.field_type()) ||
           buffer->append(':'))
         return true;                           /* purecov: inspected */
 
       // "base64:typeXX:<binary data>"
       size_t pos= buffer->length();
-      if (reserve(buffer, needed) ||
+      if (buffer->reserve(needed) ||
           base64_encode(wr.get_data(), wr.get_data_length(),
                         const_cast<char*>(buffer->ptr() + pos)))
         return true;                           /* purecov: inspected */
@@ -2113,8 +2184,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
     }
   case Json_dom::J_UINT:
     {
-      if (reserve(buffer, MAX_BIGINT_WIDTH) ||
-          buffer->append_ulonglong(wr.get_uint()))
+      if (buffer->append_ulonglong(wr.get_uint()))
         return true;                           /* purecov: inspected */
       break;
     }
@@ -2143,8 +2213,16 @@ bool Json_wrapper::to_string(String *buffer, bool json_quoted,
                              const char *func_name) const
 {
   buffer->set_charset(&my_charset_utf8mb4_bin);
-  return wrapper_to_string(*this, buffer, json_quoted, func_name, 0);
+  return wrapper_to_string(*this, buffer, json_quoted, false, func_name, 0);
 }
+
+
+bool Json_wrapper::to_pretty_string(String *buffer, const char *func_name) const
+{
+  buffer->set_charset(&my_charset_utf8mb4_bin);
+  return wrapper_to_string(*this, buffer, true, true, func_name, 0);
+}
+
 
 Json_dom::enum_json_type Json_wrapper::type() const
 {

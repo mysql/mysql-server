@@ -12902,7 +12902,7 @@ min_max_inspect_cond_for_fields(Item *cond, Item_field *min_max_arg_item,
           DBUG_RETURN(true);
       }
 
-      if (((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
+      if (pred->functype() == Item_func::MULT_EQUAL_FUNC)
       {
         /*
           Analyze participating fields in a multiequal condition.

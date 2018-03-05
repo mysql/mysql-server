@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1681,6 +1681,22 @@ Plugin_gcs_events_handler::compare_member_option_compatibility() const
                   "option: [%s]).",
                   Group_member_info::get_configuration_flags_string(local_configuration_flags).c_str(),
                   Group_member_info::get_configuration_flags_string(member_configuration_flags).c_str());
+      goto cleaning;
+    }
+
+    if (local_member_info->get_lower_case_table_names() !=
+        (*all_members_it)->get_lower_case_table_names())
+    {
+      result= 1;
+      log_message(MY_ERROR_LEVEL,
+                  "The member is configured with a lower_case_table_names "
+                  "option value '%lu' different from the group '%lu'. "
+                  "The member will now exit the group. If there is existing "
+                  "data on member, it may be incompatible with group if "
+                  "created with a lower_case_table_names value different from "
+                  "the group.",
+                  local_member_info->get_lower_case_table_names(),
+                  (*all_members_it)->get_lower_case_table_names());
       goto cleaning;
     }
   }

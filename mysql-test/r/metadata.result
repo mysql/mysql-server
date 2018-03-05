@@ -409,3 +409,19 @@ f1
 DROP VIEW v1,v2;
 DROP TABLE t1;
 # End of test for Bug#22364401
+#
+# Bug #27422376: NEWDATE TYPE IS LEAKING OUT
+#
+SELECT CAST('2018-01-28 00:00:01' AS DATE) UNION
+SELECT CAST('2018-01-28 00:00:01' AS DATE);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def				CAST('2018-01-28 00:00:01' AS DATE)	CAST('2018-01-28 00:00:01' AS DATE)	10	10	10	Y	128	0	63
+CAST('2018-01-28 00:00:01' AS DATE)
+2018-01-28
+SELECT CAST('2018-01-28 00:00:01' AS DATE) UNION ALL
+SELECT CAST('2018-01-28 00:00:01' AS DATE);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					CAST('2018-01-28 00:00:01' AS DATE)	10	10	10	Y	0	0	8
+CAST('2018-01-28 00:00:01' AS DATE)
+2018-01-28
+2018-01-28

@@ -218,3 +218,13 @@ ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col1 % col2)
 VIRTUAL, ADD UNIQUE index idx (col1), algorithm=inplace;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug 27122803 - BACKPORT FIX FOR BUG 25899959 TO MYSQL-5.7
+--echo #
+
+CREATE TABLE t1 (col1 int(10)) DEFAULT CHARSET=utf8mb4;
+ALTER TABLE t1 ADD col2 char(21) AS (col1 * col1), ADD INDEX n (col2);
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;

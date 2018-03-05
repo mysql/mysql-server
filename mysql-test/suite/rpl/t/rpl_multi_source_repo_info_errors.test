@@ -84,6 +84,7 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 START SLAVE;
 
 # clean up
+--let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 RESET SLAVE ALL;
 --replace_result $save_mi_repo_type SAVE_MI_REPO_TYPE

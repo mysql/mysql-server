@@ -36,6 +36,7 @@ CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_LOG_FILE='master-bin-ch2.000001
 --echo # Execute mysql using the dump as input
 --exec $MYSQL --force < $MYSQL_TMP_DIR/chm_1_dump.sql
 --remove_file $MYSQL_TMP_DIR/chm_1_dump.sql
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
 --source include/stop_slave.inc
 
 --echo #

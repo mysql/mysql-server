@@ -4714,9 +4714,11 @@ INSERT INTO json_merge_t VALUES
 (3, '[1,2]'),
 (4, '{"a":["x", "y"]}'),
 (5, '{"a":"b","c":"d"}');
-SELECT t1.j, t2.j, json_merge(t1.j, t2.j), json_merge(t2.j, t1.j)
+SELECT t1.j, t2.j,
+JSON_MERGE_PRESERVE(t1.j, t2.j) AS m1,
+JSON_MERGE_PRESERVE(t2.j, t1.j) AS m2
 FROM json_merge_t t1, json_merge_t t2 ORDER BY t1.i, t2.i;
-j	j	json_merge(t1.j, t2.j)	json_merge(t2.j, t1.j)
+j	j	m1	m2
 NULL	NULL	NULL	NULL
 NULL	true	NULL	NULL
 NULL	5	NULL	NULL
@@ -5801,7 +5803,7 @@ out out_value json
 )
 language sql deterministic contains sql
 begin
-set out_value = json_merge( in_value, inout_value );
+set out_value = json_merge_preserve(in_value, inout_value);
 set inout_value = in_value;
 end//
 create procedure merge_doc_types
@@ -6463,7 +6465,7 @@ JSON_ARRAY_APPEND(j, '$', 2),
 JSON_SET(j, '$[0]', 2),
 JSON_INSERT(j, '$[0]', 2),
 JSON_REPLACE(j, '$[0]', 2),
-JSON_MERGE(j, j),
+JSON_MERGE_PRESERVE(j, j),
 JSON_SEARCH(j, 'one', 'abc'),
 JSON_CONTAINS(j, '[1]'),
 JSON_CONTAINS_PATH(j, 'all', '$.a'),
@@ -6472,16 +6474,22 @@ JSON_DEPTH(j),
 JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
-JSON_QUOTE(CAST(j AS CHAR))
+JSON_QUOTE(CAST(j AS CHAR)),
+JSON_PRETTY(j),
+JSON_STORAGE_SIZE(j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	[[1], [1]]	{"k": [1]}	[1]	"[1]"
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	[{"a": "b"}, {"a": "b"}]	{"k": {"a": "b"}}	{"a": "b"}	"{\"a\": \"b\"}"
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["abc", "abc"]	{"k": "abc"}	abc	"\"abc\""
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE_PRESERVE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_SIZE(j)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL
+1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	[[1], [1]]	{"k": [1]}	[1]	"[1]"	[
+  1
+]	8
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL
+1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	[{"a": "b"}, {"a": "b"}]	{"k": {"a": "b"}}	{"a": "b"}	"{\"a\": \"b\"}"	{
+  "a": "b"
+}	15
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL
+1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["abc", "abc"]	{"k": "abc"}	abc	"\"abc\""	"abc"	5
 ALTER TABLE T_WITH_NULLS MODIFY COLUMN j TEXT;
 SELECT
 JSON_VALID(j),
@@ -6493,7 +6501,7 @@ JSON_ARRAY_APPEND(j, '$', 2),
 JSON_SET(j, '$[0]', 2),
 JSON_INSERT(j, '$[0]', 2),
 JSON_REPLACE(j, '$[0]', 2),
-JSON_MERGE(j, j),
+JSON_MERGE_PRESERVE(j, j),
 JSON_SEARCH(j, 'one', 'abc'),
 JSON_CONTAINS(j, '[1]'),
 JSON_CONTAINS_PATH(j, 'all', '$.a'),
@@ -6502,16 +6510,22 @@ JSON_DEPTH(j),
 JSON_ARRAY(j, j),
 JSON_OBJECT('k', j),
 JSON_UNQUOTE(CAST(j AS CHAR)),
-JSON_QUOTE(CAST(j AS CHAR))
+JSON_QUOTE(CAST(j AS CHAR)),
+JSON_PRETTY(j),
+JSON_STORAGE_SIZE(j)
 FROM T_WITH_NULLS
 ORDER BY i;
-JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	["[1]", "[1]"]	{"k": "[1]"}	[1]	"[1]"
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	["{\"a\": \"b\"}", "{\"a\": \"b\"}"]	{"k": "{\"a\": \"b\"}"}	{"a": "b"}	"{\"a\": \"b\"}"
-NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL
-1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["\"abc\"", "\"abc\""]	{"k": "\"abc\""}	abc	"\"abc\""
+JSON_VALID(j)	JSON_TYPE(j)	JSON_KEYS(j)	JSON_EXTRACT(j, '$')	JSON_REMOVE(j, '$.a.b.c')	JSON_ARRAY_APPEND(j, '$', 2)	JSON_SET(j, '$[0]', 2)	JSON_INSERT(j, '$[0]', 2)	JSON_REPLACE(j, '$[0]', 2)	JSON_MERGE_PRESERVE(j, j)	JSON_SEARCH(j, 'one', 'abc')	JSON_CONTAINS(j, '[1]')	JSON_CONTAINS_PATH(j, 'all', '$.a')	JSON_LENGTH(j)	JSON_DEPTH(j)	JSON_ARRAY(j, j)	JSON_OBJECT('k', j)	JSON_UNQUOTE(CAST(j AS CHAR))	JSON_QUOTE(CAST(j AS CHAR))	JSON_PRETTY(j)	JSON_STORAGE_SIZE(j)
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL
+1	ARRAY	NULL	[1]	[1]	[1, 2]	[2]	[1]	[2]	[1, 1]	NULL	1	0	1	2	["[1]", "[1]"]	{"k": "[1]"}	[1]	"[1]"	[
+  1
+]	8
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL
+1	OBJECT	["a"]	{"a": "b"}	{"a": "b"}	[{"a": "b"}, 2]	2	{"a": "b"}	2	{"a": ["b", "b"]}	NULL	0	1	1	2	["{\"a\": \"b\"}", "{\"a\": \"b\"}"]	{"k": "{\"a\": \"b\"}"}	{"a": "b"}	"{\"a\": \"b\"}"	{
+  "a": "b"
+}	15
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	[null, null]	{"k": null}	NULL	NULL	NULL	NULL
+1	STRING	NULL	"abc"	"abc"	["abc", 2]	2	"abc"	2	["abc", "abc"]	"$"	0	0	1	1	["\"abc\"", "\"abc\""]	{"k": "\"abc\""}	abc	"\"abc\""	"abc"	5
 DROP TABLE T_WITH_NULLS;
 CREATE TABLE t_latin1(id INT PRIMARY KEY AUTO_INCREMENT,
 json_text VARCHAR(20),
@@ -6573,8 +6587,8 @@ FROM t_latin1 ORDER BY id;
 JSON_REPLACE(json_text, json_path, json_atom_text)
 ["åøæ"]
 {"æøå": "åøæ"}
-SELECT JSON_MERGE(json_text, json_text) FROM t_latin1 ORDER BY id;
-JSON_MERGE(json_text, json_text)
+SELECT JSON_MERGE_PRESERVE(json_text, json_text) FROM t_latin1 ORDER BY id;
+JSON_MERGE_PRESERVE(json_text, json_text)
 ["æøå", "æøå"]
 {"æøå": ["æøå", "æøå"]}
 SELECT JSON_SEARCH(json_text, CONVERT('one' USING latin1), json_atom_text,
@@ -8840,8 +8854,8 @@ drop table t1;
 #
 CREATE TABLE t (doc json);
 INSERT INTO t VALUES('{"array":[1,2,3,4]}');
-UPDATE t SET doc=JSON_MERGE(doc,doc);
-UPDATE t SET doc=JSON_MERGE(doc,doc);
+UPDATE t SET doc=JSON_MERGE_PRESERVE(doc, doc);
+UPDATE t SET doc=JSON_MERGE_PRESERVE(doc, doc);
 drop table t;
 #
 # Bug#21224267 DEEPLY NESTED JSON OBJECTS MAY CAUSE CRASH
@@ -9488,3 +9502,566 @@ j
 {"a": "b"}
 {"a": "b"}
 DROP TABLE t;
+# Bug#22522073: Assertion failed: !thd->is_error() in optimize_cond()
+CREATE TABLE s(a INTEGER, b CHAR(1));
+INSERT INTO s VALUES (1,0), (1,0), (1,0);
+CREATE TABLE t(c JSON);
+INSERT INTO t VALUES (), (), ();
+SELECT 1
+FROM s WHERE a NOT IN (SELECT 1
+FROM s WHERE (SELECT c FROM t) = b);
+ERROR 21000: Subquery returns more than 1 row
+DROP TABLE s, t;
+#
+# WL#9191: JSON_PRETTY function
+#
+CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT,
+uc VARCHAR(128) CHARACTER SET utf8mb4,
+lc VARCHAR(128) CHARACTER SET latin1,
+j JSON);
+INSERT INTO t(uc) VALUES
+(NULL),
+('{}'),
+('[]'),
+('[1,2,3]'),
+('{"a":1,"b":2}'),
+('{"a":[1,{}],"b":[]}'),
+('{"a":{"b":{"c":{"d":{"e":{"f":null}}}}}}'),
+('true'),
+('false'),
+('null'),
+('1'),
+('1.1'),
+('"hello"'),
+(JSON_ARRAY('abc
+def', '"abc"'));
+UPDATE t SET lc = uc, j = uc;
+SELECT JSON_PRETTY(uc) AS c1 FROM t ORDER BY id;
+c1
+NULL
+{}
+[]
+[
+  1,
+  2,
+  3
+]
+{
+  "a": 1,
+  "b": 2
+}
+{
+  "a": [
+    1,
+    {}
+  ],
+  "b": []
+}
+{
+  "a": {
+    "b": {
+      "c": {
+        "d": {
+          "e": {
+            "f": null
+          }
+        }
+      }
+    }
+  }
+}
+true
+false
+null
+1
+1.1
+"hello"
+[
+  "abc\ndef",
+  "\"abc\""
+]
+SELECT JSON_PRETTY(lc) AS c1 FROM t ORDER BY id;
+c1
+NULL
+{}
+[]
+[
+  1,
+  2,
+  3
+]
+{
+  "a": 1,
+  "b": 2
+}
+{
+  "a": [
+    1,
+    {}
+  ],
+  "b": []
+}
+{
+  "a": {
+    "b": {
+      "c": {
+        "d": {
+          "e": {
+            "f": null
+          }
+        }
+      }
+    }
+  }
+}
+true
+false
+null
+1
+1.1
+"hello"
+[
+  "abc\ndef",
+  "\"abc\""
+]
+SELECT JSON_PRETTY(j) AS c1 FROM t ORDER BY id;
+c1
+NULL
+{}
+[]
+[
+  1,
+  2,
+  3
+]
+{
+  "a": 1,
+  "b": 2
+}
+{
+  "a": [
+    1,
+    {}
+  ],
+  "b": []
+}
+{
+  "a": {
+    "b": {
+      "c": {
+        "d": {
+          "e": {
+            "f": null
+          }
+        }
+      }
+    }
+  }
+}
+true
+false
+null
+1
+1.1
+"hello"
+[
+  "abc\ndef",
+  "\"abc\""
+]
+SELECT DISTINCT CHARSET(JSON_PRETTY(uc)) AS c1,
+CHARSET(JSON_PRETTY(lc)) AS c2,
+CHARSET(JSON_PRETTY(j)) AS c3 FROM t;
+c1	c2	c3
+utf8mb4	utf8mb4	utf8mb4
+DROP TABLE t;
+SELECT JSON_PRETTY('this is not JSON') AS j;
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "Invalid value." at position 1.
+SELECT JSON_PRETTY();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_PRETTY'
+SELECT JSON_PRETTY('{}', 2);
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_PRETTY'
+#
+# WL#9192: Add JSON_STORAGE_SIZE / JSON_STORAGE_FREE functions
+#
+SELECT JSON_STORAGE_SIZE();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_STORAGE_SIZE'
+SELECT JSON_STORAGE_SIZE('{}', '[]');
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_STORAGE_SIZE'
+SELECT JSON_STORAGE_SIZE('this is not JSON') AS j;
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 1.
+SELECT JSON_STORAGE_SIZE(NULL);
+JSON_STORAGE_SIZE(NULL)
+NULL
+SELECT JSON_STORAGE_SIZE(JSON_ARRAY(1,2,3));
+JSON_STORAGE_SIZE(JSON_ARRAY(1,2,3))
+14
+CREATE TABLE t(id INT PRIMARY KEY, j JSON, v VARCHAR(100));
+INSERT INTO t(id, j) VALUES (0, NULL), (1, '[["abc", "def", "ghi", "jkl"]]');
+UPDATE t SET v = j;
+SELECT *,
+JSON_STORAGE_SIZE(j), JSON_STORAGE_SIZE(v),
+JSON_STORAGE_SIZE(j->'$[0]'), JSON_STORAGE_SIZE(v->'$[0]')
+FROM t ORDER BY id;
+id	j	v	JSON_STORAGE_SIZE(j)	JSON_STORAGE_SIZE(v)	JSON_STORAGE_SIZE(j->'$[0]')	JSON_STORAGE_SIZE(v->'$[0]')
+0	NULL	NULL	NULL	NULL	NULL	NULL
+1	[["abc", "def", "ghi", "jkl"]]	[["abc", "def", "ghi", "jkl"]]	40	40	33	33
+UPDATE t SET j = JSON_SET(j, '$[0][1]', NULL, '$[0][3]', 'X'),
+v = JSON_SET(v, '$[0][1]', NULL, '$[0][3]', 'X');
+SELECT *,
+JSON_STORAGE_SIZE(j), JSON_STORAGE_SIZE(v),
+JSON_STORAGE_SIZE(j->'$[0]'), JSON_STORAGE_SIZE(v->'$[0]')
+FROM t ORDER BY id;
+id	j	v	JSON_STORAGE_SIZE(j)	JSON_STORAGE_SIZE(v)	JSON_STORAGE_SIZE(j->'$[0]')	JSON_STORAGE_SIZE(v->'$[0]')
+0	NULL	NULL	NULL	NULL	NULL	NULL
+1	[["abc", null, "ghi", "X"]]	[["abc", null, "ghi", "X"]]	34	34	27	27
+DROP TABLE t;
+#
+# Get some extra coverage for partial update of JSON, WL#8963.
+# Partial update will not happen in MySQL 5.7, since WL#8963 has not
+# been backported. The test cases are kept in order to exercise
+# the JSON_STORAGE_SIZE function.
+#
+CREATE TABLE t(id INT PRIMARY KEY, j JSON);
+INSERT INTO t VALUES
+(1, '{"a":"a"}'), (2, '{"a":"b", "b":"b"}'), (3, '{"a":"c", "c":"c"}');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "a"}	15
+2	{"a": "b", "b": "b"}	25
+3	{"a": "c", "c": "c"}	25
+UPDATE t SET j = JSON_SET(j, '$.a', 'x');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "x"}	15
+2	{"a": "x", "b": "b"}	25
+3	{"a": "x", "c": "c"}	25
+UPDATE t SET j = JSON_SET(j, '$.a', 'y', '$.b', j->'$.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "y", "b": "x"}	25
+2	{"a": "y", "b": "x"}	25
+3	{"a": "y", "b": "x", "c": "c"}	35
+UPDATE t SET j = JSON_SET(j, '$.a', 'z'), j = JSON_SET(j, '$.b', j->'$.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "z", "b": "z"}	25
+2	{"a": "z", "b": "z"}	25
+3	{"a": "z", "b": "z", "c": "c"}	35
+UPDATE t SET j = JSON_SET(j, '$.a', 'w'),
+j = JSON_SET(j, '$.a', 'v', '$.b', j->'$.a');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "v", "b": "w"}	25
+2	{"a": "v", "b": "w"}	25
+3	{"a": "v", "b": "w", "c": "c"}	35
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '1', '$.c', '2', '$.a', '3');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "3", "b": "w"}	25
+2	{"a": "3", "b": "w"}	25
+3	{"a": "3", "b": "w", "c": "2"}	35
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '4'), j = JSON_REPLACE(j, '$.c', '5'),
+j = JSON_REPLACE(j, '$.a', '6');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "6", "b": "w"}	25
+2	{"a": "6", "b": "w"}	25
+3	{"a": "6", "b": "w", "c": "5"}	35
+UPDATE t SET j = JSON_REPLACE(j, '$.a', '');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "", "b": "w"}	24
+2	{"a": "", "b": "w"}	24
+3	{"a": "", "b": "w", "c": "5"}	34
+UPDATE t SET j = JSON_REPLACE(j, '$.a', 'a');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "a", "b": "w"}	25
+2	{"a": "a", "b": "w"}	25
+3	{"a": "a", "b": "w", "c": "5"}	35
+UPDATE t SET j = JSON_REPLACE(j, '$.a', 'ab');
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t ORDER BY id;
+id	j	ss
+1	{"a": "ab", "b": "w"}	26
+2	{"a": "ab", "b": "w"}	26
+3	{"a": "ab", "b": "w", "c": "5"}	36
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, j1 JSON, j2 JSON);
+INSERT INTO t VALUES
+(1, '{"a":"a","b":"b"}', '{"a":"a","b":"b"}'),
+(2, NULL, NULL),
+(3, '{"a":"a","b":"b"}', '{"a":"a","b":"b"}');
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_SIZE(j2) ss2 FROM t ORDER BY id;
+id	j1	j2	ss1	ss2
+1	{"a": "a", "b": "b"}	{"a": "a", "b": "b"}	25	25
+2	NULL	NULL	NULL	NULL
+3	{"a": "a", "b": "b"}	{"a": "a", "b": "b"}	25	25
+UPDATE t SET j1 = JSON_SET(j1, '$.a', 'x'),
+j2 = JSON_SET(j2, '$.a', 'y'),
+j1 = JSON_SET(j1, '$.b', 'z');
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_SIZE(j2) ss2 FROM t ORDER BY id;
+id	j1	j2	ss1	ss2
+1	{"a": "x", "b": "z"}	{"a": "y", "b": "b"}	25	25
+2	NULL	NULL	NULL	NULL
+3	{"a": "x", "b": "z"}	{"a": "y", "b": "b"}	25	25
+UPDATE t SET j1 = JSON_SET(j1, '$.a', 's'),
+j2 = JSON_SET(j2, '$.a', 'abcdefghi'),
+j1 = JSON_SET(j1, '$.b', 't');
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_SIZE(j2) ss2 FROM t ORDER BY id;
+id	j1	j2	ss1	ss2
+1	{"a": "s", "b": "t"}	{"a": "abcdefghi", "b": "b"}	25	33
+2	NULL	NULL	NULL	NULL
+3	{"a": "s", "b": "t"}	{"a": "abcdefghi", "b": "b"}	25	33
+UPDATE t SET j1 = JSON_SET(j1, '$.x.y.z', 'abc', '$.b', 'X');
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_SIZE(j2) ss2 FROM t ORDER BY id;
+id	j1	j2	ss1	ss2
+1	{"a": "s", "b": "X"}	{"a": "abcdefghi", "b": "b"}	25	33
+2	NULL	NULL	NULL	NULL
+3	{"a": "s", "b": "X"}	{"a": "abcdefghi", "b": "b"}	25	33
+UPDATE t SET j1 = JSON_REPLACE(j1, '$.x', 'abc', '$.b', 'Y');
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_SIZE(j2) ss2 FROM t ORDER BY id;
+id	j1	j2	ss1	ss2
+1	{"a": "s", "b": "Y"}	{"a": "abcdefghi", "b": "b"}	25	33
+2	NULL	NULL	NULL	NULL
+3	{"a": "s", "b": "Y"}	{"a": "abcdefghi", "b": "b"}	25	33
+UPDATE t SET j1 = JSON_SET(j1, '$.x', 'abc', '$.b', 'Z');
+SELECT *, JSON_STORAGE_SIZE(j1) ss1,
+JSON_STORAGE_SIZE(j2) ss2 FROM t ORDER BY id;
+id	j1	j2	ss1	ss2
+1	{"a": "s", "b": "Z", "x": "abc"}	{"a": "abcdefghi", "b": "b"}	37	33
+2	NULL	NULL	NULL	NULL
+3	{"a": "s", "b": "Z", "x": "abc"}	{"a": "abcdefghi", "b": "b"}	37	33
+DROP TABLE t;
+CREATE TABLE t(j JSON,
+i INT DEFAULT 42,
+db DOUBLE DEFAULT 2.34e-10,
+dc DECIMAL(5, 3) DEFAULT 98.765,
+ts TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+gc JSON GENERATED ALWAYS AS (JSON_ARRAY(i, db, dc, ts)))
+ENGINE=InnoDB;
+INSERT INTO t(j, ts) VALUES
+('[null, "abc", true, "def", false]', '2017-01-02 14:15:16');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[null, "abc", true, "def", false]	ARRAY	28
+UPDATE t SET j = JSON_SET(j, '$[1]', 'xy', '$[3]', 'xyzw');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[null, "xy", true, "xyzw", false]	ARRAY	28
+UPDATE t SET j = JSON_SET(j, '$[1]', 'a');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[null, "a", true, "xyzw", false]	ARRAY	27
+UPDATE t SET j = JSON_SET(j, '$[3]', 'abcde');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[null, "a", true, "abcde", false]	ARRAY	28
+UPDATE t SET j = JSON_ARRAY('abcdefghijklmnopqrstuvwxyz');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+["abcdefghijklmnopqrstuvwxyz"]	ARRAY	35
+UPDATE t SET j = JSON_SET(j, '$[0]', 3.14e0);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[3.14]	ARRAY	16
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(10000000000 AS UNSIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[10000000000]	ARRAY	16
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(4000000000 AS SIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[4000000000]	ARRAY	16
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(123 AS UNSIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[123]	ARRAY	8
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST(456 AS SIGNED));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[456]	ARRAY	8
+UPDATE t SET j = JSON_SET(j, '$[0]', -123);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[-123]	ARRAY	8
+UPDATE t SET j = JSON_SET(j, '$[0]', -4000000000);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[-4000000000]	ARRAY	16
+UPDATE t SET j = JSON_SET(j, '$[0]', TRUE);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[true]	ARRAY	8
+UPDATE t SET j = JSON_SET(j, '$[0]', NULL);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[null]	ARRAY	8
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('abc' AS BINARY));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+["base64:type253:YWJj"]	ARRAY	13
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('2016-12-23 13:16:40' AS DATETIME));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+["2016-12-23 13:16:40.000000"]	ARRAY	18
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('2016-12-24' AS DATE));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+["2016-12-24"]	ARRAY	18
+UPDATE t SET j = JSON_SET(j, '$[0]', CAST('14:17:41' AS TIME));
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+["14:17:41.000000"]	ARRAY	18
+UPDATE t SET j = JSON_SET(j, '$[0]', 1.23);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[1.23]	ARRAY	14
+UPDATE t SET j = JSON_SET(j, '$[0]', i);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[42]	ARRAY	8
+UPDATE t SET j = JSON_SET(j, '$[0]', db);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[0.000000000234]	ARRAY	16
+UPDATE t SET j = JSON_SET(j, '$[0]', dc);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[98.765]	ARRAY	15
+UPDATE t SET j = JSON_SET(j, '$[0]', ts);
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+["2017-01-02 14:15:16.000000"]	ARRAY	18
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[0]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[42]	ARRAY	8
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[1]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[0.000000000234]	ARRAY	16
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[2]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[98.765]	ARRAY	15
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[3]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+["2017-01-02 14:15:16.000000"]	ARRAY	18
+UPDATE t SET j = JSON_SET(j, '$[0]', gc->'$[4]');
+SELECT j, JSON_TYPE(j) jt, JSON_STORAGE_SIZE(j) ss FROM t;
+j	jt	ss
+[null]	ARRAY	8
+DROP TABLE t;
+CREATE TABLE t1(id INT PRIMARY KEY, j JSON, x INT);
+INSERT INTO t1 VALUES (1, '{"a":11}', 1), (2, '{"a":22}', 2);
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t1 ORDER BY id;
+id	j	x	ss
+1	{"a": 11}	1	13
+2	{"a": 22}	2	13
+CREATE TABLE t2(id INT PRIMARY KEY, j JSON, x INT);
+INSERT INTO t2 VALUES (1, '{"b":33}', 3), (2, '{"b":44}', 4);
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t2 ORDER BY id;
+id	j	x	ss
+1	{"b": 33}	3	13
+2	{"b": 44}	4	13
+UPDATE t1, t2 SET t1.j = JSON_SET(t1.j, '$.a', t2.j->'$.b') WHERE t1.id = t2.id;
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t1 ORDER BY id;
+id	j	x	ss
+1	{"a": 33}	1	13
+2	{"a": 44}	2	13
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t2 ORDER BY id;
+id	j	x	ss
+1	{"b": 33}	3	13
+2	{"b": 44}	4	13
+UPDATE t1, t2 SET t1.j = JSON_SET(t1.j, '$.a', t2.x),
+t2.j = JSON_SET(t2.j, '$.b', t1.x)
+WHERE t1.id = t2.id;
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t1 ORDER BY id;
+id	j	x	ss
+1	{"a": 3}	1	13
+2	{"a": 4}	2	13
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t2 ORDER BY id;
+id	j	x	ss
+1	{"b": 1}	3	13
+2	{"b": 2}	4	13
+UPDATE t1, t2 SET t1.j = '[123]', t2.j = JSON_SET(t2.j, '$.b', 99);
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t1 ORDER BY id;
+id	j	x	ss
+1	[123]	1	8
+2	[123]	2	8
+SELECT *, JSON_STORAGE_SIZE(j) ss FROM t2 ORDER BY id;
+id	j	x	ss
+1	{"b": 99}	3	13
+2	{"b": 99}	4	13
+DROP TABLE t1, t2;
+#
+# WL#9692: Add JSON_MERGE_PATCH
+#
+CREATE TABLE merge_t(
+id INT PRIMARY KEY AUTO_INCREMENT,
+target VARCHAR(100), patch VARCHAR(100)
+);
+INSERT INTO merge_t(target, patch) VALUES
+('{"a":"b"}', '{"a":"c"}'),
+('{"a":"b"}', '{"b":"c"}'),
+('{"a":"b"}', '{"a":null}'),
+('{"a":"b", "b":"c"}', '{"a":null}'),
+('{"a":["b"]}', '{"a":"c"}'),
+('{"a":"c"}', '{"a":["b"]}'),
+('{"a": {"b":"c"}}', '{"a": {"b":"d", "c":null}}'),
+('{"a":[{"b":"c"}]}', '{"a": [1]}'),
+('["a","b"]', '["c","d"]'),
+('{"a":"b"}', '["c"]'),
+('{"a":"foo"}', 'null'),
+('{"a":"foo"}', '"bar"'),
+('{"e":null}', '{"a":1}'),
+('[1,2]', '{"a":"b", "c":null}'),
+('{}', '{"a":{"bb":{"ccc":null}}}'),
+(NULL, '{}'),
+('{}', NULL);
+SELECT id, target, patch,
+JSON_MERGE_PATCH(target, patch) AS merged,
+JSON_EXTRACT(JSON_MERGE_PATCH(target, patch), '$.a') AS a
+FROM merge_t ORDER BY id;
+id	target	patch	merged	a
+1	{"a":"b"}	{"a":"c"}	{"a": "c"}	"c"
+2	{"a":"b"}	{"b":"c"}	{"a": "b", "b": "c"}	"b"
+3	{"a":"b"}	{"a":null}	{}	NULL
+4	{"a":"b", "b":"c"}	{"a":null}	{"b": "c"}	NULL
+5	{"a":["b"]}	{"a":"c"}	{"a": "c"}	"c"
+6	{"a":"c"}	{"a":["b"]}	{"a": ["b"]}	["b"]
+7	{"a": {"b":"c"}}	{"a": {"b":"d", "c":null}}	{"a": {"b": "d"}}	{"b": "d"}
+8	{"a":[{"b":"c"}]}	{"a": [1]}	{"a": [1]}	[1]
+9	["a","b"]	["c","d"]	["c", "d"]	NULL
+10	{"a":"b"}	["c"]	["c"]	NULL
+11	{"a":"foo"}	null	null	NULL
+12	{"a":"foo"}	"bar"	"bar"	NULL
+13	{"e":null}	{"a":1}	{"a": 1, "e": null}	1
+14	[1,2]	{"a":"b", "c":null}	{"a": "b"}	"b"
+15	{}	{"a":{"bb":{"ccc":null}}}	{"a": {"bb": {}}}	{"bb": {}}
+16	NULL	{}	NULL	NULL
+17	{}	NULL	NULL	NULL
+DROP TABLE merge_t;
+SELECT JSON_MERGE_PATCH('{"a":"b"}', NULL, '{"c":"d"}');
+JSON_MERGE_PATCH('{"a":"b"}', NULL, '{"c":"d"}')
+NULL
+SELECT JSON_MERGE_PATCH(NULL, '[1,2,3]');
+JSON_MERGE_PATCH(NULL, '[1,2,3]')
+[1, 2, 3]
+SELECT JSON_MERGE_PATCH('{"a":"b"}', NULL, '[1,2,3]', '{"c":null,"d":"e"}');
+JSON_MERGE_PATCH('{"a":"b"}', NULL, '[1,2,3]', '{"c":null,"d":"e"}')
+{"d": "e"}
+SELECT JSON_MERGE_PATCH();
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_MERGE_PATCH'
+SELECT JSON_MERGE_PATCH('{}');
+ERROR 42000: Incorrect parameter count in the call to native function 'JSON_MERGE_PATCH'
+SELECT JSON_MERGE_PATCH('{', '[1,2,3]');
+ERROR 22032: Invalid JSON text in argument 1 to function json_merge_patch: "Missing a name for object member." at position 1.
+SELECT JSON_MERGE_PATCH('{"a":"b"}', '[1,');
+ERROR 22032: Invalid JSON text in argument 2 to function json_merge_patch: "Invalid value." at position 3.

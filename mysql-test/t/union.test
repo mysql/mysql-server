@@ -1929,3 +1929,100 @@ SELECT FOUND_ROWS();
 DROP TABLE t1;
 
 --echo #End of test for Bug#22602381
+
+--echo #
+--echo # Bug #27068222 CREATE TABLE USING SELECT WITH UNION
+--echo #               FAILS FOR DATE COLUMN
+--echo #
+
+CREATE TABLE `t1` (`date` date NOT NULL);
+
+INSERT INTO t1 VALUES ('2017-03-02'), ('2017-06-22');
+
+CREATE TABLE IF NOT EXISTS t2 AS
+SELECT * FROM t1
+UNION
+SELECT * FROM t1;
+
+DESC t2;
+SELECT * FROM t2;
+
+DROP TABLE t1, t2;
+
+# Compare INT and DATE
+
+CREATE TABLE t1 (
+ i1 INT NOT NULL,
+ i2 INT NOT NULL DEFAULT '1234',
+ # non-specified nullability => i3 is nullable
+ i3 INT,
+ i4 INT DEFAULT NULL,
+ i5 INT DEFAULT '5678',
+ d1 date NOT NULL,
+ d2 date NOT NULL DEFAULT '2018-01-25',
+ d3 date,
+ d4 date DEFAULT NULL,
+ d5 date DEFAULT '2017-11-14',
+ g1 geometry NOT NULL
+);
+
+SHOW CREATE TABLE t1;
+
+ #We'll test non-strict then strict mode
+let $c=2;
+
+SET SQL_MODE='';
+
+while ($c)
+{
+
+  dec $c;
+
+  SELECT @@SQL_MODE;
+
+  CREATE TEMPORARY TABLE t2 AS
+  SELECT * FROM t1;
+
+  --echo # we see that with CREATE SELECT (no UNION), defaults are inherited.
+
+  SHOW CREATE TABLE t2;
+
+  DROP TEMPORARY TABLE t2;
+
+  CREATE TEMPORARY TABLE t2 AS
+  SELECT * FROM t1
+  UNION
+  SELECT * FROM t1;
+
+  SHOW CREATE TABLE t2;
+
+  DROP TEMPORARY TABLE t2;
+
+  CREATE TEMPORARY TABLE t2 AS
+  SELECT * FROM t1
+  UNION ALL
+  SELECT * FROM t1;
+
+  SHOW CREATE TABLE t2;
+
+--echo # With UNION and UNION ALL, defaults are not inherited; every
+--echo # column gets, as default, NULL (if nullable) or 0 (if not
+--echo # nullable). Exception: if strict mode and a date type,
+--echo # 0000-00-00 isn't given as default
+
+# In strict mode, t2.d1 has no DEFAULT, so cannot insert;
+# in non-strict mode, no problem.
+  if ($c)
+  {
+    INSERT INTO t2 VALUES();
+  }
+
+  SELECT * FROM t2;
+
+  DROP TEMPORARY TABLE t2;
+
+  SET SQL_MODE=DEFAULT;
+
+}
+
+DROP TABLE t1;

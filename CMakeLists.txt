@@ -15,7 +15,8 @@
 
 IF(WIN32)
   # CMake 2.8.12 is needed for Visual Studio 2013
-  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+  # CMake 3.1.0 is needed for $<TARGET_PDB_FILE:${target}>
+  CMAKE_MINIMUM_REQUIRED(VERSION 3.1.0)
 ELSE()
   # There's a bug in unzipping prior to 2.8.2
   # Debian 7 has the oldest cmake we need to support
@@ -33,12 +34,10 @@ IF(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR
  CMAKE_POLICY(SET CMP0022 OLD)
 ENDIF()
 
-# We use the LOCATION target property (CMP0026)
-# and get_target_property() for non-existent targets (CMP0045)
+# We use get_target_property() for non-existent targets (CMP0045)
 # and INSTALL_NAME_DIR (CMP0042)
 IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
    CMAKE_VERSION VERSION_GREATER "3.0.0")
- CMAKE_POLICY(SET CMP0026 OLD)
  CMAKE_POLICY(SET CMP0045 OLD)
  CMAKE_POLICY(SET CMP0042 OLD)
 ENDIF()

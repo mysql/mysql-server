@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -355,7 +355,7 @@ TEST_F(ItemTest, ItemEqual)
                    new Item_field(&mft));
   
   EXPECT_FALSE(item_equal->fix_fields(thd(), NULL));
-  EXPECT_EQ(0, item_equal->val_int());
+  EXPECT_EQ(1, item_equal->val_int());
 }
 
 

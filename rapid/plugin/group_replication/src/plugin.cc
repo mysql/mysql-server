@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,6 +149,9 @@ ulong recovery_reconnect_interval_var= 0;
 
 /* Write set extraction algorithm*/
 int write_set_extraction_algorithm= HASH_ALGORITHM_OFF;
+
+/* Lower case table name */
+uint gr_lower_case_table_names= 0;
 
 /* Generic components variables */
 ulong components_stop_timeout_var= LONG_TIMEOUT;
@@ -672,7 +675,8 @@ int configure_group_member_manager(char *hostname, char *uuid,
                                            Group_member_info::MEMBER_ROLE_SECONDARY,
                                            single_primary_mode_var,
                                            enforce_update_everywhere_checks_var,
-                                           member_weight_var);
+                                           member_weight_var,
+                                           gr_lower_case_table_names);
 
   //Create the membership info visible for the group
   delete group_member_mgr;
@@ -1073,12 +1077,6 @@ int plugin_group_replication_deinit(void *p)
     compatibility_mgr= NULL;
   }
 
-  if (channel_observation_manager != NULL)
-  {
-    delete channel_observation_manager;
-    channel_observation_manager= NULL;
-  }
-
   if (unregister_server_state_observer(&server_state_observer, p))
   {
     log_message(MY_ERROR_LEVEL,
@@ -1104,6 +1102,12 @@ int plugin_group_replication_deinit(void *p)
     log_message(MY_INFORMATION_LEVEL,
                 "All Group Replication server observers"
                 " have been successfully unregistered");
+
+  if (channel_observation_manager != NULL)
+  {
+    delete channel_observation_manager;
+    channel_observation_manager= NULL;
+  }
 
   delete gcs_module;
   gcs_module= NULL;
@@ -1649,6 +1653,9 @@ static int check_if_server_properly_configured()
                 "'enforce_update_everywhere_checks' enabled.");
     DBUG_RETURN(1);
   }
+
+  gr_lower_case_table_names= startup_pre_reqs.lower_case_table_names;
+  DBUG_ASSERT (gr_lower_case_table_names <= 2);
 
   DBUG_RETURN(0);
 }
