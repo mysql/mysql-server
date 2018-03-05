@@ -120,6 +120,11 @@ using std::max;
 /// The maximum number of histogram buckets.
 static const int MAX_NUMBER_OF_HISTOGRAM_BUCKETS= 1024;
 
+/// The default number of histogram buckets when the user does not specify it
+/// explicitly. A value of 100 is chosen because the gain in accuracy above this
+/// point seems to be generally low.
+static const int DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS= 100;
+
 int yylex(void *yylval, void *yythd);
 
 #define yyoverflow(A,B,C,D,E,F,G,H)           \
@@ -1294,6 +1299,7 @@ void warn_about_deprecated_national(THD *thd)
         trg_action_time trg_event
         view_check_option
         signed_num
+        opt_num_buckets
 
 
 %type <order_direction> order_dir
@@ -8262,21 +8268,12 @@ analyze_table_stmt:
           }
         ;
 
-opt_histogram:
-          /* empty */
+opt_num_buckets:
+          /* empty */ { $$= DEFAULT_NUMBER_OF_HISTOGRAM_BUCKETS; }
+        | WITH NUM BUCKETS_SYM
           {
-            $$.command= Sql_cmd_analyze_table::Histogram_command::NONE;
-            $$.columns= nullptr;
-            $$.num_buckets= 0;
-          }
-        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list WITH NUM BUCKETS_SYM
-          {
-            $$.command=
-              Sql_cmd_analyze_table::Histogram_command::UPDATE_HISTOGRAM;
-            $$.columns= $4;
-
             int error;
-            longlong num= my_strtoll10($6.str, nullptr, &error);
+            longlong num= my_strtoll10($2.str, nullptr, &error);
             MYSQL_YYABORT_UNLESS(error <= 0);
 
             if (num < 1 || num > MAX_NUMBER_OF_HISTOGRAM_BUCKETS)
@@ -8286,7 +8283,23 @@ opt_histogram:
               MYSQL_YYABORT;
             }
 
-            $$.num_buckets= static_cast<int>(num);
+            $$= num;
+          }
+        ;
+
+opt_histogram:
+          /* empty */
+          {
+            $$.command= Sql_cmd_analyze_table::Histogram_command::NONE;
+            $$.columns= nullptr;
+            $$.num_buckets= 0;
+          }
+        | UPDATE_SYM HISTOGRAM_SYM ON_SYM ident_string_list opt_num_buckets
+          {
+            $$.command=
+              Sql_cmd_analyze_table::Histogram_command::UPDATE_HISTOGRAM;
+            $$.columns= $4;
+            $$.num_buckets= $5;
           }
         | DROP HISTOGRAM_SYM ON_SYM ident_string_list
           {
