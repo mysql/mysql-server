@@ -135,7 +135,8 @@ bool Sql_cmd_import_table::execute(THD *thd) {
     schema_names.push_back(*t.can_schema_name());
   }
   std::sort(schema_names.begin(), schema_names.end());
-  std::unique(schema_names.begin(), schema_names.end());
+  auto uniq_end = std::unique(schema_names.begin(), schema_names.end());
+  schema_names.erase(uniq_end, schema_names.end());
 
   for (auto &sn : schema_names) {
     MDL_request *r = new (thd->mem_root) MDL_request;

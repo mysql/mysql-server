@@ -493,6 +493,14 @@ class MDL_lock {
     */
     bool m_is_affected_by_max_write_lock_count;
 
+#ifndef DBUG_OFF
+    /**
+     Indicate that a type is legal with this strategy. Only for asserts and
+     debug-only checks.
+     */
+    bool legal_type[MDL_TYPE_END];
+#endif /* not defined DBUG_OFF */
+
     /**
       Pointer to a static method which determines if the type of lock
       requested requires notification of conflicting locks. NULL if there
@@ -2131,6 +2139,11 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_scoped_lock_strategy = {
       max_write_lock_count limit to them.
     */
     false,
+#ifndef DBUG_OFF
+    // In scoped locks, only IX, SHARED and X is allowed.
+    {true, true, false, false, false, false, false, false, false, false, true},
+#endif /* not defined DBUG_OFF */
+
     /*
       Scoped locks doesn't require notification of owners of conflicting
       locks for any type of requests. Hence 'm_needs_notification' is NULL.
@@ -2336,6 +2349,11 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy = {
       waiting.
     */
     true,
+#ifndef DBUG_OFF
+    // For object locks all types, except IX, are permitted
+    {false, true, true, true, true, true, true, true, true, true, true},
+#endif /* not defined DBUG_OFF */
+
     &MDL_lock::object_lock_needs_notification,
     &MDL_lock::object_lock_notify_conflicting_locks,
     &MDL_lock::object_lock_fast_path_granted_bitmap,
@@ -4181,6 +4199,7 @@ void MDL_context::release_locks(MDL_release_locks_visitor *visitor) {
 void MDL_ticket::downgrade_lock(enum_mdl_type new_type) {
   bool new_type_is_unobtrusive;
   mysql_mutex_assert_not_owner(&LOCK_open);
+  DBUG_ASSERT(m_lock->m_strategy->legal_type[new_type]);
 
   /*
     Do nothing if already downgraded. Used when we FLUSH TABLE under
