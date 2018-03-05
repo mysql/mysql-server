@@ -125,12 +125,12 @@ FLUSH PRIVILEGES;
 --echo # Now trying to connect again..
 --echo # Connecting using 'test_user1'
 --echo #
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 --exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 --echo
 --echo # Connecting using 'test_user2'
 --echo #
---exec $MYSQLADMIN --login-path=test-login-path1 --port=$MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN --no-defaults --login-path=test-login-path1 --port=$MASTER_MYPORT ping 2>&1
 --exec $MYSQLADMIN --no-defaults --login-path=test-login-path1 --port=$MASTER_MYPORT ping 2>&1
 
 --echo #
@@ -187,7 +187,7 @@ DROP USER test_user1, test_user2;
 --echo # The 'invalid' login file should not cause
 --echo # any problem.
 --echo #
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2> /dev/null
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2> /dev/null
 
 --echo ###############################
 --echo # Dropping the test login file
@@ -200,7 +200,7 @@ DROP USER test_user1, test_user2;
 --echo # Even if login file does not exist, the
 --echo # tools should be able to continue
 --echo # normally.
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2>&1
 
 --echo
 --echo ######################
@@ -218,12 +218,12 @@ CREATE USER user_name_len_26_012345678@localhost;
 
 --echo # Connecting using 'user_name_len_25_01234567'
 --echo #
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 --exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 --echo
 --echo # Connecting using 'user_name_len_26_012345678'
 --echo #
---exec $MYSQLADMIN --login-path=test-login-path_user_26 --port=$MASTER_MYPORT ping 2>&1
+--exec $MYSQLADMIN --no-defaults --login-path=test-login-path_user_26 --port=$MASTER_MYPORT ping 2>&1
 --exec $MYSQLADMIN --no-defaults --login-path=test-login-path_user_26 --port=$MASTER_MYPORT ping 2>&1
 
 # Cleanup

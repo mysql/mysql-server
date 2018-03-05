@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,29 +61,54 @@ node_list clone_node_list(node_list list)
 /* }}} */
 
 /* OHKFIX Do something more intelligent than strcmp */
-int match_node(node_address *n1, node_address *n2)
+int match_node(node_address *n1, node_address *n2, u_int with_uid)
 {
-	return n1 != 0 && n2 != 0 && (xcom_get_port(n1->address) == xcom_get_port(n2->address) && strcmp(n1->address, n2->address) == 0);
+  int retval= ( n1 != 0 &&
+                n2 != 0 &&
+                (xcom_get_port(n1->address) == xcom_get_port(n2->address)) &&
+                strcmp(n1->address, n2->address) == 0);
+
+  if(with_uid)
+  {
+    int retval_with_uid= (n1->uuid.data.data_len == n2->uuid.data.data_len);
+    if(retval_with_uid)
+    {
+      u_int i= 0;
+      for(; i < n1->uuid.data.data_len && retval_with_uid; i++)
+      {
+        retval_with_uid &= !( n1->uuid.data.data_val[i] ^
+                              n2->uuid.data.data_val[i]);
+      }
+    }
+    retval &= retval_with_uid;
+  }
+
+  return retval;
 }
 
-int match_node_list(node_address *n1, node_address *n2, u_int len2)
+int match_node_list(node_address *n1, node_address *n2, u_int len2, u_int with_uid)
 {
 	u_int	i;
 	for (i = 0; i < len2; i++) {
-		if (match_node(n2+i, n1))
+		if (match_node(n2+i, n1, with_uid))
 			return 1;
 	}
 	return 0;
 }
 
-static int	exists(node_address *name, node_list const *nodes)
+static int	exists(node_address *name, node_list const *nodes, u_int with_uid)
 {
-	return match_node_list(name, nodes->node_list_val, nodes->node_list_len);
+	return match_node_list(name, nodes->node_list_val, nodes->node_list_len, with_uid);
 }
 
 int	node_exists(node_address *name, node_list const *nodes)
 {
-	return exists(name, nodes);
+	return exists(name, nodes, FALSE);
+}
+
+int	node_exists_with_uid(node_address *name, node_list const *nodes)
+{
+	return exists(name, nodes, TRUE);
 }
 
 static u_int	added_nodes(u_int n, node_address *names, node_list *nodes)
@@ -92,7 +117,7 @@ static u_int	added_nodes(u_int n, node_address *names, node_list *nodes)
 	u_int	added = n;
 	if (nodes->node_list_val) {
 		for (i = 0; i < n; i++) {
-			if (exists(&names[i], nodes)) {
+			if (exists(&names[i], nodes, FALSE)) {
 				added--;
 			}
 		}
@@ -122,7 +147,7 @@ void	add_node_list(u_int n, node_address *names, node_list *nodes)
 			np = &nodes->node_list_val[nodes->node_list_len];
 			for (i = 0; i < n; i++) {
 				/* 			DBGOUT(FN; STREXP(names[i])); */
-				if (!exists(&names[i], nodes)) {
+				if (!exists(&names[i], nodes, FALSE)) {
 					np->address = strdup(names[i].address);
 					np->uuid.data.data_len = names[i].uuid.data.data_len;
 					if(np->uuid.data.data_len){
@@ -153,7 +178,7 @@ void	remove_node_list(u_int n, node_address *names, node_list *nodes)
 
 	np = nodes->node_list_val;
 	for (i = 0; i < nodes->node_list_len; i++) {
-                if (match_node_list(&nodes->node_list_val[i], names, n)) {
+                if (match_node_list(&nodes->node_list_val[i], names, n, FALSE)) {
 			free(nodes->node_list_val[i].address);
                         nodes->node_list_val[i].address= 0;
 			free(nodes->node_list_val[i].uuid.data.data_val);
@@ -199,6 +224,24 @@ node_address *new_node_address(u_int n, char *names[])
 {
   node_address *na = calloc(n, sizeof(node_address));
   return init_node_address(na, n, names);
+}
+
+node_address *new_node_address_uuid(u_int n, char *names[], blob uuids[])
+{
+  u_int i= 0;
+  node_address *na = calloc(n, sizeof(node_address));
+  init_node_address(na, n, names);
+
+  for(; i < n; i++)
+  {
+    na[i].uuid.data.data_len = uuids[i].data.data_len;
+    na[i].uuid.data.data_val = calloc(uuids[i].data.data_len, sizeof(char));
+    na[i].uuid.data.data_val = strncpy(
+      na[i].uuid.data.data_val, uuids[i].data.data_val, uuids[i].data.data_len
+    );
+  }
+
+  return na;
 }
 
 void delete_node_address(u_int n, node_address *na)

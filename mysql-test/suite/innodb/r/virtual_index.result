@@ -198,3 +198,16 @@ ALTER TABLE t1 ADD COLUMN col7a INT GENERATED ALWAYS AS (col1 % col2)
 VIRTUAL, ADD UNIQUE index idx (col1), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: INPLACE ADD or DROP of virtual columns cannot be combined with other ALTER TABLE actions. Try ALGORITHM=COPY.
 DROP TABLE t1;
+#
+# Bug 27122803 - BACKPORT FIX FOR BUG 25899959 TO MYSQL-5.7
+#
+CREATE TABLE t1 (col1 int(10)) DEFAULT CHARSET=utf8mb4;
+ALTER TABLE t1 ADD col2 char(21) AS (col1 * col1), ADD INDEX n (col2);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `col1` int(10) DEFAULT NULL,
+  `col2` char(21) GENERATED ALWAYS AS ((`col1` * `col1`)) VIRTUAL,
+  KEY `n` (`col2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+DROP TABLE t1;

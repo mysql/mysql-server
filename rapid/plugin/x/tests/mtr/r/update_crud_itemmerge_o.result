@@ -90,7 +90,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic"], "amount": [4.99], "last_name": ["Otero", "Ote"]}	1
@@ -146,7 +148,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic"], "amount": [4.99], "last_name": ["Otero", "Ote"], "reference": "from Mexico"}	1
@@ -202,7 +206,9 @@ send Mysqlx.Crud.Update {
 
 
 2 rows affected
-Rows matched: 2  Changed: 2  Warnings: 0
+Rows matched: 2  Changed: 2  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic"], "amount": [4.99], "last_name": ["Otero", "Ote"], "reference": "from Mexico"}	1
@@ -258,7 +264,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2"], "amount": [4.99], "last_name": ["Otero", "Ote"], "reference": "from Mexico", "applied_operator": "< with id 2"}	1
@@ -314,7 +322,9 @@ send Mysqlx.Crud.Update {
 
 
 2 rows affected
-Rows matched: 2  Changed: 2  Warnings: 0
+Rows matched: 2  Changed: 2  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2"], "amount": [4.99], "last_name": ["Otero", "Ote"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -370,7 +380,9 @@ send Mysqlx.Crud.Update {
 
 
 3 rows affected
-Rows matched: 3  Changed: 3  Warnings: 0
+Rows matched: 3  Changed: 3  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2"], "amount": [4.99], "last_name": ["Otero", "Ote"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -426,7 +438,9 @@ send Mysqlx.Crud.Update {
 
 
 4 rows affected
-Rows matched: 4  Changed: 4  Warnings: 0
+Rows matched: 4  Changed: 4  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2"], "amount": [4.99, 24.8752643], "last_name": ["Otero", "Ote", "!= 4"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -482,7 +496,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2"], "amount": [4.99, 24.8752643], "last_name": ["Otero", "Ote", "!= 4"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -538,7 +554,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2"], "amount": [4.99, 24.8752643], "last_name": ["Otero", "Ote", "!= 4"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -606,7 +624,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2"], "amount": [4.99, 24.8752643], "last_name": ["Otero", "Ote", "!= 4"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -674,7 +694,9 @@ send Mysqlx.Crud.Update {
 
 
 2 rows affected
-Rows matched: 2  Changed: 2  Warnings: 0
+Rows matched: 2  Changed: 2  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2"], "amount": [4.99, 24.8752643, 9876.543], "last_name": ["Otero", "Ote", "!= 4"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -730,7 +752,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2", 199896], "amount": [4.99, 24.8752643, 9876.543], "last_name": ["Otero", "Ote", "!= 4"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -789,7 +813,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN select * from maincoll
 doc	_id
 {"_id": "1", "name": ["Victor", "Vic", "< with id 2", "<= with id 2", 199896], "amount": [4.99, 24.8752643, 9876.543, 452.253], "last_name": ["Otero", "Ote", "!= 4"], "reference": "from Mexico", "applied_operator": ["< with id 2", "<= with id 2"]}	1
@@ -856,7 +882,9 @@ send Mysqlx.Crud.Update {
 
 
 1 rows affected
-Rows matched: 1  Changed: 1  Warnings: 0
+Rows matched: 1  Changed: 1  Warnings: 1
+Warnings generated:
+WARNING | 1287 | 'JSON_MERGE' is deprecated and will be removed in a future release. Please use JSON_MERGE_PRESERVE/JSON_MERGE_PATCH instead
 RUN COMMIT
 
 0 rows affected
@@ -967,7 +995,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge: "Missing a comma or '}' after an object member." at position 26. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "Missing a comma or '}' after an object member." at position 26. (code 3141)
 Update with item_merge with } missing at the start
 send Mysqlx.Crud.Update {
   collection {
@@ -1013,7 +1041,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge: "The document root must not follow by other values." at position 11. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "The document root must not follow by other values." at position 11. (code 3141)
 Update with missing comma
 send Mysqlx.Crud.Update {
   collection {
@@ -1059,7 +1087,7 @@ send Mysqlx.Crud.Update {
   }
 }
 
-Got expected error: Invalid JSON text in argument 2 to function json_merge: "Missing a comma or '}' after an object member." at position 19. (code 3141)
+Got expected error: Invalid JSON text in argument 2 to function json_merge_preserve: "Missing a comma or '}' after an object member." at position 19. (code 3141)
 ================================================================================
 CLEAN UP
 ================================================================================

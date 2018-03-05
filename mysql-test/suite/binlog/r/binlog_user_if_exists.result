@@ -159,6 +159,64 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localho
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*52BA180A884483D54A3CEB45FB50D4E5B8071399'
 slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u2_not_exists'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*53ED7183CBBC6D9995663DD96EFFA60E2CE2C96E'
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER u1@localhost
+#
+# Bug26680035:  CREATE/ALTER USER ERRORS OUT BUT GETS RECORDED IN
+#               THE BINARY LOG
+#
+call mtr.add_suppression("Following users were specified in CREATE USER IF NOT EXISTS but they already exist. *");
+# ------
+"Scenario 1: CREATE USER WITH INVALID PLUGIN"
+# ------
+#
+# Step 1.1) Create user with invalid plugin.
+#
+CREATE USER u1@localhost IDENTIFIED WITH 'plugin1';
+ERROR HY000: Plugin 'plugin1' is not loaded
+#
+# Step 1.2) Create user having 'if not exists' clause with invalid
+#           plugin.
+#
+CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED WITH 'plugin2';
+ERROR HY000: Plugin 'plugin2' is not loaded
+include/assert.inc [assert that the above events are not written to binlog]
+# ------
+"Scenario 2: ALTER USER WITH INVALID PLUGIN"
+# ------
+CREATE USER u2@localhost;
+#
+# Step 2.1) Alter user with invalid plugin.
+#
+ALTER USER u2@localhost IDENTIFIED WITH 'plugin3';
+ERROR HY000: Plugin 'plugin3' is not loaded
+#
+# Step 2.2) Alter user having 'if exists' clause with invalid plugin.
+#
+ALTER USER IF EXISTS u2@localhost IDENTIFIED WITH 'plugin4';
+ERROR HY000: Plugin 'plugin4' is not loaded
+include/assert.inc [assert that the above events are not written to binlog]
+# ------
+"Scenario 3: CREATE/ALTER USER INVALID PLUGIN WITH MULTIPLE USERS"
+# ------
+#
+# Step 3) Create/Alter user having multiple users with invalid plugin.
+#
+CREATE USER IF NOT EXISTS u1@localhost IDENTIFIED WITH 'shsh',
+u2@localhost IDENTIFIED BY 'pass',
+u3@localhost IDENTIFIED WITH 'sha256_password';
+ERROR HY000: Plugin 'shsh' is not loaded
+ALTER USER IF EXISTS u1@localhost IDENTIFIED WITH 'shsh',
+u2@localhost IDENTIFIED BY 'xyz',
+u3@localhost IDENTIFIED WITH 'sha256_password';
+ERROR HY000: Plugin 'shsh' is not loaded
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'u2'@'localhost' IDENTIFIED WITH 'mysql_native_password'
+slave-bin.000001	#	Query	#	#	use `test`; CREATE USER IF NOT EXISTS 'u1'@'localhost' IDENTIFIED WITH 'shsh','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7','u3'@'localhost' IDENTIFIED WITH 'sha256_password'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER IF EXISTS 'u1'@'localhost' IDENTIFIED WITH 'shsh','u2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*39C549BDECFBA8AFC3CE6B948C9359A0ECE08DE2','u3'@'localhost' IDENTIFIED WITH 'sha256_password'
+#
+# Step 4) Cleanup
+#
+DROP USER u2@localhost,u3@localhost;
 # Search warnings in the server log
 include/rpl_end.inc
 

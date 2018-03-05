@@ -2,11 +2,12 @@
 ############################################################
 ## Test mysqlxtest executable help printout
 ##
-mysqlxtest <options>
+mysqlxtest <options> [SCHEMA]
 Options:
 -f, --file=<file>     Reads input from file
 -I, --import=<dir>    Reads macro files from dir; required by -->import
 --sql=<SQL>           Use SQL as input and execute it like in -->sql block
+-e=<SQL>, --execute=<SQL> Aliases for "--sql" option
 -n, --no-auth         Skip authentication which is required by -->sql block (run mode)
 --plain-auth          Use PLAIN text authentication mechanism
 -u, --user=<user>     Connection user

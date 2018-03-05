@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -126,6 +126,8 @@ trx_init(
 	trx->id = 0;
 
 	trx->no = TRX_ID_MAX;
+
+	trx->skip_lock_inheritance = false;
 
 	trx->is_recovered = false;
 
@@ -2833,6 +2835,22 @@ trx_prepare(
 	trx_sys->n_prepared_trx++;
 	trx_sys_mutex_exit();
 	/*--------------------------------------*/
+
+	/* Force isolation level to RC and release GAP locks
+	for test purpose. */
+	DBUG_EXECUTE_IF("ib_force_release_gap_lock_prepare",
+			trx->isolation_level = TRX_ISO_READ_COMMITTED;);
+
+	/* Release read locks after PREPARE for READ COMMITTED
+	and lower isolation. */
+	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
+
+		/* Stop inheriting GAP locks. */
+		trx->skip_lock_inheritance = true;
+
+		/* Release only GAP locks for now. */
+		lock_trx_release_read_locks(trx, true);
+	}
 
 	switch (thd_requested_durability(trx->mysql_thd)) {
 	case HA_IGNORE_DURABILITY:

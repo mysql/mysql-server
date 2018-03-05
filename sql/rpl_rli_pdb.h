@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,6 +165,7 @@ typedef struct st_slave_job_group
     checkpoint_relay_log_pos= 0;
     checkpoint_seqno= (uint) -1;
     done= 0;
+    ts= 0;
 #ifndef DBUG_OFF
     notified= false;
 #endif
@@ -234,7 +235,12 @@ public:
   /**
      return the value of @c data member of the head of the queue.
   */
-  Element_type* head_queue();
+  Element_type* head_queue()
+  {
+    if (empty())
+      return NULL;
+    return &m_Q[entry];
+  }
 
   bool   gt(ulong i, ulong k); // comparision of ordering of two entities
   /* index is within the valid range */

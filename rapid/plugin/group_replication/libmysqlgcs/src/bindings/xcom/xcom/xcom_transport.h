@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ char	*xcom_get_name(char *a);
 xcom_port xcom_get_port(char *a);
 int	send_server_msg(site_def const *s, node_no i, pax_msg *p);
 double server_active(site_def const *s, node_no i);
-void update_servers(site_def *s);
+void update_servers(site_def *s, cargo_type operation);
 void garbage_collect_servers();
 int	client_task(task_arg arg);
 int	send_msg(server *s, node_no from, node_no to, uint32_t group_id, pax_msg *p);
@@ -135,6 +135,9 @@ int	send_msg(server *s, node_no from, node_no to, uint32_t group_id, pax_msg *p)
   @param[in]     s  Pointer to server.
 */
 void server_detected(server *s);
+
+void invalidate_servers(const site_def* old_site_def,
+                        const site_def* new_site_def);
 
 void shutdown_connection(connection_descriptor *con);
 void reset_connection(connection_descriptor *con);

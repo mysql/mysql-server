@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -899,13 +899,6 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   if (table_intact.check(table, &mysql_user_table_def))
     goto end;
   
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    goto end;
-  }
-
   table->use_all_columns();
   DBUG_ASSERT(combo->host.str != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
@@ -1545,13 +1538,6 @@ int replace_column_table(GRANT_TABLE *g_t,
   if (table_intact.check(table, &mysql_columns_priv_table_def))
     DBUG_RETURN(-1);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(-1);
-  }
-  
   key_part= table->key_info->key_part;
 
   table->use_all_columns();
@@ -2307,13 +2293,6 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                       user_from->user.length,
                       system_charset_info);
     
-    if (!table->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-               table->s->table_name.str);
-      DBUG_RETURN(-1);
-    }
-
     key_prefix_length= (table->key_info->key_part[0].store_length +
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);

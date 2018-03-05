@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -600,6 +600,7 @@ void my_thread_end(void);
 
 #ifdef MY_GLOBAL_INCLUDED
 ulong STDCALL net_field_length(uchar **packet);
+ulong STDCALL net_field_length_checked(uchar **packet, ulong max_length);
 my_ulonglong net_field_length_ll(uchar **packet);
 uchar *net_store_length(uchar *pkg, ulonglong length);
 unsigned int net_length_size(ulonglong num);

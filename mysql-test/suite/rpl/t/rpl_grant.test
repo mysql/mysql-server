@@ -66,6 +66,8 @@ CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
 ## create user, grant and revoke (the last command fails partially)
 --eval CREATE USER '$dbuser'@'localhost'
 --eval GRANT ALL ON $dbname.* TO '$dbuser'@'localhost'
+
+call mtr.add_suppression("\\[ERROR\\] REVOKE/GRANT failed while granting/revoking privileges in databases");
 --error ER_NONEXISTING_GRANT
 --eval REVOKE ALL ON $dbname.* FROM '$dbuser'@'localhost', 'b54866_fake_user'
 
@@ -107,6 +109,8 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 
 ## revoke should now fail and log a incident event
 --connection master
+
+call mtr.add_suppression("\\[ERROR\\] REVOKE/GRANT failed while storing table level and column level grants in the privilege tables.");
 --error ER_NONEXISTING_GRANT
 --eval REVOKE ALTER ON TABLE $dbname.t1 FROM '$dbuser'@'localhost', 'b54866_fake_user'
 
@@ -134,6 +138,7 @@ SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 --echo ##########
 
 -- connection master
+call mtr.add_suppression("\\[ERROR\\] REVOKE/GRANT failed while storing routine level grants in the privilege tables");
 DELIMITER |;
 CREATE PROCEDURE b54866_p() BEGIN SELECT 1; END|
 CREATE FUNCTION b54866_f() RETURNS INT BEGIN RETURN 1; END|
@@ -156,7 +161,6 @@ DELIMITER ;|
 --echo ##########
 
 -- connection master
-
 -- echo #### PROCEDURE ASSERTION
 --error ER_NONEXISTING_GRANT
 --eval REVOKE EXECUTE ON PROCEDURE $dbname.b54866_p FROM '$dbuser'@'localhost', 'b54866_fake_user'

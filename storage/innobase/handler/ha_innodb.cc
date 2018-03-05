@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -3646,6 +3646,8 @@ innobase_init(
 
 	/* Supports raw devices */
 	if (!srv_sys_space.parse_params(innobase_data_file_path, true)) {
+		ib::error() << "Unable to parse innodb_data_file_path="
+			    << innobase_data_file_path;
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3668,6 +3670,8 @@ innobase_init(
 	srv_tmp_space.set_flags(fsp_flags);
 
 	if (!srv_tmp_space.parse_params(innobase_temp_data_file_path, false)) {
+		ib::error() << "Unable to parse innodb_temp_data_file_path="
+			    << innobase_temp_data_file_path;
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -10696,6 +10700,24 @@ bool
 create_table_info_t::create_option_tablespace_is_valid()
 {
 	if (!m_use_shared_space) {
+		/* Do not allow creation of a temp table
+		with innodb_file_per_table option. */
+		if ((m_create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
+		    tablespace_is_file_per_table(m_create_info)) {
+			if (THDVAR(m_thd, strict_mode)) {
+				/* Return error if STRICT mode is enabled. */
+				my_printf_error(ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: innodb_file_per_table option"
+					" not supported for temporary tables.", MYF(0));
+				return(false);
+			}
+			/* STRICT mode turned off. Proceed with the
+			execution with a warning. */
+			push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: innodb_file_per_table option ignored"
+				" while creating temporary table with INNODB_STRICT_MODE=OFF.");
+		}
 		return(true);
 	}
 
@@ -15358,6 +15380,7 @@ ha_innobase::start_stmt(
 		case SQLCOM_INSERT:
 		case SQLCOM_UPDATE:
 		case SQLCOM_DELETE:
+		case SQLCOM_REPLACE:
 			init_table_handle_for_HANDLER();
 			m_prebuilt->select_lock_type = LOCK_X;
 			m_prebuilt->stored_select_lock_type = LOCK_X;

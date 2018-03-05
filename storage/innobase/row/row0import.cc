@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1782,12 +1782,6 @@ PageConverter::update_records(
 
 		rec_t*	rec = m_rec_iter.current();
 
-		/* FIXME: Move out of the loop */
-
-		if (rec_get_status(rec) == REC_STATUS_NODE_PTR) {
-			break;
-		}
-
 		ibool	deleted = rec_get_deleted_flag(rec, comp);
 
 		/* For the clustered index we have to adjust the BLOB
@@ -1886,6 +1880,10 @@ PageConverter::update_index_page(
 		}
 
 		return(DB_SUCCESS);
+	}
+
+	if (!page_is_leaf(block->frame)) {
+		return (DB_SUCCESS);
 	}
 
 	return(update_records(block));

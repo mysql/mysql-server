@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -543,15 +543,22 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   SSL_CTX_set_options(ssl_fd->ssl_context, ssl_ctx_options);
 
   /*
-    Set the ciphers that can be used
+    We explicitly prohibit weak ciphers.
     NOTE: SSL_CTX_set_cipher_list will return 0 if
     none of the provided ciphers could be selected
   */
-  strcat(cipher_list, tls_cipher_blocked);
-  if (cipher)
-    strcat(cipher_list, cipher);
-  else
-    strcat(cipher_list, tls_ciphers_list);
+  strncpy(cipher_list, tls_cipher_blocked, SSL_CIPHER_LIST_SIZE - 1);
+
+  /*
+    If ciphers are specified explicitly by caller, use them.
+    Otherwise, fallback to the default list.
+
+    In either case, we make sure we stay within the valid bounds.
+    Note that we have already consumed tls_cipher_blocked
+    worth of space.
+  */
+  strncat(cipher_list, cipher == 0 ? tls_ciphers_list : cipher,
+          SSL_CIPHER_LIST_SIZE - strlen(cipher_list) - 1);
 
   if (ret_set_cipherlist == SSL_CTX_set_cipher_list(ssl_fd->ssl_context, cipher_list))
   {

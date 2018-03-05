@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -391,7 +391,8 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
                                        modify_item);
     break;
   case Item::TYPE_HOLDER:  
-    result= ((Item_type_holder *)item)->make_field_by_type(table);
+    result= ((Item_type_holder *)item)->make_field_by_type(table,
+                                                           thd->is_strict_mode());
     if (!result)
       break;
     result->set_derivation(item->collation.derivation);
@@ -664,6 +665,12 @@ create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uint  temp_pool_slot=MY_BIT_NONE;
   uint fieldnr= 0;
   ulong reclength, string_total_length, distinct_key_length= 0;
+  /**
+    When true, enforces unique constraint (by adding a hidden hash_field and
+    creating a key over this field) when:
+    (1) unique key is too long or
+    (2) number of key parts in distinct key is too big.
+  */
   bool  using_unique_constraint= false;
   bool  use_packed_rows= false;
   bool  not_all_columns= !(select_options & TMP_TABLE_ALL_COLUMNS);
@@ -1005,7 +1012,7 @@ update_hidden:
     /*
       Calculate length of distinct key. The goal is to decide what to use -
       key or unique constraint. As blobs force unique constraint on their
-      own, they aren't taken into account.
+      own due to their length, they aren't taken into account.
     */
     if (distinct && !using_unique_constraint && hidden_field_count <= 0 &&
         new_field)

@@ -16,10 +16,10 @@
 GET_FILENAME_COMPONENT(MYSQL_CMAKE_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 
+# For windows: install .pdf file for each target.
 MACRO (INSTALL_DEBUG_SYMBOLS targets)
   IF(MSVC)
   FOREACH(target ${targets})
-    GET_TARGET_PROPERTY(location ${target} LOCATION)
     GET_TARGET_PROPERTY(type ${target} TYPE)
     IF(NOT INSTALL_LOCATION)
       IF(type MATCHES "STATIC_LIBRARY"
@@ -33,22 +33,16 @@ MACRO (INSTALL_DEBUG_SYMBOLS targets)
           "cannot determine type of ${target}. Don't now where to install")
      ENDIF()
     ENDIF()
-    STRING(REPLACE ".exe" ".pdb" pdb_location ${location})
-    STRING(REPLACE ".dll" ".pdb" pdb_location ${pdb_location})
-    STRING(REPLACE ".lib" ".pdb" pdb_location ${pdb_location})
-    IF(CMAKE_GENERATOR MATCHES "Visual Studio")
-      STRING(REPLACE
-        "${CMAKE_CFG_INTDIR}" "\${CMAKE_INSTALL_CONFIG_NAME}"
-        pdb_location ${pdb_location})
-    ENDIF()
+
     IF(target STREQUAL "mysqld")
-	  SET(comp Server)
+      SET(comp Server)
     ELSE()
       SET(comp Debuginfo)
-    ENDIF()	  
+    ENDIF()
+
     # No .pdb file for static libraries.
     IF(NOT type MATCHES "STATIC_LIBRARY")
-      INSTALL(FILES ${pdb_location}
+      INSTALL(FILES $<TARGET_PDB_FILE:${target}>
         DESTINATION ${INSTALL_LOCATION} COMPONENT ${comp})
     ENDIF()
   ENDFOREACH()
@@ -110,41 +104,112 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   SET(INSTALL_LOCATION)
 ENDFUNCTION()
 
-# Optionally install mysqld/client/embedded from debug build run. outside of the current build dir 
+# Optionally install mysqld/client/embedded from debug build run.
+# outside of the current build dir
 # (unless multi-config generator is used like Visual Studio or Xcode). 
 # For single-config generators like Makefile generators we default Debug
 # build directory to ${buildroot}/../debug.
 GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)
-SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL "Directory of debug build")
+SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL
+  "Directory of debug build")
 
 
 FUNCTION(INSTALL_DEBUG_TARGET target)
- MYSQL_PARSE_ARGUMENTS(ARG
-  "DESTINATION;RENAME;PDB_DESTINATION;COMPONENT;SUFFIX"
-  ""
-  ${ARGN}
-  )
+  MYSQL_PARSE_ARGUMENTS(ARG
+    "DESTINATION;RENAME;COMPONENT"
+    ""
+    ${ARGN}
+    )
+
+  # Relevant only for RelWithDebInfo builds
+  IF(BUILD_IS_SINGLE_CONFIG AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    RETURN()
+  ENDIF()
+
   GET_TARGET_PROPERTY(target_type ${target} TYPE)
+  GET_TARGET_PROPERTY(target_name ${target} DEBUG_OUTPUT_NAME)
+  IF(NOT target_name)
+    GET_TARGET_PROPERTY(target_name ${target} OUTPUT_NAME)
+    IF(NOT target_name)
+      SET(target_name "${target}")
+    ENDIF()
+  ENDIF()
+
+  # On windows we install client libraries
+  IF(target_type STREQUAL "STATIC_LIBRARY")
+    SET(debug_target_location
+      "${CMAKE_BINARY_DIR}/archive_output_directory/Debug/${target_name}.lib")
+    # On UNIX we install mysqlserver which has name libmysqld.a
+    IF(UNIX)
+      IF(BUILD_IS_SINGLE_CONFIG)
+        SET(debug_target_location
+          "${DEBUGBUILDDIR}/archive_output_directory/lib${target_name}.a")
+      ELSE()
+        SET(debug_target_location
+          "${CMAKE_BINARY_DIR}/archive_output_directory/Debug/lib${target_name}.a")
+      ENDIF()
+      MESSAGE(STATUS
+        "library target ${target} debug_target ${debug_target_location}")
+    ENDIF()
+  # mysqld or mysqld-debug
+  ELSEIF(target_type STREQUAL "EXECUTABLE")
+    GET_TARGET_PROPERTY(runtime_output_directory ${target}
+      RUNTIME_OUTPUT_DIRECTORY)
+    IF(NOT runtime_output_directory)
+      MESSAGE(FATAL_ERROR "unknown executable!!")
+    ENDIF()
+
+    STRING(REPLACE
+      "${CMAKE_BINARY_DIR}/" "" RELATIVE_DIR ${runtime_output_directory})
+
+    SET(EXE_SUFFIX "${CMAKE_EXECUTABLE_SUFFIX}")
+    IF(BUILD_IS_SINGLE_CONFIG)
+      SET(debug_target_location
+        "${DEBUGBUILDDIR}/${RELATIVE_DIR}/${target_name}${EXE_SUFFIX}")
+    ELSE()
+      SET(debug_target_location
+        "${CMAKE_BINARY_DIR}/${RELATIVE_DIR}/Debug/${target_name}${EXE_SUFFIX}")
+    ENDIF()
+    MESSAGE(STATUS
+      "executable target ${target} debug_target ${debug_target_location}")
+
+  # Plugins and components
+  ELSEIF(target_type STREQUAL "MODULE_LIBRARY")
+    SET(DLL_SUFFIX "${CMAKE_SHARED_LIBRARY_SUFFIX}")
+    IF(APPLE)
+      SET(DLL_SUFFIX ".so") # we do not use .dylib
+    ENDIF()
+    GET_TARGET_PROPERTY(
+      target_output_directory ${target}  LIBRARY_OUTPUT_DIRECTORY)
+    IF(NOT target_output_directory)
+      MESSAGE(FATAL_ERROR "unknown module!!")
+    ENDIF()
+
+    STRING(REPLACE
+      "${CMAKE_BINARY_DIR}/" "" RELATIVE_DIR ${target_output_directory})
+
+    IF(BUILD_IS_SINGLE_CONFIG)
+      SET(debug_target_location
+        "${DEBUGBUILDDIR}/${RELATIVE_DIR}/${target_name}${DLL_SUFFIX}")
+    ELSE()
+      SET(debug_target_location
+        "${CMAKE_BINARY_DIR}/${RELATIVE_DIR}/Debug/${target_name}${DLL_SUFFIX}")
+    ENDIF()
+    # MESSAGE(STATUS
+    # "module target ${target} debug_target ${debug_target_location}")
+  ENDIF()
+
+  # This is only used for mysqld / mysqld-debug / libmysqlserver.a
   IF(ARG_RENAME)
-    SET(RENAME_PARAM RENAME ${ARG_RENAME}${CMAKE_${target_type}_SUFFIX})
+    SET(RENAME_PARAM RENAME ${ARG_RENAME})
   ELSE()
     SET(RENAME_PARAM)
   ENDIF()
+
   IF(NOT ARG_DESTINATION)
     MESSAGE(FATAL_ERROR "Need DESTINATION parameter for INSTALL_DEBUG_TARGET")
   ENDIF()
-  GET_TARGET_PROPERTY(target_location ${target} LOCATION)
-  IF(BUILD_IS_SINGLE_CONFIG)
-   STRING(REPLACE "${CMAKE_BINARY_DIR}" "${DEBUGBUILDDIR}"  debug_target_location "${target_location}")
-  ELSE()
-   STRING(REPLACE "${CMAKE_CFG_INTDIR}" "Debug"  debug_target_location "${target_location}" )
-  ENDIF()
-  IF(ARG_SUFFIX) 
-    GET_FILENAME_COMPONENT(ext ${debug_target_location} EXT)
-    GET_FILENAME_COMPONENT(fn  ${debug_target_location} NAME_WE)
-    STRING(REPLACE "${fn}${ext}" "${fn}${ARG_SUFFIX}${ext}"
-           debug_target_location "${debug_target_location}" )
-  ENDIF()
+
   IF(NOT ARG_COMPONENT)
     SET(ARG_COMPONENT DebugBinaries)
   ENDIF()
@@ -187,20 +252,18 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
     COMPONENT ${ARG_COMPONENT}
     OPTIONAL)
 
-  IF(MSVC)
+  # For windows, install .pdb files for .exe and .dll files.
+  IF(MSVC AND NOT target_type STREQUAL "STATIC_LIBRARY")
     GET_FILENAME_COMPONENT(ext ${debug_target_location} EXT)
-    STRING(REPLACE "${ext}" ".pdb"  debug_pdb_target_location "${debug_target_location}" )
+    STRING(REPLACE "${ext}" ".pdb"
+      debug_pdb_target_location "${debug_target_location}" )
     IF (RENAME_PARAM)
-      IF(NOT ARG_PDB_DESTINATION)
-        STRING(REPLACE "${ext}" ".pdb"  "${ARG_RENAME}" pdb_rename)
-        SET(PDB_RENAME_PARAM RENAME "${pdb_rename}")
-      ENDIF()
+      STRING(REPLACE "${ext}" ".pdb"  pdb_rename "${ARG_RENAME}")
+      SET(PDB_RENAME_PARAM RENAME "${pdb_rename}")
     ENDIF()
-    IF(NOT ARG_PDB_DESTINATION)
-      SET(ARG_PDB_DESTINATION "${ARG_DESTINATION}")
-    ENDIF()
+
     INSTALL(FILES ${debug_pdb_target_location}
-      DESTINATION ${ARG_PDB_DESTINATION}
+      DESTINATION ${ARG_DESTINATION}
       ${PDB_RENAME_PARAM}
       CONFIGURATIONS Release RelWithDebInfo
       COMPONENT ${ARG_COMPONENT}

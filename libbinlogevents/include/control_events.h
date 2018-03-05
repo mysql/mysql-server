@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1227,7 +1227,8 @@ public:
   virtual ~Transaction_context_event();
 
   static const char *read_data_set(const char *pos, uint32_t set_len,
-                                   std::list<const char*> *set);
+                                   std::list<const char*> *set,
+                                   uint32_t remaining_buffer);
 
   static void clear_set(std::list<const char*> *set);
 
@@ -1332,7 +1333,8 @@ public:
   virtual ~View_change_event();
 
   static char *read_data_map(char *pos, uint32_t map_len,
-                             std::map<std::string, std::string> *map);
+                             std::map<std::string, std::string> *map,
+                             uint32_t consumable);
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream& info) { }

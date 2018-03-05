@@ -80,6 +80,7 @@ LOCK TABLE t1 WRITE;
 UNLOCK TABLES;
 
 # Workers encounter duplicate error and abort coordinator
+--let $slave_sql_errno= convert_error(ER_DUP_ENTRY)
 --source include/wait_for_slave_sql_to_stop.inc
 
 SET GLOBAL slave_parallel_workers = @save_slave_parallel_workers;

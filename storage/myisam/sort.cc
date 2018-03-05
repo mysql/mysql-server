@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
   them in sorted order through SORT_INFO functions.
 */
 
+#include <algorithm>
+
 #include "fulltext.h"
 #if defined(_WIN32)
 #include <fcntl.h>
@@ -35,6 +37,19 @@
 #define MERGEBUFF2 31
 #define MYF_RW  MYF(MY_NABP | MY_WME | MY_WAIT_IF_FULL)
 #define DISK_BUFFER_SIZE (IO_SIZE*16)
+
+
+class Key_compare :
+  public std::binary_function<const uchar*, const uchar*, bool>
+{
+public:
+  Key_compare(MI_SORT_PARAM *param) : info(param) {}
+  bool operator()(const uchar *a, const uchar *b)
+  {
+    return info->key_cmp(info, &a, &b) < 0;
+  }
+  MI_SORT_PARAM *info;
+};
 
 
 /*
@@ -581,8 +596,8 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
         length= (size_t)param->sort_buffer_length;
         while (length >= MIN_SORT_BUFFER)
         {
-          if ((mergebuf= my_malloc(PSI_NOT_INSTRUMENTED,
-                                   length, MYF(0))))
+          if ((mergebuf= (uchar *) my_malloc(PSI_NOT_INSTRUMENTED,
+                                             length, MYF(0))))
               break;
           length=length*3/4;
         }
@@ -669,8 +684,8 @@ static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys,
   uint sort_length=info->key_length;
   DBUG_ENTER("write_keys");
 
-  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
-            info);
+  std::sort(sort_keys, sort_keys + count, Key_compare(info));
+
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
@@ -712,8 +727,8 @@ static int write_keys_varlen(MI_SORT_PARAM *info,
   int err;
   DBUG_ENTER("write_keys_varlen");
 
-  my_qsort2((uchar*) sort_keys,count,sizeof(uchar*),(qsort2_cmp) info->key_cmp,
-            info);
+  std::sort(sort_keys, sort_keys + count, Key_compare(info));
+
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, my_tmpdir(info->tmpdir), "ST",
                        DISK_BUFFER_SIZE, info->sort_info->param->myf_rw))
@@ -754,8 +769,8 @@ static int write_index(MI_SORT_PARAM *info, uchar **sort_keys,
 {
   DBUG_ENTER("write_index");
 
-  my_qsort2((uchar*) sort_keys,(size_t) count,sizeof(uchar*),
-           (qsort2_cmp) info->key_cmp,info);
+  std::sort(sort_keys, sort_keys + count, Key_compare(info));
+
   while (count--)
   {
     if ((*info->key_write)(info,*sort_keys++))

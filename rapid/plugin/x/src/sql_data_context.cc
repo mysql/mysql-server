@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -250,6 +250,7 @@ ngs::Error_code Sql_data_context::authenticate(const char *user, const char *hos
       data.com_init_db.length = static_cast<unsigned long>(strlen(db));
 
       m_callback_delegate.reset();
+
       if (command_service_run_command(m_mysql_session, COM_INIT_DB, &data, mysqld::get_charset_utf8mb4_general_ci(),
                                       m_callback_delegate.callbacks(), m_callback_delegate.representation(), &m_callback_delegate))
         return ngs::Error_code(ER_NO_DB_ERROR, "Could not set database");
@@ -265,7 +266,7 @@ ngs::Error_code Sql_data_context::authenticate(const char *user, const char *hos
         host_or_ip.c_str(), host_or_ip.length());
 #endif // HAVE_PSI_THREAD_INTERFACE
 
-    return ngs::Error_code();
+    return error;
   }
 
   log_error("Unable to switch context to user %s", user);

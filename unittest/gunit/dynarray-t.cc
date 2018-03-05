@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,13 +91,7 @@ static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
 namespace dynarray_unittest {
 
 // We still want to unit-test this, to compare performance.
-#undef my_init_dynamic_array
-extern "C" 
-my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
-                              PSI_memory_key key,
-                              uint element_size,
-                              void *init_buffer, uint init_alloc,
-                              uint alloc_increment);
+
 /*
   Cut'n paste this function from sql_select.cc,
   to avoid linking in the entire server for this unit test.

@@ -20971,6 +20971,54 @@ static void test_bug19894382()
   mysql_stmt_close(stmt1);
 }
 
+static void test_bug25701141()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  MYSQL_BIND my_bind[2];
+  char query[MAX_TEST_QUERY_LENGTH];
+  const char* input1= "abcdefgh";
+  const char* input2=  "mnopqrst";
+  const ulong type = CURSOR_TYPE_READ_ONLY;
+
+  myheader("test_bug25701141");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "CREATE TABLE t1( "
+      "id INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,"
+      "serial CHAR(10) NOT NULL,"
+      "pretty CHAR(20) DEFAULT NULL,"
+      "CONSTRAINT UNIQUE KEY unique_serial (serial) USING HASH,"
+      "INDEX pretty_index USING HASH (pretty)"
+      ") ENGINE = InnoDB CHARSET = utf8 COLLATE = utf8_bin");
+  myquery(rc);
+
+  my_stpcpy(query, "INSERT IGNORE INTO t1 SET `serial`=?, `pretty`=?");
+  stmt= mysql_simple_prepare(mysql, query);
+  check_stmt(stmt);
+
+  memset(my_bind, 0, sizeof(my_bind));
+  my_bind[0].buffer_type = MYSQL_TYPE_STRING;
+  my_bind[0].buffer = (char*)input1;
+  my_bind[0].buffer_length = (ulong)strlen(input1);
+
+  my_bind[1].buffer_type = MYSQL_TYPE_STRING;
+  my_bind[1].buffer = (char*)input2;
+  my_bind[1].buffer_length = (ulong)strlen(input2);
+
+  rc= mysql_stmt_bind_param(stmt, my_bind);
+  check_execute(stmt, rc);
+  mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, &type);
+
+  /* Execute */
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  myquery(mysql_query(mysql, "DROP TABLE t1"));
+}
 
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
@@ -21266,6 +21314,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug22559575", test_bug22559575 },
   { "test_bug19894382", test_bug19894382 },
   { "test_bug22028117", test_bug22028117 },
+  { "test_bug25701141", test_bug25701141 },
   { 0, 0 }
 };
 
