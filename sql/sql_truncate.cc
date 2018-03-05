@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -402,7 +402,7 @@ bool Truncate_statement::lock_table(THD *thd, TABLE_LIST *table_ref,
     m_ticket_downgrade= table->mdl_ticket;
     /* Close if table is going to be recreated. */
     if (*hton_can_recreate)
-      close_all_tables_for_name(thd, table->s, FALSE);
+      close_all_tables_for_name(thd, table->s, FALSE, NULL);
   }
   else
   {

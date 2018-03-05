@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 #include "sql_table.h"                       // mysql_alter_table,
                                              // mysql_exchange_partition
 #include "sql_alter.h"
+
+bool has_external_data_or_index_dir(partition_info &pi);
 
 bool Alter_table_statement::execute(THD *thd)
 {
@@ -42,6 +44,16 @@ bool Alter_table_statement::execute(THD *thd)
 
   if (thd->is_fatal_error) /* out of memory creating a copy of alter_info */
     DBUG_RETURN(TRUE);
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  {
+    partition_info *part_info= thd->lex->part_info;
+    if (part_info != NULL && has_external_data_or_index_dir(*part_info) &&
+        check_access(thd, FILE_ACL, any_db, NULL, NULL, FALSE, FALSE))
+
+      DBUG_RETURN(TRUE);
+  }
+#endif
   /*
     We also require DROP priv for ALTER TABLE ... DROP PARTITION, as well
     as for RENAME TO, as being done by SQLCOM_RENAME_TABLE

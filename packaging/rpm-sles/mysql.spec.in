@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -446,14 +446,6 @@ rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -rf %{buildroot}%{_bindir}/mysql_setpermission
 rm -rf %{buildroot}%{_mandir}/man1/mysql_setpermission.1*
 
-# Remove obsoleted man pages
-rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
-rm -f %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1
-rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
-rm -f %{buildroot}%{_mandir}/man1/mysqltest_embedded.1
-
 # rcmysql symlink
 install -d %{buildroot}%{_sbindir}
 ln -sf %{_initrddir}/mysql %{buildroot}%{_sbindir}/rcmysql
@@ -742,6 +734,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
 %changelog
+* Wed Jan 10 2018 Bjorn Munch <bjorn.munch@oracle.com> - 5.5.60-1
+- No longer need to remove obsoleted mysqltest man pages
+
 * Tue Oct 31 2017 Bjorn Munch <bjorn.munch@oracle.com> - 5.5.59-1
 - Remove obsoleted mysqltest man pages
 

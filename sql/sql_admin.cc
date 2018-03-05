@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -172,7 +172,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       goto end;
-    close_all_tables_for_name(thd, table_list->table->s, FALSE);
+    close_all_tables_for_name(thd, table_list->table->s, FALSE, NULL);
     table_list->table= 0;
   }
   /*
