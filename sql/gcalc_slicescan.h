@@ -144,6 +144,8 @@ public:
     Info *result= (Info *)new_item();
     if (!result)
       return NULL;
+    if (!m_hook)
+      return NULL;
     *m_hook= result;
     m_hook= &result->next;
     m_n_points++;

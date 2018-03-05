@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,14 +29,26 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/sql/backup
 )
 
-SET(GEN_SOURCES
-  ${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
-  ${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
-  ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-  ${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+# We should generate these separately for libmysqld to avoid
+# compiling them for libmysqld while they are generated for sql.
+SET(GEN_YACC_SOURCES
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
 )
 
-SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED TRUE)
+SET(GEN_SOURCES
+  ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
+  COMMAND gen_lex_hash > lex_hash.h
+  DEPENDS gen_lex_hash
+)
+
+SET_SOURCE_FILES_PROPERTIES(${GEN_YACC_SOURCES}
+                            ${GEN_SOURCES}
+                            PROPERTIES GENERATED TRUE)
 
 FOREACH(file ${SQL_EXPORTED_SOURCES})
   LIST(APPEND IMPORTED_SOURCES "../sql/${file}")
@@ -48,6 +60,7 @@ SET(SQL_EMBEDDED_SOURCES
   libmysqld.c
   ${GEN_SOURCES}
   ${MYSYS_LIBWRAP_SOURCE}
+  ${GEN_YACC_SOURCES}
   ../client/get_password.c
   ../libmysql/errmsg.c
   ../libmysql/libmysql.c
@@ -79,9 +92,45 @@ SET(SQL_EMBEDDED_SOURCES
 )
 
 
+
+# Handle out-of-source build from source package with possibly broken 
+# bison. Copy bison output to from source to build directory, if not already 
+# there
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+COPY_BISON_OUTPUT(
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
+RUN_BISON(
+  ${CMAKE_SOURCE_DIR}/sql/sql_yacc.yy 
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
+  COMMAND gen_lex_token > lex_token.h
+  DEPENDS gen_lex_token
+)
+
+SET_SOURCE_FILES_PROPERTIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/sql/lex_token.h
+  PROPERTIES GENERATED 1)
+
+SET_SOURCE_FILES_PROPERTIES(
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+  ${CMAKE_SOURCE_DIR}/sql/sql_digest.cc
+  PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/lex_token.h
+)
+
+ADD_CUSTOM_TARGET(GenYaccEmbeddedSource DEPENDS ${GEN_YACC_SOURCES})
+
 ADD_CONVENIENCE_LIBRARY(sql_embedded ${SQL_EMBEDDED_SOURCES})
 DTRACE_INSTRUMENT(sql_embedded)
-ADD_DEPENDENCIES(sql_embedded GenError GenServerSource)
+ADD_DEPENDENCIES(sql_embedded GenError GenServerSource GenYaccEmbeddedSource)
 
 # On Windows, static embedded server library is called mysqlserver.lib
 # On Unix, it is libmysqld.a
@@ -93,8 +142,8 @@ ENDIF()
 
 
 SET(LIBS 
-  dbug strings regex mysys mysys_ssl vio 
-  ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
+  dbug strings regex mysys mysys_ssl vio
+  ${ZLIB_LIBRARY} ${SSL_LIBRARIES}
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${MYSQLD_STATIC_PLUGIN_LIBS}
   sql_embedded
@@ -111,6 +160,8 @@ FOREACH(LIB ${LIBS})
     LIST(APPEND EMBEDDED_LIBS ${LIB})
   ENDIF()
 ENDFOREACH()
+
+LIST(REMOVE_DUPLICATES EMBEDDED_LIBS)
 
 MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS} 
   OUTPUT_NAME ${MYSQLSERVER_OUTPUT_NAME} COMPONENT Embedded)
@@ -145,7 +196,7 @@ IF(WITH_EMBEDDED_SHARED_LIBRARY)
     )
 
   GET_TARGET_PROPERTY(libmysqld_link_flags libmysqld LINK_FLAGS)
-  IF(NOT libmysqld_link_flag)
+  IF(NOT libmysqld_link_flags)
     SET(libmysqld_link_flags)
   ENDIF()
   SET(libmysqld_link_flags

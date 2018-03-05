@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,6 +50,7 @@
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include <algorithm>
+#include <sstream>
 
 using std::min;
 using std::max;
@@ -768,12 +769,6 @@ public:
     while ((bytes= fread(buf, 1, sizeof(buf), m_file)) > 0)
       fwrite(buf, 1, bytes, stderr);
 
-    if (!lines)
-    {
-      fprintf(stderr,
-              "\nMore results from queries before failure can be found in %s\n",
-              m_file_name);
-    }
     fflush(stderr);
 
     DBUG_VOID_RETURN;
@@ -7849,8 +7844,8 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
   /* Init dynamic strings for warnings */
   if (!disable_warnings)
   {
-    init_dynamic_string(&ds_prepare_warnings, NULL, 0, 256);
-    init_dynamic_string(&ds_execute_warnings, NULL, 0, 256);
+    init_dynamic_string(&ds_prepare_warnings, "", 0, 256);
+    init_dynamic_string(&ds_execute_warnings, "", 0, 256);
   }
 
   /*
@@ -7954,13 +7949,6 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
       append_stmt_result(ds, stmt, fields, num_fields);
 
       mysql_free_result(res);     /* Free normal result set with meta data */
-
-      /*
-        Clear prepare warnings if there are execute warnings,
-        since they are probably duplicated.
-      */
-      if (ds_execute_warnings.length || mysql->warning_count)
-        dynstr_set(&ds_prepare_warnings, NULL);
     }
     else
     {
@@ -7992,8 +7980,26 @@ void run_query_stmt(MYSQL *mysql, struct st_command *command,
           dynstr_append_mem(ds, ds_warnings->str,
                             ds_warnings->length);
         if (ds_prepare_warnings.length)
-          dynstr_append_mem(ds, ds_prepare_warnings.str,
-                            ds_prepare_warnings.length);
+        {
+          /* Split the string to get each warning */
+          std::stringstream prepare_warnings(ds_prepare_warnings.str);
+          std::string prepare_warning;
+          /*
+            If the warning is already present in the execute phase,
+            do not append it
+          */
+          while (std::getline(prepare_warnings, prepare_warning))
+          {
+            std::string execute_warnings(ds_execute_warnings.str);
+            if ((execute_warnings + "\n").find(prepare_warning + "\n") ==
+                std::string::npos)
+            {
+              dynstr_append_mem(ds, prepare_warning.c_str(),
+                                prepare_warning.length());
+              dynstr_append_mem(ds, "\n", 1);
+            }
+          }
+        }
         if (ds_execute_warnings.length)
           dynstr_append_mem(ds, ds_execute_warnings.str,
                             ds_execute_warnings.length);

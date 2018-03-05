@@ -319,55 +319,76 @@ START SLAVE PASSWORD='secret';
 --let $slave_io_errno=1593
 --source include/wait_for_slave_io_error.inc
 
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
 --source include/stop_slave.inc
 TRUNCATE mysql.general_log;
 START SLAVE USER='root' PASSWORD='secret';
 --let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START SLAVE IO_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START SLAVE IO_THREAD, SQL_THREAD USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START SLAVE IO_THREAD, SQL_THREAD UNTIL MASTER_LOG_FILE='dummy-log.000001', MASTER_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 TRUNCATE mysql.general_log;
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval START SLAVE IO_THREAD, SQL_THREAD UNTIL RELAY_LOG_FILE='dummy-log.000001', RELAY_LOG_POS=116 USER='root' PASSWORD='secret' DEFAULT_AUTH= 'auth_test_plugin' PLUGIN_DIR= '$PLUGIN_AUTH_DIR'
 --let $rewritten= `SELECT argument FROM mysql.general_log WHERE argument LIKE "%PASSWORD = '<secret>'%"`
 # execute it to see if the rewrite generated a (syntatically) valid command 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 --replace_result $PLUGIN_AUTH_DIR PLUGIN_AUTH_DIR
 --eval $rewritten
 
---source include/stop_slave.inc
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
+--source include/wait_for_slave_io_error.inc
+--source include/stop_slave_sql.inc
 
 --enable_warnings
 

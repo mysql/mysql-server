@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1074,6 +1074,8 @@ protected:
 
     va_end(args);
   }
+public:
+  Acl_table_intact() { has_keys= TRUE; }
 };
 
 #define IP_ADDR_STRLEN (3 + 1 + 3 + 1 + 3 + 1 + 3)
@@ -2738,13 +2740,6 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(1);
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(1);
-  }
-
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
@@ -2763,7 +2758,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
   mysql_mutex_assert_owner(&acl_cache->lock);
   table->use_all_columns();
-  DBUG_ASSERT(host != '\0');
+  DBUG_ASSERT(host != 0);
   table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
                                              system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
@@ -3205,7 +3200,7 @@ update_user_table(THD *thd, TABLE *table,
   if (!is_user_table_positioned)
   {
     table->use_all_columns();
-    DBUG_ASSERT(host != '\0');
+    DBUG_ASSERT(host != 0);
     table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
 					       system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
@@ -3340,15 +3335,8 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   if (table_intact.check(table, &mysql_user_table_def))
     goto end;
 
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    goto end;
-  }
- 
   table->use_all_columns();
-  DBUG_ASSERT(combo->host.str != '\0');
+  DBUG_ASSERT(combo->host.str != 0);
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                              system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -3439,7 +3427,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     old_row_exists = 0;
     restore_record(table,s->default_values);
-    DBUG_ASSERT(combo->host.str != '\0');
+    DBUG_ASSERT(combo->host.str != 0);
     table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                                system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -4445,13 +4433,6 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   if (table_intact.check(table, &mysql_columns_priv_table_def))
     DBUG_RETURN(-1);
-
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(-1);
-  }
 
   key_part= table->key_info->key_part;
 
@@ -7626,13 +7607,6 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     host_field->store(host_str, user_from->host.length, system_charset_info);
     user_field->store(user_str, user_from->user.length, system_charset_info);
 
-    if (!table->key_info)
-    {
-      my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-               table->s->table_name.str);
-      DBUG_RETURN(-1);
-    }
-     
     key_prefix_length= (table->key_info->key_part[0].store_length +
                         table->key_info->key_part[1].store_length);
     key_copy(user_key, table->record[0], table->key_info, key_prefix_length);
@@ -8671,13 +8645,6 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
 
   if (table_intact.check(table, &mysql_user_table_def))
     DBUG_RETURN(true);
-
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
-             table->s->table_name.str);
-    DBUG_RETURN(true);
-  }
 
   /*
     This statement will be replicated as a statement, even when using
