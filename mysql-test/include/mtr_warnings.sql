@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2016, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -250,6 +250,12 @@ INSERT INTO global_suppressions VALUES
   Warnings related to --secure-file-priv
  */
  ("Insecure configuration for --secure-file-priv:*"),
+
+ /*
+  Bug#26585560, warning related to --pid-file
+ */
+ ("Insecure configuration for --pid-file:*"),
+ ("Few location(s) are inaccessible while checking PID filepath"),
 
  ("THE_LAST_SUPPRESSION")||
 

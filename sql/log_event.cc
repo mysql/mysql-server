@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4214,6 +4214,25 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   db= (char *)start;
   query= (char *)(start + db_len + 1);
   q_len= data_len - db_len -1;
+
+  if (data_len && (data_len < db_len ||
+                   data_len < q_len ||
+                   data_len != (db_len + q_len + 1)))
+  {
+    q_len= 0;
+    query= NULL;
+    DBUG_VOID_RETURN;
+  }
+
+  unsigned int max_length;
+  max_length= (event_len - ((const char*)(end + db_len + 1) -
+                            (buf - common_header_len)));
+  if (q_len != max_length)
+  {
+    q_len= 0;
+    query= NULL;
+    DBUG_VOID_RETURN;
+  }
   /**
     Append the db length at the end of the buffer. This will be used by
     Query_cache::send_result_to_client() in case the query cache is On.
@@ -4613,6 +4632,26 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     you.
   */
   thd->catalog= catalog_len ? (char *) catalog : (char *)"";
+
+  size_t valid_len;
+  bool len_error;
+  bool is_invalid_db_name= validate_string(system_charset_info, db, db_len,
+                                           &valid_len, &len_error);
+
+  DBUG_PRINT("debug",("is_invalid_db_name= %s, valid_len=%zu, len_error=%s",
+                      is_invalid_db_name ? "true" : "false",
+                      valid_len,
+                      len_error ? "true" : "false"));
+
+  if (is_invalid_db_name || len_error)
+  {
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Invalid database name in Query event.");
+    thd->is_slave_error= true;
+    goto end;
+  }
+
   set_thd_db(thd, db, db_len);
 
   /*
@@ -4792,7 +4831,23 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       }
       else
         thd->variables.collation_database= thd->db_charset;
-      
+
+      {
+        const CHARSET_INFO *cs= thd->charset();
+        /*
+          We cannot ask for parsing a statement using a character set
+          without state_maps (parser internal data).
+        */
+        if (!cs->state_map)
+        {
+          rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                      "character_set cannot be parsed");
+          thd->is_slave_error= true;
+          goto end;
+        }
+      }
+
       thd->table_map_for_update= (table_map)table_map_for_update;
       thd->set_invoker(&user, &host);
       /*
@@ -5323,7 +5378,13 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
     */
     break;
   default:
-    /* this case is impossible */
+    /*
+      This case is not expected. It can be either an event corruption or an
+      unsupported binary log version.
+    */
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Binlog version not supported");
     DBUG_RETURN(1);
   }
   DBUG_RETURN(error);
@@ -6252,6 +6313,9 @@ int Load_log_event::copy_log_event(const char *buf, ulong event_len,
 
   fields = (char*)field_lens + num_fields;
   table_name  = fields + field_block_len;
+  if (strlen(table_name) > NAME_LEN)
+    goto err;
+
   db = table_name + table_name_len + 1;
   DBUG_EXECUTE_IF ("simulate_invalid_address",
                    db_len = data_len;);
@@ -7705,6 +7769,13 @@ User_var_log_event(const char* buf, uint event_len,
   buf+= description_event->common_header_len +
     description_event->post_header_len[USER_VAR_EVENT-1];
   name_len= uint4korr(buf);
+  /* Avoid reading out of buffer */
+  if ((buf - buf_start) + UV_NAME_LEN_SIZE + name_len > event_len)
+  {
+    error= true;
+    goto err;
+  }
+
   name= (char *) buf + UV_NAME_LEN_SIZE;
 
   /*
@@ -7764,6 +7835,11 @@ User_var_log_event(const char* buf, uint event_len,
       we keep the flags set to UNDEF_F.
     */
     uint bytes_read= ((val + val_len) - start);
+    if (bytes_read > event_len)
+    {
+      error= true;
+      goto err;
+    }
 #ifndef DBUG_OFF
     bool old_pre_checksum_fd= description_event->is_version_before_checksum();
 #endif
@@ -7995,7 +8071,12 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
+  {
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                "Invalid character set for User var event");
     return 1;
+  }
   double real_val;
   longlong int_val;
 
@@ -8013,12 +8094,26 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   {
     switch (type) {
     case REAL_RESULT:
+      if (val_len != 8)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        return 1;
+      }
       float8get(real_val, val);
       it= new Item_float(real_val, 0);
       val= (char*) &real_val;		// Pointer to value in native format
       val_len= 8;
       break;
     case INT_RESULT:
+      if (val_len != 8)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        return 1;
+      }
       int_val= (longlong) uint8korr(val);
       it= new Item_int(int_val);
       val= (char*) &int_val;		// Pointer to value in native format
@@ -8026,6 +8121,13 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       break;
     case DECIMAL_RESULT:
     {
+      if (val_len < 3)
+      {
+        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                    ER_THD(thd, ER_SLAVE_FATAL_ERROR),
+                    "Invalid variable length at User var event");
+        return 1;
+      }
       Item_decimal *dec= new Item_decimal((uchar*) val+2, val[0], val[1]);
       it= dec;
       val= (char *)dec->val_decimal(NULL);
@@ -9451,7 +9553,15 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
       which includes length bytes
     */
     var_header_len= uint2korr(post_start);
-    assert(var_header_len >= 2);
+    /* Check length and also avoid out of buffer read */
+    if (var_header_len < 2 ||
+        event_len < static_cast<unsigned int>(var_header_len +
+                                              (post_start - buf)))
+    {
+      m_cols.bitmap= NULL;
+      DBUG_VOID_RETURN;
+    }
+
     var_header_len-= 2;
 
     /* Iterate over var-len header, extracting 'chunks' */
@@ -9497,6 +9607,15 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   DBUG_PRINT("debug", ("Reading from %p", ptr_after_width));
   m_width = net_field_length(&ptr_after_width);
   DBUG_PRINT("debug", ("m_width=%lu", m_width));
+  /* Avoid reading out of buffer */
+  if (static_cast<unsigned int>((ptr_after_width +
+                                 (m_width + 7) / 8) -
+                                 (uchar*)buf) > event_len)
+  {
+    m_cols.bitmap= NULL;
+    DBUG_VOID_RETURN;
+  }
+
   /* if bitmap_init fails, catched in is_valid() */
   if (likely(!bitmap_init(&m_cols,
                           m_width <= sizeof(m_bitbuf)*8 ? m_bitbuf : NULL,
@@ -9546,7 +9665,13 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
 
   const uchar* const ptr_rows_data= (const uchar*) ptr_after_width;
 
-  size_t const data_size= event_len - (ptr_rows_data - (const uchar *) buf);
+  size_t const read_size= ptr_rows_data - (const unsigned char *) buf;
+  if (read_size > event_len)
+  {
+    DBUG_VOID_RETURN;
+  }
+
+  size_t const data_size= event_len - read_size;
   DBUG_PRINT("info",("m_table_id: %llu  m_flags: %d  m_width: %lu  data_size: %lu",
                      m_table_id.id(), m_flags, m_width, (ulong) data_size));
 
@@ -10249,7 +10374,13 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
 
   if (!m_curr_row_end && !error)
   {
+    const uchar *previous_m_curr_row= m_curr_row;
     error= unpack_current_row(rli, &m_cols);
+
+    if (!error && previous_m_curr_row == m_curr_row)
+    {
+      error= 1;
+    }
   }
 
   // at this moment m_curr_row_end should be set
@@ -12093,6 +12224,15 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
                      (ulong) m_tbllen, (long) (ptr_tbllen-(const uchar*)vpart),
                      m_colcnt, (long) (ptr_colcnt-(const uchar*)vpart)));
 
+  bytes_read= (unsigned int) (ptr_after_colcnt - (unsigned char *)buf);
+  /* Avoid reading out of buffer */
+  if (event_len <= bytes_read || event_len - bytes_read < m_colcnt)
+  {
+    m_coltype= NULL;
+    m_memory= NULL;
+    DBUG_VOID_RETURN;
+  }
+
   /* Allocate mem for all fields in one go. If fails, caught in is_valid() */
   m_memory= (uchar*) my_multi_malloc(MYF(MY_WME),
                                      &m_dbnam, (uint) m_dblen + 1,
@@ -12113,15 +12253,24 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     if (bytes_read < event_len)
     {
       m_field_metadata_size= net_field_length(&ptr_after_colcnt);
-      DBUG_ASSERT(m_field_metadata_size <= (m_colcnt * 2));
-      uint num_null_bytes= (m_colcnt + 7) / 8;
-      m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
-                                     &m_null_bits, num_null_bytes,
-                                     &m_field_metadata, m_field_metadata_size,
-                                     NULL);
-      memcpy(m_field_metadata, ptr_after_colcnt, m_field_metadata_size);
-      ptr_after_colcnt= (uchar*)ptr_after_colcnt + m_field_metadata_size;
-      memcpy(m_null_bits, ptr_after_colcnt, num_null_bytes);
+      if (m_field_metadata_size <= (m_colcnt * 2))
+      {
+        uint num_null_bytes= (m_colcnt + 7) / 8;
+        m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
+                                       &m_null_bits, num_null_bytes,
+                                       &m_field_metadata, m_field_metadata_size,
+                                       NULL);
+        memcpy(m_field_metadata, ptr_after_colcnt, m_field_metadata_size);
+        ptr_after_colcnt= (uchar*)ptr_after_colcnt + m_field_metadata_size;
+        memcpy(m_null_bits, ptr_after_colcnt, num_null_bytes);
+      }
+      else
+      {
+        m_coltype= NULL;
+        my_free(m_memory);
+        m_memory= NULL;
+        DBUG_VOID_RETURN;
+      }
     }
   }
 
@@ -12131,8 +12280,10 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
 Table_map_log_event::~Table_map_log_event()
 {
-  my_free(m_meta_memory);
-  my_free(m_memory);
+  if (m_meta_memory != NULL)
+    my_free(m_meta_memory);
+  if (m_memory != NULL)
+    my_free(m_memory);
 }
 
 /*
@@ -12735,6 +12886,22 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
   /* unpack row into table->record[0] */
   if ((error= unpack_current_row(rli, &m_cols)))
     DBUG_RETURN(error);
+
+  /*
+    When m_curr_row == m_curr_row_end, it means a row that contains nothing,
+    so all the pointers shall be pointing to the same address, or else
+    we have corrupt data and shall throw the error.
+  */
+  DBUG_PRINT("debug",("m_rows_buf= %p, m_rows_cur= %p, m_rows_end= %p",
+                      m_rows_buf, m_rows_cur, m_rows_end));
+  DBUG_PRINT("debug",("m_curr_row= %p, m_curr_row_end= %p",
+                      m_curr_row, m_curr_row_end));
+  if (m_curr_row == m_curr_row_end &&
+      !((m_rows_buf == m_rows_cur) && (m_rows_cur == m_rows_end)))
+  {
+    my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
+    DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
+  }
 
   if (m_curr_row == m_rows_buf)
   {
@@ -13424,6 +13591,8 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
   uint8 const post_header_len=
     descr_event->post_header_len[ROWS_QUERY_LOG_EVENT-1];
 
+  m_rows_query= NULL;
+
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 
@@ -13431,8 +13600,12 @@ Rows_query_log_event::Rows_query_log_event(const char *buf, uint event_len,
    m_rows_query length is stored using only one byte, but that length is
    ignored and the complete query is read.
   */
-  int offset= common_header_len + post_header_len + 1;
-  int len= event_len - offset;
+  unsigned int offset= common_header_len + post_header_len + 1;
+  /* Avoid reading out of buffer */
+  if (offset > event_len)
+    DBUG_VOID_RETURN;
+
+  unsigned int len= event_len - offset;
   if (!(m_rows_query= (char*) my_malloc(len+1, MYF(MY_WME))))
     return;
   strmake(m_rows_query, buf + offset, len);
