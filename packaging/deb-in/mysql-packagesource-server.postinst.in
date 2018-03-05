@@ -23,7 +23,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 . /usr/share/debconf/confmodule
-. /usr/share/mysql/mysql-helpers
+. /usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-helpers
 take_upstart_job_backup () {
 	if [ -e "/etc/init/mysql.conf" ] && [ -d "/var/lib/mysql" ];
 	then
