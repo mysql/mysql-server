@@ -5862,7 +5862,6 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   Uint32 i;
   Properties * props= ctx.m_config;
   Properties p_connections(true);
-  Properties p_connections2(true);
 
   for (i = 0;; i++){
     const Properties * tmp;
@@ -5871,12 +5870,9 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     if(!props->get("Connection", i, &tmp)) break;
 
     if(!tmp->get("NodeId1", &nodeId1)) continue;
-    p_connections.put("", nodeId1, nodeId1);
     if(!tmp->get("NodeId2", &nodeId2)) continue;
-    p_connections.put("", nodeId2, nodeId2);
-
-    p_connections2.put("", nodeId1 + (nodeId2<<16), nodeId1);
-    p_connections2.put("", nodeId2 + (nodeId1<<16), nodeId2);
+    p_connections.put("", nodeId1 + (nodeId2<<16), nodeId1);
+    p_connections.put("", nodeId2 + (nodeId1<<16), nodeId2);
   }
 
   Uint32 nNodes;
@@ -5909,7 +5905,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   for (i= 0; p_db_nodes.get("", i, &nodeId1); i++){
     for (Uint32 j= i+1;; j++){
       if(!p_db_nodes.get("", j, &nodeId2)) break;
-      if(!p_connections2.get("", nodeId1+(nodeId2<<16), &dummy)) 
+      if(!p_connections.get("", nodeId1+(nodeId2<<16), &dummy)) 
       {
 	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,false))
 	  goto err;
@@ -5918,10 +5914,12 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   }
 
   // API -> DB
-  for (i= 0; p_api_nodes.get("", i, &nodeId1); i++){
-    if(!p_connections.get("", nodeId1, &dummy)) {
-      for (Uint32 j= 0;; j++){
-	if(!p_db_nodes.get("", j, &nodeId2)) break;
+  for (i= 0; p_api_nodes.get("", i, &nodeId1); i++)
+  {
+    for (Uint32 j= 0; p_db_nodes.get("", j, &nodeId2); j++)
+    {
+      if(!p_connections.get("", nodeId1+(nodeId2<<16), &dummy))
+      {
 	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,false))
 	  goto err;
       }
@@ -5929,10 +5927,12 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   }
 
   // MGM -> DB
-  for (i= 0; p_mgm_nodes.get("", i, &nodeId1); i++){
-    if(!p_connections.get("", nodeId1, &dummy)) {
-      for (Uint32 j= 0;; j++){
-	if(!p_db_nodes.get("", j, &nodeId2)) break;
+  for (i= 0; p_mgm_nodes.get("", i, &nodeId1); i++)
+  {
+    for (Uint32 j= 0; p_db_nodes.get("", j, &nodeId2); j++)
+    {
+      if(!p_connections.get("", nodeId1+(nodeId2<<16), &dummy))
+      {
 	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,0))
 	  goto err;
       }
@@ -5943,7 +5943,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   for (i= 0; p_mgm_nodes.get("", i, &nodeId1); i++){
     for (Uint32 j= i+1;; j++){
       if(!p_mgm_nodes.get("", j, &nodeId2)) break;
-      if(!p_connections2.get("", nodeId1+(nodeId2<<16), &dummy))
+      if(!p_connections.get("", nodeId1+(nodeId2<<16), &dummy))
       {
 	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,0))
 	  goto err;
