@@ -78,8 +78,8 @@ static const ulint TABLE_LOCK_CACHE = 8;
 /** Size in bytes, of the table lock instance */
 static const ulint TABLE_LOCK_SIZE = sizeof(ib_lock_t);
 
-/** Switch to VATS if the number of threads waiting is above this threshold. */
-static const int LOCK_VATS_THRESHOLD = 32;
+/** Switch to CATS if the number of threads waiting is above this threshold. */
+static const int LOCK_CATS_THRESHOLD = 32;
 
 using Locks = std::vector<std::pair<lock_t *, size_t>,
                           mem_heap_allocator<std::pair<lock_t *, size_t>>>;
@@ -1215,14 +1215,14 @@ static bool lock_use_fcfs(const trx_t *trx) {
   ut_ad(lock_mutex_own());
 
   return (thd_is_replication_slave_thread(trx->mysql_thd) ||
-          lock_sys->n_waiting < LOCK_VATS_THRESHOLD);
+          lock_sys->n_waiting < LOCK_CATS_THRESHOLD);
 }
 
 /** Insert lock record to the head of the queue.
 @param[in,out]	lock_hash	Hash table containing the locks
 @param[in,out]	lock		Record lock instance to insert
 @param[in]	rec_fold	Hash fold */
-static void lock_rec_insert_vats(hash_table_t *lock_hash, lock_t *lock,
+static void lock_rec_insert_cats(hash_table_t *lock_hash, lock_t *lock,
                                  ulint rec_fold) {
   ut_ad(lock_mutex_own());
 
@@ -1355,7 +1355,7 @@ void RecLock::lock_add(lock_t *lock, bool add_to_hash) {
     ++lock->index->table->n_rec_locks;
 
     if (!lock_use_fcfs(lock->trx) && !wait) {
-      lock_rec_insert_vats(lock_hash, lock, key);
+      lock_rec_insert_cats(lock_hash, lock, key);
 
     } else {
       HASH_INSERT(lock_t, hash, lock_hash, key, lock);
@@ -2251,7 +2251,7 @@ static void lock_rec_cancel(
 @param[in]	new_granted_index	Start of new granted locks
 @return	true if the lock has to wait for another lock in granted_locks */
 template <typename Container>
-static bool lock_rec_has_to_wait_vats(
+static bool lock_rec_has_to_wait_cats(
     const typename Container::value_type &wait_lock, const Container &granted,
     size_t new_granted_index)
 
@@ -2274,13 +2274,7 @@ static bool lock_rec_has_to_wait_vats(
 
     ut_ad(wait_lock.second != granted[i].second);
 
-    if (wait_lock.first->trx->error_state == DB_DEADLOCK ||
-        granted_lock->trx->lock.was_chosen_as_deadlock_victim) {
-      /* Ignore transactions being rolled back. */
-
-      continue;
-
-    } else if (wait_lock.second < granted[i].second) {
+    if (wait_lock.second < granted[i].second) {
       break;
 
     } else if (lock_has_to_wait(wait_lock.first, granted_lock)) {
@@ -2304,7 +2298,7 @@ static bool lock_rec_has_to_wait_vats(
 }
 
 /** Lock priority comparator. */
-struct VATS_Lock_priority {
+struct CATS_Lock_priority {
   /** Check if LHS has higher priority than RHS.
   @param[in]	lhs	Lock to compare priority
   @param[in]	rhs	Lock to compare priority
@@ -2346,7 +2340,7 @@ struct VATS_Lock_priority {
 @param[in]		in_lock		Lock to check
 @param[in]		heap_no		Heap number within the page on which
                                         the lock was held */
-static void lock_grant_vats(hash_table_t *hash, lock_t *in_lock,
+static void lock_grant_cats(hash_table_t *hash, lock_t *in_lock,
                             ulint heap_no) {
   ut_ad(lock_mutex_own());
   ut_ad(in_lock->is_record_lock());
@@ -2384,8 +2378,8 @@ static void lock_grant_vats(hash_table_t *hash, lock_t *in_lock,
     return;
   }
 
-  /* Reorder the record lock wait queue on the VATS priority. */
-  std::sort(waiting.begin(), waiting.end(), VATS_Lock_priority());
+  /* Reorder the record lock wait queue on the CATS priority. */
+  std::sort(waiting.begin(), waiting.end(), CATS_Lock_priority());
 
   int32_t sub_age = 0;
   int32_t add_age = 0;
@@ -2420,12 +2414,12 @@ static void lock_grant_vats(hash_table_t *hash, lock_t *in_lock,
     const auto trx = lock->trx;
     const auto age = trx->age + 1;
 
-    if (!lock_rec_has_to_wait_vats(wait_lock, granted_all, new_granted_index)) {
+    if (!lock_rec_has_to_wait_cats(wait_lock, granted_all, new_granted_index)) {
       lock_grant(lock);
 
       HASH_DELETE(lock_t, hash, hash, rec_id.fold(), lock);
 
-      lock_rec_insert_vats(hash, lock, rec_id.fold());
+      lock_rec_insert_cats(hash, lock, rec_id.fold());
 
       new_granted.push_back(wait_lock);
       granted_all.push_back(std::make_pair(lock, 0));
@@ -2510,7 +2504,7 @@ static void lock_rec_grant(lock_t *in_lock, bool use_fcfs) {
   } else {
     for (ulint heap_no = 0; heap_no < lock_rec_get_n_bits(in_lock); ++heap_no) {
       if (lock_rec_get_nth_bit(in_lock, heap_no)) {
-        lock_grant_vats(lock_hash, in_lock, heap_no);
+        lock_grant_cats(lock_hash, in_lock, heap_no);
       }
     }
   }
@@ -4128,7 +4122,7 @@ static void lock_rec_unlock_grant(trx_t *trx, lock_t *first_lock, lock_t *lock,
       }
     }
   } else {
-    lock_grant_vats(lock_sys->rec_hash, lock, heap_no);
+    lock_grant_cats(lock_sys->rec_hash, lock, heap_no);
   }
 }
 
