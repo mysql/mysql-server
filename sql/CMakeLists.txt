@@ -338,6 +338,7 @@ SET(SQL_SHARED_SOURCES
   key_spec.cc
   keycaches.cc
   lock.cc
+  locked_tables_list.cc
   locking_service.cc
   log.cc
   mdl.cc

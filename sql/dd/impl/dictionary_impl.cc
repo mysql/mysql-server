@@ -425,11 +425,10 @@ bool has_exclusive_table_mdl(THD *thd, const char *schema_name,
 }
 
 bool acquire_exclusive_tablespace_mdl(THD *thd, const char *tablespace_name,
-                                      bool no_wait) {
-  // When requesting a tablespace name lock, we leave the schema name empty.
+                                      bool no_wait, MDL_ticket **ticket) {
   return acquire_mdl(thd, MDL_key::TABLESPACE, "", tablespace_name, no_wait,
                      thd->variables.lock_wait_timeout, MDL_EXCLUSIVE,
-                     MDL_TRANSACTION, NULL);
+                     MDL_TRANSACTION, ticket);
 }
 
 bool acquire_shared_tablespace_mdl(THD *thd, const char *tablespace_name,
@@ -612,4 +611,10 @@ template const Object_table &get_dd_table<dd::Partition>();
 template const Object_table &get_dd_table<dd::Table>();
 template const Object_table &get_dd_table<dd::Tablespace>();
 
+void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst) {
+  if (!thd->locked_tables_mode) {
+    return;
+  }
+  thd->locked_tables_list.add_rename_tablespace_mdls(src, dst);
+}
 }  // namespace dd
