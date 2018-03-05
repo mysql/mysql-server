@@ -6297,6 +6297,23 @@ void meb_fil_name_process(const char *name, space_id_t space_id) {
   ut_free(file_name);
 }
 
+/** Test, if a file path name contains a back-link ("../").
+We assume a path to a file. So we don't check for a trailing "/..".
+@param[in]	path		path to check
+@return	whether the path contains a back-link.
+ */
+static bool meb_has_back_link(const std::string &path) {
+#ifdef _WIN32
+  static const std::string DOT_DOT_SLASH = "..\\";
+  static const std::string SLASH_DOT_DOT_SLASH = "\\..\\";
+#else
+  static const std::string DOT_DOT_SLASH = "../";
+  static const std::string SLASH_DOT_DOT_SLASH = "/../";
+#endif /* _WIN32 */
+  return ((0 == path.compare(0, 3, DOT_DOT_SLASH)) ||
+          (std::string::npos != path.find(SLASH_DOT_DOT_SLASH)));
+}
+
 /** Parse a file name retrieved from a MLOG_FILE_* record,
 and return the absolute file path corresponds to backup dir
 as well as in the form of database/tablespace
@@ -6313,10 +6330,15 @@ static void meb_make_abs_file_path(const std::string &name, ulint flags,
   Datafile df;
   std::string file_name = name;
 
-  if (Fil_path::is_absolute_path(file_name.c_str())) {
+  /* If the tablespace path name is absolute or has back-links ("../"),
+  we assume, that it is located outside of datadir. */
+  if (Fil_path::is_absolute_path(file_name.c_str()) ||
+      (meb_has_back_link(file_name) && !replay_in_datadir)) {
     if (replay_in_datadir) {
+      /* This is an apply-log in the restored datadir. Take the path as is. */
       df.set_filepath(file_name.c_str());
     } else {
+      /* This is an apply-log in backup_dir/datadir. Get the file inside. */
       auto pos = file_name.rfind(OS_PATH_SEPARATOR);
 
       /* if it is file per tablespace, then include the schema
@@ -6339,6 +6361,9 @@ static void meb_make_abs_file_path(const std::string &name, ulint flags,
     }
 
   } else {
+    /* This is an apply-log with a relative path, either in the restored
+    datadir, or in backup_dir/datadir. If in the restored datadir, the
+    path might start with "../" to reach outside of datadir. */
     auto pos = file_name.find(OS_PATH_SEPARATOR);
 
     /* Remove the cur dir from the path as this will cause the
@@ -6350,7 +6375,12 @@ static void meb_make_abs_file_path(const std::string &name, ulint flags,
       file_name = file_name.substr(pos);
     }
 
-    df.make_filepath(MySQL_datadir_path, file_name.c_str(), IBD);
+    /* make_filepath() does not prepend the directory, if the file name
+    starts with "../". Prepend it unconditionally here. */
+    file_name.insert(0, 1, OS_PATH_SEPARATOR);
+    file_name.insert(0, MySQL_datadir_path);
+
+    df.make_filepath(nullptr, file_name.c_str(), IBD);
   }
 
   df.set_flags(flags);
