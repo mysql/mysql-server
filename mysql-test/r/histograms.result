@@ -3112,3 +3112,18 @@ should_be_true
 SET cte_max_recursion_depth = DEFAULT;
 SET histogram_generation_max_mem_size = DEFAULT;
 DROP TABLE t1;
+#
+# Bug#27637968 PROVIDE A DEFAULT NUMBER OF BUCKETS FOR HISTOGRAM
+#              STATISTICS
+#
+CREATE TABLE t1 (col1 INT);
+INSERT INTO t1 VALUES (10), (20), (30);
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	status	Histogram statistics created for column 'col1'.
+SELECT JSON_EXTRACT(histogram, '$."number-of-buckets-specified"')
+FROM INFORMATION_SCHEMA.column_statistics
+WHERE table_name = "t1" AND column_name = "col1";
+JSON_EXTRACT(histogram, '$."number-of-buckets-specified"')
+100
+DROP TABLE t1;
