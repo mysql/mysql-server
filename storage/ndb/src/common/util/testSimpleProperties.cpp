@@ -77,10 +77,10 @@ struct Test {
 static const
 SimpleProperties::SP2StructMapping
 test_map [] = {
-  { 1, offsetof(Test, val1), SimpleProperties::Uint32Value, 0, (Uint32)~0, 0 },
-  { 7, offsetof(Test, val7), SimpleProperties::Uint32Value, 0, (Uint32)~0, 0 },
-  { 3, offsetof(Test, val3), SimpleProperties::StringValue, 0, 100, 0 },
-  { 5,                    0, SimpleProperties::InvalidValue, 0, 0, 0 }
+  { 1, offsetof(Test, val1), SimpleProperties::Uint32Value,  0, 0 },
+  { 7, offsetof(Test, val7), SimpleProperties::Uint32Value,  0, 0 },
+  { 3, offsetof(Test, val3), SimpleProperties::StringValue,  0, 0 },
+  { 5,                    0, SimpleProperties::InvalidValue, 0, 0 }
 };
 
 static unsigned
