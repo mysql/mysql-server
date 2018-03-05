@@ -596,6 +596,9 @@ PFS_thread *create_thread(PFS_thread_class *klass,
     PFS_events_stages *child_stage = &pfs->m_stage_current;
     child_stage->m_nesting_event_id = 0;
 
+    /* No current stage. */
+    child_stage->m_class = NULL;
+
     pfs->m_events_statements_count = 0;
     pfs->m_transaction_current.m_event_id = 0;
 
