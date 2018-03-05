@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2173,7 +2173,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           error= -1;
           goto err;
         }
-        close_all_tables_for_name(thd, table->table->s, TRUE);
+        close_all_tables_for_name(thd, table->table->s, TRUE, NULL);
         table->table= 0;
       }
 
@@ -6284,8 +6284,9 @@ int mysql_fast_or_online_alter_table(THD *thd,
   strcpy(db, altered_table->s->db.str);
   strcpy(new_name, table->s->table_name.str);
   strcpy(new_db, table->s->db.str);
-  close_all_tables_for_name(thd, table->s, FALSE);
-                            // new_name != table_name || new_db != db);
+  close_all_tables_for_name(thd, table->s, FALSE,
+                            // new_name != table_name || new_db != db
+                            NULL);
 /*
   wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME);
   close_data_files_and_morph_locks(thd,
@@ -7273,7 +7274,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       */
       if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
         goto err;
-      close_all_tables_for_name(thd, table->s, TRUE);
+      close_all_tables_for_name(thd, table->s, TRUE, NULL);
       /*
         Then, we want check once again that target table does not exist.
         Actually the order of these two steps does not matter since
@@ -7417,6 +7418,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     changes only" means also that the handler for the table does not
     change. The table is open and locked. The handler can be accessed.
   */
+
   if (need_copy_table == ALTER_TABLE_INDEX_CHANGED)
   {
     int   pk_changed= 0;
@@ -7951,6 +7953,19 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   thd->count_cuted_fields= CHECK_FIELD_WARN;	// calc cuted fields
   thd->cuted_fields=0L;
   copied=deleted=0;
+
+  if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+      thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)
+  {
+    /*
+      Temporarily close the TABLE instances belonging to this
+      thread except the one to be used for ALTER TABLE.
+
+      This is mostly needed to satisfy InnoDB assumptions/asserts.
+    */
+     close_all_tables_for_name(thd, table->s, false, table);
+  }
+
   /*
     We do not copy data for MERGE tables. Only the children have data.
     MERGE tables have HA_NO_COPY_ON_ALTER set.
@@ -8224,7 +8239,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   }
 
   close_all_tables_for_name(thd, table->s,
-                            new_name != table_name || new_db != db);
+                            new_name != table_name || new_db != db, NULL);
 
   error=0;
   table_list->table= table= 0;                  /* Safety */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1096,7 +1096,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
         result= TRUE;
         goto err_with_reopen;
       }
-      close_all_tables_for_name(thd, table->s, FALSE);
+      close_all_tables_for_name(thd, table->s, FALSE, NULL);
     }
   }
 
@@ -1367,13 +1367,16 @@ static void close_open_tables(THD *thd)
                      In that case the documented behaviour is to
                      implicitly remove the table from LOCK TABLES
                      list.
+  @param[in] skip_table
+                     TABLE instance that should be kept open.
 
   @pre Must be called with an X MDL lock on the table.
 */
 
 void
 close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                          bool remove_from_locked_tables)
+                          bool remove_from_locked_tables,
+                          TABLE *skip_table)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length= share->table_cache_key.length;
@@ -1389,7 +1392,8 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     TABLE *table= *prev;
 
     if (table->s->table_cache_key.length == key_length &&
-        !memcmp(table->s->table_cache_key.str, key, key_length))
+        !memcmp(table->s->table_cache_key.str, key, key_length) &&
+        table != skip_table)
     {
 #ifndef MCP_WL3749
       if (table->pos_in_locked_tables)
@@ -1405,7 +1409,8 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       mysql_lock_remove(thd, thd->lock, table);
 
       /* Inform handler that table will be dropped after close */
-      if (table->db_stat) /* Not true for partitioned tables. */
+      if (table->db_stat && /* Not true for partitioned tables. */
+          skip_table == NULL)
         table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
       close_thread_table(thd, prev);
     }
@@ -1415,9 +1420,12 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       prev= &table->next;
     }
   }
+
+  if (skip_table == NULL) {
   /* Remove the table share from the cache. */
   tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name,
                    FALSE);
+  }
   DBUG_VOID_RETURN;
 }
 

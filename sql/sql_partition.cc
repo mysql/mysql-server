@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6629,7 +6629,7 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   THD *thd= lpt->thd;
 
   if (lpt->old_table)
-    close_all_tables_for_name(thd, lpt->old_table->s, FALSE);
+    close_all_tables_for_name(thd, lpt->old_table->s, FALSE, NULL);
   if (lpt->table)
   {
     /*
@@ -6666,7 +6666,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt, bool close_old)
   }
   if (close_old && lpt->old_table)
   {
-    close_all_tables_for_name(lpt->thd, lpt->old_table->s, FALSE);
+    close_all_tables_for_name(lpt->thd, lpt->old_table->s, FALSE, NULL);
     lpt->old_table= 0;
   }
   DBUG_RETURN(0);

@@ -79,7 +79,7 @@ SET (SQL_SOURCE
                sql_profile.cc event_parse_data.cc sql_alter.cc
                sql_signal.cc rpl_handler.cc mdl.cc sql_admin.cc
                transaction.cc sys_vars.cc sql_truncate.cc datadict.cc
-               sql_reload.cc
+               sql_reload.cc ../sql-common/my_path_permissions.cc
                ${GEN_SOURCES}
                ${CONF_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})

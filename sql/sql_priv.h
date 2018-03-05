@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,6 +191,11 @@ template <class T> T available_buffer(const char* buf_start,
                                       const char* buf_current,
                                       T buf_len)
 {
+  /* Sanity check */
+  if (buf_current < buf_start ||
+      buf_len < static_cast<T>(buf_current - buf_start))
+    return static_cast<T>(0);
+
   return buf_len - (buf_current - buf_start);
 }
 

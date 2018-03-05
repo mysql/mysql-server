@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,7 +83,8 @@ retry:
   do { /* PTR() isn't necessary below, head is a dummy node */
     cursor->curr= (LF_SLIST *)(*cursor->prev);
     _lf_pin(pins, 1, cursor->curr);
-  } while (*cursor->prev != (intptr)cursor->curr && LF_BACKOFF);
+  } while (my_atomic_loadptr((void**)cursor->prev) != cursor->curr &&
+                              LF_BACKOFF);
   for (;;)
   {
     if (unlikely(!cursor->curr))
@@ -97,7 +98,7 @@ retry:
     cur_hashnr= cursor->curr->hashnr;
     cur_key= cursor->curr->key;
     cur_keylen= cursor->curr->keylen;
-    if (*cursor->prev != (intptr)cursor->curr)
+    if (my_atomic_loadptr((void**)cursor->prev) != cursor->curr)
     {
       (void)LF_BACKOFF;
       goto retry;
