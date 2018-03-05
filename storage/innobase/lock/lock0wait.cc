@@ -298,7 +298,11 @@ void lock_wait_suspend_thread(
     thd_wait_begin(trx->mysql_thd, THD_WAIT_TABLE_LOCK);
   }
 
+  DEBUG_SYNC_C("lock_wait_will_wait");
+
   os_event_wait(slot->event);
+
+  DEBUG_SYNC_C("lock_wait_has_finished_waiting");
 
   thd_wait_end(trx->mysql_thd);
 
