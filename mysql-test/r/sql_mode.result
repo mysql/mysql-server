@@ -36,6 +36,8 @@ t1	CREATE TABLE "t1" (
   UNIQUE KEY "email" ("email") USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_table_options";
+Warnings:
+Warning	3090	Changing sql mode 'NO_TABLE_OPTIONS' is deprecated. It will be removed in a future release.
 show variables like 'sql_mode';
 Variable_name	Value
 sql_mode	NO_TABLE_OPTIONS
@@ -49,6 +51,8 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `email` (`email`) USING BTREE
 )
 set @@sql_mode="no_key_options";
+Warnings:
+Warning	3090	Changing sql mode 'NO_KEY_OPTIONS' is deprecated. It will be removed in a future release.
 show variables like 'sql_mode';
 Variable_name	Value
 sql_mode	NO_KEY_OPTIONS
@@ -62,6 +66,8 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `email` (`email`)
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 set @@sql_mode="no_field_options,mysql323,mysql40";
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS,MYSQL323,MYSQL40' is deprecated. It will be removed in a future release.
 show variables like 'sql_mode';
 Variable_name	Value
 sql_mode	NO_FIELD_OPTIONS,MYSQL323,MYSQL40,HIGH_NOT_PRECEDENCE
@@ -77,6 +83,7 @@ t1	CREATE TABLE `t1` (
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 select @@sql_mode;
 @@sql_mode
 PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,POSTGRESQL,ORACLE,MSSQL,DB2,MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,NO_AUTO_CREATE_USER
@@ -106,6 +113,8 @@ t1	CREATE TABLE `t1` (
   `c` binary(10) DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1
 set @@sql_mode="mysql323";
+Warnings:
+Warning	3090	Changing sql mode 'MYSQL323' is deprecated. It will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -114,6 +123,8 @@ t1	CREATE TABLE `t1` (
   `c` binary(10) DEFAULT NULL
 ) TYPE=ENGINE
 set @@sql_mode="mysql40";
+Warnings:
+Warning	3090	Changing sql mode 'MYSQL40' is deprecated. It will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -159,6 +170,8 @@ t1	CREATE TABLE "t1" (
   PRIMARY KEY ("f1")
 )
 set session sql_mode=no_field_options;
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -482,6 +495,8 @@ select @@sql_mode;
 @@sql_mode
 STRICT_ALL_TABLES
 set sql_mode=16384+(65536*4);
+Warnings:
+Warning	3090	Changing sql mode 'NO_TABLE_OPTIONS' is deprecated. It will be removed in a future release.
 select @@sql_mode;
 @@sql_mode
 REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,NO_TABLE_OPTIONS,ANSI
@@ -506,6 +521,8 @@ xb	x
 xcx
 drop table t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 create user mysqltest_32753@localhost;
 set @OLD_SQL_MODE=@@SESSION.SQL_MODE;
 set session sql_mode='PAD_CHAR_TO_FULL_LENGTH';
@@ -514,6 +531,8 @@ select current_user();
 current_user()
 mysqltest_32753@localhost
 set session sql_mode=@OLD_SQL_MODE;
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 flush privileges;
 drop user mysqltest_32753@localhost;
 SET @org_mode=@@sql_mode;
@@ -526,6 +545,7 @@ SELECT @@sql_mode LIKE '%NO_ENGINE_SUBSTITUTION%';
 SET sql_mode=@org_mode;
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1,t2;
 CREATE USER 'user_PCTFL'@'localhost' identified by 'PWD';
 CREATE USER 'user_no_PCTFL'@'localhost' identified by 'PWD';
@@ -537,6 +557,8 @@ SET @OLD_SQL_MODE = @@SESSION.SQL_MODE;
 SET SESSION SQL_MODE = 'PAD_CHAR_TO_FULL_LENGTH';
 DROP USER 'user_PCTFL'@'localhost';
 SET SESSION SQL_MODE = @OLD_SQL_MODE;
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 DROP USER 'user_no_PCTFL'@'localhost';
 FLUSH PRIVILEGES;
 SELECT * FROM mysql.db WHERE Host = 'localhost' AND User LIKE 'user_%PCTFL';
@@ -749,6 +771,8 @@ wxyz\_ef
 DROP TABLE test_table;
 DROP FUNCTION test_function;
 SET @@sql_mode= @org_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 
 #End of Test for Bug#12601974
 #
@@ -781,6 +805,8 @@ ERROR_FOR_DIVISION_BY_ZERO
 # Restore sql mode
 #
 SET sql_mode= @org_mode;
+Warnings:
+Warning	3090	Changing sql mode 'NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 #
 # Check that NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes
 # are removed in triggers after upgrading to 5.7.

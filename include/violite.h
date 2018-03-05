@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -338,4 +338,11 @@ struct st_vio
   char    *shared_memory_pos;
 #endif /* _WIN32 && !EMBEDDED_LIBRARY */
 };
+
+#ifdef HAVE_OPENSSL
+#define SSL_handle SSL*
+#else
+#define SSL_handle void*
+#endif
+
 #endif /* vio_violite_h_ */

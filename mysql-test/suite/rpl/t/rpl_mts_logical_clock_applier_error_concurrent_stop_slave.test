@@ -47,6 +47,7 @@ INSERT INTO child VALUES (3,1);
 INSERT INTO child VALUES (4,1);
 
 --source include/sync_slave_sql_with_master.inc
+--source include/stop_slave_sql.inc
 
 #
 # Block MTS worker and put coordinator to wait on logical clock
@@ -63,6 +64,7 @@ DELETE FROM parent WHERE a=3;
 # Wait until coordinator is waiting to schedule transactions
 #
 --source include/sync_slave_io_with_master.inc
+--source include/start_slave_sql.inc
 --let $slave_param= Slave_SQL_Running_State
 --let $slave_param_value= Waiting for dependent transaction to commit
 --source include/wait_for_slave_param.inc
@@ -70,6 +72,7 @@ DELETE FROM parent WHERE a=3;
 # Stop slave and cleanup the blocking
 #
 --disable_warnings
+--let $slave_sql_errno= convert_error(ER_LOCK_WAIT_TIMEOUT)
 --source include/stop_slave_sql.inc
 --enable_warnings
 --source include/rpl_connection_slave1.inc

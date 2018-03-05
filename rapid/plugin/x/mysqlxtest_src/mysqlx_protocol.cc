@@ -836,10 +836,12 @@ Message *XProtocol::recv_payload(const int mid, const std::size_t msglen)
 
     if (!ret_val->IsInitialized())
     {
-      delete[] mbuf;
-      delete ret_val;
       std::string err("Message is not properly initialized: ");
       err += ret_val->InitializationErrorString();
+
+      delete[] mbuf;
+      delete ret_val;
+
       throw Error(CR_MALFORMED_PACKET, err);
     }
   }

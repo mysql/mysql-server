@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -473,6 +473,10 @@ typedef struct st_mi_sort_param
 
 extern mysql_mutex_t THR_LOCK_myisam;
 
+#ifdef  __cplusplus
+extern "C" {
+#endif
+
 	/* Some extern variables */
 
 extern LIST *myisam_open_list;
@@ -633,6 +637,10 @@ extern int _mi_pack_rec_unpack(MI_INFO *info, MI_BIT_BUFF *bit_buff,
 extern ulonglong mi_safe_mul(ulonglong a,ulonglong b);
 extern int _mi_ft_update(MI_INFO *info, uint keynr, uchar *keybuf,
 			 const uchar *oldrec, const uchar *newrec, my_off_t pos);
+
+#ifdef __cplusplus
+}
+#endif
 
 struct st_sort_info;
 

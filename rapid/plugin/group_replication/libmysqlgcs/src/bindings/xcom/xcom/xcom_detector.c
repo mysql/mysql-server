@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,11 +40,31 @@ extern int	xcom_shutdown;
 
 /* static double	detected[NSERVERS]; */
 
+static struct{
+  int changed;
+  uint32_t id[NSERVERS];
+}id_tracker;
+
+void update_xcom_id(node_no node, uint32_t id){
+  if(node < NSERVERS && id_tracker.id[node] != id){
+    id_tracker.changed = 1;
+    id_tracker.id[node] = id;
+  }
+}
+
+static int xcom_id_changed(){
+  return id_tracker.changed;
+}
+
+static void reset_id_changed(){
+  id_tracker.changed = 0;
+}
+
 /* See if node has been suspiciously still for some time */
 int	may_be_dead(detector_state const ds, node_no i, double seconds)
 {
-  /* DBGOUT(FN; NDBG(i,u); NDBG(ds[i] < seconds - 2.0, d)); */
-  return ds[i] < seconds - 2.0;
+  /* DBGOUT(FN; NDBG(i,u); NDBG(ds[i] < seconds - 4.0, d)); */
+  return ds[i] < seconds - 4.0;
 }
 
 void init_detector(detector_state ds)
@@ -189,7 +209,6 @@ static void	check_global_node_set(site_def *site, int *notify)
 	}
 }
 
-
 static void	check_local_node_set(site_def *site, int *notify)
 {
 	u_int i;
@@ -267,10 +286,10 @@ int	detector_task(task_arg arg MY_ATTRIBUTE((unused)))
 	END_ENV;
 
 	TASK_BEGIN
-	    last_p_site = 0;
-	 	last_x_site = 0;
-	    ep->notify = 1;
-	    ep->local_notify = 1;
+	last_p_site = 0;
+	last_x_site = 0;
+	ep->notify = 1;
+	ep->local_notify = 1;
 	DBGOHK(FN; );
 	while (!xcom_shutdown) {
 		site_def * p_site = (site_def * )get_proposer_site();
@@ -303,9 +322,10 @@ int	detector_task(task_arg arg MY_ATTRIBUTE((unused)))
 			DBGOHK(FN; NDBG(iamtheleader(x_site), d); NDBG(enough_live_nodes(x_site), d); );
 			/* Send xcom message if node has changed state */
 			DBGOHK(FN; NDBG(ep->notify,d));
-			if ( ep->notify && iamtheleader(x_site) &&
-			    enough_live_nodes(x_site)) {
+			if ((xcom_id_changed() || ep->notify) &&
+				enough_live_nodes(x_site) && iamtheleader(x_site)) {
 				ep->notify = 0;
+                reset_id_changed();
 				send_my_view(x_site);
 			}
 		}
@@ -390,6 +410,11 @@ int	alive_task(task_arg arg MY_ATTRIBUTE((unused)))
 					if (i != get_nodeno(site) && may_be_dead(site->detected, i, sec)) {
 						replace_pax_msg(&ep->you_p, pax_msg_new(alive_synode, site));
 						ep->you_p->op = are_you_alive_op;
+						ep->you_p->a = new_app_data();
+						ep->you_p->a->app_key.group_id = ep->you_p->a->group_id = get_group_id(site);
+						ep->you_p->a->body.c_t = xcom_boot_type;
+						init_node_list(1, &site->nodes.node_list_val[i], &ep->you_p->a->body.app_u_u.nodes);
+						DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&ep->you_p->a->body.app_u_u.nodes)););
 						send_server_msg(site, i, ep->you_p);
 					}
 				}

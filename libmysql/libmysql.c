@@ -2159,8 +2159,18 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   {
     if (mysql->server_status & SERVER_STATUS_CURSOR_EXISTS)
       mysql->server_status&= ~SERVER_STATUS_CURSOR_EXISTS;
-
-    if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY))
+    /*
+      After having read the query result, we need to make sure that the client
+      does not end up into a hang waiting for the server to send a packet.
+      If the CURSOR_TYPE_READ_ONLY flag is set, we would want to perform the
+      additional packet read mainly for prepared statements involving SELECT
+      queries. For SELECT queries, the result format would either be
+      <Metadata><OK> or <Metadata><rows><OK>. We would have read the metadata
+      by now and have the field_count populated. The check for field_count will
+      help determine if we can expect an additional packet from the server.
+    */
+    if (!res && (stmt->flags & CURSOR_TYPE_READ_ONLY) &&
+        mysql->field_count != 0)
     {
       /*
         server can now respond with a cursor - then the respond will be

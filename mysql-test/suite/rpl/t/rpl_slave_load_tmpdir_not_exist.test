@@ -15,7 +15,7 @@ START SLAVE;
 call mtr.add_suppression("Slave SQL.*Unable to use slave.s temporary directory.* Error_code: 12");
 --let $slave_sql_errno= 12
 source include/wait_for_slave_sql_error.inc;
-
+--source include/wait_for_slave_io_to_start.inc
 --source include/stop_slave_io.inc
 RESET SLAVE;
 

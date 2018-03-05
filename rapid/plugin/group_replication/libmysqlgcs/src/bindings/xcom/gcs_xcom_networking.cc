@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "gcs_xcom_group_member_information.h"
 #include "gcs_xcom_networking.h"
 #include "gcs_xcom_utils.h"
 #include "gcs_group_identifier.h"
@@ -314,15 +315,43 @@ sock_descriptor_to_sockaddr(int fd, struct sockaddr_storage *sa)
   {
     if (sa->ss_family != AF_INET && sa->ss_family != AF_INET6)
     {
-      MYSQL_GCS_LOG_WARN("Connection is not from an IPv4 nor IPv6 address. "
+      MYSQL_GCS_LOG_DEBUG("Connection is not from an IPv4 nor IPv6 address. "
                          "This is not supported. Refusing the connection!");
       res= 1;
     }
   }
   else
   {
-    MYSQL_GCS_LOG_WARN("Unable to handle socket descriptor, therefore "
-                       "refusing connection.");
+    int err = errno;
+    switch (err) {
+    case EBADF:
+      MYSQL_GCS_LOG_DEBUG("The file descriptor fd=" << fd << " is not valid");
+      break;
+    case EFAULT:
+      MYSQL_GCS_LOG_DEBUG("The sockaddr_storage pointer sa="
+                          << sa << " points to memory not in a valid part of "
+                                   "the process address space");
+      break;
+    case EINVAL:
+      MYSQL_GCS_LOG_DEBUG("The value of addr_size=" << addr_size
+                                                    << " is invalid");
+      break;
+    case ENOBUFS:
+      MYSQL_GCS_LOG_DEBUG("Insufficient resources were available in the "
+                          "system to perform the getpeername operation");
+      break;
+    case ENOTCONN:
+      MYSQL_GCS_LOG_DEBUG("The socket fd=" << fd << " is not connected");
+      break;
+    case ENOTSOCK:
+      MYSQL_GCS_LOG_DEBUG(
+          "The file descriptor fd=" << fd << " does not refer to a socket");
+      break;
+    default:
+      MYSQL_GCS_LOG_DEBUG(
+          "Unable to perform getpeername, therefore refusing connection.");
+      break;
+    }
   }
   return res ? true: false;
 }
@@ -724,12 +753,121 @@ Gcs_ip_whitelist::add_address(std::string addr, std::string mask)
 }
 
 bool
-Gcs_ip_whitelist::do_check_block(struct sockaddr_storage *sa) const
+Gcs_ip_whitelist::do_check_block_whitelist(
+  std::vector<unsigned char> const& incoming_octets) const
+{
+  /*
+    Check if the incoming IP matches any IP-mask combination in the whitelist.
+    The check compares both IPs' bytes (octets) in network byte order.
+  */
+  bool block= true;
+  std::set< Gcs_ip_whitelist_entry* >::const_iterator wl_it;
+  for (wl_it= m_ip_whitelist.begin();
+       wl_it != m_ip_whitelist.end() && block;
+       wl_it++)
+  {
+    std::pair< std::vector<unsigned char>, std::vector<unsigned char> > *wl_value= NULL;
+
+    wl_value= (*wl_it)->get_value();
+    if (wl_value == NULL)
+      continue;
+
+    std::vector<unsigned char> const& wl_range_octets= (*wl_value).first;
+    std::vector<unsigned char> const& wl_netmask_octets= (*wl_value).second;
+
+    // no point in comparing different families, e.g. IPv4 with IPv6
+    if (incoming_octets.size() != wl_range_octets.size())
+      goto cleanup_and_continue;
+
+    for (size_t octet= 0; octet < wl_range_octets.size(); octet++)
+    {
+      unsigned char const& oct_in_ip= incoming_octets[octet];
+      unsigned char const& oct_range_ip= wl_range_octets[octet];
+      unsigned char const& oct_mask_ip= wl_netmask_octets[octet];
+      // bail out on the first octet mismatch -- try next IP
+      if ((block= (oct_in_ip & oct_mask_ip) != (oct_range_ip & oct_mask_ip)))
+        break;
+    }
+
+    cleanup_and_continue:
+    // we own wl_value if the XCom member is a hostname
+    bool is_hostname=
+      dynamic_cast<Gcs_ip_whitelist_entry_hostname *>(*wl_it) != NULL;
+    if (is_hostname)
+      delete wl_value;
+  }
+  return block;
+}
+
+bool
+Gcs_ip_whitelist::do_check_block_xcom(
+  std::vector<unsigned char> const& incoming_octets,
+  site_def const *xcom_config) const
+{
+  /*
+    Check if the incoming IP matches the IP of any XCom member.
+    The check compares both IPs' bytes (octets) in network byte order.
+  */
+  bool block= true;
+  for (u_int i= 0; i < xcom_config->nodes.node_list_len && block; i++)
+  {
+    Gcs_xcom_group_member_information xcom_addr(
+      std::string(xcom_config->nodes.node_list_val[i].address));
+    struct sockaddr_storage xcom_sa;
+    Gcs_ip_whitelist_entry *xcom_addr_wl= NULL;
+    std::pair< std::vector<unsigned char>, std::vector<unsigned char> > *wl_value= NULL;
+    std::vector<unsigned char> const *xcom_octets= NULL;
+
+    /*
+      Treat the XCom member as if it is in the whitelist.
+      The XCom member can be an IP or hostname.
+      The magic-number "32" for the netmask is tied to IPv4.
+    */
+    bool is_hostname= string_to_sockaddr(xcom_addr.get_member_ip(), &xcom_sa);
+    if (is_hostname)
+      xcom_addr_wl= new Gcs_ip_whitelist_entry_hostname(
+        xcom_addr.get_member_ip(), "32");
+    else
+      xcom_addr_wl= new Gcs_ip_whitelist_entry_ip(
+        xcom_addr.get_member_ip(), "32");
+
+    bool error= xcom_addr_wl->init_value();
+    if (error)
+      goto cleanup_and_continue;
+    wl_value= xcom_addr_wl->get_value();
+    if (wl_value == NULL)
+      goto cleanup_and_continue;
+
+    xcom_octets= &wl_value->first;
+
+    // no point in comparing different families, e.g. IPv4 with IPv6
+    if (incoming_octets.size() != xcom_octets->size())
+      goto cleanup_and_continue;
+
+    for (size_t octet= 0; octet < xcom_octets->size(); octet++)
+    {
+      unsigned char const& oct_incoming= incoming_octets[octet];
+      unsigned char const& oct_xcom= (*xcom_octets)[octet];
+      // bail out on the first octet mismatch -- try next IP
+      if ((block= (oct_incoming != oct_xcom)))
+        break;
+    }
+
+    cleanup_and_continue:
+    // we own wl_value if the XCom member is a hostname
+    if (is_hostname)
+      delete wl_value;
+    delete xcom_addr_wl;
+  }
+  return block;
+}
+
+bool
+Gcs_ip_whitelist::do_check_block(struct sockaddr_storage *sa,
+                                 site_def const *xcom_config) const
 {
   bool block= true;
   unsigned char *buf;
-  std::set< Gcs_ip_whitelist_entry* >::const_iterator wl_it;
-  std::pair< std::vector<unsigned char>, std::vector<unsigned char> > *wl_value;
   std::vector<unsigned char> ip;
 
 /* purecov: begin deadcode */
@@ -748,48 +886,21 @@ Gcs_ip_whitelist::do_check_block(struct sockaddr_storage *sa) const
     goto end;
 
   /*
-   This check works like this:
-   1. Check if the whitelist is empty.
-      - if empty, return false
-   2. If whitelist is not empty
-      - for every ip and mask
-        - check if bytes (octets) match in network byte order
-   */
-
-  if (m_ip_whitelist.empty())
-    goto end;
-
-  for (wl_it= m_ip_whitelist.begin();
-       wl_it != m_ip_whitelist.end() && block;
-       wl_it++)
-  {
-    wl_value= (*wl_it)->get_value();
-
-    if(wl_value == NULL)
-      continue;
-
-    unsigned int octet;
-    const std::vector<unsigned char> range= (*wl_value).first;
-    const std::vector<unsigned char> netmask= (*wl_value).second;
-
-    for (octet= 0; octet < range.size(); octet++)
-    {
-      unsigned char oct_in_ip= ip[octet];
-      unsigned char oct_range_ip= range[octet];
-      unsigned char oct_mask_ip= netmask[octet];
-
-      // bail out on the first octet mismatch -- try next IP
-      if ((block= (oct_in_ip & oct_mask_ip) != (oct_range_ip & oct_mask_ip)))
-        break;
-    }
-  }
+    Allow the incoming IP if it is whitelisted *or* is an XCom member.
+    XCom members are authorized by default so that XCom can create its
+    all-to-all bidirectional network.
+  */
+  if (!m_ip_whitelist.empty())
+    block= do_check_block_whitelist(ip);
+  if (block && xcom_config != NULL)
+    block= do_check_block_xcom(ip, xcom_config);
 
 end:
   return block;
 }
 
 bool
-Gcs_ip_whitelist::shall_block(int fd) const
+Gcs_ip_whitelist::shall_block(int fd, site_def const *xcom_config) const
 {
   bool ret= true;
   if (fd > 0)
@@ -802,7 +913,7 @@ Gcs_ip_whitelist::shall_block(int fd) const
       ret= true;
     }
     else
-      ret= do_check_block(&sa);
+      ret= do_check_block(&sa, xcom_config);
   }
 
   if (ret)
@@ -817,7 +928,8 @@ Gcs_ip_whitelist::shall_block(int fd) const
 }
 
 bool
-Gcs_ip_whitelist::shall_block(const std::string& ip_addr) const
+Gcs_ip_whitelist::shall_block(const std::string& ip_addr,
+                              site_def const *xcom_config) const
 {
   bool ret= true;
   if (!ip_addr.empty())
@@ -830,7 +942,7 @@ Gcs_ip_whitelist::shall_block(const std::string& ip_addr) const
       ret= true;
     }
     else
-      ret= do_check_block(&sa);
+      ret= do_check_block(&sa, xcom_config);
   }
 
   if (ret)

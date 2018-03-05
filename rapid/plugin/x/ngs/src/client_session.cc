@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2016 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -212,9 +212,22 @@ void Session::on_auth_success(const Authentication_handler::Response &response)
 }
 
 
-void Session::on_auth_failure(const Authentication_handler::Response &responce)
+void Session::on_auth_failure(const Authentication_handler::Response &response)
 {
-  log_error("%s.%u: Unsuccessful login attempt: %s", m_client.client_id(), m_id, responce.data.c_str());
-  m_encoder->send_init_error(ngs::Fatal(ER_ACCESS_DENIED_ERROR, "%s", responce.data.c_str()));
+  int error_code = ER_ACCESS_DENIED_ERROR;
+
+  log_error("%s.%u: Unsuccessful login attempt: %s", m_client.client_id(), m_id, response.data.c_str());
+
+  if (can_forward_error_code_to_client(response.error_code))
+  {
+    error_code = response.error_code;
+  }
+
+  m_encoder->send_init_error(ngs::Fatal(error_code, "%s", response.data.c_str()));
   stop_auth();
+}
+
+bool Session::can_forward_error_code_to_client(const int error_code)
+{
+  return ER_DBACCESS_DENIED_ERROR == error_code;
 }

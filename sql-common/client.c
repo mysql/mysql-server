@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2423,18 +2423,20 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
   end_pos=pos+pkt_len;
   for (field=0 ; field < fields ; field++)
   {
-    if ((len=(ulong) net_field_length(&pos)) == NULL_LENGTH)
+    len=(ulong) net_field_length_checked(&pos, (ulong)(end_pos - pos));
+    if (pos > end_pos)
+    {
+      set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
+      return -1;
+    }
+
+    if (len == NULL_LENGTH)
     {						/* null field */
       row[field] = 0;
       *lengths++=0;
     }
     else
     {
-      if (len > (ulong) (end_pos - pos))
-      {
-        set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
-        return -1;
-      }
       row[field] = (char*) pos;
       pos+=len;
       *lengths++=len;
@@ -3788,6 +3790,11 @@ static int client_mpvio_read_packet(struct st_plugin_vio *mpv, uchar **buf)
 
   /* otherwise read the data */
   pkt_len= (*mysql->methods->read_change_user_result)(mysql);
+
+  /* error while reading the change user request */
+  if (pkt_len == packet_error)
+    return (int)packet_error;
+
   mpvio->last_read_packet_len= pkt_len;
   *buf= mysql->net.read_pos;
 

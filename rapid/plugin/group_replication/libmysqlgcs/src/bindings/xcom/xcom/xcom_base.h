@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -157,7 +157,7 @@ void xcom_add_node(char *addr, xcom_port port, node_list *nl);
 xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs);
 void site_post_install_action(site_def *site);
 
-void site_install_action(site_def *site);
+void site_install_action(site_def *site, cargo_type operation);
 void send_client_add_node(char *srv, xcom_port port, node_list *nl);
 void send_client_remove_node(char *srv, xcom_port port, node_list *nl);
 
@@ -187,11 +187,14 @@ void set_xcom_run_cb(xcom_state_change_cb x);
 void set_xcom_terminate_cb(xcom_state_change_cb x);
 void set_xcom_exit_cb(xcom_state_change_cb x);
 
+app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
+                                    uint32_t group_id);
+
 /*
  Registers a callback that is called right after
  the accept routine returns.
  */
-typedef int (*xcom_socket_accept_cb)(int fd);
+typedef int (*xcom_socket_accept_cb)(int fd, site_def const *xcom_config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
 connection_descriptor *xcom_open_client_connection(char *server,
@@ -216,6 +219,7 @@ int64_t xcom_client_send_data(uint32_t size, char *data,
                               connection_descriptor* fd);
 int	xcom_client_terminate_and_exit(connection_descriptor* fd);
 int	xcom_client_set_cache_limit(connection_descriptor *fd, uint64_t cache_limit);
+uint32_t get_my_id();
 
 static inline char *strerr_msg(char *buf, size_t len, int nr)
 {
@@ -228,12 +232,17 @@ static inline char *strerr_msg(char *buf, size_t len, int nr)
 }
 
 #define XCOM_COMMS_ERROR 1
+#define XCOM_COMMS_OTHER 2
 #define XCOM_COMMS_OK 0
 void set_xcom_comms_cb(xcom_state_change_cb x);
 
 synode_no get_delivered_msg();
 
-#define XCOM_FSM(action, arg) do {const char *s = xcom_state_name[xcom_fsm(action,arg)]; G_TRACE("%f %s:%d", seconds(), __FILE__, __LINE__); G_MESSAGE("new state %s",s);} while(0)
+#ifdef WITH_LOG_DEBUG
+#define XCOM_FSM(action, arg) do {const char *s = xcom_state_name[xcom_fsm(action,arg)]; G_TRACE("%f %s:%d", seconds(), __FILE__, __LINE__); G_DEBUG("new state %s",s);} while(0)
+#else
+#define XCOM_FSM(action, arg) do {xcom_fsm(action,arg);} while(0)
+#endif
 
 #ifdef __cplusplus
 }

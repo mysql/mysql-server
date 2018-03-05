@@ -962,7 +962,7 @@ password_expired,password_lifetime FROM mysql.user where  user='user5';
 
 # Resetting password with a non-ssl connection using mysqladmin,it should throw warning.
 GRANT ALL ON *.* TO user4@localhost;
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser4 --password=auth_xyz password new_auth  2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser4 --password=auth_xyz password new_auth  2>&1
 # Testing connection
 --connect(con1, localhost, user4, new_auth)
 SELECT USER();
@@ -970,7 +970,7 @@ connection default;
 disconnect con1;
 
 # With ssl connection
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser4 --password=new_auth password new_auth_ssl --ssl-mode=REQUIRED 2>&1
+--exec $MYSQLADMIN --no-defaults -S $MASTER_MYSOCK -P $MASTER_MYPORT -uuser4 --password=new_auth password new_auth_ssl --ssl-mode=REQUIRED 2>&1
 
 # Testing connection
 --connect(con1, localhost, user4, new_auth_ssl)

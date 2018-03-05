@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3145,17 +3145,24 @@ row_sel_store_mysql_field_func(
 			field_no, &len, heap);
 
 		if (UNIV_UNLIKELY(!data)) {
-			/* The externally stored field was not written
-			yet. This record should only be seen by
-			recv_recovery_rollback_active() or any
-			TRX_ISO_READ_UNCOMMITTED transactions. */
 
+			/* The externally stored field was not written
+			yet. This can happen after optimization which
+			was done after for Bug#23481444 where we read
+			last record in the page to find the end range
+			scan. If we encounter this we just return false
+			In any other case this row should be only seen
+			by recv_recovery_rollback_active() or any
+			TRX_ISO_READ_UNCOMMITTED transactions. */
 			if (heap != prebuilt->blob_heap) {
 				mem_heap_free(heap);
 			}
 
-			ut_a(prebuilt->trx->isolation_level
-			     == TRX_ISO_READ_UNCOMMITTED);
+			ut_a((!prebuilt->idx_cond &&
+			     prebuilt->m_mysql_handler->end_range != NULL)
+			     || (prebuilt->trx->isolation_level
+			     == TRX_ISO_READ_UNCOMMITTED));
+
 			DBUG_RETURN(FALSE);
 		}
 
@@ -5234,6 +5241,8 @@ rec_loop:
 					goto normal_return;
 				}
 			}
+
+			DEBUG_SYNC_C("allow_insert");
 		}
 
 		if (set_also_gap_locks
@@ -5525,6 +5534,7 @@ no_gap_lock:
 				prebuilt->new_rec_locks = 1;
 			}
 			err = DB_SUCCESS;
+ 			// Fall through
 		case DB_SUCCESS:
 			break;
 		case DB_LOCK_WAIT:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -57,7 +57,6 @@
 const char * const CMD_ARG_BE_QUIET = "be-quiet";
 const char * const MYSQLXTEST_VERSION = "1.0";
 const char CMD_ARG_SEPARATOR = '\t';
-const unsigned short MYSQLX_PORT = 33060;
 
 #include <mysql/service_my_snprintf.h>
 #include <mysql.h>
@@ -2979,11 +2978,12 @@ public:
 
   void print_help()
   {
-    std::cout << "mysqlxtest <options>\n";
+    std::cout << "mysqlxtest <options> [SCHEMA]\n";
     std::cout << "Options:\n";
     std::cout << "-f, --file=<file>     Reads input from file\n";
     std::cout << "-I, --import=<dir>    Reads macro files from dir; required by -->import\n";
     std::cout << "--sql=<SQL>           Use SQL as input and execute it like in -->sql block\n";
+    std::cout << "-e=<SQL>, --execute=<SQL> Aliases for \"--sql\" option\n";
     std::cout << "-n, --no-auth         Skip authentication which is required by -->sql block (run mode)\n";
     std::cout << "--plain-auth          Use PLAIN text authentication mechanism\n";
     std::cout << "-u, --user=<user>     Connection user\n";
@@ -3186,6 +3186,10 @@ public:
       {
         sql = value;
       }
+      else if (check_arg_with_value(argv, i, "--execute", "-e", value))
+      {
+        sql = value;
+      }
       else if (check_arg_with_value(argv, i, "--password", "-p", value))
         connection.password = value;
       else if (check_arg_with_value(argv, i, "--ssl-key", NULL, value))
@@ -3265,6 +3269,12 @@ public:
       }
       else if (exit_code == 0)
       {
+        if (argc -1 == i && std::isalnum(argv[i][0]))
+        {
+          connection.schema = argv[i];
+          break;
+        }
+
         std::cerr << argv[0] << ": unknown option " << argv[i] << "\n";
         exit_code = 1;
         break;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3550,11 +3550,13 @@ bool JOIN::make_tmp_tables_info()
     /*
       Create temporary table on first execution of this join.
       (Will be reused if this is a subquery that is executed several times.)
+      Don't use tmp table grouping for json aggregate funcs as it's
+      very ineffective.
     */
     init_items_ref_array();
 
     ORDER_with_src tmp_group;
-    if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP))
+    if (!simple_group && !(test_flags & TEST_NO_KEY_GROUP) && !with_json_agg)
       tmp_group= group_list;
       
     tmp_table_param.hidden_field_count= 

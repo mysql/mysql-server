@@ -163,6 +163,7 @@ flush privileges;
 set sql_mode='maxdb';
 Warnings:
 Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+Warning	3090	Changing sql mode 'MAXDB,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS' is deprecated. It will be removed in a future release.
 drop table if exists t1, t2;
 create table t1(c1 int);
 create table t2(c1 int, c2 int);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -391,6 +391,16 @@ break;
   db= (const char* )end;
   q_len= data_len - db_len -1;
   query= (const char *)(end + db_len + 1);
+
+  unsigned int max_length;
+  max_length= (event_len - (((end + db_len + 1) - start) +
+                            (post_header_len + common_header_len)));
+  if (q_len != max_length)
+  {
+    q_len= 0;
+    query= NULL;
+  }
+
   return;
 }
 
@@ -411,6 +421,12 @@ int Query_event::fill_data_buf(Log_event_header::Byte* buf,
   if (buf_len < catalog_len + 1 + time_zone_len +
                 1 + user_len+ 1 + host_len+ 1 + data_len )
     return 0;
+
+  if (data_len && (data_len < db_len ||
+                   data_len < q_len ||
+                   data_len != (db_len + q_len + 1)))
+    return 0;
+
   unsigned char* start= buf;
   /*
     Note: catalog_len is one less than "catalog.length()"
@@ -459,6 +475,13 @@ User_var_event(const char* buf, unsigned int event_len,
 
   memcpy(&name_len, buf, 4);
   name_len= le32toh(name_len);
+  /* Avoid reading out of buffer */
+  if ((buf - buf_start) + UV_NAME_LEN_SIZE + name_len > event_len)
+  {
+    error= true;
+    goto err;
+  }
+
   name= (char *) buf + UV_NAME_LEN_SIZE;
   /*
     We don't know yet is_null value, so we must assume that name_len
@@ -526,6 +549,11 @@ User_var_event(const char* buf, unsigned int event_len,
       we keep the flags set to UNDEF_F.
     */
   size_t bytes_read= ((val + val_len) - start);
+  if (bytes_read > event_len)
+  {
+    error= true;
+    goto err;
+  }
 #ifndef DBUG_OFF
   bool old_pre_checksum_fd= description_event->is_version_before_checksum();
   bool checksum_verify= (old_pre_checksum_fd ||

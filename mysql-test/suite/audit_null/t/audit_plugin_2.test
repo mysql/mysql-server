@@ -3,6 +3,8 @@
 
 call mtr.add_suppression("Event 'MYSQL_AUDIT_COMMAND_END' cannot be aborted.");
 call mtr.add_suppression("Event 'MYSQL_AUDIT_CONNECTION_DISCONNECT' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_RESULT' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_GENERAL_STATUS' cannot be aborted.");
 call mtr.add_suppression("Command 'Ping' cannot be aborted.");
 
 connection default;
@@ -75,6 +77,78 @@ SELECT 1;
 SET @@GLOBAL.null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="14";ABORT_RET';
 --exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT -u root ping 2>&1
 SET @@GLOBAL.null_audit_event_order_check = NULL;
+
+--echo #############
+--echo ## GENERAL ##
+--echo #############
+
+--echo ##########################
+--echo ## ABORT GENERAL RESULT ##
+--echo ##########################
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;ABORT_RET';
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+
+--echo ##########################################
+--echo ## ABORT GENERAL RESULT WITH MY_MESSAGE ##
+--echo ##########################################
+SET @@null_audit_abort_message = "Abort with my_message.";
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;ABORT_RET';
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+
+--echo ##########################
+--echo ## ABORT GENERAL STATUS ##
+--echo ##########################
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;ABORT_RET';
+SELECT 1;
+SELECT @@null_audit_event_order_check;
+
+--echo ##########################################
+--echo ## ABORT GENERAL STATUS WITH MY_MESSAGE ##
+--echo ##########################################
+SET @@null_audit_abort_message = "Abort with my_message.";
+--replace_result $event_order_exact <expected_check_exact>
+eval SET @@null_audit_event_order_check_exact = $event_order_exact;
+--replace_result $command_start_id <expected_command_start_id>
+eval SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="$command_start_id";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="0";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;ABORT_RET';
+SELECT 1;
+SELECT @@null_audit_event_order_check;
 
 --echo ###########
 --echo ## QUERY ##

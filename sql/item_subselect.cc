@@ -1317,7 +1317,7 @@ bool Item_singlerow_subselect::val_json(Json_wrapper *result)
   else
   {
     reset();
-    return false;
+    return current_thd->is_error();
   }
 }
 

@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -2086,6 +2086,8 @@ os_file_compress_page(
 		old_compressed_len = ut_calc_align(
 			old_compressed_len + FIL_PAGE_DATA,
 			type.block_size());
+	} else {
+		old_compressed_len = *n;
 	}
 
 	byte*	compressed_page;
@@ -7003,7 +7005,7 @@ AIO::reserve_slot(
 #else
 		slot->len = static_cast<ulint>(compressed_len);
 #endif /* _WIN32 */
-		slot->skip_punch_hole = type.punch_hole();
+		slot->skip_punch_hole = !type.punch_hole();
 
 		acquire();
 	}

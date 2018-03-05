@@ -39,7 +39,7 @@ using std::max;
 static bool convert_constant_item(THD *, Item_field *, Item **);
 static longlong
 get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
-               Item *warn_item, bool *is_null);
+               const Item *warn_item, bool *is_null);
 
 static Item_result item_store_type(Item_result a, Item *item,
                                    my_bool unsigned_flag)
@@ -1068,7 +1068,7 @@ Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 
 longlong
 get_time_value(THD *thd, Item ***item_arg, Item **cache_arg,
-               Item *warn_item, bool *is_null)
+               const Item *warn_item, bool *is_null)
 {
   longlong value;
   Item *item= **item_arg;
@@ -1371,7 +1371,7 @@ void Arg_comparator::set_datetime_cmp_func(Item_result_field *owner_arg,
 
 longlong
 get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
-                   Item *warn_item, bool *is_null)
+                   const Item *warn_item, bool *is_null)
 {
   longlong value= 0;
   String buf, *str= 0;
@@ -1452,7 +1452,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
 
 static longlong
 get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
-               Item *warn_item, bool *is_null)
+               const Item *warn_item, bool *is_null)
 {
   longlong value= 0;
   Item *item= **item_arg;
@@ -4152,7 +4152,7 @@ void Item_func_case::fix_length_and_dec()
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
         if (!(cmp_items[i]=
-            cmp_item::get_comparator((Item_result)i,
+            cmp_item::get_comparator((Item_result)i, args[first_expr_num],
                                      cmp_collation.collation)))
           return;
       }
@@ -4813,12 +4813,19 @@ bool in_decimal::compare_elems(uint pos1, uint pos2) const
 }
 
 
-cmp_item* cmp_item::get_comparator(Item_result type,
+cmp_item* cmp_item::get_comparator(Item_result result_type, const Item *item,
                                    const CHARSET_INFO *cs)
 {
-  switch (type) {
+  switch (result_type) {
   case STRING_RESULT:
-    return new cmp_item_string(cs);
+    /*
+      Temporal types shouldn't be compared as strings. Since date/time formats
+      may be different, e.g. '20000102' == '2000-01-02'."
+    */
+    if (item->is_temporal())
+      return new cmp_item_datetime(item);
+    else
+      return new cmp_item_string(cs);
   case INT_RESULT:
     return new cmp_item_int;
   case REAL_RESULT:
@@ -4885,7 +4892,7 @@ void cmp_item_row::alloc_comparators(Item *item)
       DBUG_ASSERT(comparators[i] == NULL);
       Item *item_i= item->element_index(i);
       if (!(comparators[i]=
-            cmp_item::get_comparator(item_i->result_type(),
+            cmp_item::get_comparator(item_i->result_type(), item_i,
                                      item_i->collation.collation)))
         break;                                  // new failed
       if (item_i->result_type() == ROW_RESULT)
@@ -5011,11 +5018,21 @@ cmp_item* cmp_item_decimal::make_same()
 }
 
 
+cmp_item_datetime::cmp_item_datetime(const Item *warn_item_arg)
+  :warn_item(warn_item_arg), lval_cache(0),
+  has_date(warn_item_arg->is_temporal_with_date())
+{}
+
 void cmp_item_datetime::store_value(Item *item)
 {
   bool is_null;
   Item **tmp_item= lval_cache ? &lval_cache : &item;
-  value= get_datetime_value(current_thd, &tmp_item, &lval_cache, warn_item, &is_null);
+  if (has_date)
+    value= get_datetime_value(current_thd, &tmp_item, &lval_cache, warn_item,
+                              &is_null);
+  else
+    value= get_time_value(current_thd, &tmp_item, &lval_cache, warn_item,
+                          &is_null);
   set_null_value(item->null_value);
 }
 
@@ -5024,8 +5041,13 @@ int cmp_item_datetime::cmp(Item *arg)
 {
   bool is_null;
   Item **tmp_item= &arg;
-  const bool rc= value !=
-    get_datetime_value(current_thd, &tmp_item, 0, warn_item, &is_null);
+  longlong value2= 0;
+  if (has_date)
+    value2= get_datetime_value(current_thd, &tmp_item, 0, warn_item, &is_null);
+  else
+    value2= get_time_value(current_thd, &tmp_item, 0, warn_item, &is_null);
+
+  const bool rc= (value != value2);
   return (m_null_value || arg->null_value) ? UNKNOWN : rc;
 }
 
@@ -5533,7 +5555,7 @@ void Item_func_in::fix_length_and_dec()
               agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
             return;
           if (!cmp_items[i] && !(cmp_items[i]=
-              cmp_item::get_comparator((Item_result)i,
+              cmp_item::get_comparator((Item_result)i, args[0],
                                        cmp_collation.collation)))
             return;
         }
@@ -7584,7 +7606,7 @@ longlong Item_equal::val_int()
 void Item_equal::fix_length_and_dec()
 {
   Item *item= get_first();
-  eval_item= cmp_item::get_comparator(item->result_type(),
+  eval_item= cmp_item::get_comparator(item->result_type(), item,
                                       item->collation.collation);
 }
 

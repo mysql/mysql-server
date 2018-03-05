@@ -439,7 +439,7 @@ FLUSH PRIVILEGES;
 --exec $MYSQL -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT -e "SELECT 1"
 
 --echo # Executing 'mysqladmin'
---exec $MYSQLADMIN -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT ping
+--exec $MYSQLADMIN --no-defaults -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT ping
 
 --echo # Executing 'mysqldump'
 --exec $MYSQL_DUMP -u root -S $MASTER_MYSOCK -P $MASTER_MYPORT --compact --default-auth=auth_test_plugin $PLUGIN_AUTH_OPT test

@@ -7064,6 +7064,9 @@ ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
 
 ER_SLAVE_HAS_MORE_GTIDS_THAN_MASTER
   eng "Slave has more GTIDs than the master has, using the master's SERVER_UUID. This may indicate that the end of the binary log was truncated or that the last binary log file was lost, e.g., after a power or disk failure when sync_binlog != 1. The master may or may not have rolled back transactions that were already replicated to the slave. Suggest to replicate any transactions that master has rolled back from slave to master, and/or commit empty transactions on master to account for transactions that have been committed on master but are not included in GTID_EXECUTED."
+
+ER_MISSING_KEY
+  eng "The table '%s.%s' does not have the necessary key(s) defined on it. Please check the table definition and create index(s) accordingly."
 #
 #  End of 5.6 error messages.
 #
@@ -7640,7 +7643,7 @@ ER_INVALID_ENCRYPTION_OPTION
   eng "Invalid encryption option."
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
-  eng "Can't find master key from keyring, please check keyring plugin is loaded."
+  eng "Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
 
 ER_CAPACITY_EXCEEDED_IN_PARSER
   eng "Parser bailed out for this query."
@@ -7695,6 +7698,75 @@ ER_KEYRING_ACCESS_DENIED_ERROR 42000
 
 ER_KEYRING_MIGRATION_STATUS
   eng "Keyring migration %s."
+
+ER_PLUGIN_FAILED_TO_OPEN_TABLES
+  eng "Failed to open the %s filter tables."
+
+ER_PLUGIN_FAILED_TO_OPEN_TABLE
+  eng "Failed to open '%s.%s' %s table."
+
+ER_AUDIT_LOG_NO_KEYRING_PLUGIN_INSTALLED
+  eng "No keyring plugin installed."
+
+ER_AUDIT_LOG_ENCRYPTION_PASSWORD_HAS_NOT_BEEN_SET
+  eng "Audit log encryption password has not been set; it will be generated automatically. Use audit_log_encryption_password_get to obtain the password or audit_log_encryption_password_set to set a new one."
+
+ER_AUDIT_LOG_COULD_NOT_CREATE_AES_KEY
+  eng "Could not create AES key. OpenSSL's EVP_BytesToKey function failed."
+
+ER_AUDIT_LOG_ENCRYPTION_PASSWORD_CANNOT_BE_FETCHED
+  eng "Audit log encryption password cannot be fetched from the keyring. Password used so far is used for encryption."
+
+ER_AUDIT_LOG_JSON_FILTERING_NOT_ENABLED
+  eng "Audit Log filtering has not been installed."
+
+ER_AUDIT_LOG_UDF_INSUFFICIENT_PRIVILEGE
+  eng "Request ignored for '%s'@'%s'. SUPER_ACL needed to perform operation"
+
+ER_AUDIT_LOG_SUPER_PRIVILEGE_REQUIRED
+  eng "SUPER privilege required for '%s'@'%s' user."
+
+ER_COULD_NOT_REINITIALIZE_AUDIT_LOG_FILTERS
+  eng "Could not reinitialize audit log filters."
+
+ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_TYPE
+  eng "Invalid argument type"
+
+ER_AUDIT_LOG_UDF_INVALID_ARGUMENT_COUNT
+  eng "Invalid argument count"
+
+ER_AUDIT_LOG_HAS_NOT_BEEN_INSTALLED
+  eng "audit_log plugin has not been installed using INSTALL PLUGIN syntax."
+
+ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_TYPE
+  eng "Invalid \"max_array_length\" argument type."
+
+ER_AUDIT_LOG_UDF_READ_INVALID_MAX_ARRAY_LENGTH_ARG_VALUE
+  eng "Invalid \"max_array_length\" argument value."
+
+ER_AUDIT_LOG_JSON_FILTER_PARSING_ERROR
+  eng "%s"
+
+ER_AUDIT_LOG_JSON_FILTER_NAME_CANNOT_BE_EMPTY
+  eng "Filter name cannot be empty."
+
+ER_AUDIT_LOG_JSON_USER_NAME_CANNOT_BE_EMPTY
+  eng "User cannot be empty."
+
+ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXISTS
+  eng "Specified filter has not been found."
+
+ER_AUDIT_LOG_USER_FIRST_CHARACTER_MUST_BE_ALPHANUMERIC
+  eng "First character of the user name must be alphanumeric."
+
+ER_AUDIT_LOG_USER_NAME_INVALID_CHARACTER
+  eng "Invalid character in the user name."
+
+ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
+  eng "Invalid character in the host name."
+
+WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
+  eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
 
 #
 #  End of 5.7 error messages.

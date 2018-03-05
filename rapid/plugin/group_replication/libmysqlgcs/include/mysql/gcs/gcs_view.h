@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "gcs_member_identifier.h"
 
 #include <vector>
+#include <string>
 
 /**
   @class Gcs_view
@@ -145,6 +146,23 @@ public:
 
   Gcs_view::Gcs_view_error_code get_error_code() const;
 
+
+  /*
+    @param[in] address Member's identifier which is usually its address
+    @return the member whose identifier matches the one provided as
+            parameter
+  */
+
+  const Gcs_member_identifier *get_member(const std::string &member_id) const;
+
+
+  /*
+    @param[in] member_id Member's identifier which is usually its address
+    @return whether there is a member whose identifier matches the one
+            provided as parameter
+  */
+
+  bool has_member(const std::string &member_id) const;
 
 private:
   std::vector<Gcs_member_identifier> *m_members;

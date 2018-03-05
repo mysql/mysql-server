@@ -5,6 +5,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 [connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Timeout on wait for view after joining group");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
+SET SESSION sql_log_bin= 1;
 
 ############################################################
 # 1. Crash server 2.
@@ -27,24 +32,31 @@ include/assert.inc [server 2 is marked as unreachable]
 
 ############################################################
 # 4. Restart server 2 with group_replication_start_on_boot=ON,
-#    server 2 will rejoin and unblock the group.
+#    server 2 will be refused to join the group.
 [connection server2]
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_start_on_boot=ON --group-replication-group-name=GROUP_REPLICATION_GROUP_NAME
 include/rpl_reconnect.inc
 include/gr_wait_for_member_state.inc
 [connection server1]
-include/gr_wait_for_member_state.inc
+include/assert.inc [server 2 is marked as unreachable]
 
 ############################################################
-# 5. Check that statement did unblock and was applied on
-#    both members.
+# 5. Unblock group with server1 as a single member.
+SET GLOBAL group_replication_force_members= "SERVER1_ADDRESS";
+
+############################################################
+# 6. Check that statement did unblock and was applied on
+#    server1.
 [connection server_1]
-include/rpl_sync.inc
 [connection server1]
-[connection server2]
 
 ############################################################
-# 6. Execute a transaction on both members.
+# 7. Rejoin server2
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+# 8. Execute a transaction on both members.
 [connection server1]
 INSERT INTO t1 VALUES (1);
 [connection server2]
@@ -52,7 +64,7 @@ INSERT INTO t1 VALUES (2);
 include/rpl_sync.inc
 
 ############################################################
-# 7. Validate data.
+# 9. Validate data.
 [connection server1]
 include/assert.inc ['There are two values in table t1']
 include/show_binlog_events.inc
@@ -90,6 +102,6 @@ server-binary-log.000003	#	Xid	#	#	COMMIT /* XID */
 include/diff_tables.inc [server1:test.t1, server2:test.t1]
 
 ############################################################
-# 8. Clean up.
+# 10. Clean up.
 DROP TABLE t1;
 include/group_replication_end.inc

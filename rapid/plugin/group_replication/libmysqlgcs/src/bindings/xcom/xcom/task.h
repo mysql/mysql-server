@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "xcom_common.h"
 #include "x_platform.h"
 #include "task_arg.h"
+#include "simset.h"
 
 
 #ifdef __cplusplus
@@ -35,8 +36,6 @@ extern "C" {
    	and a stack of environment structs. (continuations?)
    	Nonblocking IO and event handling need to be rewritten for each new OS.
 */
-
-/* #define USE_SELECT */
 
 #if 0
 void add_base_event(double when, char const *file, int state);

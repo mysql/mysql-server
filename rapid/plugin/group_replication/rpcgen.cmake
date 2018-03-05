@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -87,6 +87,23 @@ FOREACH(X xcom_vp)
         ${XCOM_BASEDIR}/xcom_proto_enum.h
         ${XCOM_BASEDIR}/xcom_limits.h)
   ELSE()
+    FIND_PROGRAM(RPCGEN_EXECUTABLE rpcgen DOC "path to the rpcgen executable")
+    MARK_AS_ADVANCED(RPCGEN_EXECUTABLE)
+    IF(NOT RPCGEN_EXECUTABLE)
+      MESSAGE(FATAL_ERROR "Could not find rpcgen")
+    ENDIF()
+
+    IF(NOT RPC_INCLUDE_DIR)
+      MESSAGE(FATAL_ERROR
+        "Could not find rpc/rpc.h in /usr/include or /usr/include/tirpc")
+    ENDIF()
+    MESSAGE(STATUS "RPC_INCLUDE_DIR ${RPC_INCLUDE_DIR}")
+    IF(RPC_INCLUDE_DIR STREQUAL "/usr/include/tirpc")
+      INCLUDE_DIRECTORIES(SYSTEM /usr/include/tirpc)
+      ADD_DEFINITIONS(-DHAVE_TIRPC)
+      SET(TIRPC_LIBRARY tirpc)
+    ENDIF()
+
     # on unix systems try to generate them if needed
     ADD_CUSTOM_COMMAND(OUTPUT ${x_gen_h} ${x_gen_c} ${x_tmp_plat_h}
       COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -103,10 +120,10 @@ FOREACH(X xcom_vp)
 
        # generate the sources
        COMMAND ${CMAKE_COMMAND} -E remove -f ${x_gen_h}
-       COMMAND rpcgen  -C -h -o
+       COMMAND ${RPCGEN_EXECUTABLE}  -C -h -o
                     ${x_gen_h} ${x_tmp_x_canonical_name}
        COMMAND ${CMAKE_COMMAND} -E remove -f ${x_gen_c}
-                COMMAND rpcgen  -C -c -o
+                COMMAND ${RPCGEN_EXECUTABLE}  -C -c -o
                 ${x_gen_c} ${x_tmp_x_canonical_name}
        WORKING_DIRECTORY ${gen_xdr_dir}
        DEPENDS
