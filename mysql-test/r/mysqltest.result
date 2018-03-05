@@ -6,17 +6,18 @@ otto
 select otto from (select 1 as otto) as t1;
 otto
 1
-mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed: 1054: Unknown column 'friedrich' in 'field list'
+mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed.
+ERROR 1054 (42S22): Unknown column 'friedrich' in 'field list'
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
 select otto from (select 1 as otto) as t1;
 otto
 1
-mysqltest: At line 1: query 'select otto from (select 1 as otto) as t1' succeeded - should have failed with sqlstate 42S22...
-mysqltest: At line 1: expecting a SQL-state (00000) from query 'remove_file MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp' which cannot produce one...
+mysqltest: At line 1: Query 'select otto from (select 1 as otto) as t1' succeeded, should have failed with sqlstate 42S22.
+mysqltest: At line 1: Expecting a SQLSTATE (00000) from query 'remove_file MYSQLTEST_VARDIR/tmp/test_nonexistent.tmp' which cannot produce one.
 select friedrich from (select 1 as otto) as t1;
 ERROR 42S22: Unknown column 'friedrich' in 'field list'
-mysqltest: At line 1: query 'select friedrich from (select 1 as otto) as t1' failed with wrong sqlstate 42S22: 'Unknown column 'friedrich' in 'field list'', instead of 00000...
+mysqltest: At line 1: Query 'select friedrich from (select 1 as otto) as t1' failed with wrong sqlstate 42S22: 'Unknown column 'friedrich' in 'field list'', instead of 00000.
 select otto from (select 1 as otto) as t1;
 otto
 1
@@ -150,7 +151,7 @@ ER_NO_SUCH_TABLE
 select 1146 as "after_!errno_masked_error" ;
 after_!errno_masked_error
 1146
-mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1000...
+mysqltest: At line 1: Query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1000.
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
  is empty
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'nonsense' at line 1
@@ -163,7 +164,7 @@ after_--enable_abort_on_error
 1064
 select 3 from t1 ;
 ERROR 42S02: Table 'test.t1' doesn't exist
-mysqltest: At line 1: query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1064...
+mysqltest: At line 1: Query 'select 3 from t1' failed with wrong errno 1146: 'Table 'test.t1' doesn't exist', instead of 1064.
 garbage;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 select 2;
@@ -233,17 +234,17 @@ mysqltest: At line 1: Spurious text after `query` expression
 mysqltest: At line 2: Spurious text after `query` expression
 mysqltest: At line 1: Missing argument(s) to 'error'
 mysqltest: At line 1: Missing argument(s) to 'error'
-mysqltest: At line 1: The sqlstate definition must start with an uppercase S
-mysqltest: At line 1: The error name definition must start with an uppercase E or C
-mysqltest: At line 1: Invalid argument to error: '9eeeee' - the errno may only consist of digits[0-9]
-mysqltest: At line 1: Invalid argument to error: '1sssss' - the errno may only consist of digits[0-9]
-mysqltest: At line 1: The sqlstate must be exactly 5 chars long
-mysqltest: At line 1: The sqlstate may only consist of digits[0-9] and _uppercase_ letters
-mysqltest: At line 1: The sqlstate must be exactly 5 chars long
+mysqltest: At line 1: The sqlstate definition must start with an uppercase S.
+mysqltest: At line 1: The error name definition must start with an uppercase E or C.
+mysqltest: At line 1: Invalid argument to error: '9eeeee', the errno may only consist of digits[0-9]
+mysqltest: At line 1: Invalid argument to error: '1sssss', the errno may only consist of digits[0-9]
+mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
+mysqltest: At line 1: The sqlstate may only consist of digits[0-9] and _uppercase_ letters.
+mysqltest: At line 1: The sqlstate must be exactly 5 chars long.
 mysqltest: At line 1: Unknown SQL error name 'E9999'
-mysqltest: At line 1: Invalid argument to error: '999e9' - the errno may only consist of digits[0-9]
-mysqltest: At line 1: Invalid argument to error: '9b' - the errno may only consist of digits[0-9]
-mysqltest: At line 1: Too many errorcodes specified
+mysqltest: At line 1: Invalid argument to error: '999e9', the errno may only consist of digits[0-9]
+mysqltest: At line 1: Invalid argument to error: '9b', the errno may only consist of digits[0-9]
+mysqltest: At line 1: Too many errorcodes specified.
 DROP TABLE table_does_not_exist;
 ERROR 42S02: Unknown table 'test.table_does_not_exist'
 DROP TABLE table_does_not_exist;
@@ -380,7 +381,8 @@ insert into t1 values ('$dollar');
 `select 42`
 $dollar
 drop table t1;
-mysqltest: At line 1: query 'let $var2= `failing query`' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
+mysqltest: At line 1: Query 'let $var2= `failing query`' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'failing query' at line 1
 mysqltest: At line 1: Missing required argument 'filename' to command 'source'
 mysqltest: At line 1: Could not open './non_existingFile' for reading, errno: 2
 mysqltest: At line 1: Source directives are nesting too deep
@@ -400,7 +402,8 @@ included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from MYSQLTEST_VARDIR/tmp/recursive.sql: 1
 included from <stdin>: 1
-mysqltest: At line 1: query 'garbage ' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
+mysqltest: At line 1: Query 'garbage ' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'garbage' at line 1
 In included file MYSQLTEST_VARDIR/tmp/error.sql: 1
 included from <stdin>: 1
 
@@ -535,7 +538,8 @@ mysqltest: At line 1: missing ')' in while
 mysqltest: At line 1: Missing '{' after while. Found "dec $i"
 mysqltest: At line 1: Stray '}' - end of block before beginning
 mysqltest: At line 1: Stray 'end' command - end of block before beginning
-mysqltest: At line 1: query '{' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
+mysqltest: At line 1: Query '{' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '{' at line 1
 mysqltest: At line 1: Missing '{' after while. Found "echo hej"
 mysqltest: At line 3: Missing end of block
 mysqltest: At line 3: Missing end of block
@@ -575,7 +579,8 @@ mysqltest: At line 1: Missing required argument 'connection name' to command 'co
 mysqltest: At line 1: Missing required argument 'connection name' to command 'connect'
 mysqltest: At line 1: Missing required argument 'host' to command 'connect'
 mysqltest: At line 1: Missing required argument 'host' to command 'connect'
-mysqltest: At line 1: query 'connect  con2,localhost,root,,illegal_db' failed: 1049: Unknown database 'illegal_db'
+mysqltest: At line 1: Query 'connect  con2,localhost,root,,illegal_db' failed.
+ERROR 1049 (42000): Unknown database 'illegal_db'
 mysqltest: At line 1: Illegal argument for port: 'illegal_port'
 mysqltest: At line 1: Illegal option to connect: SMTP
 200 connects succeeded
@@ -645,15 +650,17 @@ this will be executed
 this will be executed
 mysqltest: The test didn't produce any output
 Failing multi statement query
-mysqltest: At line 3: query 'create table t1 (a int primary key);
+mysqltest: At line 3: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
-insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+insertz 'error query'' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
-mysqltest: At line 3: query 'create table t1 (a int primary key);
+mysqltest: At line 3: Query 'create table t1 (a int primary key);
 insert into t1 values (1);
 select 'select-me';
-insertz 'error query'' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
+insertz 'error query'' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'insertz 'error query'' at line 1
 drop table t1;
 Multi statement using expected error
 create table t1 (a int primary key);
@@ -748,7 +755,7 @@ if things work as expected
 Some data
 for cat_file command
 of mysqltest
-mysqltest: At line 1: command "cat_file" failed with error 1. (my_errno)
+mysqltest: At line 1: Command "cat_file" failed with error 1. (my_errno).
 mysqltest: At line 1: Missing required argument 'filename' to command 'file_exists'
 mysqltest: At line 1: Missing required argument 'from_file' to command 'copy_file'
 mysqltest: At line 1: Missing required argument 'to_file' to command 'copy_file'
@@ -945,7 +952,8 @@ mysqltest: At line 1: Could not find column 'column_not_exists' in the result of
 mysqltest: At line 1: Query 'SET @A = 1' didn't return a result set
 mysqltest: At line 1: Could not find column '1 AS B' in the result of 'SELECT 1 AS A'
 value= No such row
-mysqltest: At line 1: query 'let $value= query_get_value(SHOW COLNS FROM t1, Field, 1)' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
+mysqltest: At line 1: Query 'let $value= query_get_value(SHOW COLNS FROM t1, Field, 1)' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLNS FROM t1' at line 1
 
 Field Type Null Key Default Extra
 a int(11) YES -><- NULL 
@@ -1555,7 +1563,8 @@ Hello
 #
 # BUG#11766444 : MTR PRINTS WRONG FILE AND LINE NUMBER WHEN TESTS FAIL
 #
-mysqltest: At line 7: query 'execute this invalid query' failed: 1064: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
+mysqltest: At line 7: Query 'execute this invalid query' failed.
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'invalid query' at line 1
 #
 # BUG#25821838 : --ERROR IS NOT PROPERLY WORKING IF IT IS USED INSIDE WHILE LOOP
 #
@@ -1584,7 +1593,8 @@ reason: Skipping bug25929826.test
 #               STRINGS IN PATH NAME
 #
 REPLACE_STRING
-mysqltest: At line 1: query 'SELECT REPLACE_STRING FROM t1' failed: 1146: Table 'test.t1' doesn't exist
+mysqltest: At line 1: Query 'SELECT REPLACE_STRING FROM t1' failed.
+ERROR 1146 (42S02): Table 'test.t1' doesn't exist
 #
 # Bug#24671890: ENHANCE THE METHOD REMOVE_FILE IN MTR
 #

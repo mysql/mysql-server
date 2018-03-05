@@ -1,64 +1,74 @@
-/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License, version 2.0,
+// as published by the Free Software Foundation.
+//
+// This program is also distributed with certain software (including
+// but not limited to OpenSSL) that is licensed under separate terms,
+// as designated in a particular file or component or in included license
+// documentation.  The authors of MySQL hereby grant you an additional
+// permission to link the program and your derivative works with the
+// separately licensed software that they have included with MySQL.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License, version 2.0, for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+/// @file
+///
+/// mysqltest client - Tool used for executing a .test file.
+///
+/// See @ref PAGE_MYSQL_TEST_RUN "The MySQL Test Framework" for more
+/// information.
+///
+/// Please keep the test framework tools identical in all versions!
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
-/*
-  mysqltest
-
-  Tool used for executing a .test file
-
-  See the "MySQL Test framework manual" for more information
-  http://dev.mysql.com/doc/mysqltest/en/index.html
-
-  Please keep the test framework tools identical in all versions!
-*/
+#include "client/mysqltest/mysqltest_error.h"
 
 #include "my_config.h"
 
-#ifdef MY_MSCRT_DEBUG
+#include <algorithm>
+#include <cmath>  // std::isinf
+#include <functional>
+#include <new>
+#include <string>
+#ifdef _WIN32
+#include <thread>  // std::thread
+#endif
+
+#include <assert.h>
+#if defined MY_MSCRT_DEBUG || defined _WIN32
 #include <crtdbg.h>
 #endif
-#include <assert.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <mysql_version.h>
 #include <mysqld_error.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#ifndef _WIN32
+#include <sys/wait.h>
+#endif
 #ifdef _WIN32
 #include <windows.h>
 #endif
 
-#include <cmath>  // std::isinf
-#include <cstring>
-#ifdef _WIN32
-#include <thread>  // std::thread
-#endif
-
 #include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
-#include "extra/regex/my_regex.h" /* Our own version of regex */
+#include "extra/regex/my_regex.h"  // Our own version of regex
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "mf_wcomp.h"  // wild_compare
@@ -70,37 +80,17 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
-#include "my_thread_local.h"
-#include "sql_common.h"
-#include "typelib.h"
-#include "violite.h"
-#ifndef _WIN32
-#include <sys/wait.h>
-#endif
-#ifdef _WIN32
-#include <direct.h>
-#endif
-#include <signal.h>
-#include <algorithm>
-#include <functional>
-#include <new>
-#include <string>
-
 #include "my_stacktrace.h"
+#include "my_thread_local.h"
 #include "prealloced_array.h"
 #include "print_version.h"
+#include "sql_common.h"
 #include "template_utils.h"
+#include "typelib.h"
+#include "violite.h"
 #include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
-using std::max;
-using std::min;
-using std::string;
-
-extern CHARSET_INFO my_charset_utf16le_bin;
-
 #ifdef _WIN32
-#include <crtdbg.h>
-
 #define SIGNAL_FMT "exception 0x%x"
 #else
 #define SIGNAL_FMT "signal %d"
@@ -150,8 +140,7 @@ extern CHARSET_INFO my_charset_utf16le_bin;
     }                                                                     \
   }
 
-using std::string;
-using std::unique_ptr;
+extern CHARSET_INFO my_charset_utf16le_bin;
 
 static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *, char *argument);
@@ -384,7 +373,7 @@ struct var_free {
   void operator()(VAR *var) const;
 };
 
-collation_unordered_map<string, unique_ptr<VAR, var_free>> *var_hash;
+collation_unordered_map<std::string, std::unique_ptr<VAR, var_free>> *var_hash;
 
 struct st_connection {
   MYSQL mysql;
@@ -539,35 +528,14 @@ const char *command_names[] = {
 
     0};
 
-/*
-  The list of error codes to --error are stored in an internal array of
-  structs. This struct can hold numeric SQL error codes, error names or
-  SQLSTATE codes as strings. The element next to the last active element
-  in the list is set to type ERR_EMPTY. When an SQL statement returns an
-  error, we use this list to check if this is an expected error.
-*/
-enum match_err_type { ERR_EMPTY = 0, ERR_ERRNO, ERR_SQLSTATE };
-
-struct st_match_err {
-  enum match_err_type type;
-  union {
-    uint errnum;
-    char sqlstate[SQLSTATE_LENGTH + 1]; /* \0 terminated string */
-  } code;
-};
-
-struct st_expected_errors {
-  struct st_match_err err[20];
-  uint count;
-};
-static struct st_expected_errors saved_expected_errors;
+// Vector to store the list of error codes specified with '--error' command
+Expected_errors *expected_errors = new Expected_errors();
 
 struct st_command {
   char *query, *query_buf, *first_argument, *last_argument, *end;
   DYNAMIC_STRING content;
   size_t first_word_len, query_len;
   bool abort_on_error, used_replace;
-  struct st_expected_errors expected_errors;
   char output_file[FN_REFLEN];
   enum enum_commands type;
   // Line number of the command
@@ -842,13 +810,6 @@ void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val);
 void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val);
 void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input);
 
-static int match_expected_error(struct st_command *command,
-                                unsigned int err_errno,
-                                const char *err_sqlstate);
-void handle_error(struct st_command *, unsigned int err_errno,
-                  const char *err_error, const char *err_sqlstate,
-                  DYNAMIC_STRING *ds);
-void handle_no_error(struct st_command *);
 void revert_properties();
 
 void do_eval(DYNAMIC_STRING *query_eval, const char *query,
@@ -1105,38 +1066,191 @@ static void check_command_args(struct st_command *command,
   DBUG_VOID_RETURN;
 }
 
-static void handle_command_error(struct st_command *command, uint error) {
+/// Check whether given error is in list of expected errors.
+///
+/// @param command      Pointer to the st_command structure which holds the
+///                     arguments and information for the command.
+/// @param err_errno    Error number of the error that actually occurred.
+/// @param err_sqlstate SQLSTATE that was thrown, or NULL for impossible
+///                     (file-ops, diff, etc.)
+///
+/// @retval -1 if the given error is not in the list, index in the
+///         list of expected errors otherwise.
+///
+/// @note
+/// If caller needs to know whether the list was empty, they should
+/// check the value of expected_errors.count.
+static int match_expected_error(struct st_command *command,
+                                unsigned int err_errno,
+                                const char *err_sqlstate) {
+  std::uint8_t index = 0;
+
+  // Iterator for list/vector of expected errors
+  std::vector<std::unique_ptr<Error>>::iterator error =
+      expected_errors->begin();
+
+  // Iterate over list of expected errors
+  for (; error != expected_errors->end(); error++) {
+    // Check if error type is ERR_ERRNO
+    if ((*error)->error_code() == err_errno && (*error)->type() == ERR_ERRNO)
+      return index;
+
+    // Check if error type is ERR_SQLSTATE
+    if ((*error)->type() == ERR_SQLSTATE) {
+      // NULL is quite likely, but not in conjunction with a SQL-state expect.
+      if (unlikely(err_sqlstate == NULL))
+        die("Expecting a SQLSTATE (%s) from query '%s' which cannot produce "
+            "one.",
+            (*error)->sqlstate(), command->query);
+
+      if (!std::strncmp((*error)->sqlstate(), err_sqlstate, SQLSTATE_LENGTH))
+        return index;
+    }
+
+    index++;
+  }
+
+  return -1;
+}
+
+/// Handle errors which occurred during execution of a query.
+///
+/// @param command      Pointer to the st_command structure which holds the
+///                     arguments and information for the command.
+/// @param err_errno    Error number
+/// @param err_error    Error message
+/// @param err_sqlstate SQLSTATE that was thrown
+/// @param ds           Dynamic string to store the result.
+///
+/// @note
+/// If there is an unexpected error, this function will abort mysqltest
+/// immediately.
+void handle_error(struct st_command *command, unsigned int err_errno,
+                  const char *err_error, const char *err_sqlstate,
+                  DYNAMIC_STRING *ds) {
+  DBUG_ENTER("handle_error");
+
+  if (command->abort_on_error)
+    die("Query '%s' failed.\nERROR %d (%s): %s", command->query, err_errno,
+        err_sqlstate, err_error);
+
+  DBUG_PRINT("info", ("Expected errors count: %d", expected_errors->count()));
+
+  int i = match_expected_error(command, err_errno, err_sqlstate);
+
+  if (i >= 0) {
+    if (!disable_result_log) {
+      if (expected_errors->count() == 1) {
+        // Only log error if there is one possible error
+        dynstr_append_mem(ds, "ERROR ", 6);
+        replace_dynstr_append(ds, err_sqlstate);
+        dynstr_append_mem(ds, ": ", 2);
+        replace_dynstr_append(ds, err_error);
+        dynstr_append_mem(ds, "\n", 1);
+      }
+      // Don't log error if we may not get an error
+      else if (expected_errors->type() == ERR_SQLSTATE ||
+               (expected_errors->type() == ERR_ERRNO &&
+                expected_errors->error_code() != 0))
+        dynstr_append(ds, "Got one of the listed errors\n");
+    }
+
+    revert_properties();
+    DBUG_VOID_RETURN;
+  }
+
+  DBUG_PRINT("info",
+             ("i: %d Expected errors count: %d", i, expected_errors->count()));
+
+  if (!disable_result_log) {
+    dynstr_append_mem(ds, "ERROR ", 6);
+    replace_dynstr_append(ds, err_sqlstate);
+    dynstr_append_mem(ds, ": ", 2);
+    replace_dynstr_append(ds, err_error);
+    dynstr_append_mem(ds, "\n", 1);
+  }
+
+  if (expected_errors->count() > 0) {
+    if (expected_errors->type() == ERR_ERRNO)
+      die("Query '%s' failed with wrong errno %d: '%s', instead of %d.",
+          command->query, err_errno, err_error, expected_errors->error_code());
+    else
+      die("Query '%s' failed with wrong sqlstate %s: '%s', instead of %s.",
+          command->query, err_sqlstate, err_error, expected_errors->sqlstate());
+  }
+
+  revert_properties();
+  DBUG_VOID_RETURN;
+}
+
+/// Handle absence of errors after execution.
+///
+/// Abort test run if the query succeeds and was expected to fail with
+/// an error.
+///
+/// @param command  Pointer to the st_command structure which holds the
+///                 arguments and information for the command.
+void handle_no_error(struct st_command *command) {
+  DBUG_ENTER("handle_no_error");
+
+  if (expected_errors->count()) {
+    if (expected_errors->type() == ERR_ERRNO &&
+        expected_errors->error_code() != 0) {
+      // Error code we wanted was != 0, i.e. not an expected success.
+      die("Query '%s' succeeded, should have failed with errno %d.",
+          command->query, expected_errors->error_code());
+    } else if (expected_errors->type() == ERR_SQLSTATE &&
+               strcmp(expected_errors->sqlstate(), "00000") != 0) {
+      // SQLSTATE we wanted was != "00000", i.e. not an expected success
+      die("Query '%s' succeeded, should have failed with sqlstate %s.",
+          command->query, expected_errors->sqlstate());
+    }
+  }
+
+  DBUG_VOID_RETURN;
+}
+
+/// Handle errors which occurred during execution of mysqltest commands
+/// like 'move_file', 'remove_file' etc which are used to perform file
+/// system operations.
+///
+/// @param command  Pointer to the st_command structure which holds the
+///                 arguments and information for the command.
+/// @param error    Error number
+///
+/// @note
+/// If there is an unexpected error, this function will abort mysqltest
+/// client immediately.
+static void handle_command_error(struct st_command *command,
+                                 unsigned int error) {
   DBUG_ENTER("handle_command_error");
   DBUG_PRINT("enter", ("error: %d", error));
+
   if (error != 0) {
-    int i;
-
     if (command->abort_on_error)
-      die("command \"%.*s\" failed with error %d. my_errno=%d",
-          static_cast<int>(command->first_word_len), command->query, error,
-          my_errno());
+      die("Command \"%s\" failed with error %d. my_errno=%d.",
+          command_names[command->type - 1], error, my_errno());
 
-    i = match_expected_error(command, error, NULL);
+    int i = match_expected_error(command, error, NULL);
 
     if (i >= 0) {
-      DBUG_PRINT("info", ("command \"%.*s\" failed with expected error: %d",
-                          static_cast<int>(command->first_word_len),
-                          command->query, error));
+      DBUG_PRINT("info", ("Command \"%s\" failed with expected error: %u.",
+                          command_names[command->type - 1], error));
       goto end;
     }
-    if (command->expected_errors.count > 0)
-      die("command \"%.*s\" failed with wrong error: %d. my_errno=%d",
-          static_cast<int>(command->first_word_len), command->query, error,
-          my_errno());
-  } else if (command->expected_errors.err[0].type == ERR_ERRNO &&
-             command->expected_errors.err[0].code.errnum != 0) {
-    /* Error code we wanted was != 0, i.e. not an expected success */
-    die("command \"%.*s\" succeeded - should have failed with errno %d...",
-        static_cast<int>(command->first_word_len), command->query,
-        command->expected_errors.err[0].code.errnum);
+
+    if (expected_errors->count() > 0)
+      die("Command \"%s\" failed with wrong error: %d, my_errno=%d.",
+          command_names[command->type - 1], error, my_errno());
+  } else if (expected_errors->count() && expected_errors->type() == ERR_ERRNO &&
+             expected_errors->error_code() != 0) {
+    // Command succeeded, should have failed with an error
+    die("Command \"%s\" succeeded, should have failed with errno %d.",
+        command_names[command->type - 1], expected_errors->error_code());
   }
+
 end:
-  // Save error code
+  // Save the error code
   {
     const char var_name[] = "__error";
     char buf[10];
@@ -1186,8 +1300,8 @@ static void close_files() {
 }
 
 static void free_used_memory() {
-  uint i;
-  // Do not use DBUG_ENTER("free_used_memory"); here, see below.
+  // Delete the exptected errors pointer
+  delete expected_errors;
 
   if (connections) close_connections();
   close_files();
@@ -1200,9 +1314,11 @@ static void free_used_memory() {
     if ((*q)->content.str) dynstr_free(&(*q)->content);
     my_free((*q));
   }
-  for (i = 0; i < 10; i++) {
+
+  for (size_t i = 0; i < 10; i++) {
     if (var_reg[i].alloced_len) my_free(var_reg[i].str_val);
   }
+
   delete q_lines;
   dynstr_free(&ds_res);
   dynstr_free(&ds_result);
@@ -1214,10 +1330,10 @@ static void free_used_memory() {
   free_win_path_patterns();
 #endif
 
-  /* Only call mysql_server_end if mysql_server_init has been called */
+  // Only call mysql_server_end if mysql_server_init has been called.
   if (server_initialized) mysql_server_end();
 
-  /* Don't use DBUG after mysql_server_end() */
+  // Don't use DBUG after mysql_server_end()
   return;
 }
 
@@ -1884,7 +2000,7 @@ VAR *var_from_env(const char *name, const char *def_val) {
   if (!(tmp = getenv(name))) tmp = def_val;
 
   v = var_init(0, name, std::strlen(name), tmp, std::strlen(tmp));
-  var_hash->emplace(name, unique_ptr<VAR, var_free>(v));
+  var_hash->emplace(name, std::unique_ptr<VAR, var_free>(v));
   return v;
 }
 
@@ -1910,7 +2026,7 @@ VAR *var_get(const char *var_name, const char **var_name_end, bool raw,
     if (length >= MAX_VAR_NAME_LENGTH)
       die("Too long variable name: %s", save_var_name);
 
-    if (!(v = find_or_nullptr(*var_hash, string(save_var_name, length)))) {
+    if (!(v = find_or_nullptr(*var_hash, std::string(save_var_name, length)))) {
       char buff[MAX_VAR_NAME_LENGTH + 1];
       strmake(buff, save_var_name, length);
       v = var_from_env(buff, "");
@@ -1933,10 +2049,11 @@ err:
 }
 
 static VAR *var_obtain(const char *name, int len) {
-  VAR *v = find_or_nullptr(*var_hash, string(name, len));
+  VAR *v = find_or_nullptr(*var_hash, std::string(name, len));
   if (v == nullptr) {
     v = var_init(0, name, len, "", 0);
-    var_hash->emplace(string(name, len), unique_ptr<VAR, var_free>(v));
+    var_hash->emplace(std::string(name, len),
+                      std::unique_ptr<VAR, var_free>(v));
   }
   return v;
 }
@@ -2732,11 +2849,9 @@ static void replace_crlf_with_lf(char *buf) {
 /// It is recommended to use mysqltest command(s) like "remove_file"
 /// instead of executing the shell commands using 'exec' command.
 static void do_exec(struct st_command *command, bool run_in_background) {
-  int error;
-  FILE *res_file;
-  char *cmd = command->first_argument;
-  DYNAMIC_STRING ds_cmd;
   DBUG_ENTER("do_exec");
+
+  char *cmd = command->first_argument;
   DBUG_PRINT("enter", ("cmd: '%s'", cmd));
 
   // Skip leading space
@@ -2744,7 +2859,9 @@ static void do_exec(struct st_command *command, bool run_in_background) {
   if (!*cmd) die("Missing argument in exec");
   command->last_argument = command->end;
 
+  DYNAMIC_STRING ds_cmd;
   init_dynamic_string(&ds_cmd, 0, command->query_len + 256, 256);
+
   // Eval the command, thus replacing all environment variables
   do_eval(&ds_cmd, cmd, command->end, !is_windows);
 
@@ -2792,6 +2909,7 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 #else
   const char *mode = "r";
 #endif
+  FILE *res_file;
   if (!(res_file = my_popen(&ds_cmd, mode, command)) &&
       command->abort_on_error) {
     dynstr_free(&ds_cmd);
@@ -2843,7 +2961,7 @@ static void do_exec(struct st_command *command, bool run_in_background) {
     }
   }
 
-  error = pclose(res_file);
+  int error = pclose(res_file);
   if (error > 0) {
 #ifdef _WIN32
     uint status = WEXITSTATUS(error);
@@ -2856,38 +2974,37 @@ static void do_exec(struct st_command *command, bool run_in_background) {
       status = 0x80 + WTERMSIG(error);
 #endif
 
-    int i;
-
     if (command->abort_on_error) {
       log_msg("exec of '%s' failed, error: %d, status: %d, errno: %d",
               ds_cmd.str, error, status, errno);
       dynstr_free(&ds_cmd);
-      die("command \"%s\" failed\n\nOutput from before failure:\n%s\n",
+      die("Command \"%s\" failed\n\nOutput from before failure:\n%s\n",
           command->first_argument, ds_res.str);
     }
 
     DBUG_PRINT("info", ("error: %d, status: %d", error, status));
 
-    i = match_expected_error(command, status, NULL);
+    int i = match_expected_error(command, status, NULL);
 
     if (i >= 0)
-      DBUG_PRINT("info", ("command \"%s\" failed with expected error: %d",
+      DBUG_PRINT("info", ("Command \"%s\" failed with expected error: %d.",
                           command->first_argument, status));
     else {
       dynstr_free(&ds_cmd);
-      if (command->expected_errors.count > 0)
-        die("command \"%s\" failed with wrong error: %d",
+      if (expected_errors->count() > 0)
+        die("Command \"%s\" failed with wrong error: %d.",
             command->first_argument, status);
     }
-  } else if (command->expected_errors.err[0].type == ERR_ERRNO &&
-             command->expected_errors.err[0].code.errnum != 0) {
+  } else if (expected_errors->count() && expected_errors->type() == ERR_ERRNO &&
+             expected_errors->error_code() != 0) {
     // Error code we wanted was != 0, i.e. not an expected success
-    log_msg("exec of '%s failed, error: %d, errno: %d", ds_cmd.str, error,
+    log_msg("exec of '%s failed, error: %d, errno: %d.", ds_cmd.str, error,
             errno);
     dynstr_free(&ds_cmd);
-    die("command \"%s\" succeeded - should have failed with errno %d...",
-        command->first_argument, command->expected_errors.err[0].code.errnum);
+    die("Command \"%s\" succeeded, should have failed with errno %d.",
+        command->first_argument, expected_errors->error_code());
   }
+
   // Save error code
   {
     const char var_name[] = "__error";
@@ -4318,7 +4435,7 @@ static void do_perl(struct st_command *command) {
     my_close(fd, MYF(0));
 
     /* Compatibility for Perl 5.24 and newer. */
-    string script = "push @INC, \".\";\n";
+    std::string script = "push @INC, \".\";\n";
     script.append(ds_script.str, ds_script.length);
 
     str_to_file(temp_file_path, &script[0], script.size());
@@ -5286,29 +5403,30 @@ const char *get_errname_from_code(uint error_code) {
   DBUG_RETURN("<Unknown>");
 }
 
+/// Get the error code corresponding to an error string or to a
+/// SQLSTATE string.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                arguments and information for the command.
 static void do_get_errcodes(struct st_command *command) {
-  struct st_match_err *to = saved_expected_errors.err;
-  char *p = command->first_argument;
-  uint count = 0;
-  char *next;
-
   DBUG_ENTER("do_get_errcodes");
 
+  char *p = command->first_argument;
   if (!*p) die("Missing argument(s) to 'error'");
 
+  char *next;
   do {
     char *end;
 
-    /* Skip leading spaces */
+    // Skip leading spaces
     while (*p && *p == ' ') p++;
 
     /* Find end */
     end = p;
     while (*end && *end != ',' && *end != ' ') end++;
-
     next = end;
 
-    /* code to handle variables passed to mysqltest */
+    // Code to handle variables passed to mysqltest
     if (*p == '$') {
       const char *fin = NULL;
       VAR *var = var_get(p, &fin, 0, 0);
@@ -5317,87 +5435,79 @@ static void do_get_errcodes(struct st_command *command) {
     }
 
     if (*p == 'S') {
-      char *to_ptr = to->code.sqlstate;
+      // SQLSTATE string
+      //   - Must be SQLSTATE_LENGTH long
+      //   - May contain only digits[0-9] and _uppercase_ letters
+      std::string sqlstate;
 
-      /*
-        SQLSTATE string
-        - Must be SQLSTATE_LENGTH long
-        - May contain only digits[0-9] and _uppercase_ letters
-      */
-      p++; /* Step past the S */
+      // Step pass 'S' character
+      p++;
+
       if ((end - p) != SQLSTATE_LENGTH)
-        die("The sqlstate must be exactly %d chars long", SQLSTATE_LENGTH);
+        die("The sqlstate must be exactly %d chars long.", SQLSTATE_LENGTH);
 
-      /* Check sqlstate string validity */
+      sqlstate.assign(p, SQLSTATE_LENGTH);
+
+      // Check sqlstate string validity
       while (*p && p < end) {
         if (my_isdigit(charset_info, *p) || my_isupper(charset_info, *p))
-          *to_ptr++ = *p++;
+          p++;
         else
           die("The sqlstate may only consist of digits[0-9] "
-              "and _uppercase_ letters");
+              "and _uppercase_ letters.");
       }
 
-      *to_ptr = 0;
-      to->type = ERR_SQLSTATE;
-      DBUG_PRINT("info", ("ERR_SQLSTATE: %s", to->code.sqlstate));
+      expected_errors->add_error(0, sqlstate.c_str(), ERR_SQLSTATE);
+      DBUG_PRINT("info", ("ERR_SQLSTATE: %s", sqlstate.c_str()));
     } else if (*p == 's') {
-      die("The sqlstate definition must start with an uppercase S");
+      die("The sqlstate definition must start with an uppercase S.");
     }
-    /*
-      Code to handle --error <error_string>
-      Checking for both server error names as well as client error names.
-    */
+    // Code to handle --error <error_string>.
+    // Checking for both server error names as well as client error names.
     else if (*p == 'E' || *p == 'C') {
-      /* Error name string */
-
+      // Error name string
       DBUG_PRINT("info", ("Error name: %s", p));
-      to->code.errnum = get_errcode_from_name(p, end);
-      to->type = ERR_ERRNO;
-      DBUG_PRINT("info", ("ERR_ERRNO: %d", to->code.errnum));
+      std::uint32_t error_code = get_errcode_from_name(p, end);
+      expected_errors->add_error(error_code, "00000", ERR_ERRNO);
+      DBUG_PRINT("info", ("ERR_ERRNO: %d", error_code));
     } else if (*p == 'e' || *p == 'c') {
-      die("The error name definition must start with an uppercase E or C");
+      die("The error name definition must start with an uppercase E or C.");
     } else {
-      long val;
       char *start = p;
-      /* Check that the string passed to str2int only contain digits */
+      long val;
+
+      // Check that the string passed to str2int only contain digits
       while (*p && p != end) {
         if (!my_isdigit(charset_info, *p))
-          die("Invalid argument to error: '%s' - "
-              "the errno may only consist of digits[0-9]",
+          die("Invalid argument to error: '%s', the errno may only consist "
+              "of digits[0-9]",
               command->first_argument);
         p++;
       }
 
-      /* Convert the sting to int */
+      // Convert the sting to int
       if (!str2int(start, 10, (long)INT_MIN, (long)INT_MAX, &val))
-        die("Invalid argument to error: '%s'", command->first_argument);
+        die("Invalid argument to error: '%s'.", command->first_argument);
 
-      to->code.errnum = (uint)val;
-      to->type = ERR_ERRNO;
-      DBUG_PRINT("info", ("ERR_ERRNO: %d", to->code.errnum));
+      expected_errors->add_error((unsigned int)val, "00000", ERR_ERRNO);
+      DBUG_PRINT("info", ("ERR_ERRNO: %d", (unsigned int)val));
     }
-    to++;
-    count++;
 
-    if (count >=
-        (sizeof(saved_expected_errors.err) / sizeof(struct st_match_err)))
-      die("Too many errorcodes specified");
+    if (expected_errors->count() >= MAX_ERROR_COUNT)
+      die("Too many errorcodes specified.");
 
-    /* Set pointer to the end of the last error code */
+    // Set pointer to the end of the last error code
     p = next;
 
-    /* Find next ',' */
+    // Find next ','
     while (*p && *p != ',') p++;
 
-    if (*p) p++; /* Step past ',' */
-
+    // Step past ','
+    if (*p) p++;
   } while (*p);
 
   command->last_argument = p;
-  to->type = ERR_EMPTY; /* End of data */
-
-  DBUG_PRINT("info", ("Expected errors: %d", count));
-  saved_expected_errors.count = count;
+  DBUG_PRINT("info", ("Expected errors: %d", expected_errors->count()));
   DBUG_VOID_RETURN;
 }
 
@@ -5665,29 +5775,26 @@ static void safe_connect(MYSQL *mysql, const char *name, const char *host,
   DBUG_VOID_RETURN;
 }
 
-/*
-  Connect to a server and handle connection errors in case they occur.
-
-  SYNOPSIS
-  connect_n_handle_errors()
-  q                 - context of connect "query" (command)
-  con               - connection structure to be used
-  host, user, pass, - connection parameters
-  db, port, sock
-
-  DESCRIPTION
-  This function will try to establish a connection to server and handle
-  possible errors in the same manner as if "connect" was usual SQL-statement
-  (If error is expected it will ignore it once it occurs and log the
-  "statement" to the query log).
-  Unlike safe_connect() it won't do several attempts.
-
-  RETURN VALUES
-  1 - Connected
-  0 - Not connected
-
-*/
-
+/// Connect to a server and handle connection errors in case they
+/// occur.
+///
+/// This function will try to establish a connection to server and
+/// handle possible errors in the same manner as if "connect" was usual
+/// SQL-statement. If an error is expected it will ignore it once it
+/// occurs and log the "statement" to the query log. Unlike
+/// safe_connect() it won't do several attempts.
+///
+/// @param command Pointer to the st_command structure which holds the
+///                     arguments and information for the command.
+/// @param con     Connection structure to be used
+/// @param host    Host name
+/// @param user    User name
+/// @param pass    Password
+/// @param db      Database name
+/// @param port    Port number
+/// @param sock    Socket value
+///
+/// @retval 1 if connection succeeds, 0 otherwise
 static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
                                    const char *host, const char *user,
                                    const char *pass, const char *db, int port,
@@ -5698,7 +5805,7 @@ static int connect_n_handle_errors(struct st_command *command, MYSQL *con,
   ds = &ds_res;
 
   /* Only log if an error is expected */
-  if (command->expected_errors.count > 0 && !disable_query_log) {
+  if (expected_errors->count() > 0 && !disable_query_log) {
     /*
       Log the connect to result log
     */
@@ -6420,10 +6527,10 @@ static int read_line(char *buf, int size) {
         } else if ((c == '{' &&
                     (!charset_info->coll->strnncoll(
                          charset_info, (const uchar *)"while", 5, (uchar *)buf,
-                         min<my_ptrdiff_t>(5, p - buf), 0) ||
+                         std::min<my_ptrdiff_t>(5, p - buf), 0) ||
                      !charset_info->coll->strnncoll(
                          charset_info, (const uchar *)"if", 2, (uchar *)buf,
-                         min<my_ptrdiff_t>(2, p - buf), 0)))) {
+                         std::min<my_ptrdiff_t>(2, p - buf), 0)))) {
           /* Only if and while commands can be terminated by { */
           *p++ = c;
           *p = 0;
@@ -7642,160 +7749,6 @@ end:
 }
 
 /*
-  Check whether given error is in list of expected errors
-
-  SYNOPSIS
-    match_expected_error()
-
-  PARAMETERS
-    command        the current command (and its expect-list)
-    err_errno      error number of the error that actually occurred
-    err_sqlstate   SQL-state that was thrown, or NULL for impossible
-                   (file-ops, diff, etc.)
-
-  RETURNS
-    -1 for not in list, index in list of expected errors otherwise
-
-  NOTE
-    If caller needs to know whether the list was empty, they should
-    check command->expected_errors.count.
-*/
-
-static int match_expected_error(struct st_command *command,
-                                unsigned int err_errno,
-                                const char *err_sqlstate) {
-  uint i;
-
-  for (i = 0; (uint)i < command->expected_errors.count; i++) {
-    if ((command->expected_errors.err[i].type == ERR_ERRNO) &&
-        (command->expected_errors.err[i].code.errnum == err_errno))
-      return i;
-
-    if (command->expected_errors.err[i].type == ERR_SQLSTATE) {
-      /*
-        NULL is quite likely, but not in conjunction with a SQL-state expect!
-      */
-      if (unlikely(err_sqlstate == NULL))
-        die("expecting a SQL-state (%s) from query '%s' which cannot produce "
-            "one...",
-            command->expected_errors.err[i].code.sqlstate, command->query);
-
-      if (std::strncmp(command->expected_errors.err[i].code.sqlstate,
-                       err_sqlstate, SQLSTATE_LENGTH) == 0)
-        return i;
-    }
-  }
-  return -1;
-}
-
-/*
-  Handle errors which occurred during execution
-
-  SYNOPSIS
-  handle_error()
-  q     - query context
-  err_errno - error number
-  err_error - error message
-  err_sqlstate - sql state
-  ds    - dynamic string which is used for output buffer
-
-  NOTE
-    If there is an unexpected error this function will abort mysqltest
-    immediately.
-*/
-
-void handle_error(struct st_command *command, unsigned int err_errno,
-                  const char *err_error, const char *err_sqlstate,
-                  DYNAMIC_STRING *ds) {
-  int i;
-
-  DBUG_ENTER("handle_error");
-
-  if (command->abort_on_error)
-    die("query '%s' failed: %d: %s", command->query, err_errno, err_error);
-
-  DBUG_PRINT("info",
-             ("expected_errors.count: %d", command->expected_errors.count));
-
-  i = match_expected_error(command, err_errno, err_sqlstate);
-
-  if (i >= 0) {
-    if (!disable_result_log) {
-      if (command->expected_errors.count == 1) {
-        /* Only log error if there is one possible error */
-        dynstr_append_mem(ds, "ERROR ", 6);
-        replace_dynstr_append(ds, err_sqlstate);
-        dynstr_append_mem(ds, ": ", 2);
-        replace_dynstr_append(ds, err_error);
-        dynstr_append_mem(ds, "\n", 1);
-      }
-      /* Don't log error if we may not get an error */
-      else if (command->expected_errors.err[0].type == ERR_SQLSTATE ||
-               (command->expected_errors.err[0].type == ERR_ERRNO &&
-                command->expected_errors.err[0].code.errnum != 0))
-        dynstr_append(ds, "Got one of the listed errors\n");
-    }
-    /* OK */
-    revert_properties();
-    DBUG_VOID_RETURN;
-  }
-
-  DBUG_PRINT("info",
-             ("i: %d  expected_errors: %d", i, command->expected_errors.count));
-
-  if (!disable_result_log) {
-    dynstr_append_mem(ds, "ERROR ", 6);
-    replace_dynstr_append(ds, err_sqlstate);
-    dynstr_append_mem(ds, ": ", 2);
-    replace_dynstr_append(ds, err_error);
-    dynstr_append_mem(ds, "\n", 1);
-  }
-
-  if (command->expected_errors.count > 0) {
-    if (command->expected_errors.err[0].type == ERR_ERRNO)
-      die("query '%s' failed with wrong errno %d: '%s', instead of %d...",
-          command->query, err_errno, err_error,
-          command->expected_errors.err[0].code.errnum);
-    else
-      die("query '%s' failed with wrong sqlstate %s: '%s', instead of %s...",
-          command->query, err_sqlstate, err_error,
-          command->expected_errors.err[0].code.sqlstate);
-  }
-
-  revert_properties();
-  DBUG_VOID_RETURN;
-}
-
-/*
-  Handle absence of errors after execution
-
-  SYNOPSIS
-  handle_no_error()
-  q - context of query
-
-  RETURN VALUE
-  error - function will not return
-*/
-
-void handle_no_error(struct st_command *command) {
-  DBUG_ENTER("handle_no_error");
-
-  if (command->expected_errors.err[0].type == ERR_ERRNO &&
-      command->expected_errors.err[0].code.errnum != 0) {
-    /* Error code we wanted was != 0, i.e. not an expected success */
-    die("query '%s' succeeded - should have failed with errno %d...",
-        command->query, command->expected_errors.err[0].code.errnum);
-  } else if (command->expected_errors.err[0].type == ERR_SQLSTATE &&
-             std::strcmp(command->expected_errors.err[0].code.sqlstate,
-                         "00000") != 0) {
-    /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
-    die("query '%s' succeeded - should have failed with sqlstate %s...",
-        command->query, command->expected_errors.err[0].code.sqlstate);
-  }
-  DBUG_VOID_RETURN;
-}
-
-/*
   Run query using prepared statement C API
 
   SYNPOSIS
@@ -8246,8 +8199,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
 static void display_opt_trace(struct st_connection *cn,
                               struct st_command *command, int flags) {
   if (!disable_query_log && opt_trace_protocol_enabled && !cn->pending &&
-      !command->expected_errors.count &&
-      match_re(&opt_trace_re, command->query)) {
+      !expected_errors->count() && match_re(&opt_trace_re, command->query)) {
     st_command save_command = *command;
     DYNAMIC_STRING query_str;
     init_dynamic_string(&query_str,
@@ -8272,7 +8224,7 @@ static void display_opt_trace(struct st_connection *cn,
 
 static void run_explain(struct st_connection *cn, struct st_command *command,
                         int flags, bool json) {
-  if ((flags & QUERY_REAP_FLAG) && !command->expected_errors.count &&
+  if ((flags & QUERY_REAP_FLAG) && !expected_errors->count() &&
       match_re(&explain_re, command->query)) {
     st_command save_command = *command;
     DYNAMIC_STRING query_str;
@@ -8488,17 +8440,6 @@ static void get_command_type(struct st_command *command) {
           command->query);
     }
   }
-  DBUG_VOID_RETURN;
-}
-
-void update_expected_errors(struct st_command *command) {
-  DBUG_ENTER("update_expected_errors");
-
-  /* Set expected error on command */
-  memcpy(&command->expected_errors, &saved_expected_errors,
-         sizeof(saved_expected_errors));
-  DBUG_PRINT("info",
-             ("There are %d expected errors", command->expected_errors.count));
   DBUG_VOID_RETURN;
 }
 
@@ -8746,9 +8687,6 @@ int main(int argc, char **argv) {
 
   init_signal_handling();
 
-  /* Init expected errors */
-  memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
-
   /* Init file stack */
   memset(file_stack, 0, sizeof(file_stack));
   file_stack_end =
@@ -8765,8 +8703,9 @@ int main(int argc, char **argv) {
 
   q_lines = new Q_lines(PSI_NOT_INSTRUMENTED);
 
-  var_hash = new collation_unordered_map<string, unique_ptr<VAR, var_free>>(
-      charset_info, PSI_NOT_INSTRUMENTED);
+  var_hash =
+      new collation_unordered_map<std::string, std::unique_ptr<VAR, var_free>>(
+          charset_info, PSI_NOT_INSTRUMENTED);
 
   {
     char path_separator[] = {FN_LIBCHAR, 0};
@@ -8946,10 +8885,9 @@ int main(int argc, char **argv) {
     if (command->type == Q_UNKNOWN || command->type == Q_COMMENT_WITH_COMMAND)
       get_command_type(command);
 
-    if ((saved_expected_errors.count > 0) ||
-        (command->expected_errors.count > 0)) {
-      update_expected_errors(command);
-    }
+    if (command->type == Q_ERROR && expected_errors->count())
+      // Delete all the error codes from previous 'error' command.
+      expected_errors->clear_error_list();
 
     if (parsing_disabled && command->type != Q_ENABLE_PARSING &&
         command->type != Q_DISABLE_PARSING) {
@@ -8958,8 +8896,7 @@ int main(int argc, char **argv) {
     }
 
     /* (Re-)set abort_on_error for this command */
-    command->abort_on_error =
-        (command->expected_errors.count == 0 && abort_on_error);
+    command->abort_on_error = (expected_errors->count() == 0 && abort_on_error);
 
     /* delimiter needs to be executed so we can continue to parse */
     bool ok_to_do = cur_block->ok || command->type == Q_DELIMITER;
@@ -9440,11 +9377,9 @@ int main(int argc, char **argv) {
 
     if (command->type != Q_ERROR && command->type != Q_COMMENT &&
         command->type != Q_IF && command->type != Q_END_BLOCK) {
-      /*
-        As soon as any non "error" command or comment has been executed,
-        the array with expected errors should be cleared
-      */
-      memset(&saved_expected_errors, 0, sizeof(saved_expected_errors));
+      // As soon as any non "error" command or comment has been executed,
+      // the array with expected errors should be cleared
+      expected_errors->clear_error_list();
     }
 
     if (command_executed != last_command_executed || command->used_replace) {
