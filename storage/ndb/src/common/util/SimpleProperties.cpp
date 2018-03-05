@@ -189,6 +189,16 @@ SimpleProperties::Reader::readValue(){
   }
 }
 
+int findKeyInMapping(Uint16 key,
+                     const SimpleProperties::SP2StructMapping map[],
+                     Uint32 mapSz) {
+  /* Linear search */
+  for(Uint32 i = 0; i<mapSz; i++)
+    if(key == map[i].Key)
+      return i;
+  return -1;
+}
+
 SimpleProperties::UnpackStatus 
 SimpleProperties::unpack(Reader & it, void * dst, 
 			 const SP2StructMapping _map[], Uint32 mapSz){
@@ -199,42 +209,33 @@ SimpleProperties::unpack(Reader & it, void * dst,
     if(!it.valid())
       break;
     
-    bool found = false;
     Uint16 key = it.getKey();
-    for(Uint32 i = 0; i<mapSz; i++){
-      if(key == _map[i].Key){
-	found = true;
-	if(_map[i].Type == InvalidValue)
-	  return Break;
-	if(_map[i].Type != it.getValueType())
-	  return TypeMismatch;
+    int i = findKeyInMapping(key, _map, mapSz);
+
+    if(i >= 0){
+      if(_map[i].Type == InvalidValue)
+        return Break;
+      if(_map[i].Type != it.getValueType())
+        return TypeMismatch;
 	
-	char * _dst = (char *)dst;
-	_dst += _map[i].Offset;
+      char * _dst = (char *)dst;
+      _dst += _map[i].Offset;
 	
-	switch(it.getValueType()){
-	case Uint32Value:{
-	  const Uint32 val = it.getUint32();
-	  * ((Uint32 *)_dst) = val;
-	  break;
-        }
-	case BinaryValue:
-        case StringValue:{
-	  unsigned len = it.getValueLen();
-          if(_map[i].maxLength && len > _map[i].maxLength)
-	    return ValueTooLong;
-          it.getString(_dst);
-          break;
-	}
-	default:
-	  abort();
-	}
-	break;
+      switch(it.getValueType()){
+      case Uint32Value:
+        * ((Uint32 *)_dst) = it.getUint32();
+        break;
+      case BinaryValue:
+      case StringValue:
+        if(_map[i].maxLength && it.getValueLen() > _map[i].maxLength)
+          return ValueTooLong;
+        it.getString(_dst);
+        break;
+      default:
+        abort();
       }
-    }
-    if(!found && !ignoreUnknownKeys)
-      return UnknownKey;
-  } while(it.next());
+    } else if(!ignoreUnknownKeys) return UnknownKey;
+ } while(it.next());
   
   return Eof;
 }
