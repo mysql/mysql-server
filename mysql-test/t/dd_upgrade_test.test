@@ -741,8 +741,6 @@ SHOW CREATE TABLE test.t_set;
 --echo #
 --echo #
 
---source include/not_valgrind.inc
-
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server2.log;
 
 --echo # Zip file contains data directory of a clean 5.7 server.

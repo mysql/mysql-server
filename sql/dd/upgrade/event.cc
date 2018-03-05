@@ -586,6 +586,7 @@ bool migrate_events_to_dd(THD *thd) {
   // Read the first row in the 'event' table via index.
   if ((error = event_table->file->ha_index_first(event_table->record[0]))) {
     if (error == HA_ERR_END_OF_FILE) {
+      my_tz_free();
       return false;
     }
     LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
