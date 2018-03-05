@@ -8966,9 +8966,7 @@ type_conversion_status Field_json::store_json(Json_wrapper *json)
 {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
 
-  json_binary::Value json_val= json->to_value();
-  if (json_val.type() == json_binary::Value::ERROR ||
-      json_val.raw_binary(&value))
+  if (json->to_binary(&value))
     return TYPE_ERR_BAD_VALUE;
 
   return store_binary(value.ptr(), value.length());

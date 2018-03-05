@@ -1,0 +1,23 @@
+#
+# Bug#26040870 - ASSERT ON KILL'ING A STORED ROUTINE INVOCATION.
+#
+CREATE TABLE t1 (a INT);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+INSERT INTO t1 VALUES (1);
+RETURN 1;
+END|
+SET DEBUG_SYNC= "sp_lex_instr_before_exec_core SIGNAL sp_ready WAIT_FOR sp_finish";
+SELECT f1();
+SET DEBUG_SYNC="now WAIT_FOR sp_ready";
+KILL QUERY sp_con_id;
+SET DEBUG_SYNC="now SIGNAL sp_finish";
+# Diagnostics area is not set if routine statement execution is
+# interrupted by the KILL operation. Accessing diagnostics area in such
+# case results in the issue reported.
+# Patch for the bug25586773, checks if diagnostics area is set before
+# accessing it.
+ERROR 70100: Query execution was interrupted
+SET DEBUG_SYNC='RESET';
+DROP TABLE t1;
+DROP FUNCTION f1;

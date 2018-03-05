@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1023,6 +1023,7 @@ dict_mem_index_free(
 		UT_DELETE(index->rtr_track->rtr_active);
 	}
 
+	dict_index_remove_from_v_col_list(index);
 	mem_heap_free(index->heap);
 }
 

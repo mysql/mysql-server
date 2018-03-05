@@ -1,7 +1,7 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -560,6 +560,13 @@ public:
       table->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
     return strncmp(password_field->field_name, "Password", 8) == 0;
   }
+
+  virtual bool user_table_schema_check(TABLE* table)
+  {
+    return table->s->fields >
+           Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56;
+  }
+
   virtual ~Acl_load_user_table_schema_factory() {}
 };
 

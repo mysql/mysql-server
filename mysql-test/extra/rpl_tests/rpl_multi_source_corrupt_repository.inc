@@ -126,6 +126,7 @@ if ($rpl_corrupt_channel_name)
 
 --echo ===== STOP SLAVE without 'FOR CHANNEL' clause.
 --let $rpl_channel_name=
+--let $slave_sql_errno= convert_error(ER_SLAVE_RLI_INIT_REPOSITORY)
 --source include/stop_slave.inc
 
 --echo === Assert that all channels IO and SQL threads are in OFF state ===

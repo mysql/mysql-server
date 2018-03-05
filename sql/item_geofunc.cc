@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1867,7 +1867,7 @@ append_geometry(Geometry::wkb_parser *parser, Json_object *geometry,
         }
         else
         {
-          bool result;
+          bool result= false;
           Json_array *points= new (std::nothrow) Json_array();
           if (points == NULL || collection->append_alias(points))
             return true;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1183,6 +1183,7 @@ THD::THD(bool enable_plugins)
   peer_port= 0;					// For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled= true;
   active_vio = 0;
+  m_SSL = NULL;
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
@@ -2546,7 +2547,7 @@ int THD::send_explain_fields(Query_result *result)
 enum_vio_type THD::get_vio_type()
 {
 #ifndef EMBEDDED_LIBRARY
-  DBUG_ENTER("shutdown_active_vio");
+  DBUG_ENTER("THD::get_vio_type");
   DBUG_RETURN(get_protocol()->connection_type());
 #else
   return NO_VIO_TYPE;
@@ -2562,6 +2563,7 @@ void THD::shutdown_active_vio()
   {
     vio_shutdown(active_vio);
     active_vio = 0;
+    m_SSL = NULL;
   }
 #endif
   DBUG_VOID_RETURN;

@@ -335,14 +335,6 @@ ENDIF()
 SET(CLIENT_LIBS "")
 SET(LIBS "")
 
-# Avoid compatibility warning about lists with empty elements
-IF(POLICY CMP0011)
-  CMAKE_POLICY(SET CMP0011 NEW)
-ENDIF()
-IF(POLICY CMP0007)
-  CMAKE_POLICY(SET CMP0007 OLD)
-ENDIF()
-
 # Extract dependencies using CMake's internal ${target}_LIB_DEPENDS variable
 # returned string in ${var} is can be passed to linker's command line
 MACRO(EXTRACT_LINK_LIBRARIES target var)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,9 +47,11 @@ static void *expel_member_from_group_thread(void *ptr)
   nodes_to_kill *ntk= (nodes_to_kill *) ptr;
   unsigned int len= 0;
   char **addrs= NULL;
+  blob *uuids= NULL;
 
   len= static_cast<unsigned int>(ntk->nodes->size());
   addrs= static_cast<char **>(malloc(len * sizeof(char *)));
+  uuids= static_cast<blob *>(malloc(len * sizeof(blob)));
   node_list nl;
 
   std::vector<Gcs_member_identifier *>::const_iterator nodes_it= ntk->nodes->begin();
@@ -57,14 +59,22 @@ static void *expel_member_from_group_thread(void *ptr)
   for (int i= 0; nodes_it != nodes_end; i++, ++nodes_it)
   {
     addrs[i]= const_cast<char *>((*nodes_it)->get_member_id().c_str());
+    uuids[i].data.data_val=
+      static_cast<char *>(malloc((*nodes_it)->get_member_uuid().size() * sizeof(char)));
+    (*nodes_it)->get_member_uuid().encode(
+      reinterpret_cast<uchar **>(&uuids[i].data.data_val),
+      &(uuids[i].data.data_len)
+    );
+
     MYSQL_GCS_LOG_TRACE(
-      "expel_member_from_group_thread():: "
-      << "Node[" << i << "]=" << addrs[i]
+      "expel_member_from_group_thread():: Node[" << i << "]=(address="
+      << addrs[i] << ", uuid=" << (*nodes_it)->get_member_uuid().actual_value
+      << ")"
     );
   }
 
   nl.node_list_len= len;
-  nl.node_list_val= ntk->proxy->new_node_address(len, addrs);
+  nl.node_list_val= ntk->proxy->new_node_address_uuid(len, addrs, uuids);
   free(addrs);
 
   MYSQL_GCS_LOG_TRACE(
@@ -73,8 +83,12 @@ static void *expel_member_from_group_thread(void *ptr)
   )
 
   nodes_it= ntk->nodes->begin();
-  for (; nodes_it != nodes_end; ++nodes_it)
+  for (int i= 0; nodes_it != nodes_end; i++, ++nodes_it)
+  {
+    free(uuids[i].data.data_val);
     delete (*nodes_it);
+  }
+  free(uuids);
 
   ntk->proxy->xcom_client_remove_node(&nl, ntk->group_id_hash);
   MYSQL_GCS_LOG_TRACE(
@@ -125,25 +139,26 @@ Gcs_xcom_control(Gcs_xcom_group_member_information *group_member_information,
                  Gcs_xcom_state_exchange_interface *state_exchange,
                  Gcs_xcom_view_change_control_interface *view_control,
                  bool boot,
-                 My_xp_socket_util *socket_util)
+                 My_xp_socket_util *socket_util,
+                 Gcs_xcom_group_management *xcom_management)
   :m_gid(NULL),
   m_gid_hash(0),
   m_xcom_proxy(xcom_proxy),
   event_listeners(),
   m_local_member_id(NULL),
-  m_local_member_id_hash(0),
   m_state_exchange(state_exchange),
   m_local_node_info(NULL),
   m_xcom_thread(),
-  m_hash(0),
   m_node_list_me(),
-  m_uuid(0),
   m_socket_util(socket_util),
+  m_join_attempts(0),
+  m_join_sleep_time(0),
   m_xcom_running(false),
   m_boot(boot),
   m_initial_peers(),
   m_view_control(view_control),
-  m_gcs_engine(gcs_engine)
+  m_gcs_engine(gcs_engine),
+  m_xcom_management(xcom_management)
 {
   set_local_node_info(group_member_information);
 
@@ -169,9 +184,12 @@ Gcs_xcom_control::~Gcs_xcom_control()
   delete m_gid;
   delete m_local_member_id;
 
-  if (m_node_list_me.node_list_len)
-    delete_node_address(m_node_list_me.node_list_len,
-                        m_node_list_me.node_list_val);
+  if (m_node_list_me.node_list_len != 0)
+  {
+    m_xcom_proxy->delete_node_address(m_node_list_me.node_list_len,
+                                      m_node_list_me.node_list_val);
+    m_node_list_me.node_list_len= 0;
+  }
 
   clear_peer_nodes();
 }
@@ -213,24 +231,53 @@ bool Gcs_xcom_control::is_xcom_running()
 }
 
 
+void Gcs_xcom_control::set_join_behavior(unsigned int join_attempts,
+                                         unsigned join_sleep_time)
+{
+  m_join_attempts= join_attempts;
+  MYSQL_GCS_LOG_INFO(
+    "Configured number of attempts to join: " << m_join_attempts
+  )
+
+  m_join_sleep_time= join_sleep_time;
+  MYSQL_GCS_LOG_INFO(
+    "Configured time between attempts to join: " << m_join_sleep_time
+    << " seconds"
+  )
+}
+
+
 /**
   Initializes address list.
 */
 void Gcs_xcom_control::init_me()
 {
+  blob uuid;
   Gcs_xcom_group_member_information *node= m_local_node_info;
-  char *addr= (char *)node->get_member_address().c_str();
-  blob *uuid;
+  char *addr= const_cast<char *>(node->get_member_address().c_str());
+
+  if (m_node_list_me.node_list_len != 0)
+  {
+    m_xcom_proxy->delete_node_address(m_node_list_me.node_list_len,
+                                      m_node_list_me.node_list_val);
+    m_node_list_me.node_list_len= 0;
+  }
+
+  uuid.data.data_val= static_cast<char *>(
+      malloc(m_local_member_id->get_member_uuid().size() * sizeof(char))
+  );
+  m_local_member_id->get_member_uuid().encode(
+      reinterpret_cast<uchar **>(&uuid.data.data_val),
+      &(uuid.data.data_len)
+  );
 
   m_node_list_me.node_list_len= 1;
   m_node_list_me.node_list_val=
-    m_xcom_proxy->new_node_address(m_node_list_me.node_list_len, &addr);
-  uuid= &m_node_list_me.node_list_val[0].uuid;
-
-  uuid->data.data_len= sizeof(m_local_member_id_hash);
-  uuid->data.data_val= (char *) calloc(1, uuid->data.data_len);
-  memcpy(uuid->data.data_val, &m_local_member_id_hash, uuid->data.data_len);
- }
+    m_xcom_proxy->new_node_address_uuid(
+      m_node_list_me.node_list_len, &addr, &uuid
+    );
+  free(uuid.data.data_val);
+}
 
 
 void do_function_join(Gcs_control_interface *control_if)
@@ -296,14 +343,10 @@ enum_gcs_error Gcs_xcom_control::join()
 }
 
 
-enum_gcs_error Gcs_xcom_control::do_join()
+enum_gcs_error Gcs_xcom_control::do_join(bool retry)
 {
-  /* Used to initialize xcom */
-  int local_port= m_local_node_info->get_member_port();
-  connection_descriptor* con= NULL;
-  int comm_status= XCOM_COMM_STATUS_UNDEFINED;
-  enum_gcs_error is_xcom_ready= GCS_NOK;
-  bool xcom_handlers_open= false;
+  int retry_join_count= m_join_attempts;
+  enum_gcs_error ret= GCS_NOK;
 
   if (m_xcom_running)
   {
@@ -314,6 +357,40 @@ enum_gcs_error Gcs_xcom_control::do_join()
     m_view_control->end_join();
     return GCS_NOK;
   }
+
+  while (ret == GCS_NOK)
+  {
+    ret= retry_do_join();
+
+    retry_join_count--;
+    if (retry && ret == GCS_NOK && retry_join_count >= 1)
+    {
+      MYSQL_GCS_LOG_DEBUG(
+        "Sleeping for 5 seconds before retrying to join the group. "
+        "There are " << retry_join_count << " more attempt(s) before "
+        "giving up.");
+      My_xp_util::sleep_seconds(m_join_sleep_time);
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  m_view_control->end_join();
+
+  return ret;
+}
+
+
+enum_gcs_error Gcs_xcom_control::retry_do_join()
+{
+  /* Used to initialize xcom */
+  int local_port= m_local_node_info->get_member_port();
+  connection_descriptor* con= NULL;
+  int comm_status= XCOM_COMM_STATUS_UNDEFINED;
+  enum_gcs_error is_xcom_ready= GCS_NOK;
+  bool xcom_handlers_open= false;
 
   /*
     Clean up notification flags that are used to check whether XCOM
@@ -335,7 +412,7 @@ enum_gcs_error Gcs_xcom_control::do_join()
   //Wait for XCom comms to become ready
   m_xcom_proxy->xcom_wait_for_xcom_comms_status_change(comm_status);
 
-  if(comm_status == XCOM_COMMS_ERROR)
+  if(comm_status != XCOM_COMMS_OK)
   {
     MYSQL_GCS_LOG_ERROR("Error joining the group while waiting for" <<
                         " the network layer to become ready.")
@@ -361,8 +438,8 @@ enum_gcs_error Gcs_xcom_control::do_join()
   if (m_boot)
   {
     MYSQL_GCS_LOG_TRACE(
-      "::join():: I am the boot node. "
-      << "Calling xcom_client_boot"
+      "::join():: I am the boot node. " <<  local_port << " "  <<
+      m_local_member_id->get_member_uuid().actual_value << ". Calling xcom_client_boot"
     )
 
     int error= 0;
@@ -441,11 +518,20 @@ enum_gcs_error Gcs_xcom_control::do_join()
         goto err;
       }
       MYSQL_GCS_LOG_TRACE(
-        "::join():: Calling xcom_client_add_node " <<
-        local_port << " connected to " << addr << ":" << port <<
-        " to join"
+        "::join():: Calling xcom_client_add_node " << local_port << " "
+	<<  m_local_member_id->get_member_uuid().actual_value <<
+	" connected to " << addr << ":" << port << " to join"
       )
-      m_xcom_proxy->xcom_client_add_node(con, &m_node_list_me, m_gid_hash);
+      /*
+        Explicitly check the return value so that we are able to distinguish
+        between a failure in the synchronous local request from a failure in
+        the asynchronous add_node request.
+      */
+      if (!m_xcom_proxy->xcom_client_add_node(con, &m_node_list_me, m_gid_hash))
+      {
+        m_xcom_proxy->xcom_client_close_connection(con);
+        goto err;
+      }
       m_xcom_proxy->xcom_client_close_connection(con);
     }
     else
@@ -473,8 +559,6 @@ enum_gcs_error Gcs_xcom_control::do_join()
   MYSQL_GCS_LOG_DEBUG("The member has joined the group. Local port: " <<
                       local_port);
 
-  m_view_control->end_join();
-
   return GCS_OK;
 
 err:
@@ -488,7 +572,7 @@ err:
       "Killing the group communication engine because the member failed to" <<
       " join. Local port: " << local_port
     );
-    if (m_xcom_proxy->xcom_exit(xcom_handlers_open))
+    if (comm_status != XCOM_COMMS_ERROR && m_xcom_proxy->xcom_exit(xcom_handlers_open))
     {
       MYSQL_GCS_LOG_WARN("Failed to kill the group communication engine " <<
                          "after the member failed to join. Local port: " <<
@@ -513,8 +597,6 @@ err:
                       << local_port)
 
   m_xcom_running= false;
-
-  m_view_control->end_join();
 
   return GCS_NOK;
 }
@@ -588,7 +670,6 @@ enum_gcs_error Gcs_xcom_control::do_leave()
     return GCS_NOK;
   }
 
-  MYSQL_GCS_LOG_TRACE("::leave():: Contacting local node")
   m_xcom_proxy->xcom_client_remove_node(&m_node_list_me, m_gid_hash);
 
   /*
@@ -768,10 +849,8 @@ build_total_members(Gcs_xcom_nodes *xcom_nodes,
     /*
       Build the member identifier from the address reported.
     */
-    string *member_id_str=
-      Gcs_xcom_utils::build_xcom_member_id(addresses[i]);
     Gcs_member_identifier *member_id=
-      new Gcs_member_identifier(*member_id_str);
+      new Gcs_member_identifier(addresses[i], xcom_nodes->get_uuids()[i]);
 
     /*
       Check whether the node is reported as alive or faulty.
@@ -784,8 +863,6 @@ build_total_members(Gcs_xcom_nodes *xcom_nodes,
     {
       failed_members.push_back(member_id);
     }
-
-    delete member_id_str;
   }
 }
 
@@ -818,9 +895,7 @@ build_joined_members(std::vector<Gcs_member_identifier *> &joined_members,
     }
 
     if (joined)
-      joined_members.push_back(
-        new Gcs_member_identifier((*alive_members_it)->get_member_id())
-      );
+      joined_members.push_back(new Gcs_member_identifier(*(*alive_members_it)));
   }
 }
 
@@ -935,6 +1010,7 @@ xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes)
   Gcs_view *current_view= m_view_control->get_unsafe_current_view();
   unsigned int size= xcom_nodes->get_size();
   const std::vector<std::string> &addresses= xcom_nodes->get_addresses();
+  const std::vector<Gcs_uuid> &uuids= xcom_nodes->get_uuids();
   const std::vector<bool> &statuses= xcom_nodes->get_statuses();
 
   // ignore
@@ -950,7 +1026,7 @@ xcom_receive_local_view(Gcs_xcom_nodes *xcom_nodes)
     // build the sets of servers
     for (i= 0; i < size; i++)
     {
-      Gcs_member_identifier gcs_id(addresses[i]);
+      Gcs_member_identifier gcs_id(addresses[i], uuids[i]);
 
       // filter out those that are not yet in the current view
       // delivered to the application. For example, they might
@@ -1077,6 +1153,12 @@ xcom_receive_global_view(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
   std::map<int, const Gcs_control_event_listener &>::const_iterator
     listener_ends;
   std::vector<Gcs_message_data *> exchange_data;
+
+  /*
+    Save the current set of nodes with its associated UUIDs because this may
+    be required if the group is reconfigured.
+  */
+  m_xcom_management->save_xcom_nodes(xcom_nodes);
 
   /*
     If there is no previous view installed, there is no current set
@@ -1235,7 +1317,7 @@ xcom_receive_global_view(synode_no message_id, Gcs_xcom_nodes *xcom_nodes,
       "(My node_id is " <<
       xcom_nodes->get_node_no() << ") ::xcom_receive_global_view():: "
       "Discarding view because nothing has changed."
-      " Same view flag is " << same_view << ","
+      " Same view flag is " << same_view <<
       ", number of failed nodes is " << failed_members.size() <<
       ", number of joined nodes is " << joined_members.size() <<
       ", number of left nodes is " << left_members.size()
@@ -1563,16 +1645,14 @@ build_member_list(set<Gcs_member_identifier *> *origin,
 void Gcs_xcom_control::set_local_node_info(Gcs_xcom_group_member_information *group_member_information)
 {
   m_local_node_info= group_member_information;
-
   string address= group_member_information->get_member_address();
-
-  string *member_id= Gcs_xcom_utils::build_xcom_member_id(address);
   delete m_local_member_id;
-  m_local_member_id= new Gcs_member_identifier(*member_id);
-  m_local_member_id_hash=
-    Gcs_xcom_utils::mhash((unsigned char *) m_local_member_id->get_member_id().c_str(),
-                          m_local_member_id->get_member_id().size());
-  delete member_id;
+  /*
+    We don't care at this point about the unique identifier associated to
+    this object because it will be changed while joining a group by the
+    init_me() method.
+  */
+  m_local_member_id= new Gcs_member_identifier(address);
 }
 
 void Gcs_xcom_control::set_peer_nodes(std::vector<Gcs_xcom_group_member_information *> &xcom_peers)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,7 @@
 #include "opt_explain_format.h"
 #include "sql_test.h"            // print_where
 #include "aggregate_check.h"
+#include "template_utils.h"
 
 static void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
 
@@ -230,7 +231,6 @@ bool SELECT_LEX::prepare(THD *thd)
 
   // Set up the ORDER BY clause
   all_fields_count= all_fields.elements;
-  int hidden_order_field_count= 0;
   if (order_list.elements)
   {
     if (setup_order(thd, ref_ptrs, get_table_list(), fields_list, all_fields,
@@ -256,11 +256,11 @@ bool SELECT_LEX::prepare(THD *thd)
       first_execution &&                                   // 2)
       !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
   {
-    remove_redundant_subquery_clauses(thd, hidden_group_field_count,
-                                      hidden_order_field_count);
+    remove_redundant_subquery_clauses(thd, hidden_group_field_count);
   }
 
-  if (order_list.elements && setup_order_final(thd, hidden_order_field_count))
+  if (order_list.elements &&
+      setup_order_final(thd))
     DBUG_RETURN(true);     /* purecov: inspected */
 
   if (is_distinct() &&
@@ -2432,6 +2432,12 @@ bool SELECT_LEX::merge_derived(THD *thd, TABLE_LIST *derived_table)
           is_ordered() ||
           get_table_list()->next_local != NULL))
       order_list.push_back(&derived_select->order_list);
+    else
+    {
+      derived_select->empty_order_list(this);
+      trace_derived.add_alnum("transformations_to_derived_table",
+                              "removed_ordering");
+    }
   }
 
   // Add any full-text functions from derived table into outer query
@@ -2941,14 +2947,11 @@ bool SELECT_LEX::fix_inner_refs(THD *thd)
    @param thd               thread handler
    @param hidden_group_field_count Number of hidden group fields added
                             by setup_group().
-   @param hidden_order_field_count Number of hidden order fields added
-                            by setup_order().
 */
 
 
 void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
-                                                   int hidden_group_field_count,
-                                                   int hidden_order_field_count)
+                                                   int hidden_group_field_count)
 {
   Item_subselect *subq_predicate= master_unit()->item;
   /*
@@ -2980,7 +2983,7 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
   if (order_list.elements)
   {
     changelog|= REMOVE_ORDER;
-    empty_order_list(hidden_order_field_count);
+    empty_order_list(this);
   }
 
   if (is_distinct())
@@ -3031,16 +3034,18 @@ void SELECT_LEX::remove_redundant_subquery_clauses(THD *thd,
   Delete corresponding elements from all_fields and ref_ptrs too.
   If ORDER list contain any subqueries, delete them from the query block list.
 
-  @param hidden_order_field_count Number of hidden order fields to remove
+  @param sl  Query block that possible subquery blocks in the ORDER BY clause
+             are attached to (may be different from "this" when query block has
+             been merged into an outer query block).
 */
 
-void SELECT_LEX::empty_order_list(int hidden_order_field_count)
+void SELECT_LEX::empty_order_list(SELECT_LEX *sl)
 {
   for (ORDER *o= order_list.first; o != NULL; o= o->next)
   {
     if (*o->item == o->item_ptr)
       (*o->item)->walk(&Item::clean_up_after_removal, walk_subquery,
-                       reinterpret_cast<uchar*>(this));
+                       pointer_cast<uchar *>(sl));
   }
   order_list.empty();
   while (hidden_order_field_count-- > 0)
@@ -3378,17 +3383,15 @@ bool SELECT_LEX::check_only_full_group_by(THD *thd)
   Split any aggregate functions.
 
   @param thd                      Thread handler
-  @param hidden_order_field_count Number of fields to delete from ref array
-                                  if ORDER BY clause is redundant.
 
   @returns false if success, true if error
 */
-bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
+bool SELECT_LEX::setup_order_final(THD *thd)
 {
   if (is_implicitly_grouped())
   {
     // Result will contain zero or one row - ordering is redundant
-    empty_order_list(hidden_order_field_count);
+    empty_order_list(this);
     return false;
   }
 
@@ -3397,7 +3400,7 @@ bool SELECT_LEX::setup_order_final(THD *thd, int hidden_order_field_count)
       !(braces && explicit_limit))
   {
     // Part of UNION which requires global ordering may skip local order
-    empty_order_list(hidden_order_field_count);
+    empty_order_list(this);
     return false;
   }
 
@@ -3610,7 +3613,7 @@ validate_gc_assignment(THD * thd, List<Item> *fields,
     Field *rfield;
 
     if (!use_table_field)
-      rfield= ((Item_field *)f++)->field;
+      rfield= (down_cast<Item_field*>((f++)->real_item()))->field;
     else
       rfield= *(fld++);
     if (rfield->table != table)

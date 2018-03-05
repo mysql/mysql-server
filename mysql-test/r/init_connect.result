@@ -134,7 +134,31 @@ x
 17
 19
 drop trigger trg1;
-set global init_connect="set @a='a\\0c'";
 revoke all privileges, grant option from mysqltest1@localhost;
 drop user mysqltest1@localhost;
 drop table t1, t2;
+###
+### Bug#25968185: INIT_CONNECT PREVENTS CONNECTIONS IF PASSWORD EXPIRED
+###
+call mtr.add_suppression("\\[Warning\\] init_connect variable is ignored for user:.* host: localhost due to expired password.");
+CREATE USER user1@localhost PASSWORD EXPIRE;
+CREATE USER ''@localhost;
+UPDATE mysql.user SET password_expired='Y' WHERE user='' AND host='localhost';
+SELECT user, password_expired FROM mysql.user WHERE user='' AND host='localhost';
+user	password_expired
+	Y
+FLUSH PRIVILEGES;
+SET GLOBAL init_connect="set @a=2;";
+Pattern "\[Warning\] init_connect variable is ignored for user: user1 host: localhost due to expired password." found
+SELECT @a;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+SET PASSWORD = 'abc';
+SELECT @a;
+@a
+NULL
+Pattern "\[Warning\] init_connect variable is ignored for user:  host: localhost due to expired password." found
+SELECT @a;
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+DROP USER user1@localhost;
+DROP USER ''@localhost;
+set global init_connect="set @a='a\\0c'";

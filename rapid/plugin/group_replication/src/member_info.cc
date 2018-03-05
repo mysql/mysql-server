@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@ Group_member_info(char* hostname_arg,
                   Group_member_info::Group_member_role role_arg,
                   bool in_single_primary_mode,
                   bool has_enforces_update_everywhere_checks,
-                  uint member_weight_arg)
+                  uint member_weight_arg,
+                  uint lower_case_table_names_arg)
   : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
     hostname(hostname_arg), port(port_arg), uuid(uuid_arg),
     status(status_arg),
@@ -41,7 +42,8 @@ Group_member_info(char* hostname_arg,
     unreachable(false),
     role(role_arg),
     configuration_flags(0), conflict_detection_enable(false),
-    member_weight(member_weight_arg)
+    member_weight(member_weight_arg),
+    lower_case_table_names(lower_case_table_names_arg)
 {
   gcs_member_id= new Gcs_member_identifier(gcs_member_id_arg);
   member_version= new Member_version(member_version_arg.get_version());
@@ -69,7 +71,8 @@ Group_member_info::Group_member_info(Group_member_info& other)
     role(other.get_role()),
     configuration_flags(other.get_configuration_flags()),
     conflict_detection_enable(other.is_conflict_detection_enabled()),
-    member_weight(other.get_member_weight())
+    member_weight(other.get_member_weight()),
+    lower_case_table_names(other.get_lower_case_table_names())
 {
   gcs_member_id= new Gcs_member_identifier(other.get_gcs_member_id()
                                                .get_member_id());
@@ -153,6 +156,10 @@ Group_member_info::encode_payload(std::vector<unsigned char>* buffer) const
   uint16 member_weight_aux= (uint16)member_weight;
   encode_payload_item_int2(buffer, PIT_MEMBER_WEIGHT,
                            member_weight_aux);
+
+  uint16 lower_case_table_names_aux= static_cast <uint16> (lower_case_table_names);
+  encode_payload_item_int2(buffer, PIT_LOWER_CASE_TABLE_NAME,
+                           lower_case_table_names_aux);
 
   DBUG_VOID_RETURN;
 }
@@ -267,6 +274,15 @@ Group_member_info::decode_payload(const unsigned char* buffer,
           member_weight= (uint)member_weight_aux;
         }
         break;
+
+      case PIT_LOWER_CASE_TABLE_NAME:
+        if (slider + payload_item_length <= end)
+        {
+          uint16 lower_case_table_names_aux= uint2korr(slider);
+          slider += payload_item_length;
+          lower_case_table_names= static_cast <uint>(lower_case_table_names_aux);
+        }
+        break;
     }
   }
 
@@ -363,6 +379,12 @@ uint32
 Group_member_info::get_configuration_flags()
 {
   return configuration_flags;
+}
+
+uint
+Group_member_info::get_lower_case_table_names() const
+{
+  return lower_case_table_names;
 }
 
 bool Group_member_info::in_primary_mode()

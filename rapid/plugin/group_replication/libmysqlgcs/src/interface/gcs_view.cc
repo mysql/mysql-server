@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,7 +64,7 @@ void Gcs_view::clone(const std::vector<Gcs_member_identifier>& members,
   for (members_it= members.begin(); members_it != members.end(); ++members_it)
   {
     m_members
-      ->push_back(Gcs_member_identifier((*members_it).get_member_id()));
+      ->push_back(Gcs_member_identifier(*members_it));
   }
 
   m_leaving= new std::vector<Gcs_member_identifier>();
@@ -72,7 +72,7 @@ void Gcs_view::clone(const std::vector<Gcs_member_identifier>& members,
   for (leaving_it= leaving.begin(); leaving_it != leaving.end(); ++leaving_it)
   {
     m_leaving
-      ->push_back(Gcs_member_identifier((*leaving_it).get_member_id()));
+      ->push_back(Gcs_member_identifier(*leaving_it));
   }
 
   m_joined= new std::vector<Gcs_member_identifier>();
@@ -131,4 +131,23 @@ const std::vector<Gcs_member_identifier> &Gcs_view::get_joined_members() const
 Gcs_view::Gcs_view_error_code Gcs_view::get_error_code() const
 {
   return m_error_code;
+}
+
+const Gcs_member_identifier *Gcs_view::get_member(const std::string &member_id) const
+{
+  std::vector<Gcs_member_identifier>::const_iterator members_it;
+  for (members_it= m_members->begin(); members_it != m_members->end(); ++members_it)
+  {
+    if ((*members_it).get_member_id() == member_id)
+    {
+      return &(*members_it);
+    }
+  }
+
+  return NULL;
+}
+
+bool Gcs_view::has_member(const std::string &member_id) const
+{
+  return get_member(member_id) != NULL;
 }

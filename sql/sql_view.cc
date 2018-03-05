@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1251,6 +1251,19 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share,
   DBUG_RETURN(false);
 }
 
+/**
+  Merge a view query expression into the parent expression.
+  Update all LEX pointers inside the view expression to point to the parent LEX.
+
+  @param view_lex  View's LEX object.
+  @param parent_lex   Original LEX object.
+*/
+void merge_query_blocks(LEX *view_lex, LEX *parent_lex)
+{
+  for (SELECT_LEX *select= view_lex->all_selects_list;
+       select != NULL; select= select->next_select_in_list())
+    select->parent_lex= parent_lex;
+}
 
 /**
   Parse a view definition.
@@ -1680,6 +1693,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     sl->context.view_error_handler= true;
     sl->context.view_error_handler_arg= view_ref;
   }
+
+  merge_query_blocks(thd->lex, old_lex);
 
   view_select->linkage= DERIVED_TABLE_TYPE;
 

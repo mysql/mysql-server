@@ -21,6 +21,9 @@
   Sum functions (COUNT, MIN...)
 */
 
+#include "item_json_func.h"                // get_atom_null_as_null ..
+#include "json_dom.h"
+#include "sql_exception_handler.h"         // handle_std_exception
 #include "sql_select.h"
 #include "sql_tmp_table.h"                 // create_tmp_table
 #include "sql_resolver.h"                  // setup_order, fix_inner_refs
@@ -241,6 +244,8 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
   }
 
   aggr_sel->set_agg_func_used(true);
+  if (sum_func() == JSON_AGG_FUNC)
+    aggr_sel->set_json_agg_func_used(true);
   update_used_tables();
   thd->lex->in_sum_func= in_sum_func;
   return FALSE;
@@ -3814,4 +3819,298 @@ Item_func_group_concat::~Item_func_group_concat()
 {
   if (!original && unique_filter)
     delete unique_filter;    
+}
+
+
+bool Item_sum_json::fix_fields(THD *thd, Item **ref)
+{
+  DBUG_ASSERT(!fixed);
+  result_field= NULL;
+
+  if (init_sum_func_check(thd))
+    return true;
+
+  Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if ((!args[i]->fixed && args[i]->fix_fields(thd, args + i)) ||
+        args[i]->check_cols(1))
+      return true;
+  }
+  fix_length_and_dec();
+
+  if (check_sum_func(thd, ref))
+    return true;
+
+  max_length= MAX_BLOB_WIDTH;
+  maybe_null= true;
+  null_value= true;
+  fixed= true;
+  return false;
+}
+
+String *Item_sum_json::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+  if (null_value || m_wrapper.empty())
+    return NULL;
+  str->length(0);
+  if (m_wrapper.to_string(str, true, func_name()))
+    return error_str();
+
+  return str;
+}
+
+
+bool Item_sum_json::val_json(Json_wrapper *wr)
+{
+  if (null_value || m_wrapper.empty())
+    return true;
+
+  /*
+    val_* functions are called more than once in aggregates and
+    by passing the dom some function will destroy it so a clone is needed.
+  */
+  Json_dom *dom= m_wrapper.clone_dom();
+  Json_wrapper tmp(dom);
+  wr->steal(&tmp);
+
+  return false;
+}
+
+
+double Item_sum_json::val_real()
+{
+  if (null_value || m_wrapper.empty())
+    return 0.0;
+
+  return m_wrapper.coerce_real(func_name());
+}
+
+
+longlong Item_sum_json::val_int()
+{
+  if (null_value || m_wrapper.empty())
+    return 0;
+
+  return m_wrapper.coerce_int(func_name());
+}
+
+
+my_decimal *Item_sum_json::val_decimal(my_decimal *decimal_value)
+{
+  if (null_value || m_wrapper.empty())
+  {
+    my_decimal_set_zero(decimal_value);
+    return decimal_value;
+  }
+
+  return m_wrapper.coerce_decimal(decimal_value, func_name());
+}
+
+
+bool Item_sum_json::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
+{
+  if (null_value || m_wrapper.empty())
+    return true;
+
+  return m_wrapper.coerce_date(ltime, fuzzydate, func_name());
+}
+
+
+bool Item_sum_json::get_time(MYSQL_TIME *ltime)
+{
+  if (null_value || m_wrapper.empty())
+    return true;
+
+  return m_wrapper.coerce_time(ltime, func_name());
+}
+
+
+void Item_sum_json::reset_field()
+{
+  /* purecov: begin inspected */
+  DBUG_ASSERT(0); // Check JOIN::with_json_agg for more details.
+  // Create the container
+  clear();
+  // Append element to the container.
+  add();
+
+  /*
+    field_type is MYSQL_TYPE_JSON so Item::make_string_field will always
+    create a Field_json(in Item_sum::create_tmp_field).
+    The cast is need since Field does not expose store_json function.
+  */
+  Field_json *json_result_field= down_cast<Field_json *>(result_field);
+  json_result_field->set_notnull();
+  // Store the container inside the field.
+  json_result_field->store_json(&m_wrapper);
+  /* purecov: end */
+}
+
+
+void Item_sum_json::update_field()
+{
+  /* purecov: begin inspected */
+  DBUG_ASSERT(0); // Check JOIN::with_json_agg for more details.
+  /*
+    field_type is MYSQL_TYPE_JSON so Item::make_string_field will always
+    create a Field_json(in Item_sum::create_tmp_field).
+    The cast is need since Field does not expose store_json function.
+  */
+  Field_json *json_result_field= down_cast<Field_json *>(result_field);
+  // Restore the container(m_wrapper) from the field
+  json_result_field->val_json(&m_wrapper);
+
+  // Append elements to the container.
+  add();
+  // Store the container inside the field.
+  json_result_field->store_json(&m_wrapper);
+  json_result_field->set_notnull();
+  /* purecov: end */
+}
+
+
+void Item_sum_json_array::clear()
+{
+  null_value= true;
+  m_json_array.clear();
+
+  Json_wrapper tmp(&m_json_array);
+  // Set the array to the m_wrapper.
+  m_wrapper.steal(&tmp);
+  // But let Item_sum_json_array keep the ownership.
+  m_wrapper.set_alias();
+}
+
+
+void Item_sum_json_object::clear()
+{
+  null_value= true;
+  m_json_object.clear();
+
+  Json_wrapper tmp(&m_json_object);
+  // Set the object to the m_wrapper.
+  m_wrapper.steal(&tmp);
+  // But let Item_sum_json_object keep the ownership.
+  m_wrapper.set_alias();
+}
+
+
+bool Item_sum_json_array::add()
+{
+  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(arg_count == 1);
+
+  const THD *thd= current_thd;
+  /*
+     Checking if an error happened inside one of the functions that have no
+     way of returning an error status. (reset_field(), update_field() or
+     clear())
+   */
+  if (thd->is_error())
+    return error_json();
+
+  try
+  {
+    Json_wrapper value_wrapper;
+    // Get the value.
+    if (get_atom_null_as_null(args, 0, func_name(), &m_value,
+                              &m_conversion_buffer,
+                              &value_wrapper))
+      return error_json();
+
+    /*
+      The m_wrapper always points to m_json_array or the result of
+      deserializing the result_field in reset/update_field.
+    */
+    Json_array *arr= down_cast<Json_array *>(m_wrapper.to_dom());
+    if (arr->append_alias(value_wrapper.to_dom()))
+      return error_json();              /* purecov: inspected */
+
+    null_value= false;
+    value_wrapper.set_alias(); // release the DOM
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
+
+  return false;
+}
+
+
+Item *Item_sum_json_array::copy_or_same(THD *thd)
+{
+  return new (thd->mem_root) Item_sum_json_array(thd, this);
+}
+
+
+bool Item_sum_json_object::add()
+{
+  DBUG_ASSERT(fixed == 1);
+  DBUG_ASSERT(arg_count == 2);
+
+  const THD *thd= current_thd;
+  /*
+     Checking if an error happened inside one of the functions that have no
+     way of returning an error status. (reset_field(), update_field() or
+     clear())
+   */
+  if (thd->is_error())
+    return error_json();
+
+  try
+  {
+    // key
+    Item *key_item= args[0];
+    const char *safep;         // contents of key_item, possibly converted
+    size_t safe_length;        // length of safep
+
+    if (get_json_string(key_item, &m_tmp_key_value, &m_conversion_buffer,
+                        func_name(), &safep, &safe_length))
+    {
+      my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
+      return error_json();
+    }
+
+    std::string key(safep, safe_length);
+
+    // value
+    Json_wrapper value_wrapper;
+    if (get_atom_null_as_null(args, 1, func_name(), &m_value,
+                              &m_conversion_buffer, &value_wrapper))
+      return error_json();
+
+    /*
+      The m_wrapper always points to m_json_object or the result of
+      deserializing the result_field in reset/update_field.
+    */
+    Json_object *object= down_cast<Json_object *>(m_wrapper.to_dom());
+    if (object->add_alias(key, value_wrapper.to_dom()))
+      return error_json();              /* purecov: inspected */
+
+    null_value= false;
+    // object will take ownership of the value
+    value_wrapper.set_alias();
+  }
+  catch (...)
+  {
+    /* purecov: begin inspected */
+    handle_std_exception(func_name());
+    return error_json();
+    /* purecov: end */
+  }
+
+  return false;
+}
+
+
+Item *Item_sum_json_object::copy_or_same(THD *thd)
+{
+  return new (thd->mem_root) Item_sum_json_object(thd, this);
 }

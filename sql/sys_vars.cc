@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3562,6 +3562,12 @@ bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
 {
   bool check_purge= false;
 
+  /*
+    SET binlog_checksome command should ignore 'read-only' and 'super_read_only'
+    options so that it can update 'mysql.gtid_executed' replication repository
+    table.
+  */
+  thd->set_skip_readonly_check();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   if(mysql_bin_log.is_open())
   {
@@ -3719,6 +3725,22 @@ static bool check_sql_mode(sys_var *self, THD *thd, set_var *var)
                           ER_WARN_DEPRECATED_SQLMODE,
                           ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
                           "NO_AUTO_CREATE_USER");
+    }
+    static const sql_mode_t deprecated_mask= MODE_DB2 | MODE_MAXDB |
+      MODE_MSSQL | MODE_MYSQL323 | MODE_MYSQL40 | MODE_ORACLE |
+      MODE_POSTGRESQL | MODE_NO_FIELD_OPTIONS | MODE_NO_KEY_OPTIONS |
+      MODE_NO_TABLE_OPTIONS;
+    sql_mode_t deprecated_modes=
+      var->save_result.ulonglong_value & deprecated_mask;
+    if (deprecated_modes != 0)
+    {
+      LEX_STRING buf;
+      if (sql_mode_string_representation(thd, deprecated_modes, &buf))
+        return true; // OOM
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_SQLMODE,
+                          ER_THD(thd, ER_WARN_DEPRECATED_SQLMODE),
+                          buf.str);
     }
   }
 
@@ -5814,6 +5836,15 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        READ_ONLY GLOBAL_VAR(opt_disabled_storage_engines),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
+
+static Sys_var_mybool Sys_show_create_table_verbosity(
+       "show_create_table_verbosity",
+       "When this option is enabled, it increases the verbosity of "
+       "'SHOW CREATE TABLE'.",
+        SESSION_VAR(show_create_table_verbosity),
+        CMD_LINE(OPT_ARG),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0));
 
 static bool check_keyring_access(sys_var*, THD* thd, set_var*)
 {

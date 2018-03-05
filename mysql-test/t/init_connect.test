@@ -250,14 +250,61 @@ disconnect con0;
 disconnect con1;
 
 drop trigger trg1;
-# Set init connect back to the value provided in init_connect-master.opt
-# doesn't matter as server will be restarted
-set global init_connect="set @a='a\\0c'";
 
 revoke all privileges, grant option from mysqltest1@localhost;
 drop user mysqltest1@localhost;
 drop table t1, t2;
 
+--echo ###
+--echo ### Bug#25968185: INIT_CONNECT PREVENTS CONNECTIONS IF PASSWORD EXPIRED
+--echo ###
+
+call mtr.add_suppression("\\[Warning\\] init_connect variable is ignored for user:.* host: localhost due to expired password.");
+
+CREATE USER user1@localhost PASSWORD EXPIRE;
+CREATE USER ''@localhost;
+UPDATE mysql.user SET password_expired='Y' WHERE user='' AND host='localhost';
+SELECT user, password_expired FROM mysql.user WHERE user='' AND host='localhost';
+FLUSH PRIVILEGES;
+
+SET GLOBAL init_connect="set @a=2;";
+
+#SCENARRIO 1:- Normal user with expired password.
+connect (con1,localhost,user1,,);
+connection con1;
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\[Warning\] init_connect variable is ignored for user: user1 host: localhost due to expired password.;
+--source include/search_pattern.inc
+
+--error ER_MUST_CHANGE_PASSWORD
+SELECT @a;
+SET PASSWORD = 'abc';
+SELECT @a;
+
+connection default;
+disconnect con1;
+
+#SCENARRIO 2:- Anonymous user with expired password.
+connect (con2,localhost,anonymous,,);
+connection con2;
+
+let SEARCH_FILE=$MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\[Warning\] init_connect variable is ignored for user:  host: localhost due to expired password.;
+--source include/search_pattern.inc
+
+--error ER_MUST_CHANGE_PASSWORD
+SELECT @a;
+
+connection default;
+disconnect con2;
+
+DROP USER user1@localhost;
+DROP USER ''@localhost;
+
+# Set init connect back to the value provided in init_connect-master.opt
+# doesn't matter as server will be restarted
+set global init_connect="set @a='a\\0c'";
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-

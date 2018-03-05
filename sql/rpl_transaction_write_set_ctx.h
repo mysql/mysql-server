@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include <vector>
 #include <map>
 #include <list>
+#include <set>
 #include <string>
 
 /**
@@ -43,10 +44,10 @@ public:
   void add_write_set(uint64 hash);
 
   /*
-    Function to get the pointer of the write set vector in the
+    Function to get the pointer of the write set in the
     transaction_ctx object.
   */
-  std::vector<uint64> *get_write_set();
+  std::set<uint64> *get_write_set();
 
   /*
     Cleanup function of the vector which stores the PKE.
@@ -91,6 +92,7 @@ public:
 
 private:
   std::vector<uint64> write_set;
+  std::set<uint64> write_set_unique;
 
   /**
     Contains information related to SAVEPOINTs. The key on map is the

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1883,11 +1883,32 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
-    if (create_info.row_type != ROW_TYPE_DEFAULT)
+
+    /*
+      If 'show_create_table_verbosity' is enabled, the row format would
+      be displayed in the output of SHOW CREATE TABLE even if default
+      row format is used. Otherwise only the explicitly mentioned
+      row format would be displayed.
+    */
+    if (thd->variables.show_create_table_verbosity)
+    {
+      enum row_type row_type = file->get_row_type();
+      packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
+      if (row_type == ROW_TYPE_NOT_USED || row_type == ROW_TYPE_DEFAULT)
+      {
+        row_type= ((share->db_options_in_use & HA_OPTION_COMPRESS_RECORD) ?
+                   ROW_TYPE_COMPRESSED :
+                   (share->db_options_in_use & HA_OPTION_PACK_RECORD) ?
+                   ROW_TYPE_DYNAMIC : ROW_TYPE_FIXED);
+      }
+      packet->append(ha_row_type[(uint) row_type]);
+    }
+    else if (create_info.row_type != ROW_TYPE_DEFAULT)
     {
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint) create_info.row_type]);
     }
+
     if (table->s->key_block_size)
     {
       char *end;

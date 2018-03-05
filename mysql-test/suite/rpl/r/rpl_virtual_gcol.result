@@ -50,7 +50,6 @@ INSERT INTO gtable(doc) VALUES (NULL);
 UPDATE gtable SET doc = 'POINT(4 4)' where doc IS NULL;
 UPDATE gtable SET doc = NULL WHERE ST_X(ST_GEOMFROMTEXT(doc)) = 4;
 include/sync_slave_sql_with_master.inc
-# Cleanup
 [connection master]
 DROP TABLE gtable;
 include/sync_slave_sql_with_master.inc
@@ -65,5 +64,46 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 DROP TABLE gtable;
 include/sync_slave_sql_with_master.inc
+[connection master]
+CREATE TABLE gtable(geo GEOMETRY, gcol GEOMETRY AS (GEOMETRYCOLLECTION(geo, geo)));
+INSERT INTO gtable (geo) VALUES (POINT(1, 1));
+include/sync_slave_sql_with_master.inc
+[connection master]
+UPDATE gtable SET geo = LINESTRING(POINT(1, 1), POINT(2, 2));
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP TABLE gtable;
+include/sync_slave_sql_with_master.inc
+SET @slave_parallel_type_saved= @@GLOBAL.SLAVE_PARALLEL_TYPE;
+SET @slave_parallel_workers_saved= @@GLOBAL.SLAVE_PARALLEL_WORKERS;
+SET @slave_preserver_commit_order_saved= @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER;
+include/stop_slave.inc
+SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
+SET GLOBAL slave_parallel_workers= 4;
+SET GLOBAL slave_preserve_commit_order= ON;
+include/start_slave.inc
+CALL mtr.add_suppression("This version of MySQL doesn't yet support 'sorting of non-scalar JSON values'");
+[connection master]
+CREATE TABLE gtable(id INT, jd JSON, td TEXT,
+gcol JSON AS (JSON_OBJECT(id,jd,JSON_KEYS(jd),td)));
+INSERT INTO gtable(id,jd,td) VALUES(100, '{"a":1}', 'characters');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:gtable, slave:gtable]
+[connection master]
+UPDATE gtable SET jd = JSON_REPLACE(jd, '$[0].a',"a");
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:gtable, slave:gtable]
+[connection master]
+UPDATE gtable SET jd= JSON_SET(jd, '$.key', '["h","e","l","l","o"]');
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:gtable, slave:gtable]
+[connection master]
+DROP TABLE gtable;
+include/sync_slave_sql_with_master.inc
 SET @@global.slave_rows_search_algorithms= @saved_slave_rows_search_algorithms;
+include/stop_slave.inc
+SET @@GLOBAL.SLAVE_PARALLEL_TYPE= @slave_parallel_type_saved;
+SET @@GLOBAL.SLAVE_PARALLEL_WORKERS= @slave_parallel_workers_saved;
+SET @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER= @slave_preserver_commit_order_saved;
+include/start_slave.inc
 include/rpl_end.inc

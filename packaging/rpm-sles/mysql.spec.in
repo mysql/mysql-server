@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -90,11 +90,28 @@ Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src
 URL:            http://www.mysql.com/
 Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
-Source10:       http://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
+Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
+BuildRequires:  perl(Config)
+BuildRequires:  perl(Cwd)
+BuildRequires:  perl(Data::Dumper)
+BuildRequires:  perl(File::Basename)
+BuildRequires:  perl(File::Copy)
+BuildRequires:  perl(File::Find)
+BuildRequires:  perl(File::Path)
+BuildRequires:  perl(File::Spec)
+BuildRequires:  perl(File::Spec::Functions)
+BuildRequires:  perl(File::Temp)
+BuildRequires:  perl(Getopt::Long)
+BuildRequires:  perl(IO::File)
+BuildRequires:  perl(IO::Select)
+BuildRequires:  perl(IO::Socket)
+BuildRequires:  perl(IO::Socket::INET)
+BuildRequires:  perl(JSON)
+BuildRequires:  perl(Sys::Hostname)
 BuildRequires:  libaio-devel
 BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
@@ -107,9 +124,7 @@ BuildRequires:  pkgconfig(systemd)
 BuildRequires:  systemd-rpm-macros
 %endif
 BuildRequires:  cyrus-sasl-devel
-%if 0%{?commercial}
 BuildRequires:  openldap2-devel
-%endif
 BuildRoot:      %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 
 %if 0%{?rhel} > 6
@@ -261,6 +276,23 @@ MySQL database server, and MySQL embedded server.
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
 Requires:       %{name}-server >= %{min}
+Requires:       perl(Config)
+Requires:       perl(Cwd)
+Requires:       perl(Data::Dumper)
+Requires:       perl(File::Basename)
+Requires:       perl(File::Copy)
+Requires:       perl(File::Find)
+Requires:       perl(File::Path)
+Requires:       perl(File::Spec)
+Requires:       perl(File::Spec::Functions)
+Requires:       perl(File::Temp)
+Requires:       perl(Getopt::Long)
+Requires:       perl(IO::File)
+Requires:       perl(IO::Select)
+Requires:       perl(IO::Socket)
+Requires:       perl(IO::Socket::INET)
+Requires:       perl(JSON)
+Requires:       perl(Sys::Hostname)
 %if 0%{?cluster}
 Requires:       %{name}-data-node%{?_isa} >= %{min}
 Requires:       %{name}-management-server%{?_isa} >= %{min}
@@ -642,14 +674,6 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql 
 rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
-
-# Remove obsoleted man pages
-rm -f %{buildroot}%{_mandir}/man1/mysql-stress-test.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql-test-run.pl.1
-rm -f %{buildroot}%{_mandir}/man1/mysql_client_test.1
-rm -f %{buildroot}%{_mandir}/man1/mysql_client_test_embedded.1
-rm -f %{buildroot}%{_mandir}/man1/mysqltest.1
-rm -f %{buildroot}%{_mandir}/man1/mysqltest_embedded.1
 
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
@@ -1186,6 +1210,12 @@ fi
 %endif # cluster
 
 %changelog
+* Wed Jan 24 2018 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.23-1
+- Add perl modules for test subpackage
+
+* Wed Jan 10 2018 Bjorn Munch <bjorn.munch@oracle.com> - 5.7.22-1
+- No longer need to remove obsoleted mysqltest man pages
+
 * Wed Nov 08 2017 Bharathy Satish <bharathy.x.satish@oracle.com> - 5.7.21-1
 - Add keyring_encrypted_file.so plugin
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,26 +25,35 @@
 Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
 {
   DBUG_ENTER("Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx");
+  /*
+    In order to speed-up small transactions write-set extraction,
+    we preallocate 24 elements.
+    24 is a sufficient number to hold write-sets for single
+    statement transactions, even on tables with foreign keys.
+  */
+  write_set.reserve(24);
   DBUG_VOID_RETURN;
 }
 
 void Rpl_transaction_write_set_ctx::add_write_set(uint64 hash)
 {
-  DBUG_ENTER("Transaction_context_log_event::add_write_set");
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::add_write_set");
   write_set.push_back(hash);
+  write_set_unique.insert(hash);
   DBUG_VOID_RETURN;
 }
 
-std::vector<uint64>* Rpl_transaction_write_set_ctx::get_write_set()
+std::set<uint64>* Rpl_transaction_write_set_ctx::get_write_set()
 {
-  DBUG_ENTER("Transaction_context_log_event::add_write_set");
-  DBUG_RETURN(&write_set);
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::get_write_set");
+  DBUG_RETURN(&write_set_unique);
 }
 
 void Rpl_transaction_write_set_ctx::clear_write_set()
 {
-  DBUG_ENTER("Transaction_context_log_event::clear_write_set");
+  DBUG_ENTER("Rpl_transaction_write_set_ctx::clear_write_set");
   write_set.clear();
+  write_set_unique.clear();
   savepoint.clear();
   savepoint_list.clear();
   DBUG_VOID_RETURN;
@@ -65,9 +74,9 @@ Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id)
   thd= Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd)
   {
-    Rpl_transaction_write_set_ctx *transaction_write_set_ctx=
-      thd->get_transaction()->get_transaction_write_set_ctx();
-    int write_set_size= transaction_write_set_ctx->get_write_set()->size();
+    std::set<uint64> *write_set= thd->get_transaction()
+        ->get_transaction_write_set_ctx()->get_write_set();
+    unsigned long write_set_size= write_set->size();
     if (write_set_size == 0)
     {
       mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -84,8 +93,8 @@ Transaction_write_set* get_transaction_write_set(unsigned long m_thread_id)
                                        sizeof(unsigned long long),
                                        MYF(0));
     int result_set_index= 0;
-    for (std::vector<uint64>::iterator it= transaction_write_set_ctx->get_write_set()->begin();
-         it!=transaction_write_set_ctx->get_write_set()->end();
+    for (std::set<uint64>::iterator it= write_set->begin();
+         it != write_set->end();
          ++it)
     {
       uint64 temp= *it;
@@ -105,6 +114,7 @@ void Rpl_transaction_write_set_ctx::add_savepoint(char* name)
                   {
                   DBUG_ASSERT(savepoint.size() == 0);
                   DBUG_ASSERT(write_set.size() == 0);
+                  DBUG_ASSERT(write_set_unique.size() == 0);
                   DBUG_ASSERT(savepoint_list.size() == 0);
                   });
 
@@ -184,13 +194,19 @@ void Rpl_transaction_write_set_ctx::rollback_to_savepoint(char* name)
     {
       // Clear all elements after savepoint
       write_set.erase(write_set.begin() + position, write_set.end());
+      // Since the write_set_unique set does not have insert order, the
+      // elements are ordered according its value, we need to rebuild it.
+      write_set_unique.clear();
+      write_set_unique.insert(write_set.begin(), write_set.end());
     }
 
-    DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint",
-                    DBUG_ASSERT(write_set.size() == 1););
+    DBUG_EXECUTE_IF("transaction_write_set_savepoint_add_savepoint", {
+                    DBUG_ASSERT(write_set.size() == 2);
+                    DBUG_ASSERT(write_set_unique.size() == 2);});
 
-    DBUG_EXECUTE_IF("transaction_write_set_size_2",
-                    DBUG_ASSERT(write_set.size() == 2););
+    DBUG_EXECUTE_IF("transaction_write_set_size_2", {
+                    DBUG_ASSERT(write_set.size() == 4);
+                    DBUG_ASSERT(write_set_unique.size() == 4);});
   }
 
   DBUG_VOID_RETURN;
