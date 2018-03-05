@@ -981,17 +981,17 @@ dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
   }
 
   ut_a(dd_space != nullptr);
-
-  if (dd::acquire_exclusive_tablespace_mdl(thd, dd_space->name().c_str(),
-                                           false)) {
+  MDL_ticket *src_ticket = nullptr;
+  if (dd::acquire_exclusive_tablespace_mdl(thd, dd_space->name().c_str(), false,
+                                           &src_ticket)) {
     ut_ad(false);
     DBUG_RETURN(DB_ERROR);
   }
 
   dd_filename_to_spacename(new_space_name, &tablespace_name);
-
-  if (dd::acquire_exclusive_tablespace_mdl(thd, tablespace_name.c_str(),
-                                           false)) {
+  MDL_ticket *dst_ticket = nullptr;
+  if (dd::acquire_exclusive_tablespace_mdl(thd, tablespace_name.c_str(), false,
+                                           &dst_ticket)) {
     ut_ad(false);
     DBUG_RETURN(DB_ERROR);
   }
@@ -1027,7 +1027,7 @@ dberr_t dd_rename_tablespace(dd::Object_id dd_space_id,
 
   bool fail = client->update(new_space);
   ut_ad(!fail);
-
+  dd::rename_tablespace_mdl_hook(thd, src_ticket, dst_ticket);
   DBUG_RETURN(fail ? DB_ERROR : DB_SUCCESS);
 }
 

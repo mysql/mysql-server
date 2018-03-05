@@ -1497,3 +1497,109 @@ UNLOCK TABLE;
 DROP TABLE t1;
 DROP TABLESPACE s1;
 DROP TABLESPACE s2;
+
+
+--echo #
+--echo # Bug#27472087: ALTER TABLE HANGS IN "WAITING FOR TABLESPACE METADATA
+--echo # LOCK" STATE
+--echo #
+--echo # Verify that MDLs taken for implicit table and partition tablespaces
+--echo # handled correctly in lock tables mode.
+--echo #
+
+CREATE TABLE test1(a INT NOT NULL, b CHAR(2) NOT NULL, PRIMARY KEY(a, b))
+ENGINE=INNODB;
+
+CREATE TABLE test2(a INT NOT NULL, b CHAR(2) NOT NULL, PRIMARY KEY(a, b))
+ENGINE=INNODB;
+
+LOCK TABLES test1 WRITE;
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+      OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+ALTER TABLE test1 RENAME test1_tmp;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+      OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+--connect(con1,localhost,root,,)
+ALTER TABLE test2 RENAME test1;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+      OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+--connection default
+UNLOCK TABLES;
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+DROP TABLE test1_tmp;
+DROP TABLE test1;
+
+--echo # Testing partitioned tables
+CREATE TABLE part1(a INT) PARTITION BY HASH (a) PARTITIONS 10;
+CREATE TABLE part2(a INT) PARTITION BY HASH (a) PARTITIONS 10;
+LOCK TABLES part1 WRITE;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+ALTER TABLE part1 RENAME TO part1_tmp;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+--connection con1
+ALTER TABLE part2 RENAME TO part1;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+--connection default
+UNLOCK TABLES;
+
+--echo ### Locks held ###
+SELECT OBJECT_TYPE, OBJECT_NAME, LOCK_TYPE, LOCK_DURATION, LOCK_STATUS
+FROM performance_schema.metadata_locks
+WHERE OBJECT_TYPE = 'table' AND OBJECT_SCHEMA = 'test' OR
+OBJECT_TYPE = 'tablespace'
+ORDER BY OBJECT_NAME;
+--echo ###
+
+DROP TABLE part1_tmp;
+DROP TABLE part1;

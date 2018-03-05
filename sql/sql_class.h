@@ -87,7 +87,8 @@
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"  // Security_context
 #include "sql/current_thd.h"
-#include "sql/discrete_interval.h"  // Discrete_interval
+#include "sql/discrete_interval.h"   // Discrete_interval
+#include "sql/locked_tables_list.h"  // enum_locked_tables_mode
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"  // Opt_trace_context
@@ -417,31 +418,6 @@ class Item_change_record : public ilink<Item_change_record> {
 typedef I_List<Item_change_record> Item_change_list;
 
 /**
-  Type of locked tables mode.
-  See comment for THD::locked_tables_mode for complete description.
-  While adding new enum values add them to the getter method for this enum
-  declared below and defined in binlog.cc as well.
-*/
-
-enum enum_locked_tables_mode {
-  LTM_NONE = 0,
-  LTM_LOCK_TABLES,
-  LTM_PRELOCKED,
-  LTM_PRELOCKED_UNDER_LOCK_TABLES
-};
-
-#ifndef DBUG_OFF
-/**
-  Getter for the enum enum_locked_tables_mode
-  @param locked_tables_mode enum for types of locked tables mode
-
-  @return The string represantation of that enum value
-*/
-const char *get_locked_tables_mode_name(
-    enum_locked_tables_mode locked_tables_mode);
-#endif
-
-/**
   Class that holds information about tables which were opened and locked
   by the thread. It is also used to save/restore this information in
   push_open_tables_state()/pop_open_tables_state().
@@ -647,63 +623,6 @@ inline char const *show_system_thread(enum_thread_type thread) {
   }
 #undef RETURN_NAME_AS_STRING
 }
-
-/**
-  Tables that were locked with LOCK TABLES statement.
-
-  Encapsulates a list of TABLE_LIST instances for tables
-  locked by LOCK TABLES statement, memory root for metadata locks,
-  and, generally, the context of LOCK TABLES statement.
-
-  In LOCK TABLES mode, the locked tables are kept open between
-  statements.
-  Therefore, we can't allocate metadata locks on execution memory
-  root -- as well as tables, the locks need to stay around till
-  UNLOCK TABLES is called.
-  The locks are allocated in the memory root encapsulated in this
-  class.
-
-  Some SQL commands, like FLUSH TABLE or ALTER TABLE, demand that
-  the tables they operate on are closed, at least temporarily.
-  This class encapsulates a list of TABLE_LIST instances, one
-  for each base table from LOCK TABLES list,
-  which helps conveniently close the TABLEs when it's necessary
-  and later reopen them.
-
-  Implemented in sql_base.cc
-*/
-
-class Locked_tables_list {
- private:
-  MEM_ROOT m_locked_tables_root;
-  TABLE_LIST *m_locked_tables;
-  TABLE_LIST **m_locked_tables_last;
-  /** An auxiliary array used only in reopen_tables(). */
-  TABLE **m_reopen_array;
-  /**
-    Count the number of tables in m_locked_tables list. We can't
-    rely on thd->lock->table_count because it excludes
-    non-transactional temporary tables. We need to know
-    an exact number of TABLE objects.
-  */
-  size_t m_locked_tables_count;
-
- public:
-  Locked_tables_list();
-
-  void unlock_locked_tables(THD *thd);
-  ~Locked_tables_list() { unlock_locked_tables(0); }
-  bool init_locked_tables(THD *thd);
-  TABLE_LIST *locked_tables() { return m_locked_tables; }
-  void unlink_from_list(THD *thd, TABLE_LIST *table_list,
-                        bool remove_from_locked_tables);
-  void unlink_all_closed_tables(THD *thd, MYSQL_LOCK *lock,
-                                size_t reopen_count);
-  bool reopen_tables(THD *thd);
-  void rename_locked_table(TABLE_LIST *old_table_list, const char *new_db,
-                           const char *new_table_name,
-                           MDL_ticket *target_mdl_ticket);
-};
 
 /**
   Storage engine specific thread local data.
