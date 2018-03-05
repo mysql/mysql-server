@@ -241,7 +241,7 @@ void dict_stats_thread_init() {
  after dict_stats_thread() has exited. */
 void dict_stats_thread_deinit() {
   ut_a(!srv_read_only_mode);
-  ut_ad(!srv_dict_stats_thread_active);
+  ut_ad(!srv_threads.m_dict_stats_thread_active);
 
   if (recalc_pool == NULL) {
     return;
@@ -371,8 +371,6 @@ void dict_stats_thread() {
   ut_a(!srv_read_only_mode);
   THD *thd = create_thd(false, true, true, 0);
 
-  srv_dict_stats_thread_active = true;
-
   while (!dict_stats_start_shutdown) {
     /* Wake up periodically even if not signaled. This is
     because we may lose an event - if the below call to
@@ -400,7 +398,8 @@ void dict_stats_thread() {
     os_event_reset(dict_stats_event);
   }
 
-  srv_dict_stats_thread_active = false;
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_dict_stats_thread_active = false;
 
   os_event_set(dict_stats_shutdown_event);
 

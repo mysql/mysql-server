@@ -357,7 +357,7 @@ struct MEM_ROOT;
   @section sect_protocol_connection_phase_auth_method_mismatch Authentication Method Mismatch
 
   Assume that client wants to log in as user U and that user account uses
-  uthentication method M. If:
+  authentication method M. If:
 
   1. Server's default method used to generate authentication payload for
   @ref page_protocol_connection_phase_packets_protocol_handshake was different
@@ -784,18 +784,96 @@ struct MEM_ROOT;
 */
 /* clang-format on */
 
-LEX_CSTRING native_password_plugin_name = {
-    C_STRING_WITH_LEN("mysql_native_password")};
-
-LEX_CSTRING sha256_password_plugin_name = {
-    C_STRING_WITH_LEN("sha256_password")};
-
 LEX_CSTRING validate_password_plugin_name = {
     C_STRING_WITH_LEN("validate_password")};
 
 LEX_CSTRING default_auth_plugin_name;
 
-plugin_ref native_password_plugin;
+const LEX_CSTRING Cached_authentication_plugins::cached_plugins_names[(
+    uint)PLUGIN_LAST] = {{C_STRING_WITH_LEN("caching_sha2_password")},
+                         {C_STRING_WITH_LEN("mysql_native_password")},
+                         {C_STRING_WITH_LEN("sha256_password")}};
+
+/**
+  Use known pointers for cached plugins to improve comparison time
+
+  @param  [in] plugin Name of the plugin
+*/
+void Cached_authentication_plugins::optimize_plugin_compare_by_pointer(
+    LEX_CSTRING *plugin) {
+  DBUG_ENTER(
+      "Cached_authentication_plugins::optimize_plugin_compare_by_pointer");
+  for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
+    if (my_strcasecmp(system_charset_info, cached_plugins_names[i].str,
+                      plugin->str) == 0) {
+      plugin->str = cached_plugins_names[i].str;
+      plugin->length = cached_plugins_names[i].length;
+      DBUG_VOID_RETURN;
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Cached_authentication_plugins constructor
+
+  Cache plugin_ref for each plugin in cached_plugins_names list
+*/
+Cached_authentication_plugins::Cached_authentication_plugins() {
+  DBUG_ENTER("Cached_authentication_plugins::Cached_authentication_plugins");
+  m_valid = true;
+  for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
+    if (cached_plugins_names[i].str[0]) {
+      cached_plugins[i] = my_plugin_lock_by_name(0, cached_plugins_names[i],
+                                                 MYSQL_AUTHENTICATION_PLUGIN);
+      if (!cached_plugins[i]) m_valid = false;
+    } else
+      cached_plugins[i] = 0;
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Cached_authentication_plugins destructor
+
+  Releases all plugin_refs
+*/
+Cached_authentication_plugins::~Cached_authentication_plugins() {
+  DBUG_ENTER("Cached_authentication_plugins::~Cached_authentication_plugins");
+  for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
+    if (cached_plugins[i]) plugin_unlock(0, cached_plugins[i]);
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Get plugin_ref if plugin is cached
+
+  @param [in] plugin Name of the plugin
+
+  @returns cached plugin_ref if found, 0 otherwise.
+*/
+plugin_ref Cached_authentication_plugins::get_cached_plugin_ref(
+    const LEX_CSTRING *plugin) {
+  plugin_ref cached_plugin = 0;
+  LEX_CSTRING plugin_cstring;
+  DBUG_ENTER("Cached_authentication_plugins::get_cached_plugin_ref");
+  if (!plugin || !plugin->str || !this->is_valid()) DBUG_RETURN(cached_plugin);
+
+  plugin_cstring.str = plugin->str;
+  plugin_cstring.length = plugin->length;
+  this->optimize_plugin_compare_by_pointer(&plugin_cstring);
+
+  for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
+    if (plugin_cstring.str == cached_plugins_names[i].str) {
+      cached_plugin = cached_plugins[i];
+      DBUG_RETURN(cached_plugin);
+    }
+  }
+  DBUG_RETURN(cached_plugin);
+}
+
+Cached_authentication_plugins *g_cached_authentication_plugins = 0;
 
 bool disconnect_on_expired_password = true;
 
@@ -1027,6 +1105,11 @@ bool Rsa_authentication_keys::read_rsa_keys() {
 
 #endif /* HAVE_OPENSSL */
 
+void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name) {
+  g_cached_authentication_plugins->optimize_plugin_compare_by_pointer(
+      plugin_name);
+}
+
 /**
  Initialize default authentication plugin based on command line options or
  configuration file settings.
@@ -1041,43 +1124,20 @@ int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length) {
 
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
 
-  if (default_auth_plugin_name.str != sha256_password_plugin_name.str &&
-      default_auth_plugin_name.str != native_password_plugin_name.str &&
-      default_auth_plugin_name.str != caching_sha2_password_plugin_name.str)
+  if (!Cached_authentication_plugins::compare_plugin(
+          PLUGIN_SHA256_PASSWORD, default_auth_plugin_name) &&
+      !Cached_authentication_plugins::compare_plugin(
+          PLUGIN_MYSQL_NATIVE_PASSWORD, default_auth_plugin_name) &&
+      !Cached_authentication_plugins::compare_plugin(
+          PLUGIN_CACHING_SHA2_PASSWORD, default_auth_plugin_name))
     return 1;
 
   return 0;
 }
 
-void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name) {
-#if defined(HAVE_OPENSSL)
-  if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
-                    plugin_name->str) == 0) {
-    plugin_name->str = sha256_password_plugin_name.str;
-    plugin_name->length = sha256_password_plugin_name.length;
-  } else if (my_strcasecmp(system_charset_info,
-                           caching_sha2_password_plugin_name.str,
-                           plugin_name->str) == 0) {
-    plugin_name->str = caching_sha2_password_plugin_name.str;
-    plugin_name->length = caching_sha2_password_plugin_name.length;
-  } else
-#endif
-      if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
-                        plugin_name->str) == 0) {
-    plugin_name->str = native_password_plugin_name.str;
-    plugin_name->length = native_password_plugin_name.length;
-  }
-}
-
-std::vector<std::string> builtin_auth_plugins = {"mysql_native_password",
-                                                 "sha256_password"};
-
 bool auth_plugin_is_built_in(const char *plugin_name) {
-  return (plugin_name == native_password_plugin_name.str
-#if defined(HAVE_OPENSSL)
-          || plugin_name == sha256_password_plugin_name.str
-#endif
-          || plugin_name == caching_sha2_password_plugin_name.str);
+  LEX_CSTRING plugin = {C_STRING_WITH_LEN(plugin_name)};
+  return g_cached_authentication_plugins->auth_plugin_is_built_in(&plugin);
 }
 
 /**
@@ -1092,12 +1152,7 @@ bool auth_plugin_is_built_in(const char *plugin_name) {
 bool auth_plugin_supports_expiration(const char *plugin_name) {
   if (!plugin_name || !*plugin_name) return false;
 
-  return (plugin_name == native_password_plugin_name.str ||
-          plugin_name == caching_sha2_password_plugin_name.str
-#if defined(HAVE_OPENSSL)
-          || plugin_name == sha256_password_plugin_name.str
-#endif
-  );
+  return auth_plugin_is_built_in(plugin_name);
 }
 
 /* few defines to have less ifdef's in the code below */
@@ -1295,10 +1350,10 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
         if the default plugin does not provide the data for the scramble at
         all, we generate a scramble internally anyway, just in case the
         user account (that will be known only later) uses a
-        native_password_plugin (which needs a scramble). If we don't send a
-        scramble now - wasting 20 bytes in the packet -
-        native_password_plugin will have to send it in a separate packet,
-        adding one more round trip.
+        mysql_native_password plugin (which needs a scramble). If we don't send
+        a scramble now - wasting 20 bytes in the packet - mysql_native_password
+        plugin will have to send it in a separate packet, adding one more round
+        trip.
       */
       generate_user_salt(mpvio->scramble, SCRAMBLE_LENGTH + 1);
       data = mpvio->scramble;
@@ -1493,7 +1548,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio, const char *data,
   Sends a @ref
   page_protocol_connection_phase_packets_protocol_auth_switch_request
 
-  Used by the server to reequest that a client should restart authentication
+  Used by the server to request that a client should restart authentication
   using a different authentication plugin.
 
   See @ref page_protocol_connection_phase_packets_protocol_auth_switch_request
@@ -1509,7 +1564,13 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio, const uchar *data,
   static uchar switch_plugin_request_buf[] = {254};
 
   DBUG_ENTER("send_plugin_request_packet");
-  mpvio->status = MPVIO_EXT::FAILURE;  // the status is no longer RESTART
+
+  /*
+    In case of --skip-grant-tables, mpvio->status might already have set to
+    SUCCESS, don't reset it to FAILURE now.
+  */
+  if (initialized)
+    mpvio->status = MPVIO_EXT::FAILURE;  // the status is no longer RESTART
 
   const char *client_auth_plugin =
       ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
@@ -1570,14 +1631,22 @@ bool acl_check_host(THD *thd, const char *host, const char *ip) {
 /**
   When authentication is attempted using an unknown username a dummy user
   account with no authentication capabilites is assigned to the connection.
-  This is done increase the cost of enumerating user accounts based on
+  When server is started with -skip-grant-tables, a dummy user account
+  with authentication capabilities is assigned to the connection.
+  Dummy user authenticates with the empty authentication string.
+  This is done to decrease the cost of enumerating user accounts based on
   authentication protocol.
-*/
 
+  @param [in] username  A dummy user to be created.
+  @param [in] hostname  Host of the dummy user.
+  @param [in] mem       Memory in which the dummy ACL user will be created.
+
+  @retval A dummy ACL USER
+*/
 static ACL_USER *decoy_user(const LEX_STRING &username,
                             const LEX_STRING &hostname, MEM_ROOT *mem) {
   ACL_USER *user = (ACL_USER *)alloc_root(mem, sizeof(ACL_USER));
-  user->can_authenticate = false;
+  user->can_authenticate = !initialized;
   user->user = strdup_root(mem, username.str);
   user->user[username.length] = '\0';
   user->host.update_hostname(strdup_root(mem, hostname.str));
@@ -1618,30 +1687,33 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
   DBUG_ENTER("find_mpvio_user");
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
   DBUG_ASSERT(mpvio->acl_user == 0);
-  Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
-  if (!acl_cache_lock.lock(false)) DBUG_RETURN(true);
 
-  for (ACL_USER *acl_user_tmp = acl_users->begin();
-       acl_user_tmp != acl_users->end(); ++acl_user_tmp) {
-    if ((!acl_user_tmp->user ||
-         !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
-        acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip)) {
-      mpvio->acl_user = acl_user_tmp->copy(mpvio->mem_root);
+  if (likely(acl_users)) {
+    Acl_cache_lock_guard acl_cache_lock(thd, Acl_cache_lock_mode::READ_MODE);
+    if (!acl_cache_lock.lock(false)) DBUG_RETURN(true);
 
-      /*
-        When setting mpvio->acl_user_plugin we can save memory allocation if
-        this is a built in plugin.
-      */
-      if (auth_plugin_is_built_in(acl_user_tmp->plugin.str))
-        mpvio->acl_user_plugin = mpvio->acl_user->plugin;
-      else
-        make_lex_string_root(mpvio->mem_root, &mpvio->acl_user_plugin,
-                             acl_user_tmp->plugin.str,
-                             acl_user_tmp->plugin.length, 0);
-      break;
+    for (ACL_USER *acl_user_tmp = acl_users->begin();
+         acl_user_tmp != acl_users->end(); ++acl_user_tmp) {
+      if ((!acl_user_tmp->user ||
+           !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
+          acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip)) {
+        mpvio->acl_user = acl_user_tmp->copy(mpvio->mem_root);
+
+        /*
+          When setting mpvio->acl_user_plugin we can save memory allocation if
+          this is a built in plugin.
+        */
+        if (auth_plugin_is_built_in(acl_user_tmp->plugin.str))
+          mpvio->acl_user_plugin = mpvio->acl_user->plugin;
+        else
+          make_lex_string_root(mpvio->mem_root, &mpvio->acl_user_plugin,
+                               acl_user_tmp->plugin.str,
+                               acl_user_tmp->plugin.length, 0);
+        break;
+      }
     }
+    acl_cache_lock.unlock();
   }
-  acl_cache_lock.unlock();
 
   if (!mpvio->acl_user) {
     /*
@@ -1656,12 +1728,12 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
     mpvio->acl_user_plugin = mpvio->acl_user->plugin;
   }
 
-  if (my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
-                    native_password_plugin_name.str) != 0 &&
+  if (!Cached_authentication_plugins::compare_plugin(
+          PLUGIN_MYSQL_NATIVE_PASSWORD, mpvio->acl_user->plugin) &&
       !(mpvio->protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
     /* user account requires non-default plugin and the client is too old */
-    DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
-                              native_password_plugin_name.str));
+    DBUG_ASSERT(!Cached_authentication_plugins::compare_plugin(
+        PLUGIN_MYSQL_NATIVE_PASSWORD, mpvio->acl_user->plugin));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
     query_logger.general_log_print(thd, COM_CONNECT, "%s",
                                    ER_DEFAULT(ER_NOT_SUPPORTED_AUTH_MODE));
@@ -1720,7 +1792,7 @@ static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
 static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
 #if defined(HAVE_OPENSSL)
   Vio *vio = thd->get_protocol_classic()->get_vio();
-  SSL *ssl = thd->get_protocol()->get_ssl();
+  SSL *ssl = (SSL *)vio->ssl_arg;
   X509 *cert;
 #endif /* HAVE_OPENSSL */
 
@@ -2008,7 +2080,8 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
       DBUG_RETURN(true);
     }
   } else
-    client_plugin = native_password_plugin_name.str;
+    client_plugin = Cached_authentication_plugins::get_plugin_name(
+        PLUGIN_MYSQL_NATIVE_PASSWORD);
 
   size_t bytes_remaining_in_packet = end - ptr;
 
@@ -2489,13 +2562,12 @@ skip_to_ssl:
     return packet_error; /* The error is set by my_strdup(). */
   mpvio->auth_info.user_name_length = user_len;
 
+  if (find_mpvio_user(thd, mpvio)) return packet_error;
+
   if (!initialized) {
     // if mysqld's been started with --skip-grant-tables option
     mpvio->status = MPVIO_EXT::SUCCESS;
-    return packet_error;
   }
-
-  if (find_mpvio_user(thd, mpvio)) return packet_error;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
       read_client_connect_attrs(&end, &bytes_remaining_in_packet, mpvio))
@@ -2503,7 +2575,8 @@ skip_to_ssl:
 
   if (!(protocol->has_client_capability(CLIENT_PLUGIN_AUTH))) {
     /* An old client is connecting */
-    client_plugin = native_password_plugin_name.str;
+    client_plugin = Cached_authentication_plugins::get_plugin_name(
+        PLUGIN_MYSQL_NATIVE_PASSWORD);
   }
 
   /*
@@ -2736,11 +2809,10 @@ static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
   DBUG_ENTER("do_auth_once");
   int res = CR_OK, old_status = MPVIO_EXT::FAILURE;
   bool unlock_plugin = false;
-  plugin_ref plugin = NULL;
+  plugin_ref plugin =
+      g_cached_authentication_plugins->get_cached_plugin_ref(&auth_plugin_name);
 
-  if (auth_plugin_name.str == native_password_plugin_name.str)
-    plugin = native_password_plugin;
-  else {
+  if (!plugin) {
     if ((plugin = my_plugin_lock_by_name(thd, auth_plugin_name,
                                          MYSQL_AUTHENTICATION_PLUGIN)))
       unlock_plugin = true;
@@ -2791,7 +2863,8 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.host_or_ip_length = sctx_host_or_ip.length;
 
 #if defined(HAVE_OPENSSL)
-  if (thd->get_protocol()->get_ssl())
+  Vio *vio = thd->get_protocol_classic()->get_vio();
+  if (vio->ssl_arg)
     mpvio->vio_is_encrypted = 1;
   else
 #endif /* HAVE_OPENSSL */
@@ -3257,8 +3330,15 @@ int acl_authenticate(THD *thd, enum_server_command command) {
     */
     sctx->set_password_expired(mpvio.acl_user->password_expired ||
                                password_time_expired);
-  } else
+  } else {
     sctx->skip_grants();
+    /*
+      In case of --skip-grant-tables, we already would have set the MPVIO
+      as SUCCESS, it means we are not interested in any of the error set
+      in the diagnostic area, clear them.
+    */
+    thd->get_stmt_da()->reset_diagnostics_area();
+  }
 
   const USER_CONN *uc;
   if ((uc = thd->get_user_connect()) &&
@@ -4891,41 +4971,52 @@ bool MPVIO_EXT::can_authenticate() {
 }
 
 static struct st_mysql_auth native_password_handler = {
-    MYSQL_AUTHENTICATION_INTERFACE_VERSION, native_password_plugin_name.str,
-    native_password_authenticate,           generate_native_password,
-    validate_native_password_hash,          set_native_salt,
-    AUTH_FLAG_USES_INTERNAL_STORAGE,        compare_native_password_with_hash};
+    MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+    Cached_authentication_plugins::get_plugin_name(
+        PLUGIN_MYSQL_NATIVE_PASSWORD),
+    native_password_authenticate,
+    generate_native_password,
+    validate_native_password_hash,
+    set_native_salt,
+    AUTH_FLAG_USES_INTERNAL_STORAGE,
+    compare_native_password_with_hash};
 
 #if defined(HAVE_OPENSSL)
 static struct st_mysql_auth sha256_password_handler = {
-    MYSQL_AUTHENTICATION_INTERFACE_VERSION, sha256_password_plugin_name.str,
-    sha256_password_authenticate,           generate_sha256_password,
-    validate_sha256_password_hash,          set_sha256_salt,
-    AUTH_FLAG_USES_INTERNAL_STORAGE,        compare_sha256_password_with_hash};
+    MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+    Cached_authentication_plugins::get_plugin_name(PLUGIN_SHA256_PASSWORD),
+    sha256_password_authenticate,
+    generate_sha256_password,
+    validate_sha256_password_hash,
+    set_sha256_salt,
+    AUTH_FLAG_USES_INTERNAL_STORAGE,
+    compare_sha256_password_with_hash};
 
 #endif /* HAVE_OPENSSL */
 
 mysql_declare_plugin(mysql_password) {
-  MYSQL_AUTHENTICATION_PLUGIN,         /* type constant    */
-      &native_password_handler,        /* type descriptor  */
-      native_password_plugin_name.str, /* Name             */
-      "R.J.Silk, Sergei Golubchik",    /* Author           */
-      "Native MySQL authentication",   /* Description      */
-      PLUGIN_LICENSE_GPL,              /* License          */
-      NULL,                            /* Init function    */
-      NULL,                            /* Check uninstall  */
-      NULL,                            /* Deinit function  */
-      0x0101,                          /* Version (1.0)    */
-      NULL,                            /* status variables */
-      NULL,                            /* system variables */
-      NULL,                            /* config options   */
-      0,                               /* flags            */
+  MYSQL_AUTHENTICATION_PLUGIN,  /* type constant    */
+      &native_password_handler, /* type descriptor  */
+      Cached_authentication_plugins::get_plugin_name(
+          PLUGIN_MYSQL_NATIVE_PASSWORD), /* Name           */
+      "R.J.Silk, Sergei Golubchik",      /* Author           */
+      "Native MySQL authentication",     /* Description      */
+      PLUGIN_LICENSE_GPL,                /* License          */
+      NULL,                              /* Init function    */
+      NULL,                              /* Check uninstall  */
+      NULL,                              /* Deinit function  */
+      0x0101,                            /* Version (1.0)    */
+      NULL,                              /* status variables */
+      NULL,                              /* system variables */
+      NULL,                              /* config options   */
+      0,                                 /* flags            */
 }
 #if defined(HAVE_OPENSSL)
 , {
-  MYSQL_AUTHENTICATION_PLUGIN,          /* type constant    */
-      &sha256_password_handler,         /* type descriptor  */
-      sha256_password_plugin_name.str,  /* Name             */
+  MYSQL_AUTHENTICATION_PLUGIN,  /* type constant    */
+      &sha256_password_handler, /* type descriptor  */
+      Cached_authentication_plugins::get_plugin_name(
+          PLUGIN_SHA256_PASSWORD),      /* Name             */
       "Oracle",                         /* Author           */
       "SHA256 password authentication", /* Description      */
       PLUGIN_LICENSE_GPL,               /* License          */

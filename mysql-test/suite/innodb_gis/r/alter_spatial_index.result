@@ -1,5 +1,5 @@
 CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace for table .* is set as discarded");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table .* is set as discarded");
 CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
 c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
 ENGINE=InnoDB;
@@ -129,7 +129,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -167,7 +167,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c44`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c44`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -193,7 +193,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -290,7 +290,7 @@ temp_tab	CREATE TEMPORARY TABLE `temp_tab` (
   SPATIAL KEY `idx3` (`c3`),
   SPATIAL KEY `idx4` (`c4`),
   SPATIAL KEY `idx5` (`c5`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @g1 = ST_GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM temp_tab WHERE MBRContains(temp_tab.c4, @g1) ORDER BY c1;
 c1	ST_Astext(c2)	ST_Astext(c4)
@@ -313,7 +313,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	1	idx3	1	c3	A	#	32	NULL		SPATIAL			YES
@@ -339,7 +339,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE,
   SPATIAL KEY `idx2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c2	A	#	25	NULL		BTREE			YES
@@ -373,7 +373,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE,
   SPATIAL KEY `idx2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c5	A	#	10	NULL		BTREE			YES
@@ -460,7 +460,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -495,7 +495,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -545,7 +545,7 @@ tab	CREATE TABLE `tab` (
   SPATIAL KEY `idx4` (`c4`) COMMENT 'testing spatial index on Polygon',
   SPATIAL KEY `idx5` (`c5`) COMMENT 'testing spatial index on Geometry',
   KEY `idx6` (`c4`(10)) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM tab;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 tab	0	PRIMARY	1	c1	A	#	NULL	NULL		BTREE			YES
@@ -624,14 +624,14 @@ parent	CREATE TABLE `parent` (
   `id` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`(25)),
   SPATIAL KEY `idx1` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `id` geometry NOT NULL,
   `parent_id` point NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`parent_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM parent;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 parent	0	PRIMARY	1	id	A	0	25	NULL		BTREE			YES
@@ -660,14 +660,14 @@ parent	CREATE TABLE `parent` (
   `id` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`id`(10)),
   SPATIAL KEY `idx1` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
   `id` geometry NOT NULL,
   `parent_id` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`parent_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW INDEX FROM parent;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 parent	0	PRIMARY	1	id	A	0	10	NULL		BTREE			YES

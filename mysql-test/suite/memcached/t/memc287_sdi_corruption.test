@@ -7,7 +7,7 @@ source include/have_debug.inc;
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 # Create the memcached tables
 source include/memcache_config.inc;
 --enable_query_log
@@ -37,7 +37,7 @@ ENGINE = INNODB;
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 
 --echo # 1. Corrupt SDI Leaf Page
-let SDI_PAGE_NUM = 27;
+let SDI_PAGE_NUM = 22;
 --source ../include/sdi_corrupt_table.inc
 
 # TRUNCATE will not re-create SDI indexes for now. So drop+create table
@@ -50,7 +50,7 @@ CREATE TABLE t1 (c1 INT PRIMARY KEY,
 ENGINE = INNODB;
 
 --echo # 2. Corrupt SDI Non-Leaf Page
-let SDI_PAGE_NUM = 23;
+let SDI_PAGE_NUM = 21;
 --source ../include/sdi_corrupt_table.inc
 
 # TRUNCATE will not re-create SDI indexes for now. So drop+create table
@@ -99,7 +99,7 @@ let $restart_parameters = restart: --log-error=$MYSQLTEST_VARDIR/tmp/crash.log -
 let $restart_parameters = restart: --innodb_buffer_pool_load_at_startup=OFF;
 --source include/start_mysqld.inc
 
-let SEARCH_PATTERN = InnoDB: Unable to read page \\[page id: space=\d+, page number=\d+\\] into the buffer pool after \d+ attempts;
+let SEARCH_PATTERN =  Unable to read page \\[page id: space=\d+, page number=\d+\\] into the buffer pool after \d+ attempts;
 --source include/search_pattern.inc
 
 # Do not use memcached commands (below) on table t1 because we corrupted root

@@ -1,5 +1,5 @@
 #
-# WL#8960 InnoDB: Partial update of LOB.
+# WL#8960  Partial update of LOB.
 # Check backward compatibility.
 #
 set global innodb_compression_level = 0;

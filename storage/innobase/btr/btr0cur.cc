@@ -2871,9 +2871,9 @@ dberr_t btr_cur_optimistic_insert(
                                  n_ext, mtr);
 
     if (UNIV_UNLIKELY(!*rec)) {
-      ib::fatal() << "Cannot insert tuple " << *entry << "into index "
-                  << index->name << " of table " << index->table->name
-                  << ". Max size: " << max_size;
+      ib::fatal(ER_IB_MSG_44)
+          << "Cannot insert tuple " << *entry << "into index " << index->name
+          << " of table " << index->table->name << ". Max size: " << max_size;
     }
   }
 

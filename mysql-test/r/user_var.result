@@ -231,7 +231,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `@first_var` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @first_var= cast(NULL as signed integer);
 create table t1 select @first_var;
@@ -239,7 +239,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `@first_var` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @first_var= NULL;
 create table t1 select @first_var;
@@ -247,7 +247,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `@first_var` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @first_var= concat(NULL);
 create table t1 select @first_var;
@@ -255,7 +255,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `@first_var` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @first_var=1;
 set @first_var= cast(NULL as CHAR);
@@ -264,7 +264,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `@first_var` longtext
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @a=18446744071710965857;
 select @a;

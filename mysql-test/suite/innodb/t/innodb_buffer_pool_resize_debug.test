@@ -149,7 +149,7 @@ disconnect con1;
 disconnect con2;
 
 # fails to allocate new chunks
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: buffer pool 0 : failed to allocate new memory.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* buffer pool 0 : failed to allocate new memory.");
 connection default;
 set global DEBUG="+d,ib_buf_chunk_init_fails";
 set global innodb_buffer_pool_size = 16*1024*1024;

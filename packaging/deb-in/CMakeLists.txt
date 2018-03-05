@@ -58,9 +58,9 @@ IF (DEB_PRODUCT STREQUAL "commercial")
   INCLUDE (deb_commercial.cmake)
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Commercial Server ${MYSQL_BASE_VERSION}")
   SET (DEB_PRODUCTNAME "${DEB_BASE_PRODUCT}commercial")
-  SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Commercial")
+  SET (DEB_PRODUCTNAMEC "${DEB_BASE_PRODUCTC}Enterprise")
   SET (DEB_NOTPRODUCTNAME "${DEB_BASE_PRODUCT}community")
-  SET (DEB_LICENSENAME "Advanced")
+  SET (DEB_LICENSENAME "Commercial")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}+commercial-1")
   # List of plugins that are only in commercial packages
   # Plugins that are in both community and commercial should NOT be added here

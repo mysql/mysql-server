@@ -44,6 +44,10 @@ identifier in Unix is the thread handle itself.
 @return current thread native handle */
 os_thread_id_t os_thread_get_curr_id();
 
+bool os_thread_set_priority(int priority);
+
+void os_thread_set_priority(int priority, const char *thread_name);
+
 /** Return the thread handle. The purpose of this function is to cast the
 native handle to an integer type for consistency
 @return the current thread ID cast to an uint64_t */

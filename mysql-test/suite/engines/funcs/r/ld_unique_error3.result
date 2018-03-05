@@ -6,7 +6,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW TABLES;
 Tables_in_test
 t1

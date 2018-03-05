@@ -161,39 +161,39 @@ Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
 execute stmt1 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select sum(((NULL + NULL) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = NULL) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((NULL * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (NULL + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (NULL + 0.3e+1)) or isnull((NULL + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (NULL + 4.0),(NULL + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 4.0)) or isnull((NULL + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 40e-1)) or isnull((NULL + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((NULL + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or isnull((`test`.`t2`.`c6` + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or isnull((`test`.`t2`.`c9` + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or isnull((`test`.`t2`.`c10` + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
 execute stmt1 ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select sum(((NULL + NULL) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = NULL) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((NULL * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (NULL + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (NULL + 0.3e+1)) or isnull((NULL + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (NULL + 4.0),(NULL + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 4.0)) or isnull((NULL + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 40e-1)) or isnull((NULL + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((NULL + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or isnull((`test`.`t2`.`c6` + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or isnull((`test`.`t2`.`c9` + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or isnull((`test`.`t2`.`c10` + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
 explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-5	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+5	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
 Note	1276	Field or reference 'test.t1.c2' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c15' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.c4' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select (/* select#2 */ select sum(((NULL + NULL) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = NULL) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((NULL * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (NULL + 0.3e+1)) or isnull((NULL + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select 1,1 from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 4.0)) or isnull((NULL + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (NULL + 40e-1)) or isnull((NULL + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((NULL + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((NULL + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
+Note	1003	/* select#1 */ select (/* select#2 */ select sum(((`test`.`t2`.`c1` + `test`.`t2`.`c12`) + 0.0)) from `test`.`t2` where ((NULL - 0e-3) = `test`.`t2`.`c2`) group by NULL limit 1) AS `scalar_s`,exists(/* select#3 */ select 1.0e+0 from `test`.`t2` where ((`test`.`t2`.`c3` * 9.0000000000) = NULL)) AS `exists_s`,<in_optimizer>((NULL * 4),<exists>(/* select#4 */ select (`test`.`t2`.`c6` + 0.3e+1) from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>((NULL * 4)) = (`test`.`t2`.`c6` + 0.3e+1)) or isnull((`test`.`t2`.`c6` + 0.3e+1))), true) having <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c6` + 0.3e+1)), true))) AS `in_s`,<in_optimizer>(((NULL - 4),(NULL - 4)),<exists>(/* select#5 */ select (`test`.`t2`.`c9` + 4.0),(`test`.`t2`.`c10` + 40e-1) from `test`.`t2` where (<if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c9` + 4.0)) or isnull((`test`.`t2`.`c9` + 4.0))), true) and <if>(outer_field_is_not_null, ((<cache>((NULL - 4)) = (`test`.`t2`.`c10` + 40e-1)) or isnull((`test`.`t2`.`c10` + 40e-1))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c9` + 4.0)), true) and <if>(outer_field_is_not_null, <is_not_null_test>((`test`.`t2`.`c10` + 40e-1)), true)))) AS `in_row_s` from `test`.`t1` join `test`.`t2` where ((NULL * 1) = NULL)
 deallocate prepare stmt1;
 drop tables t1,t2;
 set @arg00=1;
@@ -1147,7 +1147,7 @@ t1	CREATE TABLE `t1` (
 show create table mysqltest.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `test` varchar(4) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''
+  `test` varchar(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table mysqltest.t1;
 drop table mysqltest.t2;
@@ -1162,7 +1162,7 @@ t1	CREATE TABLE `t1` (
 show create table mysqltest.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
-  `test` varchar(4) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''
+  `test` varchar(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop database mysqltest;
 deallocate prepare stmt1;
@@ -1698,7 +1698,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COMMENT='comment for table t1'
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='comment for table t1'
 flush tables;
 select * from t2;
 i	j	k
@@ -1708,7 +1708,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COMMENT='comment for table t1'
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='comment for table t1'
 deallocate prepare stmt;
 drop table t1, t2;
 set @old_character_set_server= @@character_set_server;
@@ -1742,7 +1742,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `?` decimal(2,1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop table if exists t1;
 create table t1 (a bigint unsigned, b bigint(20) unsigned);
@@ -2427,21 +2427,21 @@ tab1	CREATE TABLE `tab1` (
   `a` int(11) NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
   `a` int(11) NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 call proc_1();
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
   `a` int(11) NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop procedure proc_1;
 create function func_1() returns int begin show create table tab1; return 1; end|
 ERROR 0A000: Not allowed to return a result set from a function
@@ -2456,21 +2456,21 @@ tab1	CREATE TABLE `tab1` (
   `a` int(11) NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
   `a` int(11) NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 execute abc;
 Table	Create Table
 tab1	CREATE TABLE `tab1` (
   `a` int(11) NOT NULL,
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 deallocate prepare abc;
 drop table tab1;
 drop view if exists v1;
@@ -2862,7 +2862,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 execute stmt;
 show create table t1;
@@ -2870,7 +2870,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(100) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `c` (`c`(10))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop table if exists t1, t2;
 create table t1 (a int, b int);
@@ -3117,7 +3117,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 127;
 @a	@a = 127
 127	1
@@ -3135,7 +3135,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 32767;
 @a	@a = 32767
 32767	1
@@ -3153,7 +3153,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 8388607;
 @a	@a = 8388607
 8388607	1
@@ -3171,7 +3171,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 2147483647;
 @a	@a = 2147483647
 2147483647	1
@@ -3189,7 +3189,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 9223372036854775807;
 @a	@a = 9223372036854775807
 9223372036854775807	1
@@ -3207,7 +3207,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = b'10100100101';
 @a	@a = b'10100100101'
 1317	1
@@ -3225,7 +3225,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = '2007-11-18 15:01:02';
 @a	@a = '2007-11-18 15:01:02'
 2007-11-18 15:01:02	1
@@ -3243,7 +3243,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = '1234-11-12 12:34:59';
 @a	@a = '1234-11-12 12:34:59'
 1234-11-12 12:34:59	1
@@ -3261,7 +3261,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = '123:45:01';
 @a	@a = '123:45:01'
 123:45:01	1
@@ -3279,7 +3279,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = '1234-11-12';
 @a	@a = '1234-11-12'
 1234-11-12	1
@@ -3297,7 +3297,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` bigint(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 2010;
 @a	@a = 2010
 2010	1
@@ -3315,7 +3315,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` double DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a - 123.4567 < 0.00001;
 @a	@a - 123.4567 < 0.00001
 123.45670318603516	1
@@ -3333,7 +3333,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` double DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a - 123.45678 < 0.000001;
 @a	@a - 123.45678 < 0.000001
 123.45678	1
@@ -3351,7 +3351,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` decimal(65,30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 123.456789;
 @a	@a = 123.456789
 123.456789	1
@@ -3369,7 +3369,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('a', 16);
 @a	@a = REPEAT('a', 16)
 aaaaaaaaaaaaaaaa	1
@@ -3387,7 +3387,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('b', 16);
 @a	@a = REPEAT('b', 16)
 bbbbbbbbbbbbbbbb	1
@@ -3405,7 +3405,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('c', 16);
 @a	@a = REPEAT('c', 16)
 cccccccccccccccc	1
@@ -3423,7 +3423,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('d', 16);
 @a	@a = REPEAT('d', 16)
 dddddddddddddddd	1
@@ -3441,7 +3441,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('e', 16);
 @a	@a = REPEAT('e', 16)
 eeeeeeeeeeeeeeee	1
@@ -3459,7 +3459,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('f', 16);
 @a	@a = REPEAT('f', 16)
 ffffffffffffffff	1
@@ -3477,7 +3477,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('g', 32);
 @a	@a = REPEAT('g', 32)
 gggggggggggggggggggggggggggggggg	1
@@ -3495,7 +3495,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('h', 16);
 @a	@a = REPEAT('h', 16)
 hhhhhhhhhhhhhhhh	1
@@ -3513,7 +3513,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('i', 16);
 @a	@a = REPEAT('i', 16)
 iiiiiiiiiiiiiiii	1
@@ -3531,7 +3531,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('j', 16);
 @a	@a = REPEAT('j', 16)
 jjjjjjjjjjjjjjjj	1
@@ -3549,7 +3549,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('k', 16);
 @a	@a = REPEAT('k', 16)
 kkkkkkkkkkkkkkkk	1
@@ -3567,7 +3567,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = REPEAT('l', 16);
 @a	@a = REPEAT('l', 16)
 llllllllllllllll	1
@@ -3585,7 +3585,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 'aaa';
 @a	@a = 'aaa'
 aaa	1
@@ -3603,7 +3603,7 @@ SHOW CREATE TABLE tmp1;
 Table	Create Table
 tmp1	CREATE TEMPORARY TABLE `tmp1` (
   `c1` longblob
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT @a, @a = 'aaa';
 @a	@a = 'aaa'
 aaa	1

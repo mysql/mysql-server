@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,7 @@ class mem0mem : public ::testing::Test {
  protected:
   static void SetUpTestCase() {
     srv_max_n_threads = srv_sync_array_size + 1;
-    sync_check_init();
+    sync_check_init(srv_max_n_threads);
   }
   static void TearDownTestCase() { sync_check_close(); }
 };

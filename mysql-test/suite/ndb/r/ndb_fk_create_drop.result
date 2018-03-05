@@ -25,7 +25,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child add constraint fk4 foreign key (a) references parent(b);
 alter table child add constraint fk5 foreign key (b) references parent(b);
 alter table child add constraint fk6 foreign key (c) references parent(b);
@@ -44,7 +44,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
 alter table child algorithm=copy, add constraint fk8 foreign key (a) references parent(c);
 alter table child algorithm=copy, add constraint fk9 foreign key (a) references parent(c);
@@ -102,7 +102,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk4` FOREIGN KEY (`a`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk5` FOREIGN KEY (`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table child, parent;
 #
 # Bug#24666177 : PARENT TABLE'S HANDLER NOT UPDATED AFTER ADDING A FK DEPENDENCY
@@ -123,7 +123,7 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `id` int(11) DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #Now create a foreign key dependency
 alter table child add foreign key fk1(ref) references parent(id);
 #Now run a alter engine query.
@@ -135,7 +135,7 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `id` int(11) DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #Repeat same with truncate
 truncate table child;
 alter table parent engine = innodb;
@@ -145,7 +145,7 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `id` int(11) DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #Repeat same test for dropping FK
 alter table child drop foreign key fk1;
 # Now this should succeed
@@ -155,7 +155,7 @@ Table	Create Table
 parent	CREATE TABLE `parent` (
   `id` int(11) DEFAULT NULL,
   UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #Cleanup
 drop table parent, child;
 #
@@ -218,7 +218,7 @@ parent	CREATE TABLE `parent` (
   CONSTRAINT `fk_p1` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_p2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_p3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table child;
 Table	Create Table
 child	CREATE TABLE `child` (
@@ -228,7 +228,7 @@ child	CREATE TABLE `child` (
   KEY `b_key` (`b`),
   CONSTRAINT `fk_c1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_c2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Cleanup
 drop table child, parent;
 #

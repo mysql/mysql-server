@@ -102,8 +102,7 @@ bool PT_option_value_no_option_type_names::contextualize(Parse_context *pc) {
   return true;  // alwais fails with an error
 }
 
-bool PT_option_value_no_option_type_names_charset::contextualize(
-    Parse_context *pc) {
+bool PT_set_names::contextualize(Parse_context *pc) {
   if (super::contextualize(pc)) return true;
 
   THD *thd = pc->thd;
@@ -115,10 +114,19 @@ bool PT_option_value_no_option_type_names_charset::contextualize(
               (opt_collation ? set_var_collation_client::SET_CS_COLLATE : 0);
   cs2 =
       opt_charset ? opt_charset : global_system_variables.character_set_client;
-  cs3 = opt_collation ? opt_collation : cs2;
-  if (!my_charset_same(cs2, cs3)) {
-    my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), cs3->name, cs2->csname);
-    return true;
+  if (opt_collation != nullptr) {
+    if (!my_charset_same(cs2, opt_collation)) {
+      my_error(ER_COLLATION_CHARSET_MISMATCH, MYF(0), opt_collation->name,
+               cs2->csname);
+      return true;
+    }
+    cs3 = opt_collation;
+  } else {
+    if (cs2 == &my_charset_utf8mb4_0900_ai_ci &&
+        cs2 != thd->variables.default_collation_for_utf8mb4)
+      cs3 = thd->variables.default_collation_for_utf8mb4;
+    else
+      cs3 = cs2;
   }
   set_var_collation_client *var;
   var = new (*THR_MALLOC) set_var_collation_client(flags, cs3, cs3, cs3);
@@ -1240,7 +1248,7 @@ void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type) {
   str->append("with ");
   if (m_recursive) str->append("recursive ");
   size_t len2 = str->length(), len3 = len2;
-  for (auto el : m_list.elements()) {
+  for (auto el : m_list->elements()) {
     if (str->length() != len3) {
       str->append(", ");
       len3 = str->length();
@@ -1364,8 +1372,10 @@ bool PT_create_union_option::contextualize(Table_ddl_parse_context *pc) {
 
 bool set_default_charset(HA_CREATE_INFO *create_info,
                          const CHARSET_INFO *value) {
+  DBUG_ASSERT(value != nullptr);
+
   if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
-      create_info->default_table_charset && value &&
+      create_info->default_table_charset &&
       !my_charset_same(create_info->default_table_charset, value)) {
     my_error(ER_CONFLICTING_DECLARATIONS, MYF(0), "CHARACTER SET ",
              create_info->default_table_charset->csname, "CHARACTER SET ",
@@ -1385,8 +1395,10 @@ bool PT_create_table_default_charset::contextualize(
 
 bool set_default_collation(HA_CREATE_INFO *create_info,
                            const CHARSET_INFO *value) {
+  DBUG_ASSERT(value != nullptr);
+
   if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
-      create_info->default_table_charset && value &&
+      create_info->default_table_charset &&
       !(value = merge_charset_and_collation(create_info->default_table_charset,
                                             value))) {
     return true;
@@ -1394,6 +1406,7 @@ bool set_default_collation(HA_CREATE_INFO *create_info,
 
   create_info->default_table_charset = value;
   create_info->used_fields |= HA_CREATE_USED_DEFAULT_CHARSET;
+  create_info->used_fields |= HA_CREATE_USED_DEFAULT_COLLATE;
   return false;
 }
 
@@ -1443,7 +1456,8 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
       pc->thd, &field_ident, field_def->type, field_def->length, field_def->dec,
       field_def->type_flags, field_def->default_value,
       field_def->on_update_value, &field_def->comment, NULL,
-      field_def->interval_list, field_def->charset, field_def->uint_geom_type,
+      field_def->interval_list, field_def->charset,
+      field_def->has_explicit_collation, field_def->uint_geom_type,
       field_def->gcol_info, opt_place, field_def->m_srid);
 }
 
@@ -1678,8 +1692,19 @@ static void setup_lex_show_cmd_type(THD *thd, Show_cmd_type show_cmd_type) {
 }
 
 Sql_cmd *PT_show_fields::make_cmd(THD *thd) {
+  LEX *const lex = thd->lex;
+  lex->select_lex->db = nullptr;
+
   setup_lex_show_cmd_type(thd, m_show_cmd_type);
-  return super::make_cmd(thd);
+  lex->current_select()->parsing_place = CTX_SELECT_LIST;
+  lex->sql_command = SQLCOM_SHOW_FIELDS;
+  Sql_cmd *ret = super::make_cmd(thd);
+  if (ret == nullptr) return nullptr;
+  // WL#6599 opt_describe_column is handled during prepare stage in
+  // prepare_schema_dd_view instead of execution stage
+  lex->current_select()->parsing_place = CTX_NONE;
+
+  return ret;
 }
 
 Sql_cmd *PT_show_keys::make_cmd(THD *thd) {
@@ -1697,8 +1722,8 @@ bool PT_alter_table_change_column::contextualize(Table_ddl_parse_context *pc) {
       m_field_def->dec, m_field_def->type_flags, m_field_def->default_value,
       m_field_def->on_update_value, &m_field_def->comment, m_old_name.str,
       m_field_def->interval_list, m_field_def->charset,
-      m_field_def->uint_geom_type, m_field_def->gcol_info, m_opt_place,
-      m_field_def->m_srid);
+      m_field_def->has_explicit_collation, m_field_def->uint_geom_type,
+      m_field_def->gcol_info, m_opt_place, m_field_def->m_srid);
 }
 
 bool PT_alter_table_rename::contextualize(Table_ddl_parse_context *pc) {
@@ -1754,6 +1779,8 @@ bool PT_alter_table_convert_to_charset::contextualize(
       collation;
   pc->create_info->used_fields |=
       HA_CREATE_USED_CHARSET | HA_CREATE_USED_DEFAULT_CHARSET;
+  if (m_collation != nullptr)
+    pc->create_info->used_fields |= HA_CREATE_USED_DEFAULT_COLLATE;
   return false;
 }
 
@@ -2213,6 +2240,7 @@ bool PT_json_table_column_with_path::contextualize(Parse_context *pc) {
                 nullptr,                       // Change
                 nullptr,                       // Interval list
                 cs,                            // Charset
+                false,                         // No "COLLATE" clause
                 m_type->get_uint_geom_type(),  // Geom type
                 NULL,                          // Gcol_info
                 {});                           // SRID

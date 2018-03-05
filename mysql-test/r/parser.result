@@ -282,14 +282,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (i INT UNIQUE);
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL,
   UNIQUE KEY `i` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t3 (i INT UNIQUE KEY);
 # Should output "UNIQUE KEY `i` (`i`)" only:
 SHOW CREATE TABLE t3;
@@ -297,7 +297,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `i` int(11) DEFAULT NULL,
   UNIQUE KEY `i` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2, t3;
 #
 DROP TABLE IF EXISTS table_25930_a;
@@ -1094,6 +1094,9 @@ ERROR 42000: Too-big precision 66 specified for 'CONVERT('',DECIMAL(65,0))'. Max
 #
 SELECT 1<
 !(1 XOR TO_BASE64()));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 2
+SELECT 1<
+!(1 XOR TO_BASE64());
 ERROR 42000: Incorrect parameter count in the call to native function 'TO_BASE64'
 SELECT  !('' XOR LENGTH());
 ERROR 42000: Incorrect parameter count in the call to native function 'LENGTH'
@@ -2205,3 +2208,50 @@ SELECT ,,1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,1' at line 1
 SELECT ,,,;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',,,' at line 1
+#
+# Removal of undocumented syntax, see bug#27389878.
+#
+CREATE DATABASE db CHARSET DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+CREATE DATABASE db COLLATE DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+CREATE TABLE t (i INT) CHARSET DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+CREATE TABLE t (i INT) COLLATE DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+ALTER DATABASE db CHARSET DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+ALTER DATABASE db COLLATE DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+ALTER TABLE t COLLATE DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+ALTER TABLE t CONVERT TO CHARSET DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+SET NAMES utf8 COLLATE DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT' at line 1
+SET NAMES DEFAULT COLLATE DEFAULT;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COLLATE DEFAULT' at line 1
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE c CHAR(1) CHARSET DEFAULT;
+END//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
+END' at line 3
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE c CHAR(1) COLLATE DEFAULT;
+END//
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT;
+END' at line 3
+CREATE PROCEDURE p1(c CHAR(1) CHARSET DEFAULT) BEGIN END;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT) BEGIN END' at line 1
+CREATE PROCEDURE p1(c CHAR(1) COLLATE DEFAULT) BEGIN END;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT) BEGIN END' at line 1
+CREATE FUNCTION f1(c CHAR(1) CHARSET DEFAULT) RETURNS INT RETURN 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT) RETURNS INT RETURN 1' at line 1
+CREATE FUNCTION f1(c CHAR(1) COLLATE DEFAULT) RETURNS INT RETURN 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT) RETURNS INT RETURN 1' at line 1
+CREATE FUNCTION f1() RETURNS CHAR(1) CHARSET DEFAULT RETURN '';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT RETURN ''' at line 1
+CREATE FUNCTION f1() RETURNS CHAR(1) COLLATE DEFAULT RETURN '';
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DEFAULT RETURN ''' at line 1

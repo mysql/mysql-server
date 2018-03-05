@@ -76,14 +76,14 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/'
 DROP TABLE t3;
 CREATE TABLE t3 (a int) ENGINE = InnoDB DATA DIRECTORY = 'MYSQL_TMP_DIR';
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/'
 DROP TABLE t3;
 ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION fortythousands VALUES LESS THAN (50000)
@@ -197,7 +197,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY KEY (b)
 (PARTITION tens VALUES LESS THAN (100)
@@ -244,7 +244,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`a`)
 SUBPARTITION BY KEY (b)
 (PARTITION tens VALUES LESS THAN (100)
@@ -264,7 +264,7 @@ Table	Create Table
 t1	CREATE TABLE "t1" (
   "a" int(11) DEFAULT NULL,
   "b" int(11) DEFAULT NULL
-) /*!50100 TABLESPACE "s1" */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE "s1" */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE ("a")
 SUBPARTITION BY KEY (b)
 (PARTITION tens VALUES LESS THAN (100)
@@ -311,7 +311,7 @@ Table	Create Table
 t2	CREATE TABLE "t2" (
   "a" int(11) DEFAULT NULL,
   "b" int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE ("a")
 SUBPARTITION BY KEY (b)
 (PARTITION tens VALUES LESS THAN (100)
@@ -331,8 +331,8 @@ ERROR 42000: InnoDB: Cannot discard table `test/t1#p#hundreds#sp#subpart21` beca
 SET @@sql_mode = @old_sql_mode;
 ALTER TABLE t2 DISCARD TABLESPACE;
 ERROR 42000: InnoDB: Cannot discard table `test/t2#p#tens#sp#subpart11` because it is in a general tablespace. It must be file-per-table.
-call mtr.add_suppression("InnoDB: Operating system error number .* in a file operation.");
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("Operating system error number .* in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
 call mtr.add_suppression("Cannot open datafile for read-only: .*");
 DROP TABLE t1;
 DROP TABLE t2;
@@ -509,7 +509,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 DATA DIRECTORY='MYSQL_TMP_DIR/'
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci DATA DIRECTORY='MYSQL_TMP_DIR/'
 ALTER TABLE t3 DISCARD TABLESPACE;
 DROP TABLE t1, t2, t3;
 DROP TABLESPACE s1;

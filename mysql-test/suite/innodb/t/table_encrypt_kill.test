@@ -14,27 +14,27 @@
 
 #suppress warning
 -- disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
 call mtr.add_suppression("does not exist in the InnoDB internal data dictionary though MySQL is trying to drop it");
 
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("InnoDB: Operating system error number");
+call mtr.add_suppression("Operating system error number");
 call mtr.add_suppression("The error means the system cannot find the path specified");
-call mtr.add_suppression("InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
+call mtr.add_suppression("If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them");
 call mtr.add_suppression("Could not find a valid tablespace file");
-call mtr.add_suppression("InnoDB: Ignoring tablespace");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table");
-call mtr.add_suppression("InnoDB: Cannot open table tde_db/t_encrypt.* from the internal data dictionary of InnoDB though the .frm file for the table exists");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Please refer to .* for how to resolve the issue");
+call mtr.add_suppression("Ignoring tablespace");
+call mtr.add_suppression("Failed to find tablespace for table");
+call mtr.add_suppression("Cannot open table tde_db/t_encrypt.* from the internal data dictionary of InnoDB though the .frm file for the table exists");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table tde_db/t_encrypt.* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Cannot create keyring directory");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'Could not create keyring directory");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Database page corruption or a failed file read of page");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Plugin keyring_file reported: 'Could not create keyring directory");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Database page corruption or a failed file read of page");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table");
 -- enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;

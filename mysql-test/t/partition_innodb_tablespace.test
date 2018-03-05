@@ -298,7 +298,7 @@ SUBPARTITION BY HASH (a) SUBPARTITIONS 3
   SUBPARTITION sp11));
 SHOW CREATE TABLE t2;
 
-call mtr.add_suppression("InnoDB: Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
+call mtr.add_suppression("Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
 --error ER_TOO_LONG_IDENT
 eval ALTER TABLE t2 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (400)

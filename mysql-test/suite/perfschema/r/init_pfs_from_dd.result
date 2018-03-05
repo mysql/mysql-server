@@ -3,9 +3,6 @@
 #           virtual P_S tables
 #
 CALL mtr.add_suppression("Native table .* has the wrong structure");
-CALL mtr.add_suppression("InnoDB: Resizing redo log from .*");
-CALL mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-CALL mtr.add_suppression("InnoDB: New log files created, LSN=.*");
 # Case 1:
 # Restart server with the actual P_S version number differed
 # from the expected version number.

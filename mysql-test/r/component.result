@@ -173,6 +173,7 @@ SET @@session.insert_id=42949672950;
 INSTALL COMPONENT
 "file://component_example_component2","file://component_example_component3";
 ERROR HY000: Failed to manipulate component 'file://component_example_component3' persistence data. Error code 121 from storage engine.
-# reset back the insert_id
+# reset back the insert_id and auto_increment
 SET @@session.insert_id=0;
+ALTER TABLE mysql.component AUTO_INCREMENT=1;
 # End of 8.0 tests

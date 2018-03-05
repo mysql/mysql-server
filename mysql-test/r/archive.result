@@ -11132,7 +11132,7 @@ t2	CREATE TABLE `t2` (
   `fld3` char(30) NOT NULL DEFAULT '',
   `fld4` char(35) NOT NULL DEFAULT '',
   `fld5` char(35) NOT NULL DEFAULT ''
-) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4
+) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2 WHERE auto != 100000;
 auto	fld1	companynr	fld3	fld4	fld5
 1	000001	00	Omaha	teethe	neat

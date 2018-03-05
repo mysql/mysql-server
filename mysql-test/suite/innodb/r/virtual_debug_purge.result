@@ -86,7 +86,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   KEY `idx` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b	c
 2	2	4
@@ -124,7 +124,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
   KEY `idx` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a	b	c
 2	2	4

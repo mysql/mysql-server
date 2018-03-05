@@ -620,7 +620,29 @@ Diff: EXPLAIN NORMAL vs OTHER
 +              ]
              }
 QUERY: SELECT t1.pk FROM t1 WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 ) 
-STATUS: EQUAL
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -11,3 +11,3 @@
+           "select_id": 2,
+-          "message": "Not optimized, outer query is empty",
++          "message": "Plan isn't ready yet",
+           "table": {
+@@ -20,3 +20,3 @@
+                   "using_temporary_table": true,
+-                  "message": "Not optimized, outer query is empty",
++                  "message": "Plan isn't ready yet",
+                   "query_specifications": [
+@@ -27,3 +27,3 @@
+                         "select_id": 3,
+-                        "message": "Not optimized, outer query is empty"
++                        "message": "Plan isn't ready yet"
+                       }
+@@ -35,3 +35,3 @@
+                         "select_id": 4,
+-                        "message": "Not optimized, outer query is empty"
++                        "message": "Plan isn't ready yet"
+                       }
 QUERY: SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a 
 STATUS:NOT_EQUAL
 SYNC_POINT:before_reset_query_plan

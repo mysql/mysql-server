@@ -221,8 +221,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_ins_remove_sec_low(
   if (search_result == ROW_FOUND && dict_index_is_spatial(index)) {
     rec_t *rec = btr_pcur_get_rec(&pcur);
     if (rec_get_deleted_flag(rec, dict_table_is_comp(index->table))) {
-      ib::error() << "Record found in index " << index->name
-                  << " is deleted marked on insert rollback.";
+      ib::error(ER_IB_MSG_1036) << "Record found in index " << index->name
+                                << " is deleted marked on insert rollback.";
     }
   }
 
@@ -332,9 +332,9 @@ static void row_undo_ins_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
       }
 
     } else {
-      ib::warn() << "Table " << node->table->name
-                 << " has no indexes,"
-                    " ignoring the table";
+      ib::warn(ER_IB_MSG_1037) << "Table " << node->table->name
+                               << " has no indexes,"
+                                  " ignoring the table";
       goto close_table;
     }
   }

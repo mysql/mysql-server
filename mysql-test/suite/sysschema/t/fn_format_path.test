@@ -4,8 +4,6 @@
 # Verify the sys.format_path() function perfoms as expected
 #
 
-call mtr.add_suppression("InnoDB: No space ID to filename mapping file found");
-
 # Save current server option values;
 let $page_size = `select @@innodb_page_size`;
 let $innodb_undo_tablespaces = `select @@innodb_undo_tablespaces`;

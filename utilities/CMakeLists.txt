@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -168,8 +168,7 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
 
   # We use the InnoDB code directly in case the code changes.
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc)
-  SET_TARGET_PROPERTIES(innochecksum
-    PROPERTIES COMPILE_DEFINITIONS "UNIV_LIBRARY")
+  TARGET_COMPILE_DEFINITIONS(innochecksum PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
   IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ADD_COMPILE_FLAGS(innochecksum.cc COMPILE_FLAGS "-Wno-unused-parameter")
   ENDIF()
@@ -177,9 +176,8 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
     mysys_ssl innodb_zipdecompress ${LZ4_LIBRARY})
   ADD_DEPENDENCIES(innochecksum GenError)
 
- MYSQL_ADD_EXECUTABLE(ibd2sdi ibd2sdi.cc)
-  SET_TARGET_PROPERTIES(ibd2sdi
-    PROPERTIES COMPILE_DEFINITIONS "UNIV_LIBRARY")
+  MYSQL_ADD_EXECUTABLE(ibd2sdi ibd2sdi.cc)
+  TARGET_COMPILE_DEFINITIONS(ibd2sdi PRIVATE UNIV_NO_ERR_MSGS UNIV_LIBRARY)
   IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     ADD_COMPILE_FLAGS(ibd2sdi.cc COMPILE_FLAGS "-Wno-unused-parameter")
   ENDIF()

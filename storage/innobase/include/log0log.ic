@@ -24,11 +24,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/** @file include/log0log.ic
- Database log
+/**************************************************/ /**
+ @file include/log0log.ic
+
+ Redo log - definition of inlined functions.
 
  Created 12/9/1995 Heikki Tuuri
  *******************************************************/
+
+#include <cstring>
 
 #include "mach0data.h"
 #include "os0file.h"
@@ -40,29 +44,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0types.h"
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-/** Gets a log block flush bit.
- @return true if this block was the first to be written in a log flush */
-UNIV_INLINE
-ibool log_block_get_flush_bit(const byte *log_block) /*!< in: log block */
-{
+/** @name Log blocks */
+
+/* @{ */
+
+inline bool log_block_get_flush_bit(const byte *log_block) {
   if (LOG_BLOCK_FLUSH_BIT_MASK &
       mach_read_from_4(log_block + LOG_BLOCK_HDR_NO)) {
-    return (TRUE);
+    return (true);
   }
 
-  return (FALSE);
+  return (false);
 }
 
-/** Sets the log block encryption bit. */
-UNIV_INLINE
-void log_block_set_flush_bit(byte *log_block, /*!< in/out: log block */
-                             ibool val)       /*!< in: value to set */
-{
-  ulint field;
+inline void log_block_set_flush_bit(byte *log_block, bool value) {
+  uint32_t field = mach_read_from_4(log_block + LOG_BLOCK_HDR_NO);
 
-  field = mach_read_from_4(log_block + LOG_BLOCK_HDR_NO);
+  ut_a(field != 0);
 
-  if (val) {
+  if (value) {
     field = field | LOG_BLOCK_FLUSH_BIT_MASK;
   } else {
     field = field & ~LOG_BLOCK_FLUSH_BIT_MASK;
@@ -71,11 +71,7 @@ void log_block_set_flush_bit(byte *log_block, /*!< in/out: log block */
   mach_write_to_4(log_block + LOG_BLOCK_HDR_NO, field);
 }
 
-/** Gets a log block encrypt bit.
-@param[in]	log_block	log block
-@return true if this block was encrypted */
-UNIV_INLINE
-bool log_block_get_encrypt_bit(const byte *log_block) {
+inline bool log_block_get_encrypt_bit(const byte *log_block) {
   if (LOG_BLOCK_ENCRYPT_BIT_MASK &
       mach_read_from_2(log_block + LOG_BLOCK_HDR_DATA_LEN)) {
     return (true);
@@ -84,12 +80,8 @@ bool log_block_get_encrypt_bit(const byte *log_block) {
   return (false);
 }
 
-/** Sets the log block encrypt bit.
-@param[in,out]	log_block	log block
-@param[in]	val		value to set */
-UNIV_INLINE
-void log_block_set_encrypt_bit(byte *log_block, ibool val) {
-  ulint field;
+inline void log_block_set_encrypt_bit(byte *log_block, ibool val) {
+  uint32_t field;
 
   field = mach_read_from_2(log_block + LOG_BLOCK_HDR_DATA_LEN);
 
@@ -102,248 +94,94 @@ void log_block_set_encrypt_bit(byte *log_block, ibool val) {
   mach_write_to_2(log_block + LOG_BLOCK_HDR_DATA_LEN, field);
 }
 
-/** Gets a log block number stored in the header.
- @return log block number stored in the block header */
-UNIV_INLINE
-ulint log_block_get_hdr_no(const byte *log_block) /*!< in: log block */
-{
+inline uint32_t log_block_get_hdr_no(const byte *log_block) {
   return (~LOG_BLOCK_FLUSH_BIT_MASK &
           mach_read_from_4(log_block + LOG_BLOCK_HDR_NO));
 }
 
-/** Sets the log block number stored in the header; NOTE that this must be set
- before the flush bit! */
-UNIV_INLINE
-void log_block_set_hdr_no(byte *log_block, /*!< in/out: log block */
-                          ulint n) /*!< in: log block number: must be > 0 and
-                                   < LOG_BLOCK_FLUSH_BIT_MASK */
-{
-  ut_ad(n > 0);
-  ut_ad(n < LOG_BLOCK_FLUSH_BIT_MASK);
+inline void log_block_set_hdr_no(byte *log_block, uint32_t n) {
+  ut_a(n > 0);
+  ut_a(n < LOG_BLOCK_FLUSH_BIT_MASK);
+  ut_a(n <= LOG_BLOCK_MAX_NO);
 
   mach_write_to_4(log_block + LOG_BLOCK_HDR_NO, n);
 }
 
-/** Gets a log block data length.
- @return log block data length measured as a byte offset from the block start */
-UNIV_INLINE
-ulint log_block_get_data_len(const byte *log_block) /*!< in: log block */
-{
+inline uint32_t log_block_get_data_len(const byte *log_block) {
   return (mach_read_from_2(log_block + LOG_BLOCK_HDR_DATA_LEN));
 }
 
-/** Sets the log block data length. */
-UNIV_INLINE
-void log_block_set_data_len(byte *log_block, /*!< in/out: log block */
-                            ulint len)       /*!< in: data length */
-{
+inline void log_block_set_data_len(byte *log_block, uint32_t len) {
   mach_write_to_2(log_block + LOG_BLOCK_HDR_DATA_LEN, len);
 }
 
-/** Gets a log block first mtr log record group offset.
- @return first mtr log record group byte offset from the block start, 0
- if none */
-UNIV_INLINE
-ulint log_block_get_first_rec_group(const byte *log_block) /*!< in: log block */
-{
+inline uint32_t log_block_get_first_rec_group(const byte *log_block) {
   return (mach_read_from_2(log_block + LOG_BLOCK_FIRST_REC_GROUP));
 }
 
-/** Sets the log block first mtr log record group offset. */
-UNIV_INLINE
-void log_block_set_first_rec_group(byte *log_block, /*!< in/out: log block */
-                                   ulint offset) /*!< in: offset, 0 if none */
-{
+inline void log_block_set_first_rec_group(byte *log_block, uint32_t offset) {
   mach_write_to_2(log_block + LOG_BLOCK_FIRST_REC_GROUP, offset);
 }
 
-/** Gets a log block checkpoint number field (4 lowest bytes).
- @return checkpoint no (4 lowest bytes) */
-UNIV_INLINE
-ulint log_block_get_checkpoint_no(const byte *log_block) /*!< in: log block */
-{
+inline uint32_t log_block_get_checkpoint_no(const byte *log_block) {
   return (mach_read_from_4(log_block + LOG_BLOCK_CHECKPOINT_NO));
 }
 
-/** Sets a log block checkpoint number field (4 lowest bytes). */
-UNIV_INLINE
-void log_block_set_checkpoint_no(byte *log_block, /*!< in/out: log block */
-                                 ib_uint64_t no)  /*!< in: checkpoint no */
-{
-  mach_write_to_4(log_block + LOG_BLOCK_CHECKPOINT_NO, (ulint)no);
+inline void log_block_set_checkpoint_no(byte *log_block, uint64_t no) {
+  mach_write_to_4(log_block + LOG_BLOCK_CHECKPOINT_NO, (uint32_t)no);
 }
 
-/** Converts a lsn to a log block number.
- @return log block number, it is > 0 and <= 1G */
-UNIV_INLINE
-ulint log_block_convert_lsn_to_no(
-    lsn_t lsn) /*!< in: lsn of a byte within the block */
-{
-  return (((ulint)(lsn / OS_FILE_LOG_BLOCK_SIZE) & 0x3FFFFFFFUL) + 1);
+inline uint32_t log_block_convert_lsn_to_no(lsn_t lsn) {
+  return ((uint32_t)(lsn / OS_FILE_LOG_BLOCK_SIZE) % LOG_BLOCK_MAX_NO + 1);
 }
 
-/** Calculates the checksum for a log block.
- @return checksum */
-UNIV_INLINE
-ulint log_block_calc_checksum(const byte *block) /*!< in: log block */
-{
-  return (log_checksum_algorithm_ptr(block));
+inline uint32_t log_block_calc_checksum(const byte *log_block) {
+  return (log_checksum_algorithm_ptr.load()(log_block));
 }
 
-/** Calculate the checksum for a log block using the MySQL 5.7 algorithm.
-@param[in]	block	log block
-@return checksum */
-UNIV_INLINE
-ulint log_block_calc_checksum_crc32(const byte *block) {
-  return (ut_crc32(block, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE));
+inline uint32_t log_block_calc_checksum_crc32(const byte *log_block) {
+  return (ut_crc32(log_block, OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE));
 }
 
-/** Calculates the checksum for a log block using the "no-op" algorithm.
-@param[in]     block   log block
-@return        checksum */
-UNIV_INLINE
-ulint log_block_calc_checksum_none(const byte *block) {
+inline uint32_t log_block_calc_checksum_none(const byte *log_block) {
   return (LOG_NO_CHECKSUM_MAGIC);
 }
 
-/** Gets a log block checksum field value.
- @return checksum */
-UNIV_INLINE
-ulint log_block_get_checksum(const byte *log_block) /*!< in: log block */
-{
+inline uint32_t log_block_get_checksum(const byte *log_block) {
   return (mach_read_from_4(log_block + OS_FILE_LOG_BLOCK_SIZE -
                            LOG_BLOCK_CHECKSUM));
 }
 
-/** Sets a log block checksum field value. */
-UNIV_INLINE
-void log_block_set_checksum(byte *log_block, /*!< in/out: log block */
-                            ulint checksum)  /*!< in: checksum */
-{
+inline void log_block_set_checksum(byte *log_block, uint32_t checksum) {
   mach_write_to_4(log_block + OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_CHECKSUM,
                   checksum);
 }
 
-/** Initializes a log block in the log buffer. */
-UNIV_INLINE
-void log_block_init(byte *log_block, /*!< in: pointer to the log buffer */
-                    lsn_t lsn)       /*!< in: lsn within the log block */
-{
-  ulint no;
-
-  no = log_block_convert_lsn_to_no(lsn);
-
-  log_block_set_hdr_no(log_block, no);
-
-  log_block_set_data_len(log_block, LOG_BLOCK_HDR_SIZE);
-  log_block_set_first_rec_group(log_block, 0);
+inline void log_block_store_checksum(byte *log_block) {
+  log_block_set_checksum(log_block, log_block_calc_checksum(log_block));
 }
+
+  /* @} */
 
 #ifndef UNIV_HOTBACKUP
-/** Append a string to the log.
-@param[in]	str		string
-@param[in]	len		string length
-@param[out]	start_lsn	start LSN of the log record
-@return end lsn of the log record, zero if did not succeed */
-UNIV_INLINE
-lsn_t log_reserve_and_write_fast(const void *str, ulint len, lsn_t *start_lsn) {
-  ut_ad(log_mutex_own());
-  ut_ad(len > 0);
 
-#ifdef UNIV_LOG_LSN_DEBUG
-  const ulint lsn_len = 1 + mach_get_compressed_size(log_sys->lsn >> 32) +
-                        mach_get_compressed_size(log_sys->lsn & 0xFFFFFFFFUL);
-#endif /* UNIV_LOG_LSN_DEBUG */
+inline lsn_t log_get_capacity() { return (log_sys->lsn_capacity); }
 
-  const ulint data_len = len
-#ifdef UNIV_LOG_LSN_DEBUG
-                         + lsn_len
-#endif /* UNIV_LOG_LSN_DEBUG */
-                         + log_sys->buf_free % OS_FILE_LOG_BLOCK_SIZE;
-
-  if (data_len >= OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) {
-    /* The string does not fit within the current log block
-    or the log block would become full */
-
-    return (0);
-  }
-
-  *start_lsn = log_sys->lsn;
-
-#ifdef UNIV_LOG_LSN_DEBUG
-  if (lsn_len) {
-    /* Write the LSN pseudo-record. */
-    byte *b = &log_sys->buf[log_sys->buf_free];
-
-    *b++ = MLOG_LSN | (MLOG_SINGLE_REC_FLAG & *(const byte *)str);
-
-    /* Write the LSN in two parts,
-    as a pseudo page number and space id. */
-    b += mach_write_compressed(b, log_sys->lsn >> 32);
-    b += mach_write_compressed(b, log_sys->lsn & 0xFFFFFFFFUL);
-    ut_a(b - lsn_len == &log_sys->buf[log_sys->buf_free]);
-
-    ::memcpy(b, str, len);
-
-    len += lsn_len;
-  } else
-#endif /* UNIV_LOG_LSN_DEBUG */
-    memcpy(log_sys->buf + log_sys->buf_free, str, len);
-
-  log_block_set_data_len(
-      reinterpret_cast<byte *>(ut_align_down(log_sys->buf + log_sys->buf_free,
-                                             OS_FILE_LOG_BLOCK_SIZE)),
-      data_len);
-
-  log_sys->buf_free += len;
-
-  ut_ad(log_sys->buf_free <= log_sys->buf_size);
-
-  log_sys->lsn += len;
-
-  MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
-              log_sys->lsn - log_sys->last_checkpoint_lsn);
-
-  return (log_sys->lsn);
-}
-
-/** Gets the current lsn.
- @return current lsn */
-UNIV_INLINE
-lsn_t log_get_lsn(void) {
-  lsn_t lsn;
-
-  log_mutex_enter();
-
-  lsn = log_sys->lsn;
-
-  log_mutex_exit();
-
-  return (lsn);
-}
-
-/****************************************************************
-Gets the log group capacity. It is OK to read the value without
-holding log_sys->mutex because it is constant.
-@return log group capacity */
-UNIV_INLINE
-lsn_t log_get_capacity(void) { return (log_sys->log_group_capacity); }
-
-/****************************************************************
-Get log_sys::max_modified_age_async. It is OK to read the value without
-holding log_sys::mutex because it is constant.
-@return max_modified_age_async */
-UNIV_INLINE
-lsn_t log_get_max_modified_age_async(void) {
+inline lsn_t log_get_max_modified_age_async() {
   return (log_sys->max_modified_age_async);
 }
 
-/** Checks if there is need for a log buffer flush or a new checkpoint, and does
- this if yes. Any database operation should call this when it has modified
- more than about 4 pages. NOTE that this function may only be called when the
- OS thread owns no synchronization objects except the dictionary mutex. */
-UNIV_INLINE
-void log_free_check(void) {
+inline bool log_needs_free_check() {
+  const log_t &log = *log_sys;
+
+  const sn_t sn = log.sn.load();
+
+  return (sn > log.sn_limit_for_start.load());
+}
+
+inline void log_free_check() {
+  log_t &log = *log_sys;
+
 #ifdef UNIV_DEBUG
   /* During row_log_table_apply(), this function will be called while we
   are holding some latches. This is OK, as long as we are not holding
@@ -360,25 +198,131 @@ void log_free_check(void) {
   sync_allowed_latches check(latches,
                              latches + sizeof(latches) / sizeof(*latches));
 
-  ut_ad(!sync_check_iterate(check));
+  ut_a(!sync_check_iterate(check));
 #endif /* UNIV_DEBUG */
 
-  if (log_sys->check_flush_or_checkpoint) {
-    log_check_margins();
+  /** We prefer to wait now for the space in log file, because now
+  are not holding any latches of dirty pages. */
+
+  sn_t sn = log.sn.load();
+
+  if (unlikely(sn > log.sn_limit_for_start.load())) {
+    sn += log.concurrency_safe_free_margin;
+
+    sn += log.dict_persist_margin.load();
+
+    /* We need to wait until at least concurrency_safe_free_margin
+    bytes are free in the log file. If we proceeded without waiting
+    it could happen, that we would x-lock very old dirty page in a
+    mtr, making it impossible to reclaim the free space then. */
+
+    log_wait_for_space_in_log_file(log, sn);
   }
 }
+
+constexpr inline lsn_t log_translate_sn_to_lsn(lsn_t sn) {
+  return (sn / LOG_BLOCK_DATA_SIZE * OS_FILE_LOG_BLOCK_SIZE +
+          sn % LOG_BLOCK_DATA_SIZE + LOG_BLOCK_HDR_SIZE);
+}
+
+inline lsn_t log_translate_lsn_to_sn(lsn_t lsn) {
+  /* Calculate sn of the beginning of log block, which contains
+  the provided lsn value. */
+  const sn_t sn = lsn / OS_FILE_LOG_BLOCK_SIZE * LOG_BLOCK_DATA_SIZE;
+
+  /* Calculate offset for the provided lsn within the log block.
+  The offset includes LOG_BLOCK_HDR_SIZE bytes of block's header. */
+  const uint32_t diff = lsn % OS_FILE_LOG_BLOCK_SIZE;
+
+  if (diff < LOG_BLOCK_HDR_SIZE) {
+    /* The lsn points to some bytes inside the block's header.
+    Return sn for the beginning of the block. Note, that sn
+    values don't enumerate bytes of blocks' headers, so the
+    value of diff does not matter at all. */
+    return (sn);
+  }
+
+  if (diff > OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE) {
+    /* The lsn points to some bytes inside the block's footer.
+    Return sn for the beginning of the next block. Note, that
+    sn values don't enumerate bytes of blocks' footer, so the
+    value of diff does not matter at all. */
+    return (sn + LOG_BLOCK_DATA_SIZE);
+  }
+
+  /* Add the offset but skip bytes of block's header. */
+  return (sn + diff - LOG_BLOCK_HDR_SIZE);
+}
+
 #endif /* !UNIV_HOTBACKUP */
+
+inline bool log_lsn_validate(lsn_t lsn) {
+  const uint32_t offset = lsn % OS_FILE_LOG_BLOCK_SIZE;
+
+  return (lsn >= LOG_START_LSN && offset >= LOG_BLOCK_HDR_SIZE &&
+          offset < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
+}
+
+#ifndef UNIV_HOTBACKUP
+
+inline lsn_t log_get_lsn(const log_t &log) {
+  return (log_translate_sn_to_lsn(log.sn.load()));
+}
+
+inline lsn_t log_get_checkpoint_lsn(const log_t &log) {
+  return (log.last_checkpoint_lsn.load());
+}
+
+inline lsn_t log_get_checkpoint_age(const log_t &log) {
+  const lsn_t last_checkpoint_lsn = log.last_checkpoint_lsn.load();
+
+  const lsn_t current_lsn = log_get_lsn(log);
+
+  if (current_lsn <= last_checkpoint_lsn) {
+    /* Writes or reads have been somehow reordered.
+    Note that this function does not provide any lock,
+    and does not assume any lock existing. Therefore
+    the calculated result is already outdated when the
+    function is finished. Hence, we might assume that
+    this time we calculated age = 0, because checkpoint
+    lsn is close to current lsn if such race happened. */
+    return (0);
+  }
+
+  return (current_lsn - last_checkpoint_lsn);
+}
+
+inline void log_buffer_flush_to_disk(bool sync) {
+  log_buffer_flush_to_disk(*log_sys, sync);
+}
 
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_DEBUG)
 /** Print a log file header.
 @param[in]	block	pointer to the log buffer */
 UNIV_INLINE
 void meb_log_print_file_hdr(byte *block) {
-  ib::info() << "Log file header:"
-             << " format " << mach_read_from_4(block + LOG_HEADER_FORMAT)
-             << " pad1 " << mach_read_from_4(block + LOG_HEADER_PAD1)
-             << " start_lsn " << mach_read_from_8(block + LOG_HEADER_START_LSN)
-             << " creator '" << block + LOG_HEADER_CREATOR << "'"
-             << " checksum " << log_block_get_checksum(block);
+  ib::info(ER_IB_MSG_626) << "Log file header:"
+                          << " format "
+                          << mach_read_from_4(block + LOG_HEADER_FORMAT)
+                          << " pad1 "
+                          << mach_read_from_4(block + LOG_HEADER_PAD1)
+                          << " start_lsn "
+                          << mach_read_from_8(block + LOG_HEADER_START_LSN)
+                          << " creator '" << block + LOG_HEADER_CREATOR << "'"
+                          << " checksum " << log_block_get_checksum(block);
 }
 #endif /* UNIV_HOTBACKUP && UNIV_DEBUG */
+
+inline lsn_t log_buffer_ready_for_write_lsn(const log_t &log) {
+  return (log.recent_written.tail());
+}
+
+inline lsn_t log_buffer_dirty_pages_added_up_to_lsn(const log_t &log) {
+  return (log.recent_closed.tail());
+}
+
+inline lsn_t log_buffer_flush_order_lag(const log_t &log) {
+  return (log.recent_closed.capacity());
+}
+
+#endif /* !UNIV_HOTBACKUP */

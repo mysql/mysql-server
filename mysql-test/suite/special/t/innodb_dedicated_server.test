@@ -74,11 +74,11 @@ EOF
 # Perl module ends
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Resizing redo log");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Starting to delete and rewrite log files.");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: New log files created");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored ");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] No argument was provided to --log-bin, and --log-bin-index was not used");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Resizing redo log");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Starting to delete and rewrite log files.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* New log files created");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored ");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* No argument was provided to --log-bin, and --log-bin-index was not used");
 --enable_query_log
 
 --echo
@@ -177,7 +177,7 @@ select VARIABLE_VALUE as INNODB_FLUSH_METHOD from performance_schema.global_vari
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
-let SEARCH_PATTERN= \\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_buffer_pool_size;
 --source include/search_pattern.inc
 
 --echo
@@ -208,7 +208,7 @@ select VARIABLE_VALUE as INNODB_FLUSH_METHOD from performance_schema.global_vari
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
-let SEARCH_PATTERN= \\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size;
 --source include/search_pattern.inc
 
 --echo
@@ -244,7 +244,7 @@ select VARIABLE_VALUE as INNODB_FLUSH_METHOD from performance_schema.global_vari
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
-let SEARCH_PATTERN= \\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_flush_method;
 --source include/search_pattern.inc
 
 --echo
@@ -270,11 +270,11 @@ select VARIABLE_VALUE as INNODB_FLUSH_METHOD from performance_schema.global_vari
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
-let SEARCH_PATTERN= \\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored for innodb_buffer_pool_size;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_buffer_pool_size;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= \\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= \\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_flush_method;
 --source include/search_pattern.inc
 
 --echo
@@ -305,9 +305,9 @@ select VARIABLE_VALUE as INNODB_FLUSH_METHOD from performance_schema.global_vari
 --echo # Make sure that the warnings are present in server log.
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 let SEARCH_FILE= $server_log;
-let SEARCH_PATTERN= \\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored for innodb_log_file_size;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_log_file_size;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= \\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored for innodb_flush_method;
+let SEARCH_PATTERN= \\[Warning\\] .*MY-\\d+.* Option innodb_dedicated_server is ignored for innodb_flush_method;
 --source include/search_pattern.inc
 
 --enable_query_log

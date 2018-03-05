@@ -3,7 +3,7 @@
 --source include/not_valgrind.inc
 
 # Can be 0, depends on where the mysqld process was killed
-call mtr.add_suppression("InnoDB: File '.*tablespaces.open..*' size is 0 bytes. Must be at least 12 bytes");
+call mtr.add_suppression("File '.*tablespaces.open..*' size is 0 bytes. Must be at least 12 bytes");
 
 let MYSQLD_DATADIR= `select @@datadir`;
 let OLD_IBDATA= `select @@innodb_data_file_path`;
@@ -58,7 +58,7 @@ CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 
 --disable_query_log
 # Work around Bug#18605064 INNODB CREATES NEW DATA FILE BEFORE APPLYING REDO LOG
-call mtr.add_suppression("InnoDB: Tablespace size stored in header is [0-9]* pages, but the sum of data file sizes is [0-9]* pages");
+call mtr.add_suppression("Tablespace size stored in header is [0-9]* pages, but the sum of data file sizes is [0-9]* pages");
 --enable_query_log
 
 # Kill the server to inject faults.

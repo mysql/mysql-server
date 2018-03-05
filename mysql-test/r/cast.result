@@ -162,7 +162,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t` varchar(4) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select
 cast(_latin1'ab'  AS char)    as c1,
@@ -201,7 +201,7 @@ t1	CREATE TABLE `t1` (
   `c3` varbinary(2) NOT NULL DEFAULT '',
   `c4` varbinary(2) NOT NULL DEFAULT '',
   `c5` varbinary(2) NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select
 cast(_koi8r'ÆÇ'  AS nchar)    as c1,
@@ -244,7 +244,7 @@ t1	CREATE TABLE `t1` (
   `c3` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c4` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c5` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
 # Bug #24934161: FAILURE OF SYNONYMY OF NCHAR AND NATIONAL CHAR
@@ -290,7 +290,7 @@ t1	CREATE TABLE `t1` (
   `c3` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c4` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c5` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET sql_mode = default;
 create table t1 (a binary(4), b char(4) character set koi8r);
@@ -578,7 +578,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `CONCAT(CAST(REPEAT('9', 1000) AS SIGNED))` varchar(21) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `CONCAT(CAST(REPEAT('9', 1000) AS UNSIGNED))` varchar(21) CHARACTER SET latin1 NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET sql_mode = default;
 End of 5.5 tests

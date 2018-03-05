@@ -7,7 +7,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL,
   KEY `sec_idx` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET GLOBAL innodb_fast_shutdown = 0;
 # restart: --innodb-read-only
 SELECT COUNT(*) FROM WL6445.t1;
@@ -43,7 +43,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` int(11) DEFAULT NULL,
   KEY `sec_idx` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart
 DROP TABLE WL6445.t1;
 DROP DATABASE WL6445;

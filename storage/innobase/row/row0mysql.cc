@@ -301,9 +301,9 @@ void row_mysql_store_geometry(
 
     if (g) {
       if (g->as_wkt(&wkt) == 0) {
-        ib::info() << "Write geometry data to"
-                      " MySQL WKT format: "
-                   << wkt.c_ptr_safe() << ".";
+        ib::info(ER_IB_MSG_970) << "Write geometry data to"
+                                   " MySQL WKT format: "
+                                << wkt.c_ptr_safe() << ".";
       }
     }
   });
@@ -334,9 +334,9 @@ static const byte *row_mysql_read_geometry(
 
     if (g) {
       if (g->as_wkt(&wkt) == 0) {
-        ib::info() << "Read geometry data in"
-                      " MySQL's WKT format: "
-                   << wkt.c_ptr_safe() << ".";
+        ib::info(ER_IB_MSG_971) << "Read geometry data in"
+                                   " MySQL's WKT format: "
+                                << wkt.c_ptr_safe() << ".";
       }
     }
   });
@@ -714,29 +714,33 @@ handle_new_error:
       break;
 
     case DB_MUST_GET_MORE_FILE_SPACE:
-      ib::fatal() << "The database cannot continue operation because"
-                     " of lack of space. You must add a new data file"
-                     " to my.cnf and restart the database.";
+      ib::fatal(ER_IB_MSG_972)
+          << "The database cannot continue operation because"
+             " of lack of space. You must add a new data file"
+             " to my.cnf and restart the database.";
       break;
 
     case DB_CORRUPTION:
-      ib::error() << "We detected index corruption in an InnoDB type"
-                     " table. You have to dump + drop + reimport the"
-                     " table or, in a case of widespread corruption,"
-                     " dump all InnoDB tables and recreate the whole"
-                     " tablespace. If the mysqld server crashes after"
-                     " the startup or when you dump the tables. "
-                  << FORCE_RECOVERY_MSG;
+      ib::error(ER_IB_MSG_973)
+          << "We detected index corruption in an InnoDB type"
+             " table. You have to dump + drop + reimport the"
+             " table or, in a case of widespread corruption,"
+             " dump all InnoDB tables and recreate the whole"
+             " tablespace. If the mysqld server crashes after"
+             " the startup or when you dump the tables. "
+          << FORCE_RECOVERY_MSG;
       break;
     case DB_FOREIGN_EXCEED_MAX_CASCADE:
-      ib::error() << "Cannot delete/update rows with cascading"
-                     " foreign key constraints that exceed max depth of "
-                  << FK_MAX_CASCADE_DEL
-                  << ". Please drop excessive"
-                     " foreign constraints and try again";
+      ib::error(ER_IB_MSG_974)
+          << "Cannot delete/update rows with cascading"
+             " foreign key constraints that exceed max depth of "
+          << FK_MAX_CASCADE_DEL
+          << ". Please drop excessive"
+             " foreign constraints and try again";
       break;
     default:
-      ib::fatal() << "Unknown error code " << err << ": " << ut_strerr(err);
+      ib::fatal(ER_IB_MSG_975)
+          << "Unknown error code " << err << ": " << ut_strerr(err);
   }
 
   if (trx->error_state != DB_SUCCESS) {
@@ -1483,14 +1487,16 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
   ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
   if (dict_table_is_discarded(prebuilt->table)) {
-    ib::error() << "The table " << prebuilt->table->name
-                << " doesn't have a corresponding tablespace, it was"
-                   " discarded.";
+    ib::error(ER_IB_MSG_976)
+        << "The table " << prebuilt->table->name
+        << " doesn't have a corresponding tablespace, it was"
+           " discarded.";
 
     return (DB_TABLESPACE_DELETED);
 
   } else if (prebuilt->table->ibd_file_missing) {
-    ib::error() << ".ibd file is missing for table " << prebuilt->table->name;
+    ib::error(ER_IB_MSG_977)
+        << ".ibd file is missing for table " << prebuilt->table->name;
 
     return (DB_TABLESPACE_NOT_FOUND);
 
@@ -1500,7 +1506,7 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
     /* Allow to modify hardcoded DD tables in some scenario to
     make DDL work */
 
-    ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
+    ib::error(ER_IB_MSG_978) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
 
     return (DB_READ_ONLY);
   }
@@ -1513,7 +1519,7 @@ static dberr_t row_insert_for_mysql_using_ins_graph(const byte *mysql_rec,
   });
 
   if (table->is_corrupted()) {
-    ib::error() << "Table " << table->name << " is corrupt.";
+    ib::error(ER_IB_MSG_979) << "Table " << table->name << " is corrupt.";
     return (DB_TABLE_CORRUPT);
   }
 
@@ -1587,7 +1593,7 @@ run_again:
     doc_id = fts_get_doc_id_from_row(table, node->row);
 
     if (doc_id <= 0) {
-      ib::error() << "FTS Doc ID must be large than 0";
+      ib::error(ER_IB_MSG_980) << "FTS Doc ID must be large than 0";
       err = DB_FTS_INVALID_DOCID;
       trx->error_state = DB_FTS_INVALID_DOCID;
       goto error_exit;
@@ -1597,8 +1603,9 @@ run_again:
       doc_id_t next_doc_id = table->fts->cache->next_doc_id;
 
       if (doc_id < next_doc_id) {
-        ib::error() << "FTS Doc ID must be large than " << next_doc_id - 1
-                    << " for table " << table->name;
+        ib::error(ER_IB_MSG_981)
+            << "FTS Doc ID must be large than " << next_doc_id - 1
+            << " for table " << table->name;
 
         err = DB_FTS_INVALID_DOCID;
         trx->error_state = DB_FTS_INVALID_DOCID;
@@ -1611,13 +1618,13 @@ run_again:
       FTS_DOC_ID_MAX_STEP value. */
 
       if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
-        ib::error() << "Doc ID " << doc_id
-                    << " is too big. Its difference with"
-                       " largest used Doc ID "
-                    << next_doc_id - 1
-                    << " cannot"
-                       " exceed or equal to "
-                    << FTS_DOC_ID_MAX_STEP;
+        ib::error(ER_IB_MSG_982) << "Doc ID " << doc_id
+                                 << " is too big. Its difference with"
+                                    " largest used Doc ID "
+                                 << next_doc_id - 1
+                                 << " cannot"
+                                    " exceed or equal to "
+                                 << FTS_DOC_ID_MAX_STEP;
         err = DB_FTS_INVALID_DOCID;
         trx->error_state = DB_FTS_INVALID_DOCID;
         goto error_exit;
@@ -1808,7 +1815,7 @@ static dberr_t row_fts_update_or_delete(
     new_doc_id = fts_read_doc_id((byte *)&trx->fts_next_doc_id);
     ut_ad(new_doc_id != UINT64_UNDEFINED);
     if (new_doc_id == 0) {
-      ib::error() << "InnoDB FTS: Doc ID cannot be 0";
+      ib::error(ER_IB_MSG_983) << "InnoDB FTS: Doc ID cannot be 0";
       return (DB_FTS_INVALID_DOCID);
     }
     row_fts_do_update(trx, table, old_doc_id, new_doc_id);
@@ -2155,14 +2162,15 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
   UT_NOT_USED(mysql_rec);
 
   if (prebuilt->table->ibd_file_missing) {
-    ib::error() << "MySQL is trying to use a table handle but the"
-                   " .ibd file for table "
-                << prebuilt->table->name
-                << " does not exist. Have you deleted"
-                   " the .ibd file from the database directory under"
-                   " the MySQL datadir, or have you used DISCARD"
-                   " TABLESPACE? "
-                << TROUBLESHOOTING_MSG;
+    ib::error(ER_IB_MSG_984)
+        << "MySQL is trying to use a table handle but the"
+           " .ibd file for table "
+        << prebuilt->table->name
+        << " does not exist. Have you deleted"
+           " the .ibd file from the database directory under"
+           " the MySQL datadir, or have you used DISCARD"
+           " TABLESPACE? "
+        << TROUBLESHOOTING_MSG;
     DBUG_RETURN(DB_ERROR);
   }
 
@@ -2171,7 +2179,7 @@ static dberr_t row_update_for_mysql_using_upd_graph(const byte *mysql_rec,
   if (srv_force_recovery > 0 &&
       !(srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN &&
         dict_sys_t::is_dd_table_id(prebuilt->table->id))) {
-    ib::error() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
+    ib::error(ER_IB_MSG_985) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
     DBUG_RETURN(DB_READ_ONLY);
   }
 
@@ -2717,8 +2725,8 @@ error_handling:
     case DB_OUT_OF_FILE_SPACE:
       trx->error_state = DB_SUCCESS;
 
-      ib::warn() << "Cannot create table " << table->name
-                 << " because tablespace full";
+      ib::warn(ER_IB_MSG_986) << "Cannot create table " << table->name
+                              << " because tablespace full";
 
       /* Still do it here so that the table can always be freed */
       if (dd_table_open_on_name_in_mem(table->name.m_name, false)) {
@@ -3014,6 +3022,9 @@ static dberr_t row_drop_table_for_mysql_in_background(
 
   trx->check_foreigns = false;
 
+  /* Check that there is enough reusable space in redo log files. */
+  log_free_check();
+
   /* Try to drop the table in InnoDB */
 
   error = row_drop_table_for_mysql(name, trx, FALSE);
@@ -3117,8 +3128,9 @@ already_dropped:
 
   MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
 
-  ib::info() << "Dropped table " << ut_get_name(NULL, drop->table_name)
-             << " in background drop queue.",
+  ib::info(ER_IB_MSG_987) << "Dropped table "
+                          << ut_get_name(NULL, drop->table_name)
+                          << " in background drop queue.",
 
       ut_free(drop->table_name);
 
@@ -3301,11 +3313,10 @@ static dberr_t row_discard_tablespace_end(trx_t *trx, dict_table_t *table,
   }
 
   DBUG_EXECUTE_IF("ib_discard_before_commit_crash",
-                  log_make_checkpoint_at(LSN_MAX, TRUE);
+                  log_make_latest_checkpoint();
                   DBUG_SUICIDE(););
 
-  DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
-                  log_make_checkpoint_at(LSN_MAX, TRUE);
+  DBUG_EXECUTE_IF("ib_discard_after_commit_crash", log_make_latest_checkpoint();
                   DBUG_SUICIDE(););
 
   row_mysql_unlock_data_dictionary(trx);
@@ -3615,9 +3626,9 @@ dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
     dberr_t err = fts_drop_tables(trx, table, aux_vec);
 
     if (err != DB_SUCCESS) {
-      ib::error() << " Unable to remove ancillary FTS"
-                     " tables for table "
-                  << table->name << " : " << ut_strerr(err);
+      ib::error(ER_IB_MSG_988) << " Unable to remove ancillary FTS"
+                                  " tables for table "
+                               << table->name << " : " << ut_strerr(err);
 
       return (err);
     }
@@ -3680,19 +3691,20 @@ dberr_t row_drop_single_table_tablespace(space_id_t space_id,
   if (!fil_space_exists_in_mem(space_id, tablename, true, false, NULL, 0)) {
     /* Force a delete of any discarded or temporary files. */
     if (fil_delete_file(filepath)) {
-      ib::info() << "Removed datafile " << filepath;
+      ib::info(ER_IB_MSG_989) << "Removed datafile " << filepath;
 
     } else {
-      ib::info() << "Failed to delete the datafile '" << filepath << "'!";
+      ib::info(ER_IB_MSG_990)
+          << "Failed to delete the datafile '" << filepath << "'!";
     }
 
   } else {
     err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 
     if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
-      ib::error() << "Failed to delete the datafile of"
-                  << " tablespace " << space_id << ", file '" << filepath
-                  << "'!";
+      ib::error(ER_IB_MSG_991)
+          << "Failed to delete the datafile of"
+          << " tablespace " << space_id << ", file '" << filepath << "'!";
     }
   }
 
@@ -3836,7 +3848,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
   ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
   if (!table->is_temporary() && !table->is_fts_aux()) {
-    if (srv_dict_stats_thread_active) {
+    if (srv_threads.m_dict_stats_thread_active) {
       dict_stats_recalc_pool_del(table);
     }
 
@@ -3848,7 +3860,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
     err = dict_stats_drop_table(name, errstr, sizeof(errstr));
 
     if (err != DB_SUCCESS) {
-      ib::warn() << errstr;
+      ib::warn(ER_IB_MSG_992) << errstr;
     }
   }
 
@@ -3914,10 +3926,10 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
     added = row_add_table_to_background_drop_list(save_tablename);
 
     if (added) {
-      ib::info() << "You are trying to drop table " << table->name
-                 << " though there is a foreign key check"
-                    " running on it. Adding the table to the"
-                    " background drop queue.";
+      ib::info(ER_IB_MSG_993) << "You are trying to drop table " << table->name
+                              << " though there is a foreign key check"
+                                 " running on it. Adding the table to the"
+                                 " background drop queue.";
 
       /* We return DB_SUCCESS to MySQL though the drop will
       happen lazily later */
@@ -3960,10 +3972,10 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
     added = row_add_table_to_background_drop_list(table->name.m_name);
 
     if (added) {
-      ib::info() << "MySQL is trying to drop table " << table->name
-                 << " though there are still open handles to"
-                    " it. Adding the table to the background drop"
-                    " queue.";
+      ib::info(ER_IB_MSG_994) << "MySQL is trying to drop table " << table->name
+                              << " though there are still open handles to"
+                                 " it. Adding the table to the background drop"
+                                 " queue.";
 
       /* We return DB_SUCCESS to MySQL though the drop will
       happen lazily later */
@@ -4173,7 +4185,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
   ut_ad(trx->state == TRX_STATE_ACTIVE);
 
   if (srv_force_recovery) {
-    ib::info() << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
+    ib::info(ER_IB_MSG_995) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;
     return (DB_READ_ONLY);
   }
 
@@ -4195,10 +4207,10 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
   } else if (table->ibd_file_missing && !dict_table_is_discarded(table)) {
     err = DB_TABLE_NOT_FOUND;
 
-    ib::error() << "Table " << old_name
-                << " does not have an .ibd"
-                   " file in the database directory. "
-                << TROUBLESHOOTING_MSG;
+    ib::error(ER_IB_MSG_996) << "Table " << old_name
+                             << " does not have an .ibd"
+                                " file in the database directory. "
+                             << TROUBLESHOOTING_MSG;
 
     goto funct_exit;
 
@@ -4228,9 +4240,9 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
   }
 
   if (table->n_foreign_key_checks_running > 0) {
-    ib::error() << "In ALTER TABLE " << ut_get_name(trx, old_name)
-                << " a FOREIGN KEY check is running. Cannot rename"
-                   " table.";
+    ib::error(ER_IB_MSG_997) << "In ALTER TABLE " << ut_get_name(trx, old_name)
+                             << " a FOREIGN KEY check is running. Cannot rename"
+                                " table.";
     err = DB_TABLE_IN_FK_CHECK;
     goto funct_exit;
   }
@@ -4243,30 +4255,32 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
   }
   if (err != DB_SUCCESS) {
     if (err == DB_DUPLICATE_KEY) {
-      ib::error() << "Possible reasons:";
-      ib::error() << "(1) Table rename would cause two"
-                     " FOREIGN KEY constraints to have the same"
-                     " internal name in case-insensitive"
-                     " comparison.";
-      ib::error() << "(2) Table " << ut_get_name(trx, new_name)
-                  << " exists in the InnoDB internal data"
-                     " dictionary though MySQL is trying to rename"
-                     " table "
-                  << ut_get_name(trx, old_name)
-                  << " to it. Have you deleted the .frm file and"
-                     " not used DROP TABLE?";
-      ib::info() << TROUBLESHOOTING_MSG;
-      ib::error() << "If table " << ut_get_name(trx, new_name)
-                  << " is a temporary table #sql..., then"
-                     " it can be that there are still queries"
-                     " running on the table, and it will be dropped"
-                     " automatically when the queries end. You can"
-                     " drop the orphaned table inside InnoDB by"
-                     " creating an InnoDB table with the same name"
-                     " in another database and copying the .frm file"
-                     " to the current database. Then MySQL thinks"
-                     " the table exists, and DROP TABLE will"
-                     " succeed.";
+      ib::error(ER_IB_MSG_998) << "Possible reasons:";
+      ib::error(ER_IB_MSG_999) << "(1) Table rename would cause two"
+                                  " FOREIGN KEY constraints to have the same"
+                                  " internal name in case-insensitive"
+                                  " comparison.";
+      ib::error(ER_IB_MSG_1000)
+          << "(2) Table " << ut_get_name(trx, new_name)
+          << " exists in the InnoDB internal data"
+             " dictionary though MySQL is trying to rename"
+             " table "
+          << ut_get_name(trx, old_name)
+          << " to it. Have you deleted the .frm file and"
+             " not used DROP TABLE?";
+      ib::info(ER_IB_MSG_1001) << TROUBLESHOOTING_MSG;
+      ib::error(ER_IB_MSG_1002)
+          << "If table " << ut_get_name(trx, new_name)
+          << " is a temporary table #sql..., then"
+             " it can be that there are still queries"
+             " running on the table, and it will be dropped"
+             " automatically when the queries end. You can"
+             " drop the orphaned table inside InnoDB by"
+             " creating an InnoDB table with the same name"
+             " in another database and copying the .frm file"
+             " to the current database. Then MySQL thinks"
+             " the table exists, and DROP TABLE will"
+             " succeed.";
     }
     trx->error_state = DB_SUCCESS;
   } else {
@@ -4316,16 +4330,18 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
 
     if (err != DB_SUCCESS) {
       if (old_is_tmp) {
-        ib::error() << "In ALTER TABLE " << ut_get_name(trx, new_name)
-                    << " has or is referenced in foreign"
-                       " key constraints which are not"
-                       " compatible with the new table"
-                       " definition.";
+        ib::error(ER_IB_MSG_1003)
+            << "In ALTER TABLE " << ut_get_name(trx, new_name)
+            << " has or is referenced in foreign"
+               " key constraints which are not"
+               " compatible with the new table"
+               " definition.";
       } else {
-        ib::error() << "In RENAME TABLE table " << ut_get_name(trx, new_name)
-                    << " is referenced in foreign key"
-                       " constraints which are not compatible"
-                       " with the new table definition.";
+        ib::error(ER_IB_MSG_1004)
+            << "In RENAME TABLE table " << ut_get_name(trx, new_name)
+            << " is referenced in foreign key"
+               " constraints which are not compatible"
+               " with the new table definition.";
       }
 
       dberr_t error = dict_table_rename_in_cache(table, old_name, FALSE);
@@ -4443,10 +4459,10 @@ loop:
       goto func_exit;
     default: {
       const char *doing = check_keys ? "CHECK TABLE" : "COUNT(*)";
-      ib::warn() << doing << " on index " << index->name
-                 << " of"
-                    " table "
-                 << index->table->name << " returned " << ret;
+      ib::warn(ER_IB_MSG_1005) << doing << " on index " << index->name
+                               << " of"
+                                  " table "
+                               << index->table->name << " returned " << ret;
     }
     /* fall through (this error is ignored by CHECK TABLE) */
     case DB_END_OF_INDEX:
@@ -4497,9 +4513,9 @@ loop:
       ret = DB_INDEX_CORRUPT;
       msg = "index records in a wrong order in ";
     not_ok:
-      ib::error() << msg << index->name << " of table " << index->table->name
-                  << ": " << *prev_entry << ", "
-                  << rec_offsets_print(rec, offsets);
+      ib::error(ER_IB_MSG_1006)
+          << msg << index->name << " of table " << index->table->name << ": "
+          << *prev_entry << ", " << rec_offsets_print(rec, offsets);
       /* Continue reading */
     } else if (dict_index_is_unique(index) && !contains_null &&
                matched_fields >=

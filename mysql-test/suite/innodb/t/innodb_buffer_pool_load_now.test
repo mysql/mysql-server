@@ -132,7 +132,7 @@ print $fh "abcdefg\n";
 close($fh);
 EOF
 
-call mtr.add_suppression("InnoDB: Error parsing");
+call mtr.add_suppression("Error parsing");
 
 # Load
 SET GLOBAL innodb_buffer_pool_load_now = ON;

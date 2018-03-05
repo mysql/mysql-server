@@ -236,7 +236,7 @@ t2	CREATE TABLE `t2` (
   `c4` bigint(20) unsigned DEFAULT NULL,
   `c5` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSTALL PLUGIN daemon_memcached SONAME 'libmemcached.so';
 DROP TABLE t2;
 UNINSTALL PLUGIN daemon_memcached;

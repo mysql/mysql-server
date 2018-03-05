@@ -519,6 +519,7 @@ IMPORT TABLE FROM 't_case.sdi';
 SELECT i FROM t_case ORDER BY i;
 DROP TABLE t_case;
 
+
 --echo #
 --echo # Start new server with --lower_case_table_names and import t_case there
 --echo #
@@ -528,12 +529,6 @@ let DDIR=       $MYSQL_TMP_DIR/lctn_test;
 let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
 let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --lower_case_table_names=1 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
-
---disable_query_log
-CALL mtr.add_suppression("InnoDB: Resizing redo log");
-CALL mtr.add_suppression("InnoDB: Starting to delete");
-CALL mtr.add_suppression("InnoDB: New log files created");
---enable_query_log
 
 --echo # 0. Shut server down.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -549,7 +544,7 @@ EOF
 --exec $MYSQLD $extra_args --secure-file-priv="" --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 3. Restart the server against DDIR - should succeed.
---exec echo "restart:" --datadir=$DDIR --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:" --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 

@@ -387,8 +387,9 @@ class Alter_info {
                  const char *decimal, uint type_modifier, Item *default_value,
                  Item *on_update_value, LEX_STRING *comment, const char *change,
                  List<String> *interval_list, const CHARSET_INFO *cs,
-                 uint uint_geom_type, class Generated_column *gcol_info,
-                 const char *opt_after, Nullable<gis::srid_t> srid);
+                 bool has_explicit_collation, uint uint_geom_type,
+                 class Generated_column *gcol_info, const char *opt_after,
+                 Nullable<gis::srid_t> srid);
 
  private:
   Alter_info &operator=(const Alter_info &rhs);  // not implemented

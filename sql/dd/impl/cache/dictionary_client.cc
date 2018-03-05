@@ -1925,82 +1925,85 @@ bool Dictionary_client::fetch_schema_component_names(
   return false;
 }
 
-/**
-  Fetch objects from DD tables that match the supplied key.
-
-  @tparam Object_type Type of object to fetch.
-  @param thd          Thread handle
-  @param coll         Vector to fill with objects.
-  @param object_key   The search key. If key is not supplied, then
-                      we do full index scan.
-
-  @return false       Success.
-  @return true        Failure (error is reported).
-*/
-
+// Fetch objects from DD tables that match the supplied key.
 template <typename Object_type>
-bool fetch(THD *thd, std::vector<const Object_type *> *coll,
-           const Object_key *object_key) {
+bool Dictionary_client::fetch(Const_ptr_vec<Object_type> *coll,
+                              const Object_key *object_key) {
   // Since we clear the vector on failure, it should be empty
   // when we start.
   DBUG_ASSERT(coll->empty());
 
-  std::vector<Object_id> ids;
+  Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
+  trx.otx.register_tables<typename Object_type::Cache_partition>();
+  Raw_table *table = trx.otx.get_table<typename Object_type::Cache_partition>();
+  DBUG_ASSERT(table);
 
+  if (trx.otx.open_tables()) {
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  // Retrieve the objects in a nested scope to make sure the
+  // record set is deleted before the transaction is committed
+  // (a dependency in the Raw_record_set destructor).
   {
-    Transaction_ro trx(thd, ISO_READ_COMMITTED);
-    trx.otx.register_tables<Object_type>();
-    Raw_table *table = trx.otx.get_table<Object_type>();
-    DBUG_ASSERT(table);
-
-    if (trx.otx.open_tables()) {
-      DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    std::unique_ptr<Raw_record_set> rs;
+    if (table->open_record_set(object_key, rs)) {
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                  m_thd->is_error());
       return true;
     }
 
-    // Retrieve list of object ids. Do this in a nested scope to make sure
-    // the record set is deleted before the transaction is committed (a
-    // dependency in the Raw_record_set destructor.
-    {
-      std::unique_ptr<Raw_record_set> rs;
-      if (table->open_record_set(object_key, rs)) {
-        DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
-        return true;
-      }
+    Raw_record *r = rs->current_record();
+    while (r) {
+      Object_type *object = nullptr;
+      Entity_object *new_object = nullptr;
+      const Entity_object_table &dd_table = Object_type::DD_table::instance();
 
-      Raw_record *r = rs->current_record();
-      while (r) {
-        ids.push_back(r->read_int(0));  // Read ID, which is always 1st field.
+      // Restore the object from the record. We must do this with another
+      // transaction to avoid opening the same index twice, which we would
+      // otherwise do for e.g. tables.
+      {
+        Transaction_ro sub_trx(m_thd, ISO_READ_COMMITTED);
+        sub_trx.otx.register_tables<typename Object_type::Cache_partition>();
 
-        if (rs->next(r)) {
-          DBUG_ASSERT(thd->is_system_thread() || thd->killed ||
-                      thd->is_error());
+        if (sub_trx.otx.open_tables()) {
+          DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                      m_thd->is_error());
+          return true;
+        }
+
+        if (r && dd_table.restore_object_from_record(&sub_trx.otx, *r,
+                                                     &new_object)) {
+          DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                      m_thd->is_error());
+          coll->clear();
           return true;
         }
       }
+
+      // Delete the new object if dynamic cast fails. Here, a failing dynamic
+      // cast is a legitimate situation; if we e.g. scan for tables, some
+      // of the objects will be views.
+      if (new_object) {
+        object = dynamic_cast<Object_type *>(new_object);
+        if (object == nullptr) {
+          delete new_object;
+        } else {
+          // Sign up the object for being auto deleted.
+          auto_delete<Object_type>(object);
+          coll->push_back(object);
+        }
+      }
+
+      if (rs->next(r)) {
+        DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                    m_thd->is_error());
+        coll->clear();
+        return true;
+      }
     }
-
-    // Close the scope to end DD transaction. This allows to avoid
-    // nested DD transaction when loading objects.
-  }
-
-  // Load objects by id. This must be done without caching the
-  // objects since the dictionary object collection is used in
-  // situations where we do not have an MDL lock (e.g. a SHOW statement).
-  for (Object_id id : ids) {
-    Object_type *o = NULL;
-    if (thd->dd_client()->acquire_uncached(id, &o)) {
-      DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
-      // Delete objects already created.
-      for (const Object_type *comp : *coll) delete comp;
-      coll->clear();
-      return true;
-    }
-
-    // Since we don't have metadata lock, the object could have been
-    // deleted after we retrieved the IDs. So we need to check that
-    // the object still exists and it is not an error if it doesn't.
-    if (o) coll->push_back(o);
   }
 
   return false;
@@ -2008,12 +2011,12 @@ bool fetch(THD *thd, std::vector<const Object_type *> *coll,
 
 // Fetch all components in the schema.
 template <typename T>
-bool Dictionary_client::fetch_schema_components(
-    const Schema *schema, std::vector<const T *> *coll) const {
+bool Dictionary_client::fetch_schema_components(const Schema *schema,
+                                                Const_ptr_vec<T> *coll) {
   std::unique_ptr<Object_key> k(
       T::DD_table::create_key_by_schema_id(schema->id()));
 
-  if (fetch(m_thd, coll, k.get())) {
+  if (fetch(coll, k.get())) {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
                 m_thd->is_error());
     DBUG_ASSERT(coll->empty());
@@ -2025,9 +2028,8 @@ bool Dictionary_client::fetch_schema_components(
 
 // Fetch all global components of the given type.
 template <typename T>
-bool Dictionary_client::fetch_global_components(
-    std::vector<const T *> *coll) const {
-  if (fetch(m_thd, coll, NULL)) {
+bool Dictionary_client::fetch_global_components(Const_ptr_vec<T> *coll) {
+  if (fetch(coll, NULL)) {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
                 m_thd->is_error());
     DBUG_ASSERT(coll->empty());
@@ -2238,11 +2240,57 @@ void Dictionary_client::invalidate(const T *object) {
             id_key);
 }
 
+#ifndef DBUG_OFF
+
+/**
+  Check whether Backup Lock was acquired for a server run in normal mode.
+
+  @param[in]  thd      Thread context.
+
+  @return  true in case Backup Lock was acquired by a statement being executed
+           and server operates in normal mode, else false.
+*/
+
+template <typename T>
+bool is_backup_lock_acquired(THD *thd) {
+  return !mysqld_server_started || thd->is_dd_system_thread() ||
+         thd->mdl_context.owns_equal_or_stronger_lock(
+             MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE);
+}
+
+template <>
+bool is_backup_lock_acquired<Table_stat>(THD *) {
+  return true;
+}
+
+template <>
+bool is_backup_lock_acquired<Index_stat>(THD *) {
+  return true;
+}
+
+template <>
+bool is_backup_lock_acquired<Charset>(THD *) {
+  return true;
+}
+
+template <>
+bool is_backup_lock_acquired<Collation>(THD *) {
+  return true;
+}
+
+template <>
+bool is_backup_lock_acquired<Column_statistics>(THD *) {
+  return true;
+}
+#endif
+
 // Remove and delete an object from the shared cache and the dd tables.
 template <typename T>
 bool Dictionary_client::drop(const T *object) {
   // Check proper MDL lock.
   DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
+
+  DBUG_ASSERT(is_backup_lock_acquired<T>(m_thd));
 
   if (Storage_adapter::drop(m_thd, object)) {
     DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
@@ -2279,6 +2327,8 @@ bool Dictionary_client::store(T *object) {
       static_cast<const typename T::Cache_partition *>(object), &element);
   DBUG_ASSERT(!element);
 #endif
+
+  DBUG_ASSERT(is_backup_lock_acquired<T>(m_thd));
 
   // Store dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
@@ -2333,6 +2383,8 @@ bool Dictionary_client::update(T *new_object) {
       static_cast<const typename T::Cache_partition *>(new_object), &element);
   DBUG_ASSERT(!element);
 #endif
+
+  DBUG_ASSERT(is_backup_lock_acquired<T>(m_thd));
 
   // Store dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
@@ -2667,37 +2719,37 @@ void Dictionary_client::dump() const {
 
 // Explicitly instantiate the types for the various usages.
 template bool Dictionary_client::fetch_schema_components(
-    const Schema *, std::vector<const Abstract_table *> *) const;
+    const Schema *, std::vector<const Abstract_table *> *);
 
 template bool Dictionary_client::fetch_schema_components(
-    const Schema *, std::vector<const Table *> *) const;
+    const Schema *, std::vector<const Table *> *);
 
 template bool Dictionary_client::fetch_schema_components(
-    const Schema *, std::vector<const View *> *) const;
+    const Schema *, std::vector<const View *> *);
 
 template bool Dictionary_client::fetch_schema_components(
-    const Schema *, std::vector<const Event *> *) const;
+    const Schema *, std::vector<const Event *> *);
 
 template bool Dictionary_client::fetch_schema_components(
-    const Schema *, std::vector<const Routine *> *) const;
+    const Schema *, std::vector<const Routine *> *);
 
 template bool Dictionary_client::fetch_global_components(
-    std::vector<const Charset *> *) const;
+    std::vector<const Charset *> *);
 
 template bool Dictionary_client::fetch_global_components(
-    std::vector<const Collation *> *) const;
+    std::vector<const Collation *> *);
 
 template bool Dictionary_client::fetch_global_components(
-    std::vector<const Schema *> *) const;
+    std::vector<const Schema *> *);
 
 template bool Dictionary_client::fetch_global_components(
-    std::vector<const Tablespace *> *) const;
+    std::vector<const Tablespace *> *);
 
 template bool Dictionary_client::fetch_global_components(
-    std::vector<const Table *> *) const;
+    std::vector<const Table *> *);
 
 template bool Dictionary_client::fetch_global_components(
-    std::vector<const Resource_group *> *) const;
+    std::vector<const Resource_group *> *);
 
 template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
     const Schema *, std::vector<String_type> *) const;

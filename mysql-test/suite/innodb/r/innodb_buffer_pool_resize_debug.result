@@ -44,7 +44,7 @@ Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK
 count(*) > 0
 1
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: buffer pool 0 : failed to allocate new memory.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* buffer pool 0 : failed to allocate new memory.");
 set global DEBUG="+d,ib_buf_chunk_init_fails";
 set global innodb_buffer_pool_size = 16*1024*1024;
 set global DEBUG="-d,ib_buf_chunk_init_fails";

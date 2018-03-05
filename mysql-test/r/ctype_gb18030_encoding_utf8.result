@@ -54,27 +54,27 @@ SHOW CREATE TABLE `表格`;
 Table	Create Table
 表格	CREATE TABLE `表格` (
   `字段一` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `模式`;
 Table	Create Table
 模式	CREATE TABLE `模式` (
   `列列列` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `隞嗷㐁`;
 Table	Create Table
 隞嗷㐁	CREATE TABLE `隞嗷㐁` (
   `列㐄㐅` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `㐅㐅㐅`;
 Table	Create Table
 㐅㐅㐅	CREATE TABLE `㐅㐅㐅` (
   `㐄㐄㐄` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `㐇㐈㐉`;
 Table	Create Table
 㐇㐈㐉	CREATE TEMPORARY TABLE `㐇㐈㐉` (
   `㐐㐐㐐` char(1) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `表格`, `模式`, `隞嗷㐁`, `㐅㐅㐅`, `㐇㐈㐉`;
 'Test for ALTER TABLE'
 CREATE TABLE `表格` (`字段一` CHAR(5)) DEFAULT CHARSET = utf8mb4;
@@ -110,7 +110,7 @@ Table	Create Table
   PRIMARY KEY (`字段一`),
   UNIQUE KEY `新字段三` (`新字段三`),
   KEY `新字段二` (`䑃䑃一`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE `表格` DROP INDEX `新字段二`;
 ALTER TABLE `表格` DROP PRIMARY KEY;
 ALTER TABLE `表格` DROP INDEX `新字段三`;
@@ -129,7 +129,7 @@ SHOW CREATE TABLE `表格`;
 Table	Create Table
 表格	CREATE TABLE `表格` (
   `字段一` char(5) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `表格`, `隞嗷㐁`;
 'Test for INSERT/UPDATE/DELETE'
 CREATE TABLE `表一` (`字段一` char(5)) DEFAULT CHARSET = utf8mb4;
@@ -242,7 +242,7 @@ Table	Create Table
   `c` char(1) NOT NULL,
   `e` enum('口','日','目','田','晶') DEFAULT NULL,
   KEY `e` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DESC `表二`;
 Field	Type	Null	Key	Default	Extra
 c	char(1)	NO		NULL	

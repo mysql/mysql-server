@@ -438,7 +438,7 @@ t1	CREATE TABLE `t1` (
   `b` char(20) NOT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1 order by a;
 a	b
 1	10
@@ -543,7 +543,7 @@ t2	CREATE TABLE `t2` (
   PRIMARY KEY (`a`) USING HASH,
   KEY `xbc` (`b`,`c`),
   CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,b,c) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,b,c) values (4,3,33);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
@@ -568,7 +568,7 @@ t2	CREATE TABLE `t2` (
   KEY `xbc` (`b`,`c`),
   KEY `fk1` (`c`),
   CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,c,b) values (4,3,33);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
@@ -602,7 +602,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `xbc` (`b`,`c`) USING HASH,
   KEY `fk1` (`c`),
   CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 (a,c,b) values (1,1,11),(2,2,21),(3,2,22);
 insert into t2 (a,c,b) values (4,3,33);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `fk1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
@@ -692,7 +692,7 @@ t2	CREATE TABLE `t2` (
   KEY `xc` (`c`),
   CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2
 drop foreign key fkb,
 drop foreign key nosuchfk,
@@ -710,7 +710,7 @@ t2	CREATE TABLE `t2` (
   KEY `xc` (`c`),
   CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 # algorithm=copy
 create table t2 (
@@ -737,7 +737,7 @@ t2	CREATE TABLE `t2` (
   KEY `xc` (`c`),
   CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2
 drop foreign key fkb,
 drop foreign key nosuchfk,
@@ -755,7 +755,7 @@ t2	CREATE TABLE `t2` (
   KEY `xc` (`c`),
   CONSTRAINT `fkb` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkc` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
 # bug#18662582 - NDB_FK_DISABLE.TEST FAILS TO DROP FOREIGN KEY
 create table t1 (
@@ -816,14 +816,14 @@ t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`),
   CONSTRAINT `myfk2` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`),
   CONSTRAINT `myfk4` FOREIGN KEY (`a`) REFERENCES `t3` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
 drop table t4, t3;
 # bug18825966 - ADDING FK TO TABLE WITH DATA GIVES INTERNAL ERROR 208
@@ -921,6 +921,6 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #Drop tables
 drop table t2, t1;

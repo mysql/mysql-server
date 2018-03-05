@@ -4,9 +4,6 @@ let $n=250;
 let $t=very_long_table_name;
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
 
 let $i=$n;
 while ($i)

@@ -48,7 +48,7 @@ spatial1	CREATE TABLE `spatial1` (
   `$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B` geometry GENERATED ALWAYS AS (st_geomfromgeojson(json_extract(`doc`,_utf8mb4'$.first'),1,4326)) STORED NOT NULL,
   PRIMARY KEY (`_id`),
   SPATIAL KEY `one` (`$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 ### Columns of spatial1
 Field	Type	Null	Key	Default	Extra
@@ -274,8 +274,8 @@ Got expected error: Invalid GeoJSON data provided to function st_geomfromgeojson
 
 Try to insert 'null' value to collection with spatial index
 ===========================================================
-Got expected error: Document is missing a required field (code 5115)
-Got expected error: Document is missing a required field (code 5115)
+Got expected error: Column '$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' cannot be null (code 3673)
+Got expected error: Column '$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' cannot be null (code 3673)
 
 command ok
 
@@ -284,7 +284,7 @@ Try to create spatial index on missing member
 
 1 rows affected
 Got expected error (code 0)
-Got expected error: Collection contains document missing required field (code 5117)
+Got expected error: Column '$ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' cannot be null (code 3673)
 Mysqlx.Ok {
   msg: "bye!"
 }

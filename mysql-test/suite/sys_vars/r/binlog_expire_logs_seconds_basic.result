@@ -1,12 +1,12 @@
 SET @start_value = @@global.expire_logs_days;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @start_value;
 @start_value
 0
 SET @@global.expire_logs_days = 0;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @start_value_sec = @@global.binlog_expire_logs_seconds;
 SELECT @start_value_sec;
 @start_value_sec
@@ -117,9 +117,9 @@ SELECT @@global.binlog_expire_logs_seconds;
 2592000
 SET @@global.expire_logs_days = @start_value;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.

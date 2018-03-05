@@ -285,5 +285,5 @@ t1	CREATE TABLE `t1` (
   `doc` json DEFAULT NULL,
   `Name` char(52) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.Name'))) VIRTUAL,
   KEY `n` (`Name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1427,9 +1427,17 @@ static int lex_one_token(YYSTYPE *yylval, THD *thd) {
           if (native_strcasecmp(charset_name, "utf8") == 0)
             push_warning(thd, ER_DEPRECATED_UTF8_ALIAS);
 
-          CHARSET_INFO *cs = get_charset_by_csname(yylval->lex_str.str + 1,
-                                                   MY_CS_PRIMARY, MYF(0));
+          const CHARSET_INFO *cs = get_charset_by_csname(
+              yylval->lex_str.str + 1, MY_CS_PRIMARY, MYF(0));
           if (cs) {
+            if (cs == &my_charset_utf8mb4_0900_ai_ci) {
+              /*
+                If cs is utf8mb4, and the collation of cs is the default
+                collation of utf8mb4, then update cs with a value of the
+                default_collation_for_utf8mb4 system variable:
+              */
+              cs = thd->variables.default_collation_for_utf8mb4;
+            }
             yylval->charset = cs;
             lip->m_underscore_cs = cs;
 
@@ -3055,7 +3063,7 @@ void LEX::clear_privileges() {
   @brief Restore the LEX and THD in case of a parse error.
 
   This is a clean up call that is invoked by the Bison generated
-  parser before returning an error from MYSQLparse. If your
+  parser before returning an error from THD::sql_parser(). If your
   semantic actions manipulate with the global thread state (which
   is a very bad practice and should not normally be employed) and
   need a clean-up in case of error, and you can not use %destructor
@@ -4302,6 +4310,25 @@ static void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
     }
   }
 }
+
+/**
+  Uses parse_tree to instantiate an Sql_cmd object and assigns it to the Lex.
+
+  @param parse_tree The parse tree.
+
+  @returns false on success, true on error.
+*/
+bool LEX::make_sql_cmd(Parse_tree_root *parse_tree) {
+  if (!will_contextualize) return false;
+
+  m_sql_cmd = parse_tree->make_cmd(thd);
+  if (m_sql_cmd == nullptr) return true;
+
+  DBUG_ASSERT(m_sql_cmd->sql_command_code() == sql_command);
+
+  return false;
+}
+
 /*
   The BINLOG_* AND TRX_CACHE_* values can be combined by using '&' or '|',
   which means that both conditions need to be satisfied or any of them is

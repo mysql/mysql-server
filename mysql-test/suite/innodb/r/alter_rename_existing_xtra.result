@@ -26,7 +26,7 @@ t2	CREATE TABLE `t2` (
   `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `b` char(10) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * from t2;
 a	b
 1	one
@@ -54,7 +54,7 @@ t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `b` char(20) DEFAULT NULL,
   UNIQUE KEY `a` (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT name, space=0 FROM information_schema.innodb_tables WHERE name = 'test/t1';
 name	space=0
 test/t1	1

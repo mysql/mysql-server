@@ -35,6 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mach0data.h"
 #include "trx0types.h"
 
+#include "mysqld_error.h"
+
 /** Opens a buffer to mlog. It must be closed with mlog_close.
 @param[in,out]	mtr	mtr
 @param[in]	size	buffer size in bytes; MUST be smaller than
@@ -241,12 +243,17 @@ byte *mlog_write_initial_log_record_fast(
       anything for the doublewrite buffer pages. */
       return (log_ptr);
     } else {
-      ib::error() << "Trying to redo log a record of type " << type
-                  << "  on page " << page_id_t(space, offset)
-                  << "in the"
-                     " doublewrite buffer, continuing anyway."
-                     " Please post a bug report to"
-                     " bugs.mysql.com.";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1269)
+#endif /* !UNIV_NO_ERR_MSGS */
+          << "Trying to redo log a record of type " << type << "  on page "
+          << page_id_t(space, offset)
+          << "in the"
+             " doublewrite buffer, continuing anyway."
+             " Please post a bug report to"
+             " bugs.mysql.com.";
       ut_ad(0);
     }
   }

@@ -104,6 +104,9 @@ EXPLAIN
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -114,9 +117,6 @@ EXPLAIN
             ]
           }
         ],
-        "cost_info": {
-          "query_cost": "4.00"
-        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -150,6 +150,9 @@ EXPLAIN
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -160,9 +163,6 @@ EXPLAIN
             ]
           }
         ],
-        "cost_info": {
-          "query_cost": "4.00"
-        },
         "table": {
           "table_name": "t",
           "access_type": "ALL",
@@ -237,7 +237,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.65"
+      "query_cost": "4.65"
     },
     "windowing": {
       "windows": [
@@ -252,6 +252,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -280,10 +283,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.65"
+      "query_cost": "8.65"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -299,7 +305,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "4.00"
+          "sort_cost": "4.00"
         },
         "table": {
           "table_name": "t",
@@ -330,10 +336,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.65"
+      "query_cost": "8.65"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -349,7 +358,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "4.00"
+          "sort_cost": "4.00"
         },
         "table": {
           "table_name": "t",
@@ -380,7 +389,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.65"
+      "query_cost": "4.65"
     },
     "windowing": {
       "windows": [
@@ -395,6 +404,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -461,7 +473,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "0.65"
+            "query_cost": "4.65"
           },
           "windowing": {
             "windows": [
@@ -476,6 +488,9 @@ EXPLAIN
                 ]
               }
             ],
+            "cost_info": {
+              "sort_cost": "4.00"
+            },
             "table": {
               "table_name": "t",
               "access_type": "ALL",
@@ -508,10 +523,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.65"
+      "query_cost": "8.65"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -527,7 +545,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "4.00"
+          "sort_cost": "4.00"
         },
         "table": {
           "table_name": "t",
@@ -558,10 +576,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.65"
+      "query_cost": "8.65"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -577,7 +598,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "4.00"
+          "sort_cost": "4.00"
         },
         "table": {
           "table_name": "t",
@@ -945,7 +966,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "17.85"
+      "query_cost": "33.85"
     },
     "windowing": {
       "windows": [
@@ -960,6 +981,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "16.00"
+      },
       "grouping_operation": {
         "using_temporary_table": true,
         "using_filesort": true,
@@ -1022,7 +1046,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -1037,6 +1061,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
@@ -1064,7 +1091,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -1079,6 +1106,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
@@ -1170,10 +1200,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.75"
+      "query_cost": "10.75"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -1189,7 +1222,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "5.00"
+          "sort_cost": "5.00"
         },
         "table": {
           "table_name": "t1",
@@ -1220,10 +1253,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.75"
+      "query_cost": "10.75"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -1239,7 +1275,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "5.00"
+          "sort_cost": "5.00"
         },
         "table": {
           "table_name": "t1",
@@ -1271,10 +1307,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "9.50"
+      "query_cost": "19.50"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -1289,6 +1328,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "sort_cost": "5.00"
+        },
         "grouping_operation": {
           "using_temporary_table": true,
           "using_filesort": true,
@@ -1370,12 +1412,12 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "grouping_operation": {
         "using_temporary_table": true,
         "using_filesort": false,
-        "cost_info": {
-          "sort_cost": "5.00"
-        },
         "nested_loop": [
           {
             "table": {
@@ -1432,10 +1474,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "9.50"
+      "query_cost": "19.50"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -1450,6 +1495,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "sort_cost": "5.00"
+        },
         "grouping_operation": {
           "using_temporary_table": true,
           "using_filesort": true,
@@ -1517,7 +1565,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.50"
+      "query_cost": "9.50"
     },
     "ordering_operation": {
       "using_filesort": true,
@@ -1535,6 +1583,9 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "sort_cost": "5.00"
+        },
         "grouping_operation": {
           "using_temporary_table": true,
           "using_filesort": false,
@@ -1608,10 +1659,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.95"
+      "query_cost": "14.95"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -1628,7 +1682,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "7.00"
+          "sort_cost": "7.00"
         },
         "table": {
           "table_name": "t1",
@@ -1659,10 +1713,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.95"
+      "query_cost": "14.95"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -1678,7 +1735,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "7.00"
+          "sort_cost": "7.00"
         },
         "table": {
           "table_name": "t1",
@@ -1845,10 +1902,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.95"
+      "query_cost": "14.95"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -1863,12 +1923,12 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "sort_cost": "7.00"
+        },
         "grouping_operation": {
           "using_temporary_table": true,
           "using_filesort": false,
-          "cost_info": {
-            "sort_cost": "7.00"
-          },
           "table": {
             "table_name": "t1",
             "access_type": "ALL",
@@ -1899,10 +1959,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.95"
+      "query_cost": "14.95"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -1917,12 +1980,12 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "sort_cost": "7.00"
+        },
         "grouping_operation": {
           "using_temporary_table": true,
           "using_filesort": false,
-          "cost_info": {
-            "sort_cost": "7.00"
-          },
           "table": {
             "table_name": "t1",
             "access_type": "ALL",
@@ -2040,7 +2103,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -2056,6 +2119,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -2084,7 +2150,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -2100,6 +2166,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -2129,7 +2198,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -2146,6 +2215,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -2176,10 +2248,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "7.95"
+      "query_cost": "14.95"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -2197,7 +2272,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "7.00"
+          "sort_cost": "7.00"
         },
         "table": {
           "table_name": "t1",
@@ -2271,7 +2346,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "0.95"
+              "query_cost": "7.95"
             },
             "windowing": {
               "windows": [
@@ -2286,6 +2361,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "7.00"
+              },
               "table": {
                 "table_name": "t",
                 "access_type": "ALL",
@@ -2349,7 +2427,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "0.95"
+              "query_cost": "7.95"
             },
             "windowing": {
               "windows": [
@@ -2364,6 +2442,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "7.00"
+              },
               "table": {
                 "table_name": "t",
                 "access_type": "ALL",
@@ -2411,7 +2492,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -2427,6 +2508,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -2470,12 +2554,12 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "grouping_operation": {
         "using_temporary_table": true,
         "using_filesort": false,
-        "cost_info": {
-          "sort_cost": "7.00"
-        },
         "nested_loop": [
           {
             "table": {
@@ -2529,7 +2613,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.10"
+      "query_cost": "13.10"
     },
     "windowing": {
       "windows": [
@@ -2545,6 +2629,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "buffer_result": {
         "using_temporary_table": true,
         "nested_loop": [
@@ -2600,7 +2687,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.10"
+      "query_cost": "13.10"
     },
     "windowing": {
       "windows": [
@@ -2616,6 +2703,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "buffer_result": {
         "using_temporary_table": true,
         "nested_loop": [
@@ -2672,7 +2762,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -2688,6 +2778,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -2719,17 +2812,24 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
         {
           "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`user_id`"
+          ],
           "functions": [
             "row_number"
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
@@ -2813,7 +2913,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.10"
+      "query_cost": "13.10"
     },
     "windowing": {
       "windows": [
@@ -2830,6 +2930,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "buffer_result": {
         "using_temporary_table": true,
         "nested_loop": [
@@ -2888,7 +2991,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.10"
+      "query_cost": "13.10"
     },
     "windowing": {
       "windows": [
@@ -2905,6 +3008,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "buffer_result": {
         "using_temporary_table": true,
         "nested_loop": [
@@ -2964,7 +3070,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "6.10"
+      "query_cost": "55.10"
     },
     "windowing": {
       "windows": [
@@ -2980,6 +3086,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "49.00"
+      },
       "buffer_result": {
         "using_temporary_table": true,
         "nested_loop": [
@@ -3059,7 +3168,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "6.10"
+            "query_cost": "55.10"
           },
           "windowing": {
             "windows": [
@@ -3075,6 +3184,9 @@ EXPLAIN
                 ]
               }
             ],
+            "cost_info": {
+              "sort_cost": "49.00"
+            },
             "buffer_result": {
               "using_temporary_table": true,
               "nested_loop": [
@@ -3175,7 +3287,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "6.10"
+              "query_cost": "13.10"
             },
             "windowing": {
               "windows": [
@@ -3192,6 +3304,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "7.00"
+              },
               "buffer_result": {
                 "using_temporary_table": true,
                 "nested_loop": [
@@ -3255,7 +3370,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "14.95"
     },
     "windowing": {
       "windows": [
@@ -3285,6 +3400,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "14.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -3345,7 +3463,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "0.95"
+              "query_cost": "7.95"
             },
             "windowing": {
               "windows": [
@@ -3370,6 +3488,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "7.00"
+              },
               "table": {
                 "table_name": "t1",
                 "access_type": "ALL",
@@ -3405,7 +3526,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "14.95"
     },
     "windowing": {
       "windows": [
@@ -3443,6 +3564,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "14.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -3489,7 +3613,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.29"
+      "query_cost": "10.29"
     },
     "windowing": {
       "windows": [
@@ -3504,6 +3628,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -3542,7 +3669,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "0.95"
+              "query_cost": "28.95"
             },
             "windowing": {
               "windows": [
@@ -3685,6 +3812,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "28.00"
+              },
               "table": {
                 "table_name": "t1",
                 "access_type": "ALL",
@@ -3735,7 +3865,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.95"
+      "query_cost": "6.95"
     },
     "windowing": {
       "windows": [
@@ -3750,6 +3880,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "4.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -3788,7 +3921,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "0.95"
+              "query_cost": "28.95"
             },
             "windowing": {
               "windows": [
@@ -3931,6 +4064,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "28.00"
+              },
               "table": {
                 "table_name": "t1",
                 "access_type": "ALL",
@@ -3967,12 +4103,16 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
         {
           "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`"
+          ],
           "frame_buffer": {
             "using_temporary_table": true,
             "optimized_frame_evaluation": true
@@ -3984,6 +4124,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -4047,12 +4190,16 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "0.95"
+              "query_cost": "7.95"
             },
             "windowing": {
               "windows": [
                 {
                   "name": "w",
+                  "using_filesort": true,
+                  "filesort_key": [
+                    "`sex`"
+                  ],
                   "frame_buffer": {
                     "using_temporary_table": true,
                     "optimized_frame_evaluation": true
@@ -4063,6 +4210,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "7.00"
+              },
               "table": {
                 "table_name": "t1",
                 "access_type": "ALL",
@@ -4095,12 +4245,16 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
         {
           "name": "w",
+          "using_filesort": true,
+          "filesort_key": [
+            "`sex`"
+          ],
           "frame_buffer": {
             "using_temporary_table": true,
             "optimized_frame_evaluation": true
@@ -4110,6 +4264,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -4140,7 +4297,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -4160,6 +4317,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -4222,7 +4382,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "0.95"
+            "query_cost": "7.95"
           },
           "windowing": {
             "windows": [
@@ -4242,6 +4402,9 @@ EXPLAIN
                 ]
               }
             ],
+            "cost_info": {
+              "sort_cost": "7.00"
+            },
             "table": {
               "table_name": "t1",
               "access_type": "ALL",
@@ -4276,7 +4439,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -4296,6 +4459,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -4326,7 +4492,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -4346,6 +4512,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -4376,7 +4545,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -4397,6 +4566,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -4464,7 +4636,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -4484,6 +4656,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -4517,7 +4692,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -4550,6 +4725,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -4577,7 +4755,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -4610,6 +4788,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -4637,7 +4818,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -4669,6 +4850,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -4799,7 +4983,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -4818,6 +5002,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -4846,7 +5033,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -4865,6 +5052,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -4893,7 +5083,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -4912,6 +5102,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -4941,7 +5134,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -4961,6 +5154,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -4989,7 +5185,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -5009,6 +5205,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -5037,7 +5236,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -5057,6 +5256,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -5090,7 +5292,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.25"
+      "query_cost": "22.25"
     },
     "windowing": {
       "windows": [
@@ -5109,6 +5311,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "20.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -5137,7 +5342,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.25"
+      "query_cost": "22.25"
     },
     "windowing": {
       "windows": [
@@ -5156,6 +5361,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "20.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -5184,7 +5392,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.25"
+      "query_cost": "22.25"
     },
     "windowing": {
       "windows": [
@@ -5203,6 +5411,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "20.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -5232,7 +5443,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.25"
+      "query_cost": "22.25"
     },
     "windowing": {
       "windows": [
@@ -5252,6 +5463,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "20.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -5280,7 +5494,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.25"
+      "query_cost": "22.25"
     },
     "windowing": {
       "windows": [
@@ -5300,6 +5514,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "20.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -5328,7 +5545,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.25"
+      "query_cost": "22.25"
     },
     "windowing": {
       "windows": [
@@ -5348,6 +5565,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "20.00"
+      },
       "table": {
         "table_name": "td",
         "access_type": "ALL",
@@ -5381,7 +5601,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5400,6 +5620,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5427,7 +5650,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5446,6 +5669,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5473,7 +5699,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5492,6 +5718,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5519,7 +5748,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5538,6 +5767,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5565,7 +5797,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5584,6 +5816,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5613,7 +5848,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5634,6 +5869,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5665,7 +5903,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -5684,6 +5922,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5720,7 +5961,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5749,6 +5990,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5779,7 +6023,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5820,6 +6064,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5849,7 +6096,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5870,6 +6117,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5904,7 +6154,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5925,6 +6175,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5956,7 +6209,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -5977,6 +6230,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6011,7 +6267,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "windowing": {
       "windows": [
@@ -6032,6 +6288,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6062,7 +6321,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "windowing": {
       "windows": [
@@ -6083,6 +6342,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6115,7 +6377,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "windowing": {
       "windows": [
@@ -6137,6 +6399,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6227,7 +6492,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6246,6 +6511,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6273,7 +6541,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6293,6 +6561,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6321,7 +6592,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6340,6 +6611,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6367,7 +6641,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6386,6 +6660,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6413,7 +6690,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6432,6 +6709,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6459,7 +6739,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6478,6 +6758,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6505,7 +6788,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6524,6 +6807,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6551,7 +6837,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6570,6 +6856,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6597,7 +6886,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6616,6 +6905,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6673,7 +6965,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "1.15"
+            "query_cost": "10.15"
           },
           "windowing": {
             "windows": [
@@ -6692,6 +6984,9 @@ EXPLAIN
                 ]
               }
             ],
+            "cost_info": {
+              "sort_cost": "9.00"
+            },
             "table": {
               "table_name": "t1",
               "access_type": "ALL",
@@ -6723,7 +7018,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6742,6 +7037,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6769,7 +7067,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6788,6 +7086,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -6862,7 +7163,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6881,6 +7182,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -6908,7 +7212,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6928,6 +7232,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -6956,7 +7263,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -6975,6 +7282,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7002,7 +7312,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7021,6 +7331,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7048,7 +7361,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7067,6 +7380,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7094,7 +7410,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7113,6 +7429,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7140,7 +7459,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7159,6 +7478,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7186,7 +7508,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7205,6 +7527,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7232,7 +7557,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7251,6 +7576,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7278,7 +7606,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7297,6 +7625,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7324,7 +7655,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7343,6 +7674,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td1",
         "access_type": "ALL",
@@ -7418,7 +7752,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7437,6 +7771,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7464,7 +7801,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7484,6 +7821,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7512,7 +7852,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7531,6 +7871,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7558,7 +7901,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7577,6 +7920,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7604,7 +7950,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7623,6 +7969,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7650,7 +7999,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7669,6 +8018,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7696,7 +8048,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7715,6 +8067,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7742,7 +8097,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7761,6 +8116,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7788,7 +8146,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7807,6 +8165,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7834,7 +8195,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7853,6 +8214,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7880,7 +8244,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7899,6 +8263,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_dec",
         "access_type": "ALL",
@@ -7974,7 +8341,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -7993,6 +8360,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_str",
         "access_type": "ALL",
@@ -8020,7 +8390,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -8040,6 +8410,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_str",
         "access_type": "ALL",
@@ -8068,7 +8441,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -8087,6 +8460,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_str",
         "access_type": "ALL",
@@ -8114,7 +8490,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -8133,6 +8509,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_str",
         "access_type": "ALL",
@@ -8160,7 +8539,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -8179,6 +8558,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_str",
         "access_type": "ALL",
@@ -8206,7 +8588,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -8225,6 +8607,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_str",
         "access_type": "ALL",
@@ -8252,7 +8637,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -8271,6 +8656,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "td_str",
         "access_type": "ALL",
@@ -8352,7 +8740,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8371,6 +8759,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8398,7 +8789,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8417,6 +8808,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8444,7 +8838,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8463,6 +8857,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8490,7 +8887,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8509,6 +8906,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8536,7 +8936,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8555,6 +8955,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8582,7 +8985,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8601,6 +9004,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8628,7 +9034,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8647,6 +9053,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8674,7 +9083,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8693,6 +9102,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8750,7 +9162,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "0.95"
+            "query_cost": "7.95"
           },
           "windowing": {
             "windows": [
@@ -8769,6 +9181,9 @@ EXPLAIN
                 ]
               }
             ],
+            "cost_info": {
+              "sort_cost": "7.00"
+            },
             "table": {
               "table_name": "t_date",
               "access_type": "ALL",
@@ -8800,7 +9215,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8819,6 +9234,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8846,7 +9264,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -8865,6 +9283,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t_date",
         "access_type": "ALL",
@@ -8922,7 +9343,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "0.95"
+            "query_cost": "7.95"
           },
           "windowing": {
             "windows": [
@@ -8941,6 +9362,9 @@ EXPLAIN
                 ]
               }
             ],
+            "cost_info": {
+              "sort_cost": "7.00"
+            },
             "table": {
               "table_name": "t_date",
               "access_type": "ALL",
@@ -9056,17 +9480,20 @@ EXPLAIN
         "filtered": "100.00",
         "rows_examined_per_scan": 12,
         "rows_produced_per_join": 12,
+        "sort_cost": "12.00"
         "table_name": "t_time",
         "used_columns": [
         ]
         {
         }
         },
-      "query_cost": "1.45"
+      "cost_info": {
+      "query_cost": "13.45"
       "table": {
       "windows": [
       ],
       }
+      },
     "cost_info": {
     "select_id": 1,
     "windowing": {
@@ -9084,7 +9511,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9103,6 +9530,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9130,7 +9560,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9149,6 +9579,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9176,7 +9609,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9195,6 +9628,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9222,7 +9658,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9241,6 +9677,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9268,7 +9707,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9287,6 +9726,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9314,7 +9756,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9333,6 +9775,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9360,7 +9805,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9379,6 +9824,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9406,7 +9854,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9425,6 +9873,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9452,7 +9903,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -9471,6 +9922,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t_time",
         "access_type": "ALL",
@@ -9518,17 +9972,20 @@ EXPLAIN
         "filtered": "100.00",
         "rows_examined_per_scan": 24,
         "rows_produced_per_join": 24,
+        "sort_cost": "24.00"
         "table_name": "t_time2",
         "used_columns": [
         ]
         {
         }
         },
-      "query_cost": "2.65"
+      "cost_info": {
+      "query_cost": "26.65"
       "table": {
       "windows": [
       ],
       }
+      },
     "cost_info": {
     "select_id": 1,
     "windowing": {
@@ -9546,7 +10003,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9566,6 +10023,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -9594,7 +10054,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9614,6 +10074,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -9642,7 +10105,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9662,6 +10125,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -9690,7 +10156,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9710,6 +10176,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -9738,7 +10207,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9758,6 +10227,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -9786,7 +10258,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9806,6 +10278,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -9834,7 +10309,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9854,6 +10329,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -9882,7 +10360,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9902,6 +10380,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -9930,7 +10411,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.65"
+      "query_cost": "26.65"
     },
     "windowing": {
       "windows": [
@@ -9950,6 +10431,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "24.00"
+      },
       "table": {
         "table_name": "t_time2",
         "access_type": "ALL",
@@ -10029,10 +10513,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.15"
+      "query_cost": "19.15"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -10052,7 +10539,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "9.00"
+          "sort_cost": "9.00"
         },
         "table": {
           "table_name": "t1",
@@ -10082,10 +10569,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.15"
+      "query_cost": "19.15"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -10105,7 +10595,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "9.00"
+          "sort_cost": "9.00"
         },
         "table": {
           "table_name": "t1",
@@ -10135,10 +10625,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "10.15"
+      "query_cost": "19.15"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -10158,7 +10651,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "9.00"
+          "sort_cost": "9.00"
         },
         "table": {
           "table_name": "t1",
@@ -10188,10 +10681,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "20.05"
+      "query_cost": "38.05"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "18.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -10212,7 +10708,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "18.00"
+          "sort_cost": "18.00"
         },
         "table": {
           "table_name": "t11",
@@ -10243,10 +10739,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "20.05"
+      "query_cost": "38.05"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "18.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -10267,7 +10766,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "18.00"
+          "sort_cost": "18.00"
         },
         "table": {
           "table_name": "t11",
@@ -10298,10 +10797,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "20.05"
+      "query_cost": "38.05"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "18.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -10322,7 +10824,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "18.00"
+          "sort_cost": "18.00"
         },
         "table": {
           "table_name": "t11",
@@ -10354,7 +10856,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -10374,6 +10876,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
@@ -10421,9 +10926,9 @@ EXPLAIN
           "access_type": "ALL",
           "cost_info": {
           "filtered": "100.00",
-          "query_cost": "14.00"
           "rows_examined_per_scan": 14,
           "rows_produced_per_join": 14,
+          "sort_cost": "14.00"
           "table_name": "t22",
           "used_columns": [
           ]
@@ -10431,15 +10936,18 @@ EXPLAIN
           }
           },
         "cost_info": {
+        "sort_cost": "14.00"
         "table": {
         "windows": [
         ],
         }
         },
-      "query_cost": "15.65"
+      "cost_info": {
+      "query_cost": "29.65"
       "using_filesort": true,
       "windowing": {
       }
+      },
     "cost_info": {
     "ordering_operation": {
     "select_id": 1,
@@ -10462,7 +10970,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -10495,6 +11003,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
@@ -10525,7 +11036,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -10546,6 +11057,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -10576,7 +11090,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.05"
+      "query_cost": "20.05"
     },
     "windowing": {
       "windows": [
@@ -10598,6 +11112,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "18.00"
+      },
       "table": {
         "table_name": "t11",
         "access_type": "ALL",
@@ -10629,7 +11146,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -10648,6 +11165,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t2",
         "access_type": "ALL",
@@ -10682,7 +11202,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -10701,6 +11221,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t3",
         "access_type": "ALL",
@@ -10831,12 +11354,15 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "9.05"
+      "query_cost": "17.05"
     },
     "ordering_operation": {
       "using_filesort": true,
       "duplicates_removal": {
         "using_filesort": false,
+        "cost_info": {
+          "sort_cost": "8.00"
+        },
         "windowing": {
           "windows": [
             {
@@ -10894,7 +11420,7 @@ EXPLAIN
             }
           ],
           "cost_info": {
-            "query_cost": "8.00"
+            "sort_cost": "8.00"
           },
           "table": {
             "table_name": "tj",
@@ -11136,12 +11662,12 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "grouping_operation": {
         "using_temporary_table": true,
         "using_filesort": false,
-        "cost_info": {
-          "sort_cost": "8.00"
-        },
         "table": {
           "table_name": "tj2",
           "access_type": "ALL",
@@ -11175,7 +11701,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "windowing": {
       "windows": [
@@ -11192,6 +11718,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "table": {
         "table_name": "tj",
         "access_type": "ALL",
@@ -11222,7 +11751,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "windowing": {
       "windows": [
@@ -11243,6 +11772,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "table": {
         "table_name": "tj",
         "access_type": "ALL",
@@ -11272,7 +11804,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "windowing": {
       "windows": [
@@ -11280,6 +11812,10 @@ EXPLAIN
           "name": "<unnamed window>",
           "definition_position": 1,
           "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
           "frame_buffer": {
             "using_temporary_table": true,
             "optimized_frame_evaluation": true
@@ -11301,6 +11837,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "table": {
         "table_name": "tj",
         "access_type": "ALL",
@@ -11329,7 +11868,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "windowing": {
       "windows": [
@@ -11337,6 +11876,10 @@ EXPLAIN
           "name": "<unnamed window>",
           "definition_position": 1,
           "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
           "functions": [
             "sum"
           ]
@@ -11350,6 +11893,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "table": {
         "table_name": "tj",
         "access_type": "ALL",
@@ -11499,7 +12045,7 @@ EXPLAIN
                 "query_block": {
                   "select_id": 2,
                   "cost_info": {
-                    "query_cost": "1.05"
+                    "query_cost": "9.05"
                   },
                   "windowing": {
                     "windows": [
@@ -11514,6 +12060,9 @@ EXPLAIN
                         ]
                       }
                     ],
+                    "cost_info": {
+                      "sort_cost": "8.00"
+                    },
                     "table": {
                       "table_name": "tj",
                       "access_type": "ALL",
@@ -11540,7 +12089,7 @@ EXPLAIN
                 "query_block": {
                   "select_id": 3,
                   "cost_info": {
-                    "query_cost": "1.05"
+                    "query_cost": "9.05"
                   },
                   "windowing": {
                     "windows": [
@@ -11555,6 +12104,9 @@ EXPLAIN
                         ]
                       }
                     ],
+                    "cost_info": {
+                      "sort_cost": "8.00"
+                    },
                     "table": {
                       "table_name": "tj",
                       "access_type": "ALL",
@@ -11596,7 +12148,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -11614,6 +12166,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "tj",
         "access_type": "ALL",
@@ -11642,7 +12197,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -11660,6 +12215,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "tj",
         "access_type": "ALL",
@@ -11695,7 +12253,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.05"
+      "query_cost": "9.05"
     },
     "windowing": {
       "windows": [
@@ -11713,6 +12271,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "8.00"
+      },
       "table": {
         "table_name": "tj",
         "access_type": "ALL",
@@ -11747,7 +12308,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.95"
+      "query_cost": "7.95"
     },
     "windowing": {
       "windows": [
@@ -11766,6 +12327,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t5",
         "access_type": "ALL",
@@ -11811,7 +12375,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -11830,6 +12394,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t6",
         "access_type": "ALL",
@@ -11865,7 +12432,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.45"
+      "query_cost": "13.45"
     },
     "windowing": {
       "windows": [
@@ -11910,6 +12477,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t6",
         "access_type": "ALL",
@@ -11973,7 +12543,7 @@ EXPLAIN
         "query_block": {
           "select_id": 2,
           "cost_info": {
-            "query_cost": "1.45"
+            "query_cost": "13.45"
           },
           "windowing": {
             "windows": [
@@ -12018,6 +12588,9 @@ EXPLAIN
                 ]
               }
             ],
+            "cost_info": {
+              "sort_cost": "12.00"
+            },
             "table": {
               "table_name": "t6",
               "access_type": "ALL",
@@ -12053,12 +12626,16 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
         {
           "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
           "frame_buffer": {
             "using_temporary_table": true,
             "optimized_frame_evaluation": true
@@ -12068,6 +12645,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12095,12 +12675,16 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
         {
           "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
           "frame_buffer": {
             "using_temporary_table": true,
             "optimized_frame_evaluation": true
@@ -12110,6 +12694,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12138,7 +12725,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -12146,6 +12733,10 @@ EXPLAIN
           "name": "<unnamed window>",
           "definition_position": 1,
           "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
           "frame_buffer": {
             "using_temporary_table": true,
             "optimized_frame_evaluation": true
@@ -12167,6 +12758,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12195,7 +12789,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -12203,6 +12797,10 @@ EXPLAIN
           "name": "<unnamed window>",
           "definition_position": 1,
           "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`id`"
+          ],
           "frame_buffer": {
             "using_temporary_table": true,
             "optimized_frame_evaluation": true
@@ -12224,6 +12822,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12257,7 +12858,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -12279,6 +12880,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12308,7 +12912,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -12329,6 +12933,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12357,7 +12964,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -12378,6 +12985,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12412,7 +13022,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.25"
+      "query_cost": "11.25"
     },
     "windowing": {
       "windows": [
@@ -12432,6 +13042,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12491,10 +13104,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "11.25"
+      "query_cost": "21.25"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -12509,12 +13125,12 @@ EXPLAIN
             ]
           }
         ],
+        "cost_info": {
+          "sort_cost": "10.00"
+        },
         "grouping_operation": {
           "using_temporary_table": true,
           "using_filesort": false,
-          "cost_info": {
-            "sort_cost": "10.00"
-          },
           "table": {
             "table_name": "t1",
             "access_type": "ALL",
@@ -12565,10 +13181,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "11.25"
+      "query_cost": "41.25"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -12613,7 +13232,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "10.00"
+          "sort_cost": "30.00"
         },
         "table": {
           "table_name": "t",
@@ -12674,7 +13293,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -12700,6 +13319,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12758,7 +13380,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "1.85"
     },
     "windowing": {
       "windows": [
@@ -12777,6 +13399,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "1.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -12840,7 +13465,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "0.85"
+              "query_cost": "12.85"
             },
             "windowing": {
               "windows": [
@@ -12869,6 +13494,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "12.00"
+              },
               "table": {
                 "table_name": "t1",
                 "access_type": "ALL",
@@ -12934,10 +13562,13 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "6.85"
+              "query_cost": "12.85"
             },
             "ordering_operation": {
               "using_filesort": true,
+              "cost_info": {
+                "sort_cost": "6.00"
+              },
               "windowing": {
                 "windows": [
                   {
@@ -12957,7 +13588,7 @@ EXPLAIN
                   }
                 ],
                 "cost_info": {
-                  "query_cost": "6.00"
+                  "sort_cost": "6.00"
                 },
                 "table": {
                   "table_name": "t1",
@@ -13093,10 +13724,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "20.05"
+      "query_cost": "38.05"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "18.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -13114,7 +13748,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "18.00"
+          "sort_cost": "18.00"
         },
         "table": {
           "table_name": "t",
@@ -13146,10 +13780,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "20.05"
+      "query_cost": "38.05"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "18.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -13167,7 +13804,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "18.00"
+          "sort_cost": "18.00"
         },
         "table": {
           "table_name": "t",
@@ -13242,7 +13879,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "2.05"
+              "query_cost": "20.05"
             },
             "windowing": {
               "windows": [
@@ -13257,6 +13894,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "18.00"
+              },
               "table": {
                 "table_name": "t",
                 "access_type": "ALL",
@@ -13632,7 +14272,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "2.05"
+      "query_cost": "20.05"
     },
     "windowing": {
       "windows": [
@@ -13652,6 +14292,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "18.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -13776,7 +14419,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -13795,6 +14438,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -13823,7 +14469,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -13842,6 +14488,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -13869,7 +14518,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -13888,6 +14537,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -13915,7 +14567,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -13935,6 +14587,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -13963,7 +14618,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -13982,6 +14637,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -14021,7 +14679,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.45"
+      "query_cost": "2.45"
     },
     "windowing": {
       "windows": [
@@ -14044,6 +14702,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "2.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -14080,7 +14741,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.55"
+      "query_cost": "3.55"
     },
     "windowing": {
       "windows": [
@@ -14103,6 +14764,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "3.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -14135,7 +14799,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.55"
+      "query_cost": "3.55"
     },
     "windowing": {
       "windows": [
@@ -14158,6 +14822,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "3.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -14299,7 +14966,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -14320,6 +14987,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -14349,7 +15019,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -14370,6 +15040,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -14414,7 +15087,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.75"
+      "query_cost": "5.75"
     },
     "windowing": {
       "windows": [
@@ -14434,6 +15107,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -14469,16 +15145,23 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "5.75"
+      "query_cost": "20.75"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "windowing": {
         "windows": [
           {
             "name": "w",
             "definition_position": 3,
             "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`i`"
+            ],
             "frame_buffer": {
               "using_temporary_table": true,
               "optimized_frame_evaluation": true
@@ -14535,13 +15218,17 @@ EXPLAIN
             "definition_position": 5,
             "last_executed_window": true,
             "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`j`"
+            ],
             "functions": [
               "row_number"
             ]
           }
         ],
         "cost_info": {
-          "query_cost": "5.00"
+          "sort_cost": "15.00"
         },
         "table": {
           "table_name": "t",
@@ -14661,10 +15348,13 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.70"
+      "query_cost": "2.70"
     },
     "ordering_operation": {
       "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "1.00"
+      },
       "windowing": {
         "windows": [
           {
@@ -14684,7 +15374,7 @@ EXPLAIN
           }
         ],
         "cost_info": {
-          "query_cost": "1.00"
+          "sort_cost": "1.00"
         },
         "buffer_result": {
           "using_temporary_table": true,
@@ -14736,3 +15426,1390 @@ EXPLAIN
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,sum(`test`.`t2`.`b`) OVER (ORDER BY `test`.`t1`.`a` )  AS `SUM(t2.b) OVER(ORDER BY t1.a)` from `test`.`t1` join `test`.`t1` `t2` order by `test`.`t2`.`a`
 DROP TABLE t1;
+#
+# Bug#26612356 WINDOW FUNCTIONS: FIX COST ESTIMATES
+#
+CREATE TABLE t(i INT);
+INSERT INTO t VALUES
+(2), (3), (1), (5), (8), (4), (6), (2), (10), (16), (4), (6), (2),
+(10), (16), (8), (12), (4), (20), (32), (19), (29), (9), (49), (79),
+(39), (59), (19), (99), (159), (39), (59), (19), (99), (159), (79),
+(119), (39), (199), (319);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+EXPLAIN FORMAT=JSON SELECT * FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.25"
+    },
+    "table": {
+      "table_name": "t",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 40,
+      "rows_produced_per_join": 40,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "4.00",
+        "prefix_cost": "4.25",
+        "data_read_per_join": "320"
+      },
+      "used_columns": [
+        "i"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT * FROM t ORDER BY i;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` order by `test`.`t`.`i`
+EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.25"
+    },
+    "grouping_operation": {
+      "using_temporary_table": true,
+      "using_filesort": false,
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i`
+EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ASC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "grouping_operation": {
+      "using_temporary_table": true,
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i` asc
+EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ASC ORDER BY i DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "ordering_operation": {
+      "using_filesort": false,
+      "grouping_operation": {
+        "using_temporary_table": true,
+        "using_filesort": true,
+        "cost_info": {
+          "sort_cost": "40.00"
+        },
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "i"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i` desc order by `test`.`t`.`i` desc
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "functions": [
+            "row_number"
+          ]
+        }
+      ],
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER ()  AS `ROW_NUMBER() OVER ()` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT DISTINCT i FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.25"
+    },
+    "duplicates_removal": {
+      "using_temporary_table": true,
+      "using_filesort": false,
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t`.`i` AS `i` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT DISTINCT ROW_NUMBER() OVER () FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.25"
+    },
+    "duplicates_removal": {
+      "using_filesort": false,
+      "windowing": {
+        "windows": [
+          {
+            "name": "<unnamed window>",
+            "using_temporary_table": true,
+            "functions": [
+              "row_number"
+            ]
+          }
+        ],
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          }
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select distinct row_number() OVER ()  AS `ROW_NUMBER() OVER ()` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t ORDER BY i;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "windowing": {
+        "windows": [
+          {
+            "name": "<unnamed window>",
+            "functions": [
+              "row_number"
+            ]
+          }
+        ],
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "i"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER ()  AS `ROW_NUMBER() OVER ()` from `test`.`t` order by `test`.`t`.`i`
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t GROUP BY i;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "functions": [
+            "row_number"
+          ]
+        }
+      ],
+      "grouping_operation": {
+        "using_temporary_table": true,
+        "using_filesort": false,
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "i"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER ()  AS `ROW_NUMBER() OVER ()` from `test`.`t` group by `test`.`t`.`i`
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "functions": [
+            "row_number"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT DISTINCT ROW_NUMBER() OVER (PARTITION BY i) FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "duplicates_removal": {
+      "using_filesort": false,
+      "windowing": {
+        "windows": [
+          {
+            "name": "<unnamed window>",
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`i`"
+            ],
+            "functions": [
+              "row_number"
+            ]
+          }
+        ],
+        "cost_info": {
+          "sort_cost": "40.00"
+        },
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "i"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select distinct row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)` from `test`.`t`
+Final ORDER BY i could be eliminated
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t ORDER BY i;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "84.25"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "windowing": {
+        "windows": [
+          {
+            "name": "<unnamed window>",
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`i`"
+            ],
+            "functions": [
+              "row_number"
+            ]
+          }
+        ],
+        "cost_info": {
+          "sort_cost": "40.00"
+        },
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "i"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)` from `test`.`t` order by `test`.`t`.`i`
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t ORDER BY i DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "84.25"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "windowing": {
+        "windows": [
+          {
+            "name": "<unnamed window>",
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`i`"
+            ],
+            "functions": [
+              "row_number"
+            ]
+          }
+        ],
+        "cost_info": {
+          "sort_cost": "40.00"
+        },
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "i"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)` from `test`.`t` order by `test`.`t`.`i` desc
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER () FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "functions": [
+            "row_number"
+          ]
+        },
+        {
+          "name": "<unnamed window>",
+          "definition_position": 2,
+          "last_executed_window": true,
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`test`.`t`.`i`) OVER ()  AS `SUM(i) OVER ()` from `test`.`t`
+Sorting for 2nd window redundant and skipped
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i) FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "functions": [
+            "row_number"
+          ]
+        },
+        {
+          "name": "<unnamed window>",
+          "definition_position": 2,
+          "last_executed_window": true,
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`test`.`t`.`i`) OVER (ORDER BY `test`.`t`.`i` )  AS `SUM(i) OVER (ORDER BY i)` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "84.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "functions": [
+            "row_number"
+          ]
+        },
+        {
+          "name": "<unnamed window>",
+          "definition_position": 2,
+          "last_executed_window": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "80.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`test`.`t`.`i`) OVER (ORDER BY `test`.`t`.`i` desc )  AS `SUM(i) OVER (ORDER BY i DESC)` from `test`.`t`
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "84.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "definition_position": 1,
+          "using_temporary_table": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "functions": [
+            "row_number"
+          ]
+        },
+        {
+          "name": "<unnamed window>",
+          "definition_position": 2,
+          "last_executed_window": true,
+          "using_filesort": true,
+          "filesort_key": [
+            "`i` desc"
+          ],
+          "frame_buffer": {
+            "using_temporary_table": true,
+            "optimized_frame_evaluation": true
+          },
+          "functions": [
+            "sum"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "80.00"
+      },
+      "grouping_operation": {
+        "using_temporary_table": true,
+        "using_filesort": false,
+        "table": {
+          "table_name": "t",
+          "access_type": "ALL",
+          "rows_examined_per_scan": 40,
+          "rows_produced_per_join": 40,
+          "filtered": "100.00",
+          "cost_info": {
+            "read_cost": "0.25",
+            "eval_cost": "4.00",
+            "prefix_cost": "4.25",
+            "data_read_per_join": "320"
+          },
+          "used_columns": [
+            "i"
+          ]
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`test`.`t`.`i`) OVER (ORDER BY `test`.`t`.`i` desc )  AS `SUM(i) OVER (ORDER BY i DESC)` from `test`.`t` group by `test`.`t`.`i`
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ASC;
+ERROR HY000: ASC or DESC with GROUP BY isn't allowed with window functions; put ASC or DESC in ORDER BY
+Could be optimized further to drop final ordering
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i DESC;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "124.25"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "windowing": {
+        "windows": [
+          {
+            "name": "<unnamed window>",
+            "definition_position": 1,
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`i`"
+            ],
+            "functions": [
+              "row_number"
+            ]
+          },
+          {
+            "name": "<unnamed window>",
+            "definition_position": 2,
+            "last_executed_window": true,
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`i` desc"
+            ],
+            "frame_buffer": {
+              "using_temporary_table": true,
+              "optimized_frame_evaluation": true
+            },
+            "functions": [
+              "sum"
+            ]
+          }
+        ],
+        "cost_info": {
+          "sort_cost": "80.00"
+        },
+        "grouping_operation": {
+          "using_temporary_table": true,
+          "using_filesort": false,
+          "table": {
+            "table_name": "t",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 40,
+            "rows_produced_per_join": 40,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "4.00",
+              "prefix_cost": "4.25",
+              "data_read_per_join": "320"
+            },
+            "used_columns": [
+              "i"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`test`.`t`.`i`) OVER (ORDER BY `test`.`t`.`i` desc )  AS `SUM(i) OVER (ORDER BY i DESC)` from `test`.`t` group by `test`.`t`.`i` desc order by `test`.`t`.`i` desc
+Reordering of windows could have made it possible to eliminate final ORDER BY
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "124.25"
+    },
+    "ordering_operation": {
+      "using_filesort": true,
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "windowing": {
+        "windows": [
+          {
+            "name": "<unnamed window>",
+            "definition_position": 1,
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`i`"
+            ],
+            "functions": [
+              "row_number"
+            ]
+          },
+          {
+            "name": "<unnamed window>",
+            "definition_position": 2,
+            "last_executed_window": true,
+            "using_temporary_table": true,
+            "using_filesort": true,
+            "filesort_key": [
+              "`i` desc"
+            ],
+            "frame_buffer": {
+              "using_temporary_table": true,
+              "optimized_frame_evaluation": true
+            },
+            "functions": [
+              "sum"
+            ]
+          }
+        ],
+        "cost_info": {
+          "sort_cost": "80.00"
+        },
+        "grouping_operation": {
+          "using_temporary_table": true,
+          "using_filesort": false,
+          "table": {
+            "table_name": "t",
+            "access_type": "ALL",
+            "rows_examined_per_scan": 40,
+            "rows_produced_per_join": 40,
+            "filtered": "100.00",
+            "cost_info": {
+              "read_cost": "0.25",
+              "eval_cost": "4.00",
+              "prefix_cost": "4.25",
+              "data_read_per_join": "320"
+            },
+            "used_columns": [
+              "i"
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`test`.`t`.`i`) OVER (ORDER BY `test`.`t`.`i` desc )  AS `SUM(i) OVER (ORDER BY i DESC)` from `test`.`t` group by `test`.`t`.`i` order by `test`.`t`.`i`
+Implicit grouping should eliminate windowing ordering costs: only one row
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (ORDER BY AVG(i)) AS rn FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "4.25"
+    },
+    "table": {
+      "table_name": "t",
+      "access_type": "ALL",
+      "rows_examined_per_scan": 40,
+      "rows_produced_per_join": 40,
+      "filtered": "100.00",
+      "cost_info": {
+        "read_cost": "0.25",
+        "eval_cost": "4.00",
+        "prefix_cost": "4.25",
+        "data_read_per_join": "320"
+      },
+      "used_columns": [
+        "i"
+      ]
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (ORDER BY avg(`test`.`t`.`i`) )  AS `rn` from `test`.`t`
+Used to miss printing the sorting key
+EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t;
+EXPLAIN
+{
+  "query_block": {
+    "select_id": 1,
+    "cost_info": {
+      "query_cost": "44.25"
+    },
+    "windowing": {
+      "windows": [
+        {
+          "name": "<unnamed window>",
+          "using_filesort": true,
+          "filesort_key": [
+            "`i`"
+          ],
+          "functions": [
+            "row_number"
+          ]
+        }
+      ],
+      "cost_info": {
+        "sort_cost": "40.00"
+      },
+      "table": {
+        "table_name": "t",
+        "access_type": "ALL",
+        "rows_examined_per_scan": 40,
+        "rows_produced_per_join": 40,
+        "filtered": "100.00",
+        "cost_info": {
+          "read_cost": "0.25",
+          "eval_cost": "4.00",
+          "prefix_cost": "4.25",
+          "data_read_per_join": "320"
+        },
+        "used_columns": [
+          "i"
+        ]
+      }
+    }
+  }
+}
+Warnings:
+Note	1003	/* select#1 */ select row_number() OVER (PARTITION BY `test`.`t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)` from `test`.`t`
+Test optimizer trace with window costs
+SET optimizer_trace="enabled=on";
+SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i;
+ROW_NUMBER() OVER (PARTITION BY i)	SUM(i) OVER (ORDER BY i DESC)
+1	1297
+1	1296
+1	1294
+1	1291
+1	1287
+1	1282
+1	1276
+1	1268
+1	1259
+1	1249
+1	1237
+1	1221
+1	1202
+1	1182
+1	1153
+1	1121
+1	1082
+1	1033
+1	974
+1	895
+1	796
+1	677
+1	518
+1	319
+SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
+SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i	{
+  "steps": [
+    {
+      "join_preparation": {
+        "select#": 1,
+        "steps": [
+          {
+            "expanded_query": "/* select#1 */ select row_number() OVER (PARTITION BY `t`.`i` )  AS `ROW_NUMBER() OVER (PARTITION BY i)`,sum(`t`.`i`) OVER (ORDER BY `t`.`i` desc )  AS `SUM(i) OVER (ORDER BY i DESC)` from `t` group by `t`.`i` order by `t`.`i`"
+          }
+        ]
+      }
+    },
+    {
+      "join_optimization": {
+        "select#": 1,
+        "steps": [
+          {
+            "substitute_generated_columns": {
+            }
+          },
+          {
+            "table_dependencies": [
+              {
+                "table": "`t`",
+                "row_may_be_null": false,
+                "map_bit": 0,
+                "depends_on_map_bits": [
+                ]
+              }
+            ]
+          },
+          {
+            "rows_estimation": [
+              {
+                "table": "`t`",
+                "table_scan": {
+                  "rows": 40,
+                  "cost": 0.25
+                }
+              }
+            ]
+          },
+          {
+            "considered_execution_plans": [
+              {
+                "plan_prefix": [
+                ],
+                "table": "`t`",
+                "best_access_path": {
+                  "considered_access_paths": [
+                    {
+                      "rows_to_scan": 40,
+                      "access_type": "scan",
+                      "resulting_rows": 40,
+                      "cost": 4.25,
+                      "chosen": true,
+                      "use_tmp_table": true
+                    }
+                  ]
+                },
+                "condition_filtering_pct": 100,
+                "rows_for_plan": 40,
+                "cost_for_plan": 4.25,
+                "sort_cost": 40,
+                "new_cost_for_plan": 44.25,
+                "chosen": true,
+                "windowing_sort_cost": 80,
+                "new_cost_for_plan": 124.25
+              }
+            ]
+          },
+          {
+            "attaching_conditions_to_tables": {
+              "original_condition": null,
+              "attached_conditions_computation": [
+              ],
+              "attached_conditions_summary": [
+                {
+                  "table": "`t`",
+                  "attached": null
+                }
+              ]
+            }
+          },
+          {
+            "optimizing_distinct_group_by_order_by": {
+              "simplifying_order_by": {
+                "original_clause": "`t`.`i`",
+                "items": [
+                  {
+                    "item": "`t`.`i`"
+                  }
+                ],
+                "resulting_clause_is_simple": true,
+                "resulting_clause": "`t`.`i`"
+              },
+              "simplifying_group_by": {
+                "original_clause": "`t`.`i`",
+                "items": [
+                  {
+                    "item": "`t`.`i`"
+                  }
+                ],
+                "resulting_clause_is_simple": false,
+                "resulting_clause": "`t`.`i`"
+              }
+            }
+          },
+          {
+            "refine_plan": [
+              {
+                "table": "`t`"
+              }
+            ]
+          },
+          {
+            "considering_tmp_tables": [
+              {
+                "adding_tmp_table_in_plan_at_position": 1,
+                "write_method": "write_all_rows"
+              },
+              {
+                "adding_tmp_table_in_plan_at_position": 2,
+                "cause": "output_for_window_functions",
+                "with_buffer": false,
+                "adding_sort_to_previous_table": {
+                  "filesort": {
+                    "adding_sort_to_table_in_plan_at_position": 1
+                  }
+                },
+                "write_method": "write_all_rows"
+              },
+              {
+                "creating_tmp_table": {
+                  "tmp_table_info": {
+                    "table": "intermediate_tmp_table",
+                    "columns": 6,
+                    "row_length": 25,
+                    "key_length": 0,
+                    "unique_constraint": false,
+                    "makes_grouped_rows": false,
+                    "cannot_insert_duplicates": false,
+                    "location": "TempTable"
+                  }
+                }
+              },
+              {
+                "adding_tmp_table_in_plan_at_position": 3,
+                "cause": "output_for_window_functions",
+                "with_buffer": true,
+                "adding_sort_to_previous_table": {
+                  "filesort": {
+                    "adding_sort_to_table_in_plan_at_position": 2
+                  }
+                },
+                "filesort": {
+                  "adding_sort_to_table_in_plan_at_position": 3
+                },
+                "write_method": "write_all_rows"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "join_execution": {
+        "select#": 1,
+        "steps": [
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "in_plan_at_position": 1,
+                "columns": 5,
+                "row_length": 22,
+                "key_length": 5,
+                "unique_constraint": false,
+                "makes_grouped_rows": true,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
+            "sorting_table_in_plan_at_position": 1,
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "table": "intermediate_tmp_table",
+                "field": "i"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "memory_available": 262144,
+              "key_size": 13,
+              "row_size": 13,
+              "max_rows_per_buffer": 34,
+              "num_rows_estimate": 34,
+              "num_rows_found": 24,
+              "num_examined_rows": 24,
+              "num_initial_chunks_spilled_to_disk": 0,
+              "sort_buffer_size": 720,
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_heap_table",
+              "sort_mode": "<fixed_sort_key, rowid>"
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "in_plan_at_position": 2,
+                "columns": 6,
+                "row_length": 25,
+                "key_length": 0,
+                "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
+            "sorting_table_in_plan_at_position": 2,
+            "filesort_information": [
+              {
+                "direction": "desc",
+                "table": "intermediate_tmp_table",
+                "field": "i"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "memory_available": 262144,
+              "key_size": 13,
+              "row_size": 13,
+              "max_rows_per_buffer": 34,
+              "num_rows_estimate": 34,
+              "num_rows_found": 24,
+              "num_examined_rows": 24,
+              "num_initial_chunks_spilled_to_disk": 0,
+              "sort_buffer_size": 720,
+              "sort_algorithm": "std::stable_sort",
+              "unpacked_addon_fields": "using_heap_table",
+              "sort_mode": "<fixed_sort_key, rowid>"
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "in_plan_at_position": 3,
+                "columns": 7,
+                "row_length": 41,
+                "key_length": 0,
+                "unique_constraint": false,
+                "makes_grouped_rows": false,
+                "cannot_insert_duplicates": false,
+                "location": "TempTable"
+              }
+            }
+          },
+          {
+            "sorting_table_in_plan_at_position": 3,
+            "filesort_information": [
+              {
+                "direction": "asc",
+                "table": "intermediate_tmp_table",
+                "field": "i"
+              }
+            ],
+            "filesort_priority_queue_optimization": {
+              "usable": false,
+              "cause": "not applicable (no LIMIT)"
+            },
+            "filesort_execution": [
+            ],
+            "filesort_summary": {
+              "memory_available": 262144,
+              "key_size": 13,
+              "row_size": 13,
+              "max_rows_per_buffer": 34,
+              "num_rows_estimate": 34,
+              "num_rows_found": 24,
+              "num_examined_rows": 24,
+              "num_initial_chunks_spilled_to_disk": 0,
+              "sort_buffer_size": 720,
+              "sort_algorithm": "std::sort",
+              "unpacked_addon_fields": "using_heap_table",
+              "sort_mode": "<fixed_sort_key, rowid>"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}	0	0
+SET optimizer_trace="enabled=off";
+DROP TABLE t;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ namespace info_schema {
   so that MySQL 8.0.4 is encoded as 80004.
 */
 
-static const uint IS_DD_VERSION = 80004;
+static const uint IS_DD_VERSION = 80005;
 
 /**
   Initialize INFORMATION_SCHEMA system views.

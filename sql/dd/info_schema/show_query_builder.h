@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,18 @@ class Select_lex_builder {
   */
 
   bool add_select_item(const LEX_STRING field_name, const LEX_STRING alias);
+
+  /**
+    Add expression as an item tree, with an alias to name the resulting column.
+
+    The item will be appended to existing list of select items
+    for this query block.
+
+    @return false on success.
+            true  on failure.
+  */
+
+  bool add_select_expr(Item *select_list_item, const LEX_STRING alias);
 
   /**
     Add item representing a FROM clause table as,

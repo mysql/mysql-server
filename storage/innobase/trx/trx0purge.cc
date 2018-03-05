@@ -333,7 +333,7 @@ void trx_purge_add_update_undo_to_history(
     /* The undo log segment will not be reused */
 
     if (UNIV_UNLIKELY(undo->id >= TRX_RSEG_N_SLOTS)) {
-      ib::fatal() << "undo->id is " << undo->id;
+      ib::fatal(ER_IB_MSG_1165) << "undo->id is " << undo->id;
     }
 
     trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, mtr);
@@ -819,8 +819,8 @@ bool is_active_truncate_log_present(space_id_t space_id) {
     os_file_close(handle);
 
     if (err != DB_SUCCESS) {
-      ib::info() << "Unable to read '" << log_file_name
-                 << "' : " << ut_strerr(err);
+      ib::info(ER_IB_MSG_1166)
+          << "Unable to read '" << log_file_name << "' : " << ut_strerr(err);
 
       os_file_delete(innodb_log_file_key, log_file_name);
 
@@ -938,48 +938,13 @@ static void trx_purge_mark_undo_for_truncate(undo::Truncate *undo_trunc) {
 
 #ifdef UNIV_DEBUG
   ut_ad(space_id == undo_trunc->get_marked_space_id());
-  ib::info() << "Undo tablespace number " << undo::id2num(space_id)
-             << " is marked for truncate";
+  ib::info(ER_IB_MSG_1167) << "Undo tablespace number "
+                           << undo::id2num(space_id)
+                           << " is marked for truncate";
 #endif /* UNIV_DEBUG */
 }
 
 size_t undo::Truncate::s_scan_pos;
-
-/** Cleanse purge queue to remove the rseg that reside in undo-tablespace
-marked for truncate.
-@param[in,out]	undo_trunc	undo truncate tracker */
-static void trx_purge_cleanse_purge_queue(undo::Truncate *undo_trunc) {
-  mutex_enter(&purge_sys->pq_mutex);
-  typedef std::vector<TrxUndoRsegs> purge_elem_list_t;
-  purge_elem_list_t purge_elem_list;
-
-  /* Remove rseg instances that are in the purge queue before we start
-  truncate of corresponding UNDO truncate. */
-  while (!purge_sys->purge_queue->empty()) {
-    purge_elem_list.push_back(purge_sys->purge_queue->top());
-    purge_sys->purge_queue->pop();
-  }
-  ut_ad(purge_sys->purge_queue->empty());
-
-  for (purge_elem_list_t::iterator it = purge_elem_list.begin();
-       it != purge_elem_list.end(); ++it) {
-    for (Rseg_Iterator it2 = it->begin(); it2 != it->end(); ++it2) {
-      if ((*it2)->space_id == undo_trunc->get_marked_space_id()) {
-        it->erase(it2);
-        break;
-      }
-    }
-
-    const ulint size = it->size();
-    if (size != 0) {
-      /* size != 0 suggest that there exist other rsegs that
-      needs processing so add this element to purge queue.
-      Note: Other rseg could be non-redo rsegs. */
-      purge_sys->purge_queue->push(*it);
-    }
-  }
-  mutex_exit(&purge_sys->pq_mutex);
-}
 
 /** Iterate over selected UNDO tablespace and check if all the rsegs
 that resides in the tablespace are free.
@@ -1006,54 +971,15 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
     mutex_enter(&rseg->mutex);
 
     if (rseg->trx_ref_count > 0) {
-      /* This rseg is still being held by an active
-      transaction. */
+      /* This rseg is still being held by an active transaction. */
       all_free = false;
-      mutex_exit(&rseg->mutex);
-      break;
-    }
-
-    ut_ad(rseg->trx_ref_count == 0);
-
-    ulint size_of_rsegs = rseg->curr_size;
-
-    if (size_of_rsegs == 1) {
-      mutex_exit(&rseg->mutex);
-      continue;
-    } else {
-      /* There could be cached undo segment. Check if records
-      in these segments can be purged. Normal purge history
-      will not touch these cached segment. */
-      ulint cached_undo_size = 0;
-
-      for (trx_undo_t *undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
-           undo != NULL && all_free; undo = UT_LIST_GET_NEXT(undo_list, undo)) {
-        if (limit->trx_no < undo->trx_id) {
-          all_free = false;
-        } else {
-          cached_undo_size += undo->size;
-        }
-      }
-
-      for (trx_undo_t *undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
-           undo != NULL && all_free; undo = UT_LIST_GET_NEXT(undo_list, undo)) {
-        if (limit->trx_no < undo->trx_id) {
-          all_free = false;
-        } else {
-          cached_undo_size += undo->size;
-        }
-      }
-
-      ut_ad(size_of_rsegs >= (cached_undo_size + 1));
-
-      if (size_of_rsegs > (cached_undo_size + 1)) {
-        /* There are pages besides cached pages that
-        still hold active data. */
-        all_free = false;
-      }
+    } else if (rseg->last_page_no != FIL_NULL) {
+      /* This rseg still has data to be purged. */
+      all_free = false;
     }
 
     mutex_exit(&rseg->mutex);
+
     if (!all_free) {
       break;
     }
@@ -1073,62 +999,51 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
   d. Execute actual truncate
   e. Remove the DDL log. */
   DBUG_EXECUTE_IF("ib_undo_trunc_before_checkpoint",
-                  ib::info() << "ib_undo_trunc_before_checkpoint";
+                  ib::info(ER_IB_MSG_1168) << "ib_undo_trunc_before_checkpoint";
                   DBUG_SUICIDE(););
 
   /* After truncate if server crashes then redo logging done for this
   undo tablespace might not stand valid as tablespace has been
   truncated. */
-  log_make_checkpoint_at(LSN_MAX, TRUE);
+  log_make_latest_checkpoint();
 
-  ib::info() << "Truncating UNDO tablespace number "
-             << undo::id2num(undo_trunc->get_marked_space_id());
+  ib::info(ER_IB_MSG_1169) << "Truncating UNDO tablespace number "
+                           << undo::id2num(undo_trunc->get_marked_space_id());
 
   DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_start",
-                  ib::info() << "ib_undo_trunc_before_ddl_log_start";
+                  ib::info(ER_IB_MSG_1170)
+                      << "ib_undo_trunc_before_ddl_log_start";
                   DBUG_SUICIDE(););
 
   dberr_t err = undo::start_logging(undo_trunc->get_marked_space_id());
   if (err != DB_SUCCESS) {
-    ib::error() << "Cannot create truncate log for undo"
-                   " tablespace ID="
-                << undo_trunc->get_marked_space_id();
+    ib::error(ER_IB_MSG_1171) << "Cannot create truncate log for undo"
+                                 " tablespace ID="
+                              << undo_trunc->get_marked_space_id();
   }
   ut_ad(err == DB_SUCCESS);
 
   DBUG_EXECUTE_IF("ib_undo_trunc_before_truncate",
-                  ib::info() << "ib_undo_trunc_before_truncate";
+                  ib::info(ER_IB_MSG_1172) << "ib_undo_trunc_before_truncate";
                   DBUG_SUICIDE(););
-
-  trx_purge_cleanse_purge_queue(undo_trunc);
 
   bool success = trx_undo_truncate_tablespace(undo_trunc);
   if (!success) {
     /* Note: In case of error we don't enable the rsegs
     and neither unmark the tablespace so the tablespace
     continue to remain inactive. */
-    ib::error() << "Failed to truncate undo tablespace number"
-                << undo::id2num(undo_trunc->get_marked_space_id());
+    ib::error(ER_IB_MSG_1173)
+        << "Failed to truncate undo tablespace number"
+        << undo::id2num(undo_trunc->get_marked_space_id());
     return;
   }
 
-  if (purge_sys->rseg != NULL && purge_sys->rseg->last_page_no == FIL_NULL) {
-    /* If purge_sys->rseg is pointing to rseg that was recently
-    truncated then move to next rseg element.
-    Note: Ideally purge_sys->rseg should be NULL because purge
-    should complete processing of all the records but there is
-    purge_batch_size that can force the purge loop to exit before
-    all the records are purged and in this case purge_sys->rseg
-    could point to a valid rseg waiting for next purge cycle. */
-    purge_sys->next_stored = FALSE;
-    purge_sys->rseg = NULL;
-  }
-
   DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_end",
-                  ib::info() << "ib_undo_trunc_before_ddl_log_end";
+                  ib::info(ER_IB_MSG_1174)
+                      << "ib_undo_trunc_before_ddl_log_end";
                   DBUG_SUICIDE(););
 
-  log_make_checkpoint_at(LSN_MAX, TRUE);
+  log_make_latest_checkpoint();
 
   undo::done_logging(undo_trunc->get_marked_space_id());
 
@@ -1144,10 +1059,10 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
 
   marked_rsegs->x_unlock();
 
-  ib::info() << "Completed truncate of undo tablespace number "
-             << undo::id2num(marked_space_id);
+  ib::info(ER_IB_MSG_1175) << "Completed truncate of undo tablespace number "
+                           << undo::id2num(marked_space_id);
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done", ib::info()
+  DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done", ib::info(ER_IB_MSG_1176)
                                                   << "ib_undo_trunc_trunc_done";
                   DBUG_SUICIDE(););
 }
@@ -1299,18 +1214,18 @@ static void trx_purge_rseg_get_next_history_log(
     list cannot be longer than 2000 000 undo logs now. */
 
     if (trx_sys->rseg_history_len > 2000000) {
-      ib::warn() << "Purge reached the head of the history"
-                    " list, but its length is still reported as "
-                 << trx_sys->rseg_history_len
-                 << " which is"
-                    " unusually high.";
-      ib::info() << "This can happen for multiple reasons";
-      ib::info() << "1. A long running transaction is"
-                    " withholding purging of undo logs or a read"
-                    " view is open. Please try to commit the long"
-                    " running transaction.";
-      ib::info() << "2. Try increasing the number of purge"
-                    " threads to expedite purging of undo logs.";
+      ib::warn(ER_IB_MSG_1177) << "Purge reached the head of the history"
+                                  " list, but its length is still reported as "
+                               << trx_sys->rseg_history_len
+                               << " which is"
+                                  " unusually high.";
+      ib::info(ER_IB_MSG_1178) << "This can happen for multiple reasons";
+      ib::info(ER_IB_MSG_1179) << "1. A long running transaction is"
+                                  " withholding purging of undo logs or a read"
+                                  " view is open. Please try to commit the long"
+                                  " running transaction.";
+      ib::info(ER_IB_MSG_1180) << "2. Try increasing the number of purge"
+                                  " threads to expedite purging of undo logs.";
     }
 
     trx_sys_mutex_exit();
@@ -1932,7 +1847,7 @@ void trx_purge_stop(void) {
   state = purge_sys->state;
 
   if (state == PURGE_STATE_RUN) {
-    ib::info() << "Stopping purge";
+    ib::info(ER_IB_MSG_1181) << "Stopping purge";
 
     /* We need to wakeup the purge thread in case it is suspended,
     so that it can acknowledge the state change. */
@@ -1956,7 +1871,7 @@ void trx_purge_stop(void) {
     /* Wait for purge to signal that it has actually stopped. */
     while (purge_sys->running) {
       if (once) {
-        ib::info() << "Waiting for purge to stop";
+        ib::info(ER_IB_MSG_1182) << "Waiting for purge to stop";
         once = false;
       }
 
@@ -1994,7 +1909,7 @@ void trx_purge_run(void) {
     --purge_sys->n_stop;
 
     if (purge_sys->n_stop == 0) {
-      ib::info() << "Resuming purge";
+      ib::info(ER_IB_MSG_1183) << "Resuming purge";
 
       purge_sys->state = PURGE_STATE_RUN;
     }

@@ -86,7 +86,8 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/auth/sql_security_ctx.h"  // Security_context
-#include "sql/discrete_interval.h"      // Discrete_interval
+#include "sql/current_thd.h"
+#include "sql/discrete_interval.h"  // Discrete_interval
 #include "sql/mdl.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_trace_context.h"  // Opt_trace_context
@@ -1140,6 +1141,20 @@ class THD : public MDL_context_owner,
 
   Protocol *get_protocol() { return m_protocol; }
 
+  SSL_handle get_ssl() const {
+#ifndef DBUG_OFF
+    if (current_thd != this) {
+      /*
+        When inspecting this thread from monitoring,
+        the monitoring thread MUST lock LOCK_thd_data,
+        to be allowed to safely inspect SSL status variables.
+      */
+      mysql_mutex_assert_owner(&LOCK_thd_data);
+    }
+#endif
+    return m_SSL;
+  }
+
   /**
     Asserts that the protocol is of type text or binary and then
     returns the m_protocol casted to Protocol_classic. This method
@@ -1154,6 +1169,17 @@ class THD : public MDL_context_owner,
 
  private:
   Protocol *m_protocol;  // Current protocol
+  /**
+    SSL data attached to this connection.
+    This is an opaque pointer,
+    When building with SSL, this pointer is non NULL
+    only if the connection is using SSL.
+    When building without SSL, this pointer is always NULL.
+    The SSL data can be inspected to read per thread
+    status variables,
+    and this can be inspected while the thread is running.
+  */
+  SSL_handle m_SSL = {nullptr};
 
  public:
   /**
@@ -2477,9 +2503,20 @@ class THD : public MDL_context_owner,
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
+  inline void set_ssl(Vio *vio MY_ATTRIBUTE((unused))) {
+#ifdef HAVE_OPENSSL
+    mysql_mutex_lock(&LOCK_thd_data);
+    m_SSL = (SSL *)vio->ssl_arg;
+    mysql_mutex_unlock(&LOCK_thd_data);
+#else
+    m_SSL = NULL;
+#endif
+  }
+
   inline void clear_active_vio() {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = 0;
+    m_SSL = NULL;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
 
@@ -3993,6 +4030,8 @@ class THD : public MDL_context_owner,
     Returns the current waiting_for_disk_space flag value.
   */
   bool is_waiting_for_disk_space() const { return waiting_for_disk_space; }
+
+  bool sql_parser();
 };
 
 inline void THD::vsyntax_error_at(const YYLTYPE &location, const char *format,

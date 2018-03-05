@@ -1,1 +1,1 @@
---lower-case-table-names=1
+--bootstrap --lower-case-table-names=1

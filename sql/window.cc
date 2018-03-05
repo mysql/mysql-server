@@ -291,7 +291,7 @@ bool Window::setup_range_expressions(THD *thd) {
         return true;
       ok:;
       }
-        // fall through
+      // fall through
       case WBT_CURRENT_ROW: {
         /*
           We compute lower than (LT) as
@@ -386,33 +386,37 @@ bool Window::setup_range_expressions(THD *thd) {
   return false;
 }
 
-ORDER *Window::sorting_order(THD *thd) {
-  if (m_sorting_order == nullptr) {
-    ORDER *part = effective_partition_by()
-                      ? effective_partition_by()->value.first
-                      : nullptr;
-    ORDER *ord =
-        effective_order_by() ? effective_order_by()->value.first : nullptr;
+ORDER *Window::sorting_order(THD *thd, bool implicitly_grouped) {
+  if (thd == nullptr) return m_sorting_order;
 
-    /*
-      1. Copy both lists
-      2. Append the ORDER BY list to the partition list.
+  if (implicitly_grouped) {
+    m_sorting_order = nullptr;
+    return nullptr;
+  }
 
-      This ensures that all columns are present in the resulting sort ordering
-      and that all ORDER BY expressions are at the end.
-      The resulting sort can the be used to detect partition change and also
-      satify the window ordering.
-    */
-    if (ord == nullptr)
-      m_sorting_order = part;
-    else if (part == nullptr)
-      m_sorting_order = ord;
-    else {
-      ORDER *sorting = clone(thd, part);
-      ORDER *ob = clone(thd, ord);
-      append_to_back(&sorting, ob);
-      m_sorting_order = sorting;
-    }
+  ORDER *part = effective_partition_by() ? effective_partition_by()->value.first
+                                         : nullptr;
+  ORDER *ord =
+      effective_order_by() ? effective_order_by()->value.first : nullptr;
+
+  /*
+    1. Copy both lists
+    2. Append the ORDER BY list to the partition list.
+
+    This ensures that all columns are present in the resulting sort ordering
+    and that all ORDER BY expressions are at the end.
+    The resulting sort can the be used to detect partition change and also
+    satify the window ordering.
+  */
+  if (ord == nullptr)
+    m_sorting_order = part;
+  else if (part == nullptr)
+    m_sorting_order = ord;
+  else {
+    ORDER *sorting = clone(thd, part);
+    ORDER *ob = clone(thd, ord);
+    append_to_back(&sorting, ob);
+    m_sorting_order = sorting;
   }
   return m_sorting_order;
 }
@@ -715,9 +719,9 @@ bool Window::resolve_window_ordering(THD *thd, Ref_item_array ref_item_array,
   DBUG_RETURN(false);
 }
 
-bool Window::equal_sort(THD *thd, Window *w1, Window *w2) {
-  ORDER *o1 = w1->sorting_order(thd);
-  ORDER *o2 = w2->sorting_order(thd);
+bool Window::equal_sort(Window *w1, Window *w2) {
+  ORDER *o1 = w1->sorting_order();
+  ORDER *o2 = w2->sorting_order();
 
   if (o1 == nullptr || o2 == nullptr) return false;
 
@@ -731,19 +735,25 @@ bool Window::equal_sort(THD *thd, Window *w1, Window *w2) {
   return o1 == nullptr && o2 == nullptr;  // equal so far, now also same length
 }
 
-void Window::reorder_and_eliminate_sorts(THD *thd, List<Window> &windows) {
-  for (uint i = 0; i < windows.elements - 1; i++) {
-    for (uint j = i + 1; j < windows.elements; j++) {
-      if (equal_sort(thd, windows[i], windows[j])) {
-        windows[j]->m_sort_redundant = true;
-        if (j > i + 1) {
-          // move up to right after window[i], so we can share sort
-          windows.swap_elts(i + 1, j);
-        }  // else already in right place
-        break;
+void Window::reorder_and_eliminate_sorts(List<Window> &windows,
+                                         bool first_exec) {
+  if (first_exec) {
+    for (uint i = 0; i < windows.elements - 1; i++) {
+      for (uint j = i + 1; j < windows.elements; j++) {
+        if (equal_sort(windows[i], windows[j])) {
+          windows[j]->m_sort_redundant = true;
+          if (j > i + 1) {
+            // move up to right after window[i], so we can share sort
+            windows.swap_elts(i + 1, j);
+          }  // else already in right place
+          break;
+        }
       }
     }
   }
+
+  for (uint i = 0; i < windows.elements; i++)
+    if (windows[i]->m_sort_redundant) windows[i]->m_sorting_order = nullptr;
 }
 
 bool Window::check_constant_bound(THD *thd, PT_border *border) {
@@ -1162,13 +1172,13 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
     */
     if (w->check_window_functions(thd, select)) return true;
 
-    if (first_exec) {
-      /*
-        initialize the physical sorting order by merging the partition clause
-        and the ordering clause of the window specification.
-      */
-      (void)w->sorting_order(thd);
+    /*
+      initialize the physical sorting order by merging the partition clause
+      and the ordering clause of the window specification.
+    */
+    (void)w->sorting_order(thd, select->is_implicitly_grouped());
 
+    if (first_exec) {
       /* For now, we do not support EXCLUDE */
       if (f->m_exclusion != nullptr) {
         my_error(ER_NOT_SUPPORTED_YET, MYF(0), "EXCLUDE");
@@ -1193,8 +1203,9 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
     if (check_border_sanity(thd, w, f, first_exec)) return true;
   }
 
+  reorder_and_eliminate_sorts(windows, first_exec);
+
   if (first_exec) {
-    reorder_and_eliminate_sorts(thd, windows);
     /* Do this last, after any re-ordering */
     windows[windows.elements - 1]->m_last = true;
   }
@@ -1266,7 +1277,7 @@ void Window::reset_execution_state(Reset_level level) {
           }
         }
       }
-      // fall-through
+    // fall-through
     case RL_ROUND:
       if (m_frame_buffer != nullptr && m_frame_buffer->is_created()) {
         (void)m_frame_buffer->file->ha_index_or_rnd_end();
@@ -1276,7 +1287,7 @@ void Window::reset_execution_state(Reset_level level) {
       m_frame_buffer_total_rows = 0;
       m_frame_buffer_partition_offset = 0;
       m_part_row_number = 0;
-      // fall-through
+    // fall-through
     case RL_PARTITION:
       /*
         Forget positions in the frame buffer: they won't be valid in a new
@@ -1408,4 +1419,13 @@ void Window::reset_all_wf_state() {
 
 bool Window::has_windowing_steps() const {
   return m_select->join && m_select->join->m_windowing_steps;
+}
+
+double Window::compute_cost(double cost, List<Window> &windows) {
+  double total_cost = 0.0;
+  List_iterator<Window> li(windows);
+  Window *w;
+  while ((w = li++))
+    if (w->needs_sorting()) total_cost += cost;
+  return total_cost;
 }

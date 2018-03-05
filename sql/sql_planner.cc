@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -72,6 +72,7 @@
 #include "sql/sql_test.h"       // print_plan
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/window.h"
 #include "sql_string.h"
 
 using std::max;
@@ -704,7 +705,6 @@ Key_use *Optimize_table_order::find_best_ref(
   This hybrid cost is needed because if join buffering is used to
   reduce the number of scans, then the final cost depends on how many
   times the join buffer had to be filled.
-
 
   @param tab                  the table to be joined by the function
   @param idx                  the index in join->position[] where 'tab'
@@ -2239,10 +2239,17 @@ void Optimize_table_order::consider_plan(uint idx,
                                          Opt_trace_object *trace_obj) {
   double sort_cost = join->sort_cost;
   double cost = join->positions[idx].prefix_cost;
+  double windowing_cost = 0;
   /*
     We may have to make a temp table, note that this is only a
     heuristic since we cannot know for sure at this point.
     Hence it may be too pesimistic.
+
+    @todo Windowing that uses sorting may force a sort cost both prior
+    to windowing (i.e. GROUP BY) and after (i.e. ORDER BY or DISTINCT).
+    In such cases we should add the cost twice here, but currently this is
+    tweaked in Explain_join::shallow_explain. If would be preferable to do it
+    here.
   */
   if (join->sort_by_table &&
       join->sort_by_table !=
@@ -2289,6 +2296,14 @@ void Optimize_table_order::consider_plan(uint idx,
     memcpy((uchar *)join->best_positions, (uchar *)join->positions,
            sizeof(POSITION) * (idx + 1));
 
+    if (join->m_windows_sort) {
+      windowing_cost = Window::compute_cost(
+          join->positions[idx].prefix_rowcount, join->m_windows);
+      cost += windowing_cost;
+      trace_obj->add("windowing_sort_cost", windowing_cost)
+          .add("new_cost_for_plan", cost);
+    }
+
     /*
       If many plans have identical cost, which one will be used
       depends on how compiler optimizes floating-point calculations.
@@ -2298,6 +2313,7 @@ void Optimize_table_order::consider_plan(uint idx,
     join->best_read = cost - 0.001;
     join->best_rowcount = (ha_rows)join->positions[idx].prefix_rowcount;
     join->sort_cost = sort_cost;
+    join->windowing_cost = windowing_cost;
     found_plan_with_allowed_sj = plan_uses_allowed_sj;
   } else if (cheaper)
     trace_obj->add_alnum("cause", "plan_uses_disabled_strategy");

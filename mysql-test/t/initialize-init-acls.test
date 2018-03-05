@@ -8,9 +8,6 @@ let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslo
 let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
 
---echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
-
 --echo # shut server down
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server

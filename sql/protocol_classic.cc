@@ -2971,14 +2971,6 @@ bool Protocol_classic::store_string_aux(const char *from, size_t length,
   return net_store_data((uchar *)from, length);
 }
 
-SSL_handle Protocol_classic::get_ssl() {
-  return
-#ifdef HAVE_OPENSSL
-      m_thd->net.vio ? (SSL *)m_thd->net.vio->ssl_arg :
-#endif
-                     NULL;
-}
-
 int Protocol_classic::shutdown(bool) {
   return m_thd->net.vio ? vio_shutdown(m_thd->net.vio) : 0;
 }

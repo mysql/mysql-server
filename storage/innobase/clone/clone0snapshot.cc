@@ -595,7 +595,7 @@ dberr_t Clone_Snapshot::init_state(byte *temp_buffer, uint temp_buffer_len) {
       m_monitor.init_state(Clone_Monitor::s_invalid_key);
 #endif
       m_redo_ctx.release();
-      ib::info() << "Clone State DONE ";
+      ib::info(ER_IB_MSG_155) << "Clone State DONE ";
       break;
   }
 

@@ -111,8 +111,11 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the payload item: 2 bytes
     PIT_MEMBER_WEIGHT = 14,
 
+    // Length of the payload item: 2 bytes
+    PIT_LOWER_CASE_TABLE_NAME = 15,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 15
+    PIT_MAX = 16
   };
 
   /*
@@ -161,6 +164,7 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] has_enforces_update_everywhere_checks  has member enforce update
     check
     @param[in] member_weight_arg                      member_weight
+    @param[in] lower_case_table_names_arg             lower case table names
    */
   Group_member_info(char *hostname_arg, uint port_arg, char *uuid_arg,
                     int write_set_extraction_algorithm,
@@ -171,7 +175,7 @@ class Group_member_info : public Plugin_gcs_message {
                     Group_member_info::Group_member_role role_arg,
                     bool in_single_primary_mode,
                     bool has_enforces_update_everywhere_checks,
-                    uint member_weight_arg);
+                    uint member_weight_arg, uint lower_case_table_names_arg);
 
   /**
     Copy constructor
@@ -257,6 +261,11 @@ class Group_member_info : public Plugin_gcs_message {
     @return the member configuration flags
   */
   uint32 get_configuration_flags();
+
+  /**
+    @return the global-variable lower case table names value
+  */
+  uint get_lower_case_table_names() const;
 
   /**
     @return the member state of system variable
@@ -412,6 +421,7 @@ class Group_member_info : public Plugin_gcs_message {
   uint32 configuration_flags;
   bool conflict_detection_enable;
   uint member_weight;
+  uint lower_case_table_names;
 };
 
 /*

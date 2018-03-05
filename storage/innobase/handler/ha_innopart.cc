@@ -371,10 +371,10 @@ bool Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
       /* Report an error if index_mapping continues to be
       NULL and mysql_num_index is a non-zero value. */
 
-      ib::error() << "Failed to allocate memory for"
-                     " index translation table. Number of"
-                     " Index:"
-                  << mysql_num_index;
+      ib::error(ER_IB_MSG_582) << "Failed to allocate memory for"
+                                  " index translation table. Number of"
+                                  " Index:"
+                               << mysql_num_index;
       goto err;
     }
   }
@@ -394,11 +394,11 @@ bool Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
           m_table_parts[part], part_info->table->key_info[idx].name);
 
       if (m_index_mapping[count] == NULL) {
-        ib::error() << "Cannot find index `"
-                    << part_info->table->key_info[idx].name
-                    << "` in InnoDB index dictionary"
-                       " partition `"
-                    << get_partition_name(part) << "`.";
+        ib::error(ER_IB_MSG_583)
+            << "Cannot find index `" << part_info->table->key_info[idx].name
+            << "` in InnoDB index dictionary"
+               " partition `"
+            << get_partition_name(part) << "`.";
         index_loaded = false;
         break;
       }
@@ -408,9 +408,10 @@ bool Ha_innopart_share::open_table_parts(THD *thd, const TABLE *table,
 
       if (!innobase_match_index_columns(&part_info->table->key_info[idx],
                                         m_index_mapping[count])) {
-        ib::error() << "Found index `" << part_info->table->key_info[idx].name
-                    << "` whose column info does not match"
-                       " that of MySQL.";
+        ib::error(ER_IB_MSG_584)
+            << "Found index `" << part_info->table->key_info[idx].name
+            << "` whose column info does not match"
+               " that of MySQL.";
         index_loaded = false;
         break;
       }
@@ -540,8 +541,8 @@ inline uint Ha_innopart_share::get_mysql_key(uint part_id,
     in the "index translation table". */
 
     if (index->is_committed()) {
-      ib::error() << "Cannot find index " << index->name
-                  << " in InnoDB index translation table.";
+      ib::error(ER_IB_MSG_585) << "Cannot find index " << index->name
+                               << " in InnoDB index translation table.";
     }
   }
 
@@ -654,7 +655,7 @@ inline int ha_innopart::initialize_auto_increment(bool /* no_lock */) {
   }
 
   if (field == NULL) {
-    ib::info() << "Unable to determine the AUTOINC column name";
+    ib::info(ER_IB_MSG_586) << "Unable to determine the AUTOINC column name";
   }
 
   if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
@@ -742,19 +743,20 @@ inline int ha_innopart::initialize_auto_increment(bool /* no_lock */) {
           break;
         }
         case DB_RECORD_NOT_FOUND:
-          ib::error() << "MySQL and InnoDB data"
-                         " dictionaries are out of sync. Unable"
-                         " to find the AUTOINC column "
-                      << col_name << " in the InnoDB table " << ib_table->name
-                      << ". We set the"
-                         " next AUTOINC column value to 0, in"
-                         " effect disabling the AUTOINC next"
-                         " value generation.";
+          ib::error(ER_IB_MSG_587)
+              << "MySQL and InnoDB data"
+                 " dictionaries are out of sync. Unable"
+                 " to find the AUTOINC column "
+              << col_name << " in the InnoDB table " << ib_table->name
+              << ". We set the"
+                 " next AUTOINC column value to 0, in"
+                 " effect disabling the AUTOINC next"
+                 " value generation.";
 
-          ib::info() << "You can either set the next"
-                        " AUTOINC value explicitly using ALTER"
-                        " TABLE or fix the data dictionary by"
-                        " recreating the table.";
+          ib::info(ER_IB_MSG_588) << "You can either set the next"
+                                     " AUTOINC value explicitly using ALTER"
+                                     " TABLE or fix the data dictionary by"
+                                     " recreating the table.";
 
           /* We want the open to succeed, so that the
           user can take corrective action. ie. reads
@@ -928,9 +930,9 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     if (table_share->is_missing_primary_key()) {
       table_name_t table_name;
       table_name.m_name = const_cast<char *>(name);
-      ib::error() << "Table " << table_name
-                  << " has a primary key in InnoDB data"
-                     " dictionary, but not in MySQL!";
+      ib::error(ER_IB_MSG_589) << "Table " << table_name
+                               << " has a primary key in InnoDB data"
+                                  " dictionary, but not in MySQL!";
 
       /* This mismatch could cause further problems
       if not attended, bring this to the user's attention
@@ -996,16 +998,16 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     if (!table_share->is_missing_primary_key()) {
       table_name_t table_name;
       table_name.m_name = const_cast<char *>(name);
-      ib::error() << "Table " << table_name
-                  << " has no primary key in InnoDB data"
-                     " dictionary, but has one in MySQL! If you"
-                     " created the table with a MySQL version <"
-                     " 3.23.54 and did not define a primary key,"
-                     " but defined a unique key with all non-NULL"
-                     " columns, then MySQL internally treats that"
-                     " key as the primary key. You can fix this"
-                     " error by dump + DROP + CREATE + reimport"
-                     " of the table.";
+      ib::error(ER_IB_MSG_590) << "Table " << table_name
+                               << " has no primary key in InnoDB data"
+                                  " dictionary, but has one in MySQL! If you"
+                                  " created the table with a MySQL version <"
+                                  " 3.23.54 and did not define a primary key,"
+                                  " but defined a unique key with all non-NULL"
+                                  " columns, then MySQL internally treats that"
+                                  " key as the primary key. You can fix this"
+                                  " error by dump + DROP + CREATE + reimport"
+                                  " of the table.";
 
       /* This mismatch could cause further problems
       if not attended, bring this to the user attention
@@ -1036,10 +1038,10 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
     if (key_used_on_scan != MAX_KEY) {
       table_name_t table_name;
       table_name.m_name = const_cast<char *>(name);
-      ib::warn() << "Table " << table_name << " key_used_on_scan is "
-                 << key_used_on_scan
-                 << " even though there is"
-                    " no primary key inside InnoDB.";
+      ib::warn(ER_IB_MSG_591) << "Table " << table_name
+                              << " key_used_on_scan is " << key_used_on_scan
+                              << " even though there is"
+                                 " no primary key inside InnoDB.";
     }
   }
 
@@ -1662,10 +1664,10 @@ inline dict_index_t *ha_innopart::innopart_get_index(uint part_id, uint keynr) {
       table. Only print message if the index translation
       table exists. */
 
-      ib::warn() << "InnoDB could not find index " << (key ? key->name : "NULL")
-                 << " key no " << keynr << " for table "
-                 << m_prebuilt->table->name
-                 << " through its index translation table";
+      ib::warn(ER_IB_MSG_592)
+          << "InnoDB could not find index " << (key ? key->name : "NULL")
+          << " key no " << keynr << " for table " << m_prebuilt->table->name
+          << " through its index translation table";
 
       index = dict_table_get_index_on_name(m_prebuilt->table, key->name);
     }
@@ -1676,9 +1678,10 @@ inline dict_index_t *ha_innopart::innopart_get_index(uint part_id, uint keynr) {
   }
 
   if (index == NULL) {
-    ib::error() << "InnoDB could not find key n:o " << keynr << " with name "
-                << (key ? key->name : "NULL") << " from dict cache for table "
-                << m_prebuilt->table->name << " partition n:o " << part_id;
+    ib::error(ER_IB_MSG_593)
+        << "InnoDB could not find key n:o " << keynr << " with name "
+        << (key ? key->name : "NULL") << " from dict cache for table "
+        << m_prebuilt->table->name << " partition n:o " << part_id;
   }
 
   DBUG_RETURN(index);
@@ -1699,8 +1702,8 @@ int ha_innopart::change_active_index(uint part_id, uint keynr) {
   set_partition(part_id);
 
   if (UNIV_UNLIKELY(m_prebuilt->index == NULL)) {
-    ib::warn() << "change_active_index(" << part_id << "," << keynr
-               << ") failed";
+    ib::warn(ER_IB_MSG_594)
+        << "change_active_index(" << part_id << "," << keynr << ") failed";
     m_prebuilt->index_usable = FALSE;
     DBUG_RETURN(1);
   }
@@ -3463,12 +3466,12 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
     }
 
     if (table->s->keys != num_innodb_index) {
-      ib::error() << "Table " << ib_table->name << " contains "
-                  << num_innodb_index
-                  << " indexes inside InnoDB, which"
-                     " is different from the number of"
-                     " indexes "
-                  << table->s->keys << " defined in the MySQL";
+      ib::error(ER_IB_MSG_595)
+          << "Table " << ib_table->name << " contains " << num_innodb_index
+          << " indexes inside InnoDB, which"
+             " is different from the number of"
+             " indexes "
+          << table->s->keys << " defined in the MySQL";
     }
 
     if ((flag & HA_STATUS_NO_LOCK) == 0) {
@@ -3487,14 +3490,14 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
       dict_index_t *index = innopart_get_index(biggest_partition, i);
 
       if (index == NULL) {
-        ib::error() << "Table " << ib_table->name
-                    << " contains fewer"
-                       " indexes inside InnoDB than"
-                       " are defined in the MySQL"
-                       " .frm file. Have you mixed up"
-                       " .frm files from different"
-                       " installations? "
-                    << TROUBLESHOOTING_MSG;
+        ib::error(ER_IB_MSG_596) << "Table " << ib_table->name
+                                 << " contains fewer"
+                                    " indexes inside InnoDB than"
+                                    " are defined in the MySQL"
+                                    " .frm file. Have you mixed up"
+                                    " .frm files from different"
+                                    " installations? "
+                                 << TROUBLESHOOTING_MSG;
         break;
       }
 
@@ -3508,17 +3511,17 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
         }
 
         if ((j + 1) > index->n_uniq) {
-          ib::error() << "Index " << index->name << " of " << ib_table->name
-                      << " has " << index->n_uniq
-                      << " columns unique inside"
-                         " InnoDB, but MySQL is"
-                         " asking statistics for "
-                      << j + 1
-                      << " columns. Have"
-                         " you mixed up .frm files"
-                         " from different"
-                         " installations? "
-                      << TROUBLESHOOTING_MSG;
+          ib::error(ER_IB_MSG_597) << "Index " << index->name << " of "
+                                   << ib_table->name << " has " << index->n_uniq
+                                   << " columns unique inside"
+                                      " InnoDB, but MySQL is"
+                                      " asking statistics for "
+                                   << j + 1
+                                   << " columns. Have"
+                                      " you mixed up .frm files"
+                                      " from different"
+                                      " installations? "
+                                   << TROUBLESHOOTING_MSG;
           break;
         }
 

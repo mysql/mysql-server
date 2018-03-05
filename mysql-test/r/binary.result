@@ -140,7 +140,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` binary(1) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (col1 binary(4));
 insert into t1 values ('a'),('a ');

@@ -6,11 +6,11 @@
 drop table if exists t1;
 --enable_warnings
 
-set names default collate utf8mb4_unicode_ci;
+set names utf8mb4 collate utf8mb4_unicode_ci;
 
 -- source include/endspace.inc
 
-set names default collate default;
+set names default;
 #
 # Test MyISAM tables.
 #

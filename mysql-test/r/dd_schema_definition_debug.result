@@ -249,7 +249,7 @@ columns	CREATE TABLE `columns` (
   `generation_expression` longblob,
   `generation_expression_utf8` longtext COLLATE utf8_bin,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `hidden` tinyint(1) NOT NULL,
+  `hidden` enum('Visible','SE','SQL') COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `column_key` enum('','PRI','UNI','MUL') COLLATE utf8_bin NOT NULL,

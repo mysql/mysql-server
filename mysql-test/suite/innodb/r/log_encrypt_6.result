@@ -55,7 +55,7 @@ UNINSTALL PLUGIN keyring_file;
 DROP DATABASE tde_db;
 # Try starting without keyring : Error
 # Search for error message
-Pattern "InnoDB: Redo log was encrypted, but keyring plugin is not loaded" found
+Pattern "Redo log was encrypted, but keyring plugin is not loaded" found
 Pattern "Aborting" found
 # Restart without keyring plugin possible if redo files removed
 # Start the DB server with datadir1

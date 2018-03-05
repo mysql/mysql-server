@@ -15,7 +15,7 @@ set global innodb_limit_optimistic_insert_debug = 2;
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 source include/memcache_config.inc;
 --enable_query_log
 
@@ -95,7 +95,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t2;
 # Shutdown server
 --source include/shutdown_mysqld.inc
 
---exec $IBD2SDI $IBD_FILE -c innodb 2>&1
+--exec $IBD2SDI --skip-pretty $IBD_FILE -c innodb 2>&1
 
 --let restart_parameters=restart: --innodb_checksum_algorithm=none
 --source include/start_mysqld.inc
@@ -127,7 +127,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 # Shutdown server
 --source include/shutdown_mysqld.inc
 
---exec $IBD2SDI $IBD_FILE --strict-check=none 2>&1
+--exec $IBD2SDI --skip-pretty $IBD_FILE --strict-check=none 2>&1
 
 --let IBD_FILE=$MYSQLD_DATADIR/test/t1.ibd
 
@@ -150,7 +150,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --error 1
 --exec $IBD2SDI --debug=d,ib_file_open_error $IBD_FILE 2>&1
 
---exec $IBD2SDI --debug=d,ib_partial_page $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --debug=d,ib_partial_page $IBD_FILE 2>&1
 
 --error 1
 --exec $IBD2SDI --debug=d,ib_no_sdi $IBD_FILE 2>&1
@@ -169,7 +169,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --let IBD_CHAR_LEN= 8
 --source include/corrupt_ibd2sdi.inc
 
---exec $IBD2SDI $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE 2>&1
 
 # Restore original copy
 --remove_file $IBD_FILE
@@ -187,7 +187,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 
 --replace_regex /into file.*\./into file: FILENAME/
 --error 1
---exec $IBD2SDI -n $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty -n $IBD_FILE 2>&1
 
 # Restore original copy
 --remove_file $IBD_FILE
@@ -205,12 +205,12 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 
 --replace_regex /into file.*\./into file: FILENAME/
 --error 1
---exec $IBD2SDI -n $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty -n $IBD_FILE 2>&1
 
 --echo # Retrieve from .ibd file
 --replace_regex	/space=[0-9]*/space=X/
 --error 1
---exec $IBD2SDI $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE 2>&1
 
 # Restore original copy
 --remove_file $IBD_FILE
@@ -226,7 +226,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 
 --replace_regex /into file.*\./into file: FILENAME/
 --error 1
---exec $IBD2SDI $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE 2>&1
 
 # Restore original copy
 --remove_file $IBD_FILE
@@ -250,7 +250,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 
 --replace_regex /into file.*\./into file: FILENAME/
 --error 1
---exec $IBD2SDI $IBD_FILE -n -d $DUMP_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE -n -d $DUMP_FILE 2>&1
 --cat_file $DUMP_FILE
 
 # Restore original copy
@@ -265,7 +265,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --let IBD_CHAR_LEN = 4
 --source include/corrupt_ibd2sdi.inc
 
---exec $IBD2SDI $IBD_FILE -n -d $DUMP_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE -n -d $DUMP_FILE 2>&1
 --cat_file $DUMP_FILE
 
 # Restore original copy
@@ -280,7 +280,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --let IBD_CHAR_LEN = 4
 --source include/corrupt_ibd2sdi.inc
 
---exec $IBD2SDI $IBD_FILE -n -d $DUMP_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE -n -d $DUMP_FILE 2>&1
 --cat_file $DUMP_FILE
 
 # Restore original copy
@@ -295,7 +295,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --let IBD_OFFSET = 110
 --source include/corrupt_ibd2sdi.inc
 
---exec $IBD2SDI $IBD_FILE -n -d $DUMP_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE -n -d $DUMP_FILE 2>&1
 --cat_file $DUMP_FILE
 
 # Restore original copy
@@ -309,7 +309,7 @@ let MEMCACHED_TABLE_MAPPING = desc_t3;
 --let IBD_OFFSET = 54
 --source include/corrupt_ibd2sdi.inc
 
---exec $IBD2SDI $IBD_FILE -n -d $DUMP_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE -n -d $DUMP_FILE 2>&1
 --cat_file $DUMP_FILE
 
 # Restore original copy

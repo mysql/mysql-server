@@ -7,7 +7,7 @@ t1	CREATE TABLE `t1` (
   `c` char(3) DEFAULT NULL,
   `e` enum('abc','def','ghi') DEFAULT NULL,
   `t` text
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('abc', 'de', 'ghi', 'jkl');
 insert into t1 values ('abc ', 'de ', 'ghi', 'jkl ');
 insert into t1 values ('abc    ', 'd  ', 'ghi', 'jkl    ');

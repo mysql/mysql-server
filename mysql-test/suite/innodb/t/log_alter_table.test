@@ -9,7 +9,7 @@
 --echo # REDO LOGGING IS SKIPPED
 --echo #
 
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 
 --source include/no_checkpoint_start.inc
 CREATE TABLE t1 (a INT NOT NULL, b INT UNIQUE) ENGINE=InnoDB

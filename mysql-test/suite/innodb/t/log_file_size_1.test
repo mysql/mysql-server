@@ -22,10 +22,7 @@ if (`SELECT @@innodb_log_file_size = 2097152`) {
 let $restart_parameters = restart: --innodb-fast-shutdown=2 --innodb-log-file-size=4M;
 --source include/restart_mysqld.inc
 
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
-call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+call mtr.add_suppression("The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 
@@ -65,7 +62,7 @@ SELECT id,LEFT(bfield,20) FROM t1;
 --disable_reconnect
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case1.err;
-let SEARCH_PATTERN= InnoDB: Starting crash recovery;
+let SEARCH_PATTERN=  Starting crash recovery;
 --source include/search_pattern.inc
 
 # Check size of ib_logfile* when innodb_log_files_in_group is set
@@ -144,7 +141,7 @@ SELECT @@innodb_log_files_in_group;
 
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case2.err;
-let SEARCH_PATTERN= InnoDB: Starting crash recovery;
+let SEARCH_PATTERN=  Starting crash recovery;
 --source include/search_pattern.inc
 
 
@@ -178,7 +175,7 @@ let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
 --echo "test misc 3"
 --error 1,42
 --exec $MYSQLD_CMD $args --innodb-read-only
-let SEARCH_PATTERN= InnoDB: Cannot resize log files in read-only mode;
+let SEARCH_PATTERN=  Cannot resize log files in read-only mode;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
@@ -189,7 +186,7 @@ let SEARCH_PATTERN= InnoDB: Cannot resize log files in read-only mode;
 --move_file $MYSQLD_DATADIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1_hidden
 --error 1,42
 --exec $MYSQLD_CMD $args
-let SEARCH_PATTERN= InnoDB: Only one log file found;
+let SEARCH_PATTERN=  Only one log file found;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 #--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
@@ -205,7 +202,7 @@ close(FILE);
 EOF
 --error 1,42
 --exec $MYSQLD_CMD $args
-let SEARCH_PATTERN= InnoDB: .*ib_logfile0 size 7 is not a multiple of innodb_page_size;
+let SEARCH_PATTERN=  .*ib_logfile0 size 7 is not a multiple of innodb_page_size;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile0
@@ -222,7 +219,7 @@ EOF
 
 --error 1,42
 --exec $MYSQLD_CMD $args
-let SEARCH_PATTERN= InnoDB: .*ib_logfile1 is of different size;
+let SEARCH_PATTERN=  .*ib_logfile1 is of different size;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile1

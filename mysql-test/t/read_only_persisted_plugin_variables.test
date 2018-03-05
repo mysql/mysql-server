@@ -39,9 +39,6 @@ SELECT count(*) from performance_schema.persisted_variables;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-CALL mtr.add_suppression("InnoDB: Resizing redo log from *");
-CALL mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-CALL mtr.add_suppression("InnoDB: New log files created,*");
 CALL mtr.add_suppression("Plugin audit_log reported *");
 
 --echo # Both queries must return 100 rows.

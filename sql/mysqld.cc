@@ -79,55 +79,49 @@
   @page PAGE_CODING_GUIDELINES Coding Guidelines
 
   This section shows the guidelines that MySQL developers
-  follow when writing new code. In general, MySQL development
-  uses the Google coding style (See https://google.github.io/styleguide/cppguide.html):
+  follow when writing new code.
 
-  - For new projects/components, use Google coding style wherever
-    possible.
-
-  - For old projects or code, use the style already used in the
-    existing code for the time being.
-
-  Exceptions in MySQL coding guidelines:
-
-  - Class names: Do not use MyClass. Instead, use My_class.
-    This exception exists because the server has a history of using
-    My_class. It will be confusing to mix the two
-    (from a code-review perspective).
-    InnoDB has had freedom of choice for Class names
-    and will therefore not suffer from the mix.
+  New MySQL code uses the Google C++ coding style
+  (https://google.github.io/styleguide/cppguide.html), with one
+  exception:
 
   - Member variable names: Do not use foo_. Instead, use
-    m_foo (non-static) and s_foo (static), which
-    are improvements over the Google style.
+    m_foo (non-static) or s_foo (static).
 
-  Notes:
+  Old projects and modifications to old code use an older MySQL-specific
+  style for the time being. Since 8.0, MySQL style uses the same formatting
+  rules as Google coding style (e.g., brace placement, indentation, line
+  lengths, etc.), but differs in a few important aspects:
+
+  - Class names: Do not use MyClass. Instead, use My_class.
+
+  - Function names: Use snake_case().
 
   - Comment Style: Use either the // or <em>/</em>* *<em>/</em> syntax. // is
     much more common but both syntaxes are permitted for the time being.
 
   - Doxygen comments: Use <em>/</em>** ... *<em>/</em> syntax and not ///.
 
-  - Doxygen command: Use '@' and not '\' for doxygen commands.
+  - Doxygen commands: Use '@' and not '\' for doxygen commands.
 
-  - Braces alignment, if..else indentation, spaces around '=':
-    MySQL coding guideline traditionally places left braces aligned
-    with the start of the preceding line, whereas the Google style is
-    to place the left brace on the end of the previous line.
-
-  - MySQL coding guideline is to have no space before '='
-    while assignment “foo= bar”. The Google style is have space
-    around '=' in assignment "foo = bar".
+  - You may see structs starting with st_ and being typedef-ed to some
+    UPPERCASE (e.g. typedef struct st_foo { ... } FOO). However,
+    this is legacy from when the codebase contained C. Do not make such new
+    typedefs nor structs with st_ prefixes, and feel free to remove those that
+    already exist, except in public header files that are part of libmysql
+    (which need to be parseable as C99).
 
 
-  Consistent style is important for us, because everyone must
-  know what to expect. For example, after we become accustomed
-  to seeing that everything inside an <em>if</em> is indented
-  two spaces, we can glance at a listing and understand what's
-  nested within what. Writing non-conforming code can be bad.
-  Knowing our rules, you'll find it easier to read our code,
-  and when you decide to contribute (which we hope you'll consider!)
-  we'll find it easier to read and review your code.
+  Code formatting is enforced by use of clang-format throughout the code
+  base. However, note that formatting is only one part of coding style;
+  you are required to take care of non-formatting issues yourself, such as
+  following naming conventions, having clear ownership of code or minimizing
+  the use of macros. See the Google coding style guide for the entire list.
+
+  Consistent style is important for us, because everyone must know what to
+  expect. Knowing our rules, you'll find it easier to read our code, and when
+  you decide to contribute (which we hope you'll consider!) we'll find it
+  easier to read and review your code.
 
   - @subpage GENERAL_DEVELOPMENT_GUIDELINES
   - @subpage CPP_CODING_GUIDELINES_FOR_NDB_SE
@@ -240,11 +234,24 @@
 
   @section storage_innodb Innodb
 
-  See #ha_innobase.
+  See #ha_innobase or read details about InnoDB internals:
+  - @subpage PAGE_INNODB_PFS
+  - @subpage PAGE_INNODB_REDO_LOG
+  - @subpage PAGE_INNODB_UTILS
 
-  @subpage PAGE_INNODB_PFS
+  @section storage_temptable Temp table
+
+  Before 8.0, temporary tables were handled by heap engine.
+  The heap engine had no feature to store bigger tables on disk.
+
+  Since 8.0, there is a brand new temptable engine, which
+  is written from scratch using c++11. It has following advantages:
+  - it is able to store bigger tables on disk (in temporary files),
+  - it uses row format with variable size (can save memory for varchars),
+  - it is better designed (easier to maintain).
 
   @subpage PAGE_TEMPTABLE
+
 */
 
 
@@ -2024,7 +2031,8 @@ static void clean_up(bool print_message) {
   delete_pid_file(MYF(0));
 
   if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname);
+    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname,
+           server_version, MYSQL_COMPILATION_COMMENT);
   cleanup_errmsgs();
 
   free_connection_acceptors();
@@ -3881,8 +3889,8 @@ int init_common_variables() {
       return 1;
     }
     if (!my_charset_same(default_charset_info, default_collation)) {
-      LogErr(ERROR_LEVEL, ER_COLLATION_CHARSET_MISMATCH, default_collation_name,
-             default_charset_info->csname);
+      LogErr(ERROR_LEVEL, ER_INVALID_COLLATION_FOR_CHARSET,
+             default_collation_name, default_charset_info->csname);
       return 1;
     }
     default_charset_info = default_collation;
@@ -3890,6 +3898,8 @@ int init_common_variables() {
   /* Set collactions that depends on the default collation */
   global_system_variables.collation_server = default_charset_info;
   global_system_variables.collation_database = default_charset_info;
+  global_system_variables.default_collation_for_utf8mb4 =
+      &my_charset_utf8mb4_0900_ai_ci;
 
   if (is_supported_parser_charset(default_charset_info)) {
     global_system_variables.collation_connection = default_charset_info;
@@ -4836,26 +4846,26 @@ static int init_server_components() {
 
   if (global_system_variables.binlog_row_value_options != 0) {
     const char *msg = NULL;
-    int err = ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED;
+    longlong err = ER_BINLOG_ROW_VALUE_OPTION_IGNORED;
     if (!opt_bin_log)
       msg = "the binary log is disabled";
     else if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT)
       msg = "binlog_format=STATEMENT";
     else if (log_bin_use_v1_row_events) {
       msg = "binlog_row_value_options=PARTIAL_JSON";
-      err = ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED;
+      err = ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED;
     } else if (global_system_variables.binlog_row_image ==
                BINLOG_ROW_IMAGE_FULL) {
       msg = "binlog_row_image=FULL";
-      err = ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES;
+      err = ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES;
     }
     if (msg) {
       switch (err) {
-        case ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED:
-        case ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES:
+        case ER_BINLOG_ROW_VALUE_OPTION_IGNORED:
+        case ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES:
           LogErr(WARNING_LEVEL, err, msg, "PARTIAL_JSON");
           break;
-        case ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED:
+        case ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED:
           LogErr(WARNING_LEVEL, err, msg);
           break;
         default:
@@ -5247,7 +5257,7 @@ extern "C" void *handle_shutdown_and_restart(void *arg) {
 
   if (ret_code == WAIT_OBJECT_0 || ret_code == WAIT_OBJECT_0 + 1) {
     if (ret_code == WAIT_OBJECT_0)
-      LogErr(SYSTEM_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
+      LogErr(SYSTEM_LEVEL, ER_NORMAL_SERVER_SHUTDOWN, my_progname);
     else
       signal_hand_thr_exit_code = MYSQLD_RESTART_EXIT;
 
@@ -7624,77 +7634,78 @@ static int show_ssl_ctx_get_session_cache_mode(THD *, SHOW_VAR *var, char *) {
          inside an Event.
  */
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
-  if (thd->get_protocol()->get_ssl())
-    var->value =
-        const_cast<char *>(SSL_get_version(thd->get_protocol()->get_ssl()));
+  if (ssl)
+    var->value = const_cast<char *>(SSL_get_version(ssl));
   else
     var->value = (char *)"";
   return 0;
 }
 
 static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) = (long)SSL_session_reused(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_session_reused(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) =
-        (long)SSL_get_default_timeout(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_default_timeout(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) = (long)SSL_get_verify_mode(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_verify_mode(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) =
-        (long)SSL_get_verify_depth(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_verify_depth(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
-  if (thd->get_protocol()->get_ssl())
-    var->value =
-        const_cast<char *>(SSL_get_cipher(thd->get_protocol()->get_ssl()));
+  if (ssl)
+    var->value = const_cast<char *>(SSL_get_cipher(ssl));
   else
     var->value = (char *)"";
   return 0;
 }
 
 static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl()) {
+  if (ssl) {
     int i;
     const char *p;
     char *end = buff + SHOW_VAR_FUNC_BUFF_SIZE;
-    for (i = 0; (p = SSL_get_cipher_list(thd->get_protocol()->get_ssl(), i)) &&
-                buff < end;
-         i++) {
+    for (i = 0; (p = SSL_get_cipher_list(ssl, i)) && buff < end; i++) {
       buff = my_stpnmov(buff, p, end - buff - 1);
       *buff++ = ':';
     }
@@ -9157,7 +9168,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
 /*
   Create version name for running mysqld version
-  We automaticly add suffixes -debug, -log, -valgrind, -asan, -ubsan
+  We automaticly add suffixes -debug, -valgrind, -asan, -ubsan
   to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
@@ -9173,14 +9184,12 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 #endif
 
 static void set_server_version(void) {
-  char *end = strxmov(server_version, MYSQL_SERVER_VERSION,
-                      MYSQL_SERVER_SUFFIX_STR, NullS);
+  char *end MY_ATTRIBUTE((unused)) = strxmov(
+      server_version, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifndef DBUG_OFF
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end = my_stpcpy(end, "-debug");
 #endif
-  if (opt_general_log || opt_slow_log || opt_bin_log)
-    end = my_stpcpy(end, "-log");  // This may slow down system
 #ifdef HAVE_VALGRIND
   if (SERVER_VERSION_LENGTH - (end - server_version) >
       static_cast<int>(sizeof("-valgrind")))

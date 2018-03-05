@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 create table t1(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
 create table t2(f1 int not null, f2 int not null, index idx(f2))engine=innodb;
 insert into t1 values(1, 2);

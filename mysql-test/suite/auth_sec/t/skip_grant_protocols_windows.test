@@ -1,0 +1,144 @@
+# This test is added to verify the Bug#27400095 fix.
+
+# The file with expected results fits only to a run without as
+# select query from P_S.thread doesn't return any result
+if (`SELECT $PS_PROTOCOL + $SP_PROTOCOL
+          + $CURSOR_PROTOCOL + $VIEW_PROTOCOL > 0`)
+{
+   --skip Test requires: ps-protocol/sp-protocol/cursor-protocol/view-protocol disabled
+}
+
+# Windows does not have SOCKET, but will try to create a PIPE as well as MEMORY
+--source include/windows.inc
+
+# Create a new datadir1 and a new user with non-default plugin type
+--source suite/auth_sec/include/skip_grant_protocols.inc
+
+--echo
+--echo # Restart the server with --skip-grant-tables, --shared-memory options
+--echo # enabled and new datadir
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --skip-grant-tables --shared-memory --datadir=$MYSQLD_DATADIR1"
+--source include/restart_mysqld.inc
+
+--echo
+--echo # connect the root user which uses the default auth plugin
+let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
+connect(shm_con1,localhost,root,passwd,,,$shm_name,SHM);
+connection shm_con1;
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+SELECT CURRENT_USER;
+
+connection default;
+disconnect shm_con1;
+
+--echo
+--echo # connect the root user which uses the mysql_native_password auth plugin
+connect(shm_con1,localhost,root,passwd,,,$shm_name,SHM,mysql_native_password);
+connection shm_con1;
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+SELECT CURRENT_USER;
+
+connection default;
+disconnect shm_con1;
+
+--echo
+--echo # connect the user which uses the non-default auth plugin
+connect(shm_con1,localhost,native_user,passwd,,,$shm_name,SHM);
+connection shm_con1;
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+SELECT CURRENT_USER;
+
+connection default;
+disconnect shm_con1;
+
+--echo
+--echo # connect the native_user user which uses corresponding
+--echo # mysql_native_password auth plugin
+connect(shm_con1,localhost,native_user,passwd,,,$shm_name,SHM,mysql_native_password);
+connection shm_con1;
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+SELECT CURRENT_USER;
+
+connection default;
+disconnect shm_con1;
+
+--echo
+--echo # Restart the server with --skip-grant-tables, --enable-named-pipe
+--echo # options enabled and new datadir
+--replace_result $MYSQLD_DATADIR1 MYSQLD_DATADIR1
+--let $restart_parameters="restart: --skip-grant-tables --enable-named-pipe --datadir=$MYSQLD_DATADIR1"
+--source include/restart_mysqld.inc
+
+--echo
+--echo # connect the root user which uses the default auth plugin
+connect(pipe_con1,localhost,root,passwd,,,,PIPE);
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+SELECT CURRENT_USER;
+connection default;
+disconnect pipe_con1;
+
+--echo
+--echo # connect the root user which uses the mysql_native_password auth plugin
+connect(pipe_con1,localhost,root,passwd,,,,PIPE,mysql_native_password);
+connection pipe_con1;
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+SELECT CURRENT_USER;
+connection default;
+disconnect pipe_con1;
+
+--echo
+--echo # connect the user which uses the non-default auth plugin
+connect(pipe_con1,localhost,native_user,passwd,,,,PIPE);
+connection pipe_con1;
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+SELECT CURRENT_USER;
+connection default;
+disconnect pipe_con1;
+
+--echo
+--echo # connect the native_user user which uses corresponding
+--echo # mysql_native_password auth plugin
+connect(pipe_con1,localhost,native_user,passwd,,,,PIPE,mysql_native_password);
+connection pipe_con1;
+SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
+SELECT CURRENT_USER;
+
+connection default;
+disconnect pipe_con1;
+
+
+--echo # since we didn't specify server's public keys explicitly,
+--echo # following insecure connections must fail with
+--echo # error: Authentication requires secure connection.
+
+--echo
+--echo # connect the root user which uses the default auth plugin
+--echo # error 1
+--error 1
+--exec $MYSQL --host=localhost --user=root --password=passwd --protocol=PIPE -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+
+--echo
+--echo # connect the root user which uses the mysql_native_password auth plugin
+--echo # error 1
+--error 1
+--exec $MYSQL --host=localhost --user=native_user --password=passwd --protocol=PIPE -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+
+--echo
+--echo # connect the root user which uses the non-default auth plugin
+--echo # error 1
+--error 1
+--exec $MYSQL --host=localhost --user=root --password=passwd --protocol=PIPE --default-auth=mysql_native_password -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+
+--echo
+--echo # connect the native user plugin user which uses corresponding plugin
+--echo # error 1
+--error 1
+--exec $MYSQL --host=localhost --user=native_user --password=passwd --default-auth=mysql_native_password --protocol=PIPE -e "SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query'; SELECT current_user;"
+
+--echo
+--echo # Cleanup
+let $restart_parameters=;
+--source include/restart_mysqld.inc
+# Remove residue files and data folder
+--force-rmdir $MYSQL_TMP_DIR/datadir1/

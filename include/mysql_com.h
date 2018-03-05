@@ -136,7 +136,7 @@
 
    Both the client and the server are sending these.
 
-   The intersection of the two determines whast optional parts of the
+   The intersection of the two determines what optional parts of the
    protocol will be used.
 */
 

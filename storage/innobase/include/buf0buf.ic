@@ -38,6 +38,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
  *******************************************************/
 
 #include "mtr0mtr.h"
+
 #ifndef UNIV_HOTBACKUP
 #include "buf0flu.h"
 #include "buf0lru.h"
@@ -692,7 +693,7 @@ void buf_ptr_get_fsp_addr(
 
   *space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
   addr->page = mach_read_from_4(page + FIL_PAGE_OFFSET);
-  addr->boffset = ut_align_offset(ptr, UNIV_PAGE_SIZE);
+  addr->boffset = static_cast<uint32_t>(ut_align_offset(ptr, UNIV_PAGE_SIZE));
 }
 
 #ifndef UNIV_HOTBACKUP

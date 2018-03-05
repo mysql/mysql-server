@@ -5,35 +5,35 @@
 #			For example: --let SKIP_LARGE_DATA_FILE = > $MYSQLD_VARDIR/log/ibd2sdi-large.err
 
 --echo # 1. Read SDI with long option
---exec $IBD2SDI $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI --skip-pretty $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 3. Read with specific id & type (long option)
---exec $IBD2SDI --id=3 --type=3 $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --id=3 --type=3 $IBD_FILE 2>&1
 
 --echo # 4. Read with specific id & type (short option)
---exec $IBD2SDI  -i 4 -t 4 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI   --skip-pretty -i 4 -t 4 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 5. Read with skip data
 --exec $IBD2SDI --skip-data $IBD_FILE $SKIP_LARGE_DATA_FILE
 --exec $IBD2SDI -s $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 6. Read SDI and dump into FILE
---exec $IBD2SDI --dump-file=$DUMP_FILE $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --dump-file=$DUMP_FILE $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 if (!$SKIP_LARGE_DATA_FILE) {
 --cat_file $DUMP_FILE
 }
 
 --echo # 7. Read SDI and dump into FILE using short option
---exec $IBD2SDI -s -d $DUMP_FILE  $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty -s -d $DUMP_FILE  $IBD_FILE 2>&1
 if (!$SKIP_LARGE_DATA_FILE) {
 --cat_file $DUMP_FILE
 }
 
 --echo # 8. Print all records matching type (short option)
---exec $IBD2SDI -t 0 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty -t 0 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 9. Print all records matching id (long option)
---exec $IBD2SDI --id=3 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --id=3 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 10. Print version
 --exec $IBD2SDI -v > $MYSQLTEST_VARDIR/tmp/ver_output
@@ -85,29 +85,29 @@ EOF
 --remove_file $MYSQLTEST_VARDIR/tmp/help_output
 
 --echo # 12. Print all records
---exec $IBD2SDI $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 13. Retrieve explicit id & type
---exec $IBD2SDI --id=3 --type=3 $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --id=3 --type=3 $IBD_FILE 2>&1
 
 --echo # 14. Skip data and retrieve
---exec $IBD2SDI --skip-data $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --skip-data $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 15. Dump all records into outfile
---exec $IBD2SDI --dump-file=$DUMP_FILE $IBD_FILE
+--exec $IBD2SDI  --skip-pretty --dump-file=$DUMP_FILE $IBD_FILE
 if (!$SKIP_LARGE_DATA_FILE) {
 --cat_file $DUMP_FILE
 }
 
 --echo # 16. Print all records matching type (short option)
---exec $IBD2SDI -t 0 $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty -t 0 $IBD_FILE 2>&1
 
 --echo # 17. Print all records matching id (long option)
---exec $IBD2SDI --id=3 $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --id=3 $IBD_FILE 2>&1
 
 --echo # 18. Pass --no-check & --strict-check together
 --error 1
---exec $IBD2SDI --no-check --strict-check="crc32" $IBD_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --no-check --strict-check="crc32" $IBD_FILE 2>&1
 
 --replace_result $IBD2SDI IBD2SDI
 --error 1
@@ -130,16 +130,16 @@ if (!$SKIP_LARGE_DATA_FILE) {
 --exec $IBD2SDI -t b $IBD_FILE 2>&1
 
 --echo # 22.2 numbers with +/-
---exec $IBD2SDI --type=+0 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
---exec $IBD2SDI --type=-0 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
---exec $IBD2SDI --type=+1 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
---exec $IBD2SDI --type=-1 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
---exec $IBD2SDI --type=-15 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
---exec $IBD2SDI --type=+16 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI --skip-pretty --type=+0 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI --skip-pretty --type=-0 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI --skip-pretty --type=+1 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI --skip-pretty --type=-1 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI --skip-pretty --type=-15 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI --skip-pretty --type=+16 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 22.4 with no permitted values
---exec $IBD2SDI  --type=14 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
---exec $IBD2SDI  --type=-14 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --type=14 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
+--exec $IBD2SDI  --skip-pretty --type=-14 $IBD_FILE $SKIP_LARGE_DATA_FILE 2>&1
 
 --echo # 22.5 with very long value
 --replace_result $IBD2SDI IBD2SDI

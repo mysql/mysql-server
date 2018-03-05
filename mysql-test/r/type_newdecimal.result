@@ -60,7 +60,7 @@ t1	CREATE TABLE `t1` (
   `if(0, NULL, 1.2)` decimal(2,1) DEFAULT NULL,
   `if(1, 0.22e1, 1.1)` double NOT NULL DEFAULT '0',
   `if(1E0, 1.1, 1.2)` decimal(2,1) NOT NULL DEFAULT '0.0'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select nullif(1.1, 1.1), nullif(1.1, 1.2), nullif(1.1, 0.11e1), nullif(1.0, 1), nullif(1, 1.0), nullif(1, 1.1);
 select * from t1;
@@ -75,7 +75,7 @@ t1	CREATE TABLE `t1` (
   `nullif(1.0, 1)` decimal(2,1) DEFAULT NULL,
   `nullif(1, 1.0)` int(1) DEFAULT NULL,
   `nullif(1, 1.1)` int(1) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a decimal(4,2));
 insert into t1 value (10000), (1.1e10), ("11111"), (100000.1);
@@ -179,7 +179,7 @@ t1	CREATE TABLE `t1` (
   `truncate(-5678.123451,-3)` decimal(4,0) NOT NULL DEFAULT '0',
   `abs(-1.1)` decimal(3,1) NOT NULL DEFAULT '0.0',
   `-(-1.1)` decimal(2,1) NOT NULL DEFAULT '0.0'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set session sql_mode='traditional';
 select 1e10/0e0;
@@ -773,7 +773,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `0.5` decimal(2,1) NOT NULL DEFAULT '0.0'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select round(1.5),round(2.5);
 round(1.5)	round(2.5)
@@ -936,14 +936,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sl` decimal(5,5) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (sl decimal(65, 30));
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `sl` decimal(65,30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (
 f1 decimal unsigned not null default 17.49, 
@@ -976,7 +976,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f0` decimal(30,30) unsigned zerofill NOT NULL DEFAULT '0.000000000000000000000000000000',
   `f1` decimal(10,0) unsigned zerofill NOT NULL DEFAULT '0000000000'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop procedure if exists wg2;
 create procedure wg2()
@@ -1026,7 +1026,7 @@ t1	CREATE TABLE `t1` (
   `my_double` double DEFAULT NULL,
   `my_varchar` varchar(50) DEFAULT NULL,
   `my_decimal` decimal(65,30) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 SET my_float = 1.175494345e-32,
 my_double = 1.175494345e-32,
 my_varchar = '1.175494345e-32';
@@ -1540,7 +1540,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `5.05 / 0.014` decimal(10,6) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1;
 5.05 / 0.014
 360.714286

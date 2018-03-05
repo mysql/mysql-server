@@ -31,7 +31,7 @@ where name = 'test/t1' into @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 begin;
 insert into t1 values (6, repeat('%', 12));
 # Make the first page dirty for table t1
@@ -62,7 +62,7 @@ where name = 'test/t1' into @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 begin;
 insert into t1 values (6, repeat('%', 12));
 # Make the first page dirty for table t1
@@ -92,7 +92,7 @@ where name = 'test/t1' into @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 begin;
 insert into t1 values (6, repeat('%', 400));
 # Make the 2nd page dirty for table t1
@@ -122,7 +122,7 @@ where name = 'test/t1' into @space_id;
 # Ensure that dirty pages of table t1 is flushed.
 flush tables t1 for export;
 unlock tables;
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 begin;
 insert into t1 values (6, repeat('%', 400));
 # Make the 2nd page dirty for table t1

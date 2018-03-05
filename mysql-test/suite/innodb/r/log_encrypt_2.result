@@ -11,7 +11,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
 INSERT INTO t1 VALUES(2, "ccccc");
@@ -103,7 +103,7 @@ c1	c2
 3	NULL
 # Mysqldump output
 
-CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 */;
+CREATE DATABASE /*!32312 IF NOT EXISTS*/ `tde_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */;
 
 USE `tde_db`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -112,7 +112,7 @@ CREATE TABLE `t1` (
   `c1` int(11) NOT NULL,
   `c2` char(50) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ENCRYPTION='Y';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y';
 /*!40101 SET character_set_client = @saved_cs_client */;
 INSERT INTO `t1` VALUES (0,'abc'),(1,'xyz'),(2,NULL),(3,NULL);
 # Redirecting mysqlpump output to MYSQL_TMP_DIR/mysqlpump_encrypt.sql

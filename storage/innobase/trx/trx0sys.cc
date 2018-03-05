@@ -68,9 +68,10 @@ void ReadView::check_trx_id_sanity(trx_id_t id, const table_name_t &name) {
   }
 
   if (id >= trx_sys->max_trx_id) {
-    ib::warn() << "A transaction id"
-               << " in a record of table " << name << " is newer than the"
-               << " system-wide maximum.";
+    ib::warn(ER_IB_MSG_1196)
+        << "A transaction id"
+        << " in a record of table " << name << " is newer than the"
+        << " system-wide maximum.";
     ut_ad(0);
     THD *thd = current_thd;
     if (thd != NULL) {
@@ -181,10 +182,11 @@ void trx_sys_print_mysql_binlog_offset(void) {
   trx_sys_mysql_bin_log_pos_low = mach_read_from_4(
       sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
-  ib::info() << "Last MySQL binlog file position "
-             << trx_sys_mysql_bin_log_pos_high << " "
-             << trx_sys_mysql_bin_log_pos_low << ", file name "
-             << sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME;
+  ib::info(ER_IB_MSG_1197) << "Last MySQL binlog file position "
+                           << trx_sys_mysql_bin_log_pos_high << " "
+                           << trx_sys_mysql_bin_log_pos_low << ", file name "
+                           << sys_header + TRX_SYS_MYSQL_LOG_INFO +
+                                  TRX_SYS_MYSQL_LOG_NAME;
 
   mtr_commit(&mtr);
 }
@@ -360,12 +362,13 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
       rows_to_undo = rows_to_undo / 1000000;
     }
 
-    ib::info() << UT_LIST_GET_LEN(trx_sys->rw_trx_list)
-               << " transaction(s) which must be rolled back or"
-                  " cleaned up in total "
-               << rows_to_undo << unit << " row operations to undo";
+    ib::info(ER_IB_MSG_1198)
+        << UT_LIST_GET_LEN(trx_sys->rw_trx_list)
+        << " transaction(s) which must be rolled back or"
+           " cleaned up in total "
+        << rows_to_undo << unit << " row operations to undo";
 
-    ib::info() << "Trx id counter is " << trx_sys->max_trx_id;
+    ib::info(ER_IB_MSG_1199) << "Trx id counter is " << trx_sys->max_trx_id;
   }
 
   trx_sys->found_prepared_trx = trx_sys->n_prepared_trx > 0;
@@ -427,14 +430,15 @@ void trx_sys_print_mysql_binlog_offset_from_page(
   if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO +
                        TRX_SYS_MYSQL_LOG_MAGIC_N_FLD) ==
       TRX_SYS_MYSQL_LOG_MAGIC_N) {
-    ib::info() << "Last MySQL binlog file position "
-               << mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO +
-                                   TRX_SYS_MYSQL_LOG_OFFSET_HIGH)
-               << " "
-               << mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO +
-                                   TRX_SYS_MYSQL_LOG_OFFSET_LOW)
-               << ", file name "
-               << sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME;
+    ib::info(ER_IB_MSG_1200)
+        << "Last MySQL binlog file position "
+        << mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO +
+                            TRX_SYS_MYSQL_LOG_OFFSET_HIGH)
+        << " "
+        << mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO +
+                            TRX_SYS_MYSQL_LOG_OFFSET_LOW)
+        << ", file name "
+        << sys_header + TRX_SYS_MYSQL_LOG_INFO + TRX_SYS_MYSQL_LOG_NAME;
   }
 }
 #endif /* !UNIV_HOTBACKUP */
@@ -452,9 +456,9 @@ void trx_sys_close(void) {
   ulint size = trx_sys->mvcc->size();
 
   if (size > 0) {
-    ib::error() << "All read views were not closed before"
-                   " shutdown: "
-                << size << " read views open";
+    ib::error(ER_IB_MSG_1201) << "All read views were not closed before"
+                                 " shutdown: "
+                              << size << " read views open";
   }
 
   sess_close(trx_dummy_sess);

@@ -90,7 +90,7 @@ ALTER RESOURCE GROUP user_resource  VCPU=0 THREAD_PRIORITY=5;
 ERROR 42000: Access denied; you need (at least one of) the RESOURCE_GROUP_ADMIN privilege(s) for this operation
 DROP USER u1;
 # 10. Length of resource group name is greater than maximum allowed limit of identifier names.
-ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff TYPE=USER;
+ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff DISABLE;
 ERROR 42000: Identifier name 'user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
 # 11. Default resource groups can't be altered.
 ALTER RESOURCE GROUP SYS_default VCPU=0;

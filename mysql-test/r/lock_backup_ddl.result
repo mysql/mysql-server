@@ -41,6 +41,8 @@ tt1
 1
 2
 3
+CREATE RESOURCE GROUP rg1 TYPE=USER;
+Got one of the listed errors
 connection default;
 UNLOCK INSTANCE;
 connection con1;
@@ -53,7 +55,7 @@ Table	Create Table
 testtable_2	CREATE TABLE `testtable_2` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE testtable_3 (c1 int, c2 varchar(10)) PARTITION BY RANGE (c1)(
 PARTITION p0 VALUES LESS THAN (10),
 PARTITION p2 VALUES LESS THAN (100),

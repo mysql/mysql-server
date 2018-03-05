@@ -5,7 +5,7 @@
 --echo # COMMIT_INPLACE_ALTER_TABLE
 --echo #
 
-call mtr.add_suppression("InnoDB: Failed to load table");
+call mtr.add_suppression("Failed to load table");
 
 create database bug;
 use bug;

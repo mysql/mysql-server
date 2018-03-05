@@ -7,11 +7,11 @@ source include/have_debug.inc;
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 # We wiped out entire SDI created by Server. This is to avoid server
 # SDI interference with memcached inserted SDI. So server complains
 # on missing SDI
-CALL mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] sdi_delete*");
+CALL mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* sdi_delete*");
 # Create the memcached tables
 source include/memcache_config.inc;
 --enable_query_log

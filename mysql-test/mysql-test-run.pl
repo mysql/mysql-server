@@ -256,8 +256,8 @@ my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
-our $build_thread_id_file;
 our $build_thread_id_dir;
+our $build_thread_id_file;
 
 my $previous_test_had_bootstrap_opts = 0;
 
@@ -381,6 +381,15 @@ sub main {
   mtr_report("Logging: $0 ", join(" ", @ARGV));
 
   command_line_setup();
+
+  # Create build thread id directory
+  create_unique_id_dir();
+  $build_thread_id_file = "$build_thread_id_dir/". $$ . "_unique_ids.log";
+
+  open(FH, ">>", $build_thread_id_file) or
+    die "Can't open file $build_thread_id_file: $!";
+  print FH "# Unique id file paths\n";
+  close(FH);
 
   # --help will not reach here, so now it's safe to assume we have binaries
   My::SafeProcess::find_bin();
@@ -559,9 +568,6 @@ sub main {
     $ports_per_thread= $ports_per_thread + 10;
   }
 
-  $build_thread_id_file= "$opt_vardir/tmp/unique_ids.log";
-  create_unique_id_dir();
-
   # Create child processes
   my %children;
   for my $child_num (1..$opt_parallel){
@@ -661,8 +667,6 @@ sub main {
     push @$completed, $tinfo;
   }
 
-  clean_unique_id_dir();
-
   mtr_print_line();
 
   if ( $opt_gcov ) {
@@ -674,6 +678,9 @@ sub main {
     print "$ctest_report\n";
     mtr_print_line();
   }
+
+  # Cleanup the build thread id files
+  clean_unique_id_dir();
 
   print_total_times($opt_parallel) if $opt_report_times;
 
@@ -1174,14 +1181,17 @@ sub create_unique_id_dir()
 ## Remove all the unique files created to reserve ports.
 sub clean_unique_id_dir ()
 {
-  open (FH, "<", $build_thread_id_file);
+  open (FH, "<", $build_thread_id_file) or
+    die "Can't open file $build_thread_id_file: $!";
   while (<FH>)
   {
     chomp ($_);
+    next if ($_ =~ /# Unique id file paths/);
     unlink $_ or warn "Cannot unlink file $_ : $!";
   }
   close (FH);
-  unlink ($build_thread_id_file);
+  unlink($build_thread_id_file) or
+    die "Can't delete file $build_thread_id_file: $!";
 }
 
 

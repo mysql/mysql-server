@@ -30,6 +30,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -46,7 +47,14 @@ class Protocol_factory;
 
 class Session_impl : public XSession {
  public:
-  enum class Auth { Auto, Mysql41, Plain, Sha256_memory };
+  enum class Auth {
+    Auto,
+    Auto_fallback,
+    Auto_from_capabilities,
+    Mysql41,
+    Plain,
+    Sha256_memory
+  };
 
  public:
   explicit Session_impl(std::unique_ptr<Protocol_factory> factory = {});
@@ -104,14 +112,18 @@ class Session_impl : public XSession {
   void setup_protocol();
   void setup_session_notices_handler();
   void setup_general_notices_handler();
-  XError setup_authentication_methods_from_text(
-      const std::vector<std::string> &value_list);
   XError setup_ssl_mode_from_text(const std::string &value);
   XError setup_ssl_fips_mode_from_text(const std::string &value);
   XError setup_ip_mode_from_text(const std::string &value);
+  void setup_server_supported_features(
+      const Mysqlx::Connection::Capabilities *capabilities);
 
+  static std::vector<Auth> get_methods_sequence_from_auto(
+      const Auth auto_authentication, const bool can_use_plain);
+  static bool is_auto_method(const Auth authentication_method);
   static std::string get_method_from_auth(const Auth auth);
 
+  bool needs_servers_capabilities() const;
   bool is_connected();
   XError authenticate(const char *user, const char *pass, const char *schema,
                       Connection_type connection_type);
@@ -127,8 +139,9 @@ class Session_impl : public XSession {
   Context_ptr m_context;
   Protocol_factory_ptr m_factory;
   Internet_protocol m_internet_protocol{Internet_protocol::Any};
-  std::vector<Auth> m_auth_methods;
-  bool m_compatibility_mode = false;
+  std::vector<Auth> m_use_auth_methods;
+  std::set<Auth> m_server_supported_auth_methods{Auth::Mysql41, Auth::Plain,
+                                                 Auth::Sha256_memory};
 };
 
 }  // namespace xcl

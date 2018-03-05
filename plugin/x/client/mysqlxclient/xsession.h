@@ -204,13 +204,20 @@ class XSession {
     Ssl_crl_path,
     /** Overwrite X Protocol authentication method:
 
-    * "AUTO"         - let the library select authentication method
+    * "AUTO"         - let the library select authentication method (can not
+                       be used with ARRAY OF STRINGS type)
+    * "FALLBACK      - same as "AUTO" still do not use authentication methods
+                       that are not compatible with MYSQL 5.7 (can not be used
+                       with ARRAY OF STRINGS type)
+    * "FROM_CAPABILITIES" - let the library select authentication method using
+                            capabilities announced by server (can not be used
+                            with ARRAY OF STRINGS type)
     * "SHA256_MEMORY - authentication based on memory-stored credentials
     * "MYSQL41"      - do not use plain password send through network
     * "PLAIN"        - use plain password for authentication
 
     Default: "AUTO".
-    Option type: STRING.
+    Option type: STRING, ARRAY OF STRINGS.
     */
     Authentication_method,
     /** Tells XSession what should happen when XProtocol notice handler
@@ -223,15 +230,6 @@ class XSession {
       Option type: BOOL
      */
     Consume_all_notices,
-    /** Toggle compatibility with older versions of a server
-
-      * TRUE - work in compatibility mode
-      * FALSE - work in regular mode
-
-      Default: FALSE
-      Option type: BOOL
-    */
-    Compatibility_mode,
     /** Determine what should be the lenght of a DATETIME field so that it
         would be possible to distinguish if it contain only date or both
         date and time parts.

@@ -15,7 +15,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=EXAMPLE DEFAULT CHARSET=utf8mb4
+) ENGINE=EXAMPLE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Let's do some advanced ops with the example engine :)
 INSERT INTO t1 VALUES (0);
 # Only supports table scans (and does always return zero rows :)

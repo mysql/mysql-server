@@ -4366,8 +4366,9 @@ class Create_field {
             const char *length, const char *decimals, uint type_modifier,
             Item *default_value, Item *on_update_value, LEX_STRING *comment,
             const char *change, List<String> *interval_list,
-            const CHARSET_INFO *cs, uint uint_geom_type,
-            Generated_column *gcol_info, Nullable<gis::srid_t> srid);
+            const CHARSET_INFO *cs, bool has_explicit_collation,
+            uint uint_geom_type, Generated_column *gcol_info,
+            Nullable<gis::srid_t> srid);
 
   ha_storage_media field_storage_type() const {
     return (ha_storage_media)((flags >> FIELD_FLAGS_STORAGE_MEDIA) & 3);

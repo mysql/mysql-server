@@ -1061,7 +1061,7 @@ INPUT_FILTER           =
 # need to set EXTENSION_MAPPING for the extension otherwise the files are not
 # properly processed by doxygen.
 
-FILTER_PATTERNS        = "*/sql/mysqld.cc=./doxygen_resources/doxygen-filter-mysqld"
+FILTER_PATTERNS        = "*/sql/mysqld.cc=perl ./doxygen_resources/doxygen-filter-mysqld"
 
 # If the FILTER_SOURCE_FILES tag is set to YES, the input filter (if set using
 # INPUT_FILTER) will also be used to filter the input files that are used for
@@ -2537,7 +2537,7 @@ MSCFILE_DIRS           =
 # contain dia files that are included in the documentation (see the \diafile
 # command).
 
-DIAFILE_DIRS           =
+DIAFILE_DIRS           = doxygen_resources
 
 # When using plantuml, the PLANTUML_JAR_PATH tag should be used to specify the
 # path where java can find the plantuml.jar file. If left blank, it is assumed

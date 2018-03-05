@@ -474,7 +474,7 @@ ReadView *MVCC::get_view() {
     view = UT_NEW_NOKEY(ReadView());
 
     if (view == NULL) {
-      ib::error() << "Failed to allocate MVCC view";
+      ib::error(ER_IB_MSG_918) << "Failed to allocate MVCC view";
     }
   }
 

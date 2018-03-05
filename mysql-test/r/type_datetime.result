@@ -218,7 +218,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `da` date DEFAULT '1962-03-03',
   `dt` datetime DEFAULT '1962-03-03 00:00:00'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ();
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:
@@ -611,7 +611,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `da` date DEFAULT '1962-03-03',
   `dt` datetime DEFAULT '1962-03-03 00:00:00'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ();
 insert into t1 values ('2007-03-23 13:49:38','2007-03-23 13:49:38');
 Warnings:

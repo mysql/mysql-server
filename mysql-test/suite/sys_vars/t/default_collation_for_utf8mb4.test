@@ -1,0 +1,279 @@
+SELECT @@GLOBAL.default_collation_for_utf8mb4;
+SELECT @@SESSION.default_collation_for_utf8mb4;
+
+--echo #
+
+SET @@default_collation_for_utf8mb4 = DEFAULT;
+SELECT @@default_collation_for_utf8mb4;
+
+--echo #
+
+SET @@default_collation_for_utf8mb4 = utf8mb4_0900_ai_ci;
+SELECT @@default_collation_for_utf8mb4;
+
+--echo #
+
+SET @@default_collation_for_utf8mb4 = utf8mb4_general_ci;
+SELECT @@default_collation_for_utf8mb4;
+
+--echo #
+
+--error ER_UNKNOWN_COLLATION
+SET @@default_collation_for_utf8mb4 = utf8mb4;
+
+--echo #
+
+--error ER_INVALID_DEFAULT_UTF8MB4_COLLATION
+SET @@default_collation_for_utf8mb4 = latin2_general_ci;
+
+--echo #
+
+SET @@default_collation_for_utf8mb4 = utf8mb4_general_ci;
+
+--echo #
+--echo # String literals
+--echo #
+
+SELECT COLLATION(_utf8mb4 'a');
+SELECT COLLATION(_utf8mb4 'b' COLLATE utf8mb4_0900_ai_ci);
+SELECT COLLATION(_utf8mb4 0x20);
+SELECT COLLATION(_utf8mb4 0x20 COLLATE utf8mb4_0900_ai_ci);
+SELECT COLLATION(_utf8mb4 0b10100);
+SELECT COLLATION(_utf8mb4 0b10100 COLLATE utf8mb4_0900_ai_ci);
+
+--echo #
+--echo # SET NAMES
+--echo #
+
+SELECT @@collation_database;
+
+--echo #
+
+SET NAMES utf8mb4;
+SELECT @@collation_connection;
+
+--echo #
+
+SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+SELECT @@collation_connection;
+
+--echo #
+
+SET NAMES latin1;
+SELECT @@collation_connection;
+
+--echo #
+
+SET NAMES DEFAULT;
+SELECT @@collation_connection;
+
+--echo #
+
+SET @@default_collation_for_utf8mb4 = DEFAULT;
+SET NAMES DEFAULT;
+SET @@default_collation_for_utf8mb4 = utf8mb4_general_ci;
+
+--echo #
+--echo # CREATE/ALTER SCHEMA/DATABASE
+--echo #
+
+CREATE DATABASE db1;
+--query_vertical SHOW CREATE DATABASE db1
+ALTER DATABASE db1 CHARSET utf8mb4;
+--query_vertical SHOW CREATE DATABASE db1
+DROP DATABASE db1;
+
+--echo #
+
+CREATE DATABASE db2 CHARSET utf8mb4;
+--query_vertical SHOW CREATE DATABASE db2
+ALTER DATABASE db2 CHARSET utf8mb4;
+--query_vertical SHOW CREATE DATABASE db2
+ALTER DATABASE db2 CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+--query_vertical SHOW CREATE DATABASE db2
+DROP DATABASE db2;
+
+--echo #
+
+CREATE DATABASE db3 CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+--query_vertical SHOW CREATE DATABASE db3
+DROP DATABASE db3;
+
+--echo #
+
+CREATE DATABASE db4_latin1 CHARSET latin1;
+--query_vertical SHOW CREATE DATABASE db4_latin1
+
+--echo #
+
+CREATE DATABASE db5_utf8mb4_general_ci CHARSET utf8mb4;
+--query_vertical SHOW CREATE DATABASE db5_utf8mb4_general_ci
+
+--echo #
+--echo # CREATE/ALTER TABLE
+--echo #
+
+CREATE TABLE db4_latin1.t1 (
+  c1 CHAR(1) CHARSET utf8mb4,
+  c2 CHAR(1) COLLATE utf8mb4_0900_ai_ci,
+  c3 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  c4 CHAR(1),
+  c5 CHAR(1) CHARSET latin1
+);
+--query_vertical SHOW CREATE TABLE db4_latin1.t1
+DROP TABLE db4_latin1.t1;
+
+
+--echo #
+
+CREATE TABLE t2 (
+  c1 CHAR(1) CHARSET utf8mb4,
+  c2 CHAR(1) COLLATE utf8mb4_0900_ai_ci,
+  c3 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  c4 CHAR(1),
+  c5 CHAR(1) CHARSET latin1
+);
+--query_vertical SHOW CREATE TABLE t2
+DROP TABLE t2;
+
+--echo #
+
+CREATE TABLE t3 (
+  c1 CHAR(1) CHARSET utf8mb4,
+  c2 CHAR(1) COLLATE utf8mb4_0900_ai_ci,
+  c3 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  c4 CHAR(1),
+  c5 CHAR(1) CHARSET latin1
+) CHARSET utf8mb4;
+--query_vertical SHOW CREATE TABLE t3
+DROP TABLE t3;
+
+--echo #
+
+CREATE TABLE t4 (
+  c1 CHAR(1) CHARSET utf8mb4,
+  c2 CHAR(1) COLLATE utf8mb4_0900_ai_ci,
+  c3 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  c4 CHAR(1),
+  c5 CHAR(1) CHARSET latin1
+) CHARSET latin1;
+--query_vertical SHOW CREATE TABLE t4
+DROP TABLE t4;
+
+--delimiter //
+
+--echo #
+--echo # CREATE/ALTER FUNCTION 
+--echo #
+
+CREATE FUNCTION db5_utf8mb4_general_ci.f1(
+  c1 CHAR(1) CHARSET utf8mb4,
+  c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  c3 CHAR(1),
+  c4 CHAR(1) CHARSET latin1)
+  RETURNS CHAR(246)
+BEGIN
+  DECLARE p1 CHAR(1) CHARSET utf8mb4;
+  DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+  DECLARE p3 CHAR(1);
+  DECLARE p4 CHAR(1) CHARSET latin1;
+  RETURN CONCAT('c1:', COLLATION(c1),
+                ' c2:', COLLATION(c2),
+                ' c3:', COLLATION(c3),
+                ' c4:', COLLATION(c4),
+                ' p1:', COLLATION(p1),
+                ' p2:', COLLATION(p2),
+                ' p3:', COLLATION(p3),
+                ' p4:', COLLATION(p4));
+END//
+--query_vertical SHOW CREATE FUNCTION db5_utf8mb4_general_ci.f1
+SELECT db5_utf8mb4_general_ci.f1('1', '2', '3', '4'),
+  COLLATION(db5_utf8mb4_general_ci.f1('1', '2', '3', '4'))//
+DROP FUNCTION db5_utf8mb4_general_ci.f1//
+
+--echo #
+
+CREATE FUNCTION f2(
+  c1 CHAR(1) CHARSET utf8mb4,
+  c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  c3 CHAR(1),
+  c4 CHAR(1) CHARSET latin1)
+  RETURNS CHAR(246)
+BEGIN
+  DECLARE p1 CHAR(1) CHARSET utf8mb4;
+  DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+  DECLARE p3 CHAR(1);
+  DECLARE p4 CHAR(1) CHARSET latin1;
+  RETURN CONCAT('c1:', COLLATION(c1),
+                ' c2:', COLLATION(c2),
+                ' c3:', COLLATION(c3),
+                ' c4:', COLLATION(c4),
+                ' p1:', COLLATION(p1),
+                ' p2:', COLLATION(p2),
+                ' p3:', COLLATION(p3),
+                ' p4:', COLLATION(p4));
+END//
+--query_vertical SHOW CREATE FUNCTION f2
+SELECT f2('1', '2', '3', '4'), COLLATION(f2('1', '2', '3', '4'))//
+DROP FUNCTION f2//
+
+--echo #
+
+CREATE FUNCTION f3(
+  c1 CHAR(1) CHARSET utf8mb4,
+  c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  c3 CHAR(1),
+  c4 CHAR(1) CHARSET latin1)
+  RETURNS CHAR(246)
+BEGIN
+  DECLARE p1 CHAR(1) CHARSET utf8mb4;
+  DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+  DECLARE p3 CHAR(1);
+  DECLARE p4 CHAR(1) CHARSET latin1;
+  RETURN CONCAT('c1:', COLLATION(c1),
+                ' c2:', COLLATION(c2),
+                ' c3:', COLLATION(c3),
+                ' c4:', COLLATION(c4),
+                ' p1:', COLLATION(p1),
+                ' p2:', COLLATION(p2),
+                ' p3:', COLLATION(p3),
+                ' p4:', COLLATION(p4));
+END//
+--query_vertical SHOW CREATE FUNCTION f3
+SELECT f3('1', '2', '3', '4'), COLLATION(f3('1', '2', '3', '4'))//
+DROP FUNCTION f3//
+
+--echo #
+
+CREATE FUNCTION f4(
+  c1 CHAR(1) CHARSET utf8mb4,
+  c2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  c3 CHAR(1),
+  c4 CHAR(1) CHARSET latin1)
+  RETURNS CHAR(246)
+BEGIN
+  DECLARE p1 CHAR(1) CHARSET utf8mb4;
+  DECLARE p2 CHAR(1) CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+  DECLARE p3 CHAR(1);
+  DECLARE p4 CHAR(1) CHARSET latin1;
+  RETURN CONCAT('c1:', COLLATION(c1),
+                ' c2:', COLLATION(c2),
+                ' c3:', COLLATION(c3),
+                ' c4:', COLLATION(c4),
+                ' p1:', COLLATION(p1),
+                ' p2:', COLLATION(p2),
+                ' p3:', COLLATION(p3),
+                ' p4:', COLLATION(p4));
+END//
+--query_vertical SHOW CREATE FUNCTION f4
+SELECT f4('1', '2', '3', '4'), COLLATION(f4('1', '2', '3', '4'))//
+DROP FUNCTION f4//
+
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--delimiter ;
+DROP DATABASE db4_latin1;
+DROP DATABASE db5_utf8mb4_general_ci;

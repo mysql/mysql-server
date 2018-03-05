@@ -133,6 +133,7 @@ InnoDB:
 #include <cstring>
 #include <limits>
 #include <map>
+#include <type_traits> /* std::is_trivially_default_constructible */
 
 #include "my_basename.h"
 #include "mysql/psi/mysql_memory.h"
@@ -142,6 +143,8 @@ InnoDB:
 #include "os0proc.h"
 #include "os0thread.h"
 #include "univ.i"
+#include "ut0byte.h"    /* ut_align */
+#include "ut0counter.h" /* INNOBASE_CACHE_LINE_SIZE */
 #include "ut0ut.h"
 
 #define OUT_OF_MEMORY_MSG                                             \
@@ -188,103 +191,204 @@ extern PSI_memory_key mem_key_ut_lock_free_hash_t;
 This must be called before the first call to UT_NEW(). */
 void ut_new_boot();
 
+/** Setup the internal objects needed for UT_NEW() to operate.
+This must be called before the first call to UT_NEW(). This
+version of function might be called several times and it will
+simply skip all calls except the first one, during which the
+initialization will happen. */
+void ut_new_boot_safe();
+
 #ifdef UNIV_PFS_MEMORY
 
 /** List of filenames that allocate memory and are instrumented via PFS. */
 static constexpr const char *auto_event_names[] = {
     /* Keep this list alphabetically sorted. */
-    "api0api",       "api0misc",
-    "btr0btr",       "btr0bulk",
-    "btr0cur",       "btr0pcur",
-    "btr0sea",       "btr0types",
-    "buf",           "buf0buddy",
-    "buf0buf",       "buf0checksum",
-    "buf0dblwr",     "buf0dump",
-    "buf0flu",       "buf0lru",
-    "buf0rea",       "buf0stats",
-    "buf0types",     "checksum",
-    "crc32",         "create",
-    "data0data",     "data0type",
-    "data0types",    "db0err",
-    "dict",          "dict0boot",
-    "dict0crea",     "dict0dict",
-    "dict0load",     "dict0mem",
-    "dict0priv",     "dict0sdi",
-    "dict0stats",    "dict0stats_bg",
-    "dict0types",    "dyn0buf",
-    "dyn0types",     "eval0eval",
-    "eval0proc",     "fil0fil",
-    "fil0types",     "file",
-    "fsp0file",      "fsp0fsp",
-    "fsp0space",     "fsp0sysspace",
-    "fsp0types",     "fts0ast",
-    "fts0blex",      "fts0config",
-    "fts0fts",       "fts0opt",
-    "fts0pars",      "fts0plugin",
-    "fts0priv",      "fts0que",
-    "fts0sql",       "fts0tlex",
-    "fts0tokenize",  "fts0types",
-    "fts0vlc",       "fut0fut",
-    "fut0lst",       "gis0geo",
-    "gis0rtree",     "gis0sea",
-    "gis0type",      "ha0ha",
-    "ha0storage",    "ha_innodb",
-    "ha_innopart",   "ha_prototypes",
-    "handler0alter", "hash0hash",
-    "i_s",           "ib0mutex",
-    "ibuf0ibuf",     "ibuf0types",
-    "lexyy",         "lob0lob",
-    "lock0iter",     "lock0lock",
-    "lock0prdt",     "lock0priv",
-    "lock0types",    "lock0wait",
-    "log0log",       "log0recv",
-    "log0types",     "mach0data",
-    "mem",           "mem0mem",
-    "memory",        "mtr0log",
-    "mtr0mtr",       "mtr0types",
-    "os0atomic",     "os0event",
-    "os0file",       "os0numa",
-    "os0once",       "os0proc",
-    "os0thread",     "page",
-    "page0cur",      "page0page",
-    "page0size",     "page0types",
-    "page0zip",      "pars0grm",
-    "pars0lex",      "pars0opt",
-    "pars0pars",     "pars0sym",
-    "pars0types",    "que0que",
-    "que0types",     "read0read",
-    "read0types",    "rec",
-    "rem0cmp",       "rem0rec",
-    "rem0types",     "row0ext",
-    "row0ftsort",    "row0import",
-    "row0ins",       "row0log",
-    "row0merge",     "row0mysql",
-    "row0purge",     "row0quiesce",
-    "row0row",       "row0sel",
-    "row0types",     "row0uins",
-    "row0umod",      "row0undo",
-    "row0upd",       "row0vers",
-    "sess0sess",     "srv0conc",
-    "srv0mon",       "srv0srv",
-    "srv0start",     "sync0arr",
-    "sync0debug",    "sync0policy",
-    "sync0rw",       "sync0sync",
-    "sync0types",    "trx0i_s",
-    "trx0purge",     "trx0rec",
-    "trx0roll",      "trx0rseg",
-    "trx0sys",       "trx0trx",
-    "trx0types",     "trx0undo",
-    "trx0xa",        "usr0sess",
-    "usr0types",     "ut",
-    "ut0byte",       "ut0counter",
-    "ut0crc32",      "ut0dbg",
-    "ut0list",       "ut0lock_free_hash",
-    "ut0lst",        "ut0mem",
-    "ut0mutex",      "ut0new",
-    "ut0pool",       "ut0rbt",
-    "ut0rnd",        "ut0sort",
-    "ut0stage",      "ut0ut",
-    "ut0vec",        "ut0wqueue",
+    "api0api",
+    "api0misc",
+    "btr0btr",
+    "btr0bulk",
+    "btr0cur",
+    "btr0pcur",
+    "btr0sea",
+    "btr0types",
+    "buf",
+    "buf0buddy",
+    "buf0buf",
+    "buf0checksum",
+    "buf0dblwr",
+    "buf0dump",
+    "buf0flu",
+    "buf0lru",
+    "buf0rea",
+    "buf0stats",
+    "buf0types",
+    "checksum",
+    "crc32",
+    "create",
+    "data0data",
+    "data0type",
+    "data0types",
+    "db0err",
+    "dict",
+    "dict0boot",
+    "dict0crea",
+    "dict0dict",
+    "dict0load",
+    "dict0mem",
+    "dict0priv",
+    "dict0sdi",
+    "dict0stats",
+    "dict0stats_bg",
+    "dict0types",
+    "dyn0buf",
+    "dyn0types",
+    "eval0eval",
+    "eval0proc",
+    "fil0fil",
+    "fil0types",
+    "file",
+    "fsp0file",
+    "fsp0fsp",
+    "fsp0space",
+    "fsp0sysspace",
+    "fsp0types",
+    "fts0ast",
+    "fts0blex",
+    "fts0config",
+    "fts0fts",
+    "fts0opt",
+    "fts0pars",
+    "fts0plugin",
+    "fts0priv",
+    "fts0que",
+    "fts0sql",
+    "fts0tlex",
+    "fts0tokenize",
+    "fts0types",
+    "fts0vlc",
+    "fut0fut",
+    "fut0lst",
+    "gis0geo",
+    "gis0rtree",
+    "gis0sea",
+    "gis0type",
+    "ha0ha",
+    "ha0storage",
+    "ha_innodb",
+    "ha_innopart",
+    "ha_prototypes",
+    "handler0alter",
+    "hash0hash",
+    "i_s",
+    "ib0mutex",
+    "ibuf0ibuf",
+    "ibuf0types",
+    "lexyy",
+    "lob0lob",
+    "lock0iter",
+    "lock0lock",
+    "lock0prdt",
+    "lock0priv",
+    "lock0types",
+    "lock0wait",
+    "log0log",
+    "log0recv",
+    "log0write",
+    "mach0data",
+    "mem",
+    "mem0mem",
+    "memory",
+    "mtr0log",
+    "mtr0mtr",
+    "mtr0types",
+    "os0atomic",
+    "os0event",
+    "os0file",
+    "os0numa",
+    "os0once",
+    "os0proc",
+    "os0thread",
+    "page",
+    "page0cur",
+    "page0page",
+    "page0size",
+    "page0types",
+    "page0zip",
+    "pars0grm",
+    "pars0lex",
+    "pars0opt",
+    "pars0pars",
+    "pars0sym",
+    "pars0types",
+    "que0que",
+    "que0types",
+    "read0read",
+    "read0types",
+    "rec",
+    "rem0cmp",
+    "rem0rec",
+    "rem0types",
+    "row0ext",
+    "row0ftsort",
+    "row0import",
+    "row0ins",
+    "row0log",
+    "row0merge",
+    "row0mysql",
+    "row0purge",
+    "row0quiesce",
+    "row0row",
+    "row0sel",
+    "row0types",
+    "row0uins",
+    "row0umod",
+    "row0undo",
+    "row0upd",
+    "row0vers",
+    "sess0sess",
+    "srv0conc",
+    "srv0mon",
+    "srv0srv",
+    "srv0start",
+    "sync0arr",
+    "sync0debug",
+    "sync0policy",
+    "sync0sharded_rw",
+    "sync0rw",
+    "sync0sync",
+    "sync0types",
+    "trx0i_s",
+    "trx0purge",
+    "trx0rec",
+    "trx0roll",
+    "trx0rseg",
+    "trx0sys",
+    "trx0trx",
+    "trx0types",
+    "trx0undo",
+    "trx0xa",
+    "usr0sess",
+    "usr0types",
+    "ut",
+    "ut0byte",
+    "ut0counter",
+    "ut0crc32",
+    "ut0dbg",
+    "ut0link_buf",
+    "ut0list",
+    "ut0lock_free_hash",
+    "ut0lst",
+    "ut0mem",
+    "ut0mutex",
+    "ut0new",
+    "ut0pool",
+    "ut0rbt",
+    "ut0rnd",
+    "ut0sort",
+    "ut0stage",
+    "ut0ut",
+    "ut0vec",
+    "ut0wqueue",
     "zipdecompress",
 };
 
@@ -630,12 +734,15 @@ class ut_allocator {
   /** Allocate, trace the allocation and construct 'n_elements' objects
   of type 'T'. If the allocation fails or if some of the constructors
   throws an exception, then this method will return NULL. It does not
-  throw exceptions. After successfull completion the returned pointer
+  throw exceptions. After successful completion the returned pointer
   must be passed to delete_array() when no longer needed.
   @param[in]	n_elements	number of elements to allocate
   @param[in]	key		Performance schema key to allocate under
   @return pointer to the first allocated object or NULL */
   pointer new_array(size_type n_elements, PSI_memory_key key) {
+    static_assert(std::is_default_constructible<T>::value,
+                  "Array element type must be default-constructible");
+
     T *p = allocate(n_elements, NULL, key, false, false);
 
     if (p == NULL) {
@@ -802,7 +909,7 @@ For example: instead of
 use:
         Foo*	f = UT_NEW(Foo(args), mem_key_some);
 Upon failure to allocate the memory, this macro may return NULL. It
-will not throw exceptions. After successfull allocation the returned
+will not throw exceptions. After successful allocation the returned
 pointer must be passed to UT_DELETE() when no longer needed.
 @param[in]	expr	any expression that could follow "new"
 @param[in]	key	performance schema memory tracing key
@@ -822,7 +929,7 @@ For example: instead of
 use:
         Foo*	f = UT_NEW_NOKEY(Foo(args));
 Upon failure to allocate the memory, this macro may return NULL. It
-will not throw exceptions. After successfull allocation the returned
+will not throw exceptions. After successful allocation the returned
 pointer must be passed to UT_DELETE() when no longer needed.
 @param[in]	expr	any expression that could follow "new"
 @return pointer to the created object or NULL */
@@ -831,7 +938,7 @@ pointer must be passed to UT_DELETE() when no longer needed.
 /** Destroy, deallocate and trace the deallocation of an object created by
 UT_NEW() or UT_NEW_NOKEY().
 We can't instantiate ut_allocator without having the type of the object, thus
-we redirect this to a templated function. */
+we redirect this to a template function. */
 #define UT_DELETE(ptr) ut_delete(ptr)
 
 /** Destroy and account object created by UT_NEW() or UT_NEW_NOKEY().
@@ -870,7 +977,7 @@ instead of UT_NEW_ARRAY() when it is not feasible to create a dedicated key.
 /** Destroy, deallocate and trace the deallocation of an array created by
 UT_NEW_ARRAY() or UT_NEW_ARRAY_NOKEY().
 We can't instantiate ut_allocator without having the type of the object, thus
-we redirect this to a templated function. */
+we redirect this to a template function. */
 #define UT_DELETE_ARRAY(ptr) ut_delete_array(ptr)
 
 /** Destroy and account objects created by UT_NEW_ARRAY() or
@@ -944,5 +1051,142 @@ inline void ut_delete_array(T *ptr) {
 #define ut_free(ptr) ::free(ptr)
 
 #endif /* UNIV_PFS_MEMORY */
+
+/** This is a forward declaration, which is because of the circular dependency
+between ut0new.h and ut0byte.h (going through univ.i and sync0types.h).
+I've managed to observe problem when building MEB and this helps then. */
+UNIV_INLINE
+void *ut_align(const void *ptr, ulint align_no);
+
+/** Abstract class to manage an object that is aligned to specified number of
+bytes.
+@tparam	T_Type		type of the object that is going to be managed
+@tparam T_Align_to	number of bytes to align to */
+template <typename T_Type, size_t T_Align_to>
+class aligned_memory {
+ public:
+  virtual ~aligned_memory() {
+    if (!this->is_object_empty()) {
+      this->free_memory();
+    }
+  }
+
+  virtual void destroy() = 0;
+
+  /** Allows casting to managed objects type to use it directly */
+  operator T_Type *() const {
+    ut_a(m_object != nullptr);
+    return m_object;
+  }
+
+  /** Allows referencing the managed object as this was a normal
+  pointer. */
+  T_Type *operator->() const {
+    ut_a(m_object != nullptr);
+    return m_object;
+  }
+
+ protected:
+  /** Checks if no object is currently being managed. */
+  bool is_object_empty() const { return m_object == nullptr; }
+
+  /** Allocates memory for a new object and prepares aligned address for
+  the object.
+  @param[in]	size	Number of bytes to be delivered for the aligned
+  object. Number of bytes actually allocated will be higher. */
+  T_Type *allocate(size_t size) {
+    static_assert(T_Align_to > 0, "Incorrect alignment parameter");
+    ut_a(m_memory == nullptr);
+    ut_a(m_object == nullptr);
+
+    m_memory = ut_zalloc_nokey(size + T_Align_to - 1);
+    m_object = static_cast<T_Type *>(::ut_align(m_memory, T_Align_to));
+    return m_object;
+  }
+
+  /** Releases memory used to store the object. */
+  void free_memory() {
+    ut_a(m_memory != nullptr);
+    ut_a(m_object != nullptr);
+
+    ut_free(m_memory);
+
+    m_memory = nullptr;
+    m_object = nullptr;
+  }
+
+ private:
+  /** Stores pointer to aligned object memory. */
+  T_Type *m_object = nullptr;
+
+  /** Stores pointer to memory used to allocate the object. */
+  void *m_memory = nullptr;
+};
+
+/** Manages an object that is aligned to specified number of bytes.
+@tparam	T_Type		type of the object that is going to be managed
+@tparam T_Align_to	number of bytes to align to */
+template <typename T_Type, size_t T_Align_to = INNOBASE_CACHE_LINE_SIZE>
+class aligned_pointer : public aligned_memory<T_Type, T_Align_to> {
+ public:
+  ~aligned_pointer() {
+    if (!this->is_object_empty()) {
+      this->destroy();
+    }
+  }
+
+  /** Allocates aligned memory for new object and constructs it there.
+  @param[in]	args	arguments to be passed to object constructor */
+  template <typename... T_Args>
+  void create(T_Args... args) {
+    new (this->allocate(sizeof(T_Type))) T_Type(std::forward(args)...);
+  }
+
+  /** Destroys the managed object and releases its memory. */
+  void destroy() {
+    (*this)->~T_Type();
+    this->free_memory();
+  }
+};
+
+/** Manages an array of objects. The first element is aligned to specified
+number of bytes.
+@tparam	T_Type		type of the object that is going to be managed
+@tparam T_Align_to	number of bytes to align to */
+template <typename T_Type, size_t T_Align_to = INNOBASE_CACHE_LINE_SIZE>
+class aligned_array_pointer : public aligned_memory<T_Type, T_Align_to> {
+ public:
+  /** Allocates aligned memory for new objects. Objects must be trivially
+  constructible and destructible.
+  @param[in]	size	Number of elements to allocate. */
+  void create(size_t size) {
+#if !(defined __GNUC__ && __GNUC__ <= 4)
+    static_assert(std::is_trivially_default_constructible<T_Type>::value,
+                  "Aligned array element type must be "
+                  "trivially default-constructible");
+#endif
+    m_size = size;
+    this->allocate(sizeof(T_Type) * m_size);
+  }
+
+  /** Deallocates memory of array created earlier. */
+  void destroy() {
+    static_assert(std::is_trivially_destructible<T_Type>::value,
+                  "Aligned array element type must be "
+                  "trivially destructible");
+    this->free_memory();
+  }
+
+  /** Accesses specified index in the allocated array.
+  @param[in]	index	index of element in array to get reference to */
+  T_Type &operator[](size_t index) const {
+    ut_a(index < m_size);
+    return ((T_Type *)*this)[index];
+  }
+
+ private:
+  /** Size of the allocated array. */
+  size_t m_size;
+};
 
 #endif /* ut0new_h */

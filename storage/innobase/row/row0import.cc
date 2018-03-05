@@ -291,7 +291,8 @@ class IndexPurge {
   IndexPurge(trx_t *trx, dict_index_t *index) UNIV_NOTHROW : m_trx(trx),
                                                              m_index(index),
                                                              m_n_rows(0) {
-    ib::info() << "Phase II - Purge records from index " << index->name;
+    ib::info(ER_IB_MSG_934)
+        << "Phase II - Purge records from index " << index->name;
   }
 
   /** Descructor */
@@ -514,18 +515,19 @@ dberr_t AbstractCallback::init(os_offset_t file_size,
   /* Set the page size used to traverse the tablespace. */
 
   if (!is_compressed_table() && !m_page_size.equals_to(univ_page_size)) {
-    ib::error() << "Page size " << m_page_size.physical()
-                << " of ibd file is not the same as the server page"
-                   " size "
-                << univ_page_size.physical();
+    ib::error(ER_IB_MSG_935)
+        << "Page size " << m_page_size.physical()
+        << " of ibd file is not the same as the server page"
+           " size "
+        << univ_page_size.physical();
 
     return (DB_CORRUPTION);
 
   } else if (file_size % m_page_size.physical() != 0) {
-    ib::error() << "File size " << file_size
-                << " is not a"
-                   " multiple of the page size "
-                << m_page_size.physical();
+    ib::error(ER_IB_MSG_936) << "File size " << file_size
+                             << " is not a"
+                                " multiple of the page size "
+                             << m_page_size.physical();
 
     return (DB_CORRUPTION);
   }
@@ -642,10 +644,11 @@ dberr_t FetchIndexRootPages::operator()(os_offset_t offset,
   ulint page_type = fil_page_get_type(page);
 
   if (block->page.id.page_no() * m_page_size.physical() != offset) {
-    ib::error() << "Page offset doesn't match file offset:"
-                   " page offset: "
-                << block->page.id.page_no()
-                << ", file offset: " << (offset / m_page_size.physical());
+    ib::error(ER_IB_MSG_937)
+        << "Page offset doesn't match file offset:"
+           " page offset: "
+        << block->page.id.page_no()
+        << ", file offset: " << (offset / m_page_size.physical());
 
     err = DB_CORRUPTION;
   } else if (page_type == FIL_PAGE_TYPE_XDES) {
@@ -682,7 +685,7 @@ dberr_t FetchIndexRootPages::build_row_import(row_import *cfg) const
   cfg->m_has_sdi = FSP_FLAGS_HAS_SDI(m_space_flags);
 
   if (cfg->m_n_indexes == 0) {
-    ib::error() << "No B+Tree found in tablespace";
+    ib::error(ER_IB_MSG_938) << "No B+Tree found in tablespace";
 
     return (DB_CORRUPTION);
   }
@@ -1285,10 +1288,11 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
 
   ulint num_indexes = UT_LIST_GET_LEN(m_table->indexes) + (m_has_sdi ? 1 : 0);
   if (num_indexes != m_n_indexes) {
-    ib::warn() << "Table " << m_table->name << " should have " << num_indexes
-               << " indexes but"
-                  " the tablespace has "
-               << m_n_indexes << " indexes";
+    ib::warn(ER_IB_MSG_939)
+        << "Table " << m_table->name << " should have " << num_indexes
+        << " indexes but"
+           " the tablespace has "
+        << m_n_indexes << " indexes";
   }
 
   dict_mutex_enter_for_mysql();
@@ -1331,7 +1335,7 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
        index = UT_LIST_GET_NEXT(indexes, index)) {
     if (index->type & DICT_FTS) {
       dict_set_corrupted(index);
-      ib::warn() << "Skipping FTS index: " << index->name;
+      ib::warn(ER_IB_MSG_940) << "Skipping FTS index: " << index->name;
     } else if (i < m_n_indexes) {
       UT_DELETE_ARRAY(cfg_index[i].m_name);
 
@@ -1645,12 +1649,6 @@ dberr_t PageConverter::update_records(buf_block_t *block) UNIV_NOTHROW {
   while (!m_rec_iter.end()) {
     rec_t *rec = m_rec_iter.current();
 
-    /* FIXME: Move out of the loop */
-
-    if (rec_get_status(rec) == REC_STATUS_NODE_PTR) {
-      break;
-    }
-
     ibool deleted = rec_get_deleted_flag(rec, comp);
 
     /* For the clustered index we have to adjust the BLOB
@@ -1742,6 +1740,10 @@ dberr_t PageConverter::update_index_page(buf_block_t *block) UNIV_NOTHROW {
     return (DB_SUCCESS);
   }
 
+  if (!page_is_leaf(block->frame)) {
+    return (DB_SUCCESS);
+  }
+
   return (update_records(block));
 }
 
@@ -1754,13 +1756,13 @@ dberr_t PageConverter::update_header(buf_block_t *block) UNIV_NOTHROW {
     case 0:
       return (DB_CORRUPTION);
     case SPACE_UNKNOWN:
-      ib::warn() << "Space id check in the header failed: ignored";
+      ib::warn(ER_IB_MSG_941) << "Space id check in the header failed: ignored";
   }
 
   ulint space_flags = fsp_header_get_flags(get_frame(block));
 
   if (!fsp_flags_is_valid(space_flags)) {
-    ib::error() << "Unsupported tablespace format " << space_flags;
+    ib::error(ER_IB_MSG_942) << "Unsupported tablespace format " << space_flags;
 
     return (DB_UNSUPPORTED);
   }
@@ -1891,7 +1893,7 @@ dberr_t PageConverter::update_page(buf_block_t *block,
       return (err);
   }
 
-  ib::warn() << "Unknown page type (" << page_type << ")";
+  ib::warn(ER_IB_MSG_943) << "Unknown page type (" << page_type << ")";
 
   return (DB_CORRUPTION);
 }
@@ -1983,9 +1985,9 @@ dberr_t PageConverter::operator()(os_offset_t offset,
 
     case IMPORT_PAGE_STATUS_CORRUPTED:
 
-      ib::warn() << "Page " << (offset / m_page_size.physical())
-                 << " at offset " << offset << " looks corrupted in file "
-                 << m_filepath;
+      ib::warn(ER_IB_MSG_944)
+          << "Page " << (offset / m_page_size.physical()) << " at offset "
+          << offset << " looks corrupted in file " << m_filepath;
 
       return (DB_CORRUPTION);
   }
@@ -2007,8 +2009,8 @@ static void row_import_discard_changes(
 
   prebuilt->trx->error_info = NULL;
 
-  ib::info() << "Discarding tablespace of table " << prebuilt->table->name
-             << ": " << ut_strerr(err);
+  ib::info(ER_IB_MSG_945) << "Discarding tablespace of table "
+                          << prebuilt->table->name << ": " << ut_strerr(err);
 
   if (trx->dict_operation_lock_mode != RW_X_LATCH) {
     ut_a(trx->dict_operation_lock_mode == 0);
@@ -2063,7 +2065,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_cleanup(
 
   DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
-  log_make_checkpoint_at(LSN_MAX, TRUE);
+  log_make_latest_checkpoint();
 
   return (err);
 }
@@ -2123,9 +2125,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
       err = btr_root_adjust_on_import(index);
     } else {
-      ib::warn() << "Skip adjustment of root pages for"
-                    " index "
-                 << index->name << ".";
+      ib::warn(ER_IB_MSG_946) << "Skip adjustment of root pages for"
+                                 " index "
+                              << index->name << ".";
 
       err = DB_CORRUPTION;
     }
@@ -2443,7 +2445,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR, errno,
                   strerror(errno), msg);
 
-      ib::error() << "IO Error: " << msg;
+      ib::error(ER_IB_MSG_947) << "IO Error: " << msg;
 
       return (DB_IO_ERROR);
     }
@@ -2758,8 +2760,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (err);
   }
 
-  ib::info() << "Importing tablespace for table '" << cfg->m_table_name
-             << "' that was exported from host '" << cfg->m_hostname << "'";
+  ib::info(ER_IB_MSG_948) << "Importing tablespace for table '"
+                          << cfg->m_table_name
+                          << "' that was exported from host '"
+                          << cfg->m_hostname << "'";
 
   byte row[sizeof(ib_uint32_t) * 3];
 
@@ -3253,7 +3257,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
 
   prebuilt->trx->op_info = "importing tablespace";
 
-  ib::info() << "Phase I - Update all pages";
+  ib::info(ER_IB_MSG_949) << "Phase I - Update all pages";
 
   /* Iterate over all the pages and do the sanity checking and
   the conversion required to import the tablespace. */
@@ -3447,7 +3451,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   }
   fil_space_release(space);
 
-  ib::info() << "Phase III - Flush changes to disk";
+  ib::info(ER_IB_MSG_950) << "Phase III - Flush changes to disk";
 
   /* Ensure that all pages dirtied during the IMPORT make it to disk.
   The only dirty pages generated should be from the pessimistic purge
@@ -3457,11 +3461,11 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
                                 trx);
 
   if (trx_is_interrupted(trx)) {
-    ib::info() << "Phase III - Flush interrupted";
+    ib::info(ER_IB_MSG_951) << "Phase III - Flush interrupted";
     return (row_import_error(prebuilt, trx, DB_INTERRUPTED));
   }
 
-  ib::info() << "Phase IV - Flush complete";
+  ib::info(ER_IB_MSG_952) << "Phase IV - Flush complete";
   fil_space_set_imported(prebuilt->table->space);
 
   /* Check if the on-disk .ibd file doesn't have SDI index.
@@ -3531,7 +3535,7 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   /* Set autoinc value read from cfg file. The value is set to zero
   if the cfg file is missing and is initialized later from table
   column value. */
-  ib::info() << table->name << " autoinc value set to " << autoinc;
+  ib::info(ER_IB_MSG_953) << table->name << " autoinc value set to " << autoinc;
 
   dict_table_autoinc_lock(table);
   dict_table_autoinc_initialize(table, autoinc);

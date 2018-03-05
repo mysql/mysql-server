@@ -33,8 +33,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef buf0buf_h
 #define buf0buf_h
 
-#include <ostream>
-#include "buf/buf.h"
 #include "buf0types.h"
 #include "fil0fil.h"
 #include "hash0hash.h"
@@ -46,6 +44,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "univ.i"
 #include "ut0byte.h"
 #include "ut0rbt.h"
+
+#include "buf/buf.h"
+
+#include <ostream>
 
 // Forward declaration
 struct fil_addr_t;
@@ -222,12 +224,14 @@ struct buf_pools_list_size_t {
 
 #ifndef UNIV_HOTBACKUP
 /** Creates the buffer pool.
- @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
-dberr_t buf_pool_init(ulint size, /*!< in: Size of the total pool in bytes */
-                      ulint n_instances); /*!< in: Number of instances */
+@param[in]  total_size    Size of the total pool in bytes.
+@param[in]  n_instances   Number of buffer pool instances to create.
+@return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
+dberr_t buf_pool_init(ulint total_size, ulint n_instances);
+
 /** Frees the buffer pool at shutdown.  This must not be invoked before
  freeing all mutexes. */
-void buf_pool_free(ulint n_instances); /*!< in: numbere of instances to free */
+void buf_pool_free_all();
 
 /** Determines if a block is intended to be withdrawn.
 @param[in]	buf_pool	buffer pool instance
@@ -257,10 +261,55 @@ ulint buf_pool_get_curr_size(void);
 UNIV_INLINE
 ulint buf_pool_get_n_pages(void);
 #endif /* !UNIV_HOTBACKUP */
-/** Gets the smallest oldest_modification lsn for any page in the pool. Returns
- zero if all modified pages have been flushed to disk.
- @return oldest modification in pool, zero if none */
-lsn_t buf_pool_get_oldest_modification(void);
+
+/** Gets the smallest oldest_modification lsn among all of the earliest
+added pages in flush lists. In other words - takes the last dirty page
+from each flush list, and calculates minimum oldest_modification among
+all of them. Does not acquire global lock for the whole process, so the
+result might come from inconsistent view on flush lists.
+
+@note Note that because of the relaxed order in each flush list, this
+functions no longer returns the smallest oldest_modification among all
+of the dirty pages. If you wanted to have a safe lsn, which is smaller
+than every oldest_modification, you would need to use another function:
+        buf_pool_get_oldest_modification_lwm().
+
+Returns zero if there were no dirty pages (flush lists were empty).
+
+@return minimum oldest_modification of last pages from flush lists,
+        zero if flush lists were empty */
+lsn_t buf_pool_get_oldest_modification_approx(void);
+
+/** Gets a safe low watermark for oldest_modification. It's guaranteed
+that there were no dirty pages with smaller oldest_modification in the
+whole flush lists.
+
+Returns zero if flush lists were empty, be careful in such case, because
+taking the newest lsn is probably not a good idea. If you wanted to rely
+on some lsn in such case, you would need to follow pattern:
+
+        dpa_lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
+
+        lwm_lsn = buf_pool_get_oldest_modification_lwm();
+
+        if (lwm_lsn == 0) lwm_lsn = dpa_lsn;
+
+The order is important to avoid race conditions.
+
+@remarks
+It's guaranteed that the returned value will not be smaller than the
+last checkpoint lsn. It's not guaranteed that the returned value is
+the maximum possible. It's just the best effort for the low cost.
+It basically takes result of buf_pool_get_oldest_modification_approx()
+and subtracts maximum possible lag introduced by relaxed order in
+flush lists (srv_log_recent_closed_size).
+
+@return	safe low watermark for oldest_modification of dirty pages,
+        or zero if flush lists were empty; if non-zero, it is then
+        guaranteed not to be at block boundary (and it points to lsn
+        inside data fragment of block) */
+lsn_t buf_pool_get_oldest_modification_lwm(void);
+
 #ifndef UNIV_HOTBACKUP
 
 /** Allocates a buf_page_t descriptor. This function must succeed. In case
@@ -640,9 +689,9 @@ database pages in the buffer pool.
 double buf_get_modified_ratio_pct(void);
 /** Refresh the statistics used to print per-second averages. */
 void buf_refresh_io_stats_all();
-/** Assert that all file pages in the buffer are in a replaceable state.
-@return true */
-ibool buf_all_freed(void);
+
+/** Assert that all file pages in the buffer are in a replaceable state. */
+void buf_must_be_all_freed(void);
 
 /** Checks that there currently are no pending i/o-operations for the buffer
 pool.
@@ -2013,4 +2062,4 @@ struct CheckUnzipLRUAndLRUList {
 
 #include "buf0buf.ic"
 
-#endif
+#endif /* !buf0buf_h */

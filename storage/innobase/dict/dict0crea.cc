@@ -156,7 +156,8 @@ dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace) {
   bool ret = fsp_header_init(space, FIL_IBD_FILE_INITIAL_SIZE, &mtr, false);
   mtr_commit(&mtr);
 
-  DBUG_EXECUTE_IF("fil_ibd_create_log", log_write_up_to(mtr.commit_lsn(), true);
+  DBUG_EXECUTE_IF("fil_ibd_create_log",
+                  log_write_up_to(*log_sys, mtr.commit_lsn(), true);
                   DBUG_SUICIDE(););
 
   if (!ret) {
@@ -264,7 +265,7 @@ dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx) {
     mtr_commit(&mtr);
 
     DBUG_EXECUTE_IF("fil_ibd_create_log",
-                    log_write_up_to(mtr.commit_lsn(), true);
+                    log_write_up_to(*log_sys, mtr.commit_lsn(), true);
                     DBUG_SUICIDE(););
 
     if (!ret) {

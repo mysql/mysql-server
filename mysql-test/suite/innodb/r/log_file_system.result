@@ -1,4 +1,4 @@
-call mtr.add_suppression("InnoDB: File '.*tablespaces.open..*' size is 0 bytes. Must be at least 12 bytes");
+call mtr.add_suppression("File '.*tablespaces.open..*' size is 0 bytes. Must be at least 12 bytes");
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 # Kill the server
 # Fault 1: Extra file in innodb_data_file_path

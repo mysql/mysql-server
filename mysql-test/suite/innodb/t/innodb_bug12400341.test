@@ -7,7 +7,7 @@
 --source include/not_valgrind.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot find a free slot for an undo log. Do you have too many active transactions");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot find a free slot for an undo log. Do you have too many active transactions");
 
 set @old_innodb_trx_rseg_n_slots_debug = @@innodb_trx_rseg_n_slots_debug;
 set global innodb_trx_rseg_n_slots_debug = 5;

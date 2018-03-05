@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "os0file.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
+#include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -310,11 +311,12 @@ struct Slot {
   os_offset_t offset{0};
 
   /** file where to read or write */
+  pfs_os_file_t file{
 #ifdef UNIV_PFS_IO
-  pfs_os_file_t file{0, nullptr};
-#else
-  pfs_os_file_t file{0};
-#endif /* UNIV_PFS_IO */
+      nullptr,  // m_psi
+#endif
+      0  // m_file
+  };
 
   /** file name or path */
   const char *name{nullptr};
@@ -902,37 +904,37 @@ static bool os_file_can_delete(const char *name) {
 
     case OS_FILE_TYPE_DIR:
 
-      ib::warn() << "'" << name << "'"
-                 << " is a directory, can't delete!";
+      ib::warn(ER_IB_MSG_743) << "'" << name << "'"
+                              << " is a directory, can't delete!";
       break;
 
     case OS_FILE_TYPE_BLOCK:
 
-      ib::warn() << "'" << name << "'"
-                 << " is a block device, can't delete!";
+      ib::warn(ER_IB_MSG_744) << "'" << name << "'"
+                              << " is a block device, can't delete!";
       break;
 
     case OS_FILE_TYPE_FAILED:
 
-      ib::warn() << "'" << name << "'"
-                 << " get file type failed, won't delete!";
+      ib::warn(ER_IB_MSG_745) << "'" << name << "'"
+                              << " get file type failed, won't delete!";
       break;
 
     case OS_FILE_TYPE_UNKNOWN:
 
-      ib::warn() << "'" << name << "'"
-                 << " unknown file type, won't delete!";
+      ib::warn(ER_IB_MSG_746) << "'" << name << "'"
+                              << " unknown file type, won't delete!";
       break;
 
     case OS_FILE_TYPE_NAME_TOO_LONG:
 
-      ib::warn() << "'" << name << "'"
-                 << " name too long, can't delete!";
+      ib::warn(ER_IB_MSG_747) << "'" << name << "'"
+                              << " name too long, can't delete!";
       break;
 
     case OS_FILE_PERMISSION_ERROR:
-      ib::warn() << "'" << name << "'"
-                 << " permission error, can't delete!";
+      ib::warn(ER_IB_MSG_748) << "'" << name << "'"
+                              << " permission error, can't delete!";
       break;
 
     case OS_FILE_TYPE_MISSING:
@@ -1497,12 +1499,13 @@ static int os_file_lock(int fd, const char *name) {
   lk.l_start = lk.l_len = 0;
 
   if (fcntl(fd, F_SETLK, &lk) == -1) {
-    ib::error() << "Unable to lock " << name << " error: " << errno;
+    ib::error(ER_IB_MSG_749)
+        << "Unable to lock " << name << " error: " << errno;
 
     if (errno == EAGAIN || errno == EACCES) {
-      ib::info() << "Check that you do not already have"
-                    " another mysqld process using the"
-                    " same InnoDB data or log files.";
+      ib::info(ER_IB_MSG_750) << "Check that you do not already have"
+                                 " another mysqld process using the"
+                                 " same InnoDB data or log files.";
     }
 
     return (-1);
@@ -1615,7 +1618,8 @@ FILE *os_file_create_tmpfile(const char *path) {
   }
 
   if (file == NULL) {
-    ib::error() << "Unable to create temporary file; errno: " << errno;
+    ib::error(ER_IB_MSG_751)
+        << "Unable to create temporary file; errno: " << errno;
 
     if (fd >= 0) {
       close(fd);
@@ -1806,8 +1810,9 @@ void test_os_file_get_parent_dir(const char *child_dir,
   bool unexpected =
       (expected == NULL ? (parent != NULL) : (0 != strcmp(parent, expected)));
   if (unexpected) {
-    ib::fatal() << "os_file_get_parent_dir('" << child << "') returned '"
-                << parent << "', instead of '" << expected << "'.";
+    ib::fatal(ER_IB_MSG_752)
+        << "os_file_get_parent_dir('" << child << "') returned '" << parent
+        << "', instead of '" << expected << "'.";
   }
   ut_free(parent);
   ut_free(child);
@@ -1848,8 +1853,8 @@ void unit_test_os_file_get_parent_dir() {
 @return DB_SUCCESS if OK, otherwise error code. */
 dberr_t os_file_create_subdirs_if_needed(const char *path) {
   if (srv_read_only_mode) {
-    ib::error() << "read only mode set. Can't create "
-                << "subdirectories '" << path << "'";
+    ib::error(ER_IB_MSG_753) << "read only mode set. Can't create "
+                             << "subdirectories '" << path << "'";
 
     return (DB_READ_ONLY);
   }
@@ -2061,9 +2066,10 @@ static dberr_t os_file_punch_hole_posix(os_file_t fh, os_offset_t off,
     return (DB_IO_NO_PUNCH_HOLE);
   }
 
-  ib::warn() << "fallocate(" << fh
-             << ", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, " << off << ", "
-             << len << ") returned errno: " << errno;
+  ib::warn(ER_IB_MSG_754) << "fallocate(" << fh
+                          << ", FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE, "
+                          << off << ", " << len
+                          << ") returned errno: " << errno;
 
   return (DB_IO_ERROR);
 
@@ -2385,7 +2391,8 @@ void LinuxAIOHandler::collect() {
     }
 
     /* All other errors should cause a trap for now. */
-    ib::fatal() << "Unexpected ret_code[" << ret << "] from io_getevents()!";
+    ib::fatal(ER_IB_MSG_755)
+        << "Unexpected ret_code[" << ret << "] from io_getevents()!";
 
     break;
   }
@@ -2452,11 +2459,11 @@ dberr_t LinuxAIOHandler::poll(fil_node_t **m1, void **m2, IORequest *request) {
 
   if (err == DB_IO_PARTIAL_FAILED) {
     /* Aborting in case of submit failure */
-    ib::fatal() << "Native Linux AIO interface. "
-                   "io_submit() call failed when "
-                   "resubmitting a partial I/O "
-                   "request on the file "
-                << slot->name << ".";
+    ib::fatal(ER_IB_MSG_756) << "Native Linux AIO interface. "
+                                "io_submit() call failed when "
+                                "resubmitting a partial I/O "
+                                "request on the file "
+                             << slot->name << ".";
   }
 
   *m1 = slot->m1;
@@ -2559,16 +2566,16 @@ bool AIO::linux_create_io_ctx(ulint max_events, io_context_t *io_ctx) {
       case -EAGAIN:
         if (n_retries == 0) {
           /* First time around. */
-          ib::warn() << "io_setup() failed with EAGAIN."
-                        " Will make "
-                     << OS_AIO_IO_SETUP_RETRY_ATTEMPTS
-                     << " attempts before giving up.";
+          ib::warn(ER_IB_MSG_757) << "io_setup() failed with EAGAIN."
+                                     " Will make "
+                                  << OS_AIO_IO_SETUP_RETRY_ATTEMPTS
+                                  << " attempts before giving up.";
         }
 
         if (n_retries < OS_AIO_IO_SETUP_RETRY_ATTEMPTS) {
           ++n_retries;
 
-          ib::warn() << "io_setup() attempt " << n_retries << ".";
+          ib::warn(ER_IB_MSG_758) << "io_setup() attempt " << n_retries << ".";
 
           os_thread_sleep(OS_AIO_IO_SETUP_RETRY_SLEEP);
 
@@ -2576,26 +2583,27 @@ bool AIO::linux_create_io_ctx(ulint max_events, io_context_t *io_ctx) {
         }
 
         /* Have tried enough. Better call it a day. */
-        ib::error() << "io_setup() failed with EAGAIN after "
-                    << OS_AIO_IO_SETUP_RETRY_ATTEMPTS << " attempts.";
+        ib::error(ER_IB_MSG_759)
+            << "io_setup() failed with EAGAIN after "
+            << OS_AIO_IO_SETUP_RETRY_ATTEMPTS << " attempts.";
         break;
 
       case -ENOSYS:
-        ib::error() << "Linux Native AIO interface"
-                       " is not supported on this platform. Please"
-                       " check your OS documentation and install"
-                       " appropriate binary of InnoDB.";
+        ib::error(ER_IB_MSG_760) << "Linux Native AIO interface"
+                                    " is not supported on this platform. Please"
+                                    " check your OS documentation and install"
+                                    " appropriate binary of InnoDB.";
 
         break;
 
       default:
-        ib::error() << "Linux Native AIO setup"
-                    << " returned following error[" << ret << "]";
+        ib::error(ER_IB_MSG_761) << "Linux Native AIO setup"
+                                 << " returned following error[" << ret << "]";
         break;
     }
 
-    ib::info() << "You can disable Linux Native AIO by"
-                  " setting innodb_use_native_aio = 0 in my.cnf";
+    ib::info(ER_IB_MSG_762) << "You can disable Linux Native AIO by"
+                               " setting innodb_use_native_aio = 0 in my.cnf";
 
     break;
   }
@@ -2623,8 +2631,8 @@ bool AIO::is_linux_native_aio_supported() {
     fd = innobase_mysql_tmpfile(NULL);
 
     if (fd < 0) {
-      ib::warn() << "Unable to create temp file to check"
-                    " native AIO support.";
+      ib::warn(ER_IB_MSG_763) << "Unable to create temp file to check"
+                                 " native AIO support.";
 
       return (false);
     }
@@ -2645,9 +2653,9 @@ bool AIO::is_linux_native_aio_supported() {
     fd = ::open(name, O_RDONLY);
 
     if (fd == -1) {
-      ib::warn() << "Unable to open"
-                 << " \"" << name << "\" to check native"
-                 << " AIO read support.";
+      ib::warn(ER_IB_MSG_764) << "Unable to open"
+                              << " \"" << name << "\" to check native"
+                              << " AIO read support.";
 
       return (false);
     }
@@ -2692,18 +2700,19 @@ bool AIO::is_linux_native_aio_supported() {
 
     case -EINVAL:
     case -ENOSYS:
-      ib::error() << "Linux Native AIO not supported. You can either"
-                     " move "
-                  << (srv_read_only_mode ? name : "tmpdir")
-                  << " to a file system that supports native"
-                     " AIO or you can set innodb_use_native_aio to"
-                     " FALSE to avoid this message.";
+      ib::error(ER_IB_MSG_765)
+          << "Linux Native AIO not supported. You can either"
+             " move "
+          << (srv_read_only_mode ? name : "tmpdir")
+          << " to a file system that supports native"
+             " AIO or you can set innodb_use_native_aio to"
+             " FALSE to avoid this message.";
 
       /* fall through. */
     default:
-      ib::error() << "Linux Native AIO check on "
-                  << (srv_read_only_mode ? name : "tmpdir") << "returned error["
-                  << -err << "]";
+      ib::error(ER_IB_MSG_766) << "Linux Native AIO check on "
+                               << (srv_read_only_mode ? name : "tmpdir")
+                               << "returned error[" << -err << "]";
   }
 
   return (false);
@@ -2730,32 +2739,32 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
 
   if (report_all_errors ||
       (err != ENOSPC && err != EEXIST && !on_error_silent)) {
-    ib::error() << "Operating system error number " << err
-                << " in a file operation.";
+    ib::error(ER_IB_MSG_767)
+        << "Operating system error number " << err << " in a file operation.";
 
     if (err == ENOENT) {
-      ib::error() << "The error means the system"
-                     " cannot find the path specified.";
+      ib::error(ER_IB_MSG_768) << "The error means the system"
+                                  " cannot find the path specified.";
 
 #ifndef UNIV_HOTBACKUP
       if (srv_is_being_started) {
-        ib::error() << "If you are installing InnoDB,"
-                       " remember that you must create"
-                       " directories yourself, InnoDB"
-                       " does not create them.";
+        ib::error(ER_IB_MSG_769) << "If you are installing InnoDB,"
+                                    " remember that you must create"
+                                    " directories yourself, InnoDB"
+                                    " does not create them.";
       }
 #endif /* !UNIV_HOTBACKUP */
     } else if (err == EACCES) {
-      ib::error() << "The error means mysqld does not have"
-                     " the access rights to the directory.";
+      ib::error(ER_IB_MSG_770) << "The error means mysqld does not have"
+                                  " the access rights to the directory.";
 
     } else {
       if (strerror(err) != NULL) {
-        ib::error() << "Error number " << err << " means '" << strerror(err)
-                    << "'";
+        ib::error(ER_IB_MSG_771)
+            << "Error number " << err << " means '" << strerror(err) << "'";
       }
 
-      ib::info() << OPERATING_SYSTEM_ERROR_MSG;
+      ib::info(ER_IB_MSG_772) << OPERATING_SYSTEM_ERROR_MSG;
     }
   }
 
@@ -2812,8 +2821,8 @@ static int os_file_fsync_posix(os_file_t file) {
         ut_a(failures < 1000);
 
         if (!(failures % 100)) {
-          ib::warn() << "fsync(): "
-                     << "No locks available; retrying";
+          ib::warn(ER_IB_MSG_773) << "fsync(): "
+                                  << "No locks available; retrying";
         }
 
         /* 0.2 sec */
@@ -2826,10 +2835,10 @@ static int os_file_fsync_posix(os_file_t file) {
         ut_a(failures < 1000);
 
         if (!(failures % 100)) {
-          ib::warn() << "fsync(): "
-                     << "An error occurred during "
-                     << "synchronization,"
-                     << " retrying";
+          ib::warn(ER_IB_MSG_774) << "fsync(): "
+                                  << "An error occurred during "
+                                  << "synchronization,"
+                                  << " retrying";
         }
 
         /* 0.2 sec */
@@ -2933,7 +2942,7 @@ bool os_file_flush_func(os_file_t file) {
     return (true);
   }
 
-  ib::error() << "The OS said file flush did not succeed";
+  ib::error(ER_IB_MSG_775) << "The OS said file flush did not succeed";
 
   os_file_handle_error(NULL, "flush");
 
@@ -2992,7 +3001,8 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
 
     if (err != DB_SUCCESS) {
       *success = false;
-      ib::error() << "Unable to create subdirectories '" << name << "'";
+      ib::error(ER_IB_MSG_776)
+          << "Unable to create subdirectories '" << name << "'";
 
       return (OS_FILE_CLOSED);
     }
@@ -3000,8 +3010,8 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
     create_flag = O_RDWR | O_CREAT | O_EXCL;
     create_mode = OS_FILE_CREATE;
   } else {
-    ib::error() << "Unknown file create mode (" << create_mode << " for file '"
-                << name << "'";
+    ib::error(ER_IB_MSG_777) << "Unknown file create mode (" << create_mode
+                             << " for file '" << name << "'";
 
     return (OS_FILE_CLOSED);
   }
@@ -3159,7 +3169,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
     if (err != DB_SUCCESS) {
       *success = false;
-      ib::error() << "Unable to create subdirectories '" << name << "'";
+      ib::error(ER_IB_MSG_778)
+          << "Unable to create subdirectories '" << name << "'";
 
       file.m_file = OS_FILE_CLOSED;
       return (file);
@@ -3169,8 +3180,9 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
     create_mode = OS_FILE_CREATE;
 
   } else {
-    ib::error() << "Unknown file create mode (" << create_mode << ")"
-                << " for file '" << name << "'";
+    ib::error(ER_IB_MSG_779)
+        << "Unknown file create mode (" << create_mode << ")"
+        << " for file '" << name << "'";
 
     file.m_file = OS_FILE_CLOSED;
     return (file);
@@ -3232,7 +3244,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   if (!read_only && *success && create_mode != OS_FILE_OPEN_RAW &&
       os_file_lock(file.m_file, name)) {
     if (create_mode == OS_FILE_OPEN_RETRY) {
-      ib::info() << "Retrying to lock the first data file";
+      ib::info(ER_IB_MSG_780) << "Retrying to lock the first data file";
 
       for (int i = 0; i < 100; i++) {
         os_thread_sleep(1000000);
@@ -3243,7 +3255,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
         }
       }
 
-      ib::info() << "Unable to open the first data file";
+      ib::info(ER_IB_MSG_781) << "Unable to open the first data file";
     }
 
     *success = false;
@@ -3302,8 +3314,8 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
     create_flag = O_RDWR | O_CREAT | O_EXCL;
 
   } else {
-    ib::error() << "Unknown file create mode " << create_mode << " for file '"
-                << name << "'";
+    ib::error(ER_IB_MSG_782) << "Unknown file create mode " << create_mode
+                             << " for file '" << name << "'";
     file.m_file = OS_FILE_CLOSED;
     return (file);
   }
@@ -3533,7 +3545,7 @@ static bool os_file_truncate_posix(const char *pathname, pfs_os_file_t file,
     retry = os_file_handle_error_no_exit(pathname, "truncate", false);
 
     if (retry) {
-      ib::warn() << "Truncate failed for '" << pathname << "'";
+      ib::warn(ER_IB_MSG_783) << "Truncate failed for '" << pathname << "'";
     }
   }
 
@@ -3581,8 +3593,8 @@ void Dir_Walker::walk_posix(const Path &basedir, Function &&f) {
     DIR *parent = opendir(current.m_path.c_str());
 
     if (parent == nullptr) {
-      ib::info() << "Failed to walk directory"
-                 << " '" << current.m_path << "'";
+      ib::info(ER_IB_MSG_784) << "Failed to walk directory"
+                              << " '" << current.m_path << "'";
 
       continue;
     }
@@ -3682,9 +3694,10 @@ static bool os_is_sparse_file_supported_win32(const char *filename) {
   BOOL result = GetVolumePathName(filename, volname, MAX_PATH);
 
   if (!result) {
-    ib::error() << "os_is_sparse_file_supported: "
-                << "Failed to get the volume path name for: " << filename
-                << "- OS error number " << GetLastError();
+    ib::error(ER_IB_MSG_785)
+        << "os_is_sparse_file_supported: "
+        << "Failed to get the volume path name for: " << filename
+        << "- OS error number " << GetLastError();
 
     return (false);
   }
@@ -3825,51 +3838,51 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
 
   if (report_all_errors || (!on_error_silent && err != ERROR_DISK_FULL &&
                             err != ERROR_FILE_EXISTS)) {
-    ib::error() << "Operating system error number " << err
-                << " in a file operation.";
+    ib::error(ER_IB_MSG_786)
+        << "Operating system error number " << err << " in a file operation.";
 
     if (err == ERROR_PATH_NOT_FOUND) {
-      ib::error() << "The error means the system"
-                     " cannot find the path specified.";
+      ib::error(ER_IB_MSG_787) << "The error means the system"
+                                  " cannot find the path specified.";
 
 #ifndef UNIV_HOTBACKUP
       if (srv_is_being_started) {
-        ib::error() << "If you are installing InnoDB,"
-                       " remember that you must create"
-                       " directories yourself, InnoDB"
-                       " does not create them.";
+        ib::error(ER_IB_MSG_788) << "If you are installing InnoDB,"
+                                    " remember that you must create"
+                                    " directories yourself, InnoDB"
+                                    " does not create them.";
       }
 #endif /* !UNIV_HOTBACKUP */
 
     } else if (err == ERROR_ACCESS_DENIED) {
-      ib::error() << "The error means mysqld does not have"
-                     " the access rights to"
-                     " the directory. It may also be"
-                     " you have created a subdirectory"
-                     " of the same name as a data file.";
+      ib::error(ER_IB_MSG_789) << "The error means mysqld does not have"
+                                  " the access rights to"
+                                  " the directory. It may also be"
+                                  " you have created a subdirectory"
+                                  " of the same name as a data file.";
 
     } else if (err == ERROR_SHARING_VIOLATION || err == ERROR_LOCK_VIOLATION) {
-      ib::error() << "The error means that another program"
-                     " is using InnoDB's files."
-                     " This might be a backup or antivirus"
-                     " software or another instance"
-                     " of MySQL."
-                     " Please close it to get rid of this error.";
+      ib::error(ER_IB_MSG_790) << "The error means that another program"
+                                  " is using InnoDB's files."
+                                  " This might be a backup or antivirus"
+                                  " software or another instance"
+                                  " of MySQL."
+                                  " Please close it to get rid of this error.";
 
     } else if (err == ERROR_WORKING_SET_QUOTA ||
                err == ERROR_NO_SYSTEM_RESOURCES) {
-      ib::error() << "The error means that there are no"
-                     " sufficient system resources or quota to"
-                     " complete the operation.";
+      ib::error(ER_IB_MSG_791) << "The error means that there are no"
+                                  " sufficient system resources or quota to"
+                                  " complete the operation.";
 
     } else if (err == ERROR_OPERATION_ABORTED) {
-      ib::error() << "The error means that the I/O"
-                     " operation has been aborted"
-                     " because of either a thread exit"
-                     " or an application request."
-                     " Retry attempt is made.";
+      ib::error(ER_IB_MSG_792) << "The error means that the I/O"
+                                  " operation has been aborted"
+                                  " because of either a thread exit"
+                                  " or an application request."
+                                  " Retry attempt is made.";
     } else {
-      ib::info() << OPERATING_SYSTEM_ERROR_MSG;
+      ib::info(ER_IB_MSG_793) << OPERATING_SYSTEM_ERROR_MSG;
     }
   }
 
@@ -3936,7 +3949,8 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
 
     if (err != DB_SUCCESS) {
       *success = false;
-      ib::error() << "Unable to create subdirectories '" << name << "'";
+      ib::error(ER_IB_MSG_794)
+          << "Unable to create subdirectories '" << name << "'";
 
       return (OS_FILE_CLOSED);
     }
@@ -3945,8 +3959,8 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
     create_mode = OS_FILE_CREATE;
 
   } else {
-    ib::error() << "Unknown file create mode (" << create_mode << ") for file '"
-                << name << "'";
+    ib::error(ER_IB_MSG_795) << "Unknown file create mode (" << create_mode
+                             << ") for file '" << name << "'";
 
     return (OS_FILE_CLOSED);
   }
@@ -3961,10 +3975,10 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
     share_mode |= FILE_SHARE_DELETE | FILE_SHARE_WRITE;
 
   } else if (read_only) {
-    ib::info() << "Read only mode set. Unable to"
-                  " open file '"
-               << name << "' in RW mode, "
-               << "trying RO mode",
+    ib::info(ER_IB_MSG_796) << "Read only mode set. Unable to"
+                               " open file '"
+                            << name << "' in RW mode, "
+                            << "trying RO mode",
         name;
 
     access = GENERIC_READ;
@@ -3973,10 +3987,10 @@ os_file_t os_file_create_simple_func(const char *name, ulint create_mode,
     access = GENERIC_READ | GENERIC_WRITE;
 
   } else {
-    ib::error() << "Unknown file access type (" << access_type
-                << ") "
-                   "for file '"
-                << name << "'";
+    ib::error(ER_IB_MSG_797) << "Unknown file access type (" << access_type
+                             << ") "
+                                "for file '"
+                             << name << "'";
 
     return (OS_FILE_CLOSED);
   }
@@ -4149,7 +4163,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
     if (err != DB_SUCCESS) {
       *success = false;
-      ib::error() << "Unable to create subdirectories '" << name << "'";
+      ib::error(ER_IB_MSG_798)
+          << "Unable to create subdirectories '" << name << "'";
 
       file.m_file = OS_FILE_CLOSED;
       return (file);
@@ -4159,8 +4174,9 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
     create_mode = OS_FILE_CREATE;
 
   } else {
-    ib::error() << "Unknown file create mode (" << create_mode << ") "
-                << " for file '" << name << "'";
+    ib::error(ER_IB_MSG_799)
+        << "Unknown file create mode (" << create_mode << ") "
+        << " for file '" << name << "'";
 
     file.m_file = OS_FILE_CLOSED;
     return (file);
@@ -4186,8 +4202,8 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
     /* Use default setting. */
 
   } else {
-    ib::error() << "Unknown purpose flag (" << purpose << ") "
-                << "while opening file '" << name << "'";
+    ib::error(ER_IB_MSG_800) << "Unknown purpose flag (" << purpose << ") "
+                             << "while opening file '" << name << "'";
 
     file.m_file = OS_FILE_CLOSED;
     return (file);
@@ -4197,10 +4213,9 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   // TODO: Create a bug, this looks wrong. The flush log
   // parameter is dynamic.
   if ((type == OS_BUFFERED_FILE) || (type == OS_CLONE_LOG_FILE) ||
-      (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2)) {
+      (type == OS_LOG_FILE)) {
     /* Do not use unbuffered i/o for the log files because
-    value 2 denotes that we do not flush the log at every
-    commit, but only once per second */
+    we write really a lot and we have log flusher for fsyncs. */
 
   } else if (srv_win_file_flush_method == SRV_WIN_IO_UNBUFFERED) {
     attributes |= FILE_FLAG_NO_BUFFERING;
@@ -4299,8 +4314,9 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
     create_flag = CREATE_NEW;
 
   } else {
-    ib::error() << "Unknown file create mode (" << create_mode << ") "
-                << " for file '" << name << "'";
+    ib::error(ER_IB_MSG_801)
+        << "Unknown file create mode (" << create_mode << ") "
+        << " for file '" << name << "'";
 
     file.m_file = OS_FILE_CLOSED;
     return (file);
@@ -4325,8 +4341,9 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
 
     share_mode |= FILE_SHARE_DELETE | FILE_SHARE_WRITE;
   } else {
-    ib::error() << "Unknown file access type (" << access_type << ") "
-                << "for file '" << name << "'";
+    ib::error(ER_IB_MSG_802)
+        << "Unknown file access type (" << access_type << ") "
+        << "for file '" << name << "'";
 
     file.m_file = OS_FILE_CLOSED;
     return (file);
@@ -4384,7 +4401,7 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
       /* Print error information */
       os_file_get_last_error(true);
 
-      ib::warn() << "Delete of file '" << name << "' failed.";
+      ib::warn(ER_IB_MSG_803) << "Delete of file '" << name << "' failed.";
     }
 
     /* Sleep for a second */
@@ -4425,9 +4442,9 @@ bool os_file_delete_func(const char *name) {
       /* print error information */
       os_file_get_last_error(true);
 
-      ib::warn() << "Cannot delete file '" << name
-                 << "'. Are you running mysqlbackup"
-                 << " to back up the file?";
+      ib::warn(ER_IB_MSG_804)
+          << "Cannot delete file '" << name << "'. Are you running mysqlbackup"
+          << " to back up the file?";
     }
 
     /* sleep for a second */
@@ -4529,7 +4546,8 @@ os_file_size_t os_file_get_size(const char *filename) {
       file_size.m_alloc_size |= low_size;
 
     } else {
-      ib::error() << "GetCompressedFileSize(" << filename << ", ..) failed.";
+      ib::error(ER_IB_MSG_805)
+          << "GetCompressedFileSize(" << filename << ", ..) failed.";
 
       file_size.m_alloc_size = (os_offset_t)-1;
     }
@@ -4603,9 +4621,10 @@ static dberr_t os_file_get_status_win32(const char *path,
     BOOL result = GetVolumePathName(path, volname, MAX_PATH);
 
     if (!result) {
-      ib::error() << "os_file_get_status_win32: "
-                  << "Failed to get the volume path name for: " << path
-                  << "- OS error number " << GetLastError();
+      ib::error(ER_IB_MSG_806)
+          << "os_file_get_status_win32: "
+          << "Failed to get the volume path name for: " << path
+          << "- OS error number " << GetLastError();
 
       return (DB_FAIL);
     }
@@ -4620,9 +4639,9 @@ static dberr_t os_file_get_status_win32(const char *path,
                          &numberOfFreeClusters, &totalNumberOfClusters);
 
     if (!result) {
-      ib::error() << "GetDiskFreeSpace(" << volname << ",...) "
-                  << "failed "
-                  << "- OS error number " << GetLastError();
+      ib::error(ER_IB_MSG_807) << "GetDiskFreeSpace(" << volname << ",...) "
+                               << "failed "
+                               << "- OS error number " << GetLastError();
 
       return (DB_FAIL);
     }
@@ -4755,11 +4774,11 @@ void Dir_Walker::walk_win32(const Path &basedir, Function &&f) {
 
   /* Check if the name is too long. */
   if (!SUCCEEDED(res)) {
-    ib::warn() << "StringCchLength() call failed!";
+    ib::warn(ER_IB_MSG_808) << "StringCchLength() call failed!";
     return;
 
   } else if (length > (MAX_PATH - 3)) {
-    ib::warn() << "Directory name too long: '" << basedir << "'";
+    ib::warn(ER_IB_MSG_809) << "Directory name too long: '" << basedir << "'";
     return;
   }
 
@@ -4789,8 +4808,8 @@ void Dir_Walker::walk_win32(const Path &basedir, Function &&f) {
     h = FindFirstFile(current.m_path.c_str(), &dirent);
 
     if (h == INVALID_HANDLE_VALUE) {
-      ib::info() << "Directory read failed:"
-                 << " '" << current.m_path << "' during scan";
+      ib::info(ER_IB_MSG_810) << "Directory read failed:"
+                              << " '" << current.m_path << "' during scan";
 
       continue;
     }
@@ -4826,8 +4845,8 @@ void Dir_Walker::walk_win32(const Path &basedir, Function &&f) {
     } while (FindNextFile(h, &dirent) != 0);
 
     if (GetLastError() != ERROR_NO_MORE_FILES) {
-      ib::error() << "Scanning '" << directory << "'"
-                  << " - FindNextFile(): returned error";
+      ib::error(ER_IB_MSG_811) << "Scanning '" << directory << "'"
+                               << " - FindNextFile(): returned error";
     }
 
     FindClose(h);
@@ -4925,9 +4944,10 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
     if (!type.is_partial_io_warning_disabled()) {
       const char *op = type.is_read() ? "read" : "written";
 
-      ib::warn() << n << " bytes should have been " << op << ". Only "
-                 << bytes_returned << " bytes " << op << ". Retrying"
-                 << " for the remaining bytes.";
+      ib::warn(ER_IB_MSG_812)
+          << n << " bytes should have been " << op << ". Only "
+          << bytes_returned << " bytes " << op << ". Retrying"
+          << " for the remaining bytes.";
     }
 
     /* Advance the offset and buffer by n_bytes */
@@ -4945,9 +4965,9 @@ static MY_ATTRIBUTE((warn_unused_result)) ssize_t
   *err = DB_IO_ERROR;
 
   if (!type.is_partial_io_warning_disabled()) {
-    ib::warn() << "Retry attempts for "
-               << (type.is_read() ? "reading" : "writing")
-               << " partial data failed.";
+    ib::warn(ER_IB_MSG_813)
+        << "Retry attempts for " << (type.is_read() ? "reading" : "writing")
+        << " partial data failed.";
   }
 
   return (bytes_returned);
@@ -4999,26 +5019,26 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   ssize_t n_bytes = os_file_pwrite(type, file, buf, n, offset, &err);
 
   if ((ulint)n_bytes != n && !os_has_said_disk_full) {
-    ib::error() << "Write to file " << name << " failed at offset " << offset
-                << ", " << n
-                << " bytes should have been written,"
-                   " only "
-                << n_bytes
-                << " were written."
-                   " Operating system error number "
-                << errno
-                << "."
-                   " Check that your OS and file system"
-                   " support files of this size."
-                   " Check also that the disk is not full"
-                   " or a disk quota exceeded.";
+    ib::error(ER_IB_MSG_814) << "Write to file " << name << " failed at offset "
+                             << offset << ", " << n
+                             << " bytes should have been written,"
+                                " only "
+                             << n_bytes
+                             << " were written."
+                                " Operating system error number "
+                             << errno
+                             << "."
+                                " Check that your OS and file system"
+                                " support files of this size."
+                                " Check also that the disk is not full"
+                                " or a disk quota exceeded.";
 
     if (strerror(errno) != NULL) {
-      ib::error() << "Error number " << errno << " means '" << strerror(errno)
-                  << "'";
+      ib::error(ER_IB_MSG_815)
+          << "Error number " << errno << " means '" << strerror(errno) << "'";
     }
 
-    ib::info() << OPERATING_SYSTEM_ERROR_MSG;
+    ib::info(ER_IB_MSG_816) << OPERATING_SYSTEM_ERROR_MSG;
 
     os_has_said_disk_full = true;
   }
@@ -5095,8 +5115,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       }
     }
 
-    ib::error() << "Tried to read " << n << " bytes at offset " << offset
-                << ", but was only able to read " << n_bytes;
+    ib::error(ER_IB_MSG_817)
+        << "Tried to read " << n << " bytes at offset " << offset
+        << ", but was only able to read " << n_bytes;
 
     if (exit_on_err) {
       if (!os_file_handle_error(NULL, "read")) {
@@ -5116,7 +5137,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     }
   }
 
-  ib::fatal() << "Cannot read from file. OS error number " << errno << ".";
+  ib::fatal(ER_IB_MSG_818) << "Cannot read from file. OS error number " << errno
+                           << ".";
 
   return (err);
 }
@@ -5161,10 +5183,12 @@ static MY_ATTRIBUTE((warn_unused_result)) bool os_file_handle_error_cond_exit(
       on_error_silent setting. */
 
       if (name) {
-        ib::error() << "Encountered a problem with file '" << name << "'";
+        ib::error(ER_IB_MSG_819)
+            << "Encountered a problem with file '" << name << "'";
       }
 
-      ib::error() << "Disk is full. Try to clean the disk to free space.";
+      ib::error(ER_IB_MSG_820)
+          << "Disk is full. Try to clean the disk to free space.";
 
       os_has_said_disk_full = true;
 
@@ -5202,20 +5226,20 @@ static MY_ATTRIBUTE((warn_unused_result)) bool os_file_handle_error_cond_exit(
       to the log. */
 
       if (should_exit || !on_error_silent) {
-        ib::error() << "File " << (name != NULL ? name : "(unknown)") << ": '"
-                    << operation
-                    << "'"
-                       " returned OS error "
-                    << err << "."
-                    << (should_exit ? " Cannot continue operation" : "");
+        ib::error(ER_IB_MSG_821)
+            << "File " << (name != NULL ? name : "(unknown)") << ": '"
+            << operation
+            << "'"
+               " returned OS error "
+            << err << "." << (should_exit ? " Cannot continue operation" : "");
       }
 
       if (should_exit) {
 #ifndef UNIV_HOTBACKUP
         srv_fatal_error();
 #else  /* !UNIV_HOTBACKUP */
-        ib::fatal() << "Internal error,"
-                    << " cannot continue operation.";
+        ib::fatal(ER_IB_MSG_822) << "Internal error,"
+                                 << " cannot continue operation.";
 #endif /* !UNIV_HOTBACKUP */
       }
   }
@@ -5258,10 +5282,11 @@ void os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
   if (directio(fd, DIRECTIO_ON) == -1) {
     int errno_save = errno;
 
-    ib::error() << "Failed to set DIRECTIO_ON on file " << file_name << "; "
-                << operation_name << ": " << strerror(errno_save)
-                << ","
-                   " continuing anyway.";
+    ib::error(ER_IB_MSG_823)
+        << "Failed to set DIRECTIO_ON on file " << file_name << "; "
+        << operation_name << ": " << strerror(errno_save)
+        << ","
+           " continuing anyway.";
   }
 #elif defined(O_DIRECT)
   if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
@@ -5271,13 +5296,14 @@ void os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
       if (!warning_message_printed) {
         warning_message_printed = true;
 #ifdef UNIV_LINUX
-        ib::warn() << "Failed to set O_DIRECT on file" << file_name << "; "
-                   << operation_name << ": " << strerror(errno_save)
-                   << ", "
-                      "continuing anyway. O_DIRECT is "
-                      "known to result in 'Invalid argument' "
-                      "on Linux on tmpfs, "
-                      "see MySQL Bug#26662.";
+        ib::warn(ER_IB_MSG_824)
+            << "Failed to set O_DIRECT on file" << file_name << "; "
+            << operation_name << ": " << strerror(errno_save)
+            << ", "
+               "continuing anyway. O_DIRECT is "
+               "known to result in 'Invalid argument' "
+               "on Linux on tmpfs, "
+               "see MySQL Bug#26662.";
 #else  /* UNIV_LINUX */
         goto short_warning;
 #endif /* UNIV_LINUX */
@@ -5286,9 +5312,9 @@ void os_file_set_nocache(int fd MY_ATTRIBUTE((unused)),
 #ifndef UNIV_LINUX
     short_warning:
 #endif
-      ib::warn() << "Failed to set O_DIRECT on file " << file_name << "; "
-                 << operation_name << " : " << strerror(errno_save)
-                 << ", continuing anyway.";
+      ib::warn(ER_IB_MSG_825) << "Failed to set O_DIRECT on file " << file_name
+                              << "; " << operation_name << " : "
+                              << strerror(errno_save) << ", continuing anyway.";
     }
   }
 #endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
@@ -5330,7 +5356,7 @@ bool os_file_set_size(const char *name, pfs_os_file_t file, os_offset_t offset,
   memset(buf, 0, buf_size);
 
   if (size >= (os_offset_t)100 << 20) {
-    ib::info() << "Progress in MB:";
+    ib::info(ER_IB_MSG_826) << "Progress in MB:";
   }
 
   os_offset_t current_size = offset;
@@ -5577,8 +5603,8 @@ dberr_t os_file_copy_func(os_file_t src_file, os_offset_t src_offset,
 
     if (ret_size == -1) {
       /* Fall through read/write path. */
-      ib::info() << "sendfile failed to copy data"
-                    " : trying read/write ";
+      ib::info(ER_IB_MSG_827) << "sendfile failed to copy data"
+                                 " : trying read/write ";
 
       use_sendfile = false;
       break;
@@ -5936,8 +5962,8 @@ failure will result in server refusing to start up.
 @return own: AIO array, NULL on failure */
 AIO *AIO::create(latch_id_t id, ulint n, ulint n_segments) {
   if ((n % n_segments)) {
-    ib::error() << "Maximum number of AIO operations must be "
-                << "divisible by number of segments";
+    ib::error(ER_IB_MSG_828) << "Maximum number of AIO operations must be "
+                             << "divisible by number of segments";
 
     return (NULL);
   }
@@ -5997,7 +6023,7 @@ bool AIO::start(ulint n_per_seg, ulint n_readers, ulint n_writers,
 #if defined(LINUX_NATIVE_AIO)
   /* Check if native aio is supported on this system and tmpfs */
   if (srv_use_native_aio && !is_linux_native_aio_supported()) {
-    ib::warn() << "Linux Native AIO disabled.";
+    ib::warn(ER_IB_MSG_829) << "Linux Native AIO disabled.";
 
     srv_use_native_aio = FALSE;
   }
@@ -6164,10 +6190,11 @@ void os_fusionio_get_sector_size() {
                         O_CREAT | O_TRUNC | O_WRONLY | O_DIRECT, S_IRWXU);
 
     if (check_file == -1) {
-      ib::error() << "Failed to create check sector file, errno:" << errno
-                  << " Please confirm O_DIRECT is"
-                  << " supported and remove the file " << check_file_name
-                  << " if it exists.";
+      ib::error(ER_IB_MSG_830)
+          << "Failed to create check sector file, errno:" << errno
+          << " Please confirm O_DIRECT is"
+          << " supported and remove the file " << check_file_name
+          << " if it exists.";
       ut_free(check_file_name);
       errno = 0;
       return;
@@ -7830,9 +7857,9 @@ void Encryption::create_master_key(byte **master_key) {
                      reinterpret_cast<void **>(master_key), &key_len);
 
   if (ret != 0 || *master_key == nullptr) {
-    ib::error() << "Encryption can't find master key,"
-                << " please check the keyring plugin is loaded."
-                << " ret=" << ret;
+    ib::error(ER_IB_MSG_831) << "Encryption can't find master key,"
+                             << " please check the keyring plugin is loaded."
+                             << " ret=" << ret;
 
     *master_key = nullptr;
   } else {
@@ -7887,8 +7914,8 @@ void Encryption::get_master_key(ulint master_key_id, char *srv_uuid,
   if (ret != 0) {
     *master_key = nullptr;
 
-    ib::error() << "Encryption can't find master key,"
-                << " please check the keyring plugin is loaded.";
+    ib::error(ER_IB_MSG_832) << "Encryption can't find master key,"
+                             << " please check the keyring plugin is loaded.";
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
@@ -7897,8 +7924,8 @@ void Encryption::get_master_key(ulint master_key_id, char *srv_uuid,
 
     ut_print_buf(msg, *master_key, key_len);
 
-    ib::info() << "Fetched master key: " << master_key_id << "{" << msg.str()
-               << "}";
+    ib::info(ER_IB_MSG_833)
+        << "Fetched master key: " << master_key_id << "{" << msg.str() << "}";
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 }
@@ -7950,7 +7977,8 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
 
       ut_print_buf(msg, *master_key, key_len);
 
-      ib::info() << "Generated new master key: {" << msg.str() << "}";
+      ib::info(ER_IB_MSG_834)
+          << "Generated new master key: {" << msg.str() << "}";
     }
 #endif /* UNIV_ENCRYPT_DEBUG */
   } else {
@@ -7984,16 +8012,16 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
 
       ut_print_buf(msg, *master_key, key_len);
 
-      ib::info() << "Fetched master key: " << *master_key_id << ": {"
-                 << msg.str() << "}";
+      ib::info(ER_IB_MSG_835) << "Fetched master key: " << *master_key_id
+                              << ": {" << msg.str() << "}";
     }
 #endif /* UNIV_ENCRYPT_DEBUG */
   }
 
   if (ret != 0) {
     *master_key = nullptr;
-    ib::error() << "Encryption can't find master key, please check"
-                << " the keyring plugin is loaded.";
+    ib::error(ER_IB_MSG_836) << "Encryption can't find master key, please check"
+                             << " the keyring plugin is loaded.";
   }
 
   if (key_type != nullptr) {
@@ -8215,8 +8243,8 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
       return (true);
     }
 
-    ib::error() << "Failed to decrypt encryption information,"
-                << " found unexpected version of it!";
+    ib::error(ER_IB_MSG_837) << "Failed to decrypt encryption information,"
+                             << " found unexpected version of it!";
     return (false);
   }
 
@@ -8237,7 +8265,8 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
 
     ut_print_buf_hex(msg, master_key, ENCRYPTION_KEY_LEN);
 
-    ib::info() << "Key ID: " << key_id << " hex: {" << msg.str() << "}";
+    ib::info(ER_IB_MSG_838)
+        << "Key ID: " << key_id << " hex: {" << msg.str() << "}";
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -8263,8 +8292,9 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   crc2 = ut_crc32(key_info, sizeof(key_info));
 
   if (crc1 != crc2) {
-    ib::error() << "Failed to decrypt encryption information,"
-                << " please check whether key file has been changed!";
+    ib::error(ER_IB_MSG_839)
+        << "Failed to decrypt encryption information,"
+        << " please check whether key file has been changed!";
 
     return (false);
   }
@@ -8281,13 +8311,13 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
 
     ut_print_buf_hex(msg, key, ENCRYPTION_KEY_LEN);
 
-    ib::info() << "Key: {" << msg.str() << "}";
+    ib::info(ER_IB_MSG_840) << "Key: {" << msg.str() << "}";
   }
   {
     std::ostringstream msg;
 
     ut_print_buf_hex(msg, iv, ENCRYPTION_KEY_LEN);
-    ib::info() << "IV: {" << msg.str() << "}";
+    ib::info(ER_IB_MSG_841) << "IV: {" << msg.str() << "}";
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -8336,8 +8366,9 @@ bool Encryption::encrypt_log_block(const IORequest &type, byte *src_ptr,
 
     ut_print_buf_hex(msg, src_ptr, OS_FILE_LOG_BLOCK_SIZE);
 
-    ib::info() << "Encrypting block: " << log_block_get_hdr_no(src_ptr) << "{"
-               << msg.str() << "}";
+    ib::info(ER_IB_MSG_842)
+        << "Encrypting block: " << log_block_get_hdr_no(src_ptr) << "{"
+        << msg.str() << "}";
   }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -8455,8 +8486,8 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
   while (src_ptr != src + src_len) {
     if (!encrypt_log_block(type, src_ptr, dst_ptr)) {
       *dst_len = src_len;
-      ib::error() << " Can't encrypt data of"
-                  << " redo log";
+      ib::error(ER_IB_MSG_843) << " Can't encrypt data of"
+                               << " redo log";
       return (src);
     }
 
@@ -8548,8 +8579,9 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
         ulint space_id =
             mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
         *dst_len = src_len;
-        ib::error() << " Can't encrypt data of page,"
-                    << " page no:" << page_no << " space id:" << space_id;
+        ib::error(ER_IB_MSG_844)
+            << " Can't encrypt data of page,"
+            << " page no:" << page_no << " space id:" << space_id;
         return (src);
       }
 
@@ -8575,8 +8607,9 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
           ulint space_id =
               mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
 
-          ib::error() << " Can't encrypt data of page,"
-                      << " page no:" << page_no << " space id:" << space_id;
+          ib::error(ER_IB_MSG_845)
+              << " Can't encrypt data of page,"
+              << " page no:" << page_no << " space id:" << space_id;
           *dst_len = src_len;
           return (src);
         }
@@ -8706,8 +8739,8 @@ dberr_t Encryption::decrypt_log_block(const IORequest &type, byte *src,
     }
 
     default:
-      ib::error() << "Encryption algorithm support missing: "
-                  << Encryption::to_string(m_type);
+      ib::error(ER_IB_MSG_846) << "Encryption algorithm support missing: "
+                               << Encryption::to_string(m_type);
       return (DB_UNSUPPORTED);
   }
 
@@ -8758,11 +8791,11 @@ dberr_t Encryption::decrypt_log(const IORequest &type, byte *src, ulint src_len,
 
       ut_print_buf_hex(msg, ptr, OS_FILE_LOG_BLOCK_SIZE);
 
-      ib::info() << "Decrypting block: " << log_block_get_hdr_no(ptr)
-                 << std::endl
-                 << "data={" << std::endl
-                 << msg.str << std::endl
-                 << "}";
+      ib::info(ER_IB_MSG_847)
+          << "Decrypting block: " << log_block_get_hdr_no(ptr) << std::endl
+          << "data={" << std::endl
+          << msg.str << std::endl
+          << "}";
     }
 #endif /* UNIV_ENCRYPT_DEBUG */
 
@@ -8839,7 +8872,8 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     ut_print_buf(msg, m_iv, 32);
     msg << "}";
 
-    ib::info() << "Decrypting page: " << space_id << "." << page_no,
+    ib::info(ER_IB_MSG_848)
+        << "Decrypting page: " << space_id << "." << page_no,
         << " len: " << src_len << std::endl
         << msg.str();
   }
@@ -8921,8 +8955,8 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
 
     default:
       if (!type.is_dblwr_recover()) {
-        ib::error() << "Encryption algorithm support missing: "
-                    << Encryption::to_string(m_type);
+        ib::error(ER_IB_MSG_849) << "Encryption algorithm support missing: "
+                                 << Encryption::to_string(m_type);
       }
 
       if (block != NULL) {
@@ -8951,7 +8985,7 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-  ib::info() << "Decrypted page: " << space_id << "." << page_no;
+  ib::info(ER_IB_MSG_850) << "Decrypted page: " << space_id << "." << page_no;
 #endif /* UNIV_ENCRYPT_DEBUG */
 
   DBUG_EXECUTE_IF("ib_crash_during_decrypt_page", DBUG_SUICIDE(););
@@ -8980,8 +9014,8 @@ bool Encryption::check_keyring() {
                         reinterpret_cast<void **>(&master_key), &key_len);
 
   if (my_ret != 0) {
-    ib::error() << "Check keyring plugin fail, please check the"
-                << " keyring plugin is loaded.";
+    ib::error(ER_IB_MSG_851) << "Check keyring plugin fail, please check the"
+                             << " keyring plugin is loaded.";
   } else {
     my_key_remove(key_name, nullptr);
     ret = true;

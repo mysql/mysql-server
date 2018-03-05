@@ -603,16 +603,17 @@ static MY_ATTRIBUTE((warn_unused_result)) ulint row_ins_cascade_calc_update_vec(
               static_cast<const byte *>(dfield_get_data(&ufield->new_val)));
 
           if (new_doc_id <= 0) {
-            ib::error() << "FTS Doc ID"
-                           " must be larger than"
-                           " 0";
+            ib::error(ER_IB_MSG_954) << "FTS Doc ID"
+                                        " must be larger than"
+                                        " 0";
             return (ULINT_UNDEFINED);
           }
 
           if (new_doc_id < n_doc_id) {
-            ib::error() << "FTS Doc ID"
-                           " must be larger than "
-                        << n_doc_id - 1 << " for table " << table->name;
+            ib::error(ER_IB_MSG_955)
+                << "FTS Doc ID"
+                   " must be larger than "
+                << n_doc_id - 1 << " for table " << table->name;
 
             return (ULINT_UNDEFINED);
           }
@@ -647,10 +648,10 @@ static MY_ATTRIBUTE((warn_unused_result)) ulint row_ins_cascade_calc_update_vec(
         ut_ad(new_doc_id);
         fts_trx_add_op(trx, table, new_doc_id, FTS_INSERT, NULL);
       } else {
-        ib::error() << "FTS Doc ID must be updated"
-                       " along with FTS indexed column for"
-                       " table "
-                    << table->name;
+        ib::error(ER_IB_MSG_956) << "FTS Doc ID must be updated"
+                                    " along with FTS indexed column for"
+                                    " table "
+                                 << table->name;
         return (ULINT_UNDEFINED);
       }
     }
@@ -1070,8 +1071,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     if (!page_rec_is_user_rec(clust_rec) ||
         btr_pcur_get_low_match(cascade->pcur) <
             dict_index_get_n_unique(clust_index)) {
-      ib::error() << "In cascade of a foreign key op index " << index->name
-                  << " of table " << index->table->name;
+      ib::error(ER_IB_MSG_957)
+          << "In cascade of a foreign key op index " << index->name
+          << " of table " << index->table->name;
 
       fputs("InnoDB: record ", stderr);
       rec_print(stderr, rec, index);
@@ -1984,9 +1986,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         state so in the error log */
         if (index == index->table->fts_doc_id_index &&
             DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_FTS_HAS_DOC_ID)) {
-          ib::error() << "Duplicate FTS_DOC_ID"
-                         " value on table "
-                      << index->table->name;
+          ib::error(ER_IB_MSG_958) << "Duplicate FTS_DOC_ID"
+                                      " value on table "
+                                   << index->table->name;
         }
 
         goto end_scan;
@@ -2362,7 +2364,6 @@ and return. don't execute actual insert. */
   dberr_t err = DB_SUCCESS;
   big_rec_t *big_rec = NULL;
   mtr_t mtr;
-  AutoIncLogMtr autoinc_mtr(&mtr);
   mem_heap_t *offsets_heap = NULL;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -2378,7 +2379,7 @@ and return. don't execute actual insert. */
         !thr_get_trx(thr)->in_rollback);
   ut_ad(thr != NULL || !dup_chk_only);
 
-  autoinc_mtr.start();
+  mtr.start();
 
   if (index->table->is_temporary()) {
     /* Disable REDO logging as the lifetime of temp-tables is
@@ -2389,18 +2390,18 @@ and return. don't execute actual insert. */
     ut_ad(flags & BTR_NO_LOCKING_FLAG);
     ut_ad(!index->table->is_intrinsic() || (flags & BTR_NO_UNDO_LOG_FLAG));
 
-    autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
+    mtr.set_log_mode(MTR_LOG_NO_REDO);
   }
 
   if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
     mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-    mtr_s_lock(dict_index_get_lock(index), autoinc_mtr.get_mtr());
+    mtr_s_lock(dict_index_get_lock(index), &mtr);
   }
 
   /* Note that we use PAGE_CUR_LE as the search mode, because then
   the function will return in both low_match and up_match of the
   cursor sensible values */
-  btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, autoinc_mtr.get_mtr());
+  btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);
   cursor = btr_pcur_get_btr_cur(&pcur);
   cursor->thr = thr;
 
@@ -2426,11 +2427,9 @@ and return. don't execute actual insert. */
         row_get_autoinc_counter(entry, index->table->autoinc_field_no);
 
     if (counter != 0) {
-      /* We always log the counter before real
-      insertion. So even if there was a failure later,
-      current counter still gets persisted and never
-      re-used, as long as the log gets flushed */
-      autoinc_mtr.log(index->table, counter);
+      /* Always log the counter change first, so it won't
+      be affected by any follow-up failure. */
+      dict_table_autoinc_log(index->table, counter, &mtr);
     }
   }
 
@@ -2465,19 +2464,18 @@ and return. don't execute actual insert. */
       /* Note that the following may return also
       DB_LOCK_WAIT */
 
-      err = row_ins_duplicate_error_in_clust(flags, cursor, entry, thr,
-                                             autoinc_mtr.get_mtr());
+      err = row_ins_duplicate_error_in_clust(flags, cursor, entry, thr, &mtr);
     }
 
     if (err != DB_SUCCESS) {
     err_exit:
-      autoinc_mtr.commit();
+      mtr.commit();
       goto func_exit;
     }
   }
 
   if (dup_chk_only) {
-    autoinc_mtr.commit();
+    mtr.commit();
     goto func_exit;
   }
 
@@ -2501,13 +2499,13 @@ and return. don't execute actual insert. */
     ut_ad(thr != NULL);
     err = row_ins_clust_index_entry_by_modify(&pcur, flags, mode, &offsets,
                                               &offsets_heap, entry_heap, entry,
-                                              thr, autoinc_mtr.get_mtr());
+                                              thr, &mtr);
 
     if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
       row_log_table_insert(btr_cur_get_rec(cursor), entry, index, offsets);
     }
 
-    autoinc_mtr.commit();
+    mtr.commit();
     mem_heap_free(entry_heap);
   } else {
     rec_t *insert_rec;
@@ -2516,7 +2514,7 @@ and return. don't execute actual insert. */
       ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
       err = btr_cur_optimistic_insert(flags, cursor, &offsets, &offsets_heap,
                                       entry, &insert_rec, &big_rec, n_ext, thr,
-                                      autoinc_mtr.get_mtr());
+                                      &mtr);
     } else {
       if (buf_LRU_buf_pool_running_out()) {
         err = DB_LOCK_TABLE_FULL;
@@ -2527,12 +2525,12 @@ and return. don't execute actual insert. */
 
       err = btr_cur_optimistic_insert(flags, cursor, &offsets, &offsets_heap,
                                       entry, &insert_rec, &big_rec, n_ext, thr,
-                                      autoinc_mtr.get_mtr());
+                                      &mtr);
 
       if (err == DB_FAIL) {
         err = btr_cur_pessimistic_insert(flags, cursor, &offsets, &offsets_heap,
                                          entry, &insert_rec, &big_rec, n_ext,
-                                         thr, autoinc_mtr.get_mtr());
+                                         thr, &mtr);
 
         if (index->table->is_intrinsic() && err == DB_SUCCESS) {
           row_ins_temp_prebuilt_tree_modified(index->table);
@@ -2541,7 +2539,7 @@ and return. don't execute actual insert. */
     }
 
     if (big_rec != NULL) {
-      autoinc_mtr.commit();
+      mtr.commit();
 
       /* Online table rebuild could read (and
       ignore) the incomplete record at this point.
@@ -2549,7 +2547,7 @@ and return. don't execute actual insert. */
       row_ins_index_entry_big_rec() will write log. */
 
       DBUG_EXECUTE_IF("row_ins_extern_checkpoint",
-                      log_make_checkpoint_at(LSN_MAX, TRUE););
+                      log_make_latest_checkpoint(););
       err = row_ins_index_entry_big_rec(thr_get_trx(thr), entry, big_rec,
                                         offsets, &offsets_heap, index,
                                         thr_get_trx(thr)->mysql_thd);
@@ -2559,7 +2557,7 @@ and return. don't execute actual insert. */
         row_log_table_insert(insert_rec, entry, index, offsets);
       }
 
-      autoinc_mtr.commit();
+      mtr.commit();
     }
   }
 
@@ -2571,8 +2569,9 @@ func_exit:
   btr_pcur_close(&pcur);
 
   DBUG_EXECUTE_IF("ib_sdi", if (dict_table_is_sdi(index->table->id)) {
-    ib::info() << "ib_sdi: row_ins_clust_index_entry_low: " << index->name
-               << " " << index->table->name << " return status: " << err;
+    ib::info(ER_IB_MSG_959)
+        << "ib_sdi: row_ins_clust_index_entry_low: " << index->name << " "
+        << index->table->name << " return status: " << err;
   });
 
   DBUG_RETURN(err);

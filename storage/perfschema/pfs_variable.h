@@ -463,7 +463,15 @@ PFS_variable_cache<Var_type>::~PFS_variable_cache() {}
 */
 template <class Var_type>
 THD *PFS_variable_cache<Var_type>::get_THD(THD *unsafe_thd) {
-  DBUG_ASSERT(unsafe_thd != NULL);
+  if (unsafe_thd == NULL) {
+    /*
+      May happen, precisely because the pointer is unsafe
+      (THD just disconnected for example).
+      No need to walk Global_THD_manager for that.
+    */
+    return NULL;
+  }
+
   m_thd_finder.set_unsafe_thd(unsafe_thd);
   THD *safe_thd = Global_THD_manager::get_instance()->find_thd(&m_thd_finder);
   return safe_thd;

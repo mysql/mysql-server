@@ -8,7 +8,7 @@ Table	Create Table
 t9	CREATE TABLE `t9` (
   `c1` char(10) NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t9;
 SHOW TABLES;
 Tables_in_test
@@ -21,7 +21,7 @@ Table	Create Table
 t9	CREATE TABLE `t9` (
   `c1` varchar(10) NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t9;
 SHOW TABLES;
 Tables_in_test
@@ -34,7 +34,7 @@ Table	Create Table
 t9	CREATE TABLE `t9` (
   `c1` binary(10) NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t9;
 SHOW TABLES;
 Tables_in_test
@@ -47,7 +47,7 @@ Table	Create Table
 t9	CREATE TABLE `t9` (
   `c1` varbinary(10) NOT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t9;
 SHOW TABLES;
 Tables_in_test

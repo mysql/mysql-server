@@ -23,7 +23,7 @@ t1	CREATE TABLE `t1` (
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 analyze table t1;
 explain select * from t1 force index(d2) order by d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -46,7 +46,7 @@ t1	CREATE TABLE `t1` (
   `c` char(10) NOT NULL,
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add index (b);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -59,7 +59,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(20) DEFAULT NULL,
   KEY `d2` (`d`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add unique index (c), add index (d);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 1
@@ -76,7 +76,7 @@ t1	CREATE TABLE `t1` (
   KEY `d2` (`d`),
   KEY `b` (`b`),
   KEY `d` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -99,7 +99,7 @@ t1	CREATE TABLE `t1` (
   KEY `d2` (`d`),
   KEY `b` (`b`),
   KEY `d` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 affected rows: 1
 alter table t1 add primary key (c);
 ERROR 42000: Multiple primary key defined
@@ -120,7 +120,7 @@ t1	CREATE TABLE `t1` (
   KEY `d2` (`d`),
   KEY `b` (`b`),
   KEY `d` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 analyze table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -150,7 +150,7 @@ t1	CREATE TABLE `t1` (
   KEY `d2` (`d`),
   KEY `b` (`b`),
   KEY `d` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values(6,1,'ggg','ggg');
 select * from t1;
 a	b	c	d
@@ -208,7 +208,7 @@ t1	CREATE TABLE `t1` (
   KEY `d2` (`d`),
   KEY `b` (`b`),
   KEY `d` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ad','ad'),(4,4,'afe','afe');
@@ -225,7 +225,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`(2))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 affected rows: 1
 alter table t1 add unique index (d(10));
 affected rows: 0
@@ -240,7 +240,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `d` (`d`(10)),
   KEY `c` (`c`(2))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 affected rows: 1
 insert into t1 values(5,1,'ggg','ggg');
 analyze table t1;
@@ -290,7 +290,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `d` (`d`(10)),
   KEY `c` (`c`(2))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop index d;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -336,7 +336,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`(2))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
@@ -374,7 +374,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`,`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add index (b,c);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -411,7 +411,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`,`c`),
   KEY `b_2` (`b`,`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add unique index (c,d);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -465,7 +465,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `b` (`b`,`c`),
   UNIQUE KEY `c` (`c`,`d`),
   KEY `b_2` (`b`,`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, b int not null, c int, primary key (a), key (b)) engine = innodb;
 create table t3(a int not null, c int not null, d int, primary key (a), key (c)) engine = innodb;
@@ -531,7 +531,7 @@ t4	CREATE TABLE `t4` (
   PRIMARY KEY (`a`),
   KEY `d` (`d`),
   CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t3 add constraint dc foreign key (a) references t1(a);
 ERROR HY000: Duplicate foreign key constraint name 'dc'
 SET FOREIGN_KEY_CHECKS=0;
@@ -546,7 +546,7 @@ t3	CREATE TABLE `t3` (
   `d` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2 drop index b, add index (beta);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
@@ -565,7 +565,7 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`beta`) REFERENCES `t1` (`b`) ON DELETE SET NULL,
   CONSTRAINT `t2_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t3` (`c`),
   CONSTRAINT `t2_ibfk_3` FOREIGN KEY (`d`) REFERENCES `t4` (`d`) ON UPDATE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 delete from t1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
 drop index dc on t4;
@@ -722,7 +722,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, c int not null,b int, primary key(a), unique key(c), key(b)) engine = innodb;
 alter table t1 drop index c, drop index b;
@@ -733,7 +733,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, b int, primary key(a)) engine = innodb;
 alter table t1 add index (b);
@@ -744,7 +744,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
@@ -760,7 +760,7 @@ t1	CREATE TABLE `t1` (
   `c` char(10) DEFAULT NULL,
   `d` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, b int not null, c int, primary key (a), key(c)) engine=innodb;
 insert into t1 values (5,1,5),(4,2,4),(3,3,3),(2,4,2),(1,5,1);
@@ -777,7 +777,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`),
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -843,7 +843,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL,
   PRIMARY KEY (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -884,7 +884,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -1207,7 +1207,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   KEY `t2a` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2i;
 Table	Create Table
 t2i	CREATE TABLE `t2i` (
@@ -1215,7 +1215,7 @@ t2i	CREATE TABLE `t2i` (
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `t2a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2c;
 Table	Create Table
 t2c	CREATE TABLE `t2c` (
@@ -1223,7 +1223,7 @@ t2c	CREATE TABLE `t2c` (
   `b` char(1) NOT NULL,
   PRIMARY KEY (`a`,`b`),
   KEY `t2a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1,t2,t2c,t2i;
 #
 # Bug #17657223	EXCESSIVE TEMPORARY FILE USAGE IN ALTER TABLE
@@ -1710,7 +1710,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(5,5), (4,4), (3,4), (2,3);
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY (a DESC);
 CHECK TABLE t1;

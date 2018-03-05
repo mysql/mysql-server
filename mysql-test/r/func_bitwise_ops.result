@@ -83,7 +83,7 @@ t1	CREATE TABLE `t1` (
   `vbin & bin` varbinary(6) DEFAULT NULL,
   `bin & vbin` varbinary(6) DEFAULT NULL,
   `bin & bin` varbinary(6) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t0;
 DROP TABLE t1;
 #

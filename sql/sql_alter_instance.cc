@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,9 +32,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/derror.h"    /* ER_THD */
-#include "sql/handler.h"   /* ha_resolve_by_legacy_type */
-#include "sql/sql_class.h" /* THD */
+#include "sql/derror.h"          /* ER_THD */
+#include "sql/handler.h"         /* ha_resolve_by_legacy_type */
+#include "sql/sql_backup_lock.h" /* acquire_shared_backup_lock */
+#include "sql/sql_class.h"       /* THD */
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin_ref.h"
@@ -92,6 +93,12 @@ bool Rotate_innodb_master_key::execute() {
 
   if (!hton->rotate_encryption_master_key) {
     my_error(ER_MASTER_KEY_ROTATION_NOT_SUPPORTED_BY_SE, MYF(0));
+    return true;
+  }
+
+  if (acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
+    // MDL subsystem has to set an error in Diagnostics Area
+    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
     return true;
   }
 

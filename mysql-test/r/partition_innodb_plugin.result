@@ -34,7 +34,7 @@ t1	CREATE TABLE `t1` (
 (PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
  PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Table `test`.`t1` .* Partition.* InnoDB internal");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table `test`.`t1` .* Partition.* InnoDB internal");
 #
 # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 #
@@ -52,7 +52,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
 /*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 1 */
 SET GLOBAL innodb_file_per_table = OFF;
@@ -85,7 +85,7 @@ t1	CREATE TABLE `t1` (
   `id` int(11) NOT NULL,
   `user_num` char(10) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=4
 /*!50100 PARTITION BY HASH (`id`)
 PARTITIONS 3 */
 DROP TABLE t1;

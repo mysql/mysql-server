@@ -112,7 +112,7 @@ int innobase_mysql_cmp(ulint prtype, const byte *a, size_t a_length,
     return (cs->coll->strnncollsp(cs, a, a_length, b, b_length));
   }
 
-  ib::fatal() << "Unable to find charset-collation " << cs_num;
+  ib::fatal(ER_IB_MSG_919) << "Unable to find charset-collation " << cs_num;
   return (0);
 }
 
@@ -365,8 +365,8 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
       break;
     case DATA_BLOB:
       if (prtype & DATA_BINARY_TYPE) {
-        ib::error() << "Comparing a binary BLOB"
-                       " using a character set collation!";
+        ib::error(ER_IB_MSG_920) << "Comparing a binary BLOB"
+                                    " using a character set collation!";
         ut_ad(0);
       }
       /* fall through */
@@ -379,7 +379,7 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
     case DATA_GEOMETRY:
       return (cmp_geometry_field(mtype, prtype, a, a_length, b, b_length));
     default:
-      ib::fatal() << "Unknown data type number " << mtype;
+      ib::fatal(ER_IB_MSG_921) << "Unknown data type number " << mtype;
       cmp = 0;
   }
   if (!is_asc) {

@@ -70,7 +70,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `uniquet2a` (`a`),
   KEY `fkt2ab` (`a`,`b`),
   CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2 drop key uniquet2a;
 #alter add a unique constraint on single key
 alter table t2 add constraint uniquet2a unique (a);
@@ -84,7 +84,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `uniquet2a` (`a`),
   KEY `fkt2ab` (`a`,`b`),
   CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #alter add a unique constraint on all cols in fk
 alter table t2 add constraint uniquet2ab unique (a,b);
 #verify the presence of uniquet2a, uniquet2ab, fkt2ab. no extra key for fkt2ab
@@ -97,7 +97,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `uniquet2a` (`a`),
   UNIQUE KEY `uniquet2ab` (`a`,`b`),
   CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #try adding fk(a,b,c) referring t1(a,b,c), it should fail without parent index.
 alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
 ERROR HY000: Cannot add foreign key constraint
@@ -116,6 +116,6 @@ t2	CREATE TABLE `t2` (
   KEY `fkt2abc` (`a`,`b`,`c`),
   CONSTRAINT `fkt2ab` FOREIGN KEY (`a`,`b`) REFERENCES `t1` (`a`,`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkt2abc` FOREIGN KEY (`a`,`b`,`c`) REFERENCES `t1` (`a`,`b`,`c`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #cleanup
 drop table t2, t1;

@@ -8,6 +8,10 @@ SELECT sys.ps_is_consumer_enabled('events_stages_history');
 # Should be enabled by default
 SELECT sys.ps_is_consumer_enabled('global_instrumentation');
 
+# An error if bad name:
+--error ER_STD_INVALID_ARGUMENT
+SELECT sys.ps_is_consumer_enabled('events_stages_histONg');
+
 #
 # Check that hierarchy is properly reflected
 #

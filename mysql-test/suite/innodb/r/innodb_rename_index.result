@@ -44,7 +44,7 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i1` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -117,7 +117,7 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `aa` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -208,7 +208,7 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i1` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -308,7 +308,7 @@ t	CREATE TABLE `t` (
   KEY `i2` (`c`),
   KEY `i3` (`d`),
   KEY `i1` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -408,7 +408,7 @@ t	CREATE TABLE `t` (
   KEY `dd` (`d`),
   KEY `i4` (`e`),
   KEY `aa` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -475,7 +475,7 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i1` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -562,7 +562,7 @@ t	CREATE TABLE `t` (
   KEY `i3` (`c`),
   KEY `i4` (`e`),
   KEY `aa` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -643,7 +643,7 @@ t	CREATE TABLE `t` (
   KEY `bb` (`d`),
   KEY `i4` (`e`),
   KEY `i3` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -724,7 +724,7 @@ t	CREATE TABLE `t` (
   KEY `i2` (`c`),
   KEY `i4` (`e`),
   KEY `i3` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -790,7 +790,7 @@ t	CREATE TABLE `t` (
   KEY `i2` (`c`),
   KEY `i3` (`d`),
   KEY `i4` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -861,7 +861,7 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i9` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -931,7 +931,7 @@ t	CREATE TABLE `t` (
   KEY `i3` (`d`),
   KEY `i4` (`e`),
   KEY `i1` (`f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -1011,7 +1011,7 @@ t	CREATE TABLE `t` (
   KEY `i2` (`c`),
   KEY `i3` (`d`),
   KEY `i4` (`e`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -1069,7 +1069,7 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`c2`),
   KEY `x` (`c3`),
   KEY `i2` (`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -1110,7 +1110,7 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`c2`),
   KEY `x` (`c3`),
   KEY `y` (`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 SELECT
 t.name AS table_name,
 i.name AS index_name,
@@ -1159,7 +1159,7 @@ t	CREATE TABLE `t` (
   PRIMARY KEY (`c1`),
   KEY `x` (`c2`),
   KEY `i2` (`c3`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 t.name AS table_name,
 i.name AS index_name,

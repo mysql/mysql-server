@@ -1,7 +1,4 @@
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
-call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+call mtr.add_suppression("The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 BEGIN;
 INSERT INTO t1 VALUES (42);
@@ -21,32 +18,32 @@ DELETE FROM t1;
 # Kill the server
 Pattern "syntax error in innodb_log_group_home_dir" found
 --innodb-force-recovery-crash=1
-Pattern "InnoDB: Apply batch completed" found
+Pattern "Apply batch completed" found
 --innodb-force-recovery-crash=3
-Pattern "InnoDB: Apply batch completed" found
-Pattern "InnoDB: Can.t initiate database recovery, running in read-only-mode" found
+Pattern "Apply batch completed" found
+Pattern "Can.t initiate database recovery, running in read-only-mode" found
 --innodb-force-recovery-crash=4
-Pattern "InnoDB: Apply batch completed" found
-Pattern "InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages" found
+Pattern "Apply batch completed" found
+Pattern "Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes" found
 --innodb-force-recovery-crash=5
-Pattern "InnoDB: Apply batch completed" found
-Pattern "InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages" found
-Pattern "InnoDB: Can.t initiate database recovery, running in read-only-mode" found
+Pattern "Apply batch completed" found
+Pattern "Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes" found
+Pattern "Can.t initiate database recovery, running in read-only-mode" found
 --innodb-force-recovery-crash=6
-Pattern "InnoDB: Apply batch completed" found
-Pattern "InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages" found
+Pattern "Apply batch completed" found
+Pattern "Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes" found
 --innodb-force-recovery-crash=7
-Pattern "InnoDB: Cannot create log files in read-only mode" found
+Pattern "Cannot create log files in read-only mode" found
 --innodb-force-recovery-crash=8
-Pattern "InnoDB: Setting log file .*ib_logfile[0-9]+ size to" found
+Pattern "Setting log file .*ib_logfile[0-9]+ size to" found
 --innodb-force-recovery-crash=9
-Pattern "InnoDB: Setting log file .*ib_logfile[0-9]+ size to" found
-Pattern "InnoDB: Only one log file found" found
-Pattern "InnoDB: Log file .*ib_logfile0 size 7 is not a multiple of innodb_page_size" found
-Pattern "InnoDB: Log file .*ib_logfile1 is of different size 1048576 bytes than other log files" found
+Pattern "Setting log file .*ib_logfile[0-9]+ size to" found
+Pattern "Only one log file found" found
+Pattern "Log file .*ib_logfile0 size 7 is not a multiple of innodb_page_size" found
+Pattern "Log file .*ib_logfile1 is of different size 1048576 bytes than other log files" found
 --innodb-force-recovery-crash=10
-Pattern "InnoDB: Setting log file .*ib_logfile[0-9]+ size to" found
-Pattern "InnoDB: Renaming log file .*ib_logfile101 to .*ib_logfile0" found
+Pattern "Setting log file .*ib_logfile[0-9]+ size to" found
+Pattern "Renaming log file .*ib_logfile101 to .*ib_logfile0" found
 # restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M
 SELECT * FROM t1;
 a

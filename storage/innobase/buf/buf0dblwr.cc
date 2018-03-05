@@ -188,13 +188,13 @@ start_again:
     return (true);
   }
 
-  ib::info() << "Doublewrite buffer not found: creating new";
+  ib::info(ER_IB_MSG_95) << "Doublewrite buffer not found: creating new";
 
   ulint min_doublewrite_size =
       ((2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE + FSP_EXTENT_SIZE / 2 + 100) *
        UNIV_PAGE_SIZE);
   if (buf_pool_get_curr_size() < min_doublewrite_size) {
-    ib::error() << cannot_continue;
+    ib::error(ER_IB_MSG_96) << cannot_continue;
 
     mtr_commit(&mtr);
     buf_dblwr_being_created = FALSE;
@@ -210,7 +210,7 @@ start_again:
   buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
 
   if (block2 == NULL) {
-    ib::error() << cannot_continue;
+    ib::error(ER_IB_MSG_97) << cannot_continue;
 
     /* We exit without committing the mtr to prevent
     its modifications to the database getting to disk */
@@ -228,7 +228,7 @@ start_again:
     new_block =
         fseg_alloc_free_page(fseg_header, prev_page_no + 1, FSP_UP, &mtr);
     if (new_block == NULL) {
-      ib::error() << cannot_continue;
+      ib::error(ER_IB_MSG_98) << cannot_continue;
 
       mtr_commit(&mtr);
       buf_dblwr_being_created = FALSE;
@@ -297,12 +297,12 @@ start_again:
   mtr_commit(&mtr);
 
   /* Flush the modified pages to disk and make a checkpoint */
-  log_make_checkpoint_at(LSN_MAX, TRUE);
+  log_make_latest_checkpoint();
 
   /* Remove doublewrite pages from LRU */
   buf_pool_invalidate();
 
-  ib::info() << "Doublewrite buffer created";
+  ib::info(ER_IB_MSG_99) << "Doublewrite buffer created";
 
   goto start_again;
 }
@@ -346,7 +346,8 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
                      TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
-    ib::error() << "Failed to read the system tablespace header page";
+    ib::error(ER_IB_MSG_100)
+        << "Failed to read the system tablespace header page";
 
     ut_free(unaligned_read_buf);
 
@@ -380,7 +381,8 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
 
     reset_space_ids = TRUE;
 
-    ib::info() << "Resetting space id's in the doublewrite buffer";
+    ib::info(ER_IB_MSG_1266)
+        << "Resetting space id's in the doublewrite buffer";
   }
 
   /* Read the pages from the doublewrite buffer to memory */
@@ -388,8 +390,8 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
                      TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
-    ib::error() << "Failed to read the first double write buffer "
-                   "extent";
+    ib::error(ER_IB_MSG_101) << "Failed to read the first double write buffer "
+                                "extent";
 
     ut_free(unaligned_read_buf);
 
@@ -401,8 +403,8 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
       block2 * UNIV_PAGE_SIZE, TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
   if (err != DB_SUCCESS) {
-    ib::error() << "Failed to read the second double write buffer "
-                   "extent";
+    ib::error(ER_IB_MSG_102) << "Failed to read the second double write buffer "
+                                "extent";
 
     ut_free(unaligned_read_buf);
 
@@ -441,8 +443,8 @@ dberr_t buf_dblwr_init_or_load_pages(pfs_os_file_t file, const char *path) {
                           source_page_no * UNIV_PAGE_SIZE, UNIV_PAGE_SIZE);
 
       if (err != DB_SUCCESS) {
-        ib::error() << "Failed to write to the double write"
-                       " buffer";
+        ib::error(ER_IB_MSG_103) << "Failed to write to the double write"
+                                    " buffer";
 
         ut_free(unaligned_read_buf);
 
@@ -485,10 +487,10 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
     /* Do not report the warning if the tablespace is
     going to be truncated. */
     if (undo::is_active(space->id)) {
-      ib::warn() << "Page " << page_no_dblwr
-                 << " in the doublewrite buffer is"
-                    " not within space bounds: page "
-                 << page_id_t(space->id, page_no);
+      ib::warn(ER_IB_MSG_104) << "Page " << page_no_dblwr
+                              << " in the doublewrite buffer is"
+                                 " not within space bounds: page "
+                              << page_id_t(space->id, page_no);
     }
   } else {
     const page_size_t page_size(space->flags);
@@ -507,9 +509,9 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
                          page_size.physical(), read_buf, NULL);
 
     if (err != DB_SUCCESS) {
-      ib::warn() << "Double write buffer recovery: " << page_id
-                 << " read failed with "
-                 << "error: " << ut_strerr(err);
+      ib::warn(ER_IB_MSG_105)
+          << "Double write buffer recovery: " << page_id << " read failed with "
+          << "error: " << ut_strerr(err);
     }
 
     /* Check if the page is corrupt */
@@ -517,29 +519,29 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
                         fsp_is_checksum_disabled(space->id));
 
     if (block.is_corrupted()) {
-      ib::info() << "Database page corruption or"
-                 << " a failed file read of page " << page_id
-                 << ". Trying to recover it from the"
-                 << " doublewrite buffer.";
+      ib::info(ER_IB_MSG_106) << "Database page corruption or"
+                              << " a failed file read of page " << page_id
+                              << ". Trying to recover it from the"
+                              << " doublewrite buffer.";
 
       BlockReporter dblwr_buf_page(true, page, page_size,
                                    fsp_is_checksum_disabled(space->id));
 
       if (dblwr_buf_page.is_corrupted()) {
-        ib::error() << "Dump of the page:";
+        ib::error(ER_IB_MSG_107) << "Dump of the page:";
         buf_page_print(read_buf, page_size, BUF_PAGE_PRINT_NO_CRASH);
 
-        ib::error() << "Dump of corresponding"
-                       " page in doublewrite buffer:";
+        ib::error(ER_IB_MSG_108) << "Dump of corresponding"
+                                    " page in doublewrite buffer:";
 
         buf_page_print(page, page_size, BUF_PAGE_PRINT_NO_CRASH);
 
-        ib::fatal() << "The page in the"
-                       " doublewrite buffer is"
-                       " corrupt. Cannot continue"
-                       " operation. You can try to"
-                       " recover the database with"
-                       " innodb_force_recovery=6";
+        ib::fatal(ER_IB_MSG_109) << "The page in the"
+                                    " doublewrite buffer is"
+                                    " corrupt. Cannot continue"
+                                    " operation. You can try to"
+                                    " recover the database with"
+                                    " innodb_force_recovery=6";
       }
     } else {
       bool t1 = buf_page_is_zeroes(read_buf, page_size);
@@ -577,8 +579,8 @@ static void buf_dblwr_recover_page(page_no_t page_no_dblwr, fil_space_t *space,
 
     ut_a(err == DB_SUCCESS);
 
-    ib::info() << "Recovered page " << page_id
-               << " from the doublewrite buffer.";
+    ib::info(ER_IB_MSG_110)
+        << "Recovered page " << page_id << " from the doublewrite buffer.";
   }
 
   ut_free(ptr);
@@ -742,12 +744,12 @@ static void buf_dblwr_check_page_lsn(
     const ulint lsn2 = mach_read_from_4(page + UNIV_PAGE_SIZE -
                                         FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
 
-    ib::error() << "The page to be written seems corrupt!"
-                   " The low 4 bytes of LSN fields do not match"
-                   " ("
-                << lsn1 << " != " << lsn2
-                << ")!"
-                   " Noticed in the buffer pool.";
+    ib::error(ER_IB_MSG_111) << "The page to be written seems corrupt!"
+                                " The low 4 bytes of LSN fields do not match"
+                                " ("
+                             << lsn1 << " != " << lsn2
+                             << ")!"
+                                " Noticed in the buffer pool.";
   }
 }
 
@@ -758,10 +760,11 @@ static void buf_dblwr_assert_on_corrupt_block(
 {
   buf_page_print(block->frame, univ_page_size, BUF_PAGE_PRINT_NO_CRASH);
 
-  ib::fatal() << "Apparent corruption of an index page " << block->page.id
-              << " to be written to data file. We intentionally crash"
-                 " the server to prevent corrupt data from ending up in"
-                 " data files.";
+  ib::fatal(ER_IB_MSG_112)
+      << "Apparent corruption of an index page " << block->page.id
+      << " to be written to data file. We intentionally crash"
+         " the server to prevent corrupt data from ending up in"
+         " data files.";
 }
 
 /** Check the LSN values on the page with which this block is associated.

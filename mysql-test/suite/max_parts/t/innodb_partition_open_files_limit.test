@@ -7,7 +7,7 @@ CALL mtr.add_suppression("needs to open also some .ibd files if the file-per-tab
 CALL mtr.add_suppression("Too many (.*) files stay open while the maximum allowed value would be 1. You may need to raise the value of innodb_open_files in my.cnf.");
 CALL mtr.add_suppression("Cannot close file ./mysql/tables.ibd, because modification");
 CALL mtr.add_suppression("Open files .* exceeds the limit 1");
-CALL mtr.add_suppression("InnoDB: Cannot close file");
+CALL mtr.add_suppression("Cannot close file");
 --disable_warnings
 DROP TABLE IF EXISTS `t1`;
 --enable_warnings

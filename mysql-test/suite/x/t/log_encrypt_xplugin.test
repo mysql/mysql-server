@@ -11,11 +11,6 @@
 
 # Create a table with encryption, should fail since keyring is not
 # loaded
---disable_query_log
-call mtr.add_suppression("InnoDB: Resizing redo log from");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-call mtr.add_suppression("InnoDB: New log files created, LSN=");
---enable_query_log
 
 let $old_innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $old_innodb_redo_log_encrypt = `SELECT @@innodb_redo_log_encrypt`;

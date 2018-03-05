@@ -19,7 +19,7 @@ t1	CREATE TABLE `t1` (
   `c14` char(10) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
 ALTER TABLE t1 ADD COLUMN c2 INTEGER COMMENT 'アいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ';
 ALTER TABLE t1 ADD COLUMN c3 INTEGER COMMENT 'あイうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ';
 ALTER TABLE t1 ADD COLUMN c4 INTEGER COMMENT 'あいウえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ';
@@ -50,7 +50,7 @@ t1	CREATE TABLE `t1` (
   `c5` int(11) DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
 ALTER TABLE t1 MODIFY COLUMN c3 CHAR(10);
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 TABLE_COMMENT	char_length(table_comment)
@@ -78,7 +78,7 @@ t1	CREATE TABLE `t1` (
   `c5` int(11) DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
 ALTER TABLE t1 CHANGE COLUMN c4 c4_1 INTEGER COMMENT 'さしすせそたちつてと';
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 TABLE_COMMENT	char_length(table_comment)
@@ -106,7 +106,7 @@ t1	CREATE TABLE `t1` (
   `c5` int(11) DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
 ALTER TABLE t1 DROP COLUMN c2;
 SELECT table_comment,char_length(table_comment) FROM information_schema.tables WHERE table_name='t1';
 TABLE_COMMENT	char_length(table_comment)
@@ -132,5 +132,5 @@ t1	CREATE TABLE `t1` (
   `c5` int(11) DEFAULT NULL COMMENT 'あいうエおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ',
   PRIMARY KEY (`c1`),
   KEY `c12` (`c12`,`c13`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ'
 DROP TABLE t1;

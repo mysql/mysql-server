@@ -186,15 +186,15 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->callmacro Insert	spatial2	'{"_id": "one", "first":30}'	ER_INVALID_GEOJSON_UNSPECIFIED
 
 -->title =Try to insert 'null' value to collection with spatial index
--->callmacro Insert	spatial2	'{"_id": "two", "first":null}'	ER_X_DOC_ID_MISSING
--->callmacro Insert	spatial2	'{"_id": "two", "second":null}'	ER_X_DOC_ID_MISSING
+-->callmacro Insert	spatial2	'{"_id": "two", "first":null}'	ER_BAD_NULL_ERROR_NOT_IGNORED
+-->callmacro Insert	spatial2	'{"_id": "two", "second":null}'	ER_BAD_NULL_ERROR_NOT_IGNORED
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"spatial2", "name":"three"}
 -->recvresult
 
 -->title =Try to create spatial index on missing member
 -->callmacro Insert	spatial2	'{"_id": "one", "second":30}'	ER_SUCCESS
 -->stmtadmin create_collection_index	{"schema":"xtest", "collection":"spatial2", "type":"spatial", "name":"four", "unique":false, "constraint":{"member":"$.first", "type":"geojson", "required":true}}
--->expecterror ER_X_DOC_REQUIRED_FIELD_MISSING
+-->expecterror ER_BAD_NULL_ERROR_NOT_IGNORED
 -->recvresult
 
 

@@ -1,8 +1,7 @@
 --loose-performance_schema_events_statements_history_size=20
 --loose-performance_schema_events_statements_history_long_size=50
 --loose-performance_schema_events_transactions_history_long_size=50
---loose-performance_schema_max_thread_instances=35
-
+--loose-performance_schema_max_thread_instances=41
 --loose-performance-schema-consumer-events-stages-current=OFF
 --loose-performance-schema-consumer-events-stages-history=OFF
 --loose-performance-schema-consumer-events-stages-history-long=OFF

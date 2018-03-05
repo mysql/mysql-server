@@ -1,5 +1,5 @@
 #
-# wl#8919 InnoDB: Implement NOWAIT and SKIP LOCKED
+# wl#8919  Implement NOWAIT and SKIP LOCKED
 #
 
 --source include/count_sessions.inc

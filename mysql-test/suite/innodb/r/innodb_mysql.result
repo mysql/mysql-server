@@ -589,7 +589,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='123'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='123'
 drop table t1;
 CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
 Warnings:
@@ -1466,7 +1466,7 @@ t1	CREATE TABLE `t1` (
   `b` char(4) NOT NULL,
   UNIQUE KEY `bb` (`b`),
   UNIQUE KEY `aa` (`a`(1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
@@ -1555,7 +1555,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`f1`),
   KEY `f2_ref` (`f2`),
   CONSTRAINT `f2_ref` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug #36995: valgrind error in remove_const during subquery executions
@@ -1567,9 +1567,9 @@ explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `b` from `test`.`t1` where (not(<in_optimizer>(NULL,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((<cache>(NULL) = NULL) or isnull(NULL)) having <is_not_null_test>(NULL))))) group by NULL
+Note	1003	/* select#1 */ select NULL AS `b` from `test`.`t1` where (not(<in_optimizer>(NULL,<exists>(/* select#2 */ select `test`.`t1`.`b` from `test`.`t1` join `test`.`t2` where ((<cache>(NULL) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)) having <is_not_null_test>(`test`.`t1`.`b`))))) group by NULL
 DROP TABLE t1,t2;
 SET sql_mode=default;
 End of 5.0 tests
@@ -1827,7 +1827,7 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `f3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2;
 DROP TABLE t1;
 create table t1 (a int auto_increment primary key) engine=innodb;
@@ -2937,7 +2937,7 @@ t2	CREATE TABLE `t2` (
   `fk` int(11) DEFAULT NULL,
   KEY `x` (`fk`),
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2, t1;
 #
 # Test for bug #11762012 - "54553: INNODB ASSERTS IN HA_INNOBASE::
@@ -3113,7 +3113,7 @@ t1	CREATE TABLE `t1` (
   `b` text NOT NULL,
   `c` text,
   UNIQUE KEY `b` (`b`(8) DESC,`a`,`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug#25650516. The problem is the index order for the old and new

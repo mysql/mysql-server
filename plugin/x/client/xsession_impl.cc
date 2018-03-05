@@ -28,6 +28,7 @@
 #include <array>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <utility>
 
@@ -44,6 +45,8 @@
 
 namespace xcl {
 
+const char *const ER_TEXT_OPTION_VALUE_IS_SCALAR =
+    "Value requires to be set through non array function";
 const char *const ER_TEXT_INVALID_SSL_MODE = "Invalid value for SSL mode";
 const char *const ER_TEXT_INVALID_SSL_FIPS_MODE =
     "Invalid value for SSL fips mode";
@@ -53,12 +56,12 @@ const char *const ER_TEXT_OPTION_NOT_SUPPORTED_AFTER_CONNECTING =
     "Operation not supported after connecting";
 const char *const ER_TEXT_NOT_CONNECTED = "Not connected";
 const char *const ER_TEXT_ALREADY_CONNECTED = "Already connected";
-const char *const ER_TEXT_TLS_IS_REQUIRED =
-    "TLS was marked as \"REQUIRED\", but it was not configured";
 const char *const ER_TEXT_CA_IS_REQUIRED =
     "TLS was marked that requires \"CA\", but it was not configured";
 const char *const ER_TEXT_INVALID_IP_MODE =
     "Invalid value for host-IP resolver";
+const char *const ER_TEXT_INVALID_AUTHENTICATION_CONFIGURED =
+    "Ambiguous authentication methods given";
 
 namespace details {
 
@@ -186,6 +189,39 @@ bool scalar_get_v_uint(const Mysqlx::Datatypes::Scalar &scalar,
   return true;
 }
 
+bool get_array_of_strings_from_any(const Mysqlx::Datatypes::Any &any,
+                                   std::vector<std::string> *out_strings) {
+  out_strings->clear();
+
+  if (!any.has_type() || Mysqlx::Datatypes::Any_Type_ARRAY != any.type())
+    return false;
+
+  for (const auto &element : any.array().value()) {
+    if (!element.has_type() ||
+        Mysqlx::Datatypes::Any_Type_SCALAR != element.type())
+      return false;
+
+    const auto &scalar = element.scalar();
+
+    if (!scalar.has_type()) return false;
+
+    switch (scalar.type()) {
+      case Mysqlx::Datatypes::Scalar_Type_V_STRING:
+        out_strings->push_back(scalar.v_string().value());
+        break;
+
+      case Mysqlx::Datatypes::Scalar_Type_V_OCTETS:
+        out_strings->push_back(scalar.v_octets().value());
+        break;
+
+      default:
+        return false;
+    }
+  }
+
+  return true;
+}
+
 std::pair<std::string, Capability_datatype> get_capability_type(
     const XSession::Mysqlx_capability capability) {
   if (XSession::Capability_can_handle_expired_password == capability)
@@ -193,6 +229,53 @@ std::pair<std::string, Capability_datatype> get_capability_type(
 
   if (XSession::Capability_client_interactive == capability)
     return {"client.interactive", Capability_datatype::Bool};
+
+  return {};
+}
+
+template <typename Container_type>
+XError translate_texts_into_auth_types(
+    const std::vector<std::string> &values_list, Container_type *out_auths_list,
+    const bool ignore_not_found = false) {
+  auto to_upper = [](std::string str) {
+    for (auto &c : str) c = toupper(c);
+    return str;
+  };
+  std::vector<std::string> auth_strings;
+  std::transform(std::begin(values_list), std::end(values_list),
+                 std::back_inserter(auth_strings), to_upper);
+
+  const std::set<Session_impl::Auth> scalar_values{
+      Session_impl::Auth::Auto, Session_impl::Auth::Auto_from_capabilities};
+
+  const std::map<std::string, Session_impl::Auth> modes{
+      {"AUTO", Session_impl::Auth::Auto},
+      {"FROM_CAPABILITIES", Session_impl::Auth::Auto_from_capabilities},
+      {"FALLBACK", Session_impl::Auth::Auto_fallback},
+      {"MYSQL41", Session_impl::Auth::Mysql41},
+      {"PLAIN", Session_impl::Auth::Plain},
+      {"SHA256_MEMORY", Session_impl::Auth::Sha256_memory}};
+
+  out_auths_list->clear();
+  for (const auto &mode_text : auth_strings) {
+    auto mode_value = modes.find(mode_text);
+
+    if (modes.end() == mode_value) {
+      if (ignore_not_found) continue;
+
+      out_auths_list->clear();
+      return XError{CR_X_UNSUPPORTED_OPTION_VALUE, ER_TEXT_INVALID_SSL_MODE};
+    }
+
+    if (1 < auth_strings.size() &&
+        0 < scalar_values.count(mode_value->second)) {
+      out_auths_list->clear();
+      return XError{CR_X_UNSUPPORTED_OPTION_VALUE,
+                    ER_TEXT_OPTION_VALUE_IS_SCALAR};
+    }
+
+    out_auths_list->insert(out_auths_list->end(), mode_value->second);
+  }
 
   return {};
 }
@@ -242,9 +325,6 @@ XError Session_impl::set_mysql_option(const Mysqlx_option option,
   switch (option) {
     case XSession::Mysqlx_option::Consume_all_notices:
       m_context->m_consume_all_notices = value;
-      break;
-    case XSession::Mysqlx_option::Compatibility_mode:
-      m_compatibility_mode = value;
       break;
     default:
       return XError{CR_X_UNSUPPORTED_OPTION, ER_TEXT_OPTION_NOT_SUPPORTED};
@@ -299,7 +379,8 @@ XError Session_impl::set_mysql_option(const Mysqlx_option option,
       break;
 
     case Mysqlx_option::Authentication_method:
-      return setup_authentication_methods_from_text({value});
+      return details::translate_texts_into_auth_types({value},
+                                                      &m_use_auth_methods);
     default:
       return XError{CR_X_UNSUPPORTED_OPTION, ER_TEXT_OPTION_NOT_SUPPORTED};
   }
@@ -315,7 +396,8 @@ XError Session_impl::set_mysql_option(
 
   switch (option) {
     case Mysqlx_option::Authentication_method:
-      return setup_authentication_methods_from_text(values_list);
+      return details::translate_texts_into_auth_types(values_list,
+                                                      &m_use_auth_methods);
     default:
       return XError{CR_X_UNSUPPORTED_OPTION, ER_TEXT_OPTION_NOT_SUPPORTED};
   }
@@ -536,6 +618,24 @@ void Session_impl::setup_session_notices_handler() {
       Handler_position::End, Handler_priority_high);
 }
 
+void Session_impl::setup_server_supported_features(
+    const Mysqlx::Connection::Capabilities *capabilities) {
+  const bool ignore_unknows_mechanisms = true;
+
+  for (const auto &capability : capabilities->capabilities()) {
+    if ("authentication.mechanisms" == capability.name()) {
+      std::vector<std::string> names_of_auth_methods;
+      const auto &any = capability.value();
+
+      details::get_array_of_strings_from_any(any, &names_of_auth_methods);
+
+      details::translate_texts_into_auth_types(names_of_auth_methods,
+                                               &m_server_supported_auth_methods,
+                                               ignore_unknows_mechanisms);
+    }
+  }
+}
+
 bool Session_impl::is_connected() {
   if (!m_protocol) return false;
 
@@ -580,73 +680,119 @@ XError Session_impl::authenticate(const char *user, const char *pass,
     }
   }
 
+  if (needs_servers_capabilities()) {
+    XError out_error;
+    const auto capabilities = protocol.execute_fetch_capabilities(&out_error);
+
+    if (out_error) return out_error;
+
+    setup_server_supported_features(capabilities.get());
+  }
+
   const auto can_use_plain = connection.state().is_ssl_activated() ||
                              (connection_type == Connection_type::Unix_socket);
   const auto &optional_auth_methods =
-      validate_and_adjust_auth_methods(m_auth_methods, can_use_plain);
+      validate_and_adjust_auth_methods(m_use_auth_methods, can_use_plain);
   const auto &error = optional_auth_methods.first;
   if (error) return error;
 
   XError auth_error;
+  bool plain_over_unsecure = false;
   for (const auto &auth_method : optional_auth_methods.second) {
     if (auth_method == "PLAIN" && !can_use_plain) {
-      if (&auth_method != &optional_auth_methods.second.back()) {
-        // There are other auth methods in chain, lets try them
-        continue;
-      } else {
-        return XError{
-            CR_X_INVALID_AUTH_METHOD,
-            "Invalid authentication method: PLAIN over unsecure channel"};
-      }
+      plain_over_unsecure = true;
     }
+
     auth_error = protocol.execute_authenticate(
         details::value_or_empty_string(user),
         details::value_or_empty_string(pass),
         details::value_or_empty_string(schema), auth_method);
+
     // Authentication successful, otherwise try to use different auth method
     if (!auth_error) return {};
   }
 
+  // Overwrite the error received from the server
+  if (plain_over_unsecure) {
+    return XError{CR_X_INVALID_AUTH_METHOD,
+                  "Invalid authentication method: PLAIN over unsecure channel"};
+  }
+
   return auth_error;
+}
+
+std::vector<Session_impl::Auth> Session_impl::get_methods_sequence_from_auto(
+    const Auth auto_authentication, const bool can_use_plain) {
+  // Check all automatic methods and return possible sequences for them
+  // This means that the corresponding auth sequences will be used:
+  //   FALLBACK - MySQL 5.7 compatible automatic method:
+  //     PLAIN if SSL is enabled, MYSQL41 otherwise,
+  //   AUTO - MySQL 8.0 and above:
+  //     sequence of SHA256_MEMORY -> (optional) PLAIN -> MYSQL41
+
+  // Sequence like PLAIN, SHA256 or PLAIN, MYSQL41 will always fail
+  // in case when PLAIN is going to fail still it may be used in future.
+  const Auth plain_or_mysql41 = can_use_plain ? Auth::Plain : Auth::Mysql41;
+
+  switch (auto_authentication) {
+    case Auth::Auto_fallback:
+      return {plain_or_mysql41, Auth::Sha256_memory};
+
+    case Auth::Auto_from_capabilities:  // fall-through
+    case Auth::Auto:
+      if (can_use_plain)
+        return {Auth::Sha256_memory, Auth::Plain, Auth::Mysql41};
+      return {Auth::Sha256_memory, Auth::Mysql41};
+
+    default:
+      return {};
+  }
+}
+
+bool Session_impl::is_auto_method(const Auth auto_authentication) {
+  switch (auto_authentication) {
+    case Auth::Auto:                    // fall-through
+    case Auth::Auto_fallback:           // fall-through
+    case Auth::Auto_from_capabilities:  // fall-through
+      return true;
+
+    default:
+      return false;
+  }
 }
 
 std::pair<XError, std::vector<std::string>>
 Session_impl::validate_and_adjust_auth_methods(std::vector<Auth> auth_methods,
                                                const bool can_use_plain) {
   const auto auth_methods_count = auth_methods.size();
-  if (auth_methods_count <= 1) {
-    if (auth_methods_count == 0 ||
-        (auth_methods_count == 1 && auth_methods[0] == Auth::Auto)) {
-      // Authentication methods contain only "AUTO" or no auth method was given.
-      // This means that the corresponding auth methods will be used:
-      //   For MySQL 5.7:
-      //     PLAIN if SSL is enabled, MYSQL41 otherwise
-      //   For MySQL 8.0 and above:
-      //     sequence of SHA256_MEMORY -> (optional) PLAIN -> MYSQL41
-      auth_methods.clear();
-      if (m_compatibility_mode) {
-        if (can_use_plain)
-          auth_methods.push_back(Auth::Plain);
-        else
-          auth_methods.push_back(Auth::Mysql41);
-      } else {
-        auth_methods.push_back(Auth::Sha256_memory);
-        if (can_use_plain) auth_methods.push_back(Auth::Plain);
-        auth_methods.push_back(Auth::Mysql41);
-      }
-    }
+  const Auth first_method =
+      auth_methods_count == 0 ? Auth::Auto : auth_methods[0];
+
+  const auto auto_sequence =
+      get_methods_sequence_from_auto(first_method, can_use_plain);
+  if (!auto_sequence.empty()) {
+    auth_methods.assign(auto_sequence.begin(), auto_sequence.end());
   } else {
-    if (std::find(std::begin(auth_methods), std::end(auth_methods),
-                  Auth::Auto) != std::end(auth_methods))
+    if (std::any_of(std::begin(auth_methods), std::end(auth_methods),
+                    is_auto_method))
       return {XError{CR_X_INVALID_AUTH_METHOD,
-                     "Ambigious authentication methods given"},
+                     ER_TEXT_INVALID_AUTHENTICATION_CONFIGURED},
               {}};
   }
 
   std::vector<std::string> auth_method_string_list;
-  std::transform(std::begin(auth_methods), std::end(auth_methods),
-                 std::back_inserter(auth_method_string_list),
-                 get_method_from_auth);
+
+  for (const auto auth_method : auth_methods) {
+    if (0 < m_server_supported_auth_methods.count(auth_method))
+      auth_method_string_list.push_back(get_method_from_auth(auth_method));
+  }
+
+  if (auth_method_string_list.empty()) {
+    return {XError{CR_X_INVALID_AUTH_METHOD,
+                   "Server doesn't support clients authentication methods"},
+            {}};
+  }
+
   return {{}, auth_method_string_list};
 }
 
@@ -702,7 +848,7 @@ XError Session_impl::setup_ssl_fips_mode_from_text(const std::string &value) {
     m_context->m_ssl_config.m_ssl_fips_mode =
         Ssl_config::Mode_ssl_fips::Ssl_fips_mode_off;
     return {};
-  };
+  }
 
   const std::size_t mode_text_max_lenght = 20;
   std::string mode_text;
@@ -723,37 +869,6 @@ XError Session_impl::setup_ssl_fips_mode_from_text(const std::string &value) {
     return XError{CR_X_UNSUPPORTED_OPTION_VALUE, ER_TEXT_INVALID_SSL_FIPS_MODE};
 
   m_context->m_ssl_config.m_ssl_fips_mode = mode_value->second;
-
-  return {};
-}
-
-XError Session_impl::setup_authentication_methods_from_text(
-    const std::vector<std::string> &values_list) {
-  auto to_upper = [](std::string str) {
-    for (auto &c : str) c = toupper(c);
-    return str;
-  };
-  std::vector<std::string> auth_strings;
-  std::transform(std::begin(values_list), std::end(values_list),
-                 std::back_inserter(auth_strings), to_upper);
-
-  const std::map<std::string, Auth> modes{
-      {"AUTO", Auth::Auto},
-      {"MYSQL41", Auth::Mysql41},
-      {"PLAIN", Auth::Plain},
-      {"SHA256_MEMORY", Auth::Sha256_memory}};
-
-  m_auth_methods.clear();
-  for (const auto &mode_text : auth_strings) {
-    auto mode_value = modes.find(mode_text);
-
-    if (modes.end() == mode_value) {
-      m_auth_methods.clear();
-      return XError{CR_X_UNSUPPORTED_OPTION_VALUE, ER_TEXT_INVALID_SSL_MODE};
-    }
-
-    m_auth_methods.push_back(mode_value->second);
-  }
 
   return {};
 }
@@ -788,11 +903,20 @@ std::string Session_impl::get_method_from_auth(const Auth auth) {
       return "MYSQL41";
     case Auth::Sha256_memory:
       return "SHA256_MEMORY";
+    case Auth::Auto_from_capabilities:
+      return "FROM_CAPABILITIES";
+    case Auth::Auto_fallback:
+      return "FALLBACK";
     case Auth::Plain:
       return "PLAIN";
     default:
       return "UNKNOWN";
   }
+}
+
+bool Session_impl::needs_servers_capabilities() const {
+  return m_use_auth_methods.size() == 1 &&
+         m_use_auth_methods[0] == Auth::Auto_from_capabilities;
 }
 
 static void initialize_xmessages() {

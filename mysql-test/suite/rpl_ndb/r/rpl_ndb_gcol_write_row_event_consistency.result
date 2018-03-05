@@ -31,7 +31,7 @@ t	CREATE TABLE `t` (
   `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
   `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 #    c) Insert records on MASTER, with no values for default
 #       value columns.
@@ -116,7 +116,7 @@ t	CREATE TABLE `t` (
   `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
   `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 #    c) Insert records on MASTER, with no values for default
 #       value columns.
@@ -201,7 +201,7 @@ t	CREATE TABLE `t` (
   `description` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'User#',`id`,_utf8mb4' (',`name`,_utf8mb4') has state ',`state`)) STORED,
   `welcome` varchar(64) GENERATED ALWAYS AS (concat(_utf8mb4'Welcome ',`name`,_utf8mb4', your nick is ',`nick`)) VIRTUAL,
   PRIMARY KEY (`id`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 #
 #    c) Insert records on MASTER, with no values for default
 #       value columns.

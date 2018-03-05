@@ -108,7 +108,7 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`),
   KEY `b` (`b`) /*!80000 INVISIBLE */,
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Test that primary key indexes can't be made invisible.
 CREATE TABLE t1 ( a INT, PRIMARY KEY (a) INVISIBLE );

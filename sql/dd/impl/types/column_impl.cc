@@ -71,7 +71,7 @@ Column_impl::Column_impl()
       m_is_unsigned(false),
       m_is_auto_increment(false),
       m_is_virtual(false),
-      m_hidden(false),
+      m_hidden(enum_hidden_type::HT_VISIBLE),
       m_ordinal_position(0),
       m_char_length(0),
       m_numeric_precision(0),
@@ -97,7 +97,7 @@ Column_impl::Column_impl(Abstract_table_impl *table)
       m_is_unsigned(false),
       m_is_auto_increment(false),
       m_is_virtual(false),
-      m_hidden(false),
+      m_hidden(enum_hidden_type::HT_VISIBLE),
       m_ordinal_position(0),
       m_char_length(0),
       m_numeric_precision(0),
@@ -221,7 +221,7 @@ bool Column_impl::restore_attributes(const Raw_record &r) {
   m_is_zerofill = r.read_bool(Columns::FIELD_IS_ZEROFILL);
   m_is_unsigned = r.read_bool(Columns::FIELD_IS_UNSIGNED);
   m_is_auto_increment = r.read_bool(Columns::FIELD_IS_AUTO_INCREMENT);
-  m_hidden = r.read_bool(Columns::FIELD_HIDDEN);
+  m_hidden = static_cast<enum_hidden_type>(r.read_int(Columns::FIELD_HIDDEN));
 
   m_type = (enum_column_types)r.read_int(Columns::FIELD_TYPE);
   m_numeric_precision = r.read_uint(Columns::FIELD_NUMERIC_PRECISION);
@@ -316,7 +316,7 @@ bool Column_impl::store_attributes(Raw_record *r) {
                   m_generation_expression_utf8,
                   m_generation_expression_utf8.empty()) ||
          r->store(Columns::FIELD_COMMENT, m_comment) ||
-         r->store(Columns::FIELD_HIDDEN, m_hidden) ||
+         r->store(Columns::FIELD_HIDDEN, static_cast<int>(m_hidden)) ||
          r->store(Columns::FIELD_OPTIONS, *m_options) ||
          r->store(Columns::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
          r->store(Columns::FIELD_COLUMN_KEY, m_column_key) ||
@@ -338,7 +338,7 @@ void Column_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   write(w, m_is_unsigned, STRING_WITH_LEN("is_unsigned"));
   write(w, m_is_auto_increment, STRING_WITH_LEN("is_auto_increment"));
   write(w, m_is_virtual, STRING_WITH_LEN("is_virtual"));
-  write(w, m_hidden, STRING_WITH_LEN("hidden"));
+  write_enum(w, m_hidden, STRING_WITH_LEN("hidden"));
   write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
   write(w, m_char_length, STRING_WITH_LEN("char_length"));
   write(w, m_numeric_precision, STRING_WITH_LEN("numeric_precision"));
@@ -385,7 +385,6 @@ bool Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_is_unsigned, val, "is_unsigned");
   read(&m_is_auto_increment, val, "is_auto_increment");
   read(&m_is_virtual, val, "is_virtual");
-  read(&m_hidden, val, "hidden");
   read(&m_ordinal_position, val, "ordinal_position");
   read(&m_char_length, val, "char_length");
   read(&m_numeric_precision, val, "numeric_precision");
@@ -407,6 +406,7 @@ bool Column_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read_properties(&m_se_private_data, val, "se_private_data");
   read_enum(&m_column_key, val, "column_key");
   read(&m_column_type_utf8, val, "column_type_utf8");
+  read_enum(&m_hidden, val, "hidden");
 
   bool srs_id_is_null;
   read(&srs_id_is_null, val, "srs_id_null");
@@ -458,7 +458,7 @@ void Column_impl::debug_print(String_type &outb) const {
      << "m_is_virtual " << m_is_virtual << "; "
      << "m_generation_expression: " << m_generation_expression << "; "
      << "m_generation_expression_utf8: " << m_generation_expression_utf8 << "; "
-     << "m_hidden: " << m_hidden << "; "
+     << "m_hidden: " << static_cast<int>(m_hidden) << "; "
      << "m_options: " << m_options->raw_string() << "; "
      << "m_column_key: " << m_column_key << "; "
      << "m_column_type_utf8: " << m_column_type_utf8 << "; "

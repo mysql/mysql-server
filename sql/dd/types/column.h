@@ -28,6 +28,7 @@
 #include "sql/dd/collection.h"           // dd::Collection
 #include "sql/dd/sdi_fwd.h"              // RJ_Document
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
+
 #include "sql/gis/srid.h"
 
 using Mysql::Nullable;
@@ -90,7 +91,16 @@ class Column : virtual public Entity_object {
 
   enum enum_column_key { CK_NONE = 1, CK_PRIMARY, CK_UNIQUE, CK_MULTIPLE };
 
- public:
+  enum class enum_hidden_type {
+    /// The column is visible (a normal column)
+    HT_VISIBLE = 1,
+    /// The column is completely invisible to the server
+    HT_HIDDEN_SE = 2,
+    /// The column is visible to the server, but hidden from the user.
+    /// This is used for i.e. implementing functional indexes.
+    HT_HIDDEN_SQL = 3
+  };
+
   virtual ~Column(){};
 
   /////////////////////////////////////////////////////////////////////////
@@ -272,8 +282,11 @@ class Column : virtual public Entity_object {
   // hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_hidden() const = 0;
-  virtual void set_hidden(bool hidden) = 0;
+  virtual enum_hidden_type hidden() const = 0;
+  virtual void set_hidden(enum_hidden_type hidden) = 0;
+  bool is_se_hidden() const {
+    return hidden() == enum_hidden_type::HT_HIDDEN_SE;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // Options.

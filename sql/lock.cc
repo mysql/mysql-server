@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -739,6 +739,7 @@ bool lock_schema_name(THD *thd, const char *db) {
   MDL_request_list mdl_requests;
   MDL_request global_request;
   MDL_request mdl_request;
+  MDL_request backup_lock_request;
 
   if (thd->locked_tables_mode) {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
@@ -750,61 +751,18 @@ bool lock_schema_name(THD *thd, const char *db) {
                    MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
   MDL_REQUEST_INIT(&mdl_request, MDL_key::SCHEMA, db, "", MDL_EXCLUSIVE,
                    MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&backup_lock_request, MDL_key::BACKUP_LOCK, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&global_request);
+  mdl_requests.push_front(&backup_lock_request);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))
     return true;
 
   DEBUG_SYNC(thd, "after_wait_locked_schema_name");
-  return false;
-}
-
-/**
-  Obtain an exclusive metadata lock on a tablespace name.
-
-  @param thd         Thread handle.
-  @param tablespace  The tablespace name.
-
-  This function cannot be called while holding the LOCK_open mutex.
-  To avoid deadlocks, we do not try to obtain exclusive metadata
-  locks in LOCK TABLES mode, since in this mode there may be
-  other metadata locks already taken by the current connection,
-  and we must not wait for MDL locks while holding locks.
-
-  @retval false  Success.
-  @retval true   Failure: we're in LOCK TABLES mode, out of memory,
-                 connection was killed, or numerous other reasons.
-*/
-
-bool lock_tablespace_name(THD *thd, const char *tablespace) {
-  MDL_request_list mdl_requests;
-  MDL_request global_request;
-  MDL_request mdl_request;
-
-  if (thd->locked_tables_mode) {
-    my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    return true;
-  }
-
-  if (thd->global_read_lock.can_acquire_protection()) return true;
-
-  MDL_REQUEST_INIT(&global_request, MDL_key::GLOBAL, "", "",
-                   MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
-
-  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLESPACE, "", tablespace,
-                   MDL_EXCLUSIVE, MDL_TRANSACTION);
-
-  mdl_requests.push_front(&mdl_request);
-  mdl_requests.push_front(&global_request);
-
-  if (thd->mdl_context.acquire_locks(&mdl_requests,
-                                     thd->variables.lock_wait_timeout))
-    return true;
-
-  DEBUG_SYNC(thd, "after_wait_locked_tablespace_name");
   return false;
 }
 
@@ -876,6 +834,7 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
   MDL_request global_request;
   MDL_request schema_request;
   MDL_request mdl_request;
+  MDL_request backup_lock_request;
 
   if (thd->locked_tables_mode) {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
@@ -905,10 +864,13 @@ bool lock_object_name(THD *thd, MDL_key::enum_mdl_namespace mdl_type,
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
   MDL_REQUEST_INIT(&mdl_request, mdl_type, db, lc_name, MDL_EXCLUSIVE,
                    MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&backup_lock_request, MDL_key::BACKUP_LOCK, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
 
   mdl_requests.push_front(&mdl_request);
   mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&global_request);
+  mdl_requests.push_front(&backup_lock_request);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout))

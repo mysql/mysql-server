@@ -47,8 +47,8 @@
 %{!?with_debuginfo:              %global nodebuginfo 1}
 %{!?product_suffix:              %global product_suffix community}
 %{!?feature_set:                 %global feature_set community}
-%{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - (GPL)}
-%{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - Debug (GPL)}
+%{!?compilation_comment_release: %global compilation_comment_release MySQL Community Server - GPL}
+%{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
 %global src_dir               %{src_base}-%{version}

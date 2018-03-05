@@ -14,12 +14,6 @@ let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_
 let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=   $MYSQL_TMP_DIR/password_file.txt;
 
---disable_query_log
-CALL mtr.add_suppression("InnoDB: Resizing redo log");
-CALL mtr.add_suppression("InnoDB: Starting to delete");
-CALL mtr.add_suppression("InnoDB: New log files created");
---enable_query_log
-
 --echo # Preparation: Shut server down.
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server

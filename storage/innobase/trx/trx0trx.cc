@@ -514,9 +514,10 @@ trx_t *trx_allocate_for_mysql(void) {
 @param[in,out]	trx	transaction object to validate */
 static void trx_validate_state_before_free(trx_t *trx) {
   if (trx->declared_to_be_inside_innodb) {
-    ib::error() << "Freeing a trx (" << trx << ", " << trx_get_id_for_print(trx)
-                << ") which is declared"
-                   " to be processing inside InnoDB";
+    ib::error(ER_IB_MSG_1202)
+        << "Freeing a trx (" << trx << ", " << trx_get_id_for_print(trx)
+        << ") which is declared"
+           " to be processing inside InnoDB";
 
     trx_print(stderr, trx, 600);
     putc('\n', stderr);
@@ -527,11 +528,11 @@ static void trx_validate_state_before_free(trx_t *trx) {
   }
 
   if (trx->n_mysql_tables_in_use != 0 || trx->mysql_n_tables_locked != 0) {
-    ib::error() << "MySQL is freeing a thd though"
-                   " trx->n_mysql_tables_in_use is "
-                << trx->n_mysql_tables_in_use
-                << " and trx->mysql_n_tables_locked is "
-                << trx->mysql_n_tables_locked << ".";
+    ib::error(ER_IB_MSG_1203)
+        << "MySQL is freeing a thd though"
+           " trx->n_mysql_tables_in_use is "
+        << trx->n_mysql_tables_in_use << " and trx->mysql_n_tables_locked is "
+        << trx->mysql_n_tables_locked << ".";
 
     trx_print(stderr, trx, 600);
     ut_print_buf(stderr, trx, sizeof(trx_t));
@@ -765,15 +766,15 @@ static trx_t *trx_resurrect_insert(
     waiting for a commit or abort decision from MySQL */
 
     if (undo->state == TRX_UNDO_PREPARED) {
-      ib::info() << "Transaction " << trx_get_id_for_print(trx)
-                 << " was in the XA prepared state.";
+      ib::info(ER_IB_MSG_1204) << "Transaction " << trx_get_id_for_print(trx)
+                               << " was in the XA prepared state.";
 
       if (srv_force_recovery == 0) {
         trx->state = TRX_STATE_PREPARED;
         ++trx_sys->n_prepared_trx;
       } else {
-        ib::info() << "Since innodb_force_recovery"
-                      " > 0, we will force a rollback.";
+        ib::info(ER_IB_MSG_1205) << "Since innodb_force_recovery"
+                                    " > 0, we will force a rollback.";
 
         trx->state = TRX_STATE_ACTIVE;
       }
@@ -828,8 +829,8 @@ static void trx_resurrect_update_in_prepared_state(
   protection of trx->mutex or trx_sys->mutex here. */
 
   if (undo->state == TRX_UNDO_PREPARED) {
-    ib::info() << "Transaction " << trx_get_id_for_print(trx)
-               << " was in the XA prepared state.";
+    ib::info(ER_IB_MSG_1206) << "Transaction " << trx_get_id_for_print(trx)
+                             << " was in the XA prepared state.";
 
     ut_ad(trx->state != TRX_STATE_FORCED_ROLLBACK);
 
@@ -1590,6 +1591,8 @@ static void trx_flush_log_if_needed_low(
   bool flush = srv_unix_file_flush_method != SRV_UNIX_NOSYNC;
 #endif /* _WIN32 */
 
+  Wait_stats wait_stats;
+
   switch (srv_flush_log_at_trx_commit) {
     case 2:
       /* Write the log but do not flush it to disk */
@@ -1597,14 +1600,15 @@ static void trx_flush_log_if_needed_low(
       /* fall through */
     case 1:
       /* Write the log and optionally flush it to disk */
-      log_write_up_to(lsn, flush);
+      wait_stats = log_write_up_to(*log_sys, lsn, flush);
+
+      MONITOR_INC_WAIT_STATS(MONITOR_TRX_ON_LOG_, wait_stats);
+
       return;
     case 0:
       /* Do nothing */
       return;
   }
-
-  ut_error;
 }
 
 /** If required, flushes the log to disk based on the value of
@@ -1617,7 +1621,7 @@ static void trx_flush_log_if_needed(
   trx->op_info = "flushing log";
 
   if (trx->ddl_operation || trx->ddl_must_flush) {
-    log_write_up_to(lsn, true);
+    log_write_up_to(*log_sys, lsn, true);
   } else {
     trx_flush_log_if_needed_low(lsn);
   }
@@ -1946,7 +1950,7 @@ void trx_commit_low(
 
     DBUG_EXECUTE_IF("ib_crash_during_trx_commit_in_mem",
                     if (trx_is_rseg_updated(trx)) {
-                      log_make_checkpoint_at(LSN_MAX, TRUE);
+                      log_make_latest_checkpoint();
                       DBUG_SUICIDE();
                     });
     /*--------------*/
@@ -1986,6 +1990,7 @@ void trx_commit(trx_t *trx) /*!< in/out: transaction */
     DBUG_EXECUTE_IF("ib_trx_commit_crash_rseg_updated", DBUG_SUICIDE(););
 
     mtr_start_sync(mtr);
+
   } else {
     mtr = NULL;
   }
@@ -2654,15 +2659,15 @@ int trx_recover_for_mysql(XID *xid_list, /*!< in/out: prepared transactions */
       xid_list[count] = *trx->xid;
 
       if (count == 0) {
-        ib::info() << "Starting recovery for"
-                      " XA transactions...";
+        ib::info(ER_IB_MSG_1207) << "Starting recovery for"
+                                    " XA transactions...";
       }
 
-      ib::info() << "Transaction " << trx_get_id_for_print(trx)
-                 << " in prepared state after recovery";
+      ib::info(ER_IB_MSG_1208) << "Transaction " << trx_get_id_for_print(trx)
+                               << " in prepared state after recovery";
 
-      ib::info() << "Transaction contains changes to " << trx->undo_no
-                 << " rows";
+      ib::info(ER_IB_MSG_1209)
+          << "Transaction contains changes to " << trx->undo_no << " rows";
 
       count++;
 
@@ -2675,9 +2680,9 @@ int trx_recover_for_mysql(XID *xid_list, /*!< in/out: prepared transactions */
   trx_sys_mutex_exit();
 
   if (count > 0) {
-    ib::info() << count
-               << " transactions in prepared state"
-                  " after recovery";
+    ib::info(ER_IB_MSG_1210) << count
+                             << " transactions in prepared state"
+                                " after recovery";
   }
 
   return (int(count));
@@ -2998,9 +3003,10 @@ void trx_kill_blocking(trx_t *trx) {
     trx_rollback_for_mysql(victim_trx);
 
 #ifdef UNIV_DEBUG
-    ib::info() << "High Priority Transaction (ID): " << trx->id
-               << " killed transaction (ID): " << id << " in hit list"
-               << " - " << thr_text;
+    ib::info(ER_IB_MSG_1211)
+        << "High Priority Transaction (ID): " << trx->id
+        << " killed transaction (ID): " << id << " in hit list"
+        << " - " << thr_text;
 #endif /* UNIV_DEBUG */
     trx_mutex_enter(victim_trx);
 

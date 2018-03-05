@@ -1251,9 +1251,9 @@ class Fil_system {
     if (!m_space_id_reuse_warned) {
       m_space_id_reuse_warned = true;
 
-      ib::warn() << "Allocated tablespace ID " << space->id << " for "
-                 << space->name << ", old maximum"
-                 << " was " << m_max_assigned_id;
+      ib::warn(ER_IB_MSG_266) << "Allocated tablespace ID " << space->id
+                              << " for " << space->name << ", old maximum"
+                              << " was " << m_max_assigned_id;
     }
 
     m_max_assigned_id = space->id;
@@ -1877,10 +1877,10 @@ size_t Tablespace_files::add(space_id_t space_id, const std::string &name) {
 
   if (Fil_path::is_undo_tablespace_name(name)) {
     if (!dict_sys_t::is_reserved(space_id)) {
-      ib::warn() << "Tablespace '" << name << "' naming"
-                 << " format is like an undo tablespace"
-                 << " but its ID " << space_id << " is not"
-                 << " in the undo tablespace range";
+      ib::warn(ER_IB_MSG_267) << "Tablespace '" << name << "' naming"
+                              << " format is like an undo tablespace"
+                              << " but its ID " << space_id << " is not"
+                              << " in the undo tablespace range";
     }
 
     names = &m_undo_paths[space_id];
@@ -1956,6 +1956,7 @@ fil_space_t *fil_space_get(space_id_t space_id) {
 }
 
 #ifndef UNIV_HOTBACKUP
+
 /** Returns the latch of a file space.
 @param[in]	space_id	Tablespace ID
 @return latch protecting storage allocation */
@@ -1972,22 +1973,22 @@ rw_lock_t *fil_space_get_latch(space_id_t space_id) {
 }
 
 #ifdef UNIV_DEBUG
+
 /** Gets the type of a file space.
 @param[in]	space_id	Tablespace ID
 @return file type */
 fil_type_t fil_space_get_type(space_id_t space_id) {
-  fil_space_t *space;
-
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
 
-  space = shard->get_space_by_id(space_id);
+  auto space = shard->get_space_by_id(space_id);
 
   shard->mutex_release();
 
   return (space->purpose);
 }
+
 #endif /* UNIV_DEBUG */
 
 /** Note that a tablespace has been imported.
@@ -2195,10 +2196,10 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
         }
       }
 
-      ib::warn() << "Cannot open '" << file->name
-                 << "'."
-                    " Have you deleted .ibd files under a"
-                    " running mysqld server?";
+      ib::warn(ER_IB_MSG_268) << "Cannot open '" << file->name
+                              << "'."
+                                 " Have you deleted .ibd files under a"
+                                 " running mysqld server?";
 
       return (DB_ERROR);
     }
@@ -2256,27 +2257,28 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   ulint min_size = expected_size * page_size.physical();
 
   if (size_bytes < min_size) {
-    ib::error() << "The size of tablespace file " << file->name << " is only "
-                << size_bytes << ", should be at least " << min_size << "!";
+    ib::error(ER_IB_MSG_269)
+        << "The size of tablespace file " << file->name << " is only "
+        << size_bytes << ", should be at least " << min_size << "!";
 
     ut_error;
   }
 
   if (space_id != space->id) {
-    ib::fatal() << "Tablespace id is " << space->id
-                << " in the data dictionary but in file " << file->name
-                << " it is " << space_id << "!";
+    ib::fatal(ER_IB_MSG_270) << "Tablespace id is " << space->id
+                             << " in the data dictionary but in file "
+                             << file->name << " it is " << space_id << "!";
   }
 
   /* We need to adjust for compressed pages. */
   const page_size_t space_page_size(space->flags);
 
   if (!page_size.equals_to(space_page_size)) {
-    ib::fatal() << "Tablespace file " << file->name << " has page size "
-                << page_size << " (flags=" << ib::hex(flags)
-                << ") but the data dictionary expects"
-                << " page size " << space_page_size
-                << " (flags=" << ib::hex(space->flags) << ")!";
+    ib::fatal(ER_IB_MSG_271)
+        << "Tablespace file " << file->name << " has page size " << page_size
+        << " (flags=" << ib::hex(flags) << ") but the data dictionary expects"
+        << " page size " << space_page_size
+        << " (flags=" << ib::hex(space->flags) << ")!";
   }
 
   /* TODO: Remove this adjustment and enable the below
@@ -2285,10 +2287,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   /* ut_ad(space->flags == flags); */
 
   if (space->flags != flags) {
-    ib::fatal() << "Table flags are " << ib::hex(space->flags)
-                << " in the data dictionary but the"
-                << " flags in file " << file->name << " are " << ib::hex(flags)
-                << "!";
+    ib::fatal(ER_IB_MSG_272, space->flags, file->name, flags);
   }
 
   {
@@ -2320,7 +2319,7 @@ dberr_t Fil_shard::get_file_size(fil_node_t *file, bool read_only_mode) {
   encrytion key and iv(initial vector) is readed. */
   if (FSP_FLAGS_GET_ENCRYPTION(flags) && !recv_recovery_is_on() &&
       space->encryption_type != Encryption::AES) {
-    ib::error() << "Can't read encryption key from file " << file->name << "!";
+    ib::error(ER_IB_MSG_273, file->name);
 
     return (DB_ERROR);
   }
@@ -2484,8 +2483,7 @@ bool Fil_shard::close_files_in_LRU(bool print_info) {
     }
 
     if (file->n_pending_flushes > 0) {
-      ib::info() << "Cannot close file " << file->name
-                 << ", because n_pending_flushes " << file->n_pending_flushes;
+      ib::info(ER_IB_MSG_274, file->name, file->n_pending_flushes);
     }
 
     /* Prior to sharding the counters were under a global
@@ -2495,15 +2493,12 @@ bool Fil_shard::close_files_in_LRU(bool print_info) {
     shards. */
 
     if (file->modification_counter != file->flush_counter) {
-      ib::info() << "Cannot close file " << file->name
-                 << ", because modification count "
-                 << file->modification_counter << " != flush count "
-                 << file->flush_counter;
+      ib::info(ER_IB_MSG_275, file->name, file->modification_counter,
+               file->flush_counter);
     }
 
     if (file->in_use > 0) {
-      ib::info() << "Cannot close file " << file->name
-                 << ", because it is in use";
+      ib::info(ER_IB_MSG_276, file->name);
     }
   }
 
@@ -2518,8 +2513,7 @@ bool Fil_system::close_file_in_all_LRU(bool print_info) {
     shard->mutex_acquire();
 
     if (print_info) {
-      ib::info() << "Open file list len in shard " << shard->id() << " is "
-                 << UT_LIST_GET_LEN(shard->m_LRU);
+      ib::info(ER_IB_MSG_277, shard->id(), UT_LIST_GET_LEN(shard->m_LRU));
     }
 
     bool success = shard->close_files_in_LRU(print_info);
@@ -2552,9 +2546,7 @@ void Fil_shard::wait_for_io_to_stop(const fil_space_t *space) {
     if ((ut_time() - start_time) == PRINT_INTERVAL_SECS) {
       start_time = ut_time();
 
-      ib::warn() << "Tablespace " << space->name << ", "
-                 << " waiting for IO to stop for " << ut_time() - begin_time
-                 << " seconds";
+      ib::warn(ER_IB_MSG_278, space->name, ut_time() - begin_time);
     }
 
 #ifndef UNIV_HOTBACKUP
@@ -2667,10 +2659,10 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
       if (ut_time() - start_time == PRINT_INTERVAL_SECS) {
         start_time = ut_time();
 
-        ib::warn() << "Trying to close a file for " << ut_time() - begin_time
-                   << " seconds"
-                   << ". Configuration only allows for "
-                   << fil_system->m_max_n_open << " open files.";
+        ib::warn(ER_IB_MSG_279) << "Trying to close a file for "
+                                << ut_time() - begin_time << " seconds"
+                                << ". Configuration only allows for "
+                                << fil_system->m_max_n_open << " open files.";
       }
     }
 
@@ -2690,7 +2682,7 @@ bool Fil_shard::mutex_acquire_and_get_space(space_id_t space_id,
 #if 0
 	/* The magic value of 300 comes from innodb.open_file_lru.test */
 	if (fil_system->m_max_n_open == 300) {
-		ib::warn()
+		ib::warn(ER_IB_MSG_280)
 			<< "Too many (" << s_n_open
 			<< ") files are open the maximum allowed"
 			<< " value is " << fil_system->m_max_n_open
@@ -2782,7 +2774,8 @@ void Fil_shard::space_detach(fil_space_t *space) {
 There must not be any pending I/O's or flushes on the files.
 @param[in,out]	space		tablespace */
 void Fil_shard::space_free_low(fil_space_t *&space) {
-  ut_ad(srv_fast_shutdown == 2 || space->max_lsn == 0);
+  // FIXME
+  // ut_ad(srv_fast_shutdown == 2);
 
   for (auto &file : space->files) {
     ut_d(space->size -= file.size);
@@ -2882,12 +2875,13 @@ fil_space_t *Fil_shard::space_create(const char *name, space_id_t space_id,
       }
     }
 
-    ib::info() << "Trying to add tablespace '" << name << "'"
-               << " with id " << space_id << " to the tablespace"
-               << " memory cache, but tablespace"
-               << " '" << space->name << "'"
-               << " already exists in the cache with space ID " << space->id
-               << ". It maps to the following file(s): " << oss.str();
+    ib::info(ER_IB_MSG_281)
+        << "Trying to add tablespace '" << name << "'"
+        << " with id " << space_id << " to the tablespace"
+        << " memory cache, but tablespace"
+        << " '" << space->name << "'"
+        << " already exists in the cache with space ID " << space->id
+        << ". It maps to the following file(s): " << oss.str();
 
     return (nullptr);
   }
@@ -3005,12 +2999,13 @@ bool Fil_system::assign_new_space_id(space_id_t *space_id) {
   space_id_t reserved_space_id = dict_sys_t::s_reserved_space_id;
 
   if (id > (reserved_space_id / 2) && (id % 1000000UL == 0)) {
-    ib::warn() << "You are running out of new single-table"
-                  " tablespace id's. Current counter is "
-               << id << " and it must not exceed " << reserved_space_id
-               << "! To reset the counter to zero you have to dump"
-                  " all your tables and recreate the whole InnoDB"
-                  " installation.";
+    ib::warn(ER_IB_MSG_282)
+        << "You are running out of new single-table"
+           " tablespace id's. Current counter is "
+        << id << " and it must not exceed " << reserved_space_id
+        << "! To reset the counter to zero you have to dump"
+           " all your tables and recreate the whole InnoDB"
+           " installation.";
   }
 
   bool success = !dict_sys_t::is_reserved(id);
@@ -3019,12 +3014,12 @@ bool Fil_system::assign_new_space_id(space_id_t *space_id) {
     *space_id = m_max_assigned_id = id;
 
   } else {
-    ib::warn() << "You have run out of single-table tablespace"
-                  " id's! Current counter is "
-               << id
-               << ". To reset the counter to zero"
-                  " you have to dump all your tables and"
-                  " recreate the whole InnoDB installation.";
+    ib::warn(ER_IB_MSG_283) << "You have run out of single-table tablespace"
+                               " id's! Current counter is "
+                            << id
+                            << ". To reset the counter to zero"
+                               " you have to dump all your tables and"
+                               " recreate the whole InnoDB installation.";
 
     *space_id = SPACE_UNKNOWN;
   }
@@ -3283,18 +3278,7 @@ void Fil_shard::open_system_tablespaces(size_t max_n_open, size_t *n_open) {
       }
 
       if (max_n_open < 10 + *n_open) {
-        ib::warn() << "You must raise the value of"
-                      " innodb_open_files in my.cnf!"
-                      " Remember that InnoDB keeps all"
-                      " log files and all system"
-                      " tablespace files open"
-                      " for the whole time mysqld is"
-                      " running, and needs to open also"
-                      " some .ibd files if the"
-                      " file-per-table storage model is used."
-                      " Current open files "
-                   << *n_open << ", max allowed open files " << max_n_open
-                   << ".";
+        ib::warn(ER_IB_MSG_284, *n_open, max_n_open);
       }
     }
   }
@@ -3333,6 +3317,10 @@ void Fil_shard::close_all_files() {
     ut_a(space->id == TRX_SYS_SPACE || space->purpose == FIL_TYPE_TEMPORARY ||
          space->id == dict_sys_t::s_log_space_first_id ||
          space->files.size() == 1);
+
+    if (space->id == dict_sys_t::s_log_space_first_id) {
+      fil_space_t::s_redo_space = nullptr;
+    }
 
     for (auto &file : space->files) {
       if (file.is_open) {
@@ -3383,8 +3371,6 @@ void Fil_shard::close_log_files(bool free_all) {
 
       fil_space_t::s_redo_space = nullptr;
     }
-
-    ut_ad(space->max_lsn == 0);
 
     for (auto &file : space->files) {
       if (file.is_open) {
@@ -3488,7 +3474,7 @@ previous value.
 @param[in]	max_id		Maximum known tablespace ID */
 void fil_set_max_space_id_if_bigger(space_id_t max_id) {
   if (dict_sys_t::is_reserved(max_id)) {
-    ib::fatal() << "Max tablespace id is too high, " << max_id;
+    ib::fatal(ER_IB_MSG_285, (ulint)max_id);
   }
 
   fil_system->update_maximum_space_id(max_id);
@@ -3538,7 +3524,7 @@ inline fil_space_t *fil_space_acquire_low(space_id_t space_id, bool silent) {
 
   if (space == nullptr) {
     if (!silent) {
-      ib::warn() << "Trying to access missing tablespace " << space_id;
+      ib::warn(ER_IB_MSG_286, (ulint)space_id);
     }
   } else if (space->stop_new_ops) {
     space = nullptr;
@@ -3594,10 +3580,7 @@ ulint Fil_shard::space_check_pending_operations(fil_space_t *space,
 
   if (space != nullptr && space->n_pending_ops > 0) {
     if (count > 5000) {
-      ib::warn() << "Trying to close/delete"
-                    " tablespace '"
-                 << space->name << "' but there are " << space->n_pending_ops
-                 << " pending operations on it.";
+      ib::warn(ER_IB_MSG_287, space->name, (ulint)space->n_pending_ops);
     }
 
     return (count + 1);
@@ -3622,11 +3605,8 @@ ulint Fil_shard::check_pending_io(const fil_space_t *space,
 
   if (space->n_pending_flushes > 0 || file.n_pending > 0) {
     if (count > 1000) {
-      ib::warn() << "Trying to delete/close"
-                    " tablespace '"
-                 << space->name << "' but there are "
-                 << space->n_pending_flushes << " flushes and "
-                 << file.n_pending << " pending I/O's on it.";
+      ib::warn(ER_IB_MSG_288, space->name, space->n_pending_flushes,
+               file.n_pending);
     }
 
     return (count + 1);
@@ -3729,7 +3709,7 @@ std::string Fil_path::get_real_path(const std::string &path) {
   int ret = my_realpath(abspath, path.c_str(), MYF(0));
 
   if (ret == -1) {
-    ib::info() << "my_realpath(" << path << ") failed!";
+    ib::info(ER_IB_MSG_289) << "my_realpath(" << path << ") failed!";
 
     return (path);
   }
@@ -3926,9 +3906,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
   if (err != DB_SUCCESS) {
     ut_a(err == DB_TABLESPACE_NOT_FOUND);
 
-    ib::error() << "Cannot delete tablespace " << space_id
-                << " because it is not found in the tablespace"
-                   " memory cache.";
+    ib::error(ER_IB_MSG_290, space_id);
 
     return (err);
   }
@@ -3968,7 +3946,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 #ifdef UNIV_HOTBACKUP
   /* When replaying the operation in MySQL Enterprise
   Backup, we do not try to write any log record. */
-#else /* UNIV_HOTBACKUP */
+#else  /* UNIV_HOTBACKUP */
     /* Before deleting the file, write a log record about
     it, so that InnoDB crash recovery will expect the file
     to be gone. */
@@ -3983,8 +3961,8 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     /* Even if we got killed shortly after deleting the
     tablespace file, the record must have already been
     written to the redo log. */
-    log_write_up_to(mtr.commit_lsn(), true);
 
+    log_write_up_to(*log_sys, mtr.commit_lsn(), true);
 #endif /* UNIV_HOTBACKUP */
 
     char *cfg_name = Fil_path::make_cfg(path);
@@ -4216,16 +4194,12 @@ dberr_t fil_discard_tablespace(space_id_t space_id) {
 
     case DB_IO_ERROR:
 
-      ib::warn() << "While deleting tablespace " << space_id
-                 << " in DISCARD TABLESPACE. File rename/delete"
-                    " failed: "
-                 << ut_strerr(err);
+      ib::warn(ER_IB_MSG_291, (ulint)space_id, ut_strerr(err));
       break;
 
     case DB_TABLESPACE_NOT_FOUND:
 
-      ib::warn() << "Cannot delete tablespace " << space_id
-                 << " in DISCARD TABLESPACE: " << ut_strerr(err);
+      ib::warn(ER_IB_MSG_292, (ulint)space_id, ut_strerr(err));
       break;
 
     default:
@@ -4438,19 +4412,14 @@ dberr_t fil_rename_tablespace_check(space_id_t space_id, const char *old_path,
   os_file_type_t ftype;
 
   if (!is_discarded && os_file_status(old_path, &exists, &ftype) && !exists) {
-    ib::error() << "Cannot rename '" << old_path << "' to '" << new_path
-                << "' for space ID " << space_id << " because the source file"
-                << " does not exist.";
+    ib::error(ER_IB_MSG_293, old_path, new_path, (ulint)space_id);
     return (DB_TABLESPACE_NOT_FOUND);
   }
 
   exists = false;
 
   if (!os_file_status(new_path, &exists, &ftype) || exists) {
-    ib::error() << "Cannot rename '" << old_path << "' to '" << new_path
-                << "' for space ID " << space_id
-                << " because the target file exists."
-                   " Remove the target file and try again.";
+    ib::error(ER_IB_MSG_294, old_path, new_path, (ulint)space_id);
     return (DB_TABLESPACE_EXISTS);
   }
 
@@ -4487,11 +4456,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     ++count;
 
     if (!(count % 1000)) {
-      ib::warn() << "Cannot rename file " << old_path << " (space id "
-                 << space_id << "),"
-                 << " retried " << count << " times."
-                 << " There are either pending IOs or"
-                 << " flushes or the file is being extended.";
+      ib::warn(ER_IB_MSG_295, old_path, (ulint)space_id, count);
     }
 
     /* The name map and space ID map are in the same shard. */
@@ -4502,11 +4467,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
     DBUG_EXECUTE_IF("fil_rename_tablespace_failure_1", space = nullptr;);
 
     if (space == nullptr) {
-      ib::error() << "Cannot find space id " << space_id
-                  << " in the tablespace memory cache,"
-                  << " though the file '" << old_path << "'"
-                  << " in a rename operation should have"
-                  << " that ID.";
+      ib::error(ER_IB_MSG_296, space_id, old_path);
 
       mutex_release();
 
@@ -4518,7 +4479,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
       mutex_release();
 
       if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
-        ib::warn() << "Rename waiting for IO to resume";
+        ib::warn(ER_IB_MSG_297);
 
         start_time = ut_time();
       }
@@ -4533,8 +4494,7 @@ bool Fil_shard::space_rename(space_id_t space_id, const char *old_path,
       return (false);
 
     } else if (space != get_space_by_name(space->name)) {
-      ib::error() << "Cannot find " << space->name
-                  << " in tablespace memory cache";
+      ib::error(ER_IB_MSG_298, space->name);
 
       mutex_release();
 
@@ -4759,8 +4719,7 @@ dberr_t Fil_system::rename_tablespace_name(const char *old_name,
   if (old_space == nullptr) {
     mutex_release_all();
 
-    ib::error() << "Cannot find tablespace for '" << old_name << "'"
-                << " in tablespace memory cache";
+    ib::error(ER_IB_MSG_299, old_name);
     return (DB_TABLESPACE_NOT_FOUND);
   }
 
@@ -4780,9 +4739,7 @@ dberr_t Fil_system::rename_tablespace_name(const char *old_name,
     mutex_release_all();
 
     if (new_space->id != old_space->id) {
-      ib::error() << "'" << new_name << "'"
-                  << " is already in the tablespace"
-                  << " memory cache";
+      ib::error(ER_IB_MSG_300, new_name);
 
       return (DB_TABLESPACE_EXISTS);
     } else {
@@ -4860,21 +4817,10 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
     /* The following call will print an error message */
     ulint error = os_file_get_last_error(true);
 
-    ib::error() << "Cannot create file '" << path << "'";
+    ib::error(ER_IB_MSG_301, path);
 
     if (error == OS_FILE_ALREADY_EXISTS) {
-      ib::error() << "The file '" << path
-                  << "'"
-                     " already exists though the"
-                     " corresponding table did not exist."
-                     " Have you moved InnoDB .ibd files"
-                     " around without using the SQL commands"
-                     " DISCARD TABLESPACE and IMPORT TABLESPACE,"
-                     " or did mysqld crash in the middle of"
-                     " CREATE TABLE?"
-                     " You can resolve the problem by removing"
-                     " the file '"
-                  << path << "' under the 'datadir' of MySQL.";
+      ib::error(ER_IB_MSG_302, path, path);
 
       return (DB_TABLESPACE_EXISTS);
     }
@@ -4893,17 +4839,7 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
     int ret = posix_fallocate(file.m_file, 0, size * page_size.physical());
 
     if (ret != 0) {
-      ib::error() << "posix_fallocate(): Failed to preallocate"
-                     " data for file "
-                  << path << ", desired size " << size * page_size.physical()
-                  << " Operating system error number " << ret
-                  << ". Check"
-                     " that the disk is not full or a disk quota"
-                     " exceeded. Make sure the file system supports"
-                     " this function. Some operating system error"
-                     " numbers are described at " REFMAN
-                     " operating-system-error-codes.html";
-
+      ib::error(ER_IB_MSG_303, path, size * page_size.physical(), ret, REFMAN);
       success = false;
     } else {
       success = true;
@@ -5006,8 +4942,7 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
   ut_free(buf2);
 
   if (err != DB_SUCCESS) {
-    ib::error() << "Could not write the first page to"
-                << " tablespace '" << path << "'";
+    ib::error(ER_IB_MSG_304, path);
 
     os_file_close(file);
     os_file_delete(innodb_data_file_key, path);
@@ -5018,7 +4953,7 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
   success = os_file_flush(file);
 
   if (!success) {
-    ib::error() << "File flush of tablespace '" << path << "' failed";
+    ib::error(ER_IB_MSG_305, path);
 
     os_file_close(file);
     os_file_delete(innodb_data_file_key, path);
@@ -5055,8 +4990,7 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
 
     mtr_commit(&mtr);
 
-    DBUG_EXECUTE_IF("fil_ibd_create_log",
-                    log_make_checkpoint_at(LSN_MAX, true););
+    DBUG_EXECUTE_IF("fil_ibd_create_log", log_make_latest_checkpoint(););
   }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -5175,9 +5109,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
       be keyring plugin issues. */
       os_file_get_last_error(true);
 
-      ib::error() << "Could not find a valid tablespace file"
-                  << " for `" << space_name << "`. "
-                  << TROUBLESHOOT_DATADICT_MSG;
+      ib::error(ER_IB_MSG_306, space_name, TROUBLESHOOT_DATADICT_MSG);
     }
 
     return (err);
@@ -5367,13 +5299,12 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
     }
 
 #ifdef UNIV_HOTBACKUP
-    ib::trace_2()
+    ib::trace_2() << "Ignoring data file '" << filename << "' with space ID "
+                  << space->id << ". Another data file called '" << file.name
+                  << "' exists with the same space ID";
 #else  /* UNIV_HOTBACKUP */
-    ib::info()
+    ib::info(ER_IB_MSG_307, filename, (ulint)space->id, file.name);
 #endif /* UNIV_HOTBACKUP */
-        << "Ignoring data file '" << filename << "' with space ID " << space->id
-        << ". Another data file called '" << file.name
-        << "' exists with the same space ID";
 
     space = nullptr;
 
@@ -5422,15 +5353,15 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
     /* The following call prints an error message */
     os_file_get_last_error(true);
 
-    ib::error() << "Could not measure the size of"
-                   " single-table tablespace file '"
-                << df.filepath() << "'";
+    ib::error(ER_IB_MSG_308) << "Could not measure the size of"
+                                " single-table tablespace file '"
+                             << df.filepath() << "'";
 
   } else if (size < minimum_size) {
 #ifndef UNIV_HOTBACKUP
-    ib::error() << "The size of tablespace file '" << df.filepath()
-                << "' is only " << size << ", should be at least "
-                << minimum_size << "!";
+    ib::error(ER_IB_MSG_309)
+        << "The size of tablespace file '" << df.filepath() << "' is only "
+        << size << ", should be at least " << minimum_size << "!";
 #else
     /* In MEB, we work around this error. */
     df.set_space_id(SPACE_UNKNOWN);
@@ -5444,15 +5375,16 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
   if (df.space_id() == SPACE_UNKNOWN || df.space_id() == 0) {
     char *new_path;
 
-    ib::info() << "Renaming tablespace file '" << df.filepath()
-               << "' with space ID " << df.space_id() << " to " << df.name()
-               << "_ibbackup_old_vers_<timestamp>"
-                  " because its size "
-               << df.size()
-               << " is too small"
-                  " (< 4 pages 16 kB each), or the space id in the"
-                  " file header is not sensible. This can happen in"
-                  " an mysqlbackup run, and is not dangerous.";
+    ib::info(ER_IB_MSG_310)
+        << "Renaming tablespace file '" << df.filepath() << "' with space ID "
+        << df.space_id() << " to " << df.name()
+        << "_ibbackup_old_vers_<timestamp>"
+           " because its size "
+        << df.size()
+        << " is too small"
+           " (< 4 pages 16 kB each), or the space id in the"
+           " file header is not sensible. This can happen in"
+           " an mysqlbackup run, and is not dangerous.";
     df.close();
 
     new_path = meb_make_ibbackup_old_name(df.filepath());
@@ -5481,12 +5413,13 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
   mutex_release();
 
   if (space != nullptr) {
-    ib::info() << "Renaming data file '" << df.filepath() << "' with space ID "
-               << space_id << " to " << df.name()
-               << "_ibbackup_old_vers_<timestamp> because space " << space->name
-               << " with the same id was scanned"
-                  " earlier. This can happen if you have renamed tables"
-                  " during an mysqlbackup run.";
+    ib::info(ER_IB_MSG_311)
+        << "Renaming data file '" << df.filepath() << "' with space ID "
+        << space_id << " to " << df.name()
+        << "_ibbackup_old_vers_<timestamp> because space " << space->name
+        << " with the same id was scanned"
+           " earlier. This can happen if you have renamed tables"
+           " during an mysqlbackup run.";
 
     df.close();
 
@@ -5543,9 +5476,7 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
                                      df.m_encryption_key, df.m_encryption_iv);
 
     if (err != DB_SUCCESS) {
-      ib::error() << "Can't set encryption information for"
-                     " tablespace "
-                  << space->name << "!";
+      ib::error(ER_IB_MSG_312, space->name);
     }
   }
 
@@ -5585,11 +5516,12 @@ fil_load_status Fil_system::ibd_open_for_recovery(space_id_t space_id,
 @param[in]	space_id	Table's space ID */
 static void fil_report_missing_tablespace(const char *name,
                                           space_id_t space_id) {
-  ib::error() << "Table " << name
-              << " in the InnoDB data dictionary has tablespace id " << space_id
-              << ","
-                 " but tablespace with that id or name does not exist. Have"
-                 " you deleted or moved .ibd files?";
+  ib::error(ER_IB_MSG_313)
+      << "Table " << name << " in the InnoDB data dictionary has tablespace id "
+      << space_id
+      << ","
+         " but tablespace with that id or name does not exist. Have"
+         " you deleted or moved .ibd files?";
 }
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
@@ -5680,40 +5612,41 @@ bool Fil_shard::space_check_exists(space_id_t space_id, const char *name,
       }
 
     } else {
-      ib::error() << "Table " << name
-                  << " in InnoDB data"
-                     " dictionary has tablespace id "
-                  << space_id
-                  << ", but a tablespace with that id does not"
-                     " exist. There is a tablespace of name "
-                  << fnamespace->name << " and id " << fnamespace->id
-                  << ", though. Have you"
-                     " deleted or moved .ibd files?";
+      ib::error(ER_IB_MSG_314)
+          << "Table " << name
+          << " in InnoDB data"
+             " dictionary has tablespace id "
+          << space_id
+          << ", but a tablespace with that id does not"
+             " exist. There is a tablespace of name "
+          << fnamespace->name << " and id " << fnamespace->id
+          << ", though. Have you"
+             " deleted or moved .ibd files?";
     }
 
-    ib::warn() << TROUBLESHOOT_DATADICT_MSG;
+    ib::warn(ER_IB_MSG_315) << TROUBLESHOOT_DATADICT_MSG;
 
   } else if (0 != strcmp(space->name, name)) {
-    ib::error() << "Table " << name
-                << " in InnoDB data dictionary"
-                   " has tablespace id "
-                << space_id
-                << ", but the"
-                   " tablespace with that id has name "
-                << space->name
-                << ". Have you deleted or moved .ibd"
-                   " files?";
+    ib::error(ER_IB_MSG_316) << "Table " << name
+                             << " in InnoDB data dictionary"
+                                " has tablespace id "
+                             << space_id
+                             << ", but the"
+                                " tablespace with that id has name "
+                             << space->name
+                             << ". Have you deleted or moved .ibd"
+                                " files?";
 
     if (fnamespace != nullptr) {
-      ib::error() << "There is a tablespace with the right"
-                     " name: "
-                  << fnamespace->name
-                  << ", but its id"
-                     " is "
-                  << fnamespace->id << ".";
+      ib::error(ER_IB_MSG_317) << "There is a tablespace with the right"
+                                  " name: "
+                               << fnamespace->name
+                               << ", but its id"
+                                  " is "
+                               << fnamespace->id << ".";
     }
 
-    ib::warn() << TROUBLESHOOT_DATADICT_MSG;
+    ib::warn(ER_IB_MSG_318) << TROUBLESHOOT_DATADICT_MSG;
   }
 
   mutex_release();
@@ -5852,10 +5785,10 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 #ifdef UNIV_HOTBACKUP
     prev_size = space->size;
 
-    ib::trace() << "Extending space id : " << space->id
-                << ", space name : " << space->name
-                << ", space size : " << space->size
-                << " page, page size : " << phy_page_size;
+    ib::trace_1() << "Extending space id : " << space->id
+                  << ", space name : " << space->name
+                  << ", space size : " << space->size
+                  << " page, page size : " << phy_page_size;
 #endif /* UNIV_HOTBACKUP */
 
     if (file->in_use == 0) {
@@ -5957,18 +5890,19 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
     ext3 FS with O_DIRECT. We ignore EINVAL here so that the
     error message won't flood. */
     if (ret != 0 && ret != EINVAL) {
-      ib::error() << "posix_fallocate(): Failed to preallocate"
-                     " data for file "
-                  << file->name << ", desired size " << len
-                  << " bytes."
-                     " Operating system error number "
-                  << ret
-                  << ". Check"
-                     " that the disk is not full or a disk quota"
-                     " exceeded. Make sure the file system supports"
-                     " this function. Some operating system error"
-                     " numbers are described at " REFMAN
-                     " operating-system-error-codes.html";
+      ib::error(ER_IB_MSG_319)
+          << "posix_fallocate(): Failed to preallocate"
+             " data for file "
+          << file->name << ", desired size " << len
+          << " bytes."
+             " Operating system error number "
+          << ret
+          << ". Check"
+             " that the disk is not full or a disk quota"
+             " exceeded. Make sure the file system supports"
+             " this function. Some operating system error"
+             " numbers are described at " REFMAN
+             " operating-system-error-codes.html";
 
       err = DB_IO_ERROR;
     }
@@ -5984,8 +5918,9 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
                             static_cast<ulint>(len), read_only_mode);
 
       if (err != DB_SUCCESS) {
-        ib::warn() << "Error while writing " << len << " zeroes to "
-                   << file->name << " starting at offset " << node_start;
+        ib::warn(ER_IB_MSG_320)
+            << "Error while writing " << len << " zeroes to " << file->name
+            << " starting at offset " << node_start;
       }
     }
 
@@ -6092,15 +6027,16 @@ void Fil_shard::meb_extend_tablespaces_to_stored_len() {
     success = space_extend(space, size_in_header);
 
     if (!success) {
-      ib::error() << "Could not extend the tablespace of " << space->name
-                  << " to the size stored in"
-                     " header, "
-                  << size_in_header
-                  << " pages;"
-                     " size after extension "
-                  << 0
-                  << " pages. Check that you have free disk"
-                     " space and retry!";
+      ib::error(ER_IB_MSG_321)
+          << "Could not extend the tablespace of " << space->name
+          << " to the size stored in"
+             " header, "
+          << size_in_header
+          << " pages;"
+             " size after extension "
+          << 0
+          << " pages. Check that you have free disk"
+             " space and retry!";
 
       ut_a(success);
     }
@@ -6237,8 +6173,8 @@ static void meb_set_encryption_key(const fil_space_t *space) {
     err = fil_set_encryption(space->id, Encryption::AES, key.ptr, key.iv);
 
     if (err != DB_SUCCESS) {
-      ib::error() << "Can't set encryption information"
-                  << " for tablespace" << space->name << "!";
+      ib::error(ER_IB_MSG_322) << "Can't set encryption information"
+                               << " for tablespace" << space->name << "!";
     }
 
     ut_free(key.iv);
@@ -6312,11 +6248,11 @@ void Fil_system::meb_name_process(char *name, space_id_t space_id,
           f.m_deleted = false;
 
         } else {
-          ib::error() << "Tablespace " << space_id
-                      << " has been found in two places: '" << f.m_name
-                      << "' and '" << name
-                      << "'."
-                         " You must delete one of them.";
+          ib::error(ER_IB_MSG_323)
+              << "Tablespace " << space_id << " has been found in two places: '"
+              << f.m_name << "' and '" << name
+              << "'."
+                 " You must delete one of them.";
 
           recv_sys->found_corrupt_fs = true;
         }
@@ -6325,8 +6261,8 @@ void Fil_system::meb_name_process(char *name, space_id_t space_id,
       case FIL_LOAD_ID_CHANGED:
         ut_ad(space == nullptr);
 
-        ib::trace() << "Ignoring file " << name << " for space-id mismatch "
-                    << space_id;
+        ib::trace_1() << "Ignoring file " << name << " for space-id mismatch "
+                      << space_id;
         break;
 
       case FIL_LOAD_NOT_FOUND:
@@ -6339,7 +6275,7 @@ void Fil_system::meb_name_process(char *name, space_id_t space_id,
       case FIL_LOAD_INVALID:
         ut_ad(space == nullptr);
 
-        ib::warn() << "Invalid tablespace " << name;
+        ib::warn(ER_IB_MSG_324) << "Invalid tablespace " << name;
         break;
 
       case FIL_LOAD_MISMATCH:
@@ -6390,8 +6326,9 @@ static void meb_make_abs_file_path(const std::string &name, ulint flags,
       }
 
       if (pos == std::string::npos) {
-        ib::fatal() << "Could not extract the tabelspace"
-                    << " file name from the in the path : " << name;
+        ib::fatal(ER_IB_MSG_325)
+            << "Could not extract the tabelspace"
+            << " file name from the in the path : " << name;
       }
 
       ++pos;
@@ -6451,22 +6388,23 @@ static void meb_tablespace_redo_create(const page_id_t &page_id, ulint flags,
        already loaded for recovery/apply-log from different
        directory path */
 
-    ib::trace() << "Ignoring the log record. No need to "
-                << "create the tablespace : " << abs_file_path;
+    ib::trace_1() << "Ignoring the log record. No need to "
+                  << "create the tablespace : " << abs_file_path;
   } else {
     auto it = recv_spaces.find(page_id.space());
 
     if (it == recv_spaces.end() || it->second.m_name != abs_file_path) {
-      ib::trace() << "Creating the tablespace : " << abs_file_path
-                  << ", space_id : " << page_id.space();
+      ib::trace_1() << "Creating the tablespace : " << abs_file_path
+                    << ", space_id : " << page_id.space();
 
       dberr_t ret = fil_ibd_create(page_id.space(), tablespace_name.c_str(),
                                    abs_file_path.c_str(), flags,
                                    FIL_IBD_FILE_INITIAL_SIZE);
 
       if (ret != DB_SUCCESS) {
-        ib::fatal() << "Could not create the tablespace : " << abs_file_path
-                    << " with space Id : " << page_id.space();
+        ib::fatal(ER_IB_MSG_326)
+            << "Could not create the tablespace : " << abs_file_path
+            << " with space Id : " << page_id.space();
       }
     }
   }
@@ -6508,15 +6446,15 @@ static void meb_tablespace_redo_rename(const page_id_t &page_id,
     6. Tablespace is not yet loaded in memory.
     This will prevent unintended renames during recovery. */
 
-    ib::trace() << "Ignoring the log record. "
-                << "No need to rename tablespace";
+    ib::trace_1() << "Ignoring the log record. "
+                  << "No need to rename tablespace";
 
     return;
 
   } else {
-    ib::trace() << "Renaming space id : " << page_id.space()
-                << ", old tablespace name : " << from_name
-                << " to new tablespace name : " << to_name;
+    ib::trace_1() << "Renaming space id : " << page_id.space()
+                  << ", old tablespace name : " << from_name
+                  << " to new tablespace name : " << to_name;
 
     new_name = static_cast<char *>(mem_strdup(abs_to_path.c_str()));
   }
@@ -6649,8 +6587,9 @@ bool Fil_shard::prepare_file_for_io(fil_node_t *file, bool extend) {
     /* Spam the log after every minute. Ignore any race here. */
 
     if ((curr_time - prev_time) > 60) {
-      ib::warn() << "Open files " << s_n_open << " exceeds the limit "
-                 << fil_system->m_max_n_open;
+      ib::warn(ER_IB_MSG_327)
+          << "Open files " << s_n_open << " exceeds the limit "
+          << fil_system->m_max_n_open;
 
       prev_time = curr_time;
     }
@@ -6749,25 +6688,26 @@ static void fil_report_invalid_page_access_low(page_no_t block_offset,
                                                const char *space_name,
                                                ulint byte_offset, ulint len,
                                                bool is_read, int line) {
-  ib::error() << "Trying to access page number " << block_offset
-              << " in"
-                 " space "
-              << space_id << ", space name " << space_name
-              << ","
-                 " which is outside the tablespace bounds. Byte offset "
-              << byte_offset << ", len " << len << ", i/o type "
-              << (is_read ? "read" : "write")
-              << ". If you get this error at mysqld startup, please check"
-                 " that your my.cnf matches the ibdata files that you have in"
-                 " the MySQL server.";
+  ib::error(ER_IB_MSG_328)
+      << "Trying to access page number " << block_offset
+      << " in"
+         " space "
+      << space_id << ", space name " << space_name
+      << ","
+         " which is outside the tablespace bounds. Byte offset "
+      << byte_offset << ", len " << len << ", i/o type "
+      << (is_read ? "read" : "write")
+      << ". If you get this error at mysqld startup, please check"
+         " that your my.cnf matches the ibdata files that you have in"
+         " the MySQL server.";
 
-  ib::error() << "Server exits"
+  ib::error(ER_IB_MSG_329) << "Server exits"
 #ifdef UNIV_DEBUG
-              << " at "
-              << "fil0fil.cc"
-              << "[" << line << "]"
+                           << " at "
+                           << "fil0fil.cc"
+                           << "[" << line << "]"
 #endif /* UNIV_DEBUG */
-              << ".";
+                           << ".";
 
   ut_error;
 
@@ -7069,17 +7009,17 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
 
     if (!req_type.ignore_missing()) {
       if (space == nullptr) {
-        ib::error() << "Trying to do I/O on a tablespace"
-                    << " which does not exist. I/O type: "
-                    << (req_type.is_read() ? "read" : "write")
-                    << ", page: " << page_id << ", I/O length: " << len
-                    << " bytes";
+        ib::error(ER_IB_MSG_330)
+            << "Trying to do I/O on a tablespace"
+            << " which does not exist. I/O type: "
+            << (req_type.is_read() ? "read" : "write") << ", page: " << page_id
+            << ", I/O length: " << len << " bytes";
       } else {
-        ib::error() << "Trying to do async read on a"
-                    << " tablespace which is being deleted."
-                    << " Tablespace name: \"" << space->name
-                    << "\", page: " << page_id << ", read length: " << len
-                    << " bytes";
+        ib::error(ER_IB_MSG_331)
+            << "Trying to do async read on a"
+            << " tablespace which is being deleted."
+            << " Tablespace name: \"" << space->name << "\", page: " << page_id
+            << ", read length: " << len << " bytes";
       }
     }
 
@@ -7127,12 +7067,12 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
       mutex_release();
 
       if (!req_type.ignore_missing()) {
-        ib::error() << "Trying to do I/O to a tablespace"
-                       " which exists without an .ibd data"
-                    << " file. I/O type: "
-                    << (req_type.is_read() ? "read" : "write")
-                    << ", page: " << page_id_t(page_id.space(), page_no)
-                    << ", I/O length: " << len << " bytes";
+        ib::error(ER_IB_MSG_332)
+            << "Trying to do I/O to a tablespace"
+               " which exists without an .ibd data"
+            << " file. I/O type: " << (req_type.is_read() ? "read" : "write")
+            << ", page: " << page_id_t(page_id.space(), page_no)
+            << ", I/O length: " << len << " bytes";
       }
 
       return (DB_TABLESPACE_DELETED);
@@ -7227,7 +7167,7 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     err = DB_SUCCESS;
 
     if (file->punch_hole) {
-      ib::warn() << "Punch hole failed for '" << file->name << "'";
+      ib::warn(ER_IB_MSG_333) << "Punch hole failed for '" << file->name << "'";
     }
 
     fil_no_punch_hole(file);
@@ -7333,8 +7273,6 @@ void fil_aio_wait(ulint segment) {
       }
       return;
     case FIL_TYPE_LOG:
-      srv_set_io_thread_op_info(segment, "complete checkpoint io");
-      log_io_complete(static_cast<log_group_t *>(message));
       return;
   }
 
@@ -7712,8 +7650,8 @@ Any other pages were written with uninitialized bytes in FIL_PAGE_TYPE.
 @param[in,out]	mtr	mini-transaction */
 void fil_page_reset_type(const page_id_t &page_id, byte *page, ulint type,
                          mtr_t *mtr) {
-  ib::info() << "Resetting invalid page " << page_id << " type "
-             << fil_page_get_type(page) << " to " << type << ".";
+  ib::info(ER_IB_MSG_334) << "Resetting invalid page " << page_id << " type "
+                          << fil_page_get_type(page) << " to " << type << ".";
   mlog_write_ulint(page + FIL_PAGE_TYPE, type, MLOG_2BYTES, mtr);
 }
 
@@ -7852,7 +7790,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
                        (ulint)n_bytes);
 
     if (err != DB_SUCCESS) {
-      ib::error() << "os_file_read() failed";
+      ib::error(ER_IB_MSG_335) << "os_file_read() failed";
 
       return (err);
     }
@@ -7903,7 +7841,7 @@ static dberr_t fil_iterate(const Fil_page_iterator &iter, buf_block_t *block,
         write_type &= ~IORequest::PUNCH_HOLE;
 
       } else {
-        ib::error() << "os_file_write() failed";
+        ib::error(ER_IB_MSG_336) << "os_file_write() failed";
 
         return (err);
       }
@@ -7959,9 +7897,9 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
     /* The following call prints an error message */
     os_file_get_last_error(true);
 
-    ib::error() << "Trying to import a tablespace, but could not"
-                   " open the tablespace file "
-                << filepath;
+    ib::error(ER_IB_MSG_337) << "Trying to import a tablespace, but could not"
+                                " open the tablespace file "
+                             << filepath;
 
     ut_free(filepath);
 
@@ -8024,10 +7962,10 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
       ut_ad(table->encryption_key != nullptr);
 
       if (!dict_table_is_encrypted(table)) {
-        ib::error() << "Table is not in an encrypted"
-                       " tablespace, but the data file which"
-                       " trying to import is an encrypted"
-                       " tablespace";
+        ib::error(ER_IB_MSG_338) << "Table is not in an encrypted"
+                                    " tablespace, but the data file which"
+                                    " trying to import is an encrypted"
+                                    " tablespace";
         err = DB_IO_NO_ENCRYPT_TABLESPACE;
       }
     }
@@ -8056,13 +7994,13 @@ dberr_t fil_tablespace_iterate(dict_table_t *table, ulint n_io_buffers,
   }
 
   if (err == DB_SUCCESS) {
-    ib::info() << "Sync to disk";
+    ib::info(ER_IB_MSG_339) << "Sync to disk";
 
     if (!os_file_flush(file)) {
-      ib::info() << "os_file_flush() failed!";
+      ib::info(ER_IB_MSG_340) << "os_file_flush() failed!";
       err = DB_IO_ERROR;
     } else {
-      ib::info() << "Sync to disk - done!";
+      ib::info(ER_IB_MSG_341) << "Sync to disk - done!";
     }
   }
 
@@ -8505,7 +8443,7 @@ void fil_space_set_flags(fil_space_t *space, ulint flags) {
 /* Unit Tests */
 #ifdef UNIV_ENABLE_UNIT_TEST_MAKE_FILEPATH
 #define MF Fil_path::make
-#define DISPLAY ib::info() << path
+#define DISPLAY ib::info(ER_IB_MSG_342) << path
 void test_make_filepath() {
   char *path;
   const char *long_path =
@@ -8657,8 +8595,8 @@ static void fil_tablespace_encryption_init(const fil_space_t *space) {
     err = fil_set_encryption(space->id, Encryption::AES, key.ptr, key.iv);
 
     if (err != DB_SUCCESS) {
-      ib::error() << "Can't set encryption information"
-                  << " for tablespace" << space->name << "!";
+      ib::error(ER_IB_MSG_343) << "Can't set encryption information"
+                               << " for tablespace" << space->name << "!";
     }
 
     ut_free(key.iv);
@@ -8677,9 +8615,10 @@ Free the Tablespace_files instance.
 @return DB_SUCCESS if all OK */
 dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
   if (read_only_mode && !m_moved.empty()) {
-    ib::error() << m_moved.size() << " files have been relocated"
-                << " and the server has been started in read"
-                << " only mode. Cannot update the data dictionary.";
+    ib::error(ER_IB_MSG_344)
+        << m_moved.size() << " files have been relocated"
+        << " and the server has been started in read"
+        << " only mode. Cannot update the data dictionary.";
 
     return (DB_READ_ONLY);
   }
@@ -8714,10 +8653,10 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
     err = dd_rename_tablespace(object_id, space_name.c_str(), new_path.c_str());
 
     if (err != DB_SUCCESS) {
-      ib::error() << "Unable to update tablespace ID"
-                  << " " << object_id << " "
-                  << " '" << old_path << "' to"
-                  << " '" << new_path << "'";
+      ib::error(ER_IB_MSG_345) << "Unable to update tablespace ID"
+                               << " " << object_id << " "
+                               << " '" << old_path << "' to"
+                               << " '" << new_path << "'";
 
       ++failed;
     }
@@ -8725,8 +8664,8 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
     ++count;
 
     if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
-      ib::info() << "Processed " << count << "/" << m_moved.size()
-                 << " tablespace paths. Failures " << failed;
+      ib::info(ER_IB_MSG_346) << "Processed " << count << "/" << m_moved.size()
+                              << " tablespace paths. Failures " << failed;
 
       start_time = ut_time();
       print_msg = true;
@@ -8737,7 +8676,7 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
     if (batch_size > 10000) {
       innobase_commit_low(trx);
 
-      ib::info() << "Committed : " << batch_size;
+      ib::info(ER_IB_MSG_347) << "Committed : " << batch_size;
 
       batch_size = 0;
 
@@ -8746,14 +8685,14 @@ dberr_t Fil_system::prepare_open_for_business(bool read_only_mode) {
   }
 
   if (batch_size > 0) {
-    ib::info() << "Committed : " << batch_size;
+    ib::info(ER_IB_MSG_348) << "Committed : " << batch_size;
   }
 
   innobase_commit_low(trx);
 
   if (print_msg) {
-    ib::info() << "Updated " << count << " tablespace paths"
-               << ", failures " << failed;
+    ib::info(ER_IB_MSG_349) << "Updated " << count << " tablespace paths"
+                            << ", failures " << failed;
   }
 
   return (failed == 0 ? DB_SUCCESS : DB_ERROR);
@@ -8779,9 +8718,10 @@ bool fil_op_replay_rename_for_ddl(const page_id_t &page_id,
   fil_space_t *space = fil_space_get(space_id);
 
   if (space == nullptr && !fil_system->open_for_recovery(space_id)) {
-    ib::info() << "Can not find space with space ID " << space_id
-               << " when replaying the DDL log "
-               << "rename from '" << old_name << "' to '" << new_name << "'";
+    ib::info(ER_IB_MSG_350)
+        << "Can not find space with space ID " << space_id
+        << " when replaying the DDL log "
+        << "rename from '" << old_name << "' to '" << new_name << "'";
 
     return (true);
   }
@@ -8900,8 +8840,8 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
     file as missing. */
 
     if (Fil_path::get_file_type(old_path) == OS_FILE_TYPE_FILE) {
-      ib::info() << old_path << " found outside of"
-                 << " --innodb-directories setting";
+      ib::info(ER_IB_MSG_352) << old_path << " found outside of"
+                              << " --innodb-directories setting";
 
       return (Fil_state::MATCHES);
     }
@@ -8952,8 +8892,9 @@ Fil_state fil_tablespace_path_equals(dd::Object_id dd_object_id,
 
   /* Do not use a datafile that is in the wrong place. */
   if (!Fil_path::is_valid_location(space_name, new_dir)) {
-    ib::info() << "Cannot use scanned file " << new_dir << " for tablespace "
-               << space_name << " because it is not in a valid location.";
+    ib::info(ER_IB_MSG_353)
+        << "Cannot use scanned file " << new_dir << " for tablespace "
+        << space_name << " because it is not in a valid location.";
 
     return (Fil_state::MISSING);
   }
@@ -9013,10 +8954,10 @@ bool Fil_system::check_missing_tablespaces() {
 
       page_no = page_get_page_no(page.m_page);
 
-      ib::warn() << "Doublewrite page " << page.m_no
-                 << " for {space: " << space_id << ", page_no:" << page_no
-                 << "} could not be restored."
-                 << " File name unknown for tablespace ID " << space_id;
+      ib::warn(ER_IB_MSG_1263)
+          << "Doublewrite page " << page.m_no << " for {space: " << space_id
+          << ", page_no:" << page_no << "} could not be restored."
+          << " File name unknown for tablespace ID " << space_id;
     }
 
     /* Free the memory. */
@@ -9033,8 +8974,8 @@ bool Fil_system::check_missing_tablespaces() {
     const auto result = get_scanned_files(space_id);
 
     if (result.second == nullptr) {
-      ib::error() << "Could not find any file associated with"
-                  << " the tablespace ID: " << space_id;
+      ib::error(ER_IB_MSG_354) << "Could not find any file associated with"
+                               << " the tablespace ID: " << space_id;
 
       if (!fsp_is_undo_tablespace(space_id)) {
         missing = true;
@@ -9064,10 +9005,12 @@ bool fil_check_missing_tablespaces() {
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply, parse only
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes) {
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -9099,10 +9042,10 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
 
       snprintf(name, sizeof(name), "%.*s", (int)len, ptr);
 
-      ib::error() << "MLOG_FILE_CREATE : Invalid file name."
-                  << " Length (" << len << ") must be >= 5"
-                  << " and end in '.ibd'. File name in the"
-                  << " redo log is '" << name << "'";
+      ib::error(ER_IB_MSG_355) << "MLOG_FILE_CREATE : Invalid file name."
+                               << " Length (" << len << ") must be >= 5"
+                               << " and end in '.ibd'. File name in the"
+                               << " redo log is '" << name << "'";
 
       recv_sys->found_corrupt_log = true;
     }
@@ -9122,6 +9065,9 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
     return (nullptr);
   }
 
+  if (parse_only) {
+    return (ptr);
+  }
 #ifdef UNIV_HOTBACKUP
 
   meb_tablespace_redo_create(page_id, flags, name);
@@ -9149,7 +9095,7 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
     success = fil_tablespace_open_for_recovery(page_id.space());
 
     if (!success) {
-      ib::info() << "Create '" << abs_name << "' failed!";
+      ib::info(ER_IB_MSG_356) << "Create '" << abs_name << "' failed!";
     }
   }
 #endif /* UNIV_HOTBACKUP */
@@ -9163,10 +9109,12 @@ This function doesn't do anything, simply parses the redo log record.
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply, parse only
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes) {
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -9191,10 +9139,10 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 
       snprintf(name, sizeof(name), "%.*s", (int)from_len, ptr);
 
-      ib::error() << "MLOG_FILE_RENAME: Invalid from file name."
-                  << " Length (" << from_len << ") must be >= 5"
-                  << " and end in '.ibd'. File name in the"
-                  << " redo log is '" << name << "'";
+      ib::error(ER_IB_MSG_357) << "MLOG_FILE_RENAME: Invalid from file name."
+                               << " Length (" << from_len << ") must be >= 5"
+                               << " and end in '.ibd'. File name in the"
+                               << " redo log is '" << name << "'";
     }
 
     return (nullptr);
@@ -9209,8 +9157,9 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
   ptr += from_len;
 
   if (!Fil_path::has_ibd_suffix(abs_from_name)) {
-    ib::error() << "MLOG_FILE_RENAME: From file name doesn't end in"
-                << " .ibd. File name in the redo log is '" << from_name << "'";
+    ib::error(ER_IB_MSG_358)
+        << "MLOG_FILE_RENAME: From file name doesn't end in"
+        << " .ibd. File name in the redo log is '" << from_name << "'";
 
     recv_sys->found_corrupt_log = true;
 
@@ -9229,10 +9178,10 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 
       snprintf(name, sizeof(name), "%.*s", (int)to_len, ptr);
 
-      ib::error() << "MLOG_FILE_RENAME: Invalid to file name."
-                  << " Length (" << to_len << ") must be >= 5"
-                  << " and end in '.ibd'. File name in the"
-                  << " redo log is '" << name << "'";
+      ib::error(ER_IB_MSG_359) << "MLOG_FILE_RENAME: Invalid to file name."
+                               << " Length (" << to_len << ") must be >= 5"
+                               << " and end in '.ibd'. File name in the"
+                               << " redo log is '" << name << "'";
     }
 
     return (nullptr);
@@ -9246,15 +9195,18 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 
 #ifdef UNIV_HOTBACKUP
 
-  meb_tablespace_redo_rename(page_id, from_name, to_name);
+  if (!parse_only) {
+    meb_tablespace_redo_rename(page_id, from_name, to_name);
+  }
 
 #else  /* !UNIV_HOTBACKUP */
 
   auto abs_to_name = Fil_path::get_real_path(to_name);
 
   if (from_len == to_len && strncmp(to_name, from_name, to_len) == 0) {
-    ib::error() << "MLOG_FILE_RENAME: The from and to name are the"
-                << " same: '" << from_name << "', '" << to_name << "'";
+    ib::error(ER_IB_MSG_360)
+        << "MLOG_FILE_RENAME: The from and to name are the"
+        << " same: '" << from_name << "', '" << to_name << "'";
 
     recv_sys->found_corrupt_log = true;
 
@@ -9262,8 +9214,9 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
   }
 
   if (!Fil_path::has_ibd_suffix(abs_to_name)) {
-    ib::error() << "MLOG_FILE_RENAME: To file name doesn't end in"
-                << " .ibd. File name in the redo log is '" << to_name << "'";
+    ib::error(ER_IB_MSG_361)
+        << "MLOG_FILE_RENAME: To file name doesn't end in"
+        << " .ibd. File name in the redo log is '" << to_name << "'";
 
     recv_sys->found_corrupt_log = true;
 
@@ -9279,10 +9232,12 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply, parse only
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes) {
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -9306,10 +9261,10 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
 
       snprintf(name, sizeof(name), "%.*s", (int)len, ptr);
 
-      ib::error() << "MLOG_FILE_DELETE : Invalid file name."
-                  << " Length (" << len << ") must be >= 5"
-                  << " and end in '.ibd'. File name in the"
-                  << " redo log is '" << name << "'";
+      ib::error(ER_IB_MSG_362) << "MLOG_FILE_DELETE : Invalid file name."
+                               << " Length (" << len << ") must be >= 5"
+                               << " and end in '.ibd'. File name in the"
+                               << " redo log is '" << name << "'";
     }
 
     return (nullptr);
@@ -9327,6 +9282,9 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
     return (nullptr);
   }
 
+  if (parse_only) {
+    return (ptr);
+  }
 #ifdef UNIV_HOTBACKUP
 
   meb_tablespace_redo_delete(page_id, name);
@@ -9423,8 +9381,9 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   if (!Encryption::decode_encryption_info(key, iv, ptr)) {
     recv_sys->found_corrupt_log = true;
 
-    ib::warn() << "Encryption information"
-               << " in the redo log of space " << space_id << " is invalid";
+    ib::warn(ER_IB_MSG_364)
+        << "Encryption information"
+        << " in the redo log of space " << space_id << " is invalid";
 
     return (nullptr);
   }
@@ -9486,7 +9445,7 @@ void Tablespace_dirs::tokenize_paths(const std::string &str,
     /* Filter out invalid path components. */
 
     if (path == "/") {
-      ib::warn() << "Scan path '" << path << "' ignored";
+      ib::warn(ER_IB_MSG_365) << "Scan path '" << path << "' ignored";
 
     } else if (pos == std::string::npos) {
       Fil_path::normalize(dir.data());
@@ -9510,8 +9469,8 @@ void Tablespace_dirs::tokenize_paths(const std::string &str,
       dirs.push_back(value(d, cur_path));
 
     } else {
-      ib::warn() << "Scan path '" << path << "' ignored"
-                 << " contains '*'";
+      ib::warn(ER_IB_MSG_366) << "Scan path '" << path << "' ignored"
+                              << " contains '*'";
     }
 
     start = str.find_first_not_of(delimiters, end);
@@ -9576,10 +9535,10 @@ static dberr_t fil_rename_validate(fil_space_t *space, const std::string &name,
     return (err);
 
   } else if (err != DB_SUCCESS) {
-    ib::warn() << "Failed to read the first page of the"
-               << " file '" << df.filepath() << "'."
-               << " You will need to verify and move the"
-               << " file out of the way retry recovery.";
+    ib::warn(ER_IB_MSG_367) << "Failed to read the first page of the"
+                            << " file '" << df.filepath() << "'."
+                            << " You will need to verify and move the"
+                            << " file out of the way retry recovery.";
 
     return (err);
   }
@@ -9590,8 +9549,8 @@ static dberr_t fil_rename_validate(fil_space_t *space, const std::string &name,
     /* Check if already points to the correct file.
     Must have the same space ID */
 
-    ib::info() << "Tablespace ID already maps to: '" << df.filepath()
-               << "', rename ignored.";
+    ib::info(ER_IB_MSG_368) << "Tablespace ID already maps to: '"
+                            << df.filepath() << "', rename ignored.";
 
     ut_a(df.space_id() == space->id);
 
@@ -9601,21 +9560,23 @@ static dberr_t fil_rename_validate(fil_space_t *space, const std::string &name,
     /* Target file exists on disk but has a different
     tablespce ID. The user should manually delete it. */
 
-    ib::error() << "Cannot rename '" << name << "' to '" << df.filepath()
-                << "'. File '" << df.filepath() << "' tablespace ID "
-                << df.space_id() << " doesn't match the expected tablespace"
-                << " ID " << space->id << ". You will need to verify and move '"
-                << df.filepath() << "' manually and retry recovery!";
+    ib::error(ER_IB_MSG_369)
+        << "Cannot rename '" << name << "' to '" << df.filepath() << "'. File '"
+        << df.filepath() << "' tablespace ID " << df.space_id()
+        << " doesn't match the expected tablespace"
+        << " ID " << space->id << ". You will need to verify and move '"
+        << df.filepath() << "' manually and retry recovery!";
 
     return (DB_ERROR);
   }
 
   /* Target file exists on disk and has the same ID. */
 
-  ib::error() << "Cannot rename '" << name << "' to '" << df.filepath()
-              << "'. The File '" << df.filepath() << " already exists on"
-              << " disk. You will need to verify and move either file"
-              << " manually and retry recovery!";
+  ib::error(ER_IB_MSG_370)
+      << "Cannot rename '" << name << "' to '" << df.filepath()
+      << "'. The File '" << df.filepath() << " already exists on"
+      << " disk. You will need to verify and move either file"
+      << " manually and retry recovery!";
 
   return (DB_ERROR);
 }
@@ -9661,7 +9622,7 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
 
     if (err == DB_TABLESPACE_NOT_FOUND) {
       /* This can happend during truncate. */
-      ib::info() << "Tablespace ID mismatch in '" << name << "'";
+      ib::info(ER_IB_MSG_371) << "Tablespace ID mismatch in '" << name << "'";
     }
 
     df.close();
@@ -9722,7 +9683,7 @@ space_id_t Fil_system::get_tablespace_id(const std::string &filename) {
   std::ifstream ifs(filename, std::ios::binary);
 
   if (!ifs) {
-    ib::warn() << "Unable to open '" << filename << "'";
+    ib::warn(ER_IB_MSG_372) << "Unable to open '" << filename << "'";
     return (ULINT32_UNDEFINED);
   }
 
@@ -9874,20 +9835,20 @@ void Tablespace_dirs::duplicate_check(const Const_iter &start,
 
     } else if (space_id != 0 &&
                Fil_path::is_undo_tablespace_name(phy_filename)) {
-      ib::info() << "Can't determine the undo file tablespace"
-                 << " ID for '" << phy_filename << "', could be"
-                 << " an undo truncate in progress";
+      ib::info(ER_IB_MSG_373) << "Can't determine the undo file tablespace"
+                              << " ID for '" << phy_filename << "', could be"
+                              << " an undo truncate in progress";
 
     } else {
-      ib::info() << "Ignoring '" << phy_filename << "' invalid"
-                 << " tablespace ID in the header";
+      ib::info(ER_IB_MSG_374) << "Ignoring '" << phy_filename << "' invalid"
+                              << " tablespace ID in the header";
     }
 
     ++count;
 
     if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
-      ib::info() << "Thread# " << thread_id << " - Checked " << count << "/"
-                 << (end - start) << " files";
+      ib::info(ER_IB_MSG_375) << "Thread# " << thread_id << " - Checked "
+                              << count << "/" << (end - start) << " files";
 
       start_time = ut_time();
 
@@ -9896,7 +9857,7 @@ void Tablespace_dirs::duplicate_check(const Const_iter &start,
   }
 
   if (printed_msg) {
-    ib::info() << "Checked " << count << " files";
+    ib::info(ER_IB_MSG_376) << "Checked " << count << " files";
   }
 }
 
@@ -9936,7 +9897,7 @@ void Tablespace_dirs::print_duplicates(const Space_id_set &duplicates) {
 
     oss << "]" << std::endl;
 
-    ib::error() << oss.str();
+    ib::error(ER_IB_MSG_377) << oss.str();
   }
 }
 
@@ -9948,7 +9909,7 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
 
   Fil_path::normalize(directories);
 
-  ib::info() << "Directories to scan '" << directories << "'";
+  ib::info(ER_IB_MSG_378) << "Directories to scan '" << directories << "'";
 
   Scanned_files ibd_files;
   Scanned_files undo_files;
@@ -9971,7 +9932,7 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
 
     ut_a(Fil_path::is_separator(dir.path().back()));
 
-    ib::info() << "Scanning '" << dir.path() << "'";
+    ib::info(ER_IB_MSG_379) << "Scanning '" << dir.path() << "'";
 
     /* Walk the sub-tree of dir. */
 
@@ -10002,9 +9963,9 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
       }
 
       if (ut_time() - start_time >= PRINT_INTERVAL_SECS) {
-        ib::info() << "Files found so far: " << ibd_files.size()
-                   << " data files"
-                   << " and " << undo_files.size() << " undo files";
+        ib::info(ER_IB_MSG_380)
+            << "Files found so far: " << ibd_files.size() << " data files"
+            << " and " << undo_files.size() << " undo files";
 
         start_time = ut_time();
         print_msg = true;
@@ -10015,8 +9976,8 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
   }
 
   if (print_msg) {
-    ib::info() << "Found " << ibd_files.size() << " '.ibd' and "
-               << undo_files.size() << " undo files";
+    ib::info(ER_IB_MSG_381) << "Found " << ibd_files.size() << " '.ibd' and "
+                            << undo_files.size() << " undo files";
   }
 
   Space_id_set unique;
@@ -10029,8 +9990,8 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
       n_threads = MAX_SCAN_THREADS;
     }
 
-    ib::info() << "Using " << (n_threads + 1) << " threads to"
-               << " scan the tablespace files";
+    ib::info(ER_IB_MSG_382) << "Using " << (n_threads + 1) << " threads to"
+                            << " scan the tablespace files";
   }
 
   std::mutex m;
@@ -10055,12 +10016,14 @@ dberr_t Tablespace_dirs::scan(const std::string &in_directories) {
 
   ut_a(m_checked == ibd_files.size() + undo_files.size());
 
-  ib::info() << "Completed space ID check of " << m_checked << " files.";
+  ib::info(ER_IB_MSG_383) << "Completed space ID check of " << m_checked
+                          << " files.";
 
   dberr_t err;
 
   if (!duplicates.empty()) {
-    ib::error() << "Multiple files found for the same tablespace ID:";
+    ib::error(ER_IB_MSG_384)
+        << "Multiple files found for the same tablespace ID:";
 
     print_duplicates(duplicates);
 
@@ -10102,14 +10065,15 @@ dberr_t fil_check_extend_space(fil_node_t *file) {
   shard->mutex_release();
 
   if (space->size < space->size_in_header) {
-    ib::info() << "Extending space: " << space->name << " from size "
-               << space->size << " pages to " << space->size_in_header
-               << " pages as stored in space header.";
+    ib::info(ER_IB_MSG_385)
+        << "Extending space: " << space->name << " from size " << space->size
+        << " pages to " << space->size_in_header
+        << " pages as stored in space header.";
 
     if (!shard->space_extend(space, space->size_in_header)) {
-      ib::error() << "Failed to extend tablespace."
-                  << " Check for free space in disk"
-                  << " and try again.";
+      ib::error(ER_IB_MSG_386) << "Failed to extend tablespace."
+                               << " Check for free space in disk"
+                               << " and try again.";
 
       err = DB_OUT_OF_FILE_SPACE;
     }
@@ -10153,8 +10117,8 @@ void fil_space_update_name(fil_space_t *space, const char *name) {
   dberr_t err = fil_rename_tablespace_by_name(space->name, name);
 
   if (err != DB_SUCCESS) {
-    ib::warn() << "Tablespace rename '" << space->name << "' to"
-               << " '" << name << "' failed!";
+    ib::warn(ER_IB_MSG_387) << "Tablespace rename '" << space->name << "' to"
+                            << " '" << name << "' failed!";
   }
 }
 
@@ -10191,9 +10155,9 @@ bool Fil_path::is_valid_location(const char *space_name,
     /* This is a general or system tablespace. */
 
     if (MySQL_datadir_path.is_ancestor(dirpath)) {
-      ib::error() << "A general tablespace cannot"
-                  << " be located under the datadir."
-                  << " Cannot open file '" << path << "'.";
+      ib::error(ER_IB_MSG_388) << "A general tablespace cannot"
+                               << " be located under the datadir."
+                               << " Cannot open file '" << path << "'.";
       return (false);
     }
 
@@ -10204,9 +10168,9 @@ bool Fil_path::is_valid_location(const char *space_name,
     name.resize(pos);
 
     if (MySQL_datadir_path.is_same_as(dirpath)) {
-      ib::error() << "A file-per-table tablespace cannot"
-                  << " be located in the datadir."
-                  << " Cannot open file" << path << "'.";
+      ib::error(ER_IB_MSG_389) << "A file-per-table tablespace cannot"
+                               << " be located in the datadir."
+                               << " Cannot open file" << path << "'.";
       return (false);
     }
 

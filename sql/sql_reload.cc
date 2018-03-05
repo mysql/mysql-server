@@ -282,6 +282,18 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
       /* NOTE: my_error() has been already called by reset_master(). */
       result = 1;
     }
+    /*
+      RESET MASTER acquires global read lock (if the thread is not acquired
+      already) to make sure no transaction commits are getting executed
+      while the operation is in process. If (and only if) it is
+      acquired by RESET MASTER internal process (options will contain
+      REFRESH_READ_LOCK flag in this case), unlock the global read lock
+      here as we are at the end of the 'RESET MASTER' execution.
+    */
+    if (options & REFRESH_READ_LOCK) {
+      DBUG_ASSERT(thd->global_read_lock.is_acquired());
+      thd->global_read_lock.unlock_global_read_lock(thd);
+    }
   }
   if (options & REFRESH_OPTIMIZER_COSTS) reload_optimizer_cost_constants();
   if (options & REFRESH_SLAVE) {

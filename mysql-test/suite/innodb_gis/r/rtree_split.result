@@ -68,7 +68,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 set @g1 = ST_GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where MBRWithin(t1.c2, @g1);
 count(*)

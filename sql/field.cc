@@ -9164,6 +9164,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   @param fld_change            Column change.
   @param fld_interval_list     Interval list (if any.)
   @param fld_charset           Column charset.
+  @param has_explicit_collation Column has an explicit COLLATE attribute.
   @param fld_geom_type         Column geometry type (if any.)
   @param fld_gcol_info         Generated column data
   @param srid                  The SRID specification. This might be null
@@ -9180,7 +9181,8 @@ bool Create_field::init(THD *thd, const char *fld_name,
                         Item *fld_default_value, Item *fld_on_update_value,
                         LEX_STRING *fld_comment, const char *fld_change,
                         List<String> *fld_interval_list,
-                        const CHARSET_INFO *fld_charset, uint fld_geom_type,
+                        const CHARSET_INFO *fld_charset,
+                        bool has_explicit_collation, uint fld_geom_type,
                         Generated_column *fld_gcol_info,
                         Nullable<gis::srid_t> srid) {
   uint sign_len, allowed_type_modifier = 0;
@@ -9188,11 +9190,18 @@ bool Create_field::init(THD *thd, const char *fld_name,
 
   DBUG_ENTER("Create_field::init()");
 
+  DBUG_ASSERT(!(has_explicit_collation && fld_charset == nullptr));
+
   field = 0;
   field_name = fld_name;
   flags = fld_type_modifier;
-  charset = fld_charset;
-  is_explicit_collation = (charset != nullptr);
+  is_explicit_collation = (fld_charset != nullptr);
+
+  if (!has_explicit_collation && fld_charset == &my_charset_utf8mb4_0900_ai_ci)
+    charset = thd->variables.default_collation_for_utf8mb4;
+  else
+    charset = fld_charset;
+
   auto_flags = Field::NONE;
   maybe_null = !(fld_type_modifier & NOT_NULL_FLAG);
 

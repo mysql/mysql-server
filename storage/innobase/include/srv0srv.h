@@ -50,12 +50,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "buf0checksum.h"
 #include "fil0fil.h"
-#include "log0log.h"
+#include "log0types.h"
 #include "mysql/psi/mysql_stage.h"
 #include "univ.i"
+
 #ifndef UNIV_HOTBACKUP
 #include "log0ddl.h"
 #include "os0event.h"
+#include "os0file.h"
 #include "que0types.h"
 #include "srv0conc.h"
 #include "trx0types.h"
@@ -77,9 +79,6 @@ struct srv_stats_t {
 
   /** Number of physical writes to the log performed */
   ulint_ctr_1_t log_writes;
-
-  /** Amount of data padded for log write ahead */
-  ulint_ctr_1_t log_padded;
 
   /** Amount of data written to the log files in bytes */
   lsn_ctr_1_t os_log_written;
@@ -138,6 +137,43 @@ struct srv_stats_t {
   /** Number of rows inserted */
   ulint_ctr_64_t n_rows_inserted;
 };
+
+struct Srv_threads {
+  /** true if monitor thread is created */
+  bool m_monitor_thread_active;
+
+  /** true if error monitor thread is created */
+  bool m_error_monitor_thread_active;
+
+  /** true if buffer pool dump/load thread is created */
+  bool m_buf_dump_thread_active;
+
+  /** true if buffer pool resize thread is created */
+  bool m_buf_resize_thread_active;
+
+  /** true if stats thread is created */
+  bool m_dict_stats_thread_active;
+
+  /** true if timeout thread is created */
+  bool m_timeout_thread_active;
+
+  /** true if master thread is created */
+  bool m_master_thread_active;
+};
+
+struct Srv_cpu_usage {
+  int n_cpu;
+  double utime_abs;
+  double stime_abs;
+  double utime_pct;
+  double stime_pct;
+};
+
+/** Structure with state of srv background threads. */
+extern Srv_threads srv_threads;
+
+/** Structure with cpu usage information. */
+extern Srv_cpu_usage srv_cpu_usage;
 
 extern Log_DDL *log_ddl;
 
@@ -257,16 +293,13 @@ extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char *srv_log_group_home_dir;
 
-#ifdef UNIV_DEBUG
-extern bool srv_checkpoint_disabled;
-#endif /* UNIV_DEBUG */
-
 /** Enable or Disable Encrypt of REDO tablespace. */
 extern bool srv_redo_log_encrypt;
 
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong srv_n_log_files;
+
 /** At startup, this is the current redo log file size.
 During startup, if this is different from srv_log_file_size_requested
 (innodb_log_file_size), the redo log will be rebuilt and this size
@@ -276,9 +309,114 @@ and writing to the redo log is not allowed.
 
 During startup, this is in bytes, and later converted to pages. */
 extern ulonglong srv_log_file_size;
-/** The value of the startup parameter innodb_log_file_size */
+
+/** The value of the startup parameter innodb_log_file_size. */
 extern ulonglong srv_log_file_size_requested;
+
+/** Space for log buffer, expressed in bytes. Note, that log buffer
+will use only the largest power of two, which is not greater than
+the assigned space. */
 extern ulong srv_log_buffer_size;
+
+/** When log writer follows links in the log recent written buffer,
+it stops when it has reached at least that many bytes to write,
+limiting how many bytes can be written in single call. */
+extern ulong srv_log_write_max_size;
+
+/** Size of block, used for writing ahead to avoid read-on-write. */
+extern ulong srv_log_write_ahead_size;
+
+/** Number of events used for notifications about redo write. */
+extern ulong srv_log_write_events;
+
+/** Number of events used for notifications about redo flush. */
+extern ulong srv_log_flush_events;
+
+/** Number of slots in a small buffer, which is used to allow concurrent
+writes to log buffer. The slots are addressed by LSN values modulo number
+of the slots. */
+extern ulong srv_log_recent_written_size;
+
+/** Number of slots in a small buffer, which is used to break requirement
+for total order of dirty pages, when they are added to flush lists.
+The slots are addressed by LSN values modulo number of the slots. */
+extern ulong srv_log_recent_closed_size;
+
+/** Minimum absolute value of cpu time for which spin-delay is used. */
+extern uint srv_log_spin_cpu_abs_lwm;
+
+/** Maximum percentage of cpu time for which spin-delay is used. */
+extern uint srv_log_spin_cpu_pct_hwm;
+
+/** Number of spin iterations, when spinning and waiting for log buffer
+written up to given LSN, before we fallback to loop with sleeps.
+This is not used when user thread has to wait for log flushed to disk. */
+extern ulong srv_log_wait_for_write_spin_delay;
+
+/** Timeout used when waiting for redo write (microseconds). */
+extern ulong srv_log_wait_for_write_timeout;
+
+/** Number of spin iterations, when spinning and waiting for log flushed. */
+extern ulong srv_log_wait_for_flush_spin_delay;
+
+/** Maximum value of average log flush time for which spin-delay is used.
+When flushing takes longer, user threads no longer spin when waiting for
+flushed redo. Expressed in microseconds. */
+extern ulong srv_log_wait_for_flush_spin_hwm;
+
+/** Timeout used when waiting for redo flush (microseconds). */
+extern ulong srv_log_wait_for_flush_timeout;
+
+/** Number of spin iterations, for which log writer thread is waiting
+for new data to write or flush without sleeping. */
+extern ulong srv_log_writer_spin_delay;
+
+/** Initial timeout used to wait on writer_event. */
+extern ulong srv_log_writer_timeout;
+
+/** Number of milliseconds every which a periodical checkpoint is written
+by the log checkpointer thread (unless periodical checkpoints are disabled,
+which is a case during initial phase of startup). */
+extern ulong srv_log_checkpoint_every;
+
+/** Number of spin iterations, for which log flusher thread is waiting
+for new data to flush, without sleeping. */
+extern ulong srv_log_flusher_spin_delay;
+
+/** Initial timeout used to wait on flusher_event. */
+extern ulong srv_log_flusher_timeout;
+
+/** Number of spin iterations, for which log write notifier thread is waiting
+for advanced writeed_to_disk_lsn without sleeping. */
+extern ulong srv_log_write_notifier_spin_delay;
+
+/** Initial timeout used to wait on write_notifier_event. */
+extern ulong srv_log_write_notifier_timeout;
+
+/** Number of spin iterations, for which log flush notifier thread is waiting
+for advanced flushed_to_disk_lsn without sleeping. */
+extern ulong srv_log_flush_notifier_spin_delay;
+
+/** Initial timeout used to wait on flush_notifier_event. */
+extern ulong srv_log_flush_notifier_timeout;
+
+/** Number of spin iterations, for which log closerr thread is waiting
+for a reachable untraversed link in recent_closed. */
+extern ulong srv_log_closer_spin_delay;
+
+/** Initial sleep used in log closer after spin delay is finished. */
+extern ulong srv_log_closer_timeout;
+
+/** Whether to generate and require checksums on the redo log pages. */
+extern bool srv_log_checksums;
+
+#ifdef UNIV_DEBUG
+
+/** If true then disable checkpointing. */
+extern bool srv_checkpoint_disabled;
+
+#endif /* UNIV_DEBUG */
+
 extern ulong srv_flush_log_at_trx_commit;
 extern uint srv_flush_log_at_timeout;
 extern ulong srv_log_write_ahead_size;
@@ -400,19 +538,6 @@ extern ulong srv_replication_delay;
 
 extern bool srv_print_innodb_monitor;
 extern bool srv_print_innodb_lock_monitor;
-extern ibool srv_print_verbose_log;
-
-extern ibool srv_monitor_active;
-extern ibool srv_error_monitor_active;
-
-/* TRUE during the lifetime of the buffer pool dump/load thread */
-extern ibool srv_buf_dump_thread_active;
-
-/* true during the lifetime of the buffer pool resize thread */
-extern bool srv_buf_resize_thread_active;
-
-/* true during the lifetime of the stats thread */
-extern bool srv_dict_stats_thread_active;
 
 extern ulong srv_n_spin_wait_rounds;
 extern ulong srv_n_free_tickets_to_enter;
@@ -490,6 +615,12 @@ extern mysql_pfs_key_t io_ibuf_thread_key;
 extern mysql_pfs_key_t io_log_thread_key;
 extern mysql_pfs_key_t io_read_thread_key;
 extern mysql_pfs_key_t io_write_thread_key;
+extern mysql_pfs_key_t log_writer_thread_key;
+extern mysql_pfs_key_t log_closer_thread_key;
+extern mysql_pfs_key_t log_checkpointer_thread_key;
+extern mysql_pfs_key_t log_flusher_thread_key;
+extern mysql_pfs_key_t log_write_notifier_thread_key;
+extern mysql_pfs_key_t log_flush_notifier_thread_key;
 extern mysql_pfs_key_t page_flush_coordinator_thread_key;
 extern mysql_pfs_key_t page_flush_thread_key;
 extern mysql_pfs_key_t recv_writer_thread_key;
@@ -732,7 +863,7 @@ ulint srv_get_task_queue_length(void);
 ulint srv_release_threads(enum srv_thread_type type, /*!< in: thread type */
                           ulint n); /*!< in: number of threads to release */
 
-/** Check whether any background thread (except the master thread) is active.
+/** Check whether any background thread is created.
 Send the threads wakeup signal.
 
 NOTE: this check is part of the final shutdown, when the first phase of
@@ -749,8 +880,8 @@ The first phase of server shutdown must have already been executed
 (or the server must not have been fully started up).
 @see srv_pre_dd_shutdown()
 @see srv_any_background_threads_are_active()
-@retval true	if any thread is active
-@retval false	if no thread is active */
+@retval true   if any thread is active
+@retval false  if no thread is active */
 bool srv_master_thread_active();
 
 /** Wakeup the purge threads. */

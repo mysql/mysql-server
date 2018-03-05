@@ -83,8 +83,9 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   if (my_strcasecmp(system_charset_info, index->name(),
                     dd_index->name().c_str()) != 0 &&
       strcmp(dd_index->name().c_str(), "PRIMARY") != 0) {
-    ib::warn() << "Index name in InnoDB is " << index->name()
-               << " while index name in global DD is " << dd_index->name();
+    ib::warn(ER_IB_MSG_162)
+        << "Index name in InnoDB is " << index->name()
+        << " while index name in global DD is " << dd_index->name();
     match = false;
   }
 
@@ -95,17 +96,18 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   ut_ad(p.exists(dd_index_key_strings[DD_INDEX_ID]));
   p.get_uint64(dd_index_key_strings[DD_INDEX_ID], &id);
   if (id != index->id) {
-    ib::warn() << "Index id in InnoDB is " << index->id << " while index id in"
-               << " global DD is " << id;
+    ib::warn(ER_IB_MSG_163)
+        << "Index id in InnoDB is " << index->id << " while index id in"
+        << " global DD is " << id;
     match = false;
   }
 
   ut_ad(p.exists(dd_index_key_strings[DD_INDEX_ROOT]));
   p.get_uint32(dd_index_key_strings[DD_INDEX_ROOT], &root);
   if (root != index->page) {
-    ib::warn() << "Index root in InnoDB is " << index->page
-               << " while index root in"
-               << " global DD is " << root;
+    ib::warn(ER_IB_MSG_164)
+        << "Index root in InnoDB is " << index->page << " while index root in"
+        << " global DD is " << root;
     match = false;
   }
 
@@ -114,9 +116,9 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   /* For DD tables, the trx_id=0 is got from get_se_private_id().
   TODO: index->trx_id is not expected to be 0 once Bug#25730513 is fixed*/
   if (trx_id != 0 && index->trx_id != 0 && trx_id != index->trx_id) {
-    ib::warn() << "Index transaction id in InnoDB is " << index->trx_id
-               << " while index transaction"
-               << " id in global DD is " << trx_id;
+    ib::warn(ER_IB_MSG_165) << "Index transaction id in InnoDB is "
+                            << index->trx_id << " while index transaction"
+                            << " id in global DD is " << trx_id;
     match = false;
   }
 
@@ -138,8 +140,9 @@ bool dd_table_match(const dict_table_t *table, const Table *dd_table) {
   bool match = true;
 
   if (dd_table->se_private_id() != table->id) {
-    ib::warn() << "Table id in InnoDB is " << table->id
-               << " while the id in global DD is " << dd_table->se_private_id();
+    ib::warn(ER_IB_MSG_166)
+        << "Table id in InnoDB is " << table->id
+        << " while the id in global DD is " << dd_table->se_private_id();
     match = false;
   }
 
@@ -151,9 +154,10 @@ bool dd_table_match(const dict_table_t *table, const Table *dd_table) {
   for (const auto dd_index : dd_table->indexes()) {
     if (dd_table->tablespace_id() == dict_sys_t::s_dd_sys_space_id &&
         dd_index->tablespace_id() != dd_table->tablespace_id()) {
-      ib::warn() << "Tablespace id in table is " << dd_table->tablespace_id()
-                 << ", while tablespace id in index " << dd_index->name()
-                 << " is " << dd_index->tablespace_id();
+      ib::warn(ER_IB_MSG_167)
+          << "Tablespace id in table is " << dd_table->tablespace_id()
+          << ", while tablespace id in index " << dd_index->name() << " is "
+          << dd_index->tablespace_id();
     }
 
     const dict_index_t *index = dd_find_index(table, dd_index);
@@ -487,7 +491,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_check_corrupted(
 #ifndef UNIV_HOTBACKUP
       my_error(ER_TABLE_CORRUPT, MYF(0), "", table->name.m_name);
 #else  /* !UNIV_HOTBACKUP */
-      ib::fatal() << "table is corrupt: " << table->name.m_name;
+      ib::fatal(ER_IB_MSG_168) << "table is corrupt: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     } else {
       char db_buf[MAX_DATABASE_NAME_LEN + 1];
@@ -498,7 +502,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_check_corrupted(
                         nullptr);
       my_error(ER_TABLE_CORRUPT, MYF(0), db_buf, tbl_buf);
 #else  /* !UNIV_HOTBACKUP */
-      ib::fatal() << "table is corrupt: " << table->name.m_name;
+      ib::fatal(ER_IB_MSG_169) << "table is corrupt: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     }
     table = nullptr;
@@ -510,7 +514,8 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_check_corrupted(
 #ifndef UNIV_HOTBACKUP
     my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
 #else  /* !UNIV_HOTBACKUP */
-    ib::fatal() << "table space is missing: " << table->name.m_name;
+    ib::fatal(ER_IB_MSG_170)
+        << "table space is missing: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     table = nullptr;
     return (HA_ERR_TABLESPACE_MISSING);
@@ -1582,7 +1587,7 @@ void dd_add_fts_doc_id_index(dd::Table &new_table, const dd::Table &old_table) {
 
   /* Add hidden FTS_DOC_ID column */
   dd::Column *col = new_table.add_column();
-  col->set_hidden(true);
+  col->set_hidden(dd::Column::enum_hidden_type::HT_HIDDEN_SE);
   col->set_name(FTS_DOC_ID_COL_NAME);
   col->set_type(dd::enum_column_types::LONGLONG);
   col->set_nullable(false);
@@ -1799,7 +1804,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
     size_t geom_col_idx;
     for (geom_col_idx = 0; geom_col_idx < dd_index->elements().size();
          ++geom_col_idx) {
-      if (!dd_index->elements()[geom_col_idx]->column().is_hidden()) break;
+      if (!dd_index->elements()[geom_col_idx]->column().is_se_hidden()) break;
     }
     const dd::Column &col = dd_index->elements()[geom_col_idx]->column();
     bool srid_has_value = col.srs_id().has_value();
@@ -2155,7 +2160,7 @@ inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
 
   /* Need to add FTS_DOC_ID column if it is not defined by user,
   since TABLE_SHARE::fields does not contain it if it is a hidden col */
-  if (has_doc_id && doc_col->is_hidden()) {
+  if (has_doc_id && doc_col->is_se_hidden()) {
 #ifdef UNIV_DEBUG
     ulint doc_id_col;
     ut_ad(!create_table_check_doc_id_col(m_thd, m_form, &doc_id_col));
@@ -3105,8 +3110,8 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   }
 
   if (table->flags2 & DICT_TF2_DISCARDED) {
-    ib::warn() << "Tablespace for table " << table->name
-               << " is set as discarded.";
+    ib::warn(ER_IB_MSG_171)
+        << "Tablespace for table " << table->name << " is set as discarded.";
     table->ibd_file_missing = TRUE;
     return;
   }
@@ -3154,10 +3159,11 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   }
 
   if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
-    ib::error() << "Failed to find tablespace for table " << table->name
-                << " in the cache. Attempting"
-                   " to load the tablespace with space id "
-                << table->space;
+    ib::error(ER_IB_MSG_172)
+        << "Failed to find tablespace for table " << table->name
+        << " in the cache. Attempting"
+           " to load the tablespace with space id "
+        << table->space;
   }
 
   /* Try to get the filepath if this space_id is already open.
@@ -3174,9 +3180,9 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     mutex_enter(&dict_sys->mutex);
 
     if (filepath == nullptr) {
-      ib::warn() << "Could not find the filepath"
-                 << " for table " << table->name << ", space ID "
-                 << table->space << " in the data dictionary.";
+      ib::warn(ER_IB_MSG_173) << "Could not find the filepath"
+                              << " for table " << table->name << ", space ID "
+                              << table->space << " in the data dictionary.";
     } else {
       alloc_from_heap = true;
     }
@@ -3921,7 +3927,7 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   dict_col_t *t_col;
   ulint pos;
   ulint v_pos = 0;
-  bool is_hidden;
+  dd::Column::enum_hidden_type hidden;
   bool is_virtual;
   dict_v_col_t *vcol = nullptr;
 
@@ -3936,8 +3942,8 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
-  is_hidden = mach_read_from_1(field) & 0x01;
-  if (is_hidden) {
+  hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
+  if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE) {
     mtr_commit(mtr);
     return (false);
   }
@@ -4070,7 +4076,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   ulint len;
   const byte *field;
   ulint origin_pos;
-  bool is_hidden;
+  dd::Column::enum_hidden_type hidden;
   bool is_virtual;
 
   ut_ad(!rec_get_deleted_flag(rec, dict_table_is_comp(dd_columns)));
@@ -4094,8 +4100,8 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
-  is_hidden = mach_read_from_1(field) & 0x01;
-  if (is_hidden) {
+  hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
+  if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE) {
     mtr_commit(mtr);
     return (false);
   }
@@ -5224,9 +5230,10 @@ bool dd_tablespace_update_cache(THD *thd) {
         case DB_CANNOT_OPEN_FILE:
           break;
         default:
-          ib::info() << "Unable to open tablespace " << id
-                     << " (flags=" << flags << ", filename=" << filename << ")."
-                     << " Have you deleted/moved the .IBD";
+          ib::info(ER_IB_MSG_174)
+              << "Unable to open tablespace " << id << " (flags=" << flags
+              << ", filename=" << filename << ")."
+              << " Have you deleted/moved the .IBD";
           ut_strerr(err);
       }
     }

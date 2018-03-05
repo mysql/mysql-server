@@ -117,7 +117,8 @@
 #include "sql/rpl_rli.h"  // rli_slave etc
 #include "sql/session_tracker.h"
 #include "sql/sql_alter.h"
-#include "sql/sql_base.h"  // lock_table_names
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_base.h"         // lock_table_names
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
@@ -1359,6 +1360,8 @@ bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
           lock_trigger_names(thd, tables))
         DBUG_RETURN(true);
 
+      DEBUG_SYNC(thd, "mysql_rm_table_after_lock_table_names");
+
       for (table = tables; table; table = table->next_local) {
         if (is_temporary_table(table)) continue;
 
@@ -1366,6 +1369,8 @@ bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
         have_non_tmp_table = 1;
       }
     } else {
+      bool acquire_backup_lock = false;
+
       for (table = tables; table; table = table->next_local)
         if (is_temporary_table(table)) {
           /*
@@ -1401,7 +1406,13 @@ bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
 
           /* Here we are sure that a non-tmp table exists */
           have_non_tmp_table = 1;
+
+          if (!acquire_backup_lock) acquire_backup_lock = true;
         }
+
+      if (acquire_backup_lock &&
+          acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+        DBUG_RETURN(true);
     }
 
     if (rm_table_do_discovery_and_lock_fk_tables(thd, tables))
@@ -5677,9 +5688,25 @@ static bool set_table_default_charset(THD *thd, HA_CREATE_INFO *create_info,
     let's fetch the database default character set and
     apply it to the table.
   */
-  if (!create_info->default_table_charset &&
-      get_default_db_collation(schema, &create_info->default_table_charset))
-    return true;
+  if (create_info->default_table_charset == nullptr) {
+    if (get_default_db_collation(schema, &create_info->default_table_charset))
+      return true;
+  } else {
+    DBUG_ASSERT((create_info->used_fields & HA_CREATE_USED_CHARSET) == 0 ||
+                create_info->default_table_charset ==
+                    create_info->table_charset);
+
+    if (!(create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) &&
+        create_info->default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
+      create_info->default_table_charset =
+          thd->variables.default_collation_for_utf8mb4;
+
+      // ALTER TABLE ... CONVERT TO CHARACTER SET ...
+      if (create_info->used_fields & HA_CREATE_USED_CHARSET) {
+        create_info->table_charset = create_info->default_table_charset;
+      }
+    }
+  }
 
   if (create_info->default_table_charset == NULL)
     create_info->default_table_charset = thd->collation();
@@ -9931,7 +9958,7 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-                             NULL, 0, NULL, def->m_srid))
+                             NULL, false, 0, NULL, def->m_srid))
       DBUG_RETURN(true);
 
     temporal_field->field = def->field;
@@ -10352,11 +10379,14 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         subtype), existing NULL values will be converted into empty
         strings in non-strict mode. Empty strings are illegal values
         in GEOMETRY columns.
+
+        However, generated columns have implicit default values, so they can be
+        NOT NULL.
       */
       if (def->sql_type == MYSQL_TYPE_GEOMETRY &&
           (def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
           field->type() != MYSQL_TYPE_GEOMETRY && field->maybe_null() &&
-          !thd->is_strict_mode()) {
+          !thd->is_strict_mode() && !def->is_gcol()) {
         alter_ctx->error_if_not_empty |=
             Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT;
       }
@@ -10423,17 +10453,21 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       }
 
       /*
-        New GEOMETRY (and subtypes) columns can't be NOT NULL. To add a
-        GEOMETRY NOT NULL column, first create a GEOMETRY NULL column,
-        UPDATE the table to set a different value than NULL, and then do
-        a ALTER TABLE MODIFY COLUMN to set NOT NULL.
+        New GEOMETRY (and subtypes) columns can't be NOT NULL unless they have a
+        default value. Explicit default values are currently not supported for
+        geometry columns. To add a GEOMETRY NOT NULL column, first create a
+        GEOMETRY NULL column, UPDATE the table to set a different value than
+        NULL, and then do a ALTER TABLE MODIFY COLUMN to set NOT NULL.
 
-        This restriction can be lifted once MySQL supports default
-        values (i.e., functions) for geometry columns. The new
-        restriction would then be for added GEOMETRY NOT NULL columns to
-        always have a provided default value.
+        This restriction can be lifted once MySQL supports explicit default
+        values (i.e., functions) for geometry columns. The new restriction would
+        then be for added GEOMETRY NOT NULL columns to always have a provided
+        default value.
+
+        Generated columns (including generated geometry columns) have implicit
+        default values, so they can be NOT NULL.
       */
-      if (def->sql_type == MYSQL_TYPE_GEOMETRY &&
+      if (def->sql_type == MYSQL_TYPE_GEOMETRY && !def->is_gcol() &&
           (def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG))) {
         alter_ctx->error_if_not_empty |=
             Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT;

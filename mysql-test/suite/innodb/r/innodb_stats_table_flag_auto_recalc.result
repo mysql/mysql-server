@@ -4,7 +4,7 @@ Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 CREATE_OPTIONS	
@@ -15,7 +15,7 @@ Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_AUTO_RECALC=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_AUTO_RECALC=1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 CREATE_OPTIONS	stats_auto_recalc=1
@@ -27,7 +27,7 @@ Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 CREATE_OPTIONS	
@@ -40,7 +40,7 @@ Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_AUTO_RECALC=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_AUTO_RECALC=0
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 CREATE_OPTIONS	stats_auto_recalc=0
@@ -51,7 +51,7 @@ Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_AUTO_RECALC=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_AUTO_RECALC=1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 CREATE_OPTIONS	stats_auto_recalc=1
@@ -64,7 +64,7 @@ Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_AUTO_RECALC=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_AUTO_RECALC=1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 CREATE_OPTIONS	stats_auto_recalc=1
@@ -75,7 +75,7 @@ Table	test_ps_auto_recalc
 Create Table	CREATE TABLE `test_ps_auto_recalc` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_AUTO_RECALC=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_AUTO_RECALC=0
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_auto_recalc';
 CREATE_OPTIONS	stats_auto_recalc=0

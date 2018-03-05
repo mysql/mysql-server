@@ -32,8 +32,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "mtr0mtr.h"
 
-#include <new>
-
 #include "buf0buf.h"
 #include "buf0flu.h"
 #include "fsp0sysspace.h"
@@ -47,6 +45,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "page0types.h"
 #include "trx0purge.h"
 #endif /* !UNIV_HOTBACKUP */
+
+static_assert(static_cast<int>(MTR_MEMO_PAGE_S_FIX) ==
+                  static_cast<int>(RW_S_LATCH),
+              "");
+
+static_assert(static_cast<int>(MTR_MEMO_PAGE_X_FIX) ==
+                  static_cast<int>(RW_X_LATCH),
+              "");
+
+static_assert(static_cast<int>(MTR_MEMO_PAGE_SX_FIX) ==
+                  static_cast<int>(RW_SX_LATCH),
+              "");
 
 /** Iterate over a memo block in reverse. */
 template <typename Functor>
@@ -105,11 +115,11 @@ struct Find {
 };
 
 /** Find a page frame */
-struct FindPage {
+struct Find_page {
   /** Constructor
   @param[in]	ptr	pointer to within a page frame
   @param[in]	flags	MTR_MEMO flags to look for */
-  FindPage(const void *ptr, ulint flags)
+  Find_page(const void *ptr, ulint flags)
       : m_ptr(ptr), m_flags(flags), m_slot(NULL) {
     /* We can only look for page-related flags. */
     ut_ad(!(flags &
@@ -200,7 +210,7 @@ static void memo_slot_release(mtr_memo_slot_t *slot) {
 }
 
 /** Release the latches and blocks acquired by the mini-transaction. */
-struct ReleaseAll {
+struct Release_all {
   /** @return true always. */
   bool operator()(mtr_memo_slot_t *slot) const {
     if (slot->object != NULL) {
@@ -212,7 +222,7 @@ struct ReleaseAll {
 };
 
 /** Check that all slots have been handled. */
-struct DebugCheck {
+struct Debug_check {
   /** @return true always. */
   bool operator()(const mtr_memo_slot_t *slot) const {
     ut_a(slot->object == NULL);
@@ -221,15 +231,15 @@ struct DebugCheck {
 };
 
 /** Add blocks modified by the mini-transaction to the flush list. */
-struct AddDirtyBlocksToFlushList {
+struct Add_dirty_blocks_to_flush_list {
   /** Constructor.
   @param[in]	start_lsn	LSN of the first entry that was
                                   added to REDO by the MTR
   @param[in]	end_lsn		LSN after the last entry was
                                   added to REDO by the MTR
   @param[in,out]	observer	flush observer */
-  AddDirtyBlocksToFlushList(lsn_t start_lsn, lsn_t end_lsn,
-                            FlushObserver *observer);
+  Add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn,
+                                 FlushObserver *observer);
 
   /** Add the modified page to the buffer flush list. */
   void add_dirty_page_to_flush_list(mtr_memo_slot_t *slot) const {
@@ -282,9 +292,8 @@ struct AddDirtyBlocksToFlushList {
 @param[in]	end_lsn		LSN after the last entry was added
                                 to REDO by the MTR
 @param[in,out]	observer	flush observer */
-AddDirtyBlocksToFlushList::AddDirtyBlocksToFlushList(lsn_t start_lsn,
-                                                     lsn_t end_lsn,
-                                                     FlushObserver *observer)
+Add_dirty_blocks_to_flush_list::Add_dirty_blocks_to_flush_list(
+    lsn_t start_lsn, lsn_t end_lsn, FlushObserver *observer)
     : m_end_lsn(end_lsn), m_start_lsn(start_lsn), m_flush_observer(observer) {
   /* Do nothing */
 }
@@ -309,19 +318,13 @@ class mtr_t::Command {
   void execute();
 
   /** Add blocks modified in this mini-transaction to the flush list. */
-  void add_dirty_blocks_to_flush_list();
+  void add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn);
 
   /** Release both the latches and blocks used in the mini-transaction. */
   void release_all();
 
   /** Release the resources */
   void release_resources();
-
-#ifndef UNIV_HOTBACKUP
-  /** Append the redo log records to the redo log buffer.
-  @param[in]	len	number of bytes to write */
-  void finish_write(ulint len);
-#endif /* !UNIV_HOTBACKUP */
 
  private:
 #ifndef UNIV_HOTBACKUP
@@ -339,12 +342,6 @@ class mtr_t::Command {
   /** Set to 1 after the user thread releases the latches. The log
   writer thread must wait for this to be set to 1. */
   volatile ulint m_locks_released;
-
-  /** Start lsn of the possible log entry for this mtr */
-  lsn_t m_start_lsn;
-
-  /** End lsn of the possible log entry for this mtr */
-  lsn_t m_end_lsn;
 };
 
 /** Check if a mini-transaction is dirtying a clean page.
@@ -364,10 +361,60 @@ bool mtr_t::is_block_dirtied(const buf_block_t *block) {
 struct mtr_write_log_t {
   /** Append a block to the redo log buffer.
   @return whether the appending should continue */
-  bool operator()(const mtr_buf_t::block_t *block) const {
-    log_write_low(block->begin(), block->used());
+  bool operator()(const mtr_buf_t::block_t *block) {
+    lsn_t start_lsn;
+    lsn_t end_lsn;
+
+    ut_ad(block != nullptr);
+
+    if (block->used() == 0) {
+      return (true);
+    }
+
+    start_lsn = m_lsn;
+
+    end_lsn = log_buffer_write(*log_sys, m_handle, block->begin(),
+                               block->used(), start_lsn);
+
+    ut_a(end_lsn % OS_FILE_LOG_BLOCK_SIZE <
+         OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_TRL_SIZE);
+
+    m_left_to_write -= block->used();
+
+    if (m_left_to_write == 0
+        /* This write was up to the end of record group,
+        the last record in group has been written.
+
+        Therefore next group of records starts at m_lsn.
+        We need to find out, if the next group is the first group,
+        that starts in this log block.
+
+        In such case we need to set first_rec_group.
+
+        Now, we could have two cases:
+        1. This group of log records has started in previous block
+           to block containing m_lsn.
+        2. This group of log records has started in the same block
+           as block containing m_lsn.
+
+        Only in case 1), the next group of records is the first group
+        of log records in block containing m_lsn. */
+        && m_rec_group_start_lsn / OS_FILE_LOG_BLOCK_SIZE !=
+               end_lsn / OS_FILE_LOG_BLOCK_SIZE) {
+      log_buffer_set_first_record_group(*log_sys, m_handle, end_lsn);
+    }
+
+    log_buffer_write_completed(*log_sys, m_handle, start_lsn, end_lsn);
+
+    m_lsn = end_lsn;
+
     return (true);
   }
+
+  Log_handle m_handle;
+  lsn_t m_lsn;
+  lsn_t m_rec_group_start_lsn;
+  ulint m_left_to_write;
 };
 #endif /* !UNIV_HOTBACKUP */
 
@@ -406,8 +453,8 @@ void mtr_t::Command::release_resources() {
   ut_ad(m_impl->m_state == MTR_STATE_COMMITTING);
 
 #ifdef UNIV_DEBUG
-  DebugCheck release;
-  Iterate<DebugCheck> iterator(release);
+  Debug_check release;
+  Iterate<Debug_check> iterator(release);
 
   m_impl->m_memo.for_each_block_in_reverse(iterator);
 #endif /* UNIV_DEBUG */
@@ -482,8 +529,8 @@ void mtr_t::release_page(const void *ptr, mtr_memo_type_t type) {
   middle of a mini-transaction. */
   ut_ad(!m_impl.m_modifications || type != MTR_MEMO_PAGE_X_FIX);
 
-  FindPage find(ptr, type);
-  Iterate<FindPage> iterator(find);
+  Find_page find(ptr, type);
+  Iterate<Find_page> iterator(find);
 
   if (!m_impl.m_memo.for_each_block_in_reverse(iterator)) {
     memo_slot_release(find.get_slot());
@@ -504,12 +551,15 @@ ulint mtr_t::Command::prepare_write() {
     case MTR_LOG_NO_REDO:
     case MTR_LOG_NONE:
       ut_ad(m_impl->m_log.size() == 0);
-      log_mutex_enter();
-      m_end_lsn = m_start_lsn = log_sys->lsn;
       return (0);
     case MTR_LOG_ALL:
       break;
   }
+
+  /* An ibuf merge could happen when loading page to apply log
+  records during recovery. During the ibuf merge mtr is used. */
+
+  ut_a(!recv_recovery_is_on() || !recv_no_ibuf_operations);
 
   ulint len = m_impl->m_log.size();
   ut_ad(len > 0);
@@ -517,13 +567,9 @@ ulint mtr_t::Command::prepare_write() {
   ulint n_recs = m_impl->m_n_log_recs;
   ut_ad(n_recs > 0);
 
-  if (len > log_sys->buf_size / 2) {
-    log_buffer_extend((len + 1) * 2);
-  }
+  ut_ad(log_sys != nullptr);
 
   ut_ad(m_impl->m_n_log_recs == n_recs);
-
-  log_mutex_enter();
 
   /* This was not the first time of dirtying a
   tablespace since the latest checkpoint. */
@@ -547,47 +593,18 @@ ulint mtr_t::Command::prepare_write() {
     ++len;
   }
 
-#ifndef UNIV_HOTBACKUP
-  /* check and attempt a checkpoint if exceeding capacity */
-  log_margin_checkpoint_age(len);
-#endif /* !UNIV_HOTBACKUP */
-
-  return (len);
-}
-
-/** Append the redo log records to the redo log buffer
-@param[in] len	number of bytes to write */
-void mtr_t::Command::finish_write(ulint len) {
   ut_ad(m_impl->m_log_mode == MTR_LOG_ALL);
-  ut_ad(log_mutex_own());
   ut_ad(m_impl->m_log.size() == len);
   ut_ad(len > 0);
 
-  if (m_impl->m_log.is_small()) {
-    const mtr_buf_t::block_t *front = m_impl->m_log.front();
-    ut_ad(len <= front->used());
-
-    m_end_lsn = log_reserve_and_write_fast(front->begin(), len, &m_start_lsn);
-
-    if (m_end_lsn > 0) {
-      return;
-    }
-  }
-
-  /* Open the database log for log_write_low */
-  m_start_lsn = log_reserve_and_open(len);
-
-  mtr_write_log_t write_log;
-  m_impl->m_log.for_each_block(write_log);
-
-  m_end_lsn = log_close();
+  return (len);
 }
 #endif /* !UNIV_HOTBACKUP */
 
 /** Release the latches and blocks acquired by this mini-transaction */
 void mtr_t::Command::release_all() {
-  ReleaseAll release;
-  Iterate<ReleaseAll> iterator(release);
+  Release_all release;
+  Iterate<Release_all> iterator(release);
 
   m_impl->m_memo.for_each_block_in_reverse(iterator);
 
@@ -596,10 +613,12 @@ void mtr_t::Command::release_all() {
 }
 
 /** Add blocks modified in this mini-transaction to the flush list. */
-void mtr_t::Command::add_dirty_blocks_to_flush_list() {
-  AddDirtyBlocksToFlushList add_to_flush(m_start_lsn, m_end_lsn,
-                                         m_impl->m_flush_observer);
-  Iterate<AddDirtyBlocksToFlushList> iterator(add_to_flush);
+void mtr_t::Command::add_dirty_blocks_to_flush_list(lsn_t start_lsn,
+                                                    lsn_t end_lsn) {
+  Add_dirty_blocks_to_flush_list add_to_flush(start_lsn, end_lsn,
+                                              m_impl->m_flush_observer);
+
+  Iterate<Add_dirty_blocks_to_flush_list> iterator(add_to_flush);
 
   m_impl->m_memo.for_each_block_in_reverse(iterator);
 }
@@ -609,28 +628,47 @@ the resources. */
 void mtr_t::Command::execute() {
   ut_ad(m_impl->m_log_mode != MTR_LOG_NONE);
 
+  ulint len;
+
 #ifndef UNIV_HOTBACKUP
-  if (const ulint len = prepare_write()) {
-    finish_write(len);
+  len = prepare_write();
+
+  if (len > 0) {
+    mtr_write_log_t write_log;
+
+    write_log.m_left_to_write = len;
+
+    auto handle = log_buffer_reserve(*log_sys, len);
+
+    write_log.m_handle = handle;
+    write_log.m_lsn = handle.start_lsn;
+    write_log.m_rec_group_start_lsn = handle.start_lsn;
+
+    m_impl->m_log.for_each_block(write_log);
+
+    ut_ad(write_log.m_left_to_write == 0);
+    ut_ad(write_log.m_lsn == handle.end_lsn);
+
+    log_buffer_write_completed_before_dirty_pages_added(*log_sys, handle);
+
+    add_dirty_blocks_to_flush_list(handle.start_lsn, handle.end_lsn);
+
+    log_buffer_write_completed_and_dirty_pages_added(*log_sys, handle);
+
+    m_impl->m_mtr->m_commit_lsn = handle.end_lsn;
+
+  } else {
+    lsn_t end_lsn;
+
+    end_lsn = log_get_lsn(*log_sys);
+
+    add_dirty_blocks_to_flush_list(end_lsn, end_lsn);
+
+    m_impl->m_mtr->m_commit_lsn = end_lsn;
   }
+#else  /* !UNIV_HOTBACKUP */
+  /* XXX: How could that work in trunk !? m_end_lsn was random! */
 #endif /* !UNIV_HOTBACKUP */
-
-  if (m_impl->m_made_dirty) {
-    log_flush_order_mutex_enter();
-  }
-
-  /* It is now safe to release the log mutex because the
-  flush_order mutex will ensure that we are the first one
-  to insert into the flush list. */
-  log_mutex_exit();
-
-  m_impl->m_mtr->m_commit_lsn = m_end_lsn;
-
-  add_dirty_blocks_to_flush_list();
-
-  if (m_impl->m_made_dirty) {
-    log_flush_order_mutex_exit();
-  }
 
   release_all();
   release_resources();
@@ -688,8 +726,8 @@ bool mtr_t::memo_contains_flagged(const void *ptr, ulint flags) const {
 @retval	NULL	if not found */
 buf_block_t *mtr_t::memo_contains_page_flagged(const byte *ptr,
                                                ulint flags) const {
-  FindPage check(ptr, flags);
-  Iterate<FindPage> iterator(check);
+  Find_page check(ptr, flags);
+  Iterate<Find_page> iterator(check);
 
   return (m_impl.m_memo.for_each_block_in_reverse(iterator)
               ? NULL
@@ -710,8 +748,9 @@ void mtr_t::memo_modify_page(const byte *ptr) {
 
 /** Print info of an mtr handle. */
 void mtr_t::print() const {
-  ib::info() << "Mini-transaction handle: memo size " << m_impl.m_memo.size()
-             << " bytes log size " << get_log()->size() << " bytes";
+  ib::info(ER_IB_MSG_740) << "Mini-transaction handle: memo size "
+                          << m_impl.m_memo.size() << " bytes log size "
+                          << get_log()->size() << " bytes";
 }
 
 #endif /* UNIV_DEBUG */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,6 +55,7 @@ class Mock_create_field : public Create_field {
          NULL,           // char *fld_change,
          NULL,           // List<String> *fld_interval_list,
          NULL,           // const CHARSET_INFO *fld_charset,
+         false,          // bool has_explicit_collation,
          0,              // uint fld_geom_type
          nullptr,        // gcol info
          {}              // Nullable<gis::srid_t> srid

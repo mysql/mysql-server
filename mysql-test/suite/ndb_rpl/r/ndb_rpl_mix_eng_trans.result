@@ -10,17 +10,17 @@ SHOW CREATE TABLE tmyisam;
 Table	Create Table
 tmyisam	CREATE TABLE `tmyisam` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tinnodb;
 Table	Create Table
 tinnodb	CREATE TABLE `tinnodb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tndb;
 Table	Create Table
 tndb	CREATE TABLE `tndb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 [on master]
 ==== Single-engine transactions ====
 ---- autocommitted ----

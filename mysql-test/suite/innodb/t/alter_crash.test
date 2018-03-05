@@ -5,10 +5,10 @@
 --source include/not_crashrep.inc
 
 --disable_query_log
-call mtr.add_suppression('InnoDB: cannot find a free slot for an undo log');
-call mtr.add_suppression('InnoDB: row_merge_rename_index_to_add failed with error 47');
-call mtr.add_suppression('InnoDB: Flagged corruption of `c[23]`');
-call mtr.add_suppression('InnoDB: Index `c[23]` .*is corrupted');
+call mtr.add_suppression(' cannot find a free slot for an undo log');
+call mtr.add_suppression(' row_merge_rename_index_to_add failed with error 47');
+call mtr.add_suppression(' Flagged corruption of `c[23]`');
+call mtr.add_suppression(' Index `c[23]` .*is corrupted');
 --enable_query_log
 
 --echo #

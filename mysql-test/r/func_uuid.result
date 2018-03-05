@@ -174,7 +174,7 @@ t3	CREATE TABLE `t3` (
   `bin_to_uuid(_tbl)` varchar(36) DEFAULT NULL,
   `bin_to_uuid(_ttx)` varchar(36) DEFAULT NULL,
   `bin_to_uuid(_blb)` varchar(36) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t3;
 # Compare with hex:
 set names latin1;
@@ -187,7 +187,7 @@ t3	CREATE TABLE `t3` (
   `hex('c8eb4b15cb0948bb')` varchar(32) CHARACTER SET latin1 DEFAULT NULL,
   `hex(_bin)` varchar(32) CHARACTER SET latin1 DEFAULT NULL,
   `hex(_blb)` longtext CHARACTER SET latin1
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t3;
 set names utf8mb4;
 # Output types of uuid_to_bin
@@ -199,7 +199,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varbinary(16) DEFAULT NULL,
   `b` varbinary(16) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t3;
 # Compare with unhex:
 CREATE TABLE t3 AS SELECT unhex(_bin) FROM at;
@@ -207,7 +207,7 @@ SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `unhex(_bin)` varbinary(8) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t3;
 DROP TABLE at;
 # Bad arguments

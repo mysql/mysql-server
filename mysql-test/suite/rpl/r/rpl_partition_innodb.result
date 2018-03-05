@@ -64,7 +64,7 @@ byrange_tbl	CREATE TABLE `byrange_tbl` (
   `fkid` int(11) DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`id`)
 (PARTITION pa100 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION paMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
@@ -78,7 +78,7 @@ regular_tbl	CREATE TABLE `regular_tbl` (
   `fkid` int(11) DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE test.byrange_tbl EXCHANGE PARTITION pa100 WITH TABLE test.regular_tbl;
 SELECT * FROM test.byrange_tbl ORDER BY fkid LIMIT 2;
 id	dt	user	uuidf	fkid	filler
@@ -107,7 +107,7 @@ byrange_tbl	CREATE TABLE `byrange_tbl` (
   `fkid` int(11) DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`id`)
 (PARTITION pa100 VALUES LESS THAN (100) ENGINE = InnoDB,
  PARTITION paMax VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
@@ -121,7 +121,7 @@ regular_tbl	CREATE TABLE `regular_tbl` (
   `fkid` int(11) DEFAULT NULL,
   `filler` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT count(*) "Slave norm" FROM test.regular_tbl;
 Slave norm
 99

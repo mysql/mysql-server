@@ -10,7 +10,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(1) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 create table t1 select 1 as i;;
@@ -22,7 +22,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(1) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t3 (j char(5));
 set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
@@ -35,7 +35,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(1) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 create table t1 select 1 as i;;
@@ -47,7 +47,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(1) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 create table t1 select 1 as i;;
@@ -59,7 +59,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(1) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set debug_sync='create_table_select_before_create SIGNAL parked WAIT_FOR go';
 create table t1 select 1 as i;;
@@ -71,7 +71,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(1) NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1,t3;
 set debug_sync='create_table_select_before_open SIGNAL parked WAIT_FOR go';
 set debug_sync='create_table_select_before_open SIGNAL parked WAIT_FOR go';
@@ -184,7 +184,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

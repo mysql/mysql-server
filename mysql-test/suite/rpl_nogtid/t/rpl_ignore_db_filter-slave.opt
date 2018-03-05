@@ -1,1 +1,2 @@
---replicate-ignore-db=MYDB --lower_case_table_names=1
+--bootstrap --lower_case_table_names=1
+--replicate-ignore-db=MYDB

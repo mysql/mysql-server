@@ -16,7 +16,7 @@ CREATE TABLE `t1` (
   `a2` int(11) GENERATED ALWAYS AS ((`a1` * 2)) STORED,
   `a3` int(11) GENERATED ALWAYS AS ((`a1` * 3)) VIRTUAL,
   KEY `a1` (`a1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 <?xml version="1.0"?>
 <mysqldump xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">

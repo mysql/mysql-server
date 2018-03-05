@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,6 +197,18 @@ static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache) {
   return false;
 }
 
+static void set_db_default_charset(const THD *thd,
+                                   HA_CREATE_INFO *create_info) {
+  if (create_info->default_table_charset == nullptr) {
+    create_info->default_table_charset = thd->variables.collation_server;
+  } else {
+    if (!(create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) &&
+        create_info->default_table_charset == &my_charset_utf8mb4_0900_ai_ci)
+      create_info->default_table_charset =
+          thd->variables.default_collation_for_utf8mb4;
+  }
+}
+
 /**
   Create a database
 
@@ -328,8 +340,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   */
 
   if (store_in_dd) {
-    if (!create_info->default_table_charset)
-      create_info->default_table_charset = thd->variables.collation_server;
+    set_db_default_charset(thd, create_info);
 
     if (dd::create_schema(thd, db, create_info->default_table_charset)) {
       /*
@@ -389,8 +400,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
 
   if (lock_schema_name(thd, db)) DBUG_RETURN(true);
 
-  if (!create_info->default_table_charset)
-    create_info->default_table_charset = thd->variables.collation_server;
+  set_db_default_charset(thd, create_info);
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Schema *schema = nullptr;

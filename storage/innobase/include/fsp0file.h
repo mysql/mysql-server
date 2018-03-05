@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define fsp0file_h
 
 #include <vector>
+#include "fil0fil.h" /* SPACE_UNKNOWN */
 #include "ha_prototypes.h"
 #include "log0log.h"
 #include "mem0mem.h"

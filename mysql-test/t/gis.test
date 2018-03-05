@@ -3899,7 +3899,7 @@ DROP TABLE t1;
 CREATE TABLE t1(g GEOMETRY NOT NULL);
 --error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT IGNORE INTO t1 VALUES (NULL);
---error ER_BAD_NULL_ERROR
+--error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT INTO t1 VALUES (NULL);
 --error ER_BAD_NULL_ERROR_NOT_IGNORED
 INSERT INTO t1 VALUES (NULL), (NULL);
@@ -3967,3 +3967,18 @@ SELECT ST_GEOMETRYTYPE(GEOMETRYCOLLECTION(POINT(0, 0)));
 
 EXPLAIN SELECT GEOMCOLLECTION();
 EXPLAIN SELECT GEOMETRYCOLLECTION();
+
+--echo #
+--echo # Bug #27252609 UNABLE TO CREATE INDEX WHEN SPATIAL DATATYPES ARE USED
+--echo # WITH REQUIRED OPTION
+--echo #
+
+# The test case is run in both strict and non-strict mode because it will hit
+# different conditional statements in the ALTER TABLE code.
+
+--source include/bug27252609.inc
+
+SET @saved_sql_mode=@@sql_mode;
+SET SESSION sql_mode='';
+--source include/bug27252609.inc
+SET SESSION sql_mode=@saved_sql_mode;

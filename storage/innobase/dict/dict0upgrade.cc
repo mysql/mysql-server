@@ -65,10 +65,11 @@ static bool dd_upgrade_table_fk(dict_table_t *ib_table, dd::Table *dd_table) {
 
     /* Check if the foreign key name is valid */
     if (innobase_check_identifier_length(strchr(foreign->id, '/') + 1)) {
-      ib::error() << "Foreign key name:" << foreign->id
-                  << " is too long, for the table:" << dd_table->name()
-                  << ". Please ALTER the foreign key name to use less"
-                     " than 64 characters and try upgrade again.\n";
+      ib::error(ER_IB_MSG_229)
+          << "Foreign key name:" << foreign->id
+          << " is too long, for the table:" << dd_table->name()
+          << ". Please ALTER the foreign key name to use less"
+             " than 64 characters and try upgrade again.\n";
       return true;
     }
 
@@ -133,7 +134,7 @@ static bool dd_upgrade_table_fk(dict_table_t *ib_table, dd::Table *dd_table) {
       ut_ad(referenced_col != NULL);
 
       DBUG_EXECUTE_IF("dd_upgrade",
-                      ib::info()
+                      ib::info(ER_IB_MSG_230)
                           << "FK on table: " << ib_table->name
                           << " col: " << foreign_col << " references col: "
                           << " of table: " << foreign->referenced_table_name;);
@@ -143,15 +144,18 @@ static bool dd_upgrade_table_fk(dict_table_t *ib_table, dd::Table *dd_table) {
     }
 
     DBUG_EXECUTE_IF(
-        "dd_upgrade", ib::info() << "foreign name: " << foreign->id;
-        ib::info() << " foreign fields: " << foreign->n_fields;
-        ib::info() << " foreign type: " << foreign->type;
-        ib::info() << " foreign table name: " << foreign->foreign_table_name;
-        ib::info() << " referenced table name: "
-                   << foreign->referenced_table_name;
-        ib::info() << " foreign index: " << foreign->foreign_index->name;
-        ib::info() << " foreign table: "
-                   << foreign->foreign_index->table->name;);
+        "dd_upgrade", ib::info(ER_IB_MSG_231)
+                          << "foreign name: " << foreign->id;
+        ib::info(ER_IB_MSG_232) << " foreign fields: " << foreign->n_fields;
+        ib::info(ER_IB_MSG_233) << " foreign type: " << foreign->type;
+        ib::info(ER_IB_MSG_234)
+        << " foreign table name: " << foreign->foreign_table_name;
+        ib::info(ER_IB_MSG_235)
+        << " referenced table name: " << foreign->referenced_table_name;
+        ib::info(ER_IB_MSG_236)
+        << " foreign index: " << foreign->foreign_index->name;
+        ib::info(ER_IB_MSG_237)
+        << " foreign table: " << foreign->foreign_index->table->name;);
   }
 
   return false;
@@ -183,8 +187,9 @@ static dd::Tablespace *dd_upgrade_get_tablespace(
     strncpy(name, ib_table->tablespace(), MAX_FULL_NAME_LEN);
   }
 
-  DBUG_EXECUTE_IF("dd_upgrade",
-                  ib::info() << "The derived tablespace name is: " << name;);
+  DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_238)
+                                    << "The derived tablespace name is: "
+                                    << name;);
 
   /* MDL on tablespace name */
   if (dd::acquire_exclusive_tablespace_mdl(thd, name, false)) {
@@ -237,7 +242,8 @@ static bool dd_upgrade_match_single_col(const Field *field,
   DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(col->mtype == col_type););
 
   if (col->mtype != col_type) {
-    ib::error() << "Column datatype mismatch for col: " << field->field_name;
+    ib::error(ER_IB_MSG_239)
+        << "Column datatype mismatch for col: " << field->field_name;
     failure = true;
   }
 
@@ -249,8 +255,9 @@ static bool dd_upgrade_match_single_col(const Field *field,
     charset_no = (ulint)field->charset()->number;
 
     if (charset_no > MAX_CHAR_COLL_NUM) {
-      ib::error() << "In InnoDB, charset-collation codes"
-                  << " must be below 256. Unsupported code " << charset_no;
+      ib::error(ER_IB_MSG_240)
+          << "In InnoDB, charset-collation codes"
+          << " must be below 256. Unsupported code " << charset_no;
       DBUG_EXECUTE_IF("dd_upgrade_strict_mode", bool invalid_collation = true;
                       ut_ad(!invalid_collation););
 
@@ -289,9 +296,10 @@ static bool dd_upgrade_match_single_col(const Field *field,
   ulint innodb_prtype = (col->prtype & 0x0000FFFF);
 
   if (server_prtype != innodb_prtype) {
-    ib::error() << "Column precision type mismatch(i.e NULLs, SIGNED/UNSIGNED "
-                   "etc) for col: "
-                << field->field_name;
+    ib::error(ER_IB_MSG_241)
+        << "Column precision type mismatch(i.e NULLs, SIGNED/UNSIGNED "
+           "etc) for col: "
+        << field->field_name;
     failure = true;
   }
 
@@ -301,8 +309,8 @@ static bool dd_upgrade_match_single_col(const Field *field,
   if (field->has_charset()) {
     ulint col_charset = col->prtype >> 16;
     if (charset_no != col_charset) {
-      ib::error() << "Column character set mismatch for col: "
-                  << field->field_name;
+      ib::error(ER_IB_MSG_242)
+          << "Column character set mismatch for col: " << field->field_name;
       failure = true;
     }
   }
@@ -310,7 +318,8 @@ static bool dd_upgrade_match_single_col(const Field *field,
   DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(col->len == col_len););
 
   if (col_len != col->len) {
-    ib::error() << "Column length mismatch for col: " << field->field_name;
+    ib::error(ER_IB_MSG_243)
+        << "Column length mismatch for col: " << field->field_name;
     failure = true;
   }
 
@@ -335,10 +344,10 @@ static bool dd_upgrade_match_cols(const TABLE *srv_table,
   }
 
   if (innodb_num_cols != dd_table->columns().size()) {
-    ib::error() << "table: " << dd_table->name() << " has "
-                << dd_table->columns().size()
-                << " columns but InnoDB dictionary"
-                << " has " << innodb_num_cols << " columns";
+    ib::error(ER_IB_MSG_244)
+        << "table: " << dd_table->name() << " has "
+        << dd_table->columns().size() << " columns but InnoDB dictionary"
+        << " has " << innodb_num_cols << " columns";
     DBUG_EXECUTE_IF("dd_upgrade_strict_mode", bool columns_num_mismatch = true;
                     ut_ad(!columns_num_mismatch););
     return (true);
@@ -370,24 +379,25 @@ static bool dd_upgrade_match_cols(const TABLE *srv_table,
     if (strcmp(ib_col_name, col_obj->name().c_str()) == 0) {
       /* Skip matching hidden fields like DB_ROW_ID, DB_TRX_ID because
       these don't exist in TABLE* object of server. */
-      if (!col_obj->is_hidden()) {
+      if (!col_obj->is_se_hidden()) {
         /* Match col object and field */
         Field *field = dd_upgrade_get_field(srv_table, ib_col_name);
         ut_ad(field != NULL);
         ut_ad(ib_col != NULL);
         bool failure = dd_upgrade_match_single_col(field, ib_col);
         if (failure) {
-          ib::error() << "Column " << col_obj->name()
-                      << " for table: " << ib_table->name
-                      << " mismatches with InnoDB Dictionary";
+          ib::error(ER_IB_MSG_245) << "Column " << col_obj->name()
+                                   << " for table: " << ib_table->name
+                                   << " mismatches with InnoDB Dictionary";
           DBUG_EXECUTE_IF("dd_upgrade_strict_mode", bool column_mismatch = true;
                           ut_ad(!column_mismatch););
           return (true);
         }
       }
     } else {
-      ib::error() << "Column name mismatch: From InnoDB: " << ib_col_name
-                  << " From Server: " << col_obj->name();
+      ib::error(ER_IB_MSG_246)
+          << "Column name mismatch: From InnoDB: " << ib_col_name
+          << " From Server: " << col_obj->name();
       DBUG_EXECUTE_IF("dd_upgrade_strict_mode",
                       bool column_name_mismatch = true;
                       ut_ad(!column_name_mismatch););
@@ -429,8 +439,8 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
   uint32_t key_no = dd_upgrade_find_index(srv_table, index->name);
 
   if (key_no == UINT32_MAX) {
-    ib::info() << "Index: " << index->name << " exists"
-               << " in InnoDB but not in Server";
+    ib::info(ER_IB_MSG_247) << "Index: " << index->name << " exists"
+                            << " in InnoDB but not in Server";
     DBUG_EXECUTE_IF("dd_upgrade_strict_mode", bool index_not_found = true;
                     ut_ad(!index_not_found););
     return (true);
@@ -444,9 +454,10 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
                                                   index->n_user_defined_cols););
 
   if (key->user_defined_key_parts != index->n_user_defined_cols) {
-    ib::error() << "The number of fields in index " << index->name
-                << " according to Server: " << key->user_defined_key_parts
-                << " according to InnoDB: " << index->n_user_defined_cols;
+    ib::error(ER_IB_MSG_248)
+        << "The number of fields in index " << index->name
+        << " according to Server: " << key->user_defined_key_parts
+        << " according to InnoDB: " << index->n_user_defined_cols;
     return (true);
   }
 
@@ -473,9 +484,9 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
                   ut_ad(nulls_equal == index->nulls_equal););
 
   if (nulls_equal != index->nulls_equal) {
-    ib::error() << "In index: " << index->name
-                << " NULL equal from Server: " << nulls_equal
-                << " From InnoDB: " << index->nulls_equal;
+    ib::error(ER_IB_MSG_249) << "In index: " << index->name
+                             << " NULL equal from Server: " << nulls_equal
+                             << " From InnoDB: " << index->nulls_equal;
     return (true);
   }
 
@@ -492,9 +503,10 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
                     ut_ad(strcmp(field_name, idx_field->name()) == 0););
 
     if (strcmp(field_name, idx_field->name()) != 0) {
-      ib::error() << "In index: " << index->name
-                  << " field name mismatches: from server: " << field_name
-                  << " from InnoDB: " << idx_field->name();
+      ib::error(ER_IB_MSG_250)
+          << "In index: " << index->name
+          << " field name mismatches: from server: " << field_name
+          << " from InnoDB: " << idx_field->name();
       return (true);
     }
 
@@ -525,9 +537,10 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
 
     if (!(index->type & (DICT_FTS | DICT_SPATIAL))) {
       if (prefix_len != index->get_field(i)->prefix_len) {
-        ib::error() << "In Index: " << index->name
-                    << " prefix_len mismatches: from server: " << prefix_len
-                    << " from InnoDB: " << index->get_field(i)->prefix_len;
+        ib::error(ER_IB_MSG_251)
+            << "In Index: " << index->name
+            << " prefix_len mismatches: from server: " << prefix_len
+            << " from InnoDB: " << index->get_field(i)->prefix_len;
         DBUG_EXECUTE_IF("dd_upgrade_strict_mode",
                         ut_ad(prefix_len == index->get_field(i)->prefix_len););
         return (true);
@@ -542,9 +555,9 @@ static bool dd_upgrade_match_index(TABLE *srv_table, dict_index_t *index) {
   DBUG_EXECUTE_IF("dd_upgrade_srict_mode", ut_ad(index->type == ind_type););
 
   if (index->type != ind_type) {
-    ib::error() << "Index name: " << index->name
-                << " type mismatches: from server: " << ind_type
-                << " from InnoDB: " << index->type;
+    ib::error(ER_IB_MSG_252) << "Index name: " << index->name
+                             << " type mismatches: from server: " << ind_type
+                             << " from InnoDB: " << index->type;
     return (true);
   }
 
@@ -568,8 +581,9 @@ static bool dd_upgrade_check_for_autoinc(TABLE *srv_table,
     auto_inc_index_name = key->name;
     auto_inc_col_name = field->field_name;
 
-    DBUG_EXECUTE_IF("dd_upgrade",
-                    ib::info() << "Index with auto_increment " << key->name;);
+    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_253)
+                                      << "Index with auto_increment "
+                                      << key->name;);
     if (auto_inc_index_name == nullptr || auto_inc_col_name == nullptr) {
       return (false);
     } else {
@@ -680,7 +694,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     dict_table_close(part_table, false, false);
 
     DBUG_EXECUTE_IF("dd_upgrade",
-                    ib::info()
+                    ib::info(ER_IB_MSG_254)
                         << "Part table name from server: " << partition_name
                         << " from InnoDB: " << part_table->name.m_name;);
 
@@ -734,7 +748,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     uint32_t processed_indexes_num = 0;
     for (dd::Partition_index *part_index : *part_obj->indexes()) {
       DBUG_EXECUTE_IF("dd_upgrade",
-                      ib::info()
+                      ib::info(ER_IB_MSG_255)
                           << "Partition Index " << part_index->name()
                           << " from server for table: " << part_table->name;);
 
@@ -755,10 +769,12 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     }
 
     if (processed_indexes_num != part_obj->indexes()->size()) {
-      ib::error() << "Num of Indexes in InnoDB Partition doesn't match"
-                  << " with Indexes from server";
-      ib::error() << "Indexes from InnoDB: " << processed_indexes_num
-                  << " Indexes from Server: " << dd_table->indexes()->size();
+      ib::error(ER_IB_MSG_256)
+          << "Num of Indexes in InnoDB Partition doesn't match"
+          << " with Indexes from server";
+      ib::error(ER_IB_MSG_257)
+          << "Indexes from InnoDB: " << processed_indexes_num
+          << " Indexes from Server: " << dd_table->indexes()->size();
       return (true);
     }
   }
@@ -833,8 +849,8 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
       dict_table_open_on_name(norm_name, FALSE, TRUE, DICT_ERR_IGNORE_NONE);
 
   if (ib_table == NULL) {
-    ib::error() << "Table " << norm_name
-                << " is not found in InnoDB dictionary";
+    ib::error(ER_IB_MSG_258)
+        << "Table " << norm_name << " is not found in InnoDB dictionary";
     return (true);
   }
 
@@ -908,19 +924,21 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                         UT_LIST_GET_LEN(ib_table->indexes)););
 
   if (UT_LIST_GET_LEN(ib_table->indexes) != dd_table->indexes()->size()) {
-    ib::error() << "Num of Indexes in InnoDB doesn't match"
-                << " with Indexes from server";
-    ib::error() << "Indexes from InnoDB: " << UT_LIST_GET_LEN(ib_table->indexes)
-                << " Indexes from Server: " << dd_table->indexes()->size();
+    ib::error(ER_IB_MSG_259) << "Num of Indexes in InnoDB doesn't match"
+                             << " with Indexes from server";
+    ib::error(ER_IB_MSG_260)
+        << "Indexes from InnoDB: " << UT_LIST_GET_LEN(ib_table->indexes)
+        << " Indexes from Server: " << dd_table->indexes()->size();
     dict_table_close(ib_table, false, false);
     return (true);
   }
 
   uint32_t processed_indexes_num = 0;
   for (dd::Index *dd_index : *dd_table->indexes()) {
-    DBUG_EXECUTE_IF("dd_upgrade", ib::info() << "Index " << dd_index->name()
-                                             << " from server for table: "
-                                             << ib_table->name;);
+    DBUG_EXECUTE_IF("dd_upgrade",
+                    ib::info(ER_IB_MSG_261)
+                        << "Index " << dd_index->name()
+                        << " from server for table: " << ib_table->name;);
 
     for (dict_index_t *index = UT_LIST_GET_FIRST(ib_table->indexes);
          index != NULL; index = UT_LIST_GET_NEXT(indexes, index)) {
@@ -939,10 +957,11 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   }
 
   if (processed_indexes_num != dd_table->indexes()->size()) {
-    ib::error() << "Num of Indexes in InnoDB doesn't match"
-                << " with Indexes from server";
-    ib::error() << "Indexes from InnoDB: " << processed_indexes_num
-                << " Indexes from Server: " << dd_table->indexes()->size();
+    ib::error(ER_IB_MSG_262) << "Num of Indexes in InnoDB doesn't match"
+                             << " with Indexes from server";
+    ib::error(ER_IB_MSG_263)
+        << "Indexes from InnoDB: " << processed_indexes_num
+        << " Indexes from Server: " << dd_table->indexes()->size();
     dict_table_close(ib_table, false, false);
     return (true);
   }
@@ -1058,9 +1077,10 @@ int dd_upgrade_tablespace(THD *thd) {
 
     if (!err_msg && (tablespace_name.find("FTS") == std::string::npos)) {
       // Fill the dictionary object here
-      DBUG_EXECUTE_IF(
-          "dd_upgrade",
-          ib::info() << "Creating dictionary entry for tablespace: " << name;);
+      DBUG_EXECUTE_IF("dd_upgrade",
+                      ib::info(ER_IB_MSG_264)
+                          << "Creating dictionary entry for tablespace: "
+                          << name;);
 
       std::unique_ptr<dd::Tablespace> dd_space(
           dd::create_object<dd::Tablespace>());
@@ -1228,8 +1248,9 @@ int dd_upgrade_logs(THD *thd) {
   table_id_t table_id = mach_read_from_8(dict_hdr + DICT_HDR_TABLE_ID);
 
   DBUG_EXECUTE_IF("dd_upgrade",
-                  ib::info() << "Incrementing table_id from: " << table_id
-                             << " to " << table_id + DICT_MAX_DD_TABLES;);
+                  ib::info(ER_IB_MSG_265)
+                      << "Incrementing table_id from: " << table_id << " to "
+                      << table_id + DICT_MAX_DD_TABLES;);
 
   /* Increase the offset of table_id by DICT_MAX_DD_TABLES */
   mlog_write_ull(dict_hdr + DICT_HDR_TABLE_ID, table_id + DICT_MAX_DD_TABLES,

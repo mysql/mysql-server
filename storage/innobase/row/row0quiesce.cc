@@ -328,7 +328,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_header(
   if (hostname == 0) {
     static const char NullHostname[] = "Hostname unknown";
 
-    ib::warn() << "Unable to determine server hostname.";
+    ib::warn(ER_IB_MSG_1013) << "Unable to determine server hostname.";
 
     hostname = NullHostname;
   }
@@ -427,7 +427,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   dd_get_meta_data_filename(table, NULL, name, sizeof(name));
 
-  ib::info() << "Writing table metadata to '" << name << "'";
+  ib::info(ER_IB_MSG_1014) << "Writing table metadata to '" << name << "'";
 
   FILE *file = fopen(name, "w+b");
 
@@ -590,7 +590,8 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
 
   srv_get_encryption_data_filename(table, name, sizeof(name));
 
-  ib::info() << "Writing table encryption data to '" << name << "'";
+  ib::info(ER_IB_MSG_1015) << "Writing table encryption data to '" << name
+                           << "'";
 
   FILE *file = fopen(name, "w+b");
 
@@ -665,7 +666,7 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
 
   ut_ad(fil_space_get(table->space) != NULL);
 
-  ib::info() << "Sync to disk of " << table->name << " started.";
+  ib::info(ER_IB_MSG_1016) << "Sync to disk of " << table->name << " started.";
 
   if (trx_purge_state() != PURGE_STATE_DISABLED) {
     trx_purge_stop();
@@ -675,7 +676,8 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
        ibuf_merge_space(table->space) != 0 && !trx_is_interrupted(trx);
        ++count) {
     if (!(count % 20)) {
-      ib::info() << "Merging change buffer entries for " << table->name;
+      ib::info(ER_IB_MSG_1017)
+          << "Merging change buffer entries for " << table->name;
     }
   }
 
@@ -694,19 +696,19 @@ void row_quiesce_table_start(dict_table_t *table, /*!< in: quiesce this table */
     }
 
     if (trx_is_interrupted(trx)) {
-      ib::warn() << "Quiesce aborted!";
+      ib::warn(ER_IB_MSG_1018) << "Quiesce aborted!";
 
     } else if (row_quiesce_write_cfg(table, trx->mysql_thd) != DB_SUCCESS) {
-      ib::warn() << "There was an error writing to the"
-                    " meta data file";
+      ib::warn(ER_IB_MSG_1019) << "There was an error writing to the"
+                                  " meta data file";
     } else if (row_quiesce_write_cfp(table, trx->mysql_thd) != DB_SUCCESS) {
-      ib::warn() << "There was an error writing to the"
-                    " encryption info file";
+      ib::warn(ER_IB_MSG_1020) << "There was an error writing to the"
+                                  " encryption info file";
     } else {
-      ib::info() << "Table " << table->name << " flushed to disk";
+      ib::info(ER_IB_MSG_1021) << "Table " << table->name << " flushed to disk";
     }
   } else {
-    ib::warn() << "Quiesce aborted!";
+    ib::warn(ER_IB_MSG_1022) << "Quiesce aborted!";
   }
 
   dberr_t err = row_quiesce_set_state(table, QUIESCE_COMPLETE, trx);
@@ -728,7 +730,8 @@ void row_quiesce_table_complete(
   while (table->quiesce != QUIESCE_COMPLETE) {
     /* Print a warning after every minute. */
     if (!(count % 60)) {
-      ib::warn() << "Waiting for quiesce of " << table->name << " to complete";
+      ib::warn(ER_IB_MSG_1023)
+          << "Waiting for quiesce of " << table->name << " to complete";
     }
 
     /* Sleep for a second. */
@@ -746,7 +749,8 @@ void row_quiesce_table_complete(
 
   os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
-  ib::info() << "Deleting the meta-data file '" << cfg_name << "'";
+  ib::info(ER_IB_MSG_1024) << "Deleting the meta-data file '" << cfg_name
+                           << "'";
 
   if (dict_table_is_encrypted(table)) {
     char cfp_name[OS_FILE_MAX_PATH];
@@ -755,7 +759,8 @@ void row_quiesce_table_complete(
 
     os_file_delete_if_exists(innodb_data_file_key, cfp_name, NULL);
 
-    ib::info() << "Deleting the meta-data file '" << cfp_name << "'";
+    ib::info(ER_IB_MSG_1025)
+        << "Deleting the meta-data file '" << cfp_name << "'";
   }
 
   if (trx_purge_state() != PURGE_STATE_DISABLED) {

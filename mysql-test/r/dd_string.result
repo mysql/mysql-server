@@ -51,7 +51,7 @@ baseline.EVENT_NAME,
 FROM diffs, baseline
 WHERE diffs.EVENT_NAME = baseline.EVENT_NAME;
 #
-# Checking increase in the number of allocations (threshold 15%)
+# Checking increase in the number of allocations (threshold 19%)
 #
 SELECT
 baseline.EVENT_NAME AS 'PSI MEMORY EVENT NAME',
@@ -59,12 +59,12 @@ baseline.COUNT_ALLOC AS 'BASE ALLOC',
 after_create.COUNT_ALLOC AS 'POST ALLOC',
 diffs.COUNT_ALLOC_DIFF AS DELTA,
 percents.ALLOC_PCT AS PCT_CHANGE,
-'Exceeds threshold of +17%' AS REASON
+'Exceeds threshold of +19%' AS REASON
 FROM baseline JOIN (after_create, diffs, percents) ON
 (baseline.EVENT_NAME = after_create.EVENT_NAME AND
 baseline.EVENT_NAME = diffs.EVENT_NAME AND
 baseline.EVENT_NAME = percents.EVENT_NAME)
-WHERE percents.ALLOC_PCT > 17;
+WHERE percents.ALLOC_PCT > 19;
 PSI MEMORY EVENT NAME	BASE ALLOC	POST ALLOC	DELTA	PCT_CHANGE	REASON
 #
 # Checking increase in the number of bytes allocated (threshold 25%)

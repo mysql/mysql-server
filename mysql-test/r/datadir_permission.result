@@ -2,7 +2,6 @@
 #
 # Setup
 # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 #
 #-------------------------------------------------------------------------
 #

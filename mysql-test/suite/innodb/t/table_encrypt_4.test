@@ -16,10 +16,10 @@
 --disable_query_log
 call mtr.add_suppression("Trying to import a encrypted tablespace, but could not get encryption information from .cfp file");
 call mtr.add_suppression("Operating system error number .* in a file operation");
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
 call mtr.add_suppression("'delete' returned OS error 7");
-call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("InnoDB: Table is not in an encrypted tablespace, but the data file which trying to import is an encrypted tablespace");
+call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("Table is not in an encrypted tablespace, but the data file which trying to import is an encrypted tablespace");
 --enable_query_log
 
 --disable_warnings

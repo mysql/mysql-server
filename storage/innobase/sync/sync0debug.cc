@@ -46,7 +46,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <vector>
 
 #include "my_inttypes.h"
+
+#include "sync0rw.h"
+#include "ut0mutex.h"
+
+#ifndef UNIV_NO_ERR_MSGS
 #include "srv0start.h"
+#endif /* !UNIV_NO_ERR_MSGS */
+
 #include "ut0new.h"
 
 #ifdef UNIV_DEBUG
@@ -229,9 +236,8 @@ struct LatchDebug {
       Latches::iterator it =
           std::find(latches->begin(), latches->end(), Latched(latch, level));
 
-      ut_a(latches->empty() || level == SYNC_PERSIST_CHECKPOINT ||
-           level == SYNC_LEVEL_VARYING || level == SYNC_NO_ORDER_CHECK ||
-           latches->back().m_latch->get_level() == SYNC_PERSIST_CHECKPOINT ||
+      ut_a(latches->empty() || level == SYNC_LEVEL_VARYING ||
+           level == SYNC_NO_ORDER_CHECK ||
            latches->back().m_latch->get_level() == SYNC_LEVEL_VARYING ||
            latches->back().m_latch->get_level() == SYNC_NO_ORDER_CHECK ||
            latches->back().get_level() >= level || it != latches->end());
@@ -403,9 +409,13 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_FTS_BG_THREADS);
   LEVEL_MAP_INSERT(SYNC_FTS_CACHE_INIT);
   LEVEL_MAP_INSERT(SYNC_RECV);
-  LEVEL_MAP_INSERT(SYNC_LOG_FLUSH_ORDER);
-  LEVEL_MAP_INSERT(SYNC_LOG);
-  LEVEL_MAP_INSERT(SYNC_LOG_WRITE);
+  LEVEL_MAP_INSERT(SYNC_LOG_SN);
+  LEVEL_MAP_INSERT(SYNC_LOG_WRITER);
+  LEVEL_MAP_INSERT(SYNC_LOG_WRITE_NOTIFIER);
+  LEVEL_MAP_INSERT(SYNC_LOG_FLUSH_NOTIFIER);
+  LEVEL_MAP_INSERT(SYNC_LOG_FLUSHER);
+  LEVEL_MAP_INSERT(SYNC_LOG_CLOSER);
+  LEVEL_MAP_INSERT(SYNC_LOG_CHECKPOINTER);
   LEVEL_MAP_INSERT(SYNC_LOG_ARCH);
   LEVEL_MAP_INSERT(SYNC_PAGE_ARCH);
   LEVEL_MAP_INSERT(SYNC_PAGE_ARCH_OPER);
@@ -445,7 +455,6 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
   LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
   LEVEL_MAP_INSERT(SYNC_PERSIST_AUTOINC);
-  LEVEL_MAP_INSERT(SYNC_PERSIST_CHECKPOINT);
   LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
   LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
   LEVEL_MAP_INSERT(SYNC_DICT_HEADER);
@@ -469,14 +478,24 @@ LatchDebug::LatchDebug() {
 /** Print the latches acquired by a thread
 @param[in]	latches		Latches acquired by a thread */
 void LatchDebug::print_latches(const Latches *latches) const UNIV_NOTHROW {
-  ib::error() << "Latches already owned by this thread: ";
+#ifdef UNIV_NO_ERR_MSGS
+  ib::error()
+#else
+  ib::error(ER_IB_MSG_1161)
+#endif /* UNIV_NO_ERR_MSGS */
+      << "Latches already owned by this thread: ";
 
   Latches::const_iterator end = latches->end();
 
   for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
-    ib::error() << sync_latch_get_name(it->m_latch->get_id()) << " -> "
-                << it->m_level << " "
-                << "(" << get_level_name(it->m_level) << ")";
+#ifdef UNIV_NO_ERR_MSGS
+    ib::error()
+#else
+    ib::error(ER_IB_MSG_1162)
+#endif /* UNIV_NO_ERR_MSGS */
+        << sync_latch_get_name(it->m_latch->get_id()) << " -> " << it->m_level
+        << " "
+        << "(" << get_level_name(it->m_level) << ")";
   }
 }
 
@@ -491,13 +510,17 @@ void LatchDebug::crash(const Latches *latches, const Latched *latched,
 
   const std::string &latch_level_name = get_level_name(latched->m_level);
 
-  ib::error() << "Thread " << os_thread_get_curr_id()
-              << " already owns a latch " << sync_latch_get_name(latch->m_id)
-              << " at level"
-              << " " << latched->m_level << " (" << latch_level_name
-              << " ), which is at a lower/same level than the"
-              << " requested latch: " << level << " (" << in_level_name << "). "
-              << latch->to_string();
+#ifdef UNIV_NO_ERR_MSGS
+  ib::error()
+#else
+  ib::error(ER_IB_MSG_1163)
+#endif /* UNIV_NO_ERR_MSGS */
+      << "Thread " << os_thread_get_curr_id() << " already owns a latch "
+      << sync_latch_get_name(latch->m_id) << " at level"
+      << " " << latched->m_level << " (" << latch_level_name
+      << " ), which is at a lower/same level than the"
+      << " requested latch: " << level << " (" << in_level_name << "). "
+      << latch->to_string();
 
   print_latches(latches);
 
@@ -634,6 +657,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       /* Do no order checking */
       break;
 
+    case SYNC_LOG_SN:
     case SYNC_TRX_SYS_HEADER:
     case SYNC_LOCK_FREE_HASH:
     case SYNC_MONITOR_MUTEX:
@@ -645,9 +669,12 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_FTS_CACHE:
     case SYNC_FTS_CACHE_INIT:
     case SYNC_PAGE_CLEANER:
-    case SYNC_LOG:
-    case SYNC_LOG_WRITE:
-    case SYNC_LOG_FLUSH_ORDER:
+    case SYNC_LOG_CHECKPOINTER:
+    case SYNC_LOG_CLOSER:
+    case SYNC_LOG_WRITER:
+    case SYNC_LOG_FLUSHER:
+    case SYNC_LOG_WRITE_NOTIFIER:
+    case SYNC_LOG_FLUSH_NOTIFIER:
     case SYNC_LOG_ARCH:
     case SYNC_PAGE_ARCH:
     case SYNC_PAGE_ARCH_OPER:
@@ -861,20 +888,13 @@ Latches *LatchDebug::check_order(const latch_t *latch,
 
     case SYNC_PERSIST_DIRTY_TABLES:
 
-      basic_check(latches, level, SYNC_LOG);
+      basic_check(latches, level, SYNC_IBUF_MUTEX);
       break;
 
     case SYNC_PERSIST_AUTOINC:
 
-      basic_check(latches, level, SYNC_LOG);
+      basic_check(latches, level, SYNC_IBUF_MUTEX);
       ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
-      break;
-
-    case SYNC_PERSIST_CHECKPOINT:
-
-      basic_check(latches, level, SYNC_LOG);
-      ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
-      ut_a(find(latches, SYNC_PERSIST_AUTOINC) == NULL);
       break;
 
     case SYNC_MUTEX:
@@ -946,8 +966,12 @@ void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
     }
 
     if (latch->get_level() != SYNC_LEVEL_VARYING) {
-      ib::error() << "Couldn't find latch "
-                  << sync_latch_get_name(latch->get_id());
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1164)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "Couldn't find latch " << sync_latch_get_name(latch->get_id());
 
       print_latches(latches);
 
@@ -1202,9 +1226,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(PERSIST_AUTOINC, SYNC_PERSIST_AUTOINC,
                   autoinc_persisted_mutex_key);
 
-  LATCH_ADD_RWLOCK(DICT_PERSIST_CHECKPOINT, SYNC_PERSIST_CHECKPOINT,
-                   dict_persist_checkpoint_key);
-
   LATCH_ADD_MUTEX(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
 
   LATCH_ADD_MUTEX(DICT_TABLE, SYNC_TABLE, dict_table_mutex_key);
@@ -1236,12 +1257,22 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(IBUF_PESSIMISTIC_INSERT, SYNC_IBUF_PESS_INSERT_MUTEX,
                   ibuf_pessimistic_insert_mutex_key);
 
-  LATCH_ADD_MUTEX(LOG_SYS, SYNC_LOG, log_sys_mutex_key);
+  LATCH_ADD_MUTEX(LOG_CHECKPOINTER, SYNC_LOG_CHECKPOINTER,
+                  log_checkpointer_mutex_key);
 
-  LATCH_ADD_MUTEX(LOG_WRITE, SYNC_LOG_WRITE, log_sys_write_mutex_key);
+  LATCH_ADD_MUTEX(LOG_CLOSER, SYNC_LOG_CLOSER, log_closer_mutex_key);
 
-  LATCH_ADD_MUTEX(LOG_FLUSH_ORDER, SYNC_LOG_FLUSH_ORDER,
-                  log_flush_order_mutex_key);
+  LATCH_ADD_MUTEX(LOG_WRITER, SYNC_LOG_WRITER, log_writer_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_FLUSHER, SYNC_LOG_FLUSHER, log_flusher_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_WRITE_NOTIFIER, SYNC_LOG_WRITE_NOTIFIER,
+                  log_write_notifier_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_FLUSH_NOTIFIER, SYNC_LOG_FLUSH_NOTIFIER,
+                  log_flush_notifier_mutex_key);
+
+  LATCH_ADD_RWLOCK(LOG_SN, SYNC_LOG_SN, log_sn_lock_key);
 
   LATCH_ADD_MUTEX(LOG_ARCH, SYNC_LOG_ARCH, log_sys_arch_mutex_key);
 
@@ -1377,8 +1408,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 #endif /* UNIV_DEBUG */
 
   LATCH_ADD_RWLOCK(DICT_OPERATION, SYNC_DICT, dict_operation_lock_key);
-
-  LATCH_ADD_RWLOCK(CHECKPOINT, SYNC_NO_ORDER_CHECK, checkpoint_lock_key);
 
   LATCH_ADD_RWLOCK(RSEGS, SYNC_RSEGS, rsegs_lock_key);
 
@@ -1588,8 +1617,9 @@ std::string sync_file_created_get(const void *ptr) {
   return (create_tracker->get(ptr));
 }
 
-/** Initializes the synchronization data structures. */
-void sync_check_init() {
+/** Initializes the synchronization data structures.
+@param[in]	max_threads	Maximum threads that can be created. */
+void sync_check_init(size_t max_threads) {
   ut_ad(!LatchDebug::s_initialized);
   ut_d(LatchDebug::s_initialized = true);
 
@@ -1609,7 +1639,7 @@ void sync_check_init() {
 
   ut_d(LatchDebug::init());
 
-  sync_array_init(srv_max_n_threads);
+  sync_array_init(max_threads);
 }
 
 /** Frees the resources in InnoDB's own synchronization data structures. Use

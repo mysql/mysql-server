@@ -810,10 +810,10 @@ bool SELECT_LEX_UNIT::explain(THD *ethd) {
   const bool other = (thd != ethd);
   bool ret = false;
 
-  if (!other) {
-    DBUG_ASSERT(!is_simple() && is_optimized());
-    set_executed();
-  }
+  DBUG_ASSERT(other || is_optimized() || outer_select()->is_empty_query() ||
+              // @todo why is this necessary?
+              outer_select()->join == nullptr ||
+              outer_select()->join->zero_result_cause);
 
   if (fmt->begin_context(CTX_UNION)) DBUG_RETURN(true);
 

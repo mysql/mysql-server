@@ -324,4 +324,4 @@ SELECT * FROM tab;
 
 DROP TABLE tab;
 
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace 'innodb_system' filename is unknown. Use \\--innodb-directories to locate of the file.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace 'innodb_system' filename is unknown. Use \\--innodb-directories to locate of the file.");

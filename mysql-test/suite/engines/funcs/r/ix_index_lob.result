@@ -9,7 +9,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` tinyblob,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -23,7 +23,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` blob,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -37,7 +37,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` mediumblob,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -51,7 +51,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` longblob,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -79,7 +79,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` text,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -93,7 +93,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` mediumtext,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -107,7 +107,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` longtext,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -121,7 +121,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` tinyblob NOT NULL,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -135,7 +135,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` blob NOT NULL,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -149,7 +149,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` mediumblob NOT NULL,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -163,7 +163,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` longblob NOT NULL,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -191,7 +191,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` text NOT NULL,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -205,7 +205,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` mediumtext NOT NULL,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test
@@ -219,7 +219,7 @@ Table	Create Table
 t4	CREATE TABLE `t4` (
   `c1` longtext NOT NULL,
   KEY `i1` (`c1`(100))
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 SHOW TABLES;
 Tables_in_test

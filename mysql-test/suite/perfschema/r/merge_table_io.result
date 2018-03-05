@@ -26,21 +26,21 @@ Table	Create Table
 no_index_tab_1	CREATE TABLE `no_index_tab_1` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into marker set a = 1;
 show create table test.no_index_tab_2;
 Table	Create Table
 no_index_tab_2	CREATE TABLE `no_index_tab_2` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into marker set a = 1;
 show create table test.no_index_tab;
 Table	Create Table
 no_index_tab	CREATE TABLE `no_index_tab` (
   `a` varchar(255) NOT NULL,
   `b` int(11) NOT NULL
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 INSERT_METHOD=FIRST UNION=(`no_index_tab_1`,`no_index_tab_2`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci INSERT_METHOD=FIRST UNION=(`no_index_tab_1`,`no_index_tab_2`)
 insert into marker set a = 1;
 insert into test.no_index_tab set a = 'foo', b = 1;
 insert into marker set a = 1;

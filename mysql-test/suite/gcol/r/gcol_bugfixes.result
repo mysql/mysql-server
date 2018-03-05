@@ -410,7 +410,7 @@ INSERT INTO v (a,c) VALUES (1,1);
 EXPLAIN SELECT 1 FROM t WHERE ( SELECT 1 FROM t ) >=ANY( SELECT c FROM v );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 2	SUBQUERY	t	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t` where 0
@@ -536,7 +536,7 @@ t1	CREATE TABLE `t1` (
   `a` char(1) DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   `c` char(2) GENERATED ALWAYS AS ((`a` or `b`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (a,b) VALUES('1','1');
 SELECT * FROM t1;
 a	b	c
@@ -557,7 +557,7 @@ t1	CREATE TABLE `t1` (
   `a` char(1) DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   `c` char(2) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (a,b) VALUES('1','1');
 SELECT * FROM t1;
 a	b	c
@@ -730,7 +730,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text CHARACTER SET utf16 COLLATE utf16_general_ci,
   `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT HEX(b) FROM t1;
 HEX(b)
 004100420043006100620063
@@ -746,7 +746,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text CHARACTER SET utf16 COLLATE utf16_general_ci,
   `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 length( convert( b USING utf8 ) ),
 char_length ( convert( b USING utf8 ) )

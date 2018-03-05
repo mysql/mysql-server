@@ -3382,7 +3382,7 @@ static Sys_var_enum Mts_parallel_type(
     "Specifies if the slave will use database partitioning "
     "or information from master to parallelize transactions."
     "(Default: DATABASE).",
-    GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
+    PERSIST_AS_READONLY GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
     mts_parallel_type_names, DEFAULT(MTS_PARALLEL_TYPE_DB_NAME), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_slave_stopped), ON_UPDATE(NULL));
 
@@ -3449,7 +3449,7 @@ static Sys_var_bool Sys_slave_preserve_commit_order(
     "slave_preserve_commit_order",
     "Force slave workers to make commits in the same order as on the master. "
     "Disabled by default.",
-    GLOBAL_VAR(opt_slave_preserve_commit_order),
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_slave_preserve_commit_order),
     CMD_LINE(OPT_ARG, OPT_SLAVE_PRESERVE_COMMIT_ORDER), DEFAULT(false),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
     ON_UPDATE(NULL));
@@ -5416,8 +5416,9 @@ static Sys_var_ulong Sys_slave_trans_retries(
 static Sys_var_ulong Sys_slave_parallel_workers(
     "slave_parallel_workers",
     "Number of worker threads for executing events in parallel ",
-    GLOBAL_VAR(opt_mts_slave_parallel_workers), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(0), BLOCK_SIZE(1));
+    PERSIST_AS_READONLY GLOBAL_VAR(opt_mts_slave_parallel_workers),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, MTS_MAX_WORKERS), DEFAULT(0),
+    BLOCK_SIZE(1));
 
 static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
     "slave_pending_jobs_size_max",
@@ -5516,7 +5517,7 @@ static Sys_var_enforce_gtid_consistency Sys_enforce_gtid_consistency(
     "in a transactionally safe manner. Currently, the disallowed "
     "statements include CREATE TEMPORARY TABLE inside transactions, "
     "all updates to non-transactional tables, and CREATE TABLE ... SELECT.",
-    GLOBAL_VAR(_gtid_consistency_mode),
+    PERSIST_AS_READONLY GLOBAL_VAR(_gtid_consistency_mode),
     CMD_LINE(OPT_ARG, OPT_ENFORCE_GTID_CONSISTENCY),
     enforce_gtid_consistency_aliases, 3,
     DEFAULT(3 /*position of "FALSE" in enforce_gtid_consistency_aliases*/),
@@ -5748,8 +5749,8 @@ static Sys_var_gtid_mode Sys_gtid_mode(
     "ON_PERMISSIVE, then wait for all transactions without a GTID to "
     "be replicated and executed on all servers, and finally set all "
     "servers to GTID_MODE = ON.",
-    GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG), gtid_mode_names,
-    DEFAULT(DEFAULT_GTID_MODE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+    PERSIST_AS_READONLY GLOBAL_VAR(_gtid_mode), CMD_LINE(REQUIRED_ARG),
+    gtid_mode_names, DEFAULT(DEFAULT_GTID_MODE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(check_super_outside_trx_outside_sf_outside_sp));
 
 static Sys_var_uint Sys_gtid_executed_compression_period(
@@ -6093,3 +6094,34 @@ static Sys_var_bool Sys_keyring_operations(
     NON_PERSIST GLOBAL_VAR(opt_keyring_operations), NO_CMD_LINE, DEFAULT(true),
     &PLock_keyring_operations, NOT_IN_BINLOG, ON_CHECK(check_keyring_access),
     ON_UPDATE(0));
+
+static bool check_default_collation_for_utf8mb4(sys_var *self, THD *thd,
+                                                set_var *var) {
+  if (check_collation_not_null(self, thd, var)) {
+    return true;
+  }
+
+  auto cs = static_cast<const CHARSET_INFO *>(var->save_result.ptr);
+  if (cs == &my_charset_utf8mb4_0900_ai_ci ||
+      cs == &my_charset_utf8mb4_general_ci)
+    return check_has_super(self, thd, var);
+
+  my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->name);
+  return true;
+}
+
+static Sys_var_struct<CHARSET_INFO, Get_name> Sys_default_collation_for_utf8mb4(
+    "default_collation_for_utf8mb4",
+    "Controls default collation for utf8mb4 while replicating implicit "
+    "utf8mb4 collations.",
+    SESSION_VAR(default_collation_for_utf8mb4), NO_CMD_LINE,
+    DEFAULT(&my_charset_utf8mb4_0900_ai_ci), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_default_collation_for_utf8mb4),
+    ON_UPDATE(update_deprecated));
+
+static Sys_var_bool Sys_show_create_table_verbosity(
+    "show_create_table_verbosity",
+    "When this option is enabled, it increases the verbosity of "
+    "'SHOW CREATE TABLE'.",
+    SESSION_VAR(show_create_table_verbosity), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0));

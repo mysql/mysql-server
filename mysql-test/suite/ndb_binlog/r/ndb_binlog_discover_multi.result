@@ -18,7 +18,7 @@ t1	CREATE TABLE `t1` (
   `a` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `b` varchar(16) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 (b) values('String to find');
 CREATE TABLE dummy (dummyk INT PRIMARY KEY) ENGINE = NDB;
 DROP TABLE dummy;

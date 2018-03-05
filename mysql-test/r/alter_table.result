@@ -417,7 +417,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(10) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`)
 flush tables;
 alter table t1 modify a varchar(10) not null;
 show create table t2;
@@ -425,7 +425,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(10) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 UNION=(`t1`)
+) ENGINE=MRG_MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci UNION=(`t1`)
 drop table if exists t1, t2;
 create table t1 (a int, b int, c int, d int, e int, f int, g int, h int,i int, primary key (a,b,c,d,e,f,g,i,h)) engine=MyISAM;
 insert into t1 (a) values(1);
@@ -504,7 +504,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) CHARACTER SET koi8r COLLATE koi8r_general_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 DEFAULT CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
@@ -548,7 +548,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP PRIMARY KEY;
 ERROR 42000: Can't DROP 'PRIMARY'; check that column/key exists
 DROP TABLE t1;
@@ -719,13 +719,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   KEY `i1` (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
 DROP INDEX i1 ON t1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
 DROP TABLE t1;
 DROP TABLE IF EXISTS bug24219;
 DROP TABLE IF EXISTS bug24219_2;
@@ -965,7 +965,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY(b(50));
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -974,7 +974,7 @@ t1	CREATE TABLE `t1` (
   `b` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD c POINT;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -984,7 +984,7 @@ t1	CREATE TABLE `t1` (
   `c` point DEFAULT NULL,
   SPATIAL KEY `b` (`b`),
   KEY `b_2` (`b`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (a INT, KEY (a(20)));
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 ALTER TABLE t1 ADD d INT;
@@ -1127,12 +1127,12 @@ SHOW CREATE TABLE `tt+1`;
 Table	Create Table
 tt+1	CREATE TEMPORARY TABLE `tt+1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `tt+2`;
 Table	Create Table
 tt+2	CREATE TEMPORARY TABLE `tt+2` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE   `tt+1`, `tt+2`;
 CREATE TABLE `#sql1` (c1 INT);
 CREATE TABLE `@0023sql2` (c1 INT);
@@ -1169,12 +1169,12 @@ SHOW CREATE TABLE `#sql2`;
 Table	Create Table
 #sql2	CREATE TEMPORARY TABLE `#sql2` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE `@0023sql1`;
 Table	Create Table
 @0023sql1	CREATE TEMPORARY TABLE `@0023sql1` (
   `c1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `#sql2`, `@0023sql1`;
 DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
@@ -1507,7 +1507,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(10) unsigned DEFAULT NULL,
   `c2` char(100) NOT NULL DEFAULT '',
   `c3` char(16) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # WL#5534 Online ALTER, Phase 1
@@ -2047,7 +2047,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `b` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 rename index b to c;
 show create table t1;
 Table	Create Table
@@ -2057,7 +2057,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 1.b) It should be impossible to rename index that doesn't
 #      exists, dropped or added within the same ALTER TABLE.
 alter table t1 rename key d to e;
@@ -2070,7 +2070,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop key c, rename key c to d;
 ERROR 42000: Key 'c' doesn't exist in table 't1'
 show create table t1;
@@ -2081,7 +2081,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 add key d(j), rename key d to e;
 ERROR 42000: Key 'd' doesn't exist in table 't1'
 show create table t1;
@@ -2092,7 +2092,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 1.c) It should be impossible to rename index to a name
 #      which is already used by another index, or is used
 #      by index which is added within the same ALTER TABLE.
@@ -2108,7 +2108,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`pk`),
   KEY `c` (`i`),
   KEY `d` (`j`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop key d;
 alter table t1 add key d(j), rename key c to d;
 ERROR 42000: Duplicate key name 'd'
@@ -2120,7 +2120,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 1.d) It should be possible to rename index to a name
 #      which belongs to index which is dropped within the
 #      same ALTER TABLE.
@@ -2134,7 +2134,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 1.e) We disallow renaming from/to PRIMARY as it might
 #      lead to some other key becoming "primary" internally,
 #      which will be interpreted as dropping/addition of
@@ -2149,7 +2149,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Even using 'funny' syntax.
 alter table t1 rename key `primary` to d;
 ERROR 42000: Incorrect index name 'primary'
@@ -2161,7 +2161,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 rename key c to primary;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'primary' at line 1
 show create table t1;
@@ -2172,7 +2172,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 rename key c to `primary`;
 ERROR 42000: Incorrect index name 'primary'
 show create table t1;
@@ -2183,7 +2183,7 @@ t1	CREATE TABLE `t1` (
   `j` int(11) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   KEY `c` (`j`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
 # 2) More complex tests for semantics of ALTER TABLE.
@@ -2199,7 +2199,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `uu` (`a`),
   KEY `k` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 rename key k to kk;
 show create table t1;
 Table	Create Table
@@ -2208,7 +2208,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `uu` (`a`),
   KEY `kk` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 2.b) Check how that this clause can be mixed with other
 #      clauses which don't affect key or its columns.
 alter table t1 rename key kk to kkk, add column c int;
@@ -2220,7 +2220,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   UNIQUE KEY `uu` (`a`),
   KEY `kkk` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 rename key uu to uuu, add key c(c);
 show create table t1;
 Table	Create Table
@@ -2231,7 +2231,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uuu` (`a`),
   KEY `kkk` (`b`),
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 rename key kkk to k, drop key uuu;
 show create table t1;
 Table	Create Table
@@ -2241,7 +2241,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   KEY `k` (`b`),
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 rename key k to kk, rename to t2;
 show create table t2;
 Table	Create Table
@@ -2251,7 +2251,7 @@ t2	CREATE TABLE `t2` (
   `c` int(11) DEFAULT NULL,
   KEY `kk` (`b`),
   KEY `c` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 2.c) Check that this clause properly works even in case
 #      when it is mixed with clauses affecting columns in
 #      the key renamed.
@@ -2264,7 +2264,7 @@ t2	CREATE TABLE `t2` (
   `b` int(11) DEFAULT NULL,
   KEY `kk` (`b`),
   KEY `cc` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Create multi-component key for next example.
 alter table t2 add unique u (a, b, c);
 show create table t2;
@@ -2276,7 +2276,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `u` (`a`,`b`,`c`),
   KEY `kk` (`b`),
   KEY `cc` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t2 rename key u to uu, drop column b;
 show create table t2;
 Table	Create Table
@@ -2285,7 +2285,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   UNIQUE KEY `uu` (`a`,`c`),
   KEY `cc` (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 #
 # 3) Test coverage for handling of RENAME INDEX clause in
@@ -2305,13 +2305,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `kk` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL,
   KEY `kk` (`i`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # So by default in-place algorithm should be chosen.
 # (ALTER TABLE should report 0 rows affected).
 alter table t1 rename key kk to kkk;
@@ -2325,13 +2325,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `kkk` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL,
   KEY `kkk` (`i`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Copy algorithm should work as well.
 alter table t1 algorithm=copy, rename key kkk to kkkk;
 alter table t2 algorithm=copy, rename key kkk to kkkk;
@@ -2340,13 +2340,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `kkkk` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT NULL,
   KEY `kkkk` (`i`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # When renaming is combined with other in-place operation
 # it still works as expected (i.e. works in-place).
 alter table t1 algorithm=inplace, rename key kkkk to k, alter column i set default 100;
@@ -2356,13 +2356,13 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT '100',
   KEY `k` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `i` int(11) DEFAULT '100',
   KEY `k` (`i`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Combining with non-inplace operation results in the whole ALTER
 # becoming non-inplace.
 alter table t1 algorithm=inplace, rename key k to kk, add column j int;
@@ -2383,7 +2383,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `kk` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # copy algorithm should work as well.
 alter table t1 algorithm=copy, rename key kk to kkk;
 affected rows: 1
@@ -2393,7 +2393,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `kkk` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
 # 4) Additional coverage for complex cases in which code
@@ -2419,7 +2419,7 @@ t1	CREATE TABLE `t1` (
   KEY `x` (`b`),
   KEY `i2` (`c`),
   KEY `i1` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select i.name as k, f.name as c from information_schema.innodb_tables as t,
 information_schema.innodb_indexes as i,
 information_schema.innodb_fields as f
@@ -2444,7 +2444,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   KEY `i2` (`b`),
   KEY `i1` (`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select i.name as k, f.name as c from information_schema.innodb_tables as t,
 information_schema.innodb_indexes as i,
 information_schema.innodb_fields as f
@@ -2472,9 +2472,9 @@ drop table t1;
 # metadata lock on the table even when executed under LOCK TABLES.
 #
 # Suppress error messages which will be generated by IMPORT TABLESPACE
-call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
-call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("Operating system error number 2 in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
 CREATE TABLE t1 (i INT) ENGINE=InnoDB;
 #
 # 1) Check that ALTER TABLE ... IMPORT/DISCARD TABLESPACE on
@@ -2642,7 +2642,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` point NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD UNIQUE INDEX (b);
 # Note that SHOW CREATE TABLE does not list b as a primary key,
 # even though it was promoted. This appears to be the case also
@@ -2653,7 +2653,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` point NOT NULL,
   UNIQUE KEY `b` (`b`(25))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD UNIQUE INDEX (a);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2662,7 +2662,7 @@ t1	CREATE TABLE `t1` (
   `b` point NOT NULL,
   UNIQUE KEY `b` (`b`(25)),
   UNIQUE KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Verify that the expected indices have been created by Innodb
 SELECT T.NAME AS TABLE_NAME, I.NAME AS INDEX_NAME,
 CASE I.TYPE 
@@ -2929,7 +2929,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `w` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT,
 FOREIGN KEY (b) REFERENCES t1(a)) ENGINE= InnoDB;
@@ -2943,7 +2943,7 @@ t1	CREATE TABLE `t1` (
   KEY `w` (`b`),
   CONSTRAINT `t1_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
   CONSTRAINT `t1_ibfk_2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 #
 # Bug#22017616: ASSERTION FAILED: TABLE_SHARE->IS_MISSING_PRIMARY_KEY()
@@ -3060,7 +3060,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 PACK_KEYS=1 STATS_PERSISTENT=1 CHECKSUM=1 DELAY_KEY_WRITE=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci PACK_KEYS=1 STATS_PERSISTENT=1 CHECKSUM=1 DELAY_KEY_WRITE=1
 # Alter table with conflicting values
 ALTER TABLE t1 PACK_KEYS=1 PACK_KEYS=0 STATS_PERSISTENT=1 STATS_PERSISTENT=0 CHECKSUM=1 CHECKSUM=0 DELAY_KEY_WRITE=1 DELAY_KEY_WRITE=0;
 # Should show PACK_KEYS=0 STATS_PERSISTENT=0 (0 is default for CHECKSUM and DELAY_KEY_WRITE)
@@ -3068,7 +3068,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 PACK_KEYS=0 STATS_PERSISTENT=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci PACK_KEYS=0 STATS_PERSISTENT=0
 DROP TABLE t1;
 #
 # Bug#22740093: ERROR 1071 (42000): SPECIFIED KEY WAS TOO LONG
@@ -3159,7 +3159,7 @@ t3	CREATE TABLE `t3` (
   `j` int(11) DEFAULT NULL,
   KEY `fk` (`fk`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t3;
 CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET @a:=0;
 ALTER TABLE t1 ADD COLUMN j INT, RENAME TO t4, ALGORITHM=INPLACE;
@@ -3298,7 +3298,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(30) DEFAULT NULL,
   `c` float DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(1,'abcd',1.234);
 CREATE TABLE t2(a INT, b VARCHAR(30), c FLOAT) ENGINE=MyIsam;
 SHOW CREATE TABLE t2;
@@ -3307,7 +3307,7 @@ t2	CREATE TABLE `t2` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(30) DEFAULT NULL,
   `c` float DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t2 VALUES(1,'abcd',1.234);
 ALTER TABLE t1 RENAME COLUMN a TO a;
 ALTER TABLE t1 RENAME COLUMN a TO m;
@@ -3317,7 +3317,7 @@ t1	CREATE TABLE `t1` (
   `m` int(11) DEFAULT NULL,
   `b` varchar(30) DEFAULT NULL,
   `c` float DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 m	b	c
 1	abcd	1.234
@@ -3330,7 +3330,7 @@ t1	CREATE TABLE `t1` (
   `x` int(11) DEFAULT NULL,
   `y` varchar(30) DEFAULT NULL,
   `z` float DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 x	y	z
 1	abcd	1.234
@@ -3341,7 +3341,7 @@ t2	CREATE TABLE `t2` (
   `d` int(11) DEFAULT NULL,
   `e` varchar(30) DEFAULT NULL,
   `f` float DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t2;
 d	e	f
 1	abcd	1.234
@@ -3352,7 +3352,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(30) DEFAULT NULL,
   `z` float DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 CHANGE COLUMN z c DOUBLE, RENAME COLUMN b to b;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3360,7 +3360,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` varchar(30) DEFAULT NULL,
   `c` double DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 CHANGE COLUMN a b int, RENAME COLUMN b TO c, CHANGE COLUMN c d FLOAT;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3368,7 +3368,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` varchar(30) DEFAULT NULL,
   `d` float DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD COLUMN zz INT, RENAME COLUMN d TO f;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3377,7 +3377,7 @@ t1	CREATE TABLE `t1` (
   `c` varchar(30) DEFAULT NULL,
   `f` float DEFAULT NULL,
   `zz` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP COLUMN zz, RENAME COLUMN c TO zz;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3385,28 +3385,28 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `zz` varchar(30) DEFAULT NULL,
   `f` float DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME COLUMN zz to c, DROP COLUMN f;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD COLUMN d INT DEFAULT 5, RENAME COLUMN c TO b, DROP COLUMN b;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `b` varchar(30) DEFAULT NULL,
   `d` int(11) DEFAULT '5'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME COLUMN b TO d, RENAME COLUMN d TO b;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `d` varchar(30) DEFAULT NULL,
   `b` int(11) DEFAULT '5'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY(b);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3414,7 +3414,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(30) DEFAULT NULL,
   `b` int(11) DEFAULT '5',
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME COLUMN b TO bb;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3422,7 +3422,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(30) DEFAULT NULL,
   `bb` int(11) DEFAULT '5',
   KEY `b` (`bb`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 d	bb
 abcd	5
@@ -3435,7 +3435,7 @@ t3	CREATE TABLE `t3` (
   `b` int(11) DEFAULT NULL,
   KEY `b` (`b`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`bb`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME COLUMN bb TO b;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3443,7 +3443,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(30) DEFAULT NULL,
   `b` int(11) DEFAULT '5',
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t3 RENAME COLUMN b TO c;
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -3452,20 +3452,20 @@ t3	CREATE TABLE `t3` (
   `c` int(11) DEFAULT NULL,
   KEY `b` (`c`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t4(a int);
 ALTER TABLE t4 RENAME COLUMN a TO aa, ALGORITHM = INPLACE;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `aa` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t4 RENAME COLUMN aa TO a, ALGORITHM = COPY;
 SHOW CREATE TABLE t4;
 Table	Create Table
 t4	CREATE TABLE `t4` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t4;
 CREATE VIEW v1 AS SELECT d,e,f FROM t2;
 CREATE TRIGGER trg1 BEFORE UPDATE on t2 FOR EACH ROW SET NEW.d=OLD.d + 10;
@@ -3477,7 +3477,7 @@ t2	CREATE TABLE `t2` (
   `g` int(11) DEFAULT NULL,
   `e` varchar(30) DEFAULT NULL,
   `f` float DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`d` AS `d`,`t2`.`e` AS `e`,`t2`.`f` AS `f` from `t2`	koi8r	koi8r_general_ci
@@ -3501,7 +3501,7 @@ Table	Create Table
 t_gen	CREATE TABLE `t_gen` (
   `a` int(11) DEFAULT NULL,
   `b` double GENERATED ALWAYS AS (sqrt(`a`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t_gen RENAME COLUMN a TO c, CHANGE COLUMN b b DOUBLE GENERATED ALWAYS AS (SQRT(c));
 SELECT * FROM t_gen;
 c	b
@@ -3511,7 +3511,7 @@ Table	Create Table
 t_gen	CREATE TABLE `t_gen` (
   `c` int(11) DEFAULT NULL,
   `b` double GENERATED ALWAYS AS (sqrt(`c`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t_gen CHANGE COLUMN c a INT;
 ERROR 42S22: Unknown column 'c' in 'generated column function'
 ALTER TABLE t_gen RENAME COLUMN c TO a;
@@ -3539,7 +3539,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(30) DEFAULT NULL,
   `b` int(11) DEFAULT '5',
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 RENAME COLUMN b z;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'z' at line 1
 ALTER TABLE t1 RENAME COLUMN FROM b TO z;
@@ -3570,7 +3570,7 @@ t1	CREATE TABLE `t1` (
   `d` varchar(30) DEFAULT NULL,
   `b` int(11) DEFAULT '5',
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 d	b
 abcd	5

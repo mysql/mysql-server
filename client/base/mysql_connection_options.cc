@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,6 +172,13 @@ MYSQL *Mysql_connection_options::create_connection() {
           this->get_null_or_string(this->m_password), NULL, this->m_mysql_port,
           this->get_null_or_string(this->m_mysql_unix_port), 0)) {
     this->db_error(connection, "while connecting to the MySQL server");
+    mysql_close(connection);
+    return NULL;
+  }
+
+  /* Reset auto-commit to the default */
+  if (mysql_autocommit(connection, true)) {
+    this->db_error(connection, "while resetting auto-commit");
     mysql_close(connection);
     return NULL;
   }

@@ -179,7 +179,7 @@ let SEARCH_FILE= $error_log;
 --exec $MYSQLD_CMD --core-file --loose-console > $error_log 2>&1
 
 # We get depending on the platform either "./ibdata1" or ".\ibdata1".
-let SEARCH_PATTERN=InnoDB: The innodb_system data file 'ibdata1' must be writable;
+let SEARCH_PATTERN= The innodb_system data file 'ibdata1' must be writable;
 --source include/search_pattern.inc
 
 

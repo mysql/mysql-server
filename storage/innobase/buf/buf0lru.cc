@@ -1149,15 +1149,16 @@ static void buf_LRU_check_size_of_non_data_objects(
   if (!recv_recovery_is_on() && buf_pool->curr_size == buf_pool->old_size &&
       UT_LIST_GET_LEN(buf_pool->free) + UT_LIST_GET_LEN(buf_pool->LRU) <
           buf_pool->curr_size / 20) {
-    ib::fatal() << "Over 95 percent of the buffer pool is"
-                   " occupied by lock heaps or the adaptive hash index!"
-                   " Check that your transactions do not set too many"
-                   " row locks. Your buffer pool size is "
-                << (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE))
-                << " MB."
-                   " Maybe you should make the buffer pool bigger?"
-                   " We intentionally generate a seg fault to print"
-                   " a stack trace on Linux!";
+    ib::fatal(ER_IB_MSG_132)
+        << "Over 95 percent of the buffer pool is"
+           " occupied by lock heaps or the adaptive hash index!"
+           " Check that your transactions do not set too many"
+           " row locks. Your buffer pool size is "
+        << (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE))
+        << " MB."
+           " Maybe you should make the buffer pool bigger?"
+           " We intentionally generate a seg fault to print"
+           " a stack trace on Linux!";
 
   } else if (!recv_recovery_is_on() &&
              buf_pool->curr_size == buf_pool->old_size &&
@@ -1168,16 +1169,17 @@ static void buf_LRU_check_size_of_non_data_objects(
       heaps or the adaptive hash index. This may be a memory
       leak! */
 
-      ib::warn() << "Over 67 percent of the buffer pool is"
-                    " occupied by lock heaps or the adaptive hash"
-                    " index! Check that your transactions do not"
-                    " set too many row locks. Your buffer pool"
-                    " size is "
-                 << (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE))
-                 << " MB. Maybe you should make the buffer pool"
-                    " bigger?. Starting the InnoDB Monitor to print"
-                    " diagnostics, including lock heap and hash"
-                    " index sizes.";
+      ib::warn(ER_IB_MSG_133)
+          << "Over 67 percent of the buffer pool is"
+             " occupied by lock heaps or the adaptive hash"
+             " index! Check that your transactions do not"
+             " set too many row locks. Your buffer pool"
+             " size is "
+          << (buf_pool->curr_size / (1024 * 1024 / UNIV_PAGE_SIZE))
+          << " MB. Maybe you should make the buffer pool"
+             " bigger?. Starting the InnoDB Monitor to print"
+             " diagnostics, including lock heap and hash"
+             " index sizes.";
 
       buf_lru_switched_on_innodb_mon = true;
       srv_print_innodb_monitor = TRUE;
@@ -1276,23 +1278,24 @@ loop:
   }
 
   if (n_iterations > 20 && srv_buf_pool_old_size == srv_buf_pool_size) {
-    ib::warn() << "Difficult to find free blocks in the buffer pool"
-                  " ("
-               << n_iterations << " search iterations)! " << flush_failures
-               << " failed attempts to"
-                  " flush a page! Consider increasing the buffer pool"
-                  " size. It is also possible that in your Unix version"
-                  " fsync is very slow, or completely frozen inside"
-                  " the OS kernel. Then upgrading to a newer version"
-                  " of your operating system may help. Look at the"
-                  " number of fsyncs in diagnostic info below."
-                  " Pending flushes (fsync) log: "
-               << fil_n_pending_log_flushes
-               << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
-               << os_n_file_reads << " OS file reads, " << os_n_file_writes
-               << " OS file writes, " << os_n_fsyncs
-               << " OS fsyncs. Starting InnoDB Monitor to print"
-                  " further diagnostics to the standard output.";
+    ib::warn(ER_IB_MSG_134)
+        << "Difficult to find free blocks in the buffer pool"
+           " ("
+        << n_iterations << " search iterations)! " << flush_failures
+        << " failed attempts to"
+           " flush a page! Consider increasing the buffer pool"
+           " size. It is also possible that in your Unix version"
+           " fsync is very slow, or completely frozen inside"
+           " the OS kernel. Then upgrading to a newer version"
+           " of your operating system may help. Look at the"
+           " number of fsyncs in diagnostic info below."
+           " Pending flushes (fsync) log: "
+        << fil_n_pending_log_flushes
+        << "; buffer pool: " << fil_n_pending_tablespace_flushes << ". "
+        << os_n_file_reads << " OS file reads, " << os_n_file_writes
+        << " OS file writes, " << os_n_fsyncs
+        << " OS fsyncs. Starting InnoDB Monitor to print"
+           " further diagnostics to the standard output.";
 
     mon_value_was = srv_print_innodb_monitor;
     started_monitor = true;
@@ -2040,12 +2043,12 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
 #endif /* UNIV_ZIP_DEBUG */
             break;
           default:
-            ib::error() << "The compressed page to be"
-                           " evicted seems corrupt:";
+            ib::error(ER_IB_MSG_135) << "The compressed page to be"
+                                        " evicted seems corrupt:";
             ut_print_buf(stderr, page, bpage->size.logical());
 
-            ib::error() << "Possibly older version of"
-                           " the page:";
+            ib::error(ER_IB_MSG_136) << "Possibly older version of"
+                                        " the page:";
 
             ut_print_buf(stderr, bpage->zip.data, bpage->size.physical());
             putc('\n', stderr);
@@ -2095,11 +2098,13 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
   hashed_bpage = buf_page_hash_get_low(buf_pool, bpage->id);
 
   if (bpage != hashed_bpage) {
-    ib::error() << "Page " << bpage->id << " not found in the hash table";
+    ib::error(ER_IB_MSG_137)
+        << "Page " << bpage->id << " not found in the hash table";
 
     if (hashed_bpage) {
-      ib::error() << "In hash table we find block " << hashed_bpage << " of "
-                  << hashed_bpage->id << " which is not " << bpage;
+      ib::error(ER_IB_MSG_138)
+          << "In hash table we find block " << hashed_bpage << " of "
+          << hashed_bpage->id << " which is not " << bpage;
     }
 
     ut_d(mutex_exit(buf_page_get_mutex(bpage)));
