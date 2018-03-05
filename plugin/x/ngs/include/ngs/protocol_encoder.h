@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_PROTOCOL_ENCODER_H_
-#define _NGS_PROTOCOL_ENCODER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_ENCODER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_ENCODER_H_
 
 #include <map>
 #include <vector>
@@ -155,4 +155,4 @@ class Protocol_encoder : public Protocol_encoder_interface {
 
 }  // namespace ngs
 
-#endif  // _NGS_PROTOCOL_ENCODER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_ENCODER_H_

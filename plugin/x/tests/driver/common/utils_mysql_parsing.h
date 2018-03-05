@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -21,8 +21,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
-#ifndef _UTILS_MYSQL_PARSING_H_
-#define _UTILS_MYSQL_PARSING_H_
+#ifndef PLUGIN_X_TESTS_DRIVER_COMMON_UTILS_MYSQL_PARSING_H_
+#define PLUGIN_X_TESTS_DRIVER_COMMON_UTILS_MYSQL_PARSING_H_
 
 #define SPACES " \t\r\n"
 
@@ -46,4 +46,4 @@ size_t determineStatementRanges(const char *sql, size_t length,
 }  // namespace mysql
 }  // namespace shcore
 
-#endif
+#endif  // PLUGIN_X_TESTS_DRIVER_COMMON_UTILS_MYSQL_PARSING_H_

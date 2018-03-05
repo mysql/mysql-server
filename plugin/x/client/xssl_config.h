@@ -25,8 +25,8 @@
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
 
-#ifndef X_CLIENT_XSSL_CONFIG_H_
-#define X_CLIENT_XSSL_CONFIG_H_
+#ifndef PLUGIN_X_CLIENT_XSSL_CONFIG_H_
+#define PLUGIN_X_CLIENT_XSSL_CONFIG_H_
 
 #include <cstring>
 #include <string>
@@ -108,4 +108,4 @@ class Ssl_config {
 
 }  // namespace xcl
 
-#endif  // X_CLIENT_XSSL_CONFIG_H_
+#endif  // PLUGIN_X_CLIENT_XSSL_CONFIG_H_

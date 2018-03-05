@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_VIO_WRAPPER_H_
-#define _NGS_VIO_WRAPPER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_VIO_WRAPPER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_VIO_WRAPPER_H_
 
 #include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
@@ -60,4 +60,4 @@ class Vio_wrapper : public Vio_interface {
 
 }  // namespace ngs
 
-#endif  // _NGS_VIO_WRAPPER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_VIO_WRAPPER_H_

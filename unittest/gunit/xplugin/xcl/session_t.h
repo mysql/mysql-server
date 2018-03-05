@@ -22,6 +22,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#ifndef UNITTEST_GUNIT_XPLUGIN_XCL_SESSION_T_H_
+#define UNITTEST_GUNIT_XPLUGIN_XCL_SESSION_T_H_
+
 #include <gtest/gtest.h>
 #include <cstdint>
 #include <memory>
@@ -140,3 +143,5 @@ class Xcl_session_impl_tests : public Test {
 
 }  // namespace test
 }  // namespace xcl
+
+#endif  // UNITTEST_GUNIT_XPLUGIN_XCL_SESSION_T_H_

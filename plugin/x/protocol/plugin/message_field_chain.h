@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_PROTOCOL_PLUGIN_MESSSAGE_CHAIN_H
-#define X_PROTOCOL_PLUGIN_MESSSAGE_CHAIN_H
+#ifndef PLUGIN_X_PROTOCOL_PLUGIN_MESSAGE_FIELD_CHAIN_H_
+#define PLUGIN_X_PROTOCOL_PLUGIN_MESSAGE_FIELD_CHAIN_H_
 
 #include <google/protobuf/compiler/code_generator.h>
 #include <google/protobuf/descriptor.h>
@@ -62,4 +62,4 @@ class Message_field_chain {
   Chain_file_output &m_output_file;
 };
 
-#endif  // X_PROTOCOL_PLUGIN_MESSSAGE_CHAIN_H
+#endif  // PLUGIN_X_PROTOCOL_PLUGIN_MESSAGE_FIELD_CHAIN_H_

@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_CLIENT_MYSQLXCLIENT_XSESSION_H_
-#define X_CLIENT_MYSQLXCLIENT_XSESSION_H_
+#ifndef PLUGIN_X_CLIENT_MYSQLXCLIENT_XSESSION_H_
+#define PLUGIN_X_CLIENT_MYSQLXCLIENT_XSESSION_H_
 
 #include <memory>
 #include <string>
@@ -558,4 +558,4 @@ std::unique_ptr<XSession> create_session();
 
 }  // namespace xcl
 
-#endif  // X_CLIENT_MYSQLXCLIENT_XSESSION_H_
+#endif  // PLUGIN_X_CLIENT_MYSQLXCLIENT_XSESSION_H_

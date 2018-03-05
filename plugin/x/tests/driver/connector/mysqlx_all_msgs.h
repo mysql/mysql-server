@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_TESTS_DRIVER_CONNECTOR_MYSQLX_ALL_MSGS_H_
-#define X_TESTS_DRIVER_CONNECTOR_MYSQLX_ALL_MSGS_H_
+#ifndef PLUGIN_X_TESTS_DRIVER_CONNECTOR_MYSQLX_ALL_MSGS_H_
+#define PLUGIN_X_TESTS_DRIVER_CONNECTOR_MYSQLX_ALL_MSGS_H_
 
 #include <cstdint>
 #include <map>
@@ -65,4 +65,4 @@ extern Message_client_by_name client_msgs_by_name;
 extern Message_server_by_id server_msgs_by_id;
 extern Message_client_by_id client_msgs_by_id;
 
-#endif  // X_TESTS_DRIVER_CONNECTOR_MYSQLX_ALL_MSGS_H_
+#endif  // PLUGIN_X_TESTS_DRIVER_CONNECTOR_MYSQLX_ALL_MSGS_H_

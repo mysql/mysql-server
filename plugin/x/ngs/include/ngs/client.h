@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
-#define RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
 
 #include <atomic>
 #include <string>
@@ -177,4 +177,4 @@ class Client : public Client_interface {
 
 }  // namespace ngs
 
-#endif  // RAPID_PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_CLIENT_H_

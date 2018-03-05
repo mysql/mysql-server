@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef MYSQLX_MAINTENANCE_H
-#define MYSQLX_MAINTENANCE_H
+#ifndef PLUGIN_X_SRC_SERVICES_MYSQLX_MAINTENANCE_H_
+#define PLUGIN_X_SRC_SERVICES_MYSQLX_MAINTENANCE_H_
 
 #include <mysql/components/service.h>
 #include <mysql/components/service_implementation.h>
@@ -33,4 +33,4 @@ END_SERVICE_DEFINITION(mysqlx_maintenance)
 extern SERVICE_TYPE_NO_CONST(mysqlx_maintenance)
     SERVICE_IMPLEMENTATION(mysql_server, mysqlx_maintenance);
 
-#endif  // MYSQLX_MAINTENANCE_H
+#endif  // PLUGIN_X_SRC_SERVICES_MYSQLX_MAINTENANCE_H_

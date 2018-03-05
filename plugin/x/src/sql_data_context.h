@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef XPL_SQL_DATA_CONTEXT_H_
-#define XPL_SQL_DATA_CONTEXT_H_
+#ifndef PLUGIN_X_SRC_SQL_DATA_CONTEXT_H_
+#define PLUGIN_X_SRC_SQL_DATA_CONTEXT_H_
 
 #include <stdio.h>
 
@@ -139,4 +139,4 @@ class Sql_data_context : public ngs::Sql_session_interface {
 
 #undef MYSQL_CLIENT
 
-#endif  // XPL_SQL_DATA_CONTEXT_H_
+#endif  // PLUGIN_X_SRC_SQL_DATA_CONTEXT_H_

@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_SESSION_H_
-#define _XPL_SESSION_H_
+#ifndef PLUGIN_X_SRC_XPL_SESSION_H_
+#define PLUGIN_X_SRC_XPL_SESSION_H_
 
 #include <string>
 #include <vector>
@@ -127,4 +127,4 @@ void Session::update_status(long param) {
 }
 }  // namespace xpl
 
-#endif  // _XPL_SESSION_H_
+#endif  // PLUGIN_X_SRC_XPL_SESSION_H_

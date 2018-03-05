@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_OUTPUT_BUFFER_H_
-#define _NGS_OUTPUT_BUFFER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_OUTPUT_BUFFER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_OUTPUT_BUFFER_H_
 
 #include <stdint.h>
 #include <vector>
@@ -72,4 +72,4 @@ class Output_buffer : public Buffer,
 
 }  // namespace ngs
 
-#endif  // _NGS_OUTPUT_BUFFER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_OUTPUT_BUFFER_H_

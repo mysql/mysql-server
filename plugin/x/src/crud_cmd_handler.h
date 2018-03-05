@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_CRUD_CMD_HANDLER_H_
-#define _XPL_CRUD_CMD_HANDLER_H_
+#ifndef PLUGIN_X_SRC_CRUD_CMD_HANDLER_H_
+#define PLUGIN_X_SRC_CRUD_CMD_HANDLER_H_
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/resultset_interface.h"
@@ -84,4 +84,4 @@ class Crud_command_handler {
 
 }  // namespace xpl
 
-#endif  // _XPL_CRUD_CMD_HANDLER_H_
+#endif  // PLUGIN_X_SRC_CRUD_CMD_HANDLER_H_

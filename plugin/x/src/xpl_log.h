@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_LOG_H_
-#define _XPL_LOG_H_
+#ifndef PLUGIN_X_SRC_XPL_LOG_H_
+#define PLUGIN_X_SRC_XPL_LOG_H_
 
 #ifndef XPLUGIN_DISABLE_LOG
 
@@ -78,4 +78,4 @@ void plugin_log_message(MYSQL_PLUGIN *p, const plugin_log_level, const char *);
 
 #endif  // XPLUGIN_DISABLE_LOG
 
-#endif  // _XPL_LOG_H_
+#endif  // PLUGIN_X_SRC_XPL_LOG_H_

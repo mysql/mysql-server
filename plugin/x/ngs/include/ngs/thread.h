@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_THREAD_H_
-#define _NGS_THREAD_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_THREAD_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_THREAD_H_
 
 #ifdef NGS_STANDALONE
 #include <pthread.h>
@@ -328,6 +328,6 @@ class Wait_for_signal {
   Mutex m_mutex_execution;
   Cond m_cond;
 };
-}
+}  // namespace ngs
 
-#endif
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_THREAD_H_

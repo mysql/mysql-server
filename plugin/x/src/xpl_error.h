@@ -20,8 +20,8 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _XPL_ERROR_H_
-#define _XPL_ERROR_H_
+#ifndef PLUGIN_X_SRC_XPL_ERROR_H_
+#define PLUGIN_X_SRC_XPL_ERROR_H_
 
 #define ER_X_SERVICE_ERROR 5010
 #define ER_X_SESSION 5011
@@ -73,4 +73,4 @@
 
 #define ER_X_BAD_LOCKING 5169
 
-#endif  // _XPL_ERROR_H_
+#endif  // PLUGIN_X_SRC_XPL_ERROR_H_

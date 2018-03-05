@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_MESSAGE_BUILDER_H_
-#define _NGS_MESSAGE_BUILDER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_BUILDER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_BUILDER_H_
 
 #include <memory>
 #include "m_ctype.h"
@@ -82,4 +82,4 @@ class Message_builder {
 
 }  // namespace ngs
 
-#endif  //  _NGS_MESSAGE_BUILDER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_BUILDER_H_

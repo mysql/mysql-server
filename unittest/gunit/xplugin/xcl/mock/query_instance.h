@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef XPLUGIN_XCL_MOCK_QUERY_INSTANCES_H_
-#define XPLUGIN_XCL_MOCK_QUERY_INSTANCES_H_
+#ifndef UNITTEST_GUNIT_XPLUGIN_XCL_MOCK_QUERY_INSTANCE_H_
+#define UNITTEST_GUNIT_XPLUGIN_XCL_MOCK_QUERY_INSTANCE_H_
 
 #include <gmock/gmock.h>
 
@@ -42,4 +42,4 @@ class Mock_query_instances : public Query_instances {
 }  // namespace test
 }  // namespace xcl
 
-#endif  // XPLUGIN_XCL_MOCK_QUERY_INSTANCES_H_
+#endif  // UNITTEST_GUNIT_XPLUGIN_XCL_MOCK_QUERY_INSTANCE_H_

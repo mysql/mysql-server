@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef XPL_MYSQL_FUNCTION_NAMES_H_
-#define XPL_MYSQL_FUNCTION_NAMES_H_
+#ifndef PLUGIN_X_SRC_MYSQL_FUNCTION_NAMES_H_
+#define PLUGIN_X_SRC_MYSQL_FUNCTION_NAMES_H_
 
 #include <algorithm>
 #include <cstring>
@@ -50,4 +50,4 @@ bool is_native_mysql_json_function(const std::string &name);
 
 }  // namespace xpl
 
-#endif  // XPL_MYSQL_FUNCTION_NAMES_H_
+#endif  // PLUGIN_X_SRC_MYSQL_FUNCTION_NAMES_H_

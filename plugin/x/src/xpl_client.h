@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_CLIENT_H_
-#define _XPL_CLIENT_H_
+#ifndef PLUGIN_X_SRC_XPL_CLIENT_H_
+#define PLUGIN_X_SRC_XPL_CLIENT_H_
 
 #include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
@@ -94,4 +94,4 @@ typedef ngs::shared_ptr<Client> Client_ptr;
 
 }  // namespace xpl
 
-#endif  // _XPL_CLIENT_H_
+#endif  // PLUGIN_X_SRC_XPL_CLIENT_H_

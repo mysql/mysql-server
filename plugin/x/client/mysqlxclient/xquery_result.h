@@ -25,8 +25,8 @@
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
 
-#ifndef X_CLIENT_MYSQLXCLIENT_XQUERY_RESULT_H_
-#define X_CLIENT_MYSQLXCLIENT_XQUERY_RESULT_H_
+#ifndef PLUGIN_X_CLIENT_MYSQLXCLIENT_XQUERY_RESULT_H_
+#define PLUGIN_X_CLIENT_MYSQLXCLIENT_XQUERY_RESULT_H_
 
 #include <memory>
 #include <string>
@@ -259,4 +259,4 @@ class XQuery_result {
 
 }  // namespace xcl
 
-#endif  // X_CLIENT_MYSQLXCLIENT_XQUERY_RESULT_H_
+#endif  // PLUGIN_X_CLIENT_MYSQLXCLIENT_XQUERY_RESULT_H_
