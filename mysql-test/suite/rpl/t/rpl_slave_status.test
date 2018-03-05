@@ -55,6 +55,7 @@ FLUSH PRIVILEGES;
 source include/stop_slave.inc;
 START SLAVE;
 source include/wait_for_slave_sql_to_start.inc;
+--let $slave_io_errno= convert_error(ER_ACCESS_DENIED_ERROR)
 source include/wait_for_slave_io_to_stop.inc;
 
 --echo ==== Verify that Slave IO thread stopped with error ====

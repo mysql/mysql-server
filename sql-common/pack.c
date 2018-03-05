@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2003, 2007 MySQL AB
-   Use is subject to license terms
+/* Copyright (c) 2000, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,6 +43,40 @@ ulong STDCALL net_field_length(uchar **packet)
   }
   (*packet)+=9;					/* Must be 254 when here */
   return (ulong) uint4korr(pos+1);
+}
+
+/* The same as above but with max length check */
+ulong STDCALL net_field_length_checked(uchar **packet, ulong max_length)
+{
+  ulong len;
+  uchar *pos= (uchar *)*packet;
+
+  if (*pos < 251)
+  {
+    (*packet)++;
+    len= (ulong) *pos;
+    return (len > max_length) ? max_length : len;
+  }
+  if (*pos == 251)
+  {
+    (*packet)++;
+    return NULL_LENGTH;
+  }
+  if (*pos == 252)
+  {
+    (*packet)+=3;
+    len= (ulong) uint2korr(pos+1);
+    return (len > max_length) ? max_length : len;
+  }
+  if (*pos == 253)
+  {
+    (*packet)+=4;
+    len= (ulong) uint3korr(pos+1);
+    return (len > max_length) ? max_length : len;
+  }
+  (*packet)+=9;                                 /* Must be 254 when here */
+  len= (ulong) uint4korr(pos+1);
+  return (len > max_length) ? max_length : len;
 }
 
 /* The same as above but returns longlong */

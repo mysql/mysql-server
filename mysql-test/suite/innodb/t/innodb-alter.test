@@ -480,5 +480,25 @@ eval DROP TABLE $source_db.t1;
 eval DROP DATABASE $source_db;
 eval DROP DATABASE $dest_db;
 
+--echo #
+--echo # BUG #26334149 MYSQL CRASHES WHEN FULL TEXT INDEXES IBD FILES ARE
+--echo # ORPHANED DUE TO RENAME TABLE
+--echo #
+CREATE DATABASE db1; USE db1;
+CREATE TABLE notes (
+   id int(11) NOT NULL AUTO_INCREMENT,
+   body text COLLATE utf8_unicode_ci,
+   PRIMARY KEY (id)
+   ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8
+COLLATE=utf8_unicode_ci
+ROW_FORMAT=COMPRESSED;
+
+ALTER TABLE notes ADD FULLTEXT INDEX index_ft_body (body(255));
+DROP INDEX index_ft_body ON notes;
+
+CREATE DATABASE db2;
+RENAME TABLE db1.notes TO db2.notes;
+DROP DATABASE db1;
+DROP DATABASE db2;
 
 

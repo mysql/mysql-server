@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1970,7 +1970,7 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   if (!table->key_info)
   {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+    my_error(ER_MISSING_KEY, MYF(0), table->s->db.str,
              table->s->table_name.str);
     DBUG_RETURN(TRUE);
   }

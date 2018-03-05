@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -733,7 +733,8 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
 {
   DBUG_ENTER("Gcalc_operation_reducer::end_couple");
   res_point *rp0, *rp1;
-  DBUG_ASSERT(t1->result_range);
+  if (!t1->result_range)
+    DBUG_RETURN(1);
   if (!(rp0= add_res_point(p)) || !(rp1= add_res_point(p)))
     DBUG_RETURN(1);
   rp0->down= t0->rp;

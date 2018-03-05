@@ -204,6 +204,7 @@ START SLAVE;
 --let $status_items= Last_IO_Errno, Last_IO_Error
 --source include/show_slave_status.inc
 
+--let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 RESET SLAVE;
 

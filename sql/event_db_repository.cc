@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -174,6 +174,8 @@ protected:
     error_log_print(ERROR_LEVEL, fmt, args);
     va_end(args);
   }
+public:
+  Event_db_intact() { has_keys= TRUE; }
 };
 
 /** In case of an error, a message is printed to the error log. */
@@ -549,14 +551,6 @@ Event_db_repository::fill_schema_events(THD *thd, TABLE_LIST *i_s_table,
   if (open_system_tables_for_read(thd, &event_table, &open_tables_backup))
     DBUG_RETURN(TRUE);
 
-  if (!event_table.table->key_info)
-  {
-    close_system_tables(thd, &open_tables_backup);
-    my_error(ER_TABLE_CORRUPT, MYF(0), event_table.table->s->db.str,
-             event_table.table->s->table_name.str);
-    DBUG_RETURN(TRUE);
-  }
- 
   if (table_intact.check(event_table.table, &event_table_def))
   {
     close_system_tables(thd, &open_tables_backup);
@@ -964,13 +958,6 @@ Event_db_repository::find_named_event(LEX_STRING db, LEX_STRING name,
       name.length > table->field[ET_FIELD_NAME]->field_length)
     DBUG_RETURN(TRUE);
   
-  if (!table->key_info)
-  {
-    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str, 
-             table->s->table_name.str);
-    DBUG_RETURN(TRUE);
-  }
-
   table->field[ET_FIELD_DB]->store(db.str, db.length, &my_charset_bin);
   table->field[ET_FIELD_NAME]->store(name.str, name.length, &my_charset_bin);
 
