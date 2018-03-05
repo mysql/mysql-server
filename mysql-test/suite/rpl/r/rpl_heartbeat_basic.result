@@ -280,7 +280,7 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
 include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (1, 'on slave', NULL);
 INSERT INTO t1 VALUES (1, 'on master', NULL);
-call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.. on query.* Error_code: 1062");
+call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.. on query.* Error_code: MY-001062");
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 Heartbeat events are received while sql thread stopped (1 means 'yes'): 1
 include/stop_slave_io.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,8 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
 #include "sql/dd/string_type.h"
 #include "sql/item_create.h"
 #include "sql/sql_class.h"
@@ -116,7 +118,14 @@ class Bootstrap_error_handler {
   //  Set the error in DA. Optionally print error in log.
   static void my_message_bootstrap(uint error, const char *str, myf MyFlags) {
     set_abort_on_error(error);
-    my_message_sql(error, str, MyFlags | (m_log_error ? ME_ERRORLOG : 0));
+    my_message_sql(error, str, MyFlags);
+    if (m_log_error)
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .subsys(LOG_SUBSYSTEM_TAG)
+          .prio(ERROR_LEVEL)
+          .errcode(ER_ERROR_INFO_FROM_DA)
+          .verbatim(str);
   }
 
   // Set abort on error flag and enable error logging for certain fatal error.

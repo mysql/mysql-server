@@ -15,6 +15,6 @@ include/sync_slave_sql_with_master.inc
 DROP TABLE t;
 include/sync_slave_sql_with_master.inc
 Matching lines are:
-DATE_TIME [Warning] Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. A restart should restore consistency automatically, although using non-transactional storage for data or info tables or DDL queries could lead to problems. In such cases you have to examine your data (see documentation for details). Error_code: ER_MTS_INCONSISTENT_DATA
+DATE_TIME [Warning] [Repl] Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. A restart should restore consistency automatically, although using non-transactional storage for data or info tables or DDL queries could lead to problems. In such cases you have to examine your data (see documentation for details). Error_code: ER_MTS_INCONSISTENT_DATA
 Occurrences of 'The slave coordinator and worker threads are stopped' in the input file: 1
 include/rpl_end.inc
