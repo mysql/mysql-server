@@ -2553,8 +2553,9 @@ static Exit_status dump_local_log_entries(PRINT_EVENT_INFO *print_event_info,
       return ERROR_STOP;
     }
 #endif
-    if (init_io_cache(file, my_fileno(stdin), 0, READ_CACHE, (my_off_t)0, 0,
-                      MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE))) {
+    if (init_io_cache(
+            file, my_fileno(stdin), 0, READ_CACHE, (my_off_t)0, 0,
+            MYF(MY_WME | MY_NABP | MY_DONT_CHECK_FILESIZE | MY_FULL_IO))) {
       error("Failed to init IO cache.");
       return ERROR_STOP;
     }

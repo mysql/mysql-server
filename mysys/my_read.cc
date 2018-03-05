@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,34 +49,42 @@
 #include "mysys/mysys_priv.h"
 #endif
 
-/*
-  Read a chunk of bytes from a file with retry's if needed
+#ifndef _WIN32
+// Mock away read() for unit testing.
+ssize_t (*mock_read)(int fd, void *buf, size_t count) = nullptr;
+#endif
 
-  The parameters are:
-    File descriptor
-    Buffer to hold at least Count bytes
-    Bytes to read
-    Flags on what to do on error
+/**
+   Read a chunk of bytes from a file with retry's if needed
+   If flag MY_FULL_IO is set then keep reading until EOF is found.
 
-    Return:
-      -1 on error
-      0  if flag has bits MY_NABP or MY_FNABP set
-      N  number of bytes read.
+   @param       Filedes  the context to reset
+   @param[out]  Buffer   Buffer to hold at least Count bytes
+   @param       Count    Bytes to read
+   @param       MyFlags  Flags on what to do on error
+
+   @return Operation status
+     @retval  -1  on error
+     @retval   0  if flag has bits MY_NABP or MY_FNABP set
+     @retval   N  number of bytes read
 */
 
 size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
-  size_t readbytes, save_count;
+  size_t readbytes, savedbytes;
   DBUG_ENTER("my_read");
   DBUG_PRINT("my", ("fd: %d  Buffer: %p  Count: %lu  MyFlags: %d", Filedes,
                     Buffer, (ulong)Count, MyFlags));
-  save_count = Count;
+  savedbytes = 0;
 
   for (;;) {
     errno = 0; /* Linux, Windows don't reset this on EOF/success */
 #ifdef _WIN32
     readbytes = my_win_read(Filedes, Buffer, Count);
 #else
-    readbytes = read(Filedes, Buffer, Count);
+    if (mock_read)
+      readbytes = mock_read(Filedes, Buffer, Count);
+    else
+      readbytes = read(Filedes, Buffer, Count);
 #endif
     DBUG_EXECUTE_IF("simulate_file_read_error", {
       errno = ENOSPC;
@@ -112,9 +120,11 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
       if (readbytes == (size_t)-1 ||
           ((MyFlags & (MY_FNABP | MY_NABP)) && !(MyFlags & MY_FULL_IO)))
         DBUG_RETURN(MY_FILE_ERROR); /* Return with error */
-      if (readbytes != (size_t)-1 && (MyFlags & MY_FULL_IO)) {
+      /* readbytes == 0 when EOF. No need to continue in case of EOF */
+      if (readbytes != 0 && (MyFlags & MY_FULL_IO)) {
         Buffer += readbytes;
         Count -= readbytes;
+        savedbytes += readbytes;
         continue;
       }
     }
@@ -122,7 +132,7 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags) {
     if (MyFlags & (MY_NABP | MY_FNABP))
       readbytes = 0; /* Ok on read */
     else if (MyFlags & MY_FULL_IO)
-      readbytes = save_count;
+      readbytes += savedbytes;
     break;
   }
   DBUG_RETURN(readbytes);
