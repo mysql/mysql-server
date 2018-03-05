@@ -715,7 +715,8 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
 
   const bool full_length_key_part =
       (field->key_length() == key_part->length && !(field->flags & BLOB_FLAG));
-  if (handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) {
+  if ((handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) &&
+      field->type() != MYSQL_TYPE_GEOMETRY) {
     /*
       Set the key as 'keys_for_keyread' even if it is prefix key.
       part_of_key contains all non-prefix keys, part_of_prefixkey
