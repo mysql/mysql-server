@@ -200,8 +200,9 @@ int findKeyInMapping(Uint16 key,
 }
 
 SimpleProperties::UnpackStatus 
-SimpleProperties::unpack(Reader & it, void * dst, 
-			 const SP2StructMapping _map[], Uint32 mapSz){
+SimpleProperties::unpack(Reader & it, void * dst,
+			 const SP2StructMapping _map[], Uint32 mapSz,
+                         IndirectReader * indirectReader, void * extra){
 
   static const bool ignoreUnknownKeys = true;
 
@@ -217,22 +218,27 @@ SimpleProperties::unpack(Reader & it, void * dst,
         return Break;
       if(_map[i].Type != it.getValueType())
         return TypeMismatch;
-	
-      char * _dst = (char *)dst;
-      _dst += _map[i].Offset;
-	
-      switch(it.getValueType()){
-      case Uint32Value:
-        * ((Uint32 *)_dst) = it.getUint32();
-        break;
-      case BinaryValue:
-      case StringValue:
-        if(_map[i].maxLength && it.getValueLen() > _map[i].maxLength)
-          return ValueTooLong;
-        it.getString(_dst);
-        break;
-      default:
-        abort();
+
+      if(_map[i].Length_Offset == SP2StructMapping::ExternalData) {
+        if(indirectReader)
+          indirectReader(it, extra);
+      } else {
+        char * _dst = (char *)dst;
+        _dst += _map[i].Offset;
+          
+        switch(it.getValueType()){
+        case Uint32Value:
+          * ((Uint32 *)_dst) = it.getUint32();
+          break;
+        case BinaryValue:
+        case StringValue:
+          if(_map[i].maxLength && it.getValueLen() > _map[i].maxLength)
+            return ValueTooLong;
+          it.getString(_dst);
+          break;
+        default:
+          abort();
+        }
       }
     } else if(!ignoreUnknownKeys) return UnknownKey;
  } while(it.next());
@@ -242,7 +248,8 @@ SimpleProperties::unpack(Reader & it, void * dst,
 
 SimpleProperties::UnpackStatus 
 SimpleProperties::pack(Writer & it, const void * __src, 
-		       const SP2StructMapping _map[], Uint32 mapSz) {
+		       const SP2StructMapping _map[], Uint32 mapSz,
+                       IndirectWriter *indirectWriter, const void * extra) {
 
   static const bool ignoreMinMax = true;
 
@@ -250,29 +257,34 @@ SimpleProperties::pack(Writer & it, const void * __src,
 
   for(Uint32 i = 0; i<mapSz; i++){
     bool ok = false;
+    Uint16 key = _map[i].Key;
     const char * src = _src + _map[i].Offset;
-    switch(_map[i].Type){
-    case SimpleProperties::InvalidValue:
-      ok = true;
-      break;
-    case SimpleProperties::Uint32Value:{
-      Uint32 val = * ((Uint32*)src);
-      ok = it.add(_map[i].Key, val);
-    }
-      break;
-    case SimpleProperties::BinaryValue:{
-      const char * src_len = _src + _map[i].Length_Offset;
-      Uint32 len = *((Uint32*)src_len);
-      if((!ignoreMinMax) && _map[i].maxLength && len > _map[i].maxLength)
-        return ValueTooLong;
-      ok = it.add(_map[i].Key, src, len);
-      break;
-    }
-    case SimpleProperties::StringValue:
-      if((!ignoreMinMax) && _map[i].maxLength && strlen(src) > _map[i].maxLength)
-        return ValueTooLong;
-      ok = it.add(_map[i].Key, src);
-      break;
+    if(_map[i].Length_Offset == SP2StructMapping::ExternalData) {
+      ok = indirectWriter(it, key, extra);
+    } else {
+      switch(_map[i].Type){
+      case SimpleProperties::InvalidValue:
+        ok = true;
+        break;
+      case SimpleProperties::Uint32Value:{
+        Uint32 val = * ((Uint32*)src);
+        ok = it.add(key, val);
+      }
+        break;
+      case SimpleProperties::BinaryValue:{
+        const char * src_len = _src + _map[i].Length_Offset;
+        Uint32 len = *((Uint32*)src_len);
+        if((!ignoreMinMax) && _map[i].maxLength && len > _map[i].maxLength)
+          return ValueTooLong;
+        ok = it.add(key, src, len);
+        break;
+      }
+      case SimpleProperties::StringValue:
+        if((!ignoreMinMax) && _map[i].maxLength && strlen(src) > _map[i].maxLength)
+          return ValueTooLong;
+        ok = it.add(key, src);
+        break;
+      }
     }
     if(!ok)
       return OutOfMemory;

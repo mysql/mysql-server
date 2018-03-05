@@ -62,7 +62,9 @@ public:
     ValueType Type;
     Uint32 maxLength;
     size_t Length_Offset; // Offset used for looking up length of
-                          // data if Type = BinaryValue
+                          // data if Type = BinaryValue, or the flag value
+                          // ExternalData.
+    enum { ExternalData = 0xFFFFFF };
   };
 
   /**
@@ -82,14 +84,31 @@ public:
    * Unpack
    */
   class Reader;
+
+  /* Callback function for reading indirect values.
+     The callback is expected to read the current value of the iterator.
+  */
+  typedef void IndirectReader(class Reader & it, void * dst);
+
   static UnpackStatus unpack(class Reader &,
-			     void * dst,
-			     const SP2StructMapping[], Uint32 mapSz);
+			     void * struct_dst,
+                             const SP2StructMapping[], Uint32 mapSz,
+                             IndirectReader *indirectReader = 0,
+                             void * readerExtra = 0);
   
   class Writer;
+
+  /* Callback function for writing indirect values.
+     The callback is expected to retrieve the value using key and src,
+     add() it to the iterator, and return UnpackStatus::Eof on success.
+  */
+  typedef bool IndirectWriter(class Writer & it, Uint16 key, const void * src);
+
   static UnpackStatus pack(class Writer &,
-			   const void * src,
-			   const SP2StructMapping[], Uint32 mapSz);
+			   const void * struct_src,
+			   const SP2StructMapping[], Uint32 mapSz,
+                           IndirectWriter *indirectWriter = 0,
+                           const void * writerExtra = 0);
   
   /**
    * Reader class
