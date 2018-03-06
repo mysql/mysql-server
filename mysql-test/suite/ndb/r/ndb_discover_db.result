@@ -5,7 +5,7 @@ alter database discover_db_2 character set binary;
 create table discover_db_2.t1 (a int key, b int) engine ndb;
 show create database discover_db;
 Database	Create Database
-discover_db	CREATE DATABASE `discover_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+discover_db	CREATE DATABASE `discover_db` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 show create database discover_db_2;
 Database	Create Database
 discover_db_2	CREATE DATABASE `discover_db_2` /*!40100 DEFAULT CHARACTER SET binary */
