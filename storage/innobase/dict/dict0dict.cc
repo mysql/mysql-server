@@ -509,10 +509,9 @@ void dict_table_close(dict_table_t *table, /*!< in/out: table */
 #endif /* !UNIV_HOTBACKUP */
 
   if (!table->is_intrinsic()) {
-    /* Ask for mutex to prevent concurrent ha_innobase::open(),
+    /* Ask for lock to prevent concurrent table open,
     in case the race of n_ref_count and stat_initialized in
-    dict_stats_deinit(). As long as we protect change to
-    n_ref_count in ha_innobase:open() too, there should be no race.
+    dict_stats_deinit(). See dict_table_t::acquire_with_lock() too.
     We don't actually need dict_sys mutex any more here. */
     table->lock();
   }

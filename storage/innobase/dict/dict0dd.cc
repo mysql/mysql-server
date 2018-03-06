@@ -672,7 +672,7 @@ reopen:
 #endif /* !UNIV_HOTBACKUP */
           goto reopen;
         } else {
-          ib_table->acquire();
+          ib_table->acquire_with_lock();
         }
       }
 
@@ -858,7 +858,7 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
   table = dict_table_check_if_in_cache_low(name);
 
   if (table != nullptr) {
-    table->acquire();
+    table->acquire_with_lock();
     if (!dict_locked) {
       mutex_exit(&dict_sys->mutex);
     }

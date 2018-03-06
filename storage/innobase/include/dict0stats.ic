@@ -171,7 +171,7 @@ void dict_stats_deinit(dict_table_t *table) /*!< in/out: table */
 {
   /* Don't assert the table->n_ref_count is 0 here, since there could
   be some background threads opening the table concurrently. This is
-  not prevented. The only case prevented is in ha_innobase::open(),
+  not prevented. The cases prevented are in opening table code pathes,
   to acquire an existing table, table->mutex is required */
 
   dict_table_stats_lock(table, RW_X_LATCH);

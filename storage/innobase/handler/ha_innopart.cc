@@ -204,7 +204,7 @@ bool Ha_innopart_share::open_one_table_part(
         dict_table_remove_from_cache(part_table);
         part_table = NULL;
       } else {
-        part_table->acquire();
+        part_table->acquire_with_lock();
       }
     }
 
