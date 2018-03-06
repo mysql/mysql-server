@@ -38,6 +38,8 @@
   # 9. the CATS algorithm grants lock for row 3 to seer
   # 10. seer finishes the update, with value 210
 
+  --source include/have_debug_sync.inc
+
   USE test;
 
   # Cleanup after previous tests
