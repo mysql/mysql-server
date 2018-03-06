@@ -657,7 +657,18 @@ logger::~logger() {
       .verbatim(s.c_str());
 }
 
-fatal::~fatal() { ut_error; }
+fatal::~fatal() {
+  auto s = m_oss.str();
+
+  LogEvent()
+      .type(LOG_TYPE_ERROR)
+      .prio(m_level)
+      .errcode(m_err)
+      .subsys("InnoDB")
+      .verbatim(s.c_str());
+
+  ut_error;
+}
 
 fatal_or_error::~fatal_or_error() { ut_a(!m_fatal); }
 
