@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,6 +14,14 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include)
+
+MY_CHECK_C_COMPILER_FLAG("-Wstringop-truncation" HAVE_STRINGOP_TRUNCATION)
+IF(HAVE_STRINGOP_TRUNCATION)
+  ADD_COMPILE_FLAGS(
+    main.c
+    COMPILE_FLAGS -Wno-stringop-truncation
+    )
+ENDIF()
 
 SET(REGEX_SOURCES regcomp.c regerror.c regexec.c regfree.c reginit.c)
 ADD_CONVENIENCE_LIBRARY(regex ${REGEX_SOURCES})
