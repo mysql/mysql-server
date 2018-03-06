@@ -64,6 +64,10 @@ inline int my_decimal_get_binary_size(uint precision, uint scale)
   { DictTabInfo::y, (unsigned) my_offsetof(x, z), SimpleProperties::BinaryValue, \
       len, (unsigned) my_offsetof(x, off) }
 
+#define DTI_MAP_BIN_EXTERNAL(y, len) \
+  { DictTabInfo::y, 0, SimpleProperties::BinaryValue, len, \
+    SimpleProperties::SP2StructMapping::ExternalData }
+
 #define DTIBREAK(x) \
   { DictTabInfo::x, 0, SimpleProperties::InvalidValue, 0, 0 }
 
@@ -120,7 +124,7 @@ public:
     UpdateTriggerId    = 23,
     DeleteTriggerId    = 24,
     CustomTriggerId    = 25,
-    FrmLen             = 26,
+
     FrmData            = 27,
 
     TableTemporaryFlag = 28,  //Default not Temporary
@@ -387,8 +391,6 @@ public:
       We need to replace FRM, Fragment Data, Tablespace Data and in
       very particular RangeListData with dynamic arrays
     */
-    Uint32 FrmLen;
-    char   FrmData[MAX_FRM_DATA_SIZE];
     Uint32 PartitionBalance;
     Uint32 FragmentCount;
     Uint32 ReplicaDataLen;

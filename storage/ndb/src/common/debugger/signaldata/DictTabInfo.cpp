@@ -53,8 +53,7 @@ DictTabInfo::TableMapping[] = {
   DTI_MAP_INT(Table, UpdateTriggerId, UpdateTriggerId),
   DTI_MAP_INT(Table, DeleteTriggerId, DeleteTriggerId),
   DTI_MAP_INT(Table, CustomTriggerId, CustomTriggerId),
-  DTI_MAP_INT(Table, FrmLen, FrmLen),
-  DTI_MAP_BIN(Table, FrmData, FrmData, MAX_FRM_DATA_SIZE, FrmLen),
+  DTI_MAP_BIN_EXTERNAL(FrmData, 0),
   DTI_MAP_INT(Table, PartitionBalance, PartitionBalance),
   DTI_MAP_INT(Table, FragmentCount, FragmentCount),
   DTI_MAP_INT(Table, ReplicaDataLen, ReplicaDataLen),
@@ -166,12 +165,10 @@ DictTabInfo::Table::init(){
   UpdateTriggerId = RNIL;
   DeleteTriggerId = RNIL;
   CustomTriggerId = RNIL;
-  FrmLen = 0;
   FragmentDataLen = 0;
   ReplicaDataLen = 0;
   RangeListDataLen = 0;
   TablespaceDataLen = 0;
-  memset(FrmData, 0, sizeof(FrmData));
   memset(FragmentData, 0, sizeof(FragmentData));
   memset(ReplicaData, 0, sizeof(ReplicaData));
   memset(RangeListData, 0, sizeof(RangeListData));
