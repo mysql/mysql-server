@@ -6382,6 +6382,20 @@
     </li>
 
     <li>
+      <tt>exec_in_background <b>command</b> [<b>arg</b>] ...</tt>
+
+      Execute a shell command using the <b>popen()</b> library call in
+      the background. When a command is executed using
+      <b>exec_in_background</b>, @ref PAGE_MYSQLTEST "mysqltest" does
+      not wait for it to finish, nor attempt to read the output of it.
+
+      @verbatim
+  --exec_in_background $MYSQL_DUMP --xml --skip-create test
+  --exec_in_background rm $MYSQLTEST_VARDIR/tmp/t1
+      @endverbatim
+    </li>
+
+    <li>
       <tt>execw <b>command</b> [<b>arg</b>] ...</tt>
 
       This is a variant of the <b>exec</b> command which is needed on
