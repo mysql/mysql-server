@@ -25,7 +25,7 @@ events_transactions_history_long	CREATE TABLE `events_transactions_history_long`
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from INFORMATION_SCHEMA.STATISTICS
 where TABLE_SCHEMA = "performance_schema"
   and TABLE_NAME = "events_transactions_history_long";

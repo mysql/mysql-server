@@ -9,7 +9,7 @@ explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_user_by_event_name
 where USER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	ref	USER	USER	97	const	#	100.00	NULL
+1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	ref	USER	USER	129	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_user_by_event_name
@@ -27,7 +27,7 @@ explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_user_by_event_name
 where USER = "foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	ref	USER	USER	97	const	#	100.00	NULL
+1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	ref	USER	USER	129	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_user_by_event_name
@@ -48,21 +48,21 @@ from performance_schema.events_waits_summary_by_user_by_event_name
 where USER = "foo"
 and EVENT_NAME > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	ref	USER	USER	97	const	#	33.33	Using where
+1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	ref	USER	USER	129	const	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_user_by_event_name
 where USER = "foo"
 and EVENT_NAME < "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	ref	USER	USER	97	const	#	33.33	Using where
+1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	ref	USER	USER	129	const	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_user_by_event_name
 where USER = "foo"
 and EVENT_NAME = "wait/lock/table/sql/handler";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	const	USER	USER	483	const,const	#	100.00	NULL
+1	SIMPLE	events_waits_summary_by_user_by_event_name	NULL	const	USER	USER	643	const,const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select COUNT_STAR

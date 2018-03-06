@@ -26,11 +26,11 @@ memory/performance_schema/events_statements_current	NULL
 memory/performance_schema/events_statements_current.digest_text	NULL
 memory/performance_schema/events_statements_current.sql_text	NULL
 memory/performance_schema/events_statements_history	NULL
-memory/performance_schema/events_statements_history.digest_text	NULL
-memory/performance_schema/events_statements_history.sql_text	NULL
 memory/performance_schema/events_statements_history_long	NULL
 memory/performance_schema/events_statements_history_long.digest_text	NULL
 memory/performance_schema/events_statements_history_long.sql_text	NULL
+memory/performance_schema/events_statements_history.digest_text	NULL
+memory/performance_schema/events_statements_history.sql_text	NULL
 memory/performance_schema/events_statements_summary_by_account_by_event_name	NULL
 memory/performance_schema/events_statements_summary_by_digest	NULL
 memory/performance_schema/events_statements_summary_by_digest.digest_text	NULL
@@ -79,8 +79,8 @@ memory/performance_schema/table_handles	NULL
 memory/performance_schema/table_io_waits_summary_by_index_usage	NULL
 memory/performance_schema/table_lock_waits_summary_by_table	NULL
 memory/performance_schema/table_shares	NULL
-memory/performance_schema/threads	NULL
 memory/performance_schema/thread_class	NULL
+memory/performance_schema/threads	NULL
 memory/performance_schema/users	NULL
 stage/innodb/alter table (end)	YES
 stage/innodb/alter table (flush)	YES

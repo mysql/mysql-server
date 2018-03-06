@@ -1,6 +1,6 @@
 "Checking the data dictionary properties ..."
 SUBSTRING_INDEX(SUBSTRING(properties, LOCATE('PS_VERSION', properties), 30), ';', 1)
-PS_VERSION=80004
+PS_VERSION=80005
 "Checking the performance schema database structure ..."
 CHECK STATUS
-The tables in the performance_schema were last changed in MySQL 8.0.4-rc
+The tables in the performance_schema were last changed in MySQL 8.0.5-rc

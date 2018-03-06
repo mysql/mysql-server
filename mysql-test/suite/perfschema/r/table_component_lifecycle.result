@@ -29,7 +29,7 @@ Table	Create Table
 pfs_example_continent	CREATE TABLE `pfs_example_continent` (
   `NAME` char(20) NOT NULL,
   PRIMARY KEY (`NAME`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from performance_schema.pfs_example_continent;
 NAME
 bar1
@@ -79,7 +79,7 @@ Table	Create Table
 pfs_example_continent	CREATE TABLE `pfs_example_continent` (
   `NAME` char(20) NOT NULL,
   PRIMARY KEY (`NAME`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from performance_schema.pfs_example_continent;
 NAME
 bar1
@@ -103,7 +103,7 @@ Table	Create Table
 pfs_example_continent	CREATE TABLE `pfs_example_continent` (
   `NAME` char(20) NOT NULL,
   PRIMARY KEY (`NAME`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from performance_schema.pfs_example_continent;
 NAME
 bar1
