@@ -1,5 +1,5 @@
 # Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
-# 
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA 
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 # We support different versions of SSL:
 # - "system"  (typically) uses headers/libraries in /usr/lib and /usr/lib64
@@ -113,6 +113,9 @@ MACRO (MYSQL_USE_WOLFSSL)
     -DWOLFSSL_SHA384
     -DWOLFSSL_SHA512
     -DWOLFSSL_STATIC_RSA
+    -DWOLFSSL_NGINX
+    -DHAVE_TLS_EXTENSIONS
+    -DHAVE_CERTIFICATE_STATUS_REQUEST
     )
   CHANGE_SSL_SETTINGS("wolfssl")
   ADD_SUBDIRECTORY(${WOLFSSL_SOURCE_DIR})
@@ -355,7 +358,7 @@ MACRO (MYSQL_CHECK_SSL)
 
     INCLUDE(CheckSymbolExists)
     SET(CMAKE_REQUIRED_INCLUDES ${OPENSSL_INCLUDE_DIR})
-    CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h" 
+    CHECK_SYMBOL_EXISTS(SHA512_DIGEST_LENGTH "openssl/sha.h"
                         HAVE_SHA512_DIGEST_LENGTH)
     IF(OPENSSL_FOUND AND HAVE_SHA512_DIGEST_LENGTH)
       SET(SSL_SOURCES "")
