@@ -146,8 +146,12 @@ static bool parse_length_encoded_string(const char **ptr, char *dest,
     return true;
   }
 
+  /*
+    TODO: Migrate the data itself to UTF8MB4,
+    this is still UTF8MB3 printed in a UTF8MB4 column.
+  */
   copy_length = well_formed_copy_nchars(
-      &my_charset_utf8mb4_bin, dest, dest_size, from_cs, *ptr, data_length,
+      &my_charset_utf8_bin, dest, dest_size, from_cs, *ptr, data_length,
       nchars_max, &well_formed_error_pos, &cannot_convert_error_pos,
       &from_end_pos);
   *copied_len = copy_length;
