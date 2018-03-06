@@ -3,9 +3,9 @@ ALTER USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user ORDER BY user;
 user	plugin
 kristofer	sha256_password
-mysql.infoschema	mysql_native_password
-mysql.session	mysql_native_password
-mysql.sys	mysql_native_password
+mysql.infoschema	caching_sha2_password
+mysql.session	caching_sha2_password
+mysql.sys	caching_sha2_password
 root	caching_sha2_password
 SELECT USER(),CURRENT_USER();
 USER()	CURRENT_USER()

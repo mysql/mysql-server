@@ -376,6 +376,7 @@ rm -r $(readlink var) var
 %attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_users.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
 %attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
 %attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
