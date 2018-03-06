@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ template <typename Hour_type>
 void read_optional_time(pb::io::CodedInputStream *input_stream, Hour_type *hour,
                         uint8_t *minutes, uint8_t *seconds,
                         uint32_t *useconds) {
-  pb::uint64_t value;
+  pb::uint64 value;
 
   if (!input_stream->ReadVarint64(&value)) return;
 
@@ -65,7 +65,7 @@ void read_optional_time(pb::io::CodedInputStream *input_stream, Hour_type *hour,
 template <typename Numeric_type>
 bool read_required_uint64(pb::io::CodedInputStream *input_buffer,
                           Numeric_type *out_result) {
-  pb::uint64_t value;
+  pb::uint64 value;
 
   if (!input_buffer->ReadVarint64(&value)) {
     return false;
@@ -82,7 +82,7 @@ bool buffer_to_s64(const std::string &buffer, int64_t *out_result) {
       reinterpret_cast<const pb::uint8 *>(&buffer[0]),
       static_cast<int>(buffer.length()));
 
-  pb::uint64_t value;
+  pb::uint64 value;
   const bool was_succesfull = input_stream.ReadVarint64(&value);
 
   if (!was_succesfull) {
@@ -100,7 +100,7 @@ bool buffer_to_u64(const std::string &buffer, uint64_t *out_result) {
       reinterpret_cast<const pb::uint8 *>(&buffer[0]),
       static_cast<int>(buffer.length()));
 
-  pb::uint64_t value;
+  pb::uint64 value;
 
   const bool was_succesfull = input_stream.ReadVarint64(&value);
 
@@ -131,7 +131,7 @@ bool buffer_to_set(const std::string &buffer,
       static_cast<int>(buffer.length()));
   if (out_result) out_result->clear();
 
-  pb::uint64_t len;
+  pb::uint64 len;
   std::string elem;
   bool has_next = true;
   bool empty = true;
@@ -164,7 +164,7 @@ bool buffer_to_string_set(const std::string &buffer, std::string *out_result) {
       static_cast<int>(buffer.length()));
   std::string result;
 
-  pb::uint64_t len;
+  pb::uint64 len;
   std::string elem;
   while (true) {
     const bool has_next = input_stream.ReadVarint64(&len);
@@ -196,7 +196,7 @@ bool buffer_to_float(const std::string &buffer, float *out_result) {
       reinterpret_cast<const pb::uint8 *>(&buffer[0]),
       static_cast<int>(buffer.length()));
 
-  pb::uint32_t value;
+  pb::uint32 value;
   const bool was_succesfull = input_stream.ReadLittleEndian32(&value);
 
   if (!was_succesfull) {
@@ -213,7 +213,7 @@ bool buffer_to_double(const std::string &buffer, double *out_result) {
       reinterpret_cast<const pb::uint8 *>(&buffer[0]),
       static_cast<int>(buffer.length()));
 
-  pb::uint64_t value;
+  pb::uint64 value;
   const bool was_successful = input_stream.ReadLittleEndian64(&value);
 
   if (!was_successful) {
@@ -262,7 +262,7 @@ bool buffer_to_time(const std::string &buffer, Time *out_result) {
   uint8_t seconds = 0;
   uint32_t useconds = 0;
 
-  pb::uint8_t sign;
+  pb::uint8 sign;
   pb::io::CodedInputStream input_stream(
       reinterpret_cast<const pb::uint8 *>(&buffer[0]),
       static_cast<int>(buffer.length()));
