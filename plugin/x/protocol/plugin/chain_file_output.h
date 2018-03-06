@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_PROTOCOL_PLUGIN_FILE_OUTPUT_H
-#define X_PROTOCOL_PLUGIN_FILE_OUTPUT_H
+#ifndef PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_
+#define PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_
 
 #include <google/protobuf/compiler/code_generator.h>
 #include <google/protobuf/descriptor.h>
@@ -138,4 +138,4 @@ class Chain_file_output {
   std::string m_name;
 };
 
-#endif  // X_PROTOCOL_PLUGIN_FILE_OUTPUT_H
+#endif  // PLUGIN_X_PROTOCOL_PLUGIN_CHAIN_FILE_OUTPUT_H_

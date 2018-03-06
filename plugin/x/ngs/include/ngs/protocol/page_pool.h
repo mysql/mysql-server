@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_PAGE_POOL_H_
-#define _NGS_PAGE_POOL_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_POOL_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_POOL_H_
 
 #include <stdint.h>
 #include <atomic>
@@ -185,4 +185,4 @@ ResType *Resource<ResType>::operator->() const {
 }
 }  // namespace ngs
 
-#endif  // _NGS_PAGE_POOL_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_PAGE_POOL_H_

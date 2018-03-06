@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_PERFORMANCE_SCHEMA_H_
-#define _XPL_PERFORMANCE_SCHEMA_H_
+#ifndef PLUGIN_X_SRC_XPL_PERFORMANCE_SCHEMA_H_
+#define PLUGIN_X_SRC_XPL_PERFORMANCE_SCHEMA_H_
 
 #include <mysql/psi/mysql_memory.h>
 #include <mysql/psi/mysql_rwlock.h>
@@ -62,4 +62,4 @@ extern PSI_memory_key KEY_memory_x_send_buffer;
 
 void xpl_init_performance_schema();
 
-#endif  // _XPL_PERFORMANCE_SCHEMA_H_
+#endif  // PLUGIN_X_SRC_XPL_PERFORMANCE_SCHEMA_H_

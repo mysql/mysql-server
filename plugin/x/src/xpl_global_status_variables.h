@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_GLOBAL_STATUS_VARIABLES_H_
-#define _XPL_GLOBAL_STATUS_VARIABLES_H_
+#ifndef PLUGIN_X_SRC_XPL_GLOBAL_STATUS_VARIABLES_H_
+#define PLUGIN_X_SRC_XPL_GLOBAL_STATUS_VARIABLES_H_
 
 #include "plugin/x/ngs/include/ngs/common_status_variables.h"
 
@@ -62,4 +62,4 @@ class Global_status_variables : public ngs::Common_status_variables {
 
 }  // namespace xpl
 
-#endif  // _XPL_GLOBAL_STATUS_VARIABLES_H_
+#endif  // PLUGIN_X_SRC_XPL_GLOBAL_STATUS_VARIABLES_H_

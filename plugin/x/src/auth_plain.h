@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_AUTH_PLAIN_H_
-#define _XPL_AUTH_PLAIN_H_
+#ifndef PLUGIN_X_SRC_AUTH_PLAIN_H_
+#define PLUGIN_X_SRC_AUTH_PLAIN_H_
 
 #include <string>
 
@@ -59,4 +59,4 @@ class Sasl_plain_auth : public ngs::Authentication_interface {
 
 }  // namespace xpl
 
-#endif  // _XPL_AUTH_PLAIN_H_
+#endif  // PLUGIN_X_SRC_AUTH_PLAIN_H_

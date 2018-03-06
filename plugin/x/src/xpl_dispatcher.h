@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_DISPATCHER_H_
-#define _XPL_DISPATCHER_H_
+#ifndef PLUGIN_X_SRC_XPL_DISPATCHER_H_
+#define PLUGIN_X_SRC_XPL_DISPATCHER_H_
 
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
@@ -43,4 +43,4 @@ bool dispatch_command(Session &session, Crud_command_handler &crudh,
 }  // namespace dispatcher
 }  // namespace xpl
 
-#endif
+#endif  // PLUGIN_X_SRC_XPL_DISPATCHER_H_

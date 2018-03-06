@@ -22,6 +22,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SESSION_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SESSION_H_
+
 #include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/ngs/include/ngs/interface/account_verification_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
@@ -332,3 +335,4 @@ class Mock_account_verification_handler
 
 }  // namespace test
 }  // namespace xpl
+#endif  //  UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SESSION_H_

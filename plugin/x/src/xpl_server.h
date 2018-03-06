@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_SERVER_H_
-#define _XPL_SERVER_H_
+#ifndef PLUGIN_X_SRC_XPL_SERVER_H_
+#define PLUGIN_X_SRC_XPL_SERVER_H_
 
 #include <atomic>
 #include <string>
@@ -321,4 +321,4 @@ void Server::thd_variable(THD *thd, SYS_VAR *sys_var, void *tgt,
 
 }  // namespace xpl
 
-#endif  // _XPL_SERVER_H_
+#endif  // PLUGIN_X_SRC_XPL_SERVER_H_

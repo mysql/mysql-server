@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef STATEMENT_BUILDER_H_
-#define STATEMENT_BUILDER_H_
+#ifndef PLUGIN_X_SRC_STATEMENT_BUILDER_H_
+#define PLUGIN_X_SRC_STATEMENT_BUILDER_H_
 
 #include <algorithm>
 #include <string>
@@ -159,4 +159,4 @@ inline bool is_table_data_model(const T &msg) {
 
 }  // namespace xpl
 
-#endif  // STATEMENT_BUILDER_H_
+#endif  // PLUGIN_X_SRC_STATEMENT_BUILDER_H_

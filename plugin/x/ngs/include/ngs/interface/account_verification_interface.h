@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_ACCOUNT_VERIFICATION_INTERFACE_H_
-#define _NGS_ACCOUNT_VERIFICATION_INTERFACE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_ACCOUNT_VERIFICATION_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_ACCOUNT_VERIFICATION_INTERFACE_H_
 
 #include <string>
 
@@ -59,4 +59,4 @@ typedef ngs::Memory_instrumented<Account_verification_interface>::Unique_ptr
 
 }  // namespace ngs
 
-#endif  // _NGS_ACCOUNT_VERIFICATION_INTERFACE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_ACCOUNT_VERIFICATION_INTERFACE_H_

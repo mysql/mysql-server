@@ -25,8 +25,8 @@
 // MySQL DB access module, for use by plugins and others
 // For the module that implements interactive DB functionality see mod_db
 
-#ifndef X_CLIENT_XSESSION_IMPL_H_
-#define X_CLIENT_XSESSION_IMPL_H_
+#ifndef PLUGIN_X_CLIENT_XSESSION_IMPL_H_
+#define PLUGIN_X_CLIENT_XSESSION_IMPL_H_
 
 #include <map>
 #include <memory>
@@ -146,4 +146,4 @@ class Session_impl : public XSession {
 
 }  // namespace xcl
 
-#endif  // X_CLIENT_XSESSION_IMPL_H_
+#endif  // PLUGIN_X_CLIENT_XSESSION_IMPL_H_

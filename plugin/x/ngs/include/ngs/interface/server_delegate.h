@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_SERVER_DELEGATE_H_
-#define _NGS_SERVER_DELEGATE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_DELEGATE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_DELEGATE_H_
 
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
@@ -54,4 +54,4 @@ class Server_delegate {
 
 }  // namespace ngs
 
-#endif  // _NGS_SERVER_DELEGATE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_SERVER_DELEGATE_H_

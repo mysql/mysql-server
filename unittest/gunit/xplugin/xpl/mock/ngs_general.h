@@ -22,6 +22,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
+#define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_
+
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 #include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
 #include "plugin/x/ngs/include/ngs_common/socket_interface.h"
@@ -138,5 +141,6 @@ class Mock_socket_events : public Socket_events_interface {
 };
 
 }  // namespace test
-
 }  // namespace ngs
+
+#endif  // UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_NGS_GENERAL_H_

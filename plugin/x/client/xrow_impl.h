@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_CLIENT_XROW_IMPL_H_
-#define X_CLIENT_XROW_IMPL_H_
+#ifndef PLUGIN_X_CLIENT_XROW_IMPL_H_
+#define PLUGIN_X_CLIENT_XROW_IMPL_H_
 
 #include <cstdint>
 #include <memory>
@@ -88,4 +88,4 @@ class XRow_impl : public XRow {
 
 }  // namespace xcl
 
-#endif  // X_CLIENT_XROW_IMPL_H_
+#endif  // PLUGIN_X_CLIENT_XROW_IMPL_H_

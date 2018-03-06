@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef NGS_SOCKET_INTERFACE_H_
-#define NGS_SOCKET_INTERFACE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_
 
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/psi_socket.h"
@@ -54,4 +54,4 @@ class Socket_interface {
 
 }  // namespace ngs
 
-#endif  // NGS_SOCKET_INTERFACE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SOCKET_INTERFACE_H_

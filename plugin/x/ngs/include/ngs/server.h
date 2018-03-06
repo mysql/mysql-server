@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_SERVER_H_
-#define _NGS_SERVER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_SERVER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_SERVER_H_
 
 #include <stdint.h>
 #include <list>
@@ -181,4 +181,4 @@ class Server : public Server_interface {
 
 }  // namespace ngs
 
-#endif  // _NGS_SERVER_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_SERVER_H_
