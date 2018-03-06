@@ -1413,6 +1413,11 @@ struct dict_table_t {
   /** Acquire the table handle. */
   inline void acquire();
 
+  /** Acquire the table handle, with lock() and unlock() the table.
+  This function needs to be called for opening table when the table
+  is in memory and later the stats information would be initialized */
+  inline void acquire_with_lock();
+
   /** Release the table handle. */
   inline void release();
 
