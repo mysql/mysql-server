@@ -681,6 +681,7 @@ sub main {
   }
 
   # Cleanup the build thread id files
+  remove_redundant_thread_id_file_locations();
   clean_unique_id_dir();
 
   print_total_times($opt_parallel) if $opt_report_times;
@@ -1193,6 +1194,29 @@ sub clean_unique_id_dir ()
   close (FH);
   unlink($build_thread_id_file) or
     die "Can't delete file $build_thread_id_file: $!";
+}
+
+
+#
+# Remove redundant entries from build thread id file.
+#
+sub remove_redundant_thread_id_file_locations()
+{
+  my $build_thread_id_tmp_file =
+    "$build_thread_id_dir/". $$ . "_unique_ids_tmp.log";
+
+  open (RH, "<", $build_thread_id_file);
+  open (WH, ">", $build_thread_id_tmp_file);
+
+  my %file_location;
+  while (<RH>) {
+    print WH if not $file_location{$_}++;
+  }
+
+  close (RH);
+  close (WH);
+
+  File::Copy::move($build_thread_id_tmp_file, $build_thread_id_file);
 }
 
 
