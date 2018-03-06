@@ -6076,9 +6076,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
         ib_table = nullptr;
         cached = true;
       } else if (ib_table->refresh_fk) {
-        ib_table->lock();
-        ib_table->acquire();
-        ib_table->unlock();
+        ib_table->acquire_with_lock();
 
         dict_names_t fk_tables;
         mutex_exit(&dict_sys->mutex);
@@ -6111,9 +6109,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
           dict_table_remove_from_cache(ib_table);
           ib_table = nullptr;
         } else {
-          ib_table->lock();
-          ib_table->acquire();
-          ib_table->unlock();
+          ib_table->acquire_with_lock();
         }
       }
 

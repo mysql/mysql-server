@@ -1214,6 +1214,20 @@ inline void dict_table_t::acquire() {
   ++n_ref_count;
 }
 
+inline void dict_table_t::acquire_with_lock() {
+  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(!is_intrinsic());
+
+  /* Acquiring the lock first, to prevent race between n_ref_count and
+  stat_initialized in dict_table_close(). This lock makes sure the close
+  code path either destroys the stats information before increasing
+  n_ref_count, or finds the n_ref_count is not 0, so not to destry the stats
+  information. */
+  lock();
+  ++n_ref_count;
+  unlock();
+}
+
 /** Release the table handle. */
 inline void dict_table_t::release() {
   ut_ad(n_ref_count > 0);
