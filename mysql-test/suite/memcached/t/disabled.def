@@ -8,3 +8,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+memcached.memc287_sdi_corruption : Bug#27626478 2018-03-06 Malika Disabled as it is failing consistently
