@@ -143,10 +143,17 @@ Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name)
 {
   MDL_request_list mdl_requests;
   MDL_request logfile_group_request;
+  MDL_request backup_lock_request;
+
   MDL_REQUEST_INIT(&logfile_group_request,
                    MDL_key::TABLESPACE, "", logfile_group_name,
                    MDL_EXCLUSIVE, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&backup_lock_request,
+                   MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_EXPLICIT);
+
   mdl_requests.push_front(&logfile_group_request);
+  mdl_requests.push_front(&backup_lock_request);
 
   if (m_thd->mdl_context.acquire_locks(&mdl_requests,
                                        m_thd->variables.lock_wait_timeout))
@@ -154,8 +161,9 @@ Ndb_dd_client::mdl_lock_logfile_group(const char* logfile_group_name)
     return false;
   }
 
-  // Remember ticket of the acquired mdl lock
+  // Remember tickets of the acquired mdl locks
   m_acquired_mdl_tickets.push_back(logfile_group_request.ticket);
+  m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
 
   return true;
 }
