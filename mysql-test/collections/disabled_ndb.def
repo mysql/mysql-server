@@ -27,7 +27,6 @@ ndb_ddl.alter_open_trans: Need WL#10164 Schema dist prepare phase
 
 # ndb_rpl suite tests
 ndb_rpl.ndb_dist_priv_ndb                  : BUG#22826700 TEST NDB_RPL.NDB_DIST_PRIV_NDB FAILS
-ndb_rpl.ndb_rpl_basic                      : Need WL#10665 Extend size of extra table metadata
 ndb_rpl.ndb_rpl_binlog_format_errors       : BUG#26078612 PB2 TEST FAIL: NDB_RPL.NDB_RPL_BINLOG_FORMAT_ERRORS. MIXED ENGINE + SELF_LOGGING
 ndb_rpl.ndb_rpl_conflict_load_epoch_trans  : Not designed for determinism
 ndb_rpl.ndb_rpl_ctype_ucs2_def             : BUG#34661 rpl_ndb_ctype_ucs2_def fails in 6.2
@@ -48,10 +47,8 @@ ndb_rpl.ndb_rpl_dd_advance : Need WL#9185 MySQL Cluster support for new DD.
 ndb_rpl.ndb_rpl_dist_priv : Need WL#9185 MySQL Cluster support for new DD.
 
 # ndb suite tests
-ndb.ndb_alter_table                     : Need WL#10665 Extend size of extra table metadata
 ndb.ndb_dbug_lock                       : SEAGULL gsl locking order
 ndb.ndb_insert                          : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
-ndb.ndb_restore_schema_tolerance        : Need WL#10665 Extend size of extra table metadata
 ndb.ndb_restore_undolog                 : Need WL#12172 Schema distribution synchronization of tablespaces and logfile groups, Bug#28478897 UPDATE CHECKED IN BACKUPS THAT ARE RESTORED IN VARIOUS TESTS
 ndb.ndb_row_count                       : BUG#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 
