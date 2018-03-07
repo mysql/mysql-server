@@ -699,18 +699,6 @@ bool migrate_table_to_dd(THD *thd,
   // Delete frm file
   mysql_file_delete(key_file_frm, index_file, MYF(0));
 
-  /*
-     Acquire mdl lock before upgrading.
-  */
-  Upgrade_MDL_guard mdl_guard(thd);
-  if (mdl_guard.acquire_lock(schema_name, table_name))
-  {
-    free_table_share(&share);
-    ndb_log_error("Unable to acquire lock on %s.%s",
-                  schema_name.c_str(), table_name.c_str());
-    DBUG_RETURN(false);
-  }
-
   {
     // Initialize TABLE mem_root
     MEM_ROOT mem_root;
@@ -941,6 +929,7 @@ bool migrate_table_to_dd(THD *thd,
     still have to acquire locks. IX locks are acquired on tablespaces
     to satisfy asserts in dd::create_table()).
   */
+  Upgrade_MDL_guard mdl_guard(thd);
   if ((tablespace_name_set.size() != 0) &&
     mdl_guard.acquire_lock_tablespace(&tablespace_name_set))
   {
