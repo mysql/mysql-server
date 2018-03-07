@@ -49,7 +49,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8   CHARACTER SET ascii;
@@ -59,7 +59,7 @@ def	d8	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -70,7 +70,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8   CHARACTER SET utf8;
@@ -82,7 +82,7 @@ def	d8	utf8	utf8_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -93,7 +93,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8   CHARACTER SET binary;
@@ -103,7 +103,7 @@ def	d8	binary	binary	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -114,7 +114,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8   CHARACTER SET swe7;
@@ -124,7 +124,7 @@ def	d8	swe7	swe7_swedish_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -135,7 +135,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8   CHARACTER SET cp1251;
@@ -145,7 +145,7 @@ def	d8	cp1251	cp1251_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -156,7 +156,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET ascii;
@@ -166,7 +166,7 @@ def	d8	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -177,7 +177,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET utf8;
@@ -189,7 +189,7 @@ def	d8	utf8	utf8_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -200,7 +200,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET binary;
@@ -210,7 +210,7 @@ def	d8	binary	binary	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -221,7 +221,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET swe7;
@@ -231,7 +231,7 @@ def	d8	swe7	swe7_swedish_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -242,7 +242,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d8 DEFAULT CHARACTER SET cp1251;
@@ -252,7 +252,7 @@ def	d8	cp1251	cp1251_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -263,7 +263,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET ascii;
@@ -273,7 +273,7 @@ def	d8	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -284,7 +284,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET utf8;
@@ -296,7 +296,7 @@ def	d8	utf8	utf8_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -307,7 +307,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET binary;
@@ -317,7 +317,7 @@ def	d8	binary	binary	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -328,7 +328,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET swe7;
@@ -338,7 +338,7 @@ def	d8	swe7	swe7_swedish_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -349,7 +349,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8   CHARACTER SET cp1251;
@@ -359,7 +359,7 @@ def	d8	cp1251	cp1251_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -370,7 +370,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET ascii;
@@ -380,7 +380,7 @@ def	d8	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -391,7 +391,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET utf8;
@@ -403,7 +403,7 @@ def	d8	utf8	utf8_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -414,7 +414,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET binary;
@@ -424,7 +424,7 @@ def	d8	binary	binary	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -435,7 +435,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET swe7;
@@ -445,7 +445,7 @@ def	d8	swe7	swe7_swedish_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
@@ -456,7 +456,7 @@ def	d8	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d8 DEFAULT CHARACTER SET cp1251;
@@ -466,7 +466,7 @@ def	d8	cp1251	cp1251_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d8;
