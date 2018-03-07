@@ -78,7 +78,7 @@ Get rec(type:id) is t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart: --log-error=MYSQLTEST_VARDIR/tmp/crash.log --innodb_buffer_pool_load_at_startup=OFF
 # restart: --innodb_buffer_pool_load_at_startup=OFF
-Pattern "InnoDB: Unable to read page \[page id: space=\d+, page number=\d+\] into the buffer pool after \d+ attempts" found
+Pattern "Unable to read page \[page id: space=\d+, page number=\d+\] into the buffer pool after \d+ attempts" found
 DROP TABLE t1;
 DROP DATABASE innodb_memcache;
 UNINSTALL PLUGIN daemon_memcached;
