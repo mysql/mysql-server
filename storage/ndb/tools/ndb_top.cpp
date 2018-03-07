@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 #include <ndb_config.h>
 #ifdef HAVE_NCURSESW_CURSES_H
 #include <ncursesw/curses.h>
-#elif HAVE_NCURSESW_H
+#elif defined HAVE_NCURSESW_H
 #include <ncursesw.h>
-#elif HAVE_NCURSES_CURSES_H
+#elif defined HAVE_NCURSES_CURSES_H
 #include <ncurses/curses.h>
 #elif HAVE_NCURSES_H
 #include <ncurses.h>
