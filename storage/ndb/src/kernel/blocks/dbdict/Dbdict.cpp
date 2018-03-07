@@ -3144,8 +3144,8 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     (SchemaFile*)c_schemaPageRecordArray.getPtr(1 * NDB_SF_MAX_PAGES);
   c_schemaFile[1].noOfPages = 0;
 
-  Uint32 rps = 0;
-  rps += c_noOfMetaTables * (MAX_TAB_NAME_SIZE + MAX_FRM_DATA_SIZE);
+  Uint32 rps = 0;  // Roughly calculate rope pool size:
+  rps += c_noOfMetaTables * (MAX_TAB_NAME_SIZE + ROPE_COPY_BUFFER_SIZE);
   rps += attributesize * (MAX_ATTR_NAME_SIZE + MAX_ATTR_DEFAULT_VALUE_SIZE);
   rps += c_maxNoOfTriggers * MAX_TAB_NAME_SIZE;
   rps += (10 + 10) * MAX_TAB_NAME_SIZE;

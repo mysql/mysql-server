@@ -71,6 +71,8 @@
 #define MAX_NDB_NODES 49
 #define MAX_NDB_NODE_GROUPS 48
 
+#define TEST_FRM_DATA_SIZE 7000
+
 static int numNodeGroups;
 static int numNoNodeGroups;
 static int nodeGroup[MAX_NDB_NODE_GROUPS];
@@ -1499,9 +1501,9 @@ int runStoreFrm(NDBT_Context* ctx, NDBT_Step* step){
 
   for (int l = 0; l < loops && result == NDBT_OK ; l++){
 
-    Uint32 dataLen = (Uint32)myRandom48(MAX_FRM_DATA_SIZE);
+    Uint32 dataLen = (Uint32)myRandom48(TEST_FRM_DATA_SIZE);
     // size_t dataLen = 10;
-    unsigned char data[MAX_FRM_DATA_SIZE];
+    unsigned char data[TEST_FRM_DATA_SIZE];
 
     char start = l + 248;
     for(Uint32 i = 0; i < dataLen; i++){
@@ -1573,7 +1575,7 @@ int runStoreFrmError(NDBT_Context* ctx, NDBT_Step* step){
 
   for (int l = 0; l < loops && result == NDBT_OK ; l++){
 
-    const Uint32 dataLen = MAX_FRM_DATA_SIZE + 10;
+    const Uint32 dataLen = TEST_FRM_DATA_SIZE + 10;
     unsigned char data[dataLen];
 
     char start = l + 248;
@@ -1628,8 +1630,8 @@ int runStoreExtraMetada(NDBT_Context* ctx, NDBT_Step* step)
 
   for (int l = 0; l < ctx->getNumLoops() && result == NDBT_OK ; l++)
   {
-    const Uint32 dataLen = (Uint32)myRandom48(MAX_FRM_DATA_SIZE);
-    unsigned char data[MAX_FRM_DATA_SIZE];
+    const Uint32 dataLen = (Uint32)myRandom48(TEST_FRM_DATA_SIZE);
+    unsigned char data[TEST_FRM_DATA_SIZE];
 
     // Fill in the "data" array with some varying numbers
     char value = l + 248;
