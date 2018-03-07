@@ -279,7 +279,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     {
       ScanOpPtr scanPtr;
       c_scanOpPool.getPtr(scanPtr, dataPtr);
-      c_lqh->setup_scan_pointers(signal, scanPtr.p->m_userPtr);
+      c_lqh->setup_scan_pointers(scanPtr.p->m_userPtr);
       scanCont(signal, scanPtr);
     }
     return;
