@@ -3398,6 +3398,29 @@ indexTypeMapping[] = {
   { -1, -1 }
 };
 
+void NdbTableImpl::IndirectReader(SimpleProperties::Reader & it,
+                                  void * dest) {
+  NdbTableImpl * impl = static_cast<NdbTableImpl *>(dest);
+  Uint16 key = it.getKey();
+
+  if(key == DictTabInfo::FrmData) {
+    /* Expand the UtilBuffer to the required length, then copy data in */
+    it.getString(static_cast<char *>(impl->m_frm.append(it.getValueLen())));
+  }
+}
+
+bool NdbTableImpl::IndirectWriter(SimpleProperties::Writer & it,
+                                  Uint16 key,
+                                  const void * src) {
+  const NdbTableImpl * impl = static_cast<const NdbTableImpl *>(src);
+
+  if(key == DictTabInfo::FrmData)
+    return it.add(key, impl->m_frm.get_data(), impl->m_frm.length());
+
+  return true;
+}
+
+
 int
 NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
 				 const Uint32 * data, Uint32 len,
@@ -3415,25 +3438,27 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     DBUG_RETURN(4000);
   }
   tableDesc->init();
-  s = SimpleProperties::unpack(it, tableDesc, 
+  NdbTableImpl * impl = new NdbTableImpl();
+  s = SimpleProperties::unpack(it, tableDesc,
 			       DictTabInfo::TableMapping, 
-			       DictTabInfo::TableMappingSize);
+			       DictTabInfo::TableMappingSize,
+                               NdbTableImpl::IndirectReader,
+                               impl);
   
   if(s != SimpleProperties::Break){
     free(tableDesc);
+    delete impl;
     DBUG_RETURN(703);
   }
   const char * internalName = tableDesc->TableName;
   const char * externalName = Ndb::externalizeTableName(internalName, fullyQualifiedNames);
 
-  NdbTableImpl * impl = new NdbTableImpl();
   impl->m_id = tableDesc->TableId;
   impl->m_version = tableDesc->TableVersion;
   impl->m_status = NdbDictionary::Object::Retrieved;
   if (!impl->m_internalName.assign(internalName) ||
       impl->updateMysqlName() ||
       !impl->m_externalName.assign(externalName) ||
-      impl->m_frm.assign(tableDesc->FrmData, tableDesc->FrmLen) ||
       impl->m_range.assign((Int32*)tableDesc->RangeListData,
                            /* yuck */tableDesc->RangeListDataLen / 4))
   {
@@ -4448,23 +4473,10 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
     distKeys= 0;
   impl.m_noOfDistributionKeys= distKeys;
 
-
-  // Check max length of frm data
-  if (impl.m_frm.length() > MAX_FRM_DATA_SIZE){
-    m_error.code= 1229;
-    free(tmpTab);
-    DBUG_RETURN(-1);
-  }
   /*
     TODO RONM: This needs to change to dynamic arrays instead
     Frm Data, FragmentData, TablespaceData, RangeListData, TsNameData
   */
-  tmpTab->FrmLen = impl.m_frm.length();
-  if (tmpTab->FrmLen > 0)
-  {
-    memcpy(tmpTab->FrmData, impl.m_frm.get_data(), impl.m_frm.length());
-  }
-  
   {
     /**
      * NOTE: fragment data is currently an array of Uint16
@@ -4563,7 +4575,9 @@ loop:
   s = SimpleProperties::pack(w, 
 			     tmpTab,
 			     DictTabInfo::TableMapping, 
-			     DictTabInfo::TableMappingSize);
+			     DictTabInfo::TableMappingSize,
+                             NdbTableImpl::IndirectWriter,
+                             & impl);
   
   if(s != SimpleProperties::Eof){
     abort();

@@ -163,6 +163,9 @@ public:
   NdbTableImpl(NdbDictionary::Table &);
   ~NdbTableImpl();
   
+  static SimpleProperties::IndirectReader IndirectReader;
+  static SimpleProperties::IndirectWriter IndirectWriter;
+
   void init();
   int setName(const char * name);
   const char * getName() const;
