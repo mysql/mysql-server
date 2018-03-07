@@ -172,7 +172,6 @@ class Client : public Client_interface {
 
   void on_client_addr(const bool skip_resolve_name);
   void on_accept();
-  void on_kill(Session_interface &session);
 };
 
 }  // namespace ngs
