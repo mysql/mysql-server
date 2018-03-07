@@ -6099,6 +6099,9 @@ static bool check_default_collation_for_utf8mb4(sys_var *self, THD *thd,
     return true;
   }
 
+  if (!var->value)
+    var->save_result.ptr = reinterpret_cast<void *>(self->get_default());
+
   auto cs = static_cast<const CHARSET_INFO *>(var->save_result.ptr);
   if (cs == &my_charset_utf8mb4_0900_ai_ci ||
       cs == &my_charset_utf8mb4_general_ci)
