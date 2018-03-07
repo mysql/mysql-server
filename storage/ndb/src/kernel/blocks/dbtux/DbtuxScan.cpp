@@ -880,7 +880,7 @@ Dbtux::execACC_ABORTCONF(Signal* signal)
     debugOut << "ACC_ABORTCONF scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  c_lqh->setup_scan_pointers(signal, scan.m_userPtr);
+  c_lqh->setup_scan_pointers(scan.m_userPtr);
   ndbrequire(scan.m_state == ScanOp::Aborting);
   // most likely we are still in lock wait
   if (scan.m_lockwait) {

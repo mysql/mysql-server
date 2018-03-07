@@ -744,7 +744,7 @@ Dbtup::execACC_ABORTCONF(Signal* signal)
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
   ndbrequire(scan.m_state == ScanOp::Aborting);
-  c_lqh->setup_scan_pointers(signal, scan.m_userPtr);
+  c_lqh->setup_scan_pointers(scan.m_userPtr);
   // most likely we are still in lock wait
   if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) {
     jam();
