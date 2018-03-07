@@ -26,6 +26,7 @@
 #include <unicode/uregex.h>
 
 #include <stdint.h>
+#include <string>
 #include <vector>
 
 #include "m_ctype.h"    // CHARSET_INFO.
@@ -94,11 +95,11 @@ class Regexp_engine {
     @param time_limit Gets set on the URegularExpression. Please refer to the
     ICU API docs for the definition of time limit.
   */
-  Regexp_engine(String *pattern, uint flags, int stack_limit, int time_limit) {
-    DBUG_ASSERT(pattern->charset() == regexp_lib_charset);
+  Regexp_engine(const std::u16string &pattern, uint flags, int stack_limit,
+                int time_limit) {
     UParseError error;
-    auto upattern = pointer_cast<const UChar *>(pattern->ptr());
-    int length = pattern->length() / sizeof(UChar);
+    auto upattern = pattern.data();
+    int length = pattern.size();
     m_re = uregex_open(upattern, length, flags, &error, &m_error_code);
     uregex_setStackLimit(m_re, stack_limit, &m_error_code);
     uregex_setTimeLimit(m_re, time_limit, &m_error_code);
@@ -116,7 +117,7 @@ class Regexp_engine {
     Resets the engine with a new subject string.
     @param subject The new string to match the regular expression against.
   */
-  void Reset(String *subject);
+  void Reset(const std::u16string &subject);
 
   /**
     Tries to find match number `occurrence` in the string, starting on
@@ -153,16 +154,15 @@ class Regexp_engine {
     Iterates over the subject string, replacing matches.
 
     @param replacement The string to replace matches with.
-    @param length The length in bytes.
     @param start Start position, 0-based.
     @param occurrence Which occurrence to replace. If zero, replace all
     occurrences.
-    @param result The result string.
 
-    @return The same as `result`.
+    @return Reference to a the result of the operation. It is guaranteed to
+    stay intact until a call is made to Reset().
   */
-  String *Replace(const char *replacement, int length, int start,
-                  int occurrence, String *result);
+  const std::u16string &Replace(const std::u16string &replacement, int start,
+                                int occurrence);
 
   /**
     Copies the portion of the subject string between the start of the match
@@ -205,9 +205,8 @@ class Regexp_engine {
     Tries to write the replacement, growing the buffer if needed.
 
     @param replacement The replacement string.
-    @param length The length in code points.
   */
-  void AppendReplacement(const UChar *replacement, size_t length);
+  void AppendReplacement(const std::u16string &replacement);
 
   /// Appends the trailing segment after the last match to the subject string,
   void AppendTail();
@@ -231,7 +230,7 @@ class Regexp_engine {
     appended to the buffer, otherwise nothing is written. Either way, the
     replacement's full size is returned.
   */
-  int TryToAppendReplacement(const UChar *repl, size_t length);
+  int TryToAppendReplacement(const std::u16string &replacement);
 
   /**
     Tries to append the part of the subject string after the last match to the
@@ -249,8 +248,12 @@ class Regexp_engine {
   */
   URegularExpression *m_re;
   UErrorCode m_error_code = U_ZERO_ERROR;
-  String *m_current_subject = nullptr;
-  std::vector<UChar> m_replace_buffer;
+  std::u16string m_current_subject;
+  std::u16string m_replace_buffer;
+  /**
+    This is always the next index in m_replace_buffer where ICU can write
+    data.
+  */
   int m_replace_buffer_pos = 0;
 };
 
