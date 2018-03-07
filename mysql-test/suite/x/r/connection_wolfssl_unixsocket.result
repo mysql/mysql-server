@@ -1,4 +1,6 @@
-Preamble
+
+
+## Preamble
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 CREATE USER user1_mysqlx@localhost
@@ -8,7 +10,7 @@ IDENTIFIED WITH 'mysql_native_password' BY 'auth_string2'
             PASSWORD EXPIRE;
 CREATE USER user3_mysqlx@localhost
 IDENTIFIED WITH 'mysql_native_password' BY 'auth_string3'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             PASSWORD EXPIRE NEVER;
@@ -29,6 +31,163 @@ GRANT ALL ON *.* TO user4_mysqlx@localhost;
 GRANT ALL ON *.* TO user5_mysqlx@localhost;
 GRANT ALL ON *.* TO user6_mysqlx@localhost;
 GRANT ALL ON *.* TO user7_mysqlx@localhost;
+
+
+## I. Verify handling of SSL with normal account ('mysql_native_password')
+#
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user1_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+
+## II. Verify handling of SSL with super account and XProtocol message
+##     CapabilitySet (without SSL options on it)
+#
+# 1. Try to set "tls" capability with invalid data (no-ssl connection)
+# 2. Try to set "tls" capability with valid data (ssl connection)
+#
+# II.1
+# setting read/write tls param with possible invalid data types:
+# V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+}
+
+# Checking CapSet TLS to bool 0
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to null
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_NULL
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty octet
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_OCTETS
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty uint
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty sint
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+# II.2
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
@@ -61,7 +220,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Enable SSL
+# SSL Enabled
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
@@ -77,281 +236,25 @@ Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
 }
 
 ok
-setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
-send Mysqlx.Connection.CapabilitiesGet {
-}
 
-Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
-  name: "tls"
-  value {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: false
-    }
-  }
-}
 
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_BOOL
-          v_bool: false
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_NULL
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_OCTETS
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_UINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_SINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-ok
-setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
-send Mysqlx.Connection.CapabilitiesGet {
-}
-
-Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
-  name: "tls"
-  value {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: false
-    }
-  }
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_BOOL
-          v_bool: false
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_NULL
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_OCTETS
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_UINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_SINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-ok
-## SSL connection testing
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user1_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
+## III. Verify handling of expired password with user2_mysqlx account ('mysql_native_password')
+#
+# 1. When client doesn't support handling of expired password,
+#    then connection must be rejected
+# 2. When client support expired password, then he must be able
+#    to alter password
+# 3. Verify that after the alter password, account can be used
+#    without any additional support for expired password on the client
+# 4. When client support expired password, then he must be able
+#    to set the password
+# 5. Verify that after the set password, account can be used
+#    without any additional support for expired password on the client
+#
+# III.1
 Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
 not ok
+# III.2
 NOTICE: Account password expired
 RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
 
@@ -360,6 +263,18 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# III.3
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# III.4
 ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
 NOTICE: Account password expired
 RUN SET PASSWORD='set-new-auth'
@@ -369,216 +284,186 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user2_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# III.5
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user3_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+
+
+## IV. Verify handling of account that has requires concrete cipher, signed cert
+##     ('mysql_native_password')
+#
+# 1. Verify that user can connect when it has allowed cipher and matching cert
+# 2. Verify that user can't connect when it has allowed cipher and non-matching cert
+# 3. Verify that user can't connect when it doesn't use SSL
+# 4. Verify that user can't connect when it use basic SSL configuration
+# 5. Verify that user can't connect when it has allowed cipher and its without a cert
+#
+# IV.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user3_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Testing conenction for ACCOUNT LOCK user.
+# IV.2
+Application terminated with expected error: Current user certificate subject is not valid. (code 1045)
+not ok
+# IV.3
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# IV.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# IV.5
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+
+
+## V. Verify handling of locked account ('mysql_native_password')
+#
+# 1. Verify that locked account can't connect
+# 2. Unlock the account and verify that it can connect
+#
+# V.1
 Application terminated with expected error: Account is locked. (code 1045)
 not ok
-Unlocking user account.
+# V.2
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user4_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user5_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+
+
+## VI. Verify handling of account that was marked as SSL required ('mysql_native_password')
+#
+# 1. Verify connection with basic SSL configuration
+# 2. Verify connection with SSL key & cert
+# 3. Verify connection with SSL ca
+#
+# VI.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user5_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# VI.2
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user6_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# VI.3
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+
+## VII. Verify handling of account that was marked as SSL required with signed cert
+##      ('mysql_native_password')
+#
+# 1. Verify connection with signed cert
+# 2. Verify that connection is rejected when SSL is disabled
+# 3. Verify that connection is rejected when CA is set
+# 4. Verify that connection is rejected when using basic SSL configuration
+#
+# VII.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user6_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# VII.2
 Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
+# VII.3
 Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
+# VII.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+
+
+## VIII. Verify handling of account that was marked that requires concrete SSL cipher
+##       ('mysql_native_password')
+#
+# 1. Verify connection with concrete cipher and signed cert
+# 2. Verify that connection is rejected with concrete cipher and without a cert
+# 3. Verify that connection is rejected when SSL is disabled
+# 4. Verify that connection is rejected with basic SSL configuration
+# 5. Verify that connection is rejected with wrong cipher and signed cert
+#
+# VIII.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user7_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# VIII.2
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.3
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.5
 Application terminated with expected error: Current user cipher isn't allowed. (code 1045)
 not ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user7_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	AES256-SHA
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Cert needed
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+
+
+## IX. Verify X Plugins global and session status variables ('mysql_native_password')
+#
+# 1. Verify global SSL setup
+# 2. Verify session SSL setup
+#
+# IX.1
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
@@ -588,6 +473,7 @@ Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
+# IX.2
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
 Mysqlx_ssl_cipher_list	AES256-SHA
@@ -602,69 +488,52 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+
+## X. Lets confirm that Mysqlx plugin validates the connection_type vs 'require_secure_transport'
+##    system variable ('mysql_native_password')
+#
+# 1. Connection without SSL (fails on TCP, it works on UNIX socket)
+# 2. Connection with SSL (always must be successful)
+#
+# X.1
 SET GLOBAL require_secure_transport:=1;
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-Socket
-0 rows affected
-RUN SELECT USER()
-USER()
-x_root@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	
-0 rows affected
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
+Verify ["SELECT CONNECTION_TYPE in ("TCP/IP", "Socket") as is_non_ssl_con FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "is_non_ssl_con" column, following value 1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of ]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of ]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-x_root@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# X.2
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 SET GLOBAL require_secure_transport:=0;
-DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,
-user4_mysqlx@localhost, user5_mysqlx@localhost, user6_mysqlx@localhost,
-user7_mysqlx@localhost;
+
+
+## Cleanup
+DROP USER user1_mysqlx@localhost;
+DROP USER user2_mysqlx@localhost;
+DROP USER user3_mysqlx@localhost;
+DROP USER user4_mysqlx@localhost;
+DROP USER user5_mysqlx@localhost;
+DROP USER user6_mysqlx@localhost;
+DROP USER user7_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
-Preamble
+
+
+## Preamble
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 CREATE USER user1_mysqlx@localhost
@@ -674,7 +543,7 @@ IDENTIFIED WITH 'sha256_password' BY 'auth_string2'
             PASSWORD EXPIRE;
 CREATE USER user3_mysqlx@localhost
 IDENTIFIED WITH 'sha256_password' BY 'auth_string3'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             PASSWORD EXPIRE NEVER;
@@ -695,6 +564,163 @@ GRANT ALL ON *.* TO user4_mysqlx@localhost;
 GRANT ALL ON *.* TO user5_mysqlx@localhost;
 GRANT ALL ON *.* TO user6_mysqlx@localhost;
 GRANT ALL ON *.* TO user7_mysqlx@localhost;
+
+
+## I. Verify handling of SSL with normal account ('sha256_password')
+#
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user1_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+
+## II. Verify handling of SSL with super account and XProtocol message
+##     CapabilitySet (without SSL options on it)
+#
+# 1. Try to set "tls" capability with invalid data (no-ssl connection)
+# 2. Try to set "tls" capability with valid data (ssl connection)
+#
+# II.1
+# setting read/write tls param with possible invalid data types:
+# V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+}
+
+# Checking CapSet TLS to bool 0
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to null
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_NULL
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty octet
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_OCTETS
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty uint
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty sint
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+# II.2
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
@@ -727,7 +753,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Enable SSL
+# SSL Enabled
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
@@ -743,281 +769,25 @@ Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
 }
 
 ok
-setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
-send Mysqlx.Connection.CapabilitiesGet {
-}
 
-Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
-  name: "tls"
-  value {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: false
-    }
-  }
-}
 
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_BOOL
-          v_bool: false
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_NULL
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_OCTETS
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_UINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_SINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-ok
-setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
-send Mysqlx.Connection.CapabilitiesGet {
-}
-
-Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
-  name: "tls"
-  value {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: false
-    }
-  }
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_BOOL
-          v_bool: false
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_NULL
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_OCTETS
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_UINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_SINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-ok
-## SSL connection testing
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user1_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
+## III. Verify handling of expired password with user2_mysqlx account ('sha256_password')
+#
+# 1. When client doesn't support handling of expired password,
+#    then connection must be rejected
+# 2. When client support expired password, then he must be able
+#    to alter password
+# 3. Verify that after the alter password, account can be used
+#    without any additional support for expired password on the client
+# 4. When client support expired password, then he must be able
+#    to set the password
+# 5. Verify that after the set password, account can be used
+#    without any additional support for expired password on the client
+#
+# III.1
 Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
 not ok
+# III.2
 NOTICE: Account password expired
 RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
 
@@ -1026,6 +796,18 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# III.3
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# III.4
 ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
 NOTICE: Account password expired
 RUN SET PASSWORD='set-new-auth'
@@ -1035,216 +817,186 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user2_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# III.5
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user3_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+
+
+## IV. Verify handling of account that has requires concrete cipher, signed cert
+##     ('sha256_password')
+#
+# 1. Verify that user can connect when it has allowed cipher and matching cert
+# 2. Verify that user can't connect when it has allowed cipher and non-matching cert
+# 3. Verify that user can't connect when it doesn't use SSL
+# 4. Verify that user can't connect when it use basic SSL configuration
+# 5. Verify that user can't connect when it has allowed cipher and its without a cert
+#
+# IV.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user3_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Testing conenction for ACCOUNT LOCK user.
+# IV.2
+Application terminated with expected error: Current user certificate subject is not valid. (code 1045)
+not ok
+# IV.3
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# IV.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# IV.5
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+
+
+## V. Verify handling of locked account ('sha256_password')
+#
+# 1. Verify that locked account can't connect
+# 2. Unlock the account and verify that it can connect
+#
+# V.1
 Application terminated with expected error: Account is locked. (code 1045)
 not ok
-Unlocking user account.
+# V.2
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user4_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user5_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+
+
+## VI. Verify handling of account that was marked as SSL required ('sha256_password')
+#
+# 1. Verify connection with basic SSL configuration
+# 2. Verify connection with SSL key & cert
+# 3. Verify connection with SSL ca
+#
+# VI.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user5_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# VI.2
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user6_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# VI.3
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+
+## VII. Verify handling of account that was marked as SSL required with signed cert
+##      ('sha256_password')
+#
+# 1. Verify connection with signed cert
+# 2. Verify that connection is rejected when SSL is disabled
+# 3. Verify that connection is rejected when CA is set
+# 4. Verify that connection is rejected when using basic SSL configuration
+#
+# VII.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user6_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# VII.2
 Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
-Application terminated with expected error: Invalid user or password (code 1045)
+# VII.3
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
+# VII.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+
+
+## VIII. Verify handling of account that was marked that requires concrete SSL cipher
+##       ('sha256_password')
+#
+# 1. Verify connection with concrete cipher and signed cert
+# 2. Verify that connection is rejected with concrete cipher and without a cert
+# 3. Verify that connection is rejected when SSL is disabled
+# 4. Verify that connection is rejected with basic SSL configuration
+# 5. Verify that connection is rejected with wrong cipher and signed cert
+#
+# VIII.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user7_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# VIII.2
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.3
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.5
 Application terminated with expected error: Current user cipher isn't allowed. (code 1045)
 not ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user7_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	AES256-SHA
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Cert needed
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+
+
+## IX. Verify X Plugins global and session status variables ('sha256_password')
+#
+# 1. Verify global SSL setup
+# 2. Verify session SSL setup
+#
+# IX.1
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
@@ -1254,6 +1006,7 @@ Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
+# IX.2
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
 Mysqlx_ssl_cipher_list	AES256-SHA
@@ -1268,69 +1021,52 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+
+## X. Lets confirm that Mysqlx plugin validates the connection_type vs 'require_secure_transport'
+##    system variable ('sha256_password')
+#
+# 1. Connection without SSL (fails on TCP, it works on UNIX socket)
+# 2. Connection with SSL (always must be successful)
+#
+# X.1
 SET GLOBAL require_secure_transport:=1;
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-Socket
-0 rows affected
-RUN SELECT USER()
-USER()
-x_root@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	
-0 rows affected
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
+Verify ["SELECT CONNECTION_TYPE in ("TCP/IP", "Socket") as is_non_ssl_con FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "is_non_ssl_con" column, following value 1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of ]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of ]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-x_root@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# X.2
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 SET GLOBAL require_secure_transport:=0;
-DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,
-user4_mysqlx@localhost, user5_mysqlx@localhost, user6_mysqlx@localhost,
-user7_mysqlx@localhost;
+
+
+## Cleanup
+DROP USER user1_mysqlx@localhost;
+DROP USER user2_mysqlx@localhost;
+DROP USER user3_mysqlx@localhost;
+DROP USER user4_mysqlx@localhost;
+DROP USER user5_mysqlx@localhost;
+DROP USER user6_mysqlx@localhost;
+DROP USER user7_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
-Preamble
+
+
+## Preamble
 SET GLOBAL mysqlx_connect_timeout = 300;
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 CREATE USER user1_mysqlx@localhost
@@ -1340,7 +1076,7 @@ IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string2'
             PASSWORD EXPIRE;
 CREATE USER user3_mysqlx@localhost
 IDENTIFIED WITH 'caching_sha2_password' BY 'auth_string3'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "AES256-SHA" AND
 SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             PASSWORD EXPIRE NEVER;
@@ -1361,6 +1097,163 @@ GRANT ALL ON *.* TO user4_mysqlx@localhost;
 GRANT ALL ON *.* TO user5_mysqlx@localhost;
 GRANT ALL ON *.* TO user6_mysqlx@localhost;
 GRANT ALL ON *.* TO user7_mysqlx@localhost;
+
+
+## I. Verify handling of SSL with normal account ('caching_sha2_password')
+#
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user1_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+
+
+## II. Verify handling of SSL with super account and XProtocol message
+##     CapabilitySet (without SSL options on it)
+#
+# 1. Try to set "tls" capability with invalid data (no-ssl connection)
+# 2. Try to set "tls" capability with valid data (ssl connection)
+#
+# II.1
+# setting read/write tls param with possible invalid data types:
+# V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING
+send Mysqlx.Connection.CapabilitiesGet {
+}
+
+Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
+  name: "tls"
+  value {
+    type: SCALAR
+    scalar {
+      type: V_BOOL
+      v_bool: false
+    }
+  }
+}
+
+# Checking CapSet TLS to bool 0
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: false
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to null
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_NULL
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty octet
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_OCTETS
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty uint
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_UINT
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+# CapSet TLS to empty sint
+send Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_SINT
+        }
+      }
+    }
+  }
+}
+
+Got expected error:
+Mysqlx.Error {
+  severity: ERROR
+  code: 5001
+  msg: "Capability prepare failed for \'tls\'"
+  sql_state: "HY000"
+}
+
+ok
+# II.2
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
@@ -1393,7 +1286,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Enable SSL
+# SSL Enabled
 send Mysqlx.Connection.CapabilitiesGet {
 }
 
@@ -1409,281 +1302,25 @@ Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
 }
 
 ok
-setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
-send Mysqlx.Connection.CapabilitiesGet {
-}
 
-Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
-  name: "tls"
-  value {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: false
-    }
-  }
-}
 
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_BOOL
-          v_bool: false
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_NULL
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_OCTETS
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_UINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_SINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-ok
-setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
-send Mysqlx.Connection.CapabilitiesGet {
-}
-
-Mysqlx.Connection.Capabilities(capabilities[0]) = Mysqlx.Connection.Capability {
-  name: "tls"
-  value {
-    type: SCALAR
-    scalar {
-      type: V_BOOL
-      v_bool: false
-    }
-  }
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_BOOL
-          v_bool: false
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_NULL
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_OCTETS
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_UINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-send Mysqlx.Connection.CapabilitiesSet {
-  capabilities {
-    capabilities {
-      name: "tls"
-      value {
-        type: SCALAR
-        scalar {
-          type: V_SINT
-        }
-      }
-    }
-  }
-}
-
-Mysqlx.Error {
-  severity: ERROR
-  code: 5001
-  msg: "Capability prepare failed for \'tls\'"
-  sql_state: "HY000"
-}
-
-ok
-## SSL connection testing
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user1_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
+## III. Verify handling of expired password with user2_mysqlx account ('caching_sha2_password')
+#
+# 1. When client doesn't support handling of expired password,
+#    then connection must be rejected
+# 2. When client support expired password, then he must be able
+#    to alter password
+# 3. Verify that after the alter password, account can be used
+#    without any additional support for expired password on the client
+# 4. When client support expired password, then he must be able
+#    to set the password
+# 5. Verify that after the set password, account can be used
+#    without any additional support for expired password on the client
+#
+# III.1
 Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
 not ok
+# III.2
 NOTICE: Account password expired
 RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
 
@@ -1692,6 +1329,18 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# III.3
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# III.4
 ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
 NOTICE: Account password expired
 RUN SET PASSWORD='set-new-auth'
@@ -1701,216 +1350,186 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user2_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# III.5
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user2_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user3_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+
+
+## IV. Verify handling of account that has requires concrete cipher, signed cert
+##     ('caching_sha2_password')
+#
+# 1. Verify that user can connect when it has allowed cipher and matching cert
+# 2. Verify that user can't connect when it has allowed cipher and non-matching cert
+# 3. Verify that user can't connect when it doesn't use SSL
+# 4. Verify that user can't connect when it use basic SSL configuration
+# 5. Verify that user can't connect when it has allowed cipher and its without a cert
+#
+# IV.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user3_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Testing conenction for ACCOUNT LOCK user.
+# IV.2
+Application terminated with expected error: Current user certificate subject is not valid. (code 1045)
+not ok
+# IV.3
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# IV.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# IV.5
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+
+
+## V. Verify handling of locked account ('caching_sha2_password')
+#
+# 1. Verify that locked account can't connect
+# 2. Unlock the account and verify that it can connect
+#
+# V.1
 Application terminated with expected error: Account is locked. (code 1045)
 not ok
-Unlocking user account.
+# V.2
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user4_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user5_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+
+
+## VI. Verify handling of account that was marked as SSL required ('caching_sha2_password')
+#
+# 1. Verify connection with basic SSL configuration
+# 2. Verify connection with SSL key & cert
+# 3. Verify connection with SSL ca
+#
+# VI.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user5_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# VI.2
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user6_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# VI.3
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user5_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+
+## VII. Verify handling of account that was marked as SSL required with signed cert
+##      ('caching_sha2_password')
+#
+# 1. Verify connection with signed cert
+# 2. Verify that connection is rejected when SSL is disabled
+# 3. Verify that connection is rejected when CA is set
+# 4. Verify that connection is rejected when using basic SSL configuration
+#
+# VII.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user6_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# VII.2
 Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
-Application terminated with expected error: Invalid user or password (code 1045)
+# VII.3
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
 not ok
+# VII.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+
+
+## VIII. Verify handling of account that was marked that requires concrete SSL cipher
+##       ('caching_sha2_password')
+#
+# 1. Verify connection with concrete cipher and signed cert
+# 2. Verify that connection is rejected with concrete cipher and without a cert
+# 3. Verify that connection is rejected when SSL is disabled
+# 4. Verify that connection is rejected with basic SSL configuration
+# 5. Verify that connection is rejected with wrong cipher and signed cert
+#
+# VIII.1
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user7_mysqlx@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+# VIII.2
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.3
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.4
+Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
+not ok
+# VIII.5
 Application terminated with expected error: Current user cipher isn't allowed. (code 1045)
 not ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-user7_mysqlx@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	AES256-SHA
-0 rows affected
-Mysqlx.Ok {
-  msg: "bye!"
-}
-ok
-Cert needed
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+
+
+## IX. Verify X Plugins global and session status variables ('caching_sha2_password')
+#
+# 1. Verify global SSL setup
+# 2. Verify session SSL setup
+#
+# IX.1
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
@@ -1920,6 +1539,7 @@ Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
+# IX.2
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
 Mysqlx_ssl_cipher_list	AES256-SHA
@@ -1934,65 +1554,46 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+
+
+## X. Lets confirm that Mysqlx plugin validates the connection_type vs 'require_secure_transport'
+##    system variable ('caching_sha2_password')
+#
+# 1. Connection without SSL (fails on TCP, it works on UNIX socket)
+# 2. Connection with SSL (always must be successful)
+#
+# X.1
 SET GLOBAL require_secure_transport:=1;
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-Socket
-0 rows affected
-RUN SELECT USER()
-USER()
-x_root@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	
-0 rows affected
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
+Verify ["SELECT CONNECTION_TYPE in ("TCP/IP", "Socket") as is_non_ssl_con FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "is_non_ssl_con" column, following value 1]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of ]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of ]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
-CONNECTION_TYPE
-SSL/TLS
-0 rows affected
-RUN SELECT USER()
-USER()
-x_root@localhost
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
-Variable_name	Value
-Mysqlx_ssl_version	TLSv1
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
-Variable_name	Value
-Mysqlx_ssl_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
-Variable_name	Value
-Mysqlx_ssl_finished_accepts	0
-0 rows affected
-RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
-Variable_name	Value
-Mysqlx_ssl_cipher	DHE-RSA-AES256-SHA
-0 rows affected
+# X.2
+Verify ["SELECT USER() as column_user" returns in "column_user" column, following value x_root@localhost]
+Verify ["SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id()" returns in "CONNECTION_TYPE" column, following value SSL/TLS]
+Verify [Status variable "Mysqlx_ssl_version" needs to have a value of TLSv1]
+Verify [Status variable "Mysqlx_ssl_cipher" needs to have a value of DHE-RSA-AES256-SHA]
+Verify [Status variable "Mysqlx_ssl_accepts" needs to have a value of 0]
+Verify [Status variable "Mysqlx_ssl_finished_accepts" needs to have a value of 0]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 SET GLOBAL require_secure_transport:=0;
-DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,
-user4_mysqlx@localhost, user5_mysqlx@localhost, user6_mysqlx@localhost,
-user7_mysqlx@localhost;
+
+
+## Cleanup
+DROP USER user1_mysqlx@localhost;
+DROP USER user2_mysqlx@localhost;
+DROP USER user3_mysqlx@localhost;
+DROP USER user4_mysqlx@localhost;
+DROP USER user5_mysqlx@localhost;
+DROP USER user6_mysqlx@localhost;
+DROP USER user7_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;

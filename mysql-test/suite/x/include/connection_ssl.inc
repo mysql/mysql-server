@@ -1,8 +1,31 @@
-## XPLUGIN: Following test cases for mysqlx plugin SSL connection
-#           and status variables testing.
-# Modified : 19-08-2015 Lalit Choudhary
+## Script connection_ssl.inc
+#
+# Extracted test logic form 'connection_(wolf|open)ssl.test' and changed to
+# a parametric test.
+#
+# Arguments:
+#
+#   $INCREMENT  - defines if SSL status variables will be incremented
+#   $USE_SOCKET - defines if the test should use UNIX socket (must be set to
+#                 MYSQLXTEST argument setting unix socket or must be empty)
+#   $USER_AUTH_PLUGIN - defines MySQL Servers account types that is going to
+#                 be tested
+#   $ERROR_IF_CHANNEL_UNSECURE - defined expected error message for MYSQLXTEST
+#                 connection when verifying the "require_secure_transport"
+#                 system variable.
+#
+# Usage:
+#
+# --let $INCREMENT=0|1
+# --let $USER_AUTH_PLUGIN=mysql_native_password|sha256_password|caching_sha2_password
+# --let $ERROR_IF_CHANNEL_UNSECURE=EXPECTED_ERROR_MESSAGE
+# --let $USE_SOCKET=UNIX_SOCKET_CONFIGURATION
+# --source connection_ssl.inc
+#
 
---echo Preamble
+--echo
+--echo
+--echo ## Preamble
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
@@ -15,25 +38,25 @@ call mtr.add_suppression("Maximum number of authentication attempts reached");
 -->import ssl.macro
 Mysqlx.Connection.CapabilitiesGet {
 }
-
 -->recv capabilities[0]
 
 -->callmacro Enable_ssl_on_xprotocol_and_transmision_layer
--->echo Enable SSL
+-->echo # SSL Enabled
 
 Mysqlx.Connection.CapabilitiesGet {
 }
-
 -->recv capabilities[0]
+
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
--->echo setting read/write  tls param with possible invalid data types V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING types instead of Bool
+-->echo # setting read/write tls param with possible invalid data types:
+-->echo # V_SINT,V_UINT ,V_NULL,V_OCTETS ,V_DOUBLE,V_FLOAT,V_STRING
 Mysqlx.Connection.CapabilitiesGet {
 }
-
 -->recv capabilities[0]
 
+-->echo # Checking CapSet TLS to bool 0
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -48,9 +71,9 @@ Mysqlx.Connection.CapabilitiesSet {
     }
   }
 }
+-->recverror ER_X_CAPABILITIES_PREPARE_FAILED
 
--->recv
-
+-->echo # CapSet TLS to null
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -64,8 +87,9 @@ Mysqlx.Connection.CapabilitiesSet {
     }
  }
 }
--->recv
+-->recverror ER_X_CAPABILITIES_PREPARE_FAILED
 
+-->echo # CapSet TLS to empty octet
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -79,8 +103,9 @@ Mysqlx.Connection.CapabilitiesSet {
     }
   }
 }
--->recv
+-->recverror ER_X_CAPABILITIES_PREPARE_FAILED
 
+-->echo # CapSet TLS to empty uint
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -94,8 +119,9 @@ Mysqlx.Connection.CapabilitiesSet {
     }
   }
 }
--->recv
+-->recverror ER_X_CAPABILITIES_PREPARE_FAILED
 
+-->echo # CapSet TLS to empty sint
 Mysqlx.Connection.CapabilitiesSet {
   capabilities {
     capabilities {
@@ -109,27 +135,76 @@ Mysqlx.Connection.CapabilitiesSet {
     }
   }
 }
--->recv
+-->recverror ER_X_CAPABILITIES_PREPARE_FAILED
 EOF
 
 
+--write_file $MYSQL_TMP_DIR/verify-ssl-connection-info.tmp
+-->import assert_select.macro
+-->import assert_status_variable.macro
 
-## Test starts here
+callmacro Assert_select
+	column_user
+	%OPTION_CLIENT_USER%@localhost
+	SELECT USER() as column_user;
 
+callmacro Assert_select
+	CONNECTION_TYPE
+	SSL/TLS
+	SELECT CONNECTION_TYPE FROM performance_schema.threads WHERE processlist_id = connection_id();
 
+callmacro Assert_status_variable
+	Mysqlx_ssl_version
+	%OPTION_TLS_VERSION%;
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
--->sql
-SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
-SELECT USER();
-# Bug #21690095: Mysqlx_ssl_version status variable showing different version on PB2.
-# Tetscase has to be enabled when the bug is fixed.
-SHOW STATUS LIKE 'Mysqlx_ssl_version';
-SHOW STATUS LIKE 'Mysqlx_ssl_accepts';
-SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts';
-SHOW STATUS LIKE 'Mysqlx_ssl_cipher';
--->endsql
+# Use either option with which mysqlxtest was started or the default one: DHE-RSA-AES256-SHA
+-->stmtsql SELECT IF(""="%OPTION_SSL_CIPHER%","DHE-RSA-AES256-SHA","%OPTION_SSL_CIPHER%") as Value;
+-->recvtovar %EXPECTED_SSL_CIPHER% Value
+
+callmacro Assert_status_variable
+	Mysqlx_ssl_cipher
+	%EXPECTED_SSL_CIPHER%;
+
+callmacro Assert_status_variable
+	Mysqlx_ssl_accepts
+	%VAR_SSL_ACCEPTS%;
+
+callmacro Assert_status_variable
+	Mysqlx_ssl_finished_accepts
+	%VAR_SSL_ACCEPTS%;
 EOF
+
+--write_file $MYSQL_TMP_DIR/verify-non-ssl-connection-info.tmp
+-->import assert_select.macro
+-->import assert_status_variable.macro
+
+callmacro Assert_select
+	column_user
+	%OPTION_CLIENT_USER%@localhost
+	SELECT USER() as column_user;
+
+callmacro Assert_select
+	is_non_ssl_con
+	1
+	SELECT CONNECTION_TYPE in ("TCP/IP", "Socket") as is_non_ssl_con FROM performance_schema.threads WHERE processlist_id = connection_id();
+
+callmacro Assert_status_variable
+	Mysqlx_ssl_version
+	;
+
+callmacro Assert_status_variable
+	Mysqlx_ssl_cipher
+	;
+
+callmacro Assert_status_variable
+	Mysqlx_ssl_accepts
+	%VAR_SSL_ACCEPTS%;
+
+callmacro Assert_status_variable
+	Mysqlx_ssl_finished_accepts
+	%VAR_SSL_ACCEPTS%;
+EOF
+
 
 
 # Using "connect-expired-password" Option to allow expired password.
@@ -164,7 +239,7 @@ eval CREATE USER user2_mysqlx@localhost
 
 eval CREATE USER user3_mysqlx@localhost
             IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'auth_string3'
-            REQUIRE CIPHER "DHE-RSA-AES256-SHA" AND
+            REQUIRE CIPHER "AES256-SHA" AND
             SUBJECT "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client"
             ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
             PASSWORD EXPIRE NEVER;
@@ -179,8 +254,6 @@ eval CREATE USER user6_mysqlx@localhost
             IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'dwh@#ghd'
             REQUIRE x509;
 
-# openssl ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:SRP-DSS-AES-256-CBC-SHA:SRP-RSA-AES-256-CBC-SHA:SRP-AES-256-CBC-SHA:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-CAMELLIA256-SHA:DHE-DSS-CAMELLIA256-SHA:ECDH-RSA-AES256-GCM-SHA384:ECDH-ECDSA-AES256-GCM-SHA384:ECDH-RSA-AES256-SHA384:ECDH-ECDSA-AES256-SHA384:ECDH-RSA-AES256-SHA:ECDH-ECDSA-AES256-SHA:AES256-GCM-SHA384:AES256-SHA256:AES256-SHA:CAMELLIA256-SHA:PSK-AES256-CBC-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:SRP-DSS-3DES-EDE-CBC-SHA:SRP-RSA-3DES-EDE-CBC-SHA:SRP-3DES-EDE-CBC-SHA:EDH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:ECDH-RSA-DES-CBC3-SHA:ECDH-ECDSA-DES-CBC3-SHA:DES-CBC3-SHA:PSK-3DES-EDE-CBC-SHA:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA
-# yassl   DHE-RSA-AES256-SHA:AES256-SHA:DHE-RSA-AES128-SHA:AES128-SHA:AES256-RMD:AES128-RMD:DES-CBC3-RMD:DHE-RSA-AES256-RMD:DHE-RSA-AES128-RMD:DHE-RSA-DES-CBC3-RMD:RC4-SHA:RC4-MD5:DES-CBC3-SHA:DES-CBC-SHA:EDH-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC-SHA
 
 eval CREATE USER user7_mysqlx@localhost
             IDENTIFIED WITH $USER_AUTH_PLUGIN BY ''
@@ -194,93 +267,315 @@ GRANT ALL ON *.* TO user5_mysqlx@localhost;
 GRANT ALL ON *.* TO user6_mysqlx@localhost;
 GRANT ALL ON *.* TO user7_mysqlx@localhost;
 
+--let $SSL_CONNECTION_MADE=0
+--let $CLIENT_SSL_KEY=--ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem
+--let $CLIENT_SSL_CERT=--ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem
+--let $CLIENT_SSL_CA= --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem
 
---let $CLIENT_KEY_CERT= --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem
---let $CLIENT_CA_CERT= --ssl-ca=$MYSQL_TEST_DIR/std_data/cacert.pem
---let $CLIENT_CIPHER= --ssl-cipher='DHE-RSA-AES256-SHA'
---let $CLIENT_TLS= --tls-version=TLSv1
---let $CONNECTION_FILE= --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+let $MYSQLXTEST=$MYSQLXTEST $USE_SOCKET;
+let $MYSQLXTEST_VERIFY_SSL=
+   $MYSQLXTEST
+	--tls-version=TLSv1
+	--file=$MYSQL_TMP_DIR/verify-ssl-connection-info.tmp
+	--ssl-mode=REQUIRED
+	--quiet;
+let $MYSQLXTEST_VERIFY_NON_SSL=
+  $MYSQLXTEST
+	--file=$MYSQL_TMP_DIR/verify-non-ssl-connection-info.tmp
+	--ssl-mode=DISABLED
+	--quiet;
 
---exec $MYSQLXTEST $USE_SOCKET -u x_root --password='' -h127.0.0.1 --no-auth  $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp 2>&1
+--echo
+--echo
+--echo ## I. Verify handling of SSL with normal account ($USER_AUTH_PLUGIN)
+--echo #
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user1_mysqlx --password='auth_string1'
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
-##setting tls caps with ssl connection
---exec $MYSQLXTEST $USE_SOCKET -u x_root --password='' -h127.0.0.1 --no-auth $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
 
-##setting tls caps with non-ssl connection
---exec $MYSQLXTEST $USE_SOCKET -u x_root --password='' -h127.0.0.1 --no-auth --file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1
+--echo
+--echo
+--echo ## II. Verify handling of SSL with super account and XProtocol message
+--echo ##     CapabilitySet (without SSL options on it)
+--echo #
+--echo # 1. Try to set "tls" capability with invalid data (no-ssl connection)
+--echo # 2. Try to set "tls" capability with valid data (ssl connection)
+--echo #
+--echo # II.1
+exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1
+	--no-auth
+	--file=$MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp 2>&1;
 
---echo ## SSL connection testing
+--echo # II.2
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1
+	--no-auth --ssl-mode=REQUIRED
+	--file=$MYSQL_TMP_DIR/mysqlx-enable-ssl.tmp 2>&1;
 
-# Bug#21619518 -- FIXED
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user1_mysqlx --password='auth_string1' $CLIENT_TLS $CLIENT_CIPHER $CONNECTION_FILE 2>&1
 
-# Try connecting with Expired password using user2_mysqlx user.
---let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\)
+--echo
+--echo
+--echo ## III. Verify handling of expired password with user2_mysqlx account ($USER_AUTH_PLUGIN)
+--echo #
+--echo # 1. When client doesn't support handling of expired password,
+--echo #    then connection must be rejected
+--echo # 2. When client support expired password, then he must be able
+--echo #    to alter password
+--echo # 3. Verify that after the alter password, account can be used
+--echo #    without any additional support for expired password on the client
+--echo # 4. When client support expired password, then he must be able
+--echo #    to set the password
+--echo # 5. Verify that after the set password, account can be used
+--echo #    without any additional support for expired password on the client
+--echo #
+--echo # III.1
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user2_mysqlx --password='auth_string2' $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+exec $MYSQLXTEST_VERIFY_SSL -u user2_mysqlx --password='auth_string2' --plain-auth 2>&1;
 
-# RESET PASSWORD FOR MYSQLXTEST CONNECT-EXPIRED-PASSWORD WITH SSL OPTIONS.
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user2_mysqlx --password='auth_string2' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp 2>&1
+--echo # III.2
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST -u user2_mysqlx --password='auth_string2'
+	--connect-expired-password --ssl-mode=REQUIRED 
+	--file=$MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp 2>&1;
+
+--echo # III.3
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user2_mysqlx --password='alter-new-auth'
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
+
+--echo # III.4
 ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user2_mysqlx --password='alter-new-auth' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST -u user2_mysqlx --password='alter-new-auth'
+	--connect-expired-password --ssl-mode=REQUIRED
+	--file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1;
 
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user2_mysqlx --password='set-new-auth' --connect-expired-password $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--echo # III.5
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user2_mysqlx --password='set-new-auth'
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user3_mysqlx  --password='auth_string3'  $CLIENT_CIPHER $CLIENT_TLS $CLIENT_CA_CERT $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
 
---echo Testing conenction for ACCOUNT LOCK user.
---let $expected_error_msg=  Account is locked. \(code 1045\)
+--echo
+--echo
+--echo ## IV. Verify handling of account that has requires concrete cipher, signed cert
+--echo ##     ($USER_AUTH_PLUGIN)
+--echo #
+--echo # 1. Verify that user can connect when it has allowed cipher and matching cert
+--echo # 2. Verify that user can't connect when it has allowed cipher and non-matching cert
+--echo # 3. Verify that user can't connect when it doesn't use SSL
+--echo # 4. Verify that user can't connect when it use basic SSL configuration
+--echo # 5. Verify that user can't connect when it has allowed cipher and its without a cert
+--echo #
+--echo # IV.1
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3'
+	--ssl-cipher='AES256-SHA' $CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
+
+--echo # IV.2
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current user certificate subject is not valid. \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user4_mysqlx --password='' $CLIENT_TLS $CLIENT_CIPHER $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
+exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-auth
+	--ssl-cipher='AES256-SHA' --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem 2>&1;
 
---echo Unlocking user account.
+--echo # IV.3
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
+--source ../include/mysqlxtest_expected_error.inc
+exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-auth 2>&1;
+
+--echo # IV.4
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
+--source ../include/mysqlxtest_expected_error.inc
+exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-auth 2>&1;
+
+--echo # IV.5
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
+--source ../include/mysqlxtest_expected_error.inc
+exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-auth
+	--ssl-cipher='AES256-SHA' 2>&1;
+
+
+--echo
+--echo
+--echo ## V. Verify handling of locked account ($USER_AUTH_PLUGIN)
+--echo #
+--echo # 1. Verify that locked account can't connect
+--echo # 2. Unlock the account and verify that it can connect
+--echo #
+--echo # V.1
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Account is locked. \(code 1045\);
+--source ../include/mysqlxtest_expected_error.inc
+exec $MYSQLXTEST_VERIFY_SSL -u user4_mysqlx --password=''
+	$CLIENT_SSL_KEY $CLIENT_SSL_CERT 2>&1;
+
+--echo # V.2
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user4_mysqlx --password='' $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+exec $MYSQLXTEST_VERIFY_SSL -u user4_mysqlx --password=''
+	$CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user5_mysqlx --password='auth_string' $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
 
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user5_mysqlx --password='auth_string' $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--echo
+--echo
+--echo ## VI. Verify handling of account that was marked as SSL required ($USER_AUTH_PLUGIN)
+--echo #
+--echo # 1. Verify connection with basic SSL configuration
+--echo # 2. Verify connection with SSL key & cert
+--echo # 3. Verify connection with SSL ca
+--echo #
+--echo # VI.1
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user5_mysqlx --password='auth_string'
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user6_mysqlx --password='dwh@#ghd' $CLIENT_CA_CERT $CLIENT_CIPHER $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--echo # VI.2
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user5_mysqlx --password='auth_string'
+	$CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
---let $expected_error_msg=  Current account requires TLS to be activate. \(code 1045\)
+--echo # VI.3
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user5_mysqlx --password='auth_string'
+	$CLIENT_SSL_CA
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
+
+
+--echo
+--echo
+--echo ## VII. Verify handling of account that was marked as SSL required with signed cert
+--echo ##      ($USER_AUTH_PLUGIN)
+--echo #
+--echo # 1. Verify connection with signed cert
+--echo # 2. Verify that connection is rejected when SSL is disabled
+--echo # 3. Verify that connection is rejected when CA is set
+--echo # 4. Verify that connection is rejected when using basic SSL configuration
+--echo #
+--echo # VII.1
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user6_mysqlx --password='dwh@#ghd' --plain-auth
+	$CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
+
+--echo # VII.2
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user6_mysqlx --password='dwh@#ghd' $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+exec $MYSQLXTEST_VERIFY_NON_SSL -u user6_mysqlx --password='dwh@#ghd' 2>&1 --cached-auth;
 
---let $expected_error_msg=  Current account requires TLS to be activate. \(code 1045\)
---let $expected_error_extra= /in main, line 0:ERROR: (Invalid user or password \(code 1045\))/Application terminated with expected error: \1/
+--echo # VII.3
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST $USE_SOCKET -u user7_mysqlx $CLIENT_TLS $CONNECTION_FILE 2>&1
+exec $MYSQLXTEST_VERIFY_SSL -u user6_mysqlx --password='dwh@#ghd' --cached-auth
+	$CLIENT_SSL_CA 2>&1;
 
---let $expected_error_msg= Current user cipher isn't allowed. \(code 1045\)
+--echo # VII.4
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST $USE_SOCKET --cached-auth --mysql41-auth --plain-auth -u user7_mysqlx $CLIENT_CIPHER $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+exec $MYSQLXTEST_VERIFY_SSL -u user6_mysqlx --password='dwh@#ghd' --plain-auth 2>&1;
 
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u user7_mysqlx --ssl-cipher="AES256-SHA"         $CLIENT_CA_CERT $CLIENT_KEY_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+--echo
+--echo
+--echo ## VIII. Verify handling of account that was marked that requires concrete SSL cipher
+--echo ##       ($USER_AUTH_PLUGIN)
+--echo #
+--echo # 1. Verify connection with concrete cipher and signed cert
+--echo # 2. Verify that connection is rejected with concrete cipher and without a cert
+--echo # 3. Verify that connection is rejected when SSL is disabled
+--echo # 4. Verify that connection is rejected with basic SSL configuration
+--echo # 5. Verify that connection is rejected with wrong cipher and signed cert
+--echo #
+--echo # VIII.1
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx
+	--ssl-cipher="AES256-SHA" $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
---echo Cert needed
---let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\)
+--echo # VIII.2
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST $USE_SOCKET --cached-auth --mysql41-auth --plain-auth -u user7_mysqlx --ssl-cipher="AES256-SHA"         $CLIENT_CA_CERT $CLIENT_TLS $CONNECTION_FILE 2>&1
+exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx --cached-auth
+  --ssl-cipher="AES256-SHA" 2>&1;
 
---replace_regex /4294967295/-1/ /18446744073709551615/-1/
+--echo # VIII.3
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
+let $expected_error_extra= /in main, line 0:ERROR: (Invalid user or password \(code 1045\))/Application terminated with expected error: \1/;
+--source ../include/mysqlxtest_expected_error.inc
+exec $MYSQLXTEST_VERIFY_NON_SSL -u user7_mysqlx --cached-auth 2>&1;
+
+--echo # VIII.4
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
+let $expected_error_extra= /in main, line 0:ERROR: (Invalid user or password \(code 1045\))/Application terminated with expected error: \1/;
+--source ../include/mysqlxtest_expected_error.inc
+exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx --plain-auth 2>&1;
+
+--echo # VIII.5
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+let $expected_error_msg= Current user cipher isn.t allowed. \(code 1045\);
+--source ../include/mysqlxtest_expected_error.inc
+exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx --cached-auth
+	--ssl-cipher='DHE-RSA-AES256-SHA' $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT 2>&1;
+
+--echo
+--echo
+--echo ## IX. Verify X Plugins global and session status variables ($USER_AUTH_PLUGIN)
+--echo #
+--echo # 1. Verify global SSL setup
+--echo # 2. Verify session SSL setup
+--echo #
+--echo # IX.1
+replace_regex /4294967295/-1/ /18446744073709551615/-1/;
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 
---replace_regex /4294967295/-1/ /18446744073709551615/-1/
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -u x_root --ssl-cipher="AES256-SHA" $CLIENT_CA_CERT $CLIENT_KEY_CERT --file=$MYSQL_TMP_DIR/mysqlx-status.tmp 2>&1
+--echo # IX.2
+replace_regex /4294967295/-1/ /18446744073709551615/-1/;
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST -u x_root
+	--ssl-cipher="AES256-SHA" $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	--file=$MYSQL_TMP_DIR/mysqlx-status.tmp 2>&1;
 
 
-# Lets confirm that Mysqlx plugin can't use TCP-IP connections without SSL as secure one
+--echo
+--echo
+--echo ## X. Lets confirm that Mysqlx plugin validates the connection_type vs 'require_secure_transport'
+--echo ##    system variable ($USER_AUTH_PLUGIN)
+--echo #
+--echo # 1. Connection without SSL (fails on TCP, it works on UNIX socket)
+--echo # 2. Connection with SSL (always must be successful)
+--echo #
+--echo # X.1
 SET GLOBAL require_secure_transport:=1;
---let $expected_error_msg= $ERROR_IF_CHANNEL_UNSECURE
+let $expected_error_msg= $ERROR_IF_CHANNEL_UNSECURE;
 --source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST $USE_SOCKET -ux_root --password='' $CONNECTION_FILE 2>&1
---exec $MYSQLXTEST $USE_SOCKET --plain-auth -ux_root --password='' $CLIENT_TLS $CLIENT_CA_CERT $CLIENT_KEY_CERT $CONNECTION_FILE 2>&1
+exec $MYSQLXTEST_VERIFY_NON_SSL -ux_root --password=''
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
+
+--echo # X.2
+expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
+exec $MYSQLXTEST_VERIFY_SSL -ux_root --password=''
+	$CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT
+	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 SET GLOBAL require_secure_transport:=0;
 
 
-# Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+--echo
+--echo
+--echo ## Cleanup
+--remove_file $MYSQL_TMP_DIR/verify-ssl-connection-info.tmp
+--remove_file $MYSQL_TMP_DIR/verify-non-ssl-connection-info.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-set-pwd.tmp
 --remove_file $MYSQL_TMP_DIR/mysqlx-setcapabilities-tls-invalid.tmp
@@ -289,9 +584,13 @@ SET GLOBAL require_secure_transport:=0;
 
 --source include/xplugin_drop_user.inc
 
-DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,
-          user4_mysqlx@localhost, user5_mysqlx@localhost, user6_mysqlx@localhost,
-          user7_mysqlx@localhost;
+DROP USER user1_mysqlx@localhost;
+DROP USER user2_mysqlx@localhost;
+DROP USER user3_mysqlx@localhost;
+DROP USER user4_mysqlx@localhost;
+DROP USER user5_mysqlx@localhost;
+DROP USER user6_mysqlx@localhost;
+DROP USER user7_mysqlx@localhost;
 
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
 
