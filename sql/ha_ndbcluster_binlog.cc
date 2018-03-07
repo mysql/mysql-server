@@ -831,6 +831,15 @@ migrate_table_with_old_extra_metadata(THD *thd, Ndb *ndb,
 
   // Install table in DD
   Ndb_dd_client dd_client(thd);
+
+  // First acquire exclusive MDL lock on schema and table
+  if (!dd_client.mdl_locks_acquire_exclusive(schema_name, table_name))
+  {
+    ndb_log_error("Failed to acquire MDL lock on table '%s.%s'",
+                  schema_name, table_name);
+    return false;
+  }
+
   const bool migrate_result=
              dd_client.migrate_table(schema_name, table_name, frm_data,
                                      unpacked_len, force_overwrite);
