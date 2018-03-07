@@ -1164,23 +1164,28 @@ bool update_status(atrt_config &config, int types, bool fail_on_missing) {
 }
 
 int check_ndb_or_servers_failures(atrt_config &config) {
-  int result = 0;
+  int failed_processes = 0;
   const int types = p_ndb | p_servers;
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
-    if ((types & proc.m_type) != 0) {
-      if (!(proc.m_proc.m_status == "running" ||
-          IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0))) {
-        g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
-                          proc.m_index, proc.m_host->m_hostname.c_str());
-        if (p_ndb & proc.m_type)
-          result = ERR_NDB_FAILED;
-        else if (p_servers & proc.m_type)
-          result = ERR_SERVERS_FAILED;
-      }
+    bool skip = IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0);
+    bool isRunning = proc.m_proc.m_status == "running";
+    if ((types & proc.m_type) != 0 && !isRunning && !skip) {
+      g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
+                         proc.m_index, proc.m_host->m_hostname.c_str());
+      failed_processes |= proc.m_type;
     }
   }
-  return result;
+  if ((failed_processes & p_ndb) && (failed_processes & p_servers)) {
+    return ERR_NDB_AND_SERVERS_FAILED;
+  }
+  if ((failed_processes & p_ndb) != 0) {
+    return ERR_NDB_FAILED;
+  }
+  if((failed_processes & p_servers) != 0) {
+    return ERR_SERVERS_FAILED;
+  }
+  return 0;
 }
 
 bool is_client_running(atrt_config &config) {
