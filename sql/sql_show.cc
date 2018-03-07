@@ -490,7 +490,7 @@ find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
         if (my_wildcmp(files_charset_info, uname, uname + file_name_len, wild,
                        wild + wild_length, wild_prefix, wild_one, wild_many))
           continue;
-      } else if (wild_compare(uname, wild, 0))
+      } else if (wild_compare(uname, file_name_len, wild, wild_length, 0))
         continue;
     }
 
@@ -3096,7 +3096,9 @@ static bool add_schema_table(THD *thd, plugin_ref plugin, void *p_data) {
     if (lower_case_table_names) {
       if (wild_case_compare(files_charset_info, schema_table->table_name, wild))
         DBUG_RETURN(0);
-    } else if (wild_compare(schema_table->table_name, wild, 0))
+    } else if (wild_compare(schema_table->table_name,
+                            strlen(schema_table->table_name), wild,
+                            strlen(wild), 0))
       DBUG_RETURN(0);
   }
 
@@ -3122,7 +3124,9 @@ static int schema_tables_add(THD *thd, List<LEX_STRING> *files,
         if (wild_case_compare(files_charset_info, tmp_schema_table->table_name,
                               wild))
           continue;
-      } else if (wild_compare(tmp_schema_table->table_name, wild, 0))
+      } else if (wild_compare(tmp_schema_table->table_name,
+                              strlen(tmp_schema_table->table_name), wild,
+                              strlen(wild), 0))
         continue;
     }
     if ((file_name = thd->make_lex_string(
@@ -3246,8 +3250,9 @@ static int make_table_name_list(THD *thd, List<LEX_STRING> *table_names,
                              lookup_field_vals->table_value.length,
                          wild_prefix, wild_one, wild_many))
             continue;
-        } else if (wild_compare(name->c_str(),
-                                lookup_field_vals->table_value.str, 0))
+        } else if (wild_compare(name->c_str(), name->length(),
+                                lookup_field_vals->table_value.str,
+                                lookup_field_vals->table_value.length, 0))
           continue;
       }
 

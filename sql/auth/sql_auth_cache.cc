@@ -247,7 +247,8 @@ bool ACL_HOST_AND_IP::compare_hostname(const char *host_arg,
   return (!hostname ||
           (host_arg &&
            !wild_case_compare(system_charset_info, host_arg, hostname)) ||
-          (ip_arg && !wild_compare(ip_arg, hostname, 0)));
+          (ip_arg && !wild_compare(ip_arg, strlen(ip_arg), hostname,
+                                   strlen(hostname), 0)));
 }
 
 ACL_USER *ACL_USER::copy(MEM_ROOT *root) {
@@ -340,9 +341,12 @@ bool ACL_PROXY_USER::matches(const char *host_arg, const char *user_arg,
   DBUG_RETURN(
       host.compare_hostname(host_arg, ip_arg) &&
       proxied_host.compare_hostname(host_arg, ip_arg) &&
-      (!user || (user_arg && !wild_compare(user_arg, user, true))) &&
+      (!user || (user_arg && !wild_compare(user_arg, strlen(user_arg), user,
+                                           strlen(user), true))) &&
       (any_proxy_user || !proxied_user ||
-       (proxied_user && !wild_compare(proxied_user_arg, proxied_user, true))));
+       (proxied_user &&
+        !wild_compare(proxied_user_arg, strlen(proxied_user_arg), proxied_user,
+                      strlen(proxied_user), true))));
 }
 
 bool ACL_PROXY_USER::pk_equals(ACL_PROXY_USER *grant) {
@@ -1015,7 +1019,8 @@ ulong acl_get(THD *thd, const char *host, const char *ip, const char *user,
   for (ACL_DB *acl_db = acl_dbs->begin(); acl_db != acl_dbs->end(); ++acl_db) {
     if (!acl_db->user || !strcmp(user, acl_db->user)) {
       if (acl_db->host.compare_hostname(host, ip)) {
-        if (!acl_db->db || !wild_compare(db, acl_db->db, db_is_pattern)) {
+        if (!acl_db->db || !wild_compare(db, strlen(db), acl_db->db,
+                                         strlen(acl_db->db), db_is_pattern)) {
           db_access = acl_db->access;
           if (acl_db->host.get_host()) goto exit;  // Fully specified. Take it
           break;                                   /* purecov: tested */
@@ -1185,7 +1190,8 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
            ++acl_db) {
         if (!acl_db->user || (user && user[0] && !strcmp(user, acl_db->user))) {
           if (acl_db->host.compare_hostname(host, ip)) {
-            if (!acl_db->db || (db && !wild_compare(db, acl_db->db, 0))) {
+            if (!acl_db->db || (db && !wild_compare(db, strlen(db), acl_db->db,
+                                                    strlen(acl_db->db), 0))) {
               sctx->cache_current_db_access(acl_db->access);
               break;
             }

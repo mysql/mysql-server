@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,9 @@ const char wild_many = '%';
   used in new code.
 
   @param str input which should be matched against pattern
+  @param strlen length of str in bytes
   @param wildstr pattern with wildcards
+  @param wildlen length of wildstr in bytes
 
   @param str_is_pattern if true the input string is considered to be a
   pattern, meaning that escape sequences in the input are processed as
@@ -64,8 +66,9 @@ const char wild_many = '%';
 
   @return 0 if match, 1 otherwise
 */
-int wild_compare_full(const char *str, const char *wildstr, bool str_is_pattern,
-                      char w_prefix, char w_one, char w_many);
+int wild_compare_full(const char *str, int strlen, const char *wildstr,
+                      int wildlen, bool str_is_pattern, char w_prefix,
+                      char w_one, char w_many);
 
 /**
   Performs wildcard matching, aka globbing, on the input string with
@@ -76,7 +79,9 @@ int wild_compare_full(const char *str, const char *wildstr, bool str_is_pattern,
   used in new code.
 
   @param str input which should be matched against pattern
+  @param strlen length of str in bytes
   @param wildstr pattern with wildcards
+  @param wildlen length of wildstr in bytes
 
   @param str_is_pattern if true the input string is considered to be a
   pattern, meaning that escape sequences in the input are processed as
@@ -84,6 +89,7 @@ int wild_compare_full(const char *str, const char *wildstr, bool str_is_pattern,
 
   @return 0 if match, 1 otherwise
  */
-int wild_compare(const char *str, const char *wildstr, bool str_is_pattern);
+int wild_compare(const char *str, int strlen, const char *wildstr, int wildlen,
+                 bool str_is_pattern);
 
 #endif /* !MF_WCOMP_INCLUDED */

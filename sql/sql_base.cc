@@ -1000,7 +1000,9 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild) {
     /* Skip shares that are being opened */
     if (share->m_open_in_progress) continue;
     if (db && my_strcasecmp(system_charset_info, db, share->db.str)) continue;
-    if (wild && wild_compare(share->table_name.str, wild, 0)) continue;
+    if (wild && wild_compare(share->table_name.str, share->table_name.length,
+                             wild, strlen(wild), 0))
+      continue;
 
     if (!(*start_list = (OPEN_TABLE_LIST *)sql_alloc(
               sizeof(**start_list) + share->table_cache_key.length))) {

@@ -3073,7 +3073,8 @@ static void do_remove_files_wildcard(struct st_command *command) {
     /* if (!MY_S_ISREG(file->mystat->st_mode)) */
     /* MY_S_ISREG does not work here on Windows, just skip directories */
     if (MY_S_ISDIR(file->mystat->st_mode)) continue;
-    if (wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
+    if (wild_compare_full(file->name, strlen(file->name), ds_wild.str,
+                          strlen(ds_wild.str), false, 0, '?', '*'))
       continue;
     /* Not required as the var ds_file_to_remove.length already has the
        length in canonnicalized form */
@@ -3429,7 +3430,8 @@ static void do_copy_files_wildcard(struct st_command *command) {
     if (MY_S_ISDIR(file->mystat->st_mode)) continue;
 
     /* Copy only those files which the pattern matches */
-    if (wild_compare_full(file->name, ds_wild.str, false, 0, '?', '*'))
+    if (wild_compare_full(file->name, strlen(file->name), ds_wild.str,
+                          strlen(ds_wild.str), false, 0, '?', '*'))
       continue;
 
     match_count++;
@@ -3797,7 +3799,8 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
          (file->name[1] == '.' && file->name[2] == '\0')))
       continue; /* . or .. */
     if (ds_wild && ds_wild->length &&
-        wild_compare_full(file->name, ds_wild->str, false, 0, '?', '*'))
+        wild_compare_full(file->name, strlen(file->name), ds_wild->str,
+                          strlen(ds_wild->str), false, 0, '?', '*'))
       continue;
     replace_dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
