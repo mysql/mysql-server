@@ -288,14 +288,6 @@ INCLUDE(mysql_add_executable)
 INCLUDE(mysqlgcs)
 INCLUDE(curl)
 
-# Handle options
-IF(EXISTS ${CMAKE_SOURCE_DIR}/rapid)
-  OPTION(WITH_RAPID
-    "Build additonal code(plugins) that is located in rapid directory" ON)
-ELSE()
-  OPTION(WITH_RAPID
-    "Build additonal code(plugins) that is located in rapid directory" OFF)
-ENDIF()
 OPTION(DISABLE_SHARED 
  "Don't build shared libraries, compile code as position-dependent" OFF)
 IF(DISABLE_SHARED)
@@ -545,8 +537,14 @@ IF(LINK_RANDOMIZE)
   SET(CMAKE_C_ARCHIVE_CREATE_APPEND ${CMAKE_CXX_ARCHIVE_CREATE_APPEND})
 ENDIF()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" OFF)
+IF(LINUX)
+  # May be set to ON in cmake/build_configurations/mysql_release.cmake
+  IF(DEFINED REPRODUCIBLE_BUILD)
+    SET(REPRODUCIBLE_BUILD_DEFAULT ${REPRODUCIBLE_BUILD})
+  ELSE()
+    SET(REPRODUCIBLE_BUILD_DEFAULT OFF)
+  ENDIF()
+  OPTION(REPRODUCIBLE_BUILD "Take extra pains to make build result independent of build location and time" ${REPRODUCIBLE_BUILD_DEFAULT})
 ENDIF()
 IF(REPRODUCIBLE_BUILD)
   SET(DEBUG_PREFIX_FLAGS
@@ -701,10 +699,8 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/include
-  ${CMAKE_CURRENT_BINARY_DIR}/rapid
   ${CMAKE_SOURCE_DIR}
   ${CMAKE_SOURCE_DIR}/include
-  ${CMAKE_SOURCE_DIR}/rapid
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
 
@@ -856,9 +852,6 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
-  IF(WITH_RAPID AND EXISTS ${CMAKE_SOURCE_DIR}/rapid/unittest/gunit)
-    ADD_SUBDIRECTORY(rapid/unittest/gunit)
-  ENDIF()
 ENDIF()
 
 ADD_SUBDIRECTORY(client)
