@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3161,18 +3161,23 @@ NdbIndexScanOperation::setBoundHelperOldApi(OldApiBoundInfo& boundInfo,
     }
   }
 
-  /* Copy data into correct part of RecAttr */
-  assert(byteOffset + valueLen <= maxKeyRecordBytes);
+  if (aValue != NULL)
+  {
+    /* Copy data into correct part of RecAttr */
+    assert(valueLen > 0);
+    assert(byteOffset + valueLen <= maxKeyRecordBytes);
 
-  memcpy(boundInfo.key + byteOffset,
-         aValue, 
-         valueLen);
-
-  /* Set Null bit */
-  bool nullBit=(aValue == NULL);
-
-  boundInfo.key[nullbit_byte_offset]|= 
-    (nullBit) << nullbit_bit_in_byte;
+    memcpy(boundInfo.key + byteOffset,
+           aValue, 
+           valueLen);
+  }
+  else
+  {
+    /* Set Null bit */
+    assert(valueLen == 0);
+    boundInfo.key[nullbit_byte_offset] |= 
+      (1 << nullbit_bit_in_byte);
+  }
 
   return 0;
 }
