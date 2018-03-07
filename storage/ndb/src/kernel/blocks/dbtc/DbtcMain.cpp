@@ -4618,7 +4618,7 @@ void Dbtc::releaseTcCon()
     jam();
     Ptr<TcDefinedTriggerData> trigPtr;
     c_theDefinedTriggers.getPtr(trigPtr, regTcPtr->currentTriggerId);
-    ndbassert(trigPtr.p->refCount);
+    ndbrequire(trigPtr.p->refCount > 0);
     if (trigPtr.p->refCount)
     {
       trigPtr.p->refCount--;
