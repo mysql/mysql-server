@@ -26,6 +26,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include "my_sys.h"
 
 #include "plugin/x/ngs/include/ngs/interface/authentication_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
@@ -196,18 +197,17 @@ void Session::on_auth_success(
 
 void Session::on_auth_failure(
     const Authentication_interface::Response &response) {
-  int error_code = ER_ACCESS_DENIED_ERROR;
-  m_failed_auth_count++;
-
   log_debug("%s.%u: Unsuccessful authentication attempt", m_client.client_id(),
             m_id);
+  m_failed_auth_count++;
+
+  Error_code error_send_back_to_user = get_authentication_access_denied_error();
 
   if (can_forward_error_code_to_client(response.error_code)) {
-    error_code = response.error_code;
+    error_send_back_to_user =
+        ngs::Error(response.error_code, "%s", response.data.c_str());
   }
 
-  auto error_send_back_to_user =
-      ngs::Fatal(error_code, "%s", response.data.c_str());
   error_send_back_to_user.severity =
       can_authenticate_again() ? Error_code::ERROR : Error_code::FATAL;
 
@@ -221,8 +221,27 @@ void Session::on_auth_failure(
   m_auth_handler.reset();
 }
 
+Error_code Session::get_authentication_access_denied_error() const {
+  const auto authentication_info = m_auth_handler->get_authentication_info();
+  const char *is_using_password = authentication_info.m_was_using_password
+                                      ? my_get_err_msg(ER_YES)
+                                      : my_get_err_msg(ER_NO);
+
+  return ngs::SQLError(
+      ER_ACCESS_DENIED_ERROR, authentication_info.m_tried_account_name.c_str(),
+      client().client_hostname_or_address(), is_using_password);
+}
+
 bool Session::can_forward_error_code_to_client(const int error_code) {
-  return ER_DBACCESS_DENIED_ERROR == error_code;
+  // Lets ignore ER_ACCESS_DENIED_ERROR it is used by the plugin to
+  // return general authentication problem. It may have not too
+  // accurate error message.
+  const static std::set<int> allowed_error_codes{
+      ER_DBACCESS_DENIED_ERROR, ER_MUST_CHANGE_PASSWORD_LOGIN,
+      ER_ACCOUNT_HAS_BEEN_LOCKED, ER_SECURE_TRANSPORT_REQUIRED,
+      ER_SERVER_OFFLINE_MODE};
+
+  return 0 < allowed_error_codes.count(error_code);
 }
 
 bool Session::can_authenticate_again() const {

@@ -81,8 +81,13 @@ class Sasl_challenge_response_auth : public ngs::Authentication_interface {
       const std::string &user, const std::string &host,
       const std::string &passwd) const override;
 
+  ngs::Authentication_info get_authentication_info() const override {
+    return m_auth_info;
+  };
+
  private:
   Account_verification_handler_ptr m_verification_handler;
+  ngs::Authentication_info m_auth_info;
 
   enum State { S_starting, S_waiting_response, S_done, S_error } m_state;
 };
@@ -123,6 +128,8 @@ template <ngs::Account_verification_interface::Account_type Account_type,
 ngs::Authentication_interface::Response
 Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_start(
     const std::string &, const std::string &, const std::string &) {
+  m_auth_info.reset();
+
   if (m_state != S_starting) {
     m_state = S_error;
     return {Error, ER_NET_PACKETS_OUT_OF_ORDER};
@@ -158,7 +165,8 @@ Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_continue(
   }
 
   m_state = S_done;
-  if (ngs::Error_code error = m_verification_handler->authenticate(*this, data))
+  if (ngs::Error_code error =
+          m_verification_handler->authenticate(*this, &m_auth_info, data))
     return {Failed, error.error, error.message};
   return {Succeeded};
 }
@@ -177,7 +185,8 @@ template <ngs::Account_verification_interface::Account_type Account_type,
 ngs::Error_code Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::
     authenticate_account(const std::string &user, const std::string &host,
                          const std::string &passwd) const {
-  return m_verification_handler->verify_account(user, host, passwd);
+  return m_verification_handler->verify_account(user, host, passwd,
+                                                &m_auth_info);
 }
 
 }  // namespace xpl

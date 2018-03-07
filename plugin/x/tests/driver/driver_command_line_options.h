@@ -59,6 +59,9 @@ class Driver_command_line_options : public Command_line_options {
   std::string m_uri;
   bool m_daemon;
   std::string m_sql;
+  int m_expected_error_code{0};
+
+  bool is_expected_error_set() const { return 0 != m_expected_error_code; }
 
  private:
   void set_variable_option(const std::string &set_expression);

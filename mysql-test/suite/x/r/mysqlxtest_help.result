@@ -61,6 +61,7 @@ Options:
 --quiet               Don't print out messages sent
 -vVARIABLE_NAME=VALUE Set variable VARIABLE_NAME from command line
 --fatal-errors=<0|1>  Mysqlxtest is started with ignoring or stopping on fatal error (default: 1)
+--expect-error=<error_code> Default connection must fail with specified code (default: OFF)
 -B, --bindump         Dump binary representation of messages sent, in format suitable for
 --trace-protocol      Enable X Protocol tracing
 --verbose             Enable extra verbose messages

@@ -20,5 +20,3 @@ call mtr.add_suppression("Plugin mysqlx reported: '[-0-9]*: Error during SSL han
 
 --let $USER_AUTH_PLUGIN= 'sha256_password'
 --source ../include/connection_tls_version.inc
-
-

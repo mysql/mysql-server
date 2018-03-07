@@ -83,6 +83,7 @@ class Client : public Client_interface {
 
   const char *client_address() const override { return m_client_addr.c_str(); }
   const char *client_hostname() const override { return m_client_host.c_str(); }
+  const char *client_hostname_or_address() const override;
   const char *client_id() const override { return m_id; }
   Client_id client_id_num() const override { return m_client_id; }
   int client_port() const override { return m_client_port; }

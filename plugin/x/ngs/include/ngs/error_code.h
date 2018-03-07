@@ -35,6 +35,7 @@
 #include <cstdarg>
 
 #include "my_compiler.h"
+#include "my_sys.h"
 
 namespace ngs {
 struct Error_code {
@@ -82,8 +83,6 @@ inline Error_code::Error_code(int e, const std::string &state, Severity sev,
 
 inline Error_code Success(const char *msg, ...)
     MY_ATTRIBUTE((format(printf, 1, 2)));
-inline Error_code SQLError(int e, const std::string &sqlstate, const char *msg,
-                           ...) MY_ATTRIBUTE((format(printf, 3, 4)));
 inline Error_code Error(int e, const char *msg, ...)
     MY_ATTRIBUTE((format(printf, 2, 3)));
 inline Error_code Fatal(int e, const char *msg, ...)
@@ -99,13 +98,23 @@ inline Error_code Success(const char *msg, ...) {
 
 inline Error_code Success() { return Error_code(); }
 
-inline Error_code SQLError(int e, const std::string &sqlstate, const char *msg,
-                           ...) {
+inline Error_code SQLError(const int error_code, ...) {
   va_list ap;
-  va_start(ap, msg);
-  Error_code tmp(Error_code(e, sqlstate, Error_code::ERROR, msg, ap));
+  va_start(ap, error_code);
+  const auto format = my_get_err_msg(error_code);
+
+  Error_code tmp(error_code, "");
+
+  if (nullptr != format)
+    tmp = Error_code(error_code, "HY000", Error_code::ERROR, format, ap);
+
   va_end(ap);
+
   return tmp;
+}
+
+inline Error_code SQLError_access_denied() {
+  return Error_code(ER_ACCESS_DENIED_ERROR, "Invalid user or password");
 }
 
 inline Error_code Error(int e, const char *msg, ...) {

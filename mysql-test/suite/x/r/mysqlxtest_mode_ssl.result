@@ -15,11 +15,11 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
-not ok
+ok
 Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
-not ok
+ok
 Application terminated with expected error: Capability prepare failed for 'tls' (code 5001)
-not ok
+ok
 
 ############################################################
 ## Restart MySQL Server with configured SSL and certificate
@@ -58,7 +58,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
-not ok
+ok
 
 ############################################################
 ## Restart MySQL Server with configured SSL and certificate
@@ -87,11 +87,11 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: SSL certificate validation failure (code 2026)
-not ok
+ok
 [Verify that SSL_cert and SSL_mode=required, makes 'mysqlx_ssl_active' status variable set to ON]
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 Application terminated with expected error: TLS was marked that requires "CA", but it was not configured (code 2503)
-not ok
+ok

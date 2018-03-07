@@ -65,7 +65,7 @@ EOF
 EOF
 
 --write_file $MYSQL_TMP_DIR/mysqlx-connection_locked_user.tmp
--->expecterror ER_ACCESS_DENIED_ERROR
+-->expecterror ER_ACCOUNT_HAS_BEEN_LOCKED
 -->newsession bla	abc	abc
 EOF
 
@@ -112,16 +112,10 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try to login with bogus accounts that could match a valid account by collation
 --echo #
-let $expected_error_msg= Invalid user or password \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST -uX_root --password=''
-  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uX_root --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 
 
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST -u"x_root  " --password=''
-  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u"x_root  " --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -150,9 +144,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # try login with invalid host when mysqx plugin is installed
 --echo #
---replace_regex /No such host is known.+$/Host not found/ /Host not found .+$/Host not found/
---error 1
---exec $MYSQLXTEST -ux_root --password='' -hinvalid -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST --expect-error CR_UNKNOWN_HOST -ux_root --password='' -hinvalid  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1
 
 # replace_regex did consume last character in line, lets put it back
 --echo
@@ -174,9 +166,8 @@ source ../include/connection_test_helpers.inc;
 let $restart_parameters = restart: --skip-mysqlx;
 source include/restart_mysqld.inc;
 
-replace_regex /ERROR.*(No connection could be made because the target machine actively refused it connecting to*| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/;
-error 1;
-exec $MYSQLXTEST -ux_root --password=''
+replace_regex /( *No connection could be made because the target machine actively refused it connecting to*| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/;
+exec $MYSQLXTEST --expect-error CR_CONNECTION_ERROR -ux_root --password=''
   --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
 source ../include/connection_test_helpers.inc;
 
@@ -196,10 +187,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with valid user but incorrect password
 --echo #
-let $expected_error_msg= Invalid user or password \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST -ux_root --password='x_root'
-  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -ux_root --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -210,10 +198,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with user doesn't exists when mysqlx installed
 --echo #
-let $expected_error_msg= Invalid user or password \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST -u rt --password='x_root'
-  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u rt --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -224,11 +209,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with user whose password expired when mysqlx installed
 --echo #
-let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST -u xplugin --password='xplugin'
-  -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+exec $MYSQLXTEST --expect-error ER_MUST_CHANGE_PASSWORD_LOGIN -u xplugin --password='xplugin' --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -239,9 +220,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with user whose account is locked when mysqlx installed
 --echo #
---let $expected_error_msg= Account is locked. \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u abc --password='abc' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_ACCOUNT_HAS_BEEN_LOCKED -u abc --password='abc' --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -252,22 +231,13 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with internal user account and expect account is locked error
 --echo #
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -u'mysql.session' --password='' --sql "SELECT CURRENT_USER()"
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u'mysql.session' --password='' --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()"
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
 let $wait_for_status_value = 5, 6;
 source ../include/wait_for_status_variables.inc;
 source ../include/connection_test_helpers.inc;
-
-##commenting this scenario since multiple plugins can't be loaded in dev environment now
-#--echo #
-#--echo # Try login with mysql_no_login user when mysqlx installed
-#--echo #
-#--error 1
-#--exec $MYSQLXTEST -u noauth --password='' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
 
 --echo #
 --echo # Login with valid user and valid password when mysqlx installed
@@ -355,10 +325,8 @@ source ../include/connection_test_helpers.inc;
 let $restart_parameters = restart: --offline_mode=ON;
 replace_regex /\.dll/.so/;
 source ../include/restart_mysqld_and_wait_for_xplugin.inc;
-let $expected_error_msg= Server works in offline mode. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST -u nonblank --password='nonblank'
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+exec $MYSQLXTEST --expect-error ER_SERVER_OFFLINE_MODE -u nonblank --password='nonblank'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -806,6 +774,7 @@ source ../include/connection_test_helpers.inc;
 --sleep 1
 
 ##ensure proper error for locked account
+#TODO move error handling here
 --exec $MYSQLXTEST -uabc --no-auth --file=$MYSQL_TMP_DIR/mysqlx-connection_locked_user.tmp 2>&1
 --sleep 2
 

@@ -132,6 +132,9 @@ class Mock_authentication_interface : public ngs::Authentication_interface {
   MOCK_CONST_METHOD3(authenticate_account,
                      ngs::Error_code(const std::string &, const std::string &,
                                      const std::string &));
+
+  MOCK_CONST_METHOD0(get_tried_user_name, std::string());
+  MOCK_CONST_METHOD0(get_authentication_info, Authentication_info());
 };
 
 class Mock_account_verification : public ngs::Account_verification_interface {
@@ -210,6 +213,7 @@ class Mock_session : public Session_interface {
   MOCK_CONST_METHOD0(state_before_close, State());
   MOCK_METHOD0(get_status_variables, Session_status_variables &());
   MOCK_METHOD0(client, Client_interface &());
+  MOCK_CONST_METHOD0(client, const Client_interface &());
   MOCK_METHOD0(mark_as_tls_session, void());
   MOCK_CONST_METHOD0(get_thd, THD *());
   MOCK_METHOD0(data_context, Sql_session_interface &());
@@ -259,6 +263,7 @@ class Mock_client : public ngs::Client_interface {
 
   MOCK_CONST_METHOD0(client_address, const char *());
   MOCK_CONST_METHOD0(client_hostname, const char *());
+  MOCK_CONST_METHOD0(client_hostname_or_address, const char *());
   MOCK_METHOD0(connection, ngs::Vio_interface &());
   MOCK_CONST_METHOD0(server, ngs::Server_interface &());
   MOCK_CONST_METHOD0(protocol, ngs::Protocol_encoder_interface &());
@@ -324,8 +329,9 @@ class Mock_account_verification_handler
   Mock_account_verification_handler(xpl::Session *session)
       : xpl::Account_verification_handler(session) {}
 
-  MOCK_CONST_METHOD2(authenticate,
+  MOCK_CONST_METHOD3(authenticate,
                      ngs::Error_code(const ngs::Authentication_interface &,
+                                     ngs::Authentication_info *,
                                      const std::string &));
   MOCK_CONST_METHOD1(
       get_account_verificator,

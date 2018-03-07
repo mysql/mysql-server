@@ -76,7 +76,7 @@ RUN kill @current
 While executing kill @current:
 Got expected error: Query execution was interrupted (code 1317)
 Application terminated with expected error: MySQL server has gone away (code 2006)
-not ok
+ok
 RUN set @current := connection_id()
 
 0 rows affected
@@ -90,7 +90,7 @@ RUN kill @current
 While executing kill @current:
 Got expected error: Query execution was interrupted (code 1317)
 Application terminated with expected error: MySQL server has gone away (code 2006)
-not ok
+ok
 show status like 'Mysqlx_sessions%';
 Variable_name	Value
 Mysqlx_sessions	0

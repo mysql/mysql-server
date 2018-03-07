@@ -38,6 +38,19 @@ class Authentication_interface;
 typedef ngs::Memory_instrumented<Authentication_interface>::Unique_ptr
     Authentication_interface_ptr;
 
+class Authentication_info {
+ public:
+  std::string m_tried_account_name;
+  bool m_was_using_password{false};
+
+  void reset() {
+    m_was_using_password = false;
+    m_tried_account_name.clear();
+  }
+
+  bool is_valid() const { return !m_tried_account_name.empty(); }
+};
+
 class Authentication_interface {
  public:
   enum Status { Ongoing, Succeeded, Failed, Error };
@@ -70,6 +83,8 @@ class Authentication_interface {
   virtual ngs::Error_code authenticate_account(
       const std::string &user, const std::string &host,
       const std::string &passwd) const = 0;
+
+  virtual Authentication_info get_authentication_info() const = 0;
 };
 
 }  // namespace ngs

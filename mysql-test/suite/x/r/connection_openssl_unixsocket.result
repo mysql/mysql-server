@@ -252,8 +252,8 @@ ok
 #    without any additional support for expired password on the client
 #
 # III.1
-Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
-not ok
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1862)
+ok
 # III.2
 NOTICE: Account password expired
 RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
@@ -318,17 +318,17 @@ Mysqlx.Ok {
 }
 ok
 # IV.2
-Application terminated with expected error: Current user certificate subject is not valid. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.5
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## V. Verify handling of locked account ('mysql_native_password')
@@ -337,8 +337,8 @@ not ok
 # 2. Unlock the account and verify that it can connect
 #
 # V.1
-Application terminated with expected error: Account is locked. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user4_mysqlx'@'localhost'. Account is locked. (code 3118)
+ok
 # V.2
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
@@ -414,14 +414,14 @@ Mysqlx.Ok {
 }
 ok
 # VII.2
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VII.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VII.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## VIII. Verify handling of account that was marked that requires concrete SSL cipher
@@ -445,17 +445,17 @@ Mysqlx.Ok {
 }
 ok
 # VIII.2
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.5
-Application terminated with expected error: Current user cipher isn't allowed. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## IX. Verify X Plugins global and session status variables ('mysql_native_password')
@@ -785,8 +785,8 @@ ok
 #    without any additional support for expired password on the client
 #
 # III.1
-Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
-not ok
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1862)
+ok
 # III.2
 NOTICE: Account password expired
 RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
@@ -851,17 +851,17 @@ Mysqlx.Ok {
 }
 ok
 # IV.2
-Application terminated with expected error: Current user certificate subject is not valid. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.5
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## V. Verify handling of locked account ('sha256_password')
@@ -870,8 +870,8 @@ not ok
 # 2. Unlock the account and verify that it can connect
 #
 # V.1
-Application terminated with expected error: Account is locked. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user4_mysqlx'@'localhost'. Account is locked. (code 3118)
+ok
 # V.2
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
@@ -947,14 +947,14 @@ Mysqlx.Ok {
 }
 ok
 # VII.2
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VII.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VII.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## VIII. Verify handling of account that was marked that requires concrete SSL cipher
@@ -978,17 +978,17 @@ Mysqlx.Ok {
 }
 ok
 # VIII.2
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.5
-Application terminated with expected error: Current user cipher isn't allowed. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## IX. Verify X Plugins global and session status variables ('sha256_password')
@@ -1318,8 +1318,8 @@ ok
 #    without any additional support for expired password on the client
 #
 # III.1
-Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
-not ok
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1862)
+ok
 # III.2
 NOTICE: Account password expired
 RUN ALTER USER USER() IDENTIFIED BY 'alter-new-auth'
@@ -1384,17 +1384,17 @@ Mysqlx.Ok {
 }
 ok
 # IV.2
-Application terminated with expected error: Current user certificate subject is not valid. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # IV.5
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## V. Verify handling of locked account ('caching_sha2_password')
@@ -1403,8 +1403,8 @@ not ok
 # 2. Unlock the account and verify that it can connect
 #
 # V.1
-Application terminated with expected error: Account is locked. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user4_mysqlx'@'localhost'. Account is locked. (code 3118)
+ok
 # V.2
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 Verify ["SELECT USER() as column_user" returns in "column_user" column, following value user4_mysqlx@localhost]
@@ -1480,14 +1480,14 @@ Mysqlx.Ok {
 }
 ok
 # VII.2
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VII.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VII.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## VIII. Verify handling of account that was marked that requires concrete SSL cipher
@@ -1511,17 +1511,17 @@ Mysqlx.Ok {
 }
 ok
 # VIII.2
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.3
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.4
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 # VIII.5
-Application terminated with expected error: Current user cipher isn't allowed. (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+ok
 
 
 ## IX. Verify X Plugins global and session status variables ('caching_sha2_password')

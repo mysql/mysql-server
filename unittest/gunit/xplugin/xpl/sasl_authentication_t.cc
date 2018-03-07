@@ -129,7 +129,8 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed, ER_NO_SUCH_USER);
+                  ngs::Authentication_interface::Failed,
+                  ER_ACCESS_DENIED_ERROR);
 }
 
 TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
@@ -140,7 +141,8 @@ TEST_F(ExpectedValuesSaslAuthenticationTestSuite,
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed, ER_NO_SUCH_USER);
+                  ngs::Authentication_interface::Failed,
+                  ER_ACCESS_DENIED_ERROR);
 }
 
 TEST_F(
@@ -154,7 +156,8 @@ TEST_F(
       sut->handle_start("", sasl_login_string, "");
 
   assert_responce(result, "Invalid user or password",
-                  ngs::Authentication_interface::Failed, ER_NO_SUCH_USER);
+                  ngs::Authentication_interface::Failed,
+                  ER_ACCESS_DENIED_ERROR);
 }
 
 TEST_F(ExpectedValuesSaslAuthenticationTestSuite,

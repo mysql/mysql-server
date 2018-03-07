@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@ static Error_entry global_error_names[] = {
     {"<No error>", static_cast<int>(-1), "", NULL, NULL, 0},
     {"ER_SUCCESS", static_cast<int>(0), "Success", NULL, NULL, 0},
 #ifndef IN_DOXYGEN
+#include <mysqlclient_ername.h>
 #include <mysqld_ername.h>
 
 #include "plugin/x/generated/mysqlx_ername.h"
@@ -88,7 +89,7 @@ int try_to_interpret_text_as_error_code(
 }  // namespace
 
 int get_error_code_by_text(const std::string &error_name_or_code) {
-  if ('E' == error_name_or_code.at(0)) {
+  if ('E' == error_name_or_code.at(0) || 'C' == error_name_or_code.at(0)) {
     const mysqlxtest::Error_entry *entry =
         mysqlxtest::get_error_entry_by_name(error_name_or_code);
 

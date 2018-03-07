@@ -43,15 +43,12 @@ ngs::Error_code Sql_user_require::validate(
   else if (ssl_type == SSL_TYPE_SPECIFIC)
     return check_specific(options);
 
-  return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                         "Unknown SSL required option.");
+  return ngs::SQLError_access_denied();
 }
 
 ngs::Error_code Sql_user_require::check_ssl(
     const ngs::Ssl_session_options_interface &options) const {
-  if (!options.active_tls())
-    return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                           "Current account requires TLS to be activate.");
+  if (!options.active_tls()) return ngs::SQLError_access_denied();
 
   return ngs::Error_code();
 }
@@ -63,8 +60,7 @@ ngs::Error_code Sql_user_require::check_x509(
   if ((error = check_ssl(options))) return error;
 
   if (options.ssl_get_verify_result_and_cert() != X509_V_OK)
-    return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                           "Current account requires TLS to be activate.");
+    return ngs::SQLError_access_denied();
 
   return ngs::Error_code();
 }
@@ -77,19 +73,16 @@ ngs::Error_code Sql_user_require::check_specific(
 
   if (ssl_cipher.length()) {
     if (ssl_cipher != options.ssl_cipher())
-      return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                             "Current user cipher isn't allowed.");
+      return ngs::SQLError_access_denied();
   }
 
   if (ssl_x509_issuer.length() &&
       ssl_x509_issuer != options.ssl_get_peer_certificate_issuer())
-    return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                           "Current user certificate issuer is not valid.");
+    return ngs::SQLError_access_denied();
 
   if (ssl_x509_subject.length() &&
       ssl_x509_subject != options.ssl_get_peer_certificate_subject())
-    return ngs::Error_code(ER_SECURE_TRANSPORT_REQUIRED,
-                           "Current user certificate subject is not valid.");
+    return ngs::SQLError_access_denied();
 
   return ngs::Error_code();
 }

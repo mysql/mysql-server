@@ -8,7 +8,7 @@
 
 --let $INCREMENT=1
 --let $USE_SOCKET=
---let $ERROR_IF_CHANNEL_UNSECURE= Secure transport required. To log in you must use TCP.SSL or UNIX socket connection. \(code 1045\)
+--let $ERROR_IF_CHANNEL_UNSECURE=ER_SECURE_TRANSPORT_REQUIRED
 
 --let $USER_AUTH_PLUGIN= 'mysql_native_password'
 --source ../include/connection_ssl.inc

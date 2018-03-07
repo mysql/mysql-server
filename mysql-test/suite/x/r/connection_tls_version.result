@@ -110,7 +110,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
-not ok
+ok
 # restart: --tls-version=TLSv1
 CONNECTION_TYPE
 SSL/TLS
@@ -165,7 +165,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: protocol version mismatch (code 2026)
-not ok
+ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
@@ -180,9 +180,9 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: protocol version mismatch (code 2026)
-not ok
+ok
 Application terminated with expected error: TLS version is invalid (code 2026)
-not ok
+ok
 # restart: --tls-version=TLSv1.1
 CONNECTION_TYPE
 SSL/TLS
@@ -224,7 +224,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: socket layer receive error (code 2026)
-not ok
+ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
@@ -239,7 +239,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: socket layer receive error (code 2026)
-not ok
+ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
@@ -254,7 +254,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
-not ok
+ok
 DROP USER user5_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
 # restart: --tls_version=TLSv1,TLSv1.1
@@ -368,7 +368,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
-not ok
+ok
 # restart: --tls-version=TLSv1
 CONNECTION_TYPE
 SSL/TLS
@@ -423,7 +423,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: protocol version mismatch (code 2026)
-not ok
+ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
@@ -438,9 +438,9 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: protocol version mismatch (code 2026)
-not ok
+ok
 Application terminated with expected error: TLS version is invalid (code 2026)
-not ok
+ok
 # restart: --tls-version=TLSv1.1
 CONNECTION_TYPE
 SSL/TLS
@@ -482,7 +482,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: socket layer receive error (code 2026)
-not ok
+ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
@@ -497,7 +497,7 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: socket layer receive error (code 2026)
-not ok
+ok
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
@@ -512,6 +512,6 @@ Mysqlx.Ok {
 }
 ok
 Application terminated with expected error: TLS version is invalid (code 2026)
-not ok
+ok
 DROP USER user5_mysqlx@localhost;
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
