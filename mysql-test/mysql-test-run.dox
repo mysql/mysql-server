@@ -996,7 +996,7 @@
   - @subpage PAGE_WRITING_REPLICATION_TESTS
   - @subpage PAGE_THREAD_SYNCHRONIZATION
   - @subpage PAGE_SUPPRESSING_ERRORS_WARNINGS
-  - @subpage PAGE_STOPPING_SERVER_DURING_TEST
+  - @subpage PAGE_STOPPING_AND_RESTARTING_SERVER_DURING_TEST
   - @subpage PAGE_TIPS_WRITING_TESTCASES
 
   Normally, you run the test suite during the development process to
@@ -2731,10 +2731,10 @@
 
 
 
-## Stopping a Server During a Test
+## Stopping and restarting a Server During a Test
 
 /**
-  @page PAGE_STOPPING_SERVER_DURING_TEST Stopping a Server During a Test
+  @page PAGE_STOPPING_AND_RESTARTING_SERVER_DURING_TEST Stopping and Restarting a Server During a Test
 
   If a server dies during execution of a test case, this will be
   interpreted as a failure. However, there may be cases where you
@@ -2763,21 +2763,128 @@
   --source include/wait_until_connected_again.inc
   @endverbatim
 
-  For your convenience, there is a file
-  <b>include/restart_mysqld.inc</b> which you can "source" in your
-  own test case to do what's shown in this code example.
-
   The file name to write the command to will be
   <b>mysqld.2.expect</b> for the slave server in replication tests.
   Note that you have to use <b>$MYSQLTEST_VARDIR/tmp</b> for the
   directory here; if you use <b>$MYSQL_TMP_DIR</b> instead, it will
   not work when running tests in parallel.
 
-  It is also possible to provide additional command line options to
-  the restarted server, by writing a line with <b>restart:</b> (with
-  a colon) followed by one or more options into the expect file. These
-  extra options will be dropped if the same server is restarted again,
-  unless they are repeated.
+  For your convenience, there are files which can be used to do
+  what's shown in the example.
+
+  <ul>
+    <li>
+      <tt>restart_mysqld.inc</tt>
+
+      <b>include/restart_mysqld.inc</b> can be sourced in your
+      own test case, to shutdown and start the server but
+      the server is immediately started up again.
+
+      @verbatim
+  # Restart the server
+  --source include/restart_mysqld.inc
+      @endverbatim
+
+      It is also possible to provide additional command line options
+      to the restarted server, by writing a line with <b>restart:</b>
+      (with a colon) followed by one or more options into the expect
+      file. These extra options will be dropped if the same server
+      is restarted again, unless they are repeated. A value for
+      shutdown timeout can also be set with
+      <b>$shutdown_server_timeout</b>, when this file is used.
+
+      @verbatim
+  # Restart server with extra parameters
+  --let $shutdown_server_timeout= 10
+  --let $restart_parameters= "restart: --innodb_autoinc_lock_mode=1"
+  --source include/restart_mysqld.inc
+      @endverbatim
+
+    </li>
+
+    <li>
+      <tt>kill_and_restart_mysqld.inc</tt>
+
+      Similar to <b>include/restart_mysqld.inc</b>,
+      <b>include/kill_and_restart_mysqld.inc</b> can be used to
+      restart the server, but setting <b>$shutdown_server_timeout</b>
+      will have no effect.
+
+      @verbatim
+  # Restart server with extra parameters
+  --let $restart_paramters= "restart: --innodb_autoinc_lock_mode=0"
+  --source include/kill_and_restart_mysqld.inc
+      @endverbatim
+
+    </li>
+
+    <li>
+      <tt>shutdown_mysqld.inc and start_mysqld.inc</tt>
+
+      If there is something to be done between the server shutdown
+      and startup, there is a file
+      <b>include/shutdown_mysqld.inc</b>
+      which can be used to shutdown the server. A shutdown timeout
+      value can be set and passed to
+      <b>include/shutdown_mysqld.inc</b>.
+      <b>include/start_mysqld.inc</b> can be used to start the
+      server again after it has been shutdown.
+
+      @verbatim
+  # Timeout of 10 seconds
+  --let $shutdown_server_timeout= 10
+  --source include/shutdown_mysqld.inc
+  # Do something while the server is down
+  --source include/start_mysqld.inc
+      @endverbatim
+
+    </li>
+
+    <li>
+      <tt>kill_mysqld.inc</tt>
+
+      To the kill the server,
+      <b>include/kill_mysqld.inc</b> can be sourced, which
+      internally calls <b>--shutdown_server 0</b>. Therefore,
+      setting a value for shutdown timeout will have no effect.
+
+      @verbatim
+  --source include/kill_mysqld.inc
+  # Do something while the server is down
+  --source include/start_mysqld.inc
+      @endverbatim
+
+    </li>
+
+    <li>
+      <tt>wait_until_disconnected.inc</tt>
+
+      It is recommended to use <b>include/wait_until_disconnected</b>
+      in tandem with <b>--shutdown_server</b>. It ensures that all
+      connections to the server are dropped before proceeding with
+      the test. This file is sourced internally in
+      <b>include/shutdown_mysqld.inc</b>,
+      <b>include/kill_mysqld.inc</b>,
+      <b>include/kill_and_restart_mysqld.inc</b>,
+      and <b>include/restart_mysqld.inc</b>.
+
+    </li>
+
+    <li>
+      <tt>wait_until_connected_again.inc</tt>
+
+      <b>include/wait_until_connected_again.inc</b> is used after
+      the server is started again, to ensure that the client
+      connection is restored. It tries to establish the connection
+      till a timeout occurs. This file is sourced internally in
+      <b>include/start_mysqld.inc</b>,
+      <b>include/restart_mysqld.inc</b>,
+      and <b>include/kill_and_restart_mysqld.inc</b>.
+
+    </li>
+
+  </ul>
+
 */
 
 ###############################################################################
