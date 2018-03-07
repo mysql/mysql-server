@@ -1,0 +1,26 @@
+--source include/have_ndb.inc
+
+# See Bug#89892: Error object: DBTC (Line: 4821) 0x00000002 Check trigPtr.p->refCount failed
+
+create table t (
+  x int not null,
+  y int not null,
+  primary key (x),
+  unique key (y)
+) engine=ndb;
+
+let $i = 16;
+while ($i)
+{
+  eval insert into t values ($i, $i);
+  dec $i;
+}
+
+start transaction;
+insert into t values (1000, 1000);
+insert into t select 1000+x, 1000+y from t;
+# Should fail already for insert above but does not due to bug#16021097
+error ER_GET_ERRMSG;
+commit;
+
+drop table t;
