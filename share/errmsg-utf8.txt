@@ -17815,9 +17815,6 @@ ER_IB_MSG_1269
 ER_IB_MSG_1270
   eng "%s"
 
-ER_IB_MSG_1271
-  eng "Cannot upgrade server earlier than 5.7 to 8.0"
-
 ER_RPL_SLAVE_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
   eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
 
@@ -18037,6 +18034,9 @@ ER_AUDIT_LOG_USER_FIRST_CHARACTER_MUST_BE_ALPHANUMERIC
 
 ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXIST
   eng "Specified filter has not been found."
+
+ER_IB_MSG_1271
+  eng "Cannot upgrade server earlier than 5.7 to 8.0"
 
 #
 # End of 8.0 Server error messages.
