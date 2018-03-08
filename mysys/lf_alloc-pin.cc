@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -280,7 +280,9 @@ struct st_match_and_save_arg {
   to a new purgatory. At the end, the old purgatory will contain
   pointers not pinned by any thread.
 */
-static int match_and_save(LF_PINS *el, struct st_match_and_save_arg *arg) {
+static int match_and_save(void *v_el, void *v_arg) {
+  LF_PINS *el = static_cast<LF_PINS *>(v_el);
+  st_match_and_save_arg *arg = static_cast<st_match_and_save_arg *>(v_arg);
   int i;
   LF_PINS *el_end = el + LF_DYNARRAY_LEVEL_LENGTH;
   for (; el < el_end; el++) {
@@ -320,8 +322,7 @@ static void lf_pinbox_real_free(LF_PINS *pins) {
   pins->purgatory = NULL;
   pins->purgatory_count = 0;
 
-  lf_dynarray_iterate(&pinbox->pinarray, (lf_dynarray_func)match_and_save,
-                      &arg);
+  lf_dynarray_iterate(&pinbox->pinarray, match_and_save, &arg);
 
   if (arg.old_purgatory) {
     /* Some objects in the old purgatory were not pinned, free them. */
@@ -351,7 +352,10 @@ LF_REQUIRE_PINS(1)
     'first' and 'last' are the ends of the linked list of nodes:
     first->el->el->....->el->last. Use first==last to free only one element.
 */
-static void alloc_free(uchar *first, uchar *last, LF_ALLOCATOR *allocator) {
+static void alloc_free(void *v_first, void *v_last, void *v_allocator) {
+  uchar *first = static_cast<uchar *>(v_first);
+  uchar *last = static_cast<uchar *>(v_last);
+  LF_ALLOCATOR *allocator = static_cast<LF_ALLOCATOR *>(v_allocator);
   uchar *node = allocator->top;
   do {
     anext_node(last) = node;
@@ -377,8 +381,7 @@ static void alloc_free(uchar *first, uchar *last, LF_ALLOCATOR *allocator) {
 
 void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
                     lf_allocator_func *ctor, lf_allocator_func *dtor) {
-  lf_pinbox_init(&allocator->pinbox, free_ptr_offset,
-                 (lf_pinbox_free_func *)alloc_free, allocator);
+  lf_pinbox_init(&allocator->pinbox, free_ptr_offset, alloc_free, allocator);
   allocator->top = 0;
   allocator->mallocs = 0;
   allocator->element_size = size;
