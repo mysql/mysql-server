@@ -135,5 +135,26 @@ SET GLOBAL optimizer_trace_offset = default, activate_all_roles_on_login = defau
        innodb_max_dirty_pages_pct = default, init_connect = default,
        max_join_size = default;
 
+--echo #
+--echo # Bug #27629719: SET PERSIST STORES TRUNCATED TIMESTAMPS
+--echo #
+
+--echo # Set one variable in the mysqld-auto.cnf
+SET PERSIST max_join_size= 10000000;
+--echo # Set another variable in the mysqld-auto.cnf
+SET PERSIST init_connect='';
+
+--echo # Restart the server so it sets the variable time from mysqld-auto.cnf
+--source include/restart_mysqld.inc
+
+--echo # Check the microseconds of set_time: must be 2 (i.e. different for the two vars)
+SELECT COUNT(DISTINCT MICROSECOND(set_time)) FROM performance_schema.variables_info
+  WHERE variable_name IN ('max_join_size', 'init_connect');
+
+--echo # Cleanup
+SET GLOBAL max_join_size=DEFAULT, init_connect=DEFAULT;
+RESET PERSIST;
+
+
 --echo # End of the 8.0 tests
 

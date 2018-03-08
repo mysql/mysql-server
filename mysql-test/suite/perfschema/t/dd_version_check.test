@@ -62,6 +62,9 @@ create table test.pfs_published_schema
 insert into test.pfs_published_schema
  values("MySQL 8.0.5-rc",
         "277ac3d585254e4cb10d9bdcdf05ea895d0f49e1eaca48c86e9009e91e62e459");
+insert into test.pfs_published_schema
+ values("MySQL 8.0.6",
+        "ffad5f90b6b462bad59454d450cc62b0ec26a7cb56582588e9a5a499363b1104");
 
 create table test.pfs_check_table
   (id int(11) NOT NULL AUTO_INCREMENT,

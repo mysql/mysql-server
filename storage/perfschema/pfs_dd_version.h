@@ -72,7 +72,11 @@
 
   performance_schema tables changed in MySQL 8.0.5 are
   - all, changed UTF8 (aka UTF8MB3) to UTF8MB4.
+
+  80006:
+
+  variables_info.set_time precision changed from 0 to 6.
 */
-static const uint PFS_DD_VERSION = 80005;
+static const uint PFS_DD_VERSION = 80006;
 
 #endif /* PFS_DD_VERSION_H */
