@@ -3890,8 +3890,8 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     The function finds out what of two fields is better according
     this criteria.
 
-  @param field1          first field item to compare
-  @param field2          second field item to compare
+  @param v_field1        first field item to compare
+  @param v_field2        second field item to compare
   @param table_join_idx  index to tables determining table order
 
   @retval
@@ -3902,8 +3902,10 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     0  otherwise
 */
 
-static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
+static int compare_fields_by_table_order(void *v_field1, void *v_field2,
                                          void *table_join_idx) {
+  Item_field *field1 = static_cast<Item_field *>(v_field1);
+  Item_field *field2 = static_cast<Item_field *>(v_field2);
   int cmp = 0;
   bool outer_ref = 0;
   if (field1->used_tables() & OUTER_REF_TABLE_BIT) {
