@@ -468,7 +468,7 @@ typedef void (*mysql_var_update_func)(MYSQL_THD thd, SYS_VAR *var,
       blk}
 
 #define MYSQL_THDVAR_BOOL(name, opt, comment, check, update, def)      \
-  DECLARE_MYSQL_THDVAR_BASIC(name, char) = {                           \
+  DECLARE_MYSQL_THDVAR_BASIC(name, bool) = {                           \
       PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL | ((opt)&PLUGIN_VAR_MASK), \
       #name,                                                           \
       comment,                                                         \
