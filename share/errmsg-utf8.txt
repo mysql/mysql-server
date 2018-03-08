@@ -17809,6 +17809,9 @@ ER_IB_MSG_1269
 ER_IB_MSG_1270
   eng "%s"
 
+ER_IB_MSG_1271
+  eng "Cannot upgrade server earlier than 5.7 to 8.0"
+
 ER_RPL_SLAVE_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
   eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
 
