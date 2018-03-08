@@ -22,28 +22,28 @@ CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'abcd';
 
 --echo # Connection tests
 
---exec $MYSQL --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --default-auth=mysql_native_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --default-auth=sha256_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --default-auth=mysql_native_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --default-auth=sha256_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
 FLUSH PRIVILEGES;
 
---exec $MYSQL --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
 FLUSH PRIVILEGES;
---exec $MYSQL --default-auth=mysql_native_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --default-auth=mysql_native_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
 FLUSH PRIVILEGES;
---exec $MYSQL --default-auth=sha256_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
-FLUSH PRIVILEGES;
-
-
---exec $MYSQL --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -unative -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --default-auth=mysql_native_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -unative -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --default-auth=sha256_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -unative -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --default-auth=sha256_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -ucaching_sha2 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
 FLUSH PRIVILEGES;
 
 
---exec $MYSQL --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -usha256 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --default-auth=mysql_native_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -usha256 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
---exec $MYSQL --default-auth=sha256_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -usha256 -pabcd --ssl-mode=DISABLED --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -unative -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --default-auth=mysql_native_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -unative -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --default-auth=sha256_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -unative -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
+FLUSH PRIVILEGES;
+
+
+--exec $MYSQL --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -usha256 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --default-auth=mysql_native_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -usha256 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
+--exec $MYSQL --default-auth=sha256_password --protocol=TCP --host=127.0.0.1 -P$MASTER_MYPORT -usha256 -pabcd --ssl-mode=REQUIRED -e "SELECT CURRENT_USER()" 2>&1
 FLUSH PRIVILEGES;
 
 --echo # Change user tests
