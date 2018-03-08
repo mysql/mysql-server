@@ -815,3 +815,22 @@ Warning	1292	Truncated incorrect INTEGER value: 'abc'
 #
 SELECT regexp_replace( 'abc' , 'abc', '$abc' );
 ERROR HY000: A capture group has an invalid name.
+#
+# Bug#27595368: ASSERTION FAILED: 0 IN ITEM_PARAM::VAL_REAL WITH
+# PREPARED STATEMENT
+#
+SET @s := "SELECT regexp_like( '', '', ? / '' )";
+PREPARE stmt FROM @s;
+EXECUTE stmt;
+ERROR HY000: Incorrect arguments to EXECUTE
+EXECUTE stmt;
+ERROR HY000: Incorrect arguments to EXECUTE
+CREATE TABLE t1 ( match_parameter CHAR(1) );
+INSERT INTO t1 VALUES ( 'i' ), ( 'c' ), ( 'i' ), ( 'c' );
+SELECT match_parameter, regexp_like ( 'a', 'A', match_parameter ) FROM t1;
+match_parameter	regexp_like ( 'a', 'A', match_parameter )
+i	1
+c	0
+i	1
+c	0
+DROP TABLE t1;

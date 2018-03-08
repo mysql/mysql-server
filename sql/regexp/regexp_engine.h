@@ -106,11 +106,17 @@ class Regexp_engine {
     check_icu_status(m_error_code, &error);
   }
 
+  uint flags() {
+    uint flags = uregex_flags(m_re, &m_error_code);
+    check_icu_status(m_error_code);
+    return flags;
+  }
+
   /**
     Resets the engine with a new subject string.
     @param subject The new string to match the regular expression against.
   */
-  virtual void Reset(String *subject);
+  void Reset(String *subject);
 
   /**
     Tries to find match number `occurrence` in the string, starting on

@@ -1,7 +1,7 @@
 #ifndef SQL_ITEM_REGEXP_FUNC_H_
 #define SQL_ITEM_REGEXP_FUNC_H_
 
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,7 +209,8 @@ class Item_func_regexp : public Item_func {
   /// The position in the argument list of match_parameter.
   virtual int match_arg_pos() const = 0;
 
- protected:
+  bool set_pattern();
+
   unique_ptr_destroy_only<regexp::Regexp_facade> m_facade;
 
  private:
