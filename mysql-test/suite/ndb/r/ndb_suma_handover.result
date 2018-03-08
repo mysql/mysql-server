@@ -1,4 +1,3 @@
-call mtr.add_suppression(".*Node failure caused abort of transaction.*");
 Node 2 is being restarted
 
 Node 4 is being restarted
