@@ -4417,7 +4417,9 @@ static int innobase_init_files(dict_init_mode_t dict_init_mode,
   }
 
   if (srv_is_upgrade_mode) {
-    dict_sys_table_id_build();
+    if (!dict_sys_table_id_build()) {
+      DBUG_RETURN(innodb_init_abort());
+    }
     /* Disable AHI when we start loading tables for purge.
     These tables are evicted anyway after purge. */
 

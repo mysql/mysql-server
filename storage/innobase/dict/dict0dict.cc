@@ -7167,16 +7167,24 @@ void dict_upgrade_evict_tables_cache() {
 
 /** Build the table_id array of SYS_* tables. This
 array is used to determine if a table is InnoDB SYSTEM
-table or not. */
-void dict_sys_table_id_build() {
+table or not.
+@return true if successful, false otherwise */
+bool dict_sys_table_id_build() {
   mutex_enter(&dict_sys->mutex);
   for (uint32_t i = 0; i < SYS_NUM_SYSTEM_TABLES; i++) {
     dict_table_t *system_table = dict_table_get_low(SYSTEM_TABLE_NAME[i]);
 
-    ut_a(system_table != nullptr);
+    if (system_table == nullptr) {
+      /* Cannot find a system table, this happens only if user trying
+      to boot server earlier than 5.7 */
+      mutex_exit(&dict_sys->mutex);
+      LogErr(ERROR_LEVEL, ER_IB_MSG_1271);
+      return (false);
+    }
     dict_sys_table_id[i] = system_table->id;
   }
   mutex_exit(&dict_sys->mutex);
+  return (true);
 }
 
 /** @return true if table is InnoDB SYS_* table
