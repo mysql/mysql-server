@@ -64,8 +64,6 @@ t1	idx_id	NO
 SELECT * FROM sys.schema_unused_indexes WHERE index_name = 'idx_id';
 object_schema	object_name	index_name
 test	t1	idx_id
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT rows_selected
 FROM sys.schema_index_statistics
 WHERE index_name = 'idx_id';

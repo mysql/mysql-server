@@ -22,7 +22,7 @@ select * from information_schema.SCHEMATA where schema_name > 'm' ORDER BY SCHEM
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 select schema_name from information_schema.schemata ORDER BY schema_name;
