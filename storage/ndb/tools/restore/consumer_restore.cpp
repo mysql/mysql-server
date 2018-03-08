@@ -2246,6 +2246,13 @@ bool is_array(NDBCOL::Type type)
 bool
 BackupRestore::check_blobs(TableS & tableS)
 {
+   /**
+   * Nothing to check when printing data
+   */
+  if (!m_restore) {
+    return true;
+  }
+
   /**
    * For blob tables, check if there is a conversion on any PK of the main table.
    * If there is, the blob table PK needs the same conversion as the main table PK.
