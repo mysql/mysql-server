@@ -1482,6 +1482,7 @@ static char *cover_definer_clause(const char *stmt_str,
 
   char *query_str= NULL;
   char *query_ptr;
+  LEX_CSTRING comment= { C_STRING_WITH_LEN("*/ /*!") };
 
   if (!definer_begin)
     return NULL;
@@ -1499,10 +1500,10 @@ static char *cover_definer_clause(const char *stmt_str,
   query_str= alloc_query_str(stmt_length + 23);
 
   query_ptr= my_stpncpy(query_str, stmt_str, definer_begin - stmt_str);
-  query_ptr= my_stpncpy(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr= my_stpncpy(query_ptr, comment.str, comment.length + 1);
   query_ptr= my_stpncpy(query_ptr, definer_version_str, definer_version_length);
   query_ptr= my_stpncpy(query_ptr, definer_begin, definer_end - definer_begin);
-  query_ptr= my_stpncpy(query_ptr, C_STRING_WITH_LEN("*/ /*!"));
+  query_ptr= my_stpncpy(query_ptr, comment.str, comment.length + 1);
   query_ptr= my_stpncpy(query_ptr, stmt_version_str, stmt_version_length);
   query_ptr= strxmov(query_ptr, definer_end, NullS);
 

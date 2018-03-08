@@ -617,7 +617,7 @@ TruncateLogParser::scan(
 			}
 			memset(log_file_name, 0, sz);
 
-			strncpy(log_file_name, dir_path, dir_len);
+			memcpy(log_file_name, dir_path, dir_len);
 			ulint	log_file_name_len = strlen(log_file_name);
 			if (log_file_name[log_file_name_len - 1]
 				!= OS_PATH_SEPARATOR) {

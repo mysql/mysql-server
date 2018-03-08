@@ -124,7 +124,7 @@ rewrite_db(char **buf, ulong *buf_size,
             *buf_size - (offset_db + old_db_len));
 
   // Write new_db and new_db_len.
-  strncpy((*buf) + offset_db, new_db, new_db_len);
+  memcpy((*buf) + offset_db, new_db, new_db_len);
   (*buf)[offset_len]= (char) new_db_len;
 
   // Update event length in header.
