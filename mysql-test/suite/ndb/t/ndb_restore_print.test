@@ -249,3 +249,41 @@ select * from t1 order by a;
 
 # clean up
 drop table t1;
+
+# Bug#27282595 NDB_RESTORE WITH --PRINT-DATA IS CRASHING
+
+create table t1(a int primary key AUTO_INCREMENT, b blob) engine=ndb;
+
+insert into t1 values (NULL, "AAAAABBBBCCCCCDDDDD");
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+insert into t1 (a,b) select NULL, b from t1;
+
+# backup and print
+--source include/ndb_backup.inc
+
+# clean up
+drop table t1;
+
+--let ndb_restore_filter=test t1
+--let ndb_restore_opts=--verbose=0 --print_data --fields-terminated-by=";"
+--source include/ndb_backup_print.inc
