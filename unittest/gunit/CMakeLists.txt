@@ -276,6 +276,7 @@ SET(TESTS
   my_murmur3
   my_qsort_vs_stdsort
   my_regex
+  my_snprintf
   my_thread
   mysys_base64
   mysys_lf

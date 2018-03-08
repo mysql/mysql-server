@@ -18,6 +18,7 @@
 #include "my_dir.h"                // MY_STAT
 #include "log.h"                   // sql_print_error
 #include "log_event.h"             // Log_event
+#include "m_string.h"
 #include "rpl_group_replication.h" // set_group_replication_retrieved_certifi...
 #include "rpl_info_factory.h"      // Rpl_info_factory
 #include "rpl_mi.h"                // Master_info
@@ -691,7 +692,8 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
   if(level == ERROR_LEVEL)
   {
     m_last_error.number = err_code;
-    strncpy(m_last_error.message, buff_coord, MAX_SLAVE_ERRMSG);
+    my_snprintf(m_last_error.message, sizeof(m_last_error.message), "%.*s",
+                MAX_SLAVE_ERRMSG - 1, buff_coord);
     m_last_error.update_timestamp();
   }
 

@@ -5381,8 +5381,8 @@ row_rename_table_for_mysql(
 
 	if (!new_is_tmp) {
 		/* Rename all constraints. */
-		char	new_table_name[MAX_TABLE_NAME_LEN] = "";
-		char	old_table_utf8[MAX_TABLE_NAME_LEN] = "";
+		char	new_table_name[MAX_TABLE_NAME_LEN + 1] = "";
+		char	old_table_utf8[MAX_TABLE_NAME_LEN + 1] = "";
 		uint	errors = 0;
 
 		strncpy(old_table_utf8, old_name, MAX_TABLE_NAME_LEN);

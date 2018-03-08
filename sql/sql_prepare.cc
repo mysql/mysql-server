@@ -86,6 +86,7 @@ When one supplies long data for a placeholder:
 #include "sql_prepare.h"
 #include "auth_common.h"        // insert_precheck
 #include "log.h"                // query_logger
+#include "m_string.h"
 #include "opt_trace.h"          // Opt_trace_array
 #include "probes_mysql.h"       // MYSQL_QUERY_EXEC_START
 #include "set_var.h"            // set_var_base
@@ -2835,9 +2836,8 @@ void mysql_stmt_get_longdata(THD *thd, ulong stmt_id, uint param_number,
   {
     stmt->state= Query_arena::STMT_ERROR;
     stmt->last_errno= thd->get_stmt_da()->mysql_errno();
-    size_t len= sizeof(stmt->last_error);
-    strncpy(stmt->last_error, thd->get_stmt_da()->message_text(), len - 1);
-    stmt->last_error[len - 1] = '\0';
+    my_snprintf(stmt->last_error, sizeof(stmt->last_error), "%.*s",
+                MYSQL_ERRMSG_SIZE - 1, thd->get_stmt_da()->message_text());
   }
   thd->pop_diagnostics_area();
 
