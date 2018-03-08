@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2188,6 +2188,13 @@ bool is_array(NDBCOL::Type type)
 bool
 BackupRestore::check_blobs(TableS & tableS)
 {
+   /**
+   * Nothing to check when printing data
+   */
+  if (!m_restore) {
+    return true;
+  }
+
   /**
    * For blob tables, check if there is a conversion on any PK of the main table.
    * If there is, the blob table PK needs the same conversion as the main table PK.
