@@ -1103,7 +1103,7 @@ bool Rsa_authentication_keys::read_rsa_keys() {
 #endif /* HAVE_OPENSSL */
 
 void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name) {
-  g_cached_authentication_plugins->optimize_plugin_compare_by_pointer(
+  Cached_authentication_plugins::optimize_plugin_compare_by_pointer(
       plugin_name);
 }
 
