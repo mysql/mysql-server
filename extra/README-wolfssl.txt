@@ -16,8 +16,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ----
 Instructions on how to compile with wolfssl
 
-* Get wolfssl-3.13.0.zip from wolfssl.com
-* Extract it to extra/wolfssl-3.13.0
-* cd extra/wolfssl-3.13.0/IDE/MYSQL
+* Get wolfssl-3.14.0.zip from wolfssl.com
+* Extract it to extra/wolfssl-3.14.0
+* Download wolfssl-3.14.0-mysql.diff to extra/wolfssl-3.14.0 folder from:
+  https://github.com/gkodinov/wolfssl-diff-for-mysql-8.0
+* Apply wolfssl-3.14.0-mysql.diff:
+  cd extra/wolfssl-3.14.0
+  patch -p1 < wolfssl-3.14.0-mysql.diff
+* cd extra/wolfssl-3.14.0/IDE/MYSQL
 * Execute do.sh
 * use -DWITH_SSL=wolfssl for CMake
