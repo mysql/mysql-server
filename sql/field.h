@@ -4195,7 +4195,7 @@ class Field_bit : public Field {
   uint is_equal(const Create_field *new_field);
   void move_field_offset(my_ptrdiff_t ptr_diff) {
     Field::move_field_offset(ptr_diff);
-    bit_ptr += ptr_diff;
+    if (bit_ptr != nullptr) bit_ptr += ptr_diff;
   }
   void hash(ulong *nr, ulong *nr2);
   Field_bit *clone(MEM_ROOT *mem_root) const {
