@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,15 +55,9 @@ String *EvalExprToCharset(Item *expr, String *out) {
 }
 
 bool Regexp_facade::SetPattern(Item *pattern_expr) {
-  /*
-    The pattern is NULL, but that's fine. Since it's the facade's job to
-    handle NULL values, we leverage the fact that any matching against NULL
-    will have the result NULL and don't involve the Regexp_engine class at
-    all.
-  */
   if (pattern_expr == nullptr) {
     m_engine = nullptr;
-    return false;
+    return true;
   }
   if (!pattern_expr->const_item() ||  // Non-constant pattern, see above.
       m_engine == nullptr) {          // Called for the first time.
@@ -117,7 +111,8 @@ String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
 
 String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
                               String *result) {
-  if (Reset(subject_expr) || !m_engine->Matches(start - 1, occurrence)) {
+  if (Reset(subject_expr)) return nullptr;
+  if (!m_engine->Matches(start - 1, occurrence)) {
     m_engine->CheckError();
     return nullptr;
   }

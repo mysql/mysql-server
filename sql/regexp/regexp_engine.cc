@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@ UBool QueryNotKilled(const void *thd, int32_t) {
 
 const char *icu_version_string() { return U_ICU_VERSION; }
 
-bool Regexp_engine::Reset(String *subject) {
+void Regexp_engine::Reset(String *subject) {
   auto usubject = pointer_cast<const UChar *>(subject->ptr());
   int length = subject->length() / sizeof(UChar);
 
@@ -51,7 +51,6 @@ bool Regexp_engine::Reset(String *subject) {
   DBUG_ASSERT(subject->charset() == regexp_lib_charset);
   uregex_setText(m_re, usubject, length, &m_error_code);
   m_current_subject = subject;
-  return false;
 }
 
 bool Regexp_engine::Matches(int start, int occurrence) {
