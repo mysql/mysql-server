@@ -95,6 +95,14 @@ Connection_manager::Connection_manager(const Connection_options &co,
       "%OPTION_SSL_MODE%",
       new Variable_dynamic_string(m_connection_options.ssl_mode));
 
+  m_variables->make_special_variable(
+      "%OPTION_SSL_CIPHER%",
+      new Variable_dynamic_string(m_connection_options.ssl_cipher));
+
+  m_variables->make_special_variable(
+      "%OPTION_TLS_VERSION%",
+      new Variable_dynamic_string(m_connection_options.allowed_tls));
+
   m_active_holder.reset(new Session_holder(xcl::create_session(), m_console));
 
   m_session_holders[""] = m_active_holder;

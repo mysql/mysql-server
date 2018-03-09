@@ -6,6 +6,7 @@
 #2) wolfssl SSL context counters (GLOBAL status variables) are always 0
 #3) other cipher list than openssl
 
+--let $INCREMENT=0
 --let $USE_SOCKET=
 --let $ERROR_IF_CHANNEL_UNSECURE= Secure transport required. To log in you must use TCP\+SSL or UNIX socket connection. \(code 1045\)
 
