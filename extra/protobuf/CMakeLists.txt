@@ -62,6 +62,11 @@ IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   IF(HAVE_UNUSED_BUT_SET)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-parameter")
   ENDIF()
+
+  MY_CHECK_CXX_COMPILER_FLAG("-Wenum-compare-switch" HAVE_ENUM_COMPARE_SWITCH)
+  IF(HAVE_ENUM_COMPARE_SWITCH)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-enum-compare-switch")
+  ENDIF()
 ENDIF()
 
 # protoc built with clang -fsanitize=undefined dumps core

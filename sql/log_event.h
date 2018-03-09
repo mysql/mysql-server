@@ -1894,8 +1894,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
       : binary_log::User_var_event(name_arg, name_len_arg, val_arg, val_len_arg,
-                                   (Value_type)type_arg, charset_number_arg,
-                                   flags_arg),
+                                   type_arg, charset_number_arg, flags_arg),
         Log_event(thd_arg, 0, cache_type_arg, logging_type_arg, header(),
                   footer()),
         deferred(false) {

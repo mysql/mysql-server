@@ -499,7 +499,7 @@ User_var_event::User_var_event(
   is_null = (bool)*buf;
   flags = User_var_event::UNDEF_F;  // defaults to UNDEF_F
   if (is_null) {
-    type = STRING_TYPE;
+    type = STRING_RESULT;
     /*
      *my_charset_bin.number= 63, and my_charset_bin is defined in server
      *so replacing it with its value.
@@ -631,7 +631,7 @@ void Query_event::print_long_info(std::ostream &info) {
 
 void User_var_event::print_event_info(std::ostream &info) {
   info << "@`" << name << "`=";
-  if (type == STRING_TYPE)
+  if (type == STRING_RESULT)
     info << val;
   else
     info << "<Binary encoded value>";
@@ -640,7 +640,7 @@ void User_var_event::print_event_info(std::ostream &info) {
 
 void User_var_event::print_long_info(std::ostream &info) {
   info << "Timestamp: " << header()->when.tv_sec;
-  info << "\tType: " << get_value_type_string(static_cast<Value_type>(type));
+  info << "\tType: " << get_value_type_string(type);
   info << "\n";
   this->print_event_info(info);
 }

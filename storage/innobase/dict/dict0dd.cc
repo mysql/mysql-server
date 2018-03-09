@@ -66,7 +66,6 @@ Data dictionary interface */
 #include "sql_base.h"
 #include "sql_table.h"
 #endif /* !UNIV_HOTBACKUP */
-#include <bitset>
 
 #ifndef UNIV_HOTBACKUP
 /** Check if the InnoDB index is consistent with dd::Index
@@ -1662,7 +1661,6 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
   ulint type = 0;
   unsigned n_fields = key.user_defined_key_parts;
   unsigned n_uniq = n_fields;
-  std::bitset<REC_MAX_N_FIELDS> indexed;
 
   ut_ad(!mutex_own(&dict_sys->mutex));
   /* This name cannot be used for a non-primary index */

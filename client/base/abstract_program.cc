@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,6 @@ Abstract_program::Abstract_program()
 }
 
 void Abstract_program::run(int argc, char **argv) {
-  vector<Options::I_options_provider *>::iterator it;
   this->init_name(argv[0]);
 
   MY_INIT(this->m_name.c_str());
