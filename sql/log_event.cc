@@ -986,6 +986,40 @@ void *Log_event::operator new(size_t size) {
 }
 
 #ifdef MYSQL_SERVER
+#define my_b_event_read my_b_read
+#else
+/**
+  Wrapper around my_b_read to skip over any binlog_magic numbers
+  we may see in the middle of stream. This can only happen if we
+  are reading from stdin and input stream contains multiple binlog
+  files. The first 4 bytes of an event are timestamp. It is possible
+  that by coincidence the timestamp is same as binlog magic number
+  (0xfe62696e i.e 4267862382) but that would only happen for one second
+  at Mon Mar 30 05:19:42 2105. We ignore that coincidence for now.
+ */
+int my_b_event_read(IO_CACHE *file, uchar *buf, int buflen) {
+  int read_status = 0;  // assume success
+  int nbytes_already_read = 0;
+  if (file->file == fileno(stdin)) {
+    read_status = my_b_read(file, buf, SIZEOF_BINLOG_MAGIC);
+    if (!read_status) {
+      // read succeeded
+      if (memcmp(buf, BINLOG_MAGIC, SIZEOF_BINLOG_MAGIC)) {
+        // does not match binlog magic number
+        nbytes_already_read = SIZEOF_BINLOG_MAGIC;
+      }
+      // else we got binlog magic number in middle of stream. Ignore.
+    }
+  }
+  if (!read_status) {
+    read_status = my_b_read(file, buf + nbytes_already_read,
+                            buflen - nbytes_already_read);
+  }
+  return read_status;
+}
+#endif
+
+#ifdef MYSQL_SERVER
 inline int Log_event::do_apply_event_worker(Slave_worker *w) {
   DBUG_EXECUTE_IF("crash_in_a_worker", {
     /* we will crash a worker after waiting for
@@ -1501,10 +1535,11 @@ Log_event *Log_event::read_log_event(
 
   LOCK_MUTEX;
   DBUG_PRINT("info", ("my_b_tell: %lu", (ulong)my_b_tell(file)));
-  if (my_b_read(file, (uchar *)head, header_size)) {
-    DBUG_PRINT("info", ("Log_event::read_log_event(IO_CACHE*,Format_desc*) "
-                        "failed in my_b_read((IO_CACHE*)%p, (uchar*)%p, %u)",
-                        file, head, header_size));
+  if (my_b_event_read(file, (uchar *)head, header_size)) {
+    DBUG_PRINT("info",
+               ("Log_event::read_log_event(IO_CACHE*,Format_desc*) "
+                "failed in my_b_event_read((IO_CACHE*)%p, (uchar*)%p, %u)",
+                file, head, header_size));
     UNLOCK_MUTEX;
     /*
       No error here; it could be that we are at the file's end. However

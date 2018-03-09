@@ -57,6 +57,9 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --echo --- Broken LOAD DATA --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/binlog.000002 2> /dev/null
 --source include/mysqlbinlog.inc
+--echo --- Broken LOAD DATA with streaming input --
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ - 2> /dev/null < $MYSQLD_DATADIR/binlog.000002
+--source include/mysqlbinlog.inc
 
 # this should show almost nothing
 --echo --- --database --
@@ -66,6 +69,9 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # this test for start-position option
 --echo --- --start-position --
 --let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start_pos $MYSQLD_DATADIR/binlog.000002
+--source include/mysqlbinlog.inc
+--echo --- --start-position with streaming input --
+--let $mysqlbinlog_parameters= --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=$binlog_start_pos - < $MYSQLD_DATADIR/binlog.000002
 --source include/mysqlbinlog.inc
 
 # These are tests for remote binlog.
