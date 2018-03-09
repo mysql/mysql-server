@@ -26,6 +26,10 @@ ENDIF()
 
 include(wix_setup.cmake)
 
+IF(NOT WIX_DIR)
+  RETURN()
+ENDIF()
+
 ADD_SUBDIRECTORY(ca)
 
 # WiX wants the license text as rtf; if there is no rtf license, 
