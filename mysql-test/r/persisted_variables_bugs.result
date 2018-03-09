@@ -136,4 +136,21 @@ innodb_max_dirty_pages_pct = default, init_connect = default,
 max_join_size = default;
 Warnings:
 Warning	1230	Default value is not defined for this set option. Please specify correct counter or module name.
+#
+# Bug #27629719: SET PERSIST STORES TRUNCATED TIMESTAMPS
+#
+# Set one variable in the mysqld-auto.cnf
+SET PERSIST max_join_size= 10000000;
+# Set another variable in the mysqld-auto.cnf
+SET PERSIST init_connect='';
+# Restart the server so it sets the variable time from mysqld-auto.cnf
+# restart
+# Check the microseconds of set_time: must be 2 (i.e. different for the two vars)
+SELECT COUNT(DISTINCT MICROSECOND(set_time)) FROM performance_schema.variables_info
+WHERE variable_name IN ('max_join_size', 'init_connect');
+COUNT(DISTINCT MICROSECOND(set_time))
+2
+# Cleanup
+SET GLOBAL max_join_size=DEFAULT, init_connect=DEFAULT;
+RESET PERSIST;
 # End of the 8.0 tests

@@ -158,14 +158,14 @@ Persisted_variables_cache *Persisted_variables_cache::m_instance = NULL;
 
 st_persist_var::st_persist_var() {
   if (current_thd) {
-    timeval tv = current_thd->query_start_timeval_trunc(0);
+    timeval tv = current_thd->query_start_timeval_trunc(DATETIME_MAX_DECIMALS);
     timestamp = tv.tv_sec * 1000000ULL + tv.tv_usec;
   } else
     timestamp = my_micro_time();
 }
 
 st_persist_var::st_persist_var(THD *thd) {
-  timeval tv = thd->query_start_timeval_trunc(0);
+  timeval tv = thd->query_start_timeval_trunc(DATETIME_MAX_DECIMALS);
   timestamp = tv.tv_sec * 1000000ULL + tv.tv_usec;
   user = thd->security_context()->user().str;
   host = thd->security_context()->host().str;
