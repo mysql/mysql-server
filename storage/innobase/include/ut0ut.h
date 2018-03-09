@@ -583,11 +583,11 @@ class fatal : public logger {
  public:
 #ifndef UNIV_NO_ERR_MSGS
   /** Default constructor uses ER_IB_MSG_0 */
-  fatal() : logger(ERROR_LEVEL) { m_oss << "[FATAL]"; }
+  fatal() : logger(ERROR_LEVEL) { m_oss << "[FATAL] "; }
 
   /** Default constructor uses ER_IB_MSG_0 */
   explicit fatal(int err) : logger(ERROR_LEVEL) {
-    m_oss << "[FATAL]";
+    m_oss << "[FATAL] ";
 
     m_oss << msg(err, "");
   }
