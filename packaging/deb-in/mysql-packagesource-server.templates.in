@@ -34,7 +34,7 @@ Description: Data directory found when no MySQL server package is installed
  It is highly recommended to take data backup. If you have not done so, now would be
  the time to take backup in another shell. Once completed, press 'Ok' to continue.
 
-Template: mysql-@DEB_PRODUCTNAME@-server/default-auth-override
+Template: mysql-server/default-auth-override
 Type: select
 Choices: Use Strong Password Encryption (RECOMMENDED), Use Legacy Authentication Method (Retain MySQL 5.x Compatibility)
 Description: Select default authentication plugin
