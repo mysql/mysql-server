@@ -1,7 +1,7 @@
 #ifndef SQL_REGEXP_REGEXP_ENGINE_H_
 #define SQL_REGEXP_REGEXP_ENGINE_H_
 
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ class Regexp_engine {
     Resets the engine with a new subject string.
     @param subject The new string to match the regular expression against.
   */
-  bool Reset(String *subject);
+  virtual void Reset(String *subject);
 
   /**
     Tries to find match number `occurrence` in the string, starting on
