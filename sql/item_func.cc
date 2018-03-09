@@ -2227,7 +2227,11 @@ double Item_func_cot::val_real() {
   DBUG_ASSERT(fixed == 1);
   double value = args[0]->val_real();
   if ((null_value = args[0]->null_value)) return 0.0;
-  return check_float_overflow(1.0 / tan(value));
+  double val2 = tan(value);
+  if (val2 == 0.0) {
+    return raise_float_overflow();
+  }
+  return check_float_overflow(1.0 / val2);
 }
 
 // Bitwise functions
