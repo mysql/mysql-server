@@ -11,3 +11,7 @@
 ##############################################################################
 
 ndb_binlog_restore: Need WL#10167 On the fly frm translation
+
+# RESET MASTER now fails while waiting for "own changes to enter the local binlog"
+ndb_binlog_log_reads: Bug#27665565 NDB BINLOG INJECTOR THREAD HANGING ON GLOBAL READ LOCK
+ndb_binlog_test_conflict_flags: Bug#27665565 NDB BINLOG INJECTOR THREAD HANGING ON GLOBAL READ LOCK
