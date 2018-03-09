@@ -3277,6 +3277,15 @@ int mysql_execute_command(THD *thd, bool first_level) {
         goto error;
       }
 
+#ifndef DBUG_OFF
+      /*
+        Makes server crash when executing SET SESSION debug = 'd,crash_now';
+        See mysql-test/include/dbug_crash[_all].inc
+      */
+      bool force_server_crash_dbug = false;
+      DBUG_EXECUTE_IF("crash_now", DBUG_ASSERT(force_server_crash_dbug););
+#endif
+
       break;
     }
     case SQLCOM_SET_PASSWORD: {
