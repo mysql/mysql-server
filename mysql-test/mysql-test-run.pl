@@ -1858,21 +1858,8 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # fast option
   # --------------------------------------------------------------------------
-  if ($opt_fast){
+  if ($opt_fast) {
     $opt_shutdown_timeout= 0; # Kill processes instead of nice shutdown
-  }
-
-  # --------------------------------------------------------------------------
-  # Record flag
-  # --------------------------------------------------------------------------
-  if ( $opt_record and ! @opt_cases )
-  {
-    mtr_error("Will not run in record mode without a specific test case");
-  }
-
-  if ( $opt_record ) {
-    # Use only one worker with --record
-    $opt_parallel= 1;
   }
 
   # --------------------------------------------------------------------------
