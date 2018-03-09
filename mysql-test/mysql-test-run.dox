@@ -3919,6 +3919,10 @@
 
       If both <b>`--big-test`</b> and <b>`--only-big-tests`</b>
       are given, <b>`--only-big-tests`</b> is ignored.
+
+      @note
+      This option is enabled by default when test cases are specified
+      on command line.
     </li>
 
     <li>
@@ -4283,6 +4287,10 @@
       Ignore any <b>disabled.def</b> file, and run also tests marked
       as disbaled. Success or failure of those tests will be reported
       the same way as other tests.
+
+      @note
+      This option is enabled by default when test cases are specified
+      on command line.
     </li>
 
     <li>
@@ -4685,7 +4693,8 @@
     <li>
       <tt>`--repeat`=<b>N</b></tt>
 
-      Run each test <b><em>N</em></b> number of times.
+      Run each test <b><em>N</em></b> number of times, in parallel if
+      <b>`--parallel`</b> option value is greater than 1.
     </li>
 
     <li>

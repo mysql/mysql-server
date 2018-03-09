@@ -148,12 +148,10 @@ sub collect_test_cases ($$$$) {
   # This also effects some logic in the loop following this.
   if ($opt_reorder or !@$opt_cases)
   {
-    my $sys_info= My::SysInfo->new();
-    my $parallel= $sys_info->num_cpus();
-    $parallel= $::opt_parallel if ($::opt_parallel ne "auto" and
-                                   $::opt_parallel < $parallel);
-    $parallel= 1 if $quick_collect;
-    $parallel= 1 if @$opt_cases;
+    my $parallel = $ENV{NUMBER_OF_CPUS};
+    $parallel = $::opt_parallel if ($::opt_parallel < $parallel);
+    $parallel = 1 if $quick_collect;
+    $parallel = 1 if @$opt_cases;
 
     if ($parallel == 1 or !$threads_support or !$threads_shared_support)
     {
@@ -316,25 +314,57 @@ sub collect_test_cases ($$$$) {
     }
 
     @$cases = sort {$a->{criteria} cmp $b->{criteria}; } @$cases;
-
-    # For debugging the sort-order
-    # foreach my $tinfo (@$cases)
-    # {
-    #   my $tname= $tinfo->{name} . ' ' . $tinfo->{combination};
-    #   my $crit= $tinfo->{criteria};
-    #   print("$tname\n\t$crit\n");
-    # }
   }
 
-  if (defined $print_testcases){
+  # When $opt_repeat > 1 and $opt_parallel > 1, duplicate each test
+  # $opt_repeat number of times to allow them running in parallel.
+  if ($::opt_repeat > 1 and $::opt_parallel > 1) {
+    $cases = duplicate_test_cases($cases);
+  }
+
+  if (defined $print_testcases) {
     print_testcases(@$cases);
     exit(1);
   }
 
   return $cases;
-
 }
 
+# Duplicate each test $opt_repeat number of times
+sub duplicate_test_cases($) {
+  my $tests = shift;
+
+  my $new_tests;
+  foreach my $test (@$tests) {
+    # Don't repeat the test if 'skip' flag is enabled.
+    if ($test->{'skip'}) {
+      push(@{$new_tests}, $test);
+    } else {
+      for (my $i = 1; $i <= $::opt_repeat; $i++) {
+        # Create a duplicate test object
+        push(@{$new_tests}, create_duplicate_test($test));
+      }
+    }
+  }
+
+  return $new_tests;
+}
+
+# Create a new test object identical to the original one.
+sub create_duplicate_test($) {
+  my $test = shift;
+
+  my $new_test = My::Test->new();
+  while (my ($key, $value) = each(%$test)) {
+    if (ref $value eq "ARRAY") {
+      push(@{$new_test->{$key}}, @$value);
+    } else {
+      $new_test->{$key} = $value;
+    }
+  }
+
+  return $new_test;
+}
 
 # Returns (suitename, testname, extension)
 sub split_testname {
@@ -1048,18 +1078,15 @@ sub collect_one_test_case {
     $tinfo->{'comment'}= mtr_fromfile($disabled_file);
   }
 
-  if ( $marked_as_disabled )
-  {
-    if ( $enable_disabled )
-    {
+  if ($marked_as_disabled) {
+    if ($enable_disabled or @::opt_cases) {
       # User has selected to run all disabled tests
-      mtr_report(" - $tinfo->{name} wil be run although it's been disabled\n",
-		 "  due to '$tinfo->{comment}'");
-    }
-    else
-    {
+      mtr_report(" - Running test $tinfo->{name} even though it's been",
+                 "disabled due to '$tinfo->{comment}'.");
+    } else {
       $tinfo->{'skip'}= 1;
-      $tinfo->{'disable'}= 1;   # Sub type of 'skip'
+      # Disable the test case
+      $tinfo->{'disable'}= 1;
       return $tinfo;
     }
   }

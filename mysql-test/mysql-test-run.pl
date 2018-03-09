@@ -292,7 +292,7 @@ sub suite_timeout { return $opt_suite_timeout * 60; };
 
 my $opt_wait_all;
 my $opt_user_args;
-my $opt_repeat= 1;
+our $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
 our $opt_report_unstable_tests;
@@ -445,6 +445,21 @@ sub main {
     }
   }
 
+  # Environment variable to hold number of CPUs
+  my $sys_info = My::SysInfo->new();
+  $ENV{NUMBER_OF_CPUS} = $sys_info->num_cpus();
+
+  if ($opt_parallel eq "auto") {
+    # Try to find a suitable value for number of workers
+    $opt_parallel = $ENV{NUMBER_OF_CPUS};
+
+    if(defined $ENV{MTR_MAX_PARALLEL}) {
+      my $max_par   = $ENV{MTR_MAX_PARALLEL};
+      $opt_parallel = $max_par if ($opt_parallel > $max_par);
+    }
+    $opt_parallel = 1 if ($opt_parallel < 1);
+  }
+
   init_timers();
 
   mtr_report("Collecting tests...");
@@ -473,23 +488,6 @@ sub main {
   
   $num_tests_for_report = $num_tests * $opt_repeat;
   $remaining= $num_tests_for_report;
-
-  # Environment variable to hold number of CPUs
-  my $sys_info= My::SysInfo->new();
-  $ENV{NUMBER_OF_CPUS}= $sys_info->num_cpus();
-
-  if ($opt_parallel eq "auto")
-  {
-    # Try to find a suitable value for number of workers
-    $opt_parallel= $ENV{NUMBER_OF_CPUS};
-
-    if(defined $ENV{MTR_MAX_PARALLEL})
-    {
-      my $max_par= $ENV{MTR_MAX_PARALLEL};
-      $opt_parallel= $max_par if ($opt_parallel > $max_par);
-    }
-    $opt_parallel= 1 if ($opt_parallel < 1);
-  }
 
   # Limit parallel workers to number of tests to avoid idle workers
   $opt_parallel= $num_tests if ($num_tests > 0 and $opt_parallel > $num_tests);
@@ -867,19 +865,25 @@ sub run_test_server ($$$) {
 	    }
 	  }
 
-	  # Repeat test $opt_repeat number of times
-	  my $repeat= $result->{repeat} || 1;
-	  # Don't repeat if test was skipped
-	  if ($repeat < $opt_repeat && $result->{'result'} ne 'MTR_RES_SKIPPED')
-	  {
-	    $result->{retries}= 0;
-	    $result->{rep_failures}++ if $result->{failures};
-	    $result->{failures}= 0;
-	    delete($result->{result});
-	    $result->{repeat}= $repeat+1;
-	    $result->write_test($sock, 'TESTCASE');
-	    next;
-	  }
+          # Tests are already duplicated in the list if parallel value is
+          # greater than 1. Following code is needed only when parallel
+          # value is 1.
+          if ($opt_parallel == 1) {
+            # Repeat the test $opt_repeat number of times
+            my $repeat = $result->{repeat} || 1;
+
+            # Don't repeat if test was skipped
+            if ($repeat < $opt_repeat && $result->{'result'} ne 'MTR_RES_SKIPPED')
+            {
+              $result->{retries} = 0;
+              $result->{rep_failures}++ if $result->{failures};
+              $result->{failures} = 0;
+              delete($result->{result});
+              $result->{repeat} = $repeat+1;
+              $result->write_test($sock, 'TESTCASE');
+              next;
+            }
+          }
 
 	  # Remove from list of running
 	  mtr_error("'", $result->{name},"' is not known to be running")
@@ -1871,6 +1875,11 @@ sub command_line_setup {
     # only-big-test options are passed.
     mtr_report("Turning off --only-big-test");
     $opt_only_big_test= 0;
+  }
+
+  # Enable --big-test and option when test cases are specified command line.
+  if (@opt_cases) {
+    $opt_big_test = 1 if !$opt_big_test;
   }
 
   $ENV{'BIG_TEST'}= 1 if ($opt_big_test or $opt_only_big_test);
@@ -7865,7 +7874,8 @@ Misc options
                         Use parallel=auto for auto-setting of N
   non-parallel-test     Also run tests marked as 'non-parallel'. Tests sourcing
                         'not_parallel.inc' are marked as 'non-parallel' tests.
-  repeat=N              Run each test N number of times
+  repeat=N              Run each test N number of times, in parallel if
+                        --parallel option value is > 1.
   retry=N               Retry tests that fail N times, limit number of failures
                         to $opt_retry_failure
   retry-failure=N       Limit number of retries for a failed test
