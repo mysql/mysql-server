@@ -237,6 +237,7 @@ int ignored_error_code(int err_code);
 
 /* 4 bytes which all binlogs should begin with */
 #define BINLOG_MAGIC "\xfe\x62\x69\x6e"
+#define SIZEOF_BINLOG_MAGIC 4
 
 /**
   @addtogroup group_cs_binglog_event_header_flags Binlog Event Header Flags
