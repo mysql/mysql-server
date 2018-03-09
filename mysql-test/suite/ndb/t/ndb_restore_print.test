@@ -285,5 +285,5 @@ insert into t1 (a,b) select NULL, b from t1;
 drop table t1;
 
 --let ndb_restore_filter=test t1
---let ndb_restore_opts=--verbose=0 --print_data --fields-terminated-by=";"
+--let ndb_restore_opts=--verbose=0 --print_data --hex --fields-enclosed-by="'" --fields-optionally-enclosed-by="X"
 --source include/ndb_backup_print.inc
