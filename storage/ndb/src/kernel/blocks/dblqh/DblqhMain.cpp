@@ -20617,6 +20617,14 @@ void Dblqh::seizeLogpage(Signal* signal)
 #endif
   logPagePtr.p->logPageWord[ZNEXT_PAGE] = RNIL;
   logPagePtr.p->logPageWord[ZPOS_IN_FREE_LIST] = 0;
+  /**
+   * During an initial start of a data node with Diskless set to
+   * 1 we need to initialise this variable to 0. Normally the
+   * log page is initialised when read from file system. The
+   * code above that zeroes the entire page in debug builds
+   * shows that it is safe to perform this initialisation.
+   */
+  logPagePtr.p->logPageWord[ZPOS_LOG_LAP] = 0;
 }//Dblqh::seizeLogpage()
 
 /* ------------------------------------------------------------------------- */
