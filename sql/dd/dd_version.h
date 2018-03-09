@@ -97,8 +97,8 @@
     triggers.connection_collation_id, triggers.schema_collation_id,
 
 
-  80005: Current, not published yet.
-  ----------------------------------
+  80011: Current. Published in 8.0 GA.
+  ------------------------------------
   Changes from version 80004:
 
   - WL#8383 and WL#9465: Removed obsolete SQL modes from enums in 'events',
@@ -117,6 +117,10 @@
   - BUG#27309116: Add a new column `external_language` to `mysql`.`routines`
     and update `information_schema`.`routines` to reflect this column.
 
+  80012: Next DD version number to use when there is change.
+  ----------------------------------------------------------
+  No changes yet, hence this number is not used yet.
+
   If a new DD version is published in a MRU, that version may or may not
   be possible to downgrade to previous MRUs within the same GA. If
   downgrade is supported, the constant DD_VERSION_MINOR_DOWNGRADE_THRESHOLD
@@ -126,9 +130,9 @@
 */
 namespace dd {
 
-static const uint DD_VERSION = 80005;
+static const uint DD_VERSION = 80011;
 
-static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80005;
+static const uint DD_VERSION_MINOR_DOWNGRADE_THRESHOLD = 80011;
 
 }  // namespace dd
 

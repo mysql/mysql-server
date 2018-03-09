@@ -51,15 +51,19 @@ namespace info_schema {
   ------------------------
   Introduced in MySQL 8.0.0 by WL#6599. Never published in a GA version.
 
-  80005: Current, not published yet.
-  ----------------------------------
+  80011: Current. Published in 8.0 GA.
+  ------------------------------------
   Changes from version 1:
 
   - Bug#27309116: Add a new column `external_language` to `mysql`.`routines`
     and update `information_schema`.`routines` to reflect this column.
+
+  80012: Next I_S version number to use when there is change.
+  -----------------------------------------------------------
+  No changes yet, hence this number is not used yet.
 */
 
-static const uint IS_DD_VERSION = 80005;
+static const uint IS_DD_VERSION = 80011;
 
 /**
   Initialize INFORMATION_SCHEMA system views.
