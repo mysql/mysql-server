@@ -102,7 +102,7 @@ then
 
 	OVERRIDEFILE="/etc/mysql/mysql.conf.d/default-auth-override.cnf"
 	if [ ! -e "$OVERRIDEFILE" ]; then
-		db_input high mysql-@DEB_PRODUCTNAME@-server/default-auth-override || true
+		db_input high mysql-server/default-auth-override || true
 		db_go
 	fi
 
