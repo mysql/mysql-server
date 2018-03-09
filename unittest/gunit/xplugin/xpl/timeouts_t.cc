@@ -37,6 +37,7 @@ using ::testing::Expectation;
 using ::testing::InSequence;
 using ::testing::Return;
 using ::testing::ReturnPointee;
+using ::testing::ReturnRef;
 using ::testing::SetArrayArgument;
 using ::testing::SetErrnoAndReturn;
 using ::testing::StrictMock;
@@ -46,14 +47,16 @@ class Timers_test_suite : public ::testing::Test {
  public:
   void SetUp() {
     EXPECT_CALL(mock_server, get_config()).WillRepeatedly(Return(config));
-
+    EXPECT_CALL(*mock_vio, get_mysql_socket())
+        .WillRepeatedly(ReturnRef(m_socket));
     sut.reset(new xpl::test::Mock_ngs_client(mock_vio, mock_server, /* id */ 1,
                                              &mock_protocol_monitor, timeouts));
   }
 
   void TearDown() { EXPECT_CALL(*mock_vio, shutdown()); }
 
-  std::shared_ptr<Mock_vio> mock_vio{new Mock_vio()};
+  using Strict_mock_vio = StrictMock<Mock_vio>;
+  std::shared_ptr<Strict_mock_vio> mock_vio{new Strict_mock_vio()};
   StrictMock<Mock_server> mock_server;
   StrictMock<Mock_protocol_monitor> mock_protocol_monitor;
   Global_timeouts timeouts{Global_timeouts::Default::k_interactive_timeout,
@@ -66,6 +69,7 @@ class Timers_test_suite : public ::testing::Test {
       1, 0, 0, 0, 1};  // 1 = size, 0, 0, 0, 1 = Msg_CapGet
 
   ngs::shared_ptr<xpl::test::Mock_ngs_client> sut;
+  MYSQL_SOCKET m_socket{INVALID_SOCKET, nullptr};
 };
 
 TEST_F(Timers_test_suite,
@@ -112,13 +116,15 @@ TEST_F(Timers_test_suite,
        read_one_message_interactive_client_custom_interactive_timer) {
   timeouts.interactive_timeout = 11;
   Message_request mr;
-  std::shared_ptr<Mock_vio> temp_vio(new Mock_vio());
+  std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
+
   xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
                                     &mock_protocol_monitor, timeouts);
 
   client.set_wait_timeout(timeouts.interactive_timeout);
 
   EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 11));
+  EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
   EXPECT_CALL(*temp_vio, read(_, _))
       .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
                       Return(k_msg.size())));
@@ -132,11 +138,12 @@ TEST_F(Timers_test_suite,
        read_one_message_non_interactive_client_custom_wait_timer) {
   timeouts.wait_timeout = 22;
   Message_request mr;
-  std::shared_ptr<Mock_vio> temp_vio(new Mock_vio());
+  std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
   xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
                                     &mock_protocol_monitor, timeouts);
 
   EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 22));
+  EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
   EXPECT_CALL(*temp_vio, read(_, _))
       .WillOnce(DoAll(SetArrayArgument<0>(k_msg.begin(), k_msg.end()),
                       Return(k_msg.size())));
@@ -175,7 +182,7 @@ TEST_F(Timers_test_suite, read_one_message_default_read_timeout) {
 
 TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
   timeouts.read_timeout = 33;
-  std::shared_ptr<Mock_vio> temp_vio(new Mock_vio());
+  std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
   xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
                                     &mock_protocol_monitor, timeouts);
 
@@ -183,6 +190,7 @@ TEST_F(Timers_test_suite, read_one_message_custom_read_timeout) {
               set_timeout(Vio_interface::Direction::k_read,
                           Global_timeouts::Default::k_interactive_timeout));
   EXPECT_CALL(*temp_vio, set_timeout(Vio_interface::Direction::k_read, 33));
+  EXPECT_CALL(*temp_vio, get_mysql_socket()).WillOnce(ReturnRef(m_socket));
 
   // Expected to be called twice - once for header and once for payload
   EXPECT_CALL(*temp_vio, read(_, _))
@@ -244,7 +252,7 @@ TEST_F(Timers_test_suite, send_message_default_write_timeout) {
 
 TEST_F(Timers_test_suite, send_message_custom_write_timeout) {
   timeouts.write_timeout = 44;
-  std::shared_ptr<Mock_vio> temp_vio(new Mock_vio());
+  std::shared_ptr<Strict_mock_vio> temp_vio(new Strict_mock_vio());
   xpl::test::Mock_ngs_client client(temp_vio, mock_server, /* id */ 1,
                                     &mock_protocol_monitor, timeouts);
 

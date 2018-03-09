@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 
 #include <gtest/gtest.h>
 
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
+#include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
 namespace test {
@@ -45,57 +45,38 @@ class Delete_statement_builder_test : public ::testing::Test {
   Delete_statement_builder builder;
 };
 
-namespace {
-void operator<<(::google::protobuf::Message &msg, const std::string &txt) {
-  ASSERT_TRUE(::google::protobuf::TextFormat::ParseFromString(txt, &msg));
-}
-}  // namespace
-
 TEST_F(Delete_statement_builder_test, build_table) {
-  msg << "collection {name: 'xtable' schema: 'xschema'}"
-         "data_model: TABLE "
-         "criteria {type: OPERATOR "
-         "          operator {name: '>' "
-         "                    param {type: IDENT identifier {name: 'delta'}}"
-         "                    param {type: LITERAL literal"
-         "                                             {type: V_DOUBLE"
-         "                                                 v_double: 1.0}}}}"
-         "order {expr {type: IDENT identifier {name: 'gamma'}}"
-         "       direction: DESC} "
-         "limit {row_count: 2}";
+  msg.set_data_model(Mysqlx::Crud::TABLE);
+  *msg.mutable_collection() = Collection("xtable", "xschema");
+  *msg.mutable_criteria() =
+      Filter(Operator(">", ColumnIdentifier("delta"), Scalar(1.0)));
+  *msg.mutable_order() =
+      Order_list{{ColumnIdentifier("gamma"), Order::Base::DESC}};
+  *msg.mutable_limit() = Limit(2);
   ASSERT_NO_THROW(builder.build(msg));
-  EXPECT_EQ(
+  EXPECT_STREQ(
       "DELETE FROM `xschema`.`xtable` "
       "WHERE (`delta` > 1) "
       "ORDER BY `gamma` DESC "
       "LIMIT 2",
-      query.get());
+      query.get().c_str());
 }
 
 TEST_F(Delete_statement_builder_test, build_document) {
-  msg << "collection {name: 'xcoll' schema: 'xschema'}"
-         "data_model: DOCUMENT "
-         "criteria {type: OPERATOR "
-         "          operator {name: '>' "
-         "                    param {type: IDENT identifier {document_path "
-         "{type: MEMBER "
-         "                                                                  "
-         "value: 'delta'}}}"
-         "                    param {type: LITERAL literal "
-         "                                          {type: V_DOUBLE"
-         "                                              v_double: 1.0}}}}"
-         "order {expr {type: IDENT identifier {document_path {type: MEMBER "
-         "                                                     value: "
-         "'gamma'}}}"
-         "       direction: DESC} "
-         "limit {row_count: 2}";
+  msg.set_data_model(Mysqlx::Crud::DOCUMENT);
+  *msg.mutable_collection() = Collection("xcoll", "xschema");
+  *msg.mutable_criteria() = Filter(
+      Operator(">", ColumnIdentifier(Document_path{"delta"}), Scalar(1.0)));
+  *msg.mutable_order() =
+      Order_list{{ColumnIdentifier(Document_path{"gamma"}), Order::Base::DESC}};
+  *msg.mutable_limit() = Limit(2);
   ASSERT_NO_THROW(builder.build(msg));
-  EXPECT_EQ(
+  EXPECT_STREQ(
       "DELETE FROM `xschema`.`xcoll` "
       "WHERE (JSON_EXTRACT(doc,'$.delta') > 1) "
       "ORDER BY JSON_EXTRACT(doc,'$.gamma') DESC "
       "LIMIT 2",
-      query.get());
+      query.get().c_str());
 }
 
 }  // namespace test

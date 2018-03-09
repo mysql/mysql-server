@@ -50,6 +50,7 @@ class Vio_wrapper : public Vio_interface {
   int shutdown() override;
 
   Vio *get_vio() override { return m_vio; }
+  MYSQL_SOCKET &get_mysql_socket() override { return m_vio->mysql_socket; }
 
   ~Vio_wrapper();
 

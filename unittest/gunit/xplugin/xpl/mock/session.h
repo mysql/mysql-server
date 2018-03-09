@@ -58,6 +58,7 @@ class Mock_vio : public Vio_interface {
   MOCK_METHOD0(shutdown, int());
   MOCK_METHOD0(delete_vio, void());
   MOCK_METHOD0(get_vio, Vio *());
+  MOCK_METHOD0(get_mysql_socket, MYSQL_SOCKET &());
 };
 
 class Mock_ssl_context : public Ssl_context_interface {
