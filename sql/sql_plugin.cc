@@ -2738,10 +2738,6 @@ static int *mysql_sys_var_int(THD *thd, int offset) {
   return (int *)intern_sys_var_ptr(thd, offset, true);
 }
 
-static long *mysql_sys_var_long(THD *thd, int offset) {
-  return (long *)intern_sys_var_ptr(thd, offset, true);
-}
-
 static unsigned long *mysql_sys_var_ulong(THD *thd, int offset) {
   return (unsigned long *)intern_sys_var_ptr(thd, offset, true);
 }
@@ -3045,7 +3041,9 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
         ((thdvar_int_t *)opt)->resolve = mysql_sys_var_int;
         break;
       case PLUGIN_VAR_LONG:
-        ((thdvar_long_t *)opt)->resolve = mysql_sys_var_long;
+        // All PLUGIN_VAR_LONG variables are actually ulong,
+        // see struct System_variables
+        ((thdvar_ulong_t *)opt)->resolve = mysql_sys_var_ulong;
         break;
       case PLUGIN_VAR_LONGLONG:
         ((thdvar_longlong_t *)opt)->resolve = mysql_sys_var_longlong;
