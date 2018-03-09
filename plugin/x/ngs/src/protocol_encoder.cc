@@ -132,14 +132,17 @@ bool Protocol_encoder::send_ok(const std::string &message) {
 }
 
 bool Protocol_encoder::send_init_error(const Error_code &error_code) {
-  m_protocol_monitor->on_init_error_send();
+  if (error_code.severity == Error_code::FATAL)
+    m_protocol_monitor->on_init_error_send();
 
   Mysqlx::Error error;
 
   error.set_code(error_code.error);
   error.set_msg(error_code.message);
   error.set_sql_state(error_code.sql_state);
-  error.set_severity(Mysqlx::Error::FATAL);
+  error.set_severity(error_code.severity == Error_code::FATAL
+                         ? Mysqlx::Error::FATAL
+                         : Mysqlx::Error::ERROR);
 
   return send_message(Mysqlx::ServerMessages::ERROR, error);
 }

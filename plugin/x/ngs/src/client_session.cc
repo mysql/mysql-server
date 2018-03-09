@@ -197,6 +197,7 @@ void Session::on_auth_success(
 void Session::on_auth_failure(
     const Authentication_interface::Response &response) {
   int error_code = ER_ACCESS_DENIED_ERROR;
+  m_failed_auth_count++;
 
   log_debug("%s.%u: Unsuccessful authentication attempt", m_client.client_id(),
             m_id);
@@ -205,10 +206,12 @@ void Session::on_auth_failure(
     error_code = response.error_code;
   }
 
-  m_encoder->send_init_error(
-      ngs::Fatal(error_code, "%s", response.data.c_str()));
+  auto error_send_back_to_user =
+      ngs::Fatal(error_code, "%s", response.data.c_str());
+  error_send_back_to_user.severity =
+      can_authenticate_again() ? Error_code::ERROR : Error_code::FATAL;
 
-  m_failed_auth_count++;
+  m_encoder->send_init_error(error_send_back_to_user);
 
   if (!can_authenticate_again()) {
     log_error(ER_XPLUGIN_MAX_AUTH_ATTEMPTS_REACHED, m_client.client_id(), m_id);

@@ -76,7 +76,7 @@ class Variable_container {
     return m_variables.count(key);
   }
 
-  std::string unreplace(const std::string &in, bool clear) {
+  std::string unreplace(const std::string &in, const bool clear = false) {
     std::string s = in;
     for (std::list<std::string>::const_iterator sub = m_to_unreplace.begin();
          sub != m_to_unreplace.end(); ++sub) {

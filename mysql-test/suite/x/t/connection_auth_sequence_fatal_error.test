@@ -1,0 +1,229 @@
+## Test cases for errors returned in authentication sequence
+
+--source include/have_ssl.inc
+--source include/xplugin_preamble.inc
+
+#
+## Setup
+#
+
+call mtr.add_suppression("Maximum number of authentication attempts reached");
+
+--write_file $MYSQL_TMP_DIR/auth_seq_simple.xpl
+-->import ssl.macro
+
+newsession seq	-;
+quiet;
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+noquiet;
+
+-->echo
+-->echo # First authentication attempt
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH1%"
+    auth_data: "test\0not_existing_user\0invalid_password"
+}
+recvtype Mysqlx.Error severity ERROR;
+
+-->echo
+-->echo # Second authentication attempt
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH2%"
+    auth_data: "test\0not_existing_user\0invalid_password"
+}
+-->recvtype Mysqlx.Error severity ERROR
+
+-->echo
+-->echo # Third authentication attempt (last one)
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH3%"
+    auth_data: "test\0not_existing_user\0invalid_password"
+}
+-->recvtype Mysqlx.Error severity FATAL
+
+peerdisc 30000 30000;
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/auth_seq_changle.xpl
+-->import ssl.macro
+newsession seq	-;
+quiet;
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+noquiet;
+
+-->echo
+-->echo # First authentication attempt
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH1%"
+}
+
+recvtype Mysqlx.Session.AuthenticateContinue be-quiet;
+echo Mysqlx.Session.AuthenticateContinue {...};
+
+Mysqlx.Session.AuthenticateContinue {
+    auth_data: "test\0not_existing_user\0invalid_scramble"
+}
+recvtype Mysqlx.Error severity ERROR;
+
+
+-->echo
+-->echo # Second authentication attempt
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH2%"
+}
+
+recvtype Mysqlx.Session.AuthenticateContinue be-quiet;
+echo Mysqlx.Session.AuthenticateContinue {...};
+
+Mysqlx.Session.AuthenticateContinue {
+    auth_data: "test\0not_existing_user\0invalid_scramble"
+}
+recvtype Mysqlx.Error severity ERROR;
+
+
+-->echo
+-->echo # Third authentication attempt (last one)
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH3%"
+}
+
+recvtype Mysqlx.Session.AuthenticateContinue be-quiet;
+echo Mysqlx.Session.AuthenticateContinue {...};
+
+Mysqlx.Session.AuthenticateContinue {
+    auth_data: "test\0not_existing_user\0invalid_scramble"
+}
+recvtype Mysqlx.Error severity FATAL;
+
+
+peerdisc 30000 30000;
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/auth_seq_three_different.xpl
+-->import ssl.macro
+newsession seq	-;
+quiet;
+callmacro Enable_ssl_on_xprotocol_and_transmision_layer;
+noquiet;
+
+-->echo
+-->echo # First authentication attempt
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH1%"
+}
+
+recvtype Mysqlx.Session.AuthenticateContinue be-quiet;
+echo Mysqlx.Session.AuthenticateContinue {...};
+
+Mysqlx.Session.AuthenticateContinue {
+    auth_data: "test\0not_existing_user\0invalid_scramble"
+}
+recvtype Mysqlx.Error severity ERROR;
+
+
+-->echo
+-->echo # Second authentication attempt
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH2%"
+}
+
+recvtype Mysqlx.Session.AuthenticateContinue be-quiet;
+echo Mysqlx.Session.AuthenticateContinue {...};
+
+Mysqlx.Session.AuthenticateContinue {
+    auth_data: "test\0not_existing_user\0invalid_scramble"
+}
+recvtype Mysqlx.Error severity ERROR;
+
+
+-->echo
+-->echo # Third authentication attempt (last one)
+Mysqlx.Session.AuthenticateStart {
+    mech_name: "%AUTH3%"
+    auth_data: "test\0not_existing_user\0invalid_password"
+}
+-->recvtype Mysqlx.Error severity FATAL
+
+
+peerdisc 30000 30000;
+
+EOF
+
+--write_file $MYSQL_TMP_DIR/auth_seq_invalid_msg.xpl
+%MESSAGE_NAME% {
+	%MESSAGE_FIELD% : "not meaningful field payload"
+}
+
+recvtype Mysqlx.Error severity FATAL;
+peerdisc 30000 30000;
+EOF
+
+--let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-mode=REQUIRED
+
+
+#
+## Test starts here
+#
+
+--echo
+--echo
+--echo #
+--echo ## Execute three "PLAIN" authentications
+--echo ## checking severity of returned errors (last one must be FATAL)
+--echo #
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq_simple.xpl -v%AUTH1%=PLAIN -v%AUTH2%=PLAIN -v%AUTH3%=PLAIN 2>&1;
+
+--echo
+--echo
+--echo #
+--echo ## Execute three "SHA256_MEMORY" authentications
+--echo ## checking severity of returned errors (last one must be FATAL)
+--echo #
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq_changle.xpl -v%AUTH1%=SHA256_MEMORY -v%AUTH2%=SHA256_MEMORY -v%AUTH3%=SHA256_MEMORY 2>&1;
+
+--echo
+--echo
+--echo #
+--echo ## Execute three mixed authentications
+--echo ## checking severity of returned errors (last one must be FATAL)
+--echo #
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq_changle.xpl -v%AUTH1%=MYSQL41 -v%AUTH2%=SHA256_MEMORY -v%AUTH3%=MYSQL41 2>&1;
+
+--echo
+--echo
+--echo #
+--echo ## Execute "SHA256_MEMORY", "MYSQL41", "PLAIN"
+--echo ## checking severity of returned errors (last one must be FATAL)
+--echo #
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq_three_different.xpl -v%AUTH1%=SHA256_MEMORY -v%AUTH2%=MYSQL41 -v%AUTH3%=PLAIN 2>&1;
+
+
+--echo
+--echo
+--echo #
+--echo ## Verify that AuthenticateContinue message instead AuthStart
+--echo ## will trigger FATAL error and disconnection
+--echo #
+exec $MYSQLXTEST
+	--file=$MYSQL_TMP_DIR/auth_seq_invalid_msg.xpl
+	-v%MESSAGE_NAME%=Mysqlx.Session.AuthenticateContinue
+	-v%MESSAGE_FIELD%=auth_data
+	--no-auth 2>&1;
+
+--echo
+--echo
+--echo #
+--echo ## Verify that StmtExecute message instead AuthStart
+--echo ## will trigger FATAL error and disconnection
+--echo #
+exec $MYSQLXTEST
+	--file=$MYSQL_TMP_DIR/auth_seq_invalid_msg.xpl
+	-v%MESSAGE_NAME%=Mysqlx.Sql.StmtExecute
+	-v%MESSAGE_FIELD%=stmt
+	--no-auth 2>&1;
+#
+## Postamble
+#
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
