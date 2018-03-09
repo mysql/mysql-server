@@ -172,7 +172,7 @@ class Regexp_engine {
   bool IsError() const { return U_FAILURE(m_error_code); }
   bool CheckError() const { return check_icu_status(m_error_code); }
 
-  ~Regexp_engine() { uregex_close(m_re); }
+  virtual ~Regexp_engine() { uregex_close(m_re); }
 
   /**
     The hard limit for growing the replace buffer. The buffer cannot grow
