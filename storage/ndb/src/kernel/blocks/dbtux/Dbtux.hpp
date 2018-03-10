@@ -217,8 +217,8 @@ private:
   friend struct TreePos;
   struct TreePos {
     TupLoc m_loc;               // physical node address
-    Uint16 m_pos;               // position 0 to m_occup
-    Uint8 m_dir;                // see scanNext
+    Uint32 m_pos;               // position 0 to m_occup
+    Uint32 m_dir;                // see scanNext
     TreePos();
   };
 
@@ -695,14 +695,46 @@ private:
   /*
    * DbtuxSearch.cpp
    */
-  void findNodeToUpdate(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode);
-  bool findPosToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
-  bool findPosToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos);
-  bool searchToAdd(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
-  bool searchToRemove(TuxCtx&, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos);
-  void findNodeToScan(Frag& frag, unsigned dir, const KeyBoundC& searchBound, NodeHandle& currNode);
-  void findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode, Uint16* pos);
-  void searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, TreePos& treePos);
+  void findNodeToUpdate(TuxCtx&,
+                        Frag& frag,
+                        const KeyDataC& searchKey,
+                        TreeEnt searchEnt,
+                        NodeHandle& currNode);
+  bool findPosToAdd(TuxCtx&,
+                    Frag& frag,
+                    const KeyDataC& searchKey,
+                    TreeEnt searchEnt,
+                    NodeHandle& currNode,
+                    TreePos& treePos);
+  bool findPosToRemove(TuxCtx&,
+                       Frag& frag,
+                       const KeyDataC& searchKey,
+                       TreeEnt searchEnt,
+                       NodeHandle& currNode,
+                       TreePos& treePos);
+  bool searchToAdd(TuxCtx&,
+                   Frag& frag,
+                   const KeyDataC& searchKey,
+                   TreeEnt searchEnt,
+                   TreePos& treePos);
+  bool searchToRemove(TuxCtx&,
+                      Frag& frag,
+                      const KeyDataC& searchKey,
+                      TreeEnt searchEnt,
+                      TreePos& treePos);
+  void findNodeToScan(Frag& frag,
+                      unsigned dir,
+                      const KeyBoundC& searchBound,
+                      NodeHandle& currNode);
+  void findPosToScan(Frag& frag,
+                     unsigned idir,
+                     const KeyBoundC& searchBound,
+                     NodeHandle& currNode,
+                     Uint32* pos);
+  void searchToScan(Frag& frag,
+                    unsigned idir,
+                    const KeyBoundC& searchBound,
+                    TreePos& treePos);
 
   /*
    * DbtuxCmp.cpp
@@ -1033,8 +1065,8 @@ Dbtux::TreeHead::getEntList(TreeNode* node) const
 inline
 Dbtux::TreePos::TreePos() :
   m_loc(),
-  m_pos(ZNIL),
-  m_dir(255)
+  m_pos(Uint32(~0)),
+  m_dir(Uint32(~0))
 {
 }
 

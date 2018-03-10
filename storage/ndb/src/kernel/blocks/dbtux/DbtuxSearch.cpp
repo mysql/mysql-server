@@ -312,7 +312,11 @@ Dbtux::findNodeToScan(Frag& frag,
  * search similar to findPosToAdd().
  */
 void
-Dbtux::findPosToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode, Uint16* pos)
+Dbtux::findPosToScan(Frag& frag,
+                     unsigned idir,
+                     const KeyBoundC& searchBound,
+                     NodeHandle& currNode,
+                     Uint32* pos)
 {
   const int jdir = 1 - 2 * int(idir);
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
@@ -363,7 +367,7 @@ Dbtux::searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, Tre
   }
   findNodeToScan(frag, idir, searchBound, currNode);
   treePos.m_loc = currNode.m_loc;
-  Uint16 pos;
+  Uint32 pos;
   findPosToScan(frag, idir, searchBound, currNode, &pos);
   const unsigned occup = currNode.getOccup();
   if (idir == 0) {
@@ -373,7 +377,7 @@ Dbtux::searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, Tre
       treePos.m_dir = 3;
     } else {
       // start scan after node end i.e. proceed to right child
-      treePos.m_pos = ZNIL;
+      treePos.m_pos = Uint32(~0);
       treePos.m_dir = 5;
     }
   } else {
@@ -383,7 +387,7 @@ Dbtux::searchToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, Tre
       treePos.m_pos = pos - 1;
       treePos.m_dir = 3;
     } else {
-      treePos.m_pos = ZNIL;
+      treePos.m_pos = Uint32(~0);
       treePos.m_dir = 0;
     }
   }

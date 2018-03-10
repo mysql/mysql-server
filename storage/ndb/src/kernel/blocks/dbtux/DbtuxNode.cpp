@@ -571,7 +571,7 @@ Dbtux::removeScanList(NodeHandle& node, unsigned pos, Uint32& scanList)
       scanList = scanPtr.i;
       // unset position but leave direction alone
       scanPos.m_loc = NullTupLoc;
-      scanPos.m_pos = ZNIL;
+      scanPos.m_pos = Uint32(~0);
     }
     scanPtr.i = nextPtrI;
   } while (scanPtr.i != RNIL);
