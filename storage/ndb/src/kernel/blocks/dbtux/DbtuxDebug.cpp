@@ -217,7 +217,7 @@ Dbtux::printNode(TuxCtx & ctx,
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   TreeHead& tree = frag.m_tree;
   NodeHandle node(frag);
-  selectNode(node, loc);
+  selectNode(ctx, node, loc);
   out << par.m_path << " " << node << endl;
   // check children
   PrintPar cpar[2];

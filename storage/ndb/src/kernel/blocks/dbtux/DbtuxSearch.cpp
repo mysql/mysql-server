@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,9 +32,15 @@
  * Search within the found node is done by caller.  On add, search key
  * may be before minimum or after maximum entry.  On remove, search key
  * is within the node.
+ *
+ * Can be called by MT-build of ordered indexes.
  */
 void
-Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode)
+Dbtux::findNodeToUpdate(TuxCtx& ctx,
+                        Frag& frag,
+                        const KeyDataC& searchKey,
+                        TreeEnt searchEnt,
+                        NodeHandle& currNode)
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const Uint32 numAttrs = index.m_numAttrs;
@@ -46,7 +52,7 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, Tree
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     thrjamDebug(ctx.jamBuffer);
-    selectNode(currNode, currNode.m_loc);
+    selectNode(ctx, currNode, currNode.m_loc);
     prefKey.set_buf(currNode.getPref(), prefBytes, prefAttrs);
     int ret = 0;
     if (prefAttrs > 0) {
@@ -102,9 +108,16 @@ Dbtux::findNodeToUpdate(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, Tree
 /*
  * Find position within the final node to add entry to.  Use binary
  * search.  Return true if ok i.e. entry to add is not a duplicate.
+ *
+ * Can be called from MT-build of ordered indexes.
  */
 bool
-Dbtux::findPosToAdd(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, NodeHandle& currNode, TreePos& treePos)
+Dbtux::findPosToAdd(TuxCtx& ctx,
+                    Frag& frag,
+                    const KeyDataC& searchKey,
+                    TreeEnt searchEnt,
+                    NodeHandle& currNode,
+                    TreePos& treePos)
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   int lo = -1;
@@ -165,21 +178,28 @@ Dbtux::findPosToRemove(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeE
 
 /*
  * Search for entry to add.
+ * Can be called from MT-build of ordered indexes.
  */
 bool
-Dbtux::searchToAdd(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEnt searchEnt, TreePos& treePos)
+Dbtux::searchToAdd(TuxCtx& ctx,
+                   Frag& frag,
+                   const KeyDataC& searchKey,
+                   TreeEnt searchEnt,
+                   TreePos& treePos)
 {
   const TreeHead& tree = frag.m_tree;
   NodeHandle currNode(frag);
   currNode.m_loc = tree.m_root;
-  if (unlikely(currNode.m_loc == NullTupLoc)) {
+  if (unlikely(currNode.m_loc == NullTupLoc))
+  {
     // empty tree
     thrjam(ctx.jamBuffer);
     return true;
   }
   findNodeToUpdate(ctx, frag, searchKey, searchEnt, currNode);
   treePos.m_loc = currNode.m_loc;
-  if (! findPosToAdd(ctx, frag, searchKey, searchEnt, currNode, treePos)) {
+  if (! findPosToAdd(ctx, frag, searchKey, searchEnt, currNode, treePos))
+  {
     thrjam(ctx.jamBuffer);
     return false;
   }
@@ -215,7 +235,10 @@ Dbtux::searchToRemove(TuxCtx& ctx, Frag& frag, const KeyDataC& searchKey, TreeEn
  * Search within the found node is done by caller.
  */
 void
-Dbtux::findNodeToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, NodeHandle& currNode)
+Dbtux::findNodeToScan(Frag& frag,
+                      unsigned idir,
+                      const KeyBoundC& searchBound,
+                      NodeHandle& currNode)
 {
   const int jdir = 1 - 2 * int(idir);
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
@@ -228,7 +251,7 @@ Dbtux::findNodeToScan(Frag& frag, unsigned idir, const KeyBoundC& searchBound, N
   NodeHandle glbNode(frag);     // potential g.l.b of final node
   while (true) {
     jam();
-    selectNode(currNode, currNode.m_loc);
+    selectNode(c_ctx, currNode, currNode.m_loc);
     prefKey.set_buf(currNode.getPref(), prefBytes, prefAttrs);
     int ret = 0;
     if (numAttrs > 0) {

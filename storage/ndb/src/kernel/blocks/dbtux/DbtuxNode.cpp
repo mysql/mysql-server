@@ -23,6 +23,8 @@
 
 /*
  * Allocate index node in TUP.
+ *
+ * Can be called from MT-build of ordered indexes.
  */
 int
 Dbtux::allocNode(TuxCtx& ctx, NodeHandle& node)
@@ -39,13 +41,16 @@ Dbtux::allocNode(TuxCtx& ctx, NodeHandle& node)
   int errorCode = c_tup->tuxAllocNode(ctx.jamBuffer,
                                       frag.m_tupIndexFragPtrI,
                                       pageId, pageOffset, node32);
-  thrjamEntry(ctx.jamBuffer);
-  if (errorCode == 0) {
-    thrjam(ctx.jamBuffer);
+  thrjamEntryDebug(ctx.jamBuffer);
+  if (likely(errorCode == 0))
+  {
+    thrjamDebug(ctx.jamBuffer);
     node.m_loc = TupLoc(pageId, pageOffset);
     node.m_node = reinterpret_cast<TreeNode*>(node32);
     ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
-  } else {
+  }
+  else
+  {
     switch (errorCode) {
     case 827:
       errorCode = TuxMaintReq::NoMemError;
@@ -78,16 +83,20 @@ Dbtux::freeNode(NodeHandle& node)
 
 /*
  * Set handle to point to existing node.
+ * Can be called from MT-build of ordered indexes.
  */
 void
-Dbtux::selectNode(NodeHandle& node, TupLoc loc)
+Dbtux::selectNode(TuxCtx& ctx, NodeHandle& node, TupLoc loc)
 {
-  Frag& frag = node.m_frag;
   ndbrequire(loc != NullTupLoc);
   Uint32 pageId = loc.getPageId();
   Uint32 pageOffset = loc.getPageOffset();
   Uint32* node32 = 0;
-  c_tup->tuxGetNode(frag.m_tupIndexFragPtrI, pageId, pageOffset, node32);
+  c_tup->tuxGetNode(ctx.attrDataOffset,
+                    ctx.tuxFixHeaderSize,
+                    pageId,
+                    pageOffset,
+                    node32);
   node.m_loc = loc;
   node.m_node = reinterpret_cast<TreeNode*>(node32);
   ndbrequire(node.m_loc != NullTupLoc && node.m_node != 0);
@@ -95,13 +104,15 @@ Dbtux::selectNode(NodeHandle& node, TupLoc loc)
 
 /*
  * Set handle to point to new node.  Uses a pre-allocated node.
+ *
+ * Can be called from MT-build of ordered indexes.
  */
 void
-Dbtux::insertNode(NodeHandle& node)
+Dbtux::insertNode(TuxCtx& ctx, NodeHandle& node)
 {
   Frag& frag = node.m_frag;
   // use up pre-allocated node
-  selectNode(node, frag.m_freeLoc);
+  selectNode(ctx, node, frag.m_freeLoc);
   frag.m_freeLoc = NullTupLoc;
   new (node.m_node) TreeNode();
 #ifdef VM_TRACE
@@ -147,7 +158,7 @@ Dbtux::freePreallocatedNode(Frag& frag)
   {
     jam();
     NodeHandle node(frag);
-    selectNode(node, frag.m_freeLoc);
+    selectNode(c_ctx, node, frag.m_freeLoc);
     freeNode(node);
     frag.m_freeLoc = NullTupLoc;
   }
@@ -155,6 +166,8 @@ Dbtux::freePreallocatedNode(Frag& frag)
 
 /*
  * Set prefix.  Copies the defined number of attributes.
+ *
+ * Can be called from MT-build of ordered indexes.
  */
 void
 Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
@@ -195,9 +208,15 @@ Dbtux::setNodePref(TuxCtx & ctx, NodeHandle& node)
  *      0 1 2 3 4 5 6      0 1 2 3 4 5 6
  *
  * Add list of scans at the new entry.
+ *
+ * Can be called from MT-build of ordered indexes.
  */
 void
-Dbtux::nodePushUp(TuxCtx & ctx, NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList)
+Dbtux::nodePushUp(TuxCtx & ctx,
+                  NodeHandle& node,
+                  unsigned pos,
+                  const TreeEnt& ent,
+                  Uint32 scanList)
 {
   Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
@@ -222,6 +241,12 @@ Dbtux::nodePushUp(TuxCtx & ctx, NodeHandle& node, unsigned pos, const TreeEnt& e
     setNodePref(ctx, node);
 }
 
+/**
+ * Can be called from MT-build of ordered indexes.
+ * But should never enter here since there cannot be
+ * any active scans while we are rebuilding ordered
+ * index.
+ */
 void
 Dbtux::nodePushUpScans(NodeHandle& node, unsigned pos)
 {
@@ -326,9 +351,15 @@ Dbtux::nodePopDownScans(NodeHandle& node, unsigned pos)
  *      0 1 2 3 4 5 6      0 1 2 3 4 5 6
  *
  * Return list of scans at the removed position 0.
+ *
+ * Can be called from MT-build of ordered indexes.
  */
 void
-Dbtux::nodePushDown(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList)
+Dbtux::nodePushDown(TuxCtx& ctx,
+                    NodeHandle& node,
+                    unsigned pos,
+                    TreeEnt& ent,
+                    Uint32& scanList)
 {
   Frag& frag = node.m_frag;
   TreeHead& tree = frag.m_tree;
@@ -355,6 +386,11 @@ Dbtux::nodePushDown(TuxCtx& ctx, NodeHandle& node, unsigned pos, TreeEnt& ent, U
     setNodePref(ctx, node);
 }
 
+/**
+ * Can be called from MT-build of ordered indexes, but should
+ * never happen since no active scans can be around when
+ * building ordered indexes.
+ */
 void
 Dbtux::nodePushDownScans(NodeHandle& node, unsigned pos)
 {
@@ -473,6 +509,10 @@ Dbtux::nodeSlide(TuxCtx& ctx, NodeHandle& dstNode, NodeHandle& srcNode, unsigned
 
 /*
  * Add list of scans to node at given position.
+ *
+ * Can be called from MT-build of ordered indexes, but it
+ * should never happen since no active scans should be around
+ * when building ordered indexes.
  */
 void
 Dbtux::addScanList(NodeHandle& node, unsigned pos, Uint32 scanList)
@@ -502,6 +542,10 @@ Dbtux::addScanList(NodeHandle& node, unsigned pos, Uint32 scanList)
 /*
  * Remove list of scans from node at given position.  The return
  * location must point to existing list (in fact RNIL always).
+ *
+ * Can be called from MT-build of ordered indexes, but should
+ * never occur since no active scans can be around when
+ * building ordered indexes.
  */
 void
 Dbtux::removeScanList(NodeHandle& node, unsigned pos, Uint32& scanList)
@@ -584,6 +628,10 @@ Dbtux::linkScan(NodeHandle& node, ScanOpPtr scanPtr)
 
 /*
  * Unlink a scan from the list under the node.
+ *
+ * Can be called from MT-build of ordered indexes, but should
+ * not since no active scans should be around when building
+ * ordered indexes.
  */
 void
 Dbtux::unlinkScan(NodeHandle& node, ScanOpPtr scanPtr)

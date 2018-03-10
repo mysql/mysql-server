@@ -41,6 +41,7 @@
 #include "../tsman.hpp"
 #include <EventLogger.hpp>
 #include "../backup/BackupFormat.hpp"
+#include <portlib/ndb_prefetch.h>
 
 #define JAM_FILE_ID 414
 
@@ -1845,7 +1846,11 @@ public:
    */
   int tuxAllocNode(EmulatedJamBuffer*, Uint32 fragPtrI, Uint32& pageId, Uint32& pageOffset, Uint32*& node);
   void tuxFreeNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32* node);
-  void tuxGetNode(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32*& node);
+  void tuxGetNode(Uint32 attrDataOffset,
+                  Uint32 tuxFixHeaderSize,
+                  Uint32 pageId,
+                  Uint32 pageOffset,
+                  Uint32*& node);
 
   /*
    * TUX reads primary table attributes for index keys.  Tuple is
@@ -2242,6 +2247,19 @@ public:
   void prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx);
   void prepare_op_pointer(Uint32 opPtrI);
   void prepare_tab_pointers(Uint32 fragPtrI);
+  void get_tup_ptrs(Uint32 indexFragPtrI,
+                    Uint32** index_fragptr,
+                    Uint32** index_tabptr,
+                    Uint32& attrDataOffset,
+                    Uint32& tuxFixHeaderSize);
+  void get_all_tup_ptrs(Uint32 indexFragPtrI,
+                        Uint32 tableFragPtrI,
+                        Uint32** index_fragptr,
+                        Uint32** index_tabptr,
+                        Uint32** real_fragptr,
+                        Uint32** real_tabptr,
+                        Uint32& attrDataOffset,
+                        Uint32& tuxFixHeaderSize);
   Uint32 get_current_frag_page_id();
 private:
   void disk_page_load_callback(Signal*, Uint32 op, Uint32 page);
@@ -4168,6 +4186,64 @@ Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
   }
 }
 
+inline
+void
+Dbtup::get_all_tup_ptrs(Uint32 indexFragPtrI,
+                        Uint32 tableFragPtrI,
+                        Uint32 **index_fragptr,
+                        Uint32 **index_tabptr,
+                        Uint32 **real_fragptr,
+                        Uint32 **real_tabptr,
+                        Uint32 &attrDataOffset,
+                        Uint32 &tuxFixHeaderSize)
+{
+  FragrecordPtr indexFragPtr;
+  indexFragPtr.i= indexFragPtrI;
+  ptrCheckGuard(indexFragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr indexTablePtr;
+  indexTablePtr.i= indexFragPtr.p->fragTableId;
+  ptrCheckGuard(indexTablePtr, cnoOfTablerec, tablerec);
+  *index_fragptr = (Uint32*)indexFragPtr.p;
+  *index_tabptr = (Uint32*)indexTablePtr.p;
+
+  Uint32 attrDescIndex= indexTablePtr.p->tabDescriptor;
+  attrDataOffset = AttributeOffset::getOffset(
+                            tableDescriptor[attrDescIndex + 1].tabDescr);
+  tuxFixHeaderSize = indexTablePtr.p->m_offsets[MM].m_fix_header_size;
+
+  FragrecordPtr realFragPtr;
+  TablerecPtr realTablePtr;
+  realFragPtr.i = tableFragPtrI;
+  ptrCheckGuard(realFragPtr, cnoOfFragrec, fragrecord);
+  realTablePtr.i= realFragPtr.p->fragTableId;
+  ptrCheckGuard(realTablePtr, cnoOfTablerec, tablerec);
+  *real_fragptr = (Uint32*)realFragPtr.p;
+  *real_tabptr = (Uint32*)realTablePtr.p;
+}
+
+inline
+void
+Dbtup::get_tup_ptrs(Uint32 indexFragPtrI,
+                    Uint32 **index_fragptr,
+                    Uint32 **index_tabptr,
+                    Uint32 &attrDataOffset,
+                    Uint32 &tuxFixHeaderSize)
+{
+  FragrecordPtr indexFragPtr;
+  indexFragPtr.i= indexFragPtrI;
+  ptrCheckGuard(indexFragPtr, cnoOfFragrec, fragrecord);
+  TablerecPtr indexTablePtr;
+  indexTablePtr.i= indexFragPtr.p->fragTableId;
+  ptrCheckGuard(indexTablePtr, cnoOfTablerec, tablerec);
+  *index_fragptr = (Uint32*)indexFragPtr.p;
+  *index_tabptr = (Uint32*)indexTablePtr.p;
+
+  Uint32 attrDescIndex= indexTablePtr.p->tabDescriptor;
+  attrDataOffset = AttributeOffset::getOffset(
+                            tableDescriptor[attrDescIndex + 1].tabDescr);
+  tuxFixHeaderSize = indexTablePtr.p->m_offsets[MM].m_fix_header_size;
+}
+
 // Dbtup_client provides proxying similar to Page_cache_client
 
 class Dbtup_client
@@ -4201,6 +4277,24 @@ public:
 			      const Local_key* key,
                               Uint32 bits);
 };
+
+/**
+ * Can be called from MT-build of ordered indexes.
+ */
+inline
+void
+Dbtup::tuxGetNode(Uint32 attrDataOffset,
+                  Uint32 tuxFixHeaderSize,
+                  Uint32 pageId,
+                  Uint32 pageOffset,
+                  Uint32*& node)
+{
+  PagePtr pagePtr;
+  c_page_pool.getPtr(pagePtr, pageId);
+  node= ((Fix_page*)pagePtr.p)->
+    get_ptr(pageOffset, tuxFixHeaderSize) + attrDataOffset;
+  NDB_PREFETCH_READ((void*)node);
+}
 
 
 #undef JAM_FILE_ID

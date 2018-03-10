@@ -47,6 +47,9 @@ Dbtup::tuxGetTupAddr(Uint32 fragPtrI,
   lkey2 = pageIndex;
 }
 
+/**
+ * Can be called from MT-build of ordered indexes.
+ */
 int
 Dbtup::tuxAllocNode(EmulatedJamBuffer * jamBuf,
                     Uint32 fragPtrI,
@@ -109,28 +112,6 @@ Dbtup::tuxFreeNode(Uint32 fragPtrI,
   free_fix_rec(fragPtr.p, tablePtr.p, &key, (Fix_page*)pagePtr.p);
 }
 
-void
-Dbtup::tuxGetNode(Uint32 fragPtrI,
-                  Uint32 pageId,
-                  Uint32 pageOffset,
-                  Uint32*& node)
-{
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  PagePtr pagePtr;
-  c_page_pool.getPtr(pagePtr, pageId);
-  Uint32 attrDescIndex= tablePtr.p->tabDescriptor + (0 << ZAD_LOG_SIZE);
-  Uint32 attrDataOffset= AttributeOffset::getOffset(
-                            tableDescriptor[attrDescIndex + 1].tabDescr);
-  node= ((Fix_page*)pagePtr.p)->
-    get_ptr(pageOffset, tablePtr.p->m_offsets[MM].m_fix_header_size) + 
-    attrDataOffset;
-}
-
 int
 Dbtup::tuxReadAttrsCurr(EmulatedJamBuffer *jamBuf,
                         const Uint32* attrIds,
@@ -162,6 +143,10 @@ Dbtup::tuxReadAttrsCurr(EmulatedJamBuffer *jamBuf,
                             tupVersion);
 }
 
+/**
+ * This method can be called from MT-build of
+ * ordered indexes.
+ */
 int
 Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
                     Uint32 fragPtrI,

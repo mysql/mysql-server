@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,6 +90,7 @@ Dbtux::mt_buildIndexFragment(mt_BuildIndxCtx* req)
   Frag& frag = *fragPtr.p;
   Local_key pos;
   Uint32 fragPtrI;
+  prepare_build_ctx(ctx, fragPtr);
   int err = req->tup_ptr->mt_scan_init(req->tableId, req->fragId,
                                        &pos, &fragPtrI);
   bool moveNext = false;

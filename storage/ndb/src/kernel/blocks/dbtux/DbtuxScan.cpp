@@ -40,6 +40,17 @@ Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
 }
 
 void
+Dbtux::prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr)
+{
+  IndexPtr indexPtr;
+  ctx.fragPtr = fragPtr;
+  indexPtr.i = fragPtr.p->m_indexId;
+  c_indexPool.getPtr(indexPtr);
+  ctx.indexPtr = indexPtr;
+  prepare_all_tup_ptrs(ctx);
+}
+
+void
 Dbtux::prepare_scan_bounds()
 {
   ScanOp& scan = *c_ctx.scanPtr.p;
@@ -69,6 +80,7 @@ Dbtux::prepare_scan_bounds()
     jamLineDebug((Uint16)c_ctx.numAttrs);
   }
   c_ctx.scanBoundCnt = scanBound.m_cnt;
+  prepare_tup_ptrs(c_ctx);
 }
 
 void
@@ -474,7 +486,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       jam();
       const TupLoc loc = scan.m_scanPos.m_loc;
       NodeHandle node(frag);
-      selectNode(node, loc);
+      selectNode(c_ctx, node, loc);
       unlinkScan(node, c_ctx.scanPtr);
       scan.m_scanPos.m_loc = NullTupLoc;
     }
@@ -918,7 +930,7 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
     scan.m_scanPos = treePos;
     // link the scan to node found
     NodeHandle node(frag);
-    selectNode(node, treePos.m_loc);
+    selectNode(c_ctx, node, treePos.m_loc);
     linkScan(node, scanPtr);
     if (treePos.m_dir == 3)
     {
@@ -933,6 +945,7 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
       if (scanCheck(scanPtr, ent, frag))
       {
         jamDebug();
+        c_ctx.m_current_ent = ent;
         scan.m_state = ScanOp::Current;
       }
       else
@@ -977,14 +990,12 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
     {
       scanNext(scanPtr, false, frag);
     }
+    Uint32 statOpPtrI = scan.m_statOpPtrI;
     if (likely(scan.m_state == ScanOp::Current))
     {
       jamDebug();
-      const TreePos pos = scan.m_scanPos;
-      NodeHandle node(frag);
-      selectNode(node, pos.m_loc);
-      const TreeEnt ent = node.getEnt(pos.m_pos);
-      if (likely(scan.m_statOpPtrI == RNIL))
+      const TreeEnt ent = c_ctx.m_current_ent;
+      if (likely(statOpPtrI == RNIL))
       {
         if (likely(scanVisible(scanPtr, ent)))
         {
@@ -997,7 +1008,7 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
       else
       {
         StatOpPtr statPtr;
-        statPtr.i = scan.m_statOpPtrI;
+        statPtr.i = statOpPtrI;
         c_statOpPool.getPtr(statPtr);
         // report row to stats, returns true if a sample is available
         int ret = statScanAddRow(statPtr, ent);
@@ -1079,7 +1090,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
   TreePos pos = scan.m_scanPos;
   // get and remember original node
   NodeHandle origNode(frag);
-  selectNode(origNode, pos.m_loc);
+  selectNode(c_ctx, origNode, pos.m_loc);
   ndbrequire(islinkScan(origNode, scanPtr));
   if (unlikely(scan.m_state == ScanOp::Locked))
   {
@@ -1125,7 +1136,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
     if (node.m_loc != pos.m_loc)
     {
       jamDebug();
-      selectNode(node, pos.m_loc);
+      selectNode(c_ctx, node, pos.m_loc);
     }
     if (pos.m_dir == 4)
     {
@@ -1226,6 +1237,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
     }
     if (scan.m_state != ScanOp::Blocked)
     {
+      c_ctx.m_current_ent = ent;
       scan.m_state = ScanOp::Current;
     }
     else
@@ -1241,6 +1253,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
       } else {
         jamDebug();
         scanEnt.m_tupLoc = NullTupLoc;
+        c_ctx.m_current_ent = ent;
         scan.m_state = ScanOp::Current;
       }
     }

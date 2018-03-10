@@ -367,6 +367,9 @@ Dbtux::readKeyAttrsCurr(TuxCtx& ctx,
 #endif
 }
 
+/**
+ * This method can be called from MT-build process.
+ */
 void
 Dbtux::readKeyAttrs(TuxCtx& ctx,
                     const Frag& frag,
