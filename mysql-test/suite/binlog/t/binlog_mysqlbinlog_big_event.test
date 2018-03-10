@@ -5,7 +5,7 @@
 # a big string in a table having a BLOB column.
 #
 # === Implementaion ===
-
+-- source include/not_windows.inc
 -- source include/have_binlog_format_statement.inc
 
 # Reset master to cleanup binlog
