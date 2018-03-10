@@ -615,13 +615,7 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
 void
 Dbtux::linkScan(NodeHandle& node, ScanOpPtr scanPtr)
 {
-#ifdef VM_TRACE
-  if (debugFlags & DebugScan) {
-    debugOut << "Link scan " << scanPtr.i << " " << *scanPtr.p << endl;
-    debugOut << "To node " << node << endl;
-  }
-#endif
-  ndbrequire(! islinkScan(node, scanPtr) && scanPtr.p->m_nodeScan == RNIL);
+  ndbassert(! islinkScan(node, scanPtr) && scanPtr.p->m_nodeScan == RNIL);
   scanPtr.p->m_nodeScan = node.getNodeScan();
   node.setNodeScan(scanPtr.i);
 }
@@ -636,12 +630,6 @@ Dbtux::linkScan(NodeHandle& node, ScanOpPtr scanPtr)
 void
 Dbtux::unlinkScan(NodeHandle& node, ScanOpPtr scanPtr)
 {
-#ifdef VM_TRACE
-  if (debugFlags & DebugScan) {
-    debugOut << "Unlink scan " << scanPtr.i << " " << *scanPtr.p << endl;
-    debugOut << "From node " << node << endl;
-  }
-#endif
   ScanOpPtr currPtr;
   currPtr.i = node.getNodeScan();
   ScanOpPtr prevPtr;
@@ -660,7 +648,7 @@ Dbtux::unlinkScan(NodeHandle& node, ScanOpPtr scanPtr)
       }
       scanPtr.p->m_nodeScan = RNIL;
       // check for duplicates
-      ndbrequire(! islinkScan(node, scanPtr));
+      ndbassert(!islinkScan(node, scanPtr));
       return;
     }
     prevPtr = currPtr;
