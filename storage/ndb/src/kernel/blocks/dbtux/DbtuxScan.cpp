@@ -1059,11 +1059,12 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
   const int jdir = 1 - 2 * (int)idir;      // 1, -1
   // use copy of position
   TreePos pos = scan.m_scanPos;
+  Uint32 scan_state = scan.m_state;
   // get and remember original node
   NodeHandle origNode(frag);
   selectNode(c_ctx, origNode, pos.m_loc);
   ndbassert(islinkScan(origNode, scanPtr));
-  if (unlikely(scan.m_state == ScanOp::Locked))
+  if (unlikely(scan_state == ScanOp::Locked))
   {
     // bug#32040 - no fix, just unlock and continue
     jam();
@@ -1087,148 +1088,171 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
   NodeHandle node = origNode;
   // copy of entry found
   TreeEnt ent;
-  while (true)
+  TupLoc loc;
+  Uint32 occup;
+  do
   {
     jamDebug();
-    if (pos.m_dir == 2)
+    Uint32 dir = pos.m_dir;
     {
-      // coming up from root ends the scan
-      jamDebug();
-      pos.m_loc = NullTupLoc;
-      break;
-    }
-    if (node.m_loc != pos.m_loc)
-    {
-      jamDebug();
-      selectNode(c_ctx, node, pos.m_loc);
-    }
-    if (pos.m_dir == 4)
-    {
-      // coming down from parent proceed to left child
-      jamDebug();
-      TupLoc loc = node.getLink(idir);
-      if (loc != NullTupLoc)
+      /* Search in node we are currently scanning. */
+      const register Uint32 node_occup = node.getOccup();
+      const Uint32 node_pos = pos.m_pos;
+      // advance position - becomes large (> occup) if 0 and descending
+      const Uint32 new_node_pos = node_pos + jdir;
+      if (likely(dir == 3))
       {
-        jamDebug();
-        pos.m_loc = loc;
-        pos.m_dir = 4;  // unchanged
-        continue;
-      }
-      // pretend we came from left child
-      pos.m_dir = idir;
-    }
-    if (pos.m_dir == 5)
-    {
-      // at node end proceed to right child
-      jamDebug();
-      TupLoc loc = node.getLink(1 - idir);
-      if (loc != NullTupLoc)
-      {
-        jamDebug();
-        pos.m_loc = loc;
-        pos.m_dir = 4;  // down from parent as usual
-        continue;
-      }
-      // pretend we came from right child
-      pos.m_dir = 1 - idir;
-    }
-    const unsigned occup = node.getOccup();
-    if (occup == 0)
-    {
-      jamDebug();
-      ndbrequire(fromMaintReq);
-      // move back to parent - see comment in treeRemoveInner
-      pos.m_loc = node.getLink(2);
-      pos.m_dir = node.getSide();
-      continue;
-    }
-    if (pos.m_dir == idir)
-    {
-      // coming up from left child scan current node
-      jamDebug();
-      pos.m_pos = idir == 0 ? (Uint16)-1 : occup;
-      pos.m_dir = 3;
-    }
-    if (pos.m_dir == 3)
-    {
-      // before or within node
-      jamDebug();
-      // advance position - becomes ZNIL (> occup) if 0 and descending
-      pos.m_pos += jdir;
-      if (pos.m_pos < occup)
-      {
-        jamDebug();
-        pos.m_dir = 3;  // unchanged
-        ent = node.getEnt(pos.m_pos);
-        const TupLoc tupLoc = ent.m_tupLoc;
-        jamDebug();
-        c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
-                                          tupLoc.getPageOffset());
-        jamDebug();
-        if (unlikely(! scanCheck(scan, ent)))
+        /**
+         * We are currently scanning inside a node, proceed until we
+         * have scanned all items in this node.
+         */
+        if (likely(new_node_pos < node_occup))
         {
           jamDebug();
-          pos.m_loc = NullTupLoc;
+          ent = node.getEnt(new_node_pos);
+          const TupLoc tupLoc = ent.m_tupLoc;
+          pos.m_pos = new_node_pos;
+          c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
+                                            tupLoc.getPageOffset());
+          if (unlikely(!scanCheck(scan, ent)))
+          {
+            /**
+             * We have reached the end of the scan, this row is outside
+             * the range to scan.
+             */
+            jamDebug();
+            pos.m_loc = NullTupLoc;
+            goto found_none;
+          }
+          goto found;
         }
+        /* Start search for next node. */
+        if (likely(node_occup != 0))
+        {
+          pos.m_dir = dir = 5;
+        }
+      }
+    }
+    do
+    {
+      /* Search for a node that is at the leaf level */
+      if (likely(dir == 5))
+      {
+        // at node end proceed to right child
+        jamDebug();
+        loc = node.getLink(1 - idir);
+        if (loc != NullTupLoc)
+        {
+          jamDebug();
+          pos.m_loc = loc;
+          pos.m_dir = dir = 4;  // down from parent as usual
+          selectNode(c_ctx, node, loc);
+        }
+        else
+        {
+          // pretend we came from right child
+          pos.m_dir = dir = 1 - idir;
+          break;
+        }
+      }
+      while (likely(dir == 4))
+      {
+        // coming down from parent proceed to left child
+        jamDebug();
+        loc = node.getLink(idir);
+        if (loc != NullTupLoc)
+        {
+          jamDebug();
+          pos.m_loc = loc;
+          selectNode(c_ctx, node, loc);
+          continue;
+        }
+        // pretend we came from left child
+        pos.m_dir = dir = idir;
         break;
       }
-      // after node proceed to right child
-      pos.m_dir = 5;
-      continue;
-    }
-    if (pos.m_dir == 1 - idir)
+    } while (0);
+    do
     {
-      // coming up from right child proceed to parent
-      jamDebug();
-      pos.m_loc = node.getLink(2);
-      pos.m_dir = node.getSide();
-      continue;
-    }
-    ndbrequire(false);
-  }
+      /* Search for a non-empty node at leaf level to scan. */
+      occup = node.getOccup();
+      if (unlikely(occup == 0))
+      {
+        jamDebug();
+        ndbrequire(fromMaintReq);
+        // move back to parent - see comment in treeRemoveInner
+        loc = pos.m_loc = node.getLink(2);
+        pos.m_dir = dir = node.getSide();
+      }
+      else if (dir == idir)
+      {
+        // coming up from left child scan current node
+        jamDebug();
+        pos.m_pos = idir == 0 ? Uint32(~0) : occup;
+        pos.m_dir = 3;
+        break;
+      }
+      else
+      {
+        ndbrequire(dir == 1 - idir);
+        // coming up from right child proceed to parent
+        jamDebug();
+        loc = pos.m_loc = node.getLink(2);
+        pos.m_dir = dir = node.getSide();
+      }
+      if (unlikely(dir == 2))
+      {
+        // coming up from root ends the scan
+        jamDebug();
+        pos.m_loc = NullTupLoc;
+        goto found_none;
+      }
+      selectNode(c_ctx, node, loc);
+    } while (true);
+  } while (true);
+found:
   // copy back position
   scan.m_scanPos = pos;
   // relink
-  if (pos.m_loc != NullTupLoc)
+  ndbassert(pos.m_dir == 3);
+  ndbassert(pos.m_loc == node.m_loc);
+  if (unlikely(origNode.m_loc != node.m_loc))
   {
-    ndbrequire(pos.m_dir == 3);
-    ndbrequire(pos.m_loc == node.m_loc);
-    if (origNode.m_loc != node.m_loc)
-    {
-      jamDebug();
-      unlinkScan(origNode, scanPtr);
-      linkScan(node, scanPtr);
-    }
-    if (scan.m_state != ScanOp::Blocked)
-    {
-      c_ctx.m_current_ent = ent;
-      scan.m_state = ScanOp::Current;
-    }
-    else
-    {
-      jamDebug();
-      ndbrequire(fromMaintReq);
-      TreeEnt& scanEnt = scan.m_scanEnt;
-      ndbrequire(scanEnt.m_tupLoc != NullTupLoc);
-      if (scanEnt.eqtuple(ent))
-      {
-        // remains blocked on another version
-        scanEnt = ent;
-      } else {
-        jamDebug();
-        scanEnt.m_tupLoc = NullTupLoc;
-        c_ctx.m_current_ent = ent;
-        scan.m_state = ScanOp::Current;
-      }
-    }
+    jamDebug();
+    unlinkScan(origNode, scanPtr);
+    linkScan(node, scanPtr);
+  }
+  if (likely(scan.m_state != ScanOp::Blocked))
+  {
+    c_ctx.m_current_ent = ent;
+    scan.m_state = ScanOp::Current;
   }
   else
   {
     jamDebug();
-    unlinkScan(origNode, scanPtr);
-    scan.m_state = ScanOp::Last;
+    ndbrequire(fromMaintReq);
+    TreeEnt& scanEnt = scan.m_scanEnt;
+    ndbrequire(scanEnt.m_tupLoc != NullTupLoc);
+    if (scanEnt.eqtuple(ent))
+    {
+      // remains blocked on another version
+      scanEnt = ent;
+    } else {
+      jamDebug();
+      scanEnt.m_tupLoc = NullTupLoc;
+      c_ctx.m_current_ent = ent;
+      scan.m_state = ScanOp::Current;
+    }
   }
   return scan.m_state;
+
+found_none:
+  jamDebug();
+  scan.m_scanPos = pos;
+  unlinkScan(origNode, scanPtr);
+  scan.m_state = ScanOp::Last;
+  return ScanOp::Last;
+
 }
 
 /*
@@ -1282,7 +1306,6 @@ Dbtux::scanCheck(ScanOp& scan, TreeEnt ent)
  * no new result can be returned to LQH.  The scan will then look for
  * next result and terminate via scanCheck():
  */
-inline
 bool
 Dbtux::scanVisible(ScanOp& scan, TreeEnt ent)
 {
