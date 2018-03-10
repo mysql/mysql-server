@@ -1018,7 +1018,7 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
       jamDebug();
       break;
     }
-    scan.m_state = ScanOp::Next;
+    scan.m_state = scan_state = ScanOp::Next;
   }
 }
 
