@@ -13867,6 +13867,7 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
     ndbout << "Dblqh::scanTupkeyRefLab() aborting scan terrorCode=" 
            << terrorCode << endl;
 #endif
+    jamDebug();
     scanPtr->scanErrorCounter++;
     tcConnectptr.p->errorCode = terrorCode;
 
@@ -13981,6 +13982,7 @@ void Dblqh::tupScanCloseConfLab(Signal* signal,
 {
   if (scanptr.p->copyPtr != RNIL)
   {
+    jamDebug();
     DEB_COPY(("tupScanCloseConfLab from COPY_FRAGREQ"));
     tupCopyCloseConfLab(signal, tcConnectptr);
     return;
@@ -15824,6 +15826,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal,
      * This will result in a COPY_FRAGREF being sent to
      * the starting node, which will cause it to fail
      */
+    jamDebug();
     scanptr.p->scanErrorCounter++;
     tcConP->errorCode= ZGET_DATAREC_ERROR;
     scanptr.p->scanCompletedStatus= ZTRUE;
@@ -16046,6 +16049,7 @@ void Dblqh::nextRecordCopy(Signal* signal,
 void Dblqh::copyLqhKeyRefLab(Signal* signal,
                              const TcConnectionrecPtr tcConnectptr)
 {
+  jamDebug();
   ndbrequire(tcConnectptr.p->transid[1] == signal->theData[4]);
   Uint32 copyWords = signal->theData[3];
   scanptr.p->scanErrorCounter++;
@@ -16137,6 +16141,7 @@ void Dblqh::accCopyCloseConfLab(Signal* signal,
   signal->theData[4] = sig4;
   signal->theData[5] = sig5;
   c_tup->execSTORED_PROCREQ(signal);
+  jamEntryDebug();
   tupCopyCloseConfLab(signal, tcConnectptr);
   return;
 }//Dblqh::accCopyCloseConfLab()

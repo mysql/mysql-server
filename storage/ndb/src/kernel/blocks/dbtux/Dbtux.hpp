@@ -630,8 +630,8 @@ private:
    */
   int allocNode(TuxCtx&, NodeHandle& node);
   void freeNode(NodeHandle& node);
-  void selectNode(NodeHandle& node, TupLoc loc);
-  void insertNode(NodeHandle& node);
+  void selectNode(TuxCtx&, NodeHandle& node, TupLoc loc);
+  void insertNode(TuxCtx&, NodeHandle& node);
   void deleteNode(NodeHandle& node);
   void freePreallocatedNode(Frag& frag);
   void setNodePref(struct TuxCtx &, NodeHandle& node);
@@ -800,6 +800,12 @@ private:
     ScanOpPtr scanPtr;
     FragPtr fragPtr;
     IndexPtr indexPtr;
+    Uint32 *tupIndexFragPtr;
+    Uint32 *tupIndexTablePtr;
+    Uint32 *tupRealFragPtr;
+    Uint32 *tupRealTablePtr;
+    Uint32 attrDataOffset;
+    Uint32 tuxFixHeaderSize;
 
     char searchBoundData_c[sizeof(KeyDataC)];
     char searchBound_c[sizeof(KeyBoundC)];
@@ -814,6 +820,8 @@ private:
     Uint32 descending;
     Uint32 numAttrs;
     Uint32 boundCnt;
+
+    TreeEnt m_current_ent;
 
     // buffer for scan bound and search key data
     Uint32* c_searchKey;
@@ -856,6 +864,9 @@ private:
 
 public:
   static Uint32 mt_buildIndexFragment_wrapper(void*);
+  void prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr);
+  void prepare_tup_ptrs(TuxCtx& ctx);
+  void prepare_all_tup_ptrs(TuxCtx& ctx);
 private:
   Uint32 mt_buildIndexFragment(struct mt_BuildIndxCtx*);
 
@@ -1426,8 +1437,16 @@ Dbtux::max(unsigned x, unsigned y)
 
 // DbtuxCmp.cpp
 
+/**
+ * Can be called from MT-build of ordered indexes,
+ * but it doesn't make use of the MT-context other
+ * than for debug printouts.
+ */
 inline int
-Dbtux::cmpSearchKey(TuxCtx& ctx, const KeyDataC& searchKey, const KeyDataC& entryKey, Uint32 cnt)
+Dbtux::cmpSearchKey(TuxCtx& ctx,
+                    const KeyDataC& searchKey,
+                    const KeyDataC& entryKey,
+                    Uint32 cnt)
 {
   // compare cnt attributes from each
   Uint32 num_eq;
@@ -1460,6 +1479,34 @@ Dbtux::cmpSearchBound(TuxCtx& ctx, const KeyBoundC& searchBound, const KeyDataC&
   return ret;
 }
 
+inline
+void
+Dbtux::prepare_all_tup_ptrs(TuxCtx& ctx)
+{
+  c_tup->get_all_tup_ptrs(ctx.fragPtr.p->m_tupIndexFragPtrI,
+                          ctx.fragPtr.p->m_tupTableFragPtrI,
+                          &ctx.tupIndexFragPtr,
+                          &ctx.tupIndexTablePtr,
+                          &ctx.tupRealFragPtr,
+                          &ctx.tupRealTablePtr,
+                          ctx.attrDataOffset,
+                          ctx.tuxFixHeaderSize);
+}
+
+inline
+void
+Dbtux::prepare_tup_ptrs(TuxCtx& ctx)
+{
+#ifdef VM_TRACE
+  ctx.tupRealFragPtr = NULL;
+  ctx.tupRealTablePtr = NULL;
+#endif
+  c_tup->get_tup_ptrs(ctx.fragPtr.p->m_tupIndexFragPtrI,
+                      &ctx.tupIndexFragPtr,
+                      &ctx.tupIndexTablePtr,
+                      ctx.attrDataOffset,
+                      ctx.tuxFixHeaderSize);
+}
 
 #undef JAM_FILE_ID
 

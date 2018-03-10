@@ -122,7 +122,7 @@ Uint32
 Dbtux::getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir)
 {
   NodeHandle node(frag);
-  selectNode(node, pos.m_loc);
+  selectNode(c_ctx, node, pos.m_loc);
   Uint16 path[MaxTreeDepth + 1];
   unsigned depth = getPathToNode(node, path);
   ndbrequire(depth != 0 && depth <= MaxTreeDepth);
@@ -171,7 +171,7 @@ Dbtux::getPathToNode(NodeHandle node, Uint16* path)
   unsigned i = MaxTreeDepth;
   while (loc != NullTupLoc) {
     jam();
-    selectNode(node, loc);
+    selectNode(c_ctx, node, loc);
     path[i] = node.getSide() | (node.getOccup() << 8);
     loc = node.getLink(2);
     ndbrequire(i != 0);
@@ -345,7 +345,7 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
   {
     NodeHandle node(frag);
     TreePos pos = scan.m_scanPos;
-    selectNode(node, pos.m_loc);
+    selectNode(c_ctx, node, pos.m_loc);
     // more entries in this node
     const unsigned occup = node.getOccup();
     // funny cast to avoid signed vs unsigned warning
@@ -365,7 +365,7 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
     {
       jam();
       TupLoc loc = node.getLink(2);
-      selectNode(node, loc);
+      selectNode(c_ctx, node, loc);
     }
     // did not reach root
     if (node.getSide() != 2)
