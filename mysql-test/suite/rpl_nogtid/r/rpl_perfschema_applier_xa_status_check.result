@@ -10,32 +10,28 @@ Note	####	Storing MySQL user name or password information in the master info rep
 ####################################################################
 [connection slave]
 TRUNCATE TABLE performance_schema.events_transactions_current;
+---- Setup ----
 [connection master]
 CREATE TABLE t ( f INT) ENGINE=INNODB;
+---- XA PREPARE ----
 XA START 'xatest';
 INSERT INTO t VALUES (10);
 XA END 'xatest';
 XA PREPARE 'xatest';
-[connection slave]
-# Wait until SQL thread reaches desired master binlog position
-include/wait_for_slave_param.inc [Relay_Master_Log_File]
-include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+include/sync_slave_sql_with_master.inc
+# Wait for XA_STATE to become PREPARED on slave
+# Expecting one prepared transaction
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	6	0	xatest
-####################################################################
-# Asserting XA_STATE is PREPARED on Slave
-####################################################################
-include/assert.inc [Verify that XA_STATE is set PREPARED.]
+---- XA COMMIT ----
 [connection master]
 XA COMMIT 'xatest';
 include/sync_slave_sql_with_master.inc
+# Wait for XA_STATE to become COMMITTED on slave
+# Expecting no prepared transactions
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
-####################################################################
-# Asserting XA_STATE is COMMITTED on Slave
-####################################################################
-include/assert.inc [Verify that XA_STATE is set COMMITTED.]
 include/diff_tables.inc [master:t,slave:t]
 [connection master]
 DROP TABLE t;
@@ -56,32 +52,28 @@ SET GLOBAL slave_parallel_type='DATABASE';
 include/start_slave.inc
 [connection slave]
 TRUNCATE TABLE performance_schema.events_transactions_current;
+---- Setup ----
 [connection master]
 CREATE TABLE t ( f INT) ENGINE=INNODB;
+---- XA PREPARE ----
 XA START 'xatest';
 INSERT INTO t VALUES (10);
 XA END 'xatest';
 XA PREPARE 'xatest';
-[connection slave]
-# Wait until SQL thread reaches desired master binlog position
-include/wait_for_slave_param.inc [Relay_Master_Log_File]
-include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+include/sync_slave_sql_with_master.inc
+# Wait for XA_STATE to become PREPARED on slave
+# Expecting one prepared transaction
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	6	0	xatest
-####################################################################
-# Asserting XA_STATE is PREPARED on Slave
-####################################################################
-include/assert.inc [Verify that XA_STATE is set PREPARED.]
+---- XA COMMIT ----
 [connection master]
 XA COMMIT 'xatest';
 include/sync_slave_sql_with_master.inc
+# Wait for XA_STATE to become COMMITTED on slave
+# Expecting no prepared transactions
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
-####################################################################
-# Asserting XA_STATE is COMMITTED on Slave
-####################################################################
-include/assert.inc [Verify that XA_STATE is set COMMITTED.]
 include/diff_tables.inc [master:t,slave:t]
 [connection master]
 DROP TABLE t;
@@ -99,32 +91,28 @@ SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
 include/start_slave.inc
 [connection slave]
 TRUNCATE TABLE performance_schema.events_transactions_current;
+---- Setup ----
 [connection master]
 CREATE TABLE t ( f INT) ENGINE=INNODB;
+---- XA PREPARE ----
 XA START 'xatest';
 INSERT INTO t VALUES (10);
 XA END 'xatest';
 XA PREPARE 'xatest';
-[connection slave]
-# Wait until SQL thread reaches desired master binlog position
-include/wait_for_slave_param.inc [Relay_Master_Log_File]
-include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
+include/sync_slave_sql_with_master.inc
+# Wait for XA_STATE to become PREPARED on slave
+# Expecting one prepared transaction
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
 1	6	0	xatest
-####################################################################
-# Asserting XA_STATE is PREPARED on Slave
-####################################################################
-include/assert.inc [Verify that XA_STATE is set PREPARED.]
+---- XA COMMIT ----
 [connection master]
 XA COMMIT 'xatest';
 include/sync_slave_sql_with_master.inc
+# Wait for XA_STATE to become COMMITTED on slave
+# Expecting no prepared transactions
 XA RECOVER;
 formatID	gtrid_length	bqual_length	data
-####################################################################
-# Asserting XA_STATE is COMMITTED on Slave
-####################################################################
-include/assert.inc [Verify that XA_STATE is set COMMITTED.]
 include/diff_tables.inc [master:t,slave:t]
 [connection master]
 DROP TABLE t;
