@@ -71,7 +71,6 @@ Dbtux::prepare_scan_bounds()
                         KeyData(index.m_keySpec, true, 0);
     c_ctx.entryKey->set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
 */
-    c_ctx.descending = scan.m_descending;
     c_ctx.numAttrs = index.m_numAttrs;
     c_ctx.boundCnt = c_ctx.searchBound->get_data().get_cnt();
     const DescHead& descHead = getDescHead(index);
@@ -79,6 +78,7 @@ Dbtux::prepare_scan_bounds()
     c_ctx.keyAttrs = (Uint32*)keyAttrs;
     jamLineDebug((Uint16)c_ctx.numAttrs);
   }
+  c_ctx.descending = scan.m_descending;
   c_ctx.scanBoundCnt = scanBound.m_cnt;
   prepare_tup_ptrs(c_ctx);
 }
