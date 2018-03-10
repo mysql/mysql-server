@@ -910,14 +910,8 @@ void
 Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
 {
   ScanOp& scan = *scanPtr.p;
-#ifdef VM_TRACE
-  if (debugFlags & DebugScan)
-  {
-    debugOut << "Enter first scan " << scanPtr.i << " " << scan << endl;
-  }
-#endif
   // scan direction 0, 1
-  const unsigned idir = scan.m_descending;
+  const unsigned idir = c_ctx.descending;
   // set up bound from segmented memory
   const ScanBound& scanBound = scan.m_scanBound[idir];
   KeyDataC searchBoundData(index.m_keySpec, true);
@@ -925,14 +919,14 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
   unpackBound(c_ctx.c_searchKey, scanBound, searchBound);
   TreePos treePos;
   searchToScan(frag, idir, searchBound, treePos);
-  if (treePos.m_loc != NullTupLoc)
+  if (likely(treePos.m_loc != NullTupLoc))
   {
     scan.m_scanPos = treePos;
     // link the scan to node found
     NodeHandle node(frag);
     selectNode(c_ctx, node, treePos.m_loc);
     linkScan(node, scanPtr);
-    if (treePos.m_dir == 3)
+    if (likely(treePos.m_dir == 3))
     {
       jamDebug();
       // check upper bound
@@ -942,7 +936,7 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
       c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
                                         tupLoc.getPageOffset());
       jamDebug();
-      if (scanCheck(scanPtr, ent, frag))
+      if (likely(scanCheck(scan, ent)))
       {
         jamDebug();
         c_ctx.m_current_ent = ent;
@@ -961,12 +955,6 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
     jamDebug();
     scan.m_state = ScanOp::Last;
   }
-#ifdef VM_TRACE
-  if (debugFlags & DebugScan)
-  {
-    debugOut << "Leave first scan " << scanPtr.i << " " << scan << endl;
-  }
-#endif
 }
 
 /*
@@ -976,28 +964,23 @@ void
 Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
 {
   ScanOp& scan = *scanPtr.p;
-#ifdef VM_TRACE
-  if (debugFlags & DebugScan)
-  {
-    debugOut << "Enter find scan " << scanPtr.i << " " << scan << endl;
-  }
-#endif
-  ndbrequire(scan.m_state == ScanOp::Current || scan.m_state == ScanOp::Next);
+  Uint32 scan_state = scan.m_state;
+  ndbassert(scan_state == ScanOp::Current || scan_state == ScanOp::Next);
   while (1)
   {
     jamDebug();
-    if (scan.m_state == ScanOp::Next)
+    if (scan_state == ScanOp::Next)
     {
-      scanNext(scanPtr, false, frag);
+      scan_state = scanNext(scanPtr, false, frag);
     }
     Uint32 statOpPtrI = scan.m_statOpPtrI;
-    if (likely(scan.m_state == ScanOp::Current))
+    if (likely(scan_state == ScanOp::Current))
     {
       jamDebug();
       const TreeEnt ent = c_ctx.m_current_ent;
       if (likely(statOpPtrI == RNIL))
       {
-        if (likely(scanVisible(scanPtr, ent)))
+        if (likely(scanVisible(scan, ent)))
         {
           jamDebug();
           scan.m_state = ScanOp::Found;
@@ -1037,12 +1020,6 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
     }
     scan.m_state = ScanOp::Next;
   }
-#ifdef VM_TRACE
-  if (debugFlags & DebugScan)
-  {
-    debugOut << "Leave find scan " << scanPtr.i << " " << scan << endl;
-  }
-#endif
 }
 
 /*
@@ -1067,21 +1044,15 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
  * Blocked on a different version of the tuple.  Otherwise the tuple is
  * lost and state becomes Current.
  */
-void
+Uint32
 Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
 {
   ScanOp& scan = *scanPtr.p;
-#ifdef VM_TRACE
-  if (debugFlags & (DebugMaint | DebugScan))
-  {
-    debugOut << "Enter next scan " << scanPtr.i << " " << scan << endl;
-  }
-#endif
   // cannot be moved away from tuple we have locked
 #if defined VM_TRACE || defined ERROR_INSERT
   ndbrequire(scan.m_state != ScanOp::Locked);
 #else
-  ndbrequire(fromMaintReq || scan.m_state != ScanOp::Locked);
+  ndbassert(fromMaintReq || scan.m_state != ScanOp::Locked);
 #endif
   // scan direction
   const unsigned idir = scan.m_descending; // 0, 1
@@ -1091,7 +1062,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
   // get and remember original node
   NodeHandle origNode(frag);
   selectNode(c_ctx, origNode, pos.m_loc);
-  ndbrequire(islinkScan(origNode, scanPtr));
+  ndbassert(islinkScan(origNode, scanPtr));
   if (unlikely(scan.m_state == ScanOp::Locked))
   {
     // bug#32040 - no fix, just unlock and continue
@@ -1119,13 +1090,6 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
   while (true)
   {
     jamDebug();
-#ifdef VM_TRACE
-    if (debugFlags & (DebugMaint | DebugScan))
-    {
-      debugOut << "Current scan " << scanPtr.i << " pos " << pos;
-      debugOut << " node " << node << endl;
-    }
-#endif
     if (pos.m_dir == 2)
     {
       // coming up from root ends the scan
@@ -1201,7 +1165,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
         c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
                                           tupLoc.getPageOffset());
         jamDebug();
-        if (! scanCheck(scanPtr, ent, frag))
+        if (unlikely(! scanCheck(scan, ent)))
         {
           jamDebug();
           pos.m_loc = NullTupLoc;
@@ -1264,12 +1228,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
     unlinkScan(origNode, scanPtr);
     scan.m_state = ScanOp::Last;
   }
-#ifdef VM_TRACE
-  if (debugFlags & (DebugMaint | DebugScan))
-  {
-    debugOut << "Leave next scan " << scanPtr.i << " " << scan << endl;
-  }
-#endif
+  return scan.m_state;
 }
 
 /*
@@ -1279,12 +1238,12 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
  * once.  This terminates the scan and also avoids kernel crash on
  * invalid data.
  */
+inline
 bool
-Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
+Dbtux::scanCheck(ScanOp& scan, TreeEnt ent)
 {
   jamDebug();
   Uint32 scanBoundCnt = c_ctx.scanBoundCnt;
-  ScanOp& scan = *scanPtr.p;
   if (unlikely(scan.m_errorCode != 0))
   {
     jam();
@@ -1298,7 +1257,6 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
     KeyData keyData(c_ctx.indexPtr.p->m_keySpec, true, 0);
     keyData.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
     readKeyAttrsCurr(c_ctx,
-                     frag,
                      ent,
                      keyData,
                      c_ctx.numAttrs);
@@ -1311,13 +1269,6 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
     ret = (-1) * ret; // reverse for key vs bound
     ret = jdir * ret; // reverse for descending scan
   }
-#ifdef VM_TRACE
-  if (debugFlags & DebugScan)
-  {
-    debugOut << "Check scan " << scanPtr.i << " " << scan
-             << " ret:" << dec << ret << endl;
-  }
-#endif
   return (ret <= 0);
 }
 
@@ -1332,26 +1283,26 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
  * no new result can be returned to LQH.  The scan will then look for
  * next result and terminate via scanCheck():
  */
+inline
 bool
-Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
+Dbtux::scanVisible(ScanOp& scan, TreeEnt ent)
 {
-  const ScanOp& scan = *scanPtr.p;
-  Uint32 tupVersion = ent.m_tupVersion;
-  Uint32 transId1 = scan.m_transId1;
-  Uint32 transId2 = scan.m_transId2;
-  bool dirty = scan.m_readCommitted;
-  Uint32 savePointId = scan.m_savePointId;
+  Uint32 opPtrI = c_tup->get_tuple_operation_ptr_i();
   // check for same tuple twice in row
   if (unlikely(scan.m_scanEnt.m_tupLoc == ent.m_tupLoc))
   {
     jamDebug();
     return false;
   }
-  Uint32 opPtrI = c_tup->get_tuple_operation_ptr_i();
   if (likely(opPtrI == RNIL))
   {
     return true;
   }
+  Uint32 tupVersion = ent.m_tupVersion;
+  Uint32 transId1 = scan.m_transId1;
+  Uint32 transId2 = scan.m_transId2;
+  bool dirty = scan.m_readCommitted;
+  Uint32 savePointId = scan.m_savePointId;
   bool ret = c_tup->tuxQueryTh(opPtrI,
                                tupVersion,
                                transId1,

@@ -323,7 +323,6 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 
 void
 Dbtux::readKeyAttrsCurr(TuxCtx& ctx,
-                        const Frag& frag,
                         TreeEnt ent,
                         KeyData& keyData,
                         Uint32 count)

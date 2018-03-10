@@ -335,9 +335,9 @@ private:
       Last = 7,                 // after last entry
       Aborting = 8
     };
-    Uint8 m_state;
-    Uint8 m_lockwait;
-    Uint16 m_errorCode;
+    Uint32 m_errorCode;
+    Uint32 m_lockwait;
+    Uint32 m_state;
     Uint32 m_userPtr;           // scanptr.i in LQH
     Uint32 m_userRef;
     Uint32 m_tableId;
@@ -595,7 +595,6 @@ private:
                     KeyData& keyData,
                     Uint32 count);
   void readKeyAttrsCurr(TuxCtx&,
-                        const Frag& frag,
                         TreeEnt ent,
                         KeyData& keyData,
                         Uint32 count);
@@ -684,9 +683,9 @@ private:
   void scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index);
   void continue_scan(Signal *signal, ScanOpPtr scanPtr, Frag& frag);
   void scanFind(ScanOpPtr scanPtr, Frag& frag);
-  void scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag);
-  bool scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag);
-  bool scanVisible(ScanOpPtr scanPtr, TreeEnt ent);
+  Uint32 scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag);
+  bool scanCheck(ScanOp& scan, TreeEnt ent);
+  bool scanVisible(ScanOp& scan, TreeEnt ent);
   void scanClose(Signal* signal, ScanOpPtr scanPtr);
   void abortAccLockOps(Signal* signal, ScanOpPtr scanPtr);
   void addAccLockOp(ScanOpPtr scanPtr, Uint32 accLockOp);
@@ -1069,9 +1068,9 @@ Dbtux::ScanBound::ScanBound() :
 
 inline
 Dbtux::ScanOp::ScanOp() :
-  m_state(Undef),
-  m_lockwait(false),
   m_errorCode(0),
+  m_lockwait(false),
+  m_state(Undef),
   m_userPtr(RNIL),
   m_userRef(RNIL),
   m_tableId(RNIL),
