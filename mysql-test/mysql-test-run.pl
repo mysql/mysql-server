@@ -1539,17 +1539,6 @@ sub command_line_setup {
   # build directory in out-of-source builds.
   $bindir=$ENV{MTR_BINDIR}||$basedir;
   
-  if (using_extern())
-  {
-    # Connect to the running mysqld and find out what it supports
-    collect_mysqld_features_from_running_server();
-  }
-  else
-  {
-    # Run the mysqld to find out what features are available
-    collect_mysqld_features();
-  }
-
   # Look for the client binaries directory
   if ($path_client_bindir)
   {
@@ -1561,6 +1550,14 @@ sub command_line_setup {
     $path_client_bindir=
       mtr_path_exists(vs_config_dirs('runtime_output_directory', ''),
 		      "$bindir/bin");
+  }
+
+  if (using_extern()) {
+    # Connect to the running mysqld and find out what it supports
+    collect_mysqld_features_from_running_server();
+  } else {
+    # Run the mysqld to find out what features are available
+    collect_mysqld_features();
   }
 
   # Look for language files and charsetsdir, use same share
@@ -2275,14 +2272,12 @@ sub collect_mysqld_features {
       mtr_verbose("exe_name: $exe_name");
       if ( $line =~ /^\S*$exe_name\s\sVer\s([0-9]*)\.([0-9]*)\.([0-9]*)([^\s]*)/ )
       {
-	#print "Major: $1 Minor: $2 Build: $3\n";
-	$mysql_version_id= $1*10000 + $2*100 + $3;
-	# Some paths might be version specific
-	$mysql_base_version= int($mysql_version_id / 10000) . "." .
-                             int(($mysql_version_id % 10000)/100);
-	#print "mysql_version_id: $mysql_version_id\n";
-	mtr_report("MySQL Version $1.$2.$3");
-	$mysql_version_extra= $4;
+        $mysql_version_id = $1*10000 + $2*100 + $3;
+        # Some paths might be version specific
+        $mysql_base_version = int($mysql_version_id / 10000) . "." .
+                              int(($mysql_version_id % 10000)/100);
+        mtr_report("MySQL Version $1.$2.$3");
+        $mysql_version_extra = $4;
       }
     }
     else
@@ -2371,11 +2366,12 @@ sub collect_mysqld_features_from_running_server ()
   my $version_str= $mysqld_variables{'version'};
   if ( $version_str =~ /^([0-9]*)\.([0-9]*)\.([0-9]*)([^\s]*)/ )
   {
-    #print "Major: $1 Minor: $2 Build: $3\n";
-    $mysql_version_id= $1*10000 + $2*100 + $3;
-    #print "mysql_version_id: $mysql_version_id\n";
+    $mysql_version_id = $1*10000 + $2*100 + $3;
+    # Some paths might be version specific
+    $mysql_base_version = int($mysql_version_id / 10000) . "." .
+                          int(($mysql_version_id % 10000)/100);
     mtr_report("MySQL Version $1.$2.$3");
-    $mysql_version_extra= $4;
+    $mysql_version_extra = $4;
   }
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
 }
