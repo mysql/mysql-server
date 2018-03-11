@@ -404,8 +404,7 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-
-* Wed Jan 31 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-1
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.11-1
 - Removed milestone marker
 - Move mysqlx to default plugin
 - Fixed the package names for GA release
