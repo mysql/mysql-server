@@ -693,4 +693,21 @@ SELECT regexp_like( repeat(@v1, 'abc'), 'abc' );
 --error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
 SELECT regexp_replace( 'abc' , 'abc', '$abc' );
 
+--echo #
+--echo # Bug#27595368: ASSERTION FAILED: 0 IN ITEM_PARAM::VAL_REAL WITH
+--echo # PREPARED STATEMENT
+--echo #
+
+SET @s := "SELECT regexp_like( '', '', ? / '' )";
+PREPARE stmt FROM @s;
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt;
+--error ER_WRONG_ARGUMENTS
+EXECUTE stmt;
+
+CREATE TABLE t1 ( match_parameter CHAR(1) );
+INSERT INTO t1 VALUES ( 'i' ), ( 'c' ), ( 'i' ), ( 'c' );
+SELECT match_parameter, regexp_like ( 'a', 'A', match_parameter ) FROM t1;
+DROP TABLE t1;
+
 --source ../mysql-test/include/cleanup_icu_utils.inc

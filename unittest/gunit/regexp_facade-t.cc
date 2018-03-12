@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,10 +54,9 @@ class RegexpFacadeTest : public ::testing::Test {
 class MockRegexpFacade : public Regexp_facade {
  public:
   MockRegexpFacade(THD *thd, const char *pattern)
-      : Regexp_facade(0),
-        m_thd(thd),
+      : m_thd(thd),
         m_pattern_expr(make_fixed_literal(thd, pattern)),
-        m_is_error(SetPattern(m_pattern_expr)) {}
+        m_is_error(SetPattern(m_pattern_expr, 0)) {}
 
   Mysql::Nullable<int32_t> Find(const char *subject) {
     Item *subject_expr = make_fixed_literal(m_thd, subject);
@@ -121,8 +120,8 @@ TEST_F(RegexpFacadeTest, Alignment) {
 
 TEST_F(RegexpFacadeTest, SetPattern) {
   MockRegexpFacade regex(thd(), "a");
-  regex.SetPattern(nullptr);
-  regex.SetPattern(nullptr);
+  regex.SetPattern(nullptr, 0);
+  regex.SetPattern(nullptr, 0);
 }
 
 }  // namespace regexp_facade_unittest

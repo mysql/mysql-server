@@ -87,9 +87,8 @@ String *EvalExprToCharset(Item *expr, String *out);
 */
 class Regexp_facade {
  public:
-  explicit Regexp_facade(uint flags)
-      : m_flags(flags),
-        m_current_subject(static_cast<const char *>(nullptr), 0,
+  explicit Regexp_facade()
+      : m_current_subject(static_cast<const char *>(nullptr), 0,
                           regexp_lib_charset) {}
 
   /**
@@ -108,7 +107,7 @@ class Regexp_facade {
     The `regexp_column` expression is non-constant and hence we have to
     recompile the regular expression for each row.
   */
-  bool SetPattern(Item *pattern_expr);
+  bool SetPattern(Item *pattern_expr, uint32_t flags);
 
   /**
     Tries to match the subject against the compiled regular expression.
@@ -181,8 +180,6 @@ class Regexp_facade {
     Actually compiles the regular expression.
   */
   bool SetupEngine(Item *pattern_expr, uint flags);
-
-  uint m_flags;
 
   /**
     Used for all the actual regular expression matching, search-and-replace,

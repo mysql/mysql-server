@@ -54,16 +54,21 @@ String *EvalExprToCharset(Item *expr, String *out) {
   return result;
 }
 
-bool Regexp_facade::SetPattern(Item *pattern_expr) {
+bool Regexp_facade::SetPattern(Item *pattern_expr, uint32_t flags) {
   if (pattern_expr == nullptr) {
     m_engine = nullptr;
     return true;
   }
-  if (!pattern_expr->const_item() ||  // Non-constant pattern, see above.
-      m_engine == nullptr) {          // Called for the first time.
-    if (SetupEngine(pattern_expr, m_flags)) return true;
-  }
-  return false;
+  if (m_engine == nullptr)
+    // Called for the first time.
+    return SetupEngine(pattern_expr, flags);
+
+  /*
+    We don't need to recompile the regular expression if the pattern is
+    a constant in the query and the flags are the same.
+  */
+  if (pattern_expr->const_item() && flags == m_engine->flags()) return false;
+  return SetupEngine(pattern_expr, flags);
 }
 
 bool Regexp_facade::Reset(Item *subject_expr) {
