@@ -48,7 +48,6 @@ class Session : public Session_interface {
 
  public:
   void on_close(const bool update_old_state = false) override;
-  void on_kill() override;
   void on_auth_success(
       const Authentication_interface::Response &response) override;
   void on_auth_failure(

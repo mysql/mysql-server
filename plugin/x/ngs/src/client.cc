@@ -263,18 +263,7 @@ void Client::on_network_error(int error) {
     m_close_reason = Close_net_error;
 
   m_state.exchange(Client_closing);
-
-  if (m_session &&
-      (Client_authenticating_first == m_state || Client_running == m_state)) {
-    // trigger all sessions to close and stop whatever they're doing
-    log_debug("%s: killing session", client_id());
-    if (Session_interface::Closing != m_session->state())
-      server().get_worker_scheduler()->post_and_wait(
-          ngs::bind(&Client::on_kill, this, ngs::ref(*m_session)));
-  }
 }
-
-void Client::on_kill(Session_interface &) { m_session->on_kill(); }
 
 void Client::remove_client_from_server() {
   if (false == m_removed.exchange(true)) m_server.on_client_closed(*this);

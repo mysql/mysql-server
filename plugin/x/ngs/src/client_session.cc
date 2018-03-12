@@ -75,16 +75,8 @@ void Session::on_close(const bool update_old_state) {
   }
 }
 
-void Session::on_kill() {
-  // this is usually called from a foreign thread, so we need to trigger
-  // the session close indirectly
-  // we do so by shutting down the connection for the client
-  m_client.disconnect_and_trigger_close();
-  //  on_close();
-}
-
 // Code below this line is executed from the worker thread
-// ------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
 
 // Return value means true if message was handled, false if not.
 // If message is handled, ownership of the object is passed on (and should be
