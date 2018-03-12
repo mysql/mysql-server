@@ -885,7 +885,7 @@ bool reset_master(THD *thd, bool unlock_global_read_lock) {
   thd->set_skip_readonly_check();
   if (is_group_replication_running()) {
     my_error(ER_CANT_RESET_MASTER, MYF(0), "Group Replication is running");
-    return true;
+    goto end;
   }
 
   if (mysql_bin_log.is_open()) {
@@ -907,6 +907,7 @@ bool reset_master(THD *thd, bool unlock_global_read_lock) {
     global_sid_lock->unlock();
   }
 
+end:
   /*
     Unlock the global read lock (which was aquired by this
     session as part of RESET MASTER) before running the hook
