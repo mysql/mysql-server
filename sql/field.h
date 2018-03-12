@@ -547,6 +547,7 @@ inline enum_field_types blob_type_from_pack_length(uint pack_length) {
 template <bool Is_big_endian>
 void copy_integer(uchar *to, size_t to_length, const uchar *from,
                   size_t from_length, bool is_unsigned) {
+  if (to_length == 0) return;
   if (Is_big_endian) {
     if (is_unsigned)
       to[0] = from[0];
