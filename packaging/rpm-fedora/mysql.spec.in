@@ -1008,7 +1008,7 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %endif # compatlib
 
 %changelog
-* Wed Jan 24 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.6-0.1
+* Mon Mar 12 2018 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.12-0.1
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - Change the global milestone to 'dmr'

@@ -405,7 +405,7 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.6-0.1
+* Mon Mar 12 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.12-0.1
 - Change the global milestone to 'dmr'
 - Move mysqlx to default plugin
 - Add mysqlbackup
