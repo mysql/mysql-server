@@ -3814,9 +3814,13 @@ int init_common_variables() {
     LogErr(INFORMATION_LEVEL, ER_BASEDIR_SET_TO, mysql_home);
   }
 
-  LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
-         (ulong)getpid());
-
+  if (opt_initialize || opt_initialize_insecure) {
+    LogErr(SYSTEM_LEVEL, ER_STARTING_INIT, my_progname, server_version,
+           (ulong)getpid());
+  } else {
+    LogErr(SYSTEM_LEVEL, ER_STARTING_AS, my_progname, server_version,
+           (ulong)getpid());
+  }
   if (opt_help && !opt_verbose) unireg_abort(MYSQLD_SUCCESS_EXIT);
 
   DBUG_PRINT("info", ("%s  Ver %s for %s on %s\n", my_progname, server_version,
@@ -4248,7 +4252,9 @@ static int warn_one(const char *file_name) {
   issuer = X509_NAME_oneline(X509_get_issuer_name(ca_cert), 0, 0);
   subject = X509_NAME_oneline(X509_get_subject_name(ca_cert), 0, 0);
 
-  if (!strcmp(issuer, subject)) {
+  /* Suppressing warning which is not relevant during initialization */
+  if (!strcmp(issuer, subject) &&
+      !(opt_initialize || opt_initialize_insecure)) {
     LogErr(WARNING_LEVEL, ER_CA_SELF_SIGNED, file_name);
   }
 
@@ -6264,6 +6270,9 @@ int mysqld_main(int argc, char **argv)
 
     int error = bootstrap::run_bootstrap_thread(
         mysql_stdin, NULL, SYSTEM_THREAD_SERVER_INITIALIZE);
+    if (error == 0) {
+      LogErr(SYSTEM_LEVEL, ER_ENDING_INIT, my_progname, server_version);
+    }
     unireg_abort(error ? MYSQLD_ABORT_EXIT : MYSQLD_SUCCESS_EXIT);
   }
 
