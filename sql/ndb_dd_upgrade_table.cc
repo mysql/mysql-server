@@ -721,6 +721,7 @@ bool migrate_table_to_dd(THD *thd,
   }
 
   // Object to handle cleanup.
+  LEX lex;
   Table_upgrade_guard table_guard(thd, table, &table->mem_root);
 
   // Get the handler
@@ -874,7 +875,6 @@ bool migrate_table_to_dd(THD *thd,
   // open_table_from_share and partition expression parsing needs a
   // valid SELECT_LEX to parse generated columns
   LEX *lex_saved= thd->lex;
-  LEX lex;
   thd->lex= &lex;
   lex_start(thd);
   table_guard.update_lex(lex_saved);
