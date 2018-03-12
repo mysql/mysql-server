@@ -113,7 +113,7 @@ The following commands may appear in the input script:
   and set the variable <varname>
 -->recverror <errno>
   Read a message and ensure that it's an error of the expected type
--->recvtype <msgtype> [be-quiet]
+-->recvtype <msgtype> (<msg_fied>|be-quiet|<msg_fied> be-quiet|<msg_fied> <expected_field_value>|)
   Read one message and print it, checking that its type is the specified one
 -->recvok
   Expect to receive 'Mysqlx.Ok' message. Works with 'expecterror' command.

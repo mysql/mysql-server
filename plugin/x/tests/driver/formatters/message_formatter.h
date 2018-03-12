@@ -44,7 +44,8 @@ std::string message_to_text(const xcl::XProtocol::Message &message);
   * field1[1].field2
 */
 std::string message_to_text(const xcl::XProtocol::Message &message,
-                            const std::string &field_path);
+                            const std::string &field_path,
+                            const bool show_message_name = true);
 
 }  // namespace formatter
 

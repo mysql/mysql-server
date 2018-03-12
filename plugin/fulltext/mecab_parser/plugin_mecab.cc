@@ -131,13 +131,14 @@ static int mecab_parser_plugin_init(void *) {
   mecab_dict = mecab_model->dictionary_info();
   mecab_charset[0] = '\0';
   if (!mecab_parser_check_and_set_charset(mecab_dict->charset)) {
+    LogErr(ERROR_LEVEL, ER_MECAB_UNSUPPORTED_CHARSET, mecab_dict->charset);
+
     delete mecab_tagger;
     mecab_tagger = NULL;
 
     delete mecab_model;
     mecab_model = NULL;
 
-    LogErr(ERROR_LEVEL, ER_MECAB_UNSUPPORTED_CHARSET, mecab_dict->charset);
     deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     return (1);
   } else {
