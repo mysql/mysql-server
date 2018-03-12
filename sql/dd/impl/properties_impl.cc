@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,20 +23,14 @@
 #include "sql/dd/impl/properties_impl.h"
 
 #include <stddef.h>
+#include <iterator>
 #include <new>
 
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"
 #include "sql/dd/impl/utils.h"  // eat_pairs
 
 namespace dd {
-
-///////////////////////////////////////////////////////////////////////////
-
-const String_type Properties_impl::EMPTY_STR = "";
-
-///////////////////////////////////////////////////////////////////////////
-
-Properties_impl::Properties_impl()
-    : m_map(new Properties::Map()) {} /* purecov: tested */
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -49,12 +43,8 @@ Properties_impl::Properties_impl()
   @return                pointer to new Property_impl object
     @retval NULL         if an error occurred
 */
-Properties *Properties::parse_properties(const String_type &raw_properties) {
-  return Properties_impl::parse_properties(raw_properties);
-}
 
-Properties *Properties_impl::parse_properties(
-    const String_type &raw_properties) {
+Properties *Properties::parse_properties(const String_type &raw_properties) {
   Properties *tmp = new (std::nothrow) Properties_impl();
   String_type::const_iterator it = raw_properties.begin();
 
@@ -66,36 +56,76 @@ Properties *Properties_impl::parse_properties(
   return tmp;
 }
 
-///////////////////////////////////////////////////////////////////////////
-
-/**
-  Iterate over all entries in the private hash table. For each
-  key value pair, escape both key and value, and append the strings
-  to the result. Use '=' to separate key and value, and use ';'
-  to separate pairs.
-
-  @return string containing all escaped key value pairs
-*/
-
 const String_type Properties_impl::raw_string() const {
   String_type str("");
-  str.reserve(16 * m_map->size());
+  str.reserve(16 * m_map.size());
 
-  // Iterate over all map entries
-  const Const_iterator map_end = m_map->end();
-  for (Const_iterator it = m_map->begin(); it != map_end; ++it) {
-    escape(&str, it->first);
-    str.append("=");
-    escape(&str, it->second);
-    str.append(";");
+  // Iterate over all valid map entries.
+  for (auto &it : m_map) {
+    DBUG_ASSERT(valid_key(it.first));
+    if (valid_key(it.first)) {
+      escape(&str, it.first);
+      str.append("=");
+      escape(&str, it.second);
+      str.append(";");
+    }
   }
   return str;
 }
 
-///////////////////////////////////////////////////////////////////////////
-
-Properties *parse_properties(const String_type &str) {
-  return Properties_impl::parse_properties(str);
+bool Properties_impl::get(const String_type &key, String_type *value) const {
+  DBUG_ASSERT(value != nullptr);
+  if (!valid_key(key)) {
+    LogErr(WARNING_LEVEL, ER_INVALID_PROPERTY_KEY, key.c_str());
+    DBUG_ASSERT(false);
+    return true;
+  }
+  const_iterator it = m_map.find(key);
+  if (it == m_map.end()) {
+    // Key is not present.
+    DBUG_ASSERT(false); /* purecov: inspected */
+    return true;
+  }
+  *value = it->second;
+  return false;
 }
+
+bool Properties_impl::set(const String_type &key, const String_type &value) {
+  if (!valid_key(key)) {
+    LogErr(WARNING_LEVEL, ER_INVALID_PROPERTY_KEY, key.c_str());
+    DBUG_ASSERT(false);
+    return true;
+  }
+  if (!key.empty()) m_map[key] = value;
+  return false;
+}
+
+bool Properties_impl::insert_values(const Properties &properties) {
+  // The precondition is that this object is empty
+  DBUG_ASSERT(empty());
+  std::copy_if(properties.begin(), properties.end(),
+               std::inserter(m_map, m_map.begin()),
+               [&](const Map::value_type &p) { return valid_key(p.first); });
+  return false;
+}
+
+bool Properties_impl::insert_values(const String_type &raw_string) {
+  // The precondition is that this object is empty
+  DBUG_ASSERT(empty());
+
+  /*
+    Parse string and set key values. In the 'eat_pairs()' function,
+    invalid keys will be silently ignored.
+  */
+  String_type::const_iterator it = raw_string.begin();
+  if (eat_pairs(it, raw_string.end(), this)) {
+    clear();
+    return true;
+  }
+
+  return false;
+}
+
+///////////////////////////////////////////////////////////////////////////
 
 }  // namespace dd

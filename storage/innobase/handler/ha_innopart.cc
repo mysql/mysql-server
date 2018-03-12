@@ -2449,8 +2449,10 @@ int ha_innopart::create(const char *name, TABLE *form,
     dd::String_type data_file_name;
     const char *tablespace_name;
 
-    options.get(index_file_name_key, index_file_name);
-    options.get(data_file_name_key, data_file_name);
+    if (options.exists(index_file_name_key))
+      (void)options.get(index_file_name_key, &index_file_name);
+    if (options.exists(data_file_name_key))
+      (void)options.get(data_file_name_key, &data_file_name);
     ut_ad(created < tablespace_names.size());
     tablespace_name = tablespace_names[created];
 
@@ -2654,7 +2656,7 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
 
     /* Set discard flag. */
     dd::Properties &p = dd_part->table().se_private_data();
-    p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
+    p.set(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 
     /* Get Tablespace object */
     dd::Tablespace *dd_space = nullptr;
@@ -2689,21 +2691,21 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
       ut_ad(index != nullptr);
 
       dd::Properties &p = dd_index->se_private_data();
-      p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
+      p.set(dd_index_key_strings[DD_INDEX_ROOT], index->page);
     }
   }
 
   /* Set discard flag for the table. */
   dd::Properties &p = table_def->table().se_private_data();
-  p.set_bool(dd_table_key_strings[DD_TABLE_DISCARD], discard);
+  p.set(dd_table_key_strings[DD_TABLE_DISCARD], discard);
 
   /* Set new table id of the first partition to dd::Column::se_private_data */
   if (!discard) {
     table = m_part_share->get_table_part(0);
 
     for (auto dd_column : *table_def->columns()) {
-      dd_column->se_private_data().set_uint64(dd_index_key_strings[DD_TABLE_ID],
-                                              table->id);
+      dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
+                                       table->id);
     }
   }
 

@@ -109,7 +109,7 @@ DD_properties::DD_properties() : m_properties() {
 // Read all properties from disk and populate the cache.
 bool DD_properties::init_cached_properties(THD *thd) {
   // Early exit in case the properties are already initialized.
-  if (m_properties != nullptr) return false;
+  if (!m_properties.empty()) return false;
 
   /*
     Start a DD transaction to get the properties. Please note that we
@@ -143,15 +143,15 @@ bool DD_properties::init_cached_properties(THD *thd) {
 
   String val;
   t->field[FIELD_PROPERTIES]->val_str(&val);
-  m_properties.reset(Properties::parse_properties(val.c_ptr_safe()));
+  m_properties.insert_values(val.c_ptr_safe());
 
   t->file->ha_rnd_end();
-  return (m_properties == nullptr);
+  return (m_properties.empty());
 }
 
 // Flush all properties from the cache to disk.
 bool DD_properties::flush_cached_properties(THD *thd) {
-  DBUG_ASSERT(m_properties != nullptr);
+  DBUG_ASSERT(!m_properties.empty());
 
   Update_dictionary_tables_ctx ctx(thd);
   ctx.otx.add_table<DD_properties>();
@@ -185,7 +185,7 @@ bool DD_properties::flush_cached_properties(THD *thd) {
   }
 
   store_record(t, record[1]);
-  const String_type &prop_str = m_properties->raw_string();
+  const String_type &prop_str = m_properties.raw_string();
   t->field[FIELD_PROPERTIES]->store(prop_str.c_str(), prop_str.length(),
                                     system_charset_info);
   rc = t->file->ha_update_row(t->record[1], t->record[0]);
@@ -207,12 +207,12 @@ bool DD_properties::unchecked_get(THD *thd, const String_type &key,
                                   String_type *value, bool *exists) {
   if (init_cached_properties(thd)) return true;
 
-  *exists = m_properties->exists(key);
-  if (*exists) m_properties->get(key, *value);
+  *exists = m_properties.exists(key);
+  if (*exists) m_properties.get(key, value);
 
   if (*exists == false && key == "DD_VERSION") {
-    *exists = m_properties->exists("DD_version");
-    if (*exists) m_properties->get("DD_version", *value);
+    *exists = m_properties.exists("DD_version");
+    if (*exists) m_properties.get("DD_version", value);
   }
 
   return false;
@@ -229,7 +229,7 @@ bool DD_properties::unchecked_set(THD *thd, const String_type &key,
   if (init_cached_properties(thd)) return true;
 
   // Update the cached properties and the table.
-  m_properties->set(key, value);
+  m_properties.set(key, value);
   return flush_cached_properties(thd);
 }
 
@@ -240,14 +240,14 @@ bool DD_properties::get(THD *thd, const String_type &key, uint *value,
               m_property_desc[key] == Property_type::UNSIGNED_INT_32);
   String_type val_str;
   return unchecked_get(thd, key, &val_str, exists) ||
-         dd::Properties::to_uint32(val_str, value);
+         dd::Properties::from_str(val_str, value);
 }
 
 // Set the integer property for the given key.
 bool DD_properties::set(THD *thd, const String_type &key, uint value) {
   DBUG_ASSERT(m_property_desc.find(key) != m_property_desc.end() &&
               m_property_desc[key] == Property_type::UNSIGNED_INT_32);
-  return unchecked_set(thd, key, dd::Properties::from_uint32(value));
+  return unchecked_set(thd, key, dd::Properties::to_str(value));
 }
 
 // Read the character string property for the given key.

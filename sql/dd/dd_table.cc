@@ -675,21 +675,21 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
       to handle correctly columns which were created before this change.
     */
     if (field->sql_type == MYSQL_TYPE_BIT)
-      col_options->set_bool("treat_bit_as_char", field->treat_bit_as_char);
+      col_options->set("treat_bit_as_char", field->treat_bit_as_char);
 
     // Store geometry sub type
     if (field->sql_type == MYSQL_TYPE_GEOMETRY) {
-      col_options->set_uint32("geom_type", field->geom_type);
+      col_options->set("geom_type", field->geom_type);
     }
 
     // Field storage media and column format options
     if (field->field_storage_type() != HA_SM_DEFAULT)
-      col_options->set_uint32("storage",
-                              static_cast<uint32>(field->field_storage_type()));
+      col_options->set("storage",
+                       static_cast<uint32>(field->field_storage_type()));
 
     if (field->column_format() != COLUMN_FORMAT_TYPE_DEFAULT)
-      col_options->set_uint32("column_format",
-                              static_cast<uint32>(field->column_format()));
+      col_options->set("column_format",
+                       static_cast<uint32>(field->column_format()));
 
     //
     // Write intervals
@@ -722,11 +722,11 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
     col_obj->set_column_type_utf8(get_sql_type_by_create_field(&table, field));
 
     // Store element count in dd::Column
-    col_options->set_uint32("interval_count", i);
+    col_options->set("interval_count", i);
 
     // Store geometry sub type
     if (field->sql_type == MYSQL_TYPE_GEOMETRY) {
-      col_options->set_uint32("geom_type", field->geom_type);
+      col_options->set("geom_type", field->geom_type);
     }
 
     // Reset the buffer and assign the column's default value.
@@ -1065,10 +1065,10 @@ static void fill_dd_indexes_from_keyinfo(
       in DD in order to avoid problems with binary compatibility if we decide
       to change conditions in which optimization is applied in future releases.
     */
-    idx_options->set_uint32("flags",
-                            (key->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY)));
+    idx_options->set("flags",
+                     (key->flags & (HA_PACK_KEY | HA_BINARY_PACK_KEY)));
 
-    if (key->block_size) idx_options->set_uint32("block_size", key->block_size);
+    if (key->block_size) idx_options->set("block_size", key->block_size);
 
     if (key->parser_name.str)
       idx_options->set("parser_name", key->parser_name.str);
@@ -1276,7 +1276,7 @@ static bool fill_dd_tablespace_id_or_name(THD *thd, T *obj, handlerton *hton,
     This is required in order for SHOW CREATE and CREATE LIKE to ignore
     implicitly assumed tablespace, e.g., 'innodb_system'
   */
-  options->set_bool("explicit_tablespace", true);
+  options->set("explicit_tablespace", true);
 
   DBUG_RETURN(false);
 }
@@ -1308,15 +1308,15 @@ static bool get_field_list_str(dd::String_type &str, List<char> *name_list) {
 static void set_partition_options(partition_element *part_elem,
                                   dd::Properties *part_options) {
   if (part_elem->part_max_rows)
-    part_options->set_uint64("max_rows", part_elem->part_max_rows);
+    part_options->set("max_rows", part_elem->part_max_rows);
   if (part_elem->part_min_rows)
-    part_options->set_uint64("min_rows", part_elem->part_min_rows);
+    part_options->set("min_rows", part_elem->part_min_rows);
   if (part_elem->data_file_name && part_elem->data_file_name[0])
     part_options->set("data_file_name", part_elem->data_file_name);
   if (part_elem->index_file_name && part_elem->index_file_name[0])
     part_options->set("index_file_name", part_elem->index_file_name);
   if (part_elem->nodegroup_id != UNDEF_NODEGROUP)
-    part_options->set_uint32("nodegroup_id", part_elem->nodegroup_id);
+    part_options->set("nodegroup_id", part_elem->nodegroup_id);
 }
 
 /*
@@ -1620,10 +1620,10 @@ static bool fill_dd_partition_from_create_info(
             } else {
               if (part_elem->signed_flag) {
                 val_obj->set_value_utf8(
-                    dd::Properties::from_int64(part_elem->range_value));
+                    dd::Properties::to_str(part_elem->range_value));
               } else {
-                val_obj->set_value_utf8(dd::Properties::from_uint64(
-                    (ulonglong)part_elem->range_value));
+                val_obj->set_value_utf8(
+                    dd::Properties::to_str((ulonglong)part_elem->range_value));
               }
             }
 
@@ -1672,11 +1672,11 @@ static bool fill_dd_partition_from_create_info(
               val_obj->set_list_num(list_index);
               if (list_value->unsigned_flag) {
                 val_obj->set_value_utf8(
-                    dd::Properties::from_uint64((ulonglong)list_value->value));
+                    dd::Properties::to_str((ulonglong)list_value->value));
                 part_desc_res.set((ulonglong)list_value->value, cs);
               } else {
                 val_obj->set_value_utf8(
-                    dd::Properties::from_int64(list_value->value));
+                    dd::Properties::to_str(list_value->value));
                 part_desc_res.set(list_value->value, cs);
               }
               part_desc_str.append(part_desc_res);
@@ -1920,10 +1920,10 @@ static bool fill_dd_table_from_create_info(
   dd::Properties *table_options = &tab_obj->options();
 
   if (create_info->max_rows)
-    table_options->set_uint64("max_rows", create_info->max_rows);
+    table_options->set("max_rows", create_info->max_rows);
 
   if (create_info->min_rows)
-    table_options->set_uint64("min_rows", create_info->min_rows);
+    table_options->set("min_rows", create_info->min_rows);
 
   //
   // Options encoded in HA_CREATE_INFO::table_options.
@@ -1945,8 +1945,8 @@ static bool fill_dd_table_from_create_info(
     problems with binary compatibility if we decide to change rules for
     applying this optimization in future releases.
   */
-  table_options->set_bool("pack_record",
-                          create_info->table_options & HA_OPTION_PACK_RECORD);
+  table_options->set("pack_record",
+                     create_info->table_options & HA_OPTION_PACK_RECORD);
 
   /*
     PACK_KEYS=# clause. Absence of PACK_KEYS option/PACK_KEYS=DEFAULT is
@@ -1958,8 +1958,8 @@ static bool fill_dd_table_from_create_info(
                  (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) !=
                 (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS));
 
-    table_options->set_bool("pack_keys",
-                            create_info->table_options & HA_OPTION_PACK_KEYS);
+    table_options->set("pack_keys",
+                       create_info->table_options & HA_OPTION_PACK_KEYS);
   }
 
   /*
@@ -1969,16 +1969,16 @@ static bool fill_dd_table_from_create_info(
   DBUG_ASSERT(!((create_info->table_options & HA_OPTION_CHECKSUM) &&
                 (create_info->table_options & HA_OPTION_NO_CHECKSUM)));
   if (create_info->table_options & (HA_OPTION_CHECKSUM | HA_OPTION_NO_CHECKSUM))
-    table_options->set_bool("checksum",
-                            create_info->table_options & HA_OPTION_CHECKSUM);
+    table_options->set("checksum",
+                       create_info->table_options & HA_OPTION_CHECKSUM);
 
   /* DELAY_KEY_WRITE=# clause. Same situation as for CHECKSUM option. */
   DBUG_ASSERT(!((create_info->table_options & HA_OPTION_DELAY_KEY_WRITE) &&
                 (create_info->table_options & HA_OPTION_NO_DELAY_KEY_WRITE)));
   if (create_info->table_options &
       (HA_OPTION_DELAY_KEY_WRITE | HA_OPTION_NO_DELAY_KEY_WRITE))
-    table_options->set_bool("delay_key_write", create_info->table_options &
-                                                   HA_OPTION_DELAY_KEY_WRITE);
+    table_options->set("delay_key_write",
+                       create_info->table_options & HA_OPTION_DELAY_KEY_WRITE);
 
   /*
     STATS_PERSISTENT=# clause. Absence option in dd::Properties represents
@@ -1992,35 +1992,34 @@ static bool fill_dd_table_from_create_info(
          (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT)) !=
         (HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT));
 
-    table_options->set_bool("stats_persistent", (create_info->table_options &
-                                                 HA_OPTION_STATS_PERSISTENT));
+    table_options->set("stats_persistent", (create_info->table_options &
+                                            HA_OPTION_STATS_PERSISTENT));
   }
 
   //
   // Set other table options.
   //
 
-  table_options->set_uint32("avg_row_length", create_info->avg_row_length);
+  table_options->set("avg_row_length", create_info->avg_row_length);
 
   if (create_info->row_type != ROW_TYPE_DEFAULT)
-    table_options->set_uint32("row_type", create_info->row_type);
+    table_options->set("row_type", create_info->row_type);
 
   // ROW_FORMAT which was explicitly specified by user (if any).
   if (create_info->row_type != ROW_TYPE_DEFAULT)
-    table_options->set_uint32("row_type",
-                              dd_get_new_row_format(create_info->row_type));
+    table_options->set("row_type",
+                       dd_get_new_row_format(create_info->row_type));
 
   // ROW_FORMAT which is really used for the table by SE (perhaps implicitly).
   tab_obj->set_row_format(
       dd_get_new_row_format(file->get_real_row_type(create_info)));
 
-  table_options->set_uint32("stats_sample_pages",
-                            create_info->stats_sample_pages & 0xffff);
+  table_options->set("stats_sample_pages",
+                     create_info->stats_sample_pages & 0xffff);
 
-  table_options->set_uint32("stats_auto_recalc",
-                            create_info->stats_auto_recalc);
+  table_options->set("stats_auto_recalc", create_info->stats_auto_recalc);
 
-  table_options->set_uint32("key_block_size", create_info->key_block_size);
+  table_options->set("key_block_size", create_info->key_block_size);
 
   if (create_info->connect_string.str && create_info->connect_string.length) {
     dd::String_type connect_string;
@@ -2043,11 +2042,11 @@ static bool fill_dd_table_from_create_info(
   }
   // Storage media
   if (create_info->storage_media > HA_SM_DEFAULT)
-    table_options->set_uint32("storage", create_info->storage_media);
+    table_options->set("storage", create_info->storage_media);
 
   // Update option keys_disabled
-  table_options->set_uint32("keys_disabled",
-                            (keys_onoff == Alter_info::DISABLE ? 1 : 0));
+  table_options->set("keys_disabled",
+                     (keys_onoff == Alter_info::DISABLE ? 1 : 0));
 
   // Collation ID
   DBUG_ASSERT(create_info->default_table_charset);
@@ -2140,7 +2139,7 @@ static bool get_se_private_data(THD *thd, dd::Table *tab_obj) {
   String_type tbl_prop_str;
   if (dd::tables::DD_properties::instance().get(thd, "SYSTEM_TABLES",
                                                 &sys_tbl_props, &exists) ||
-      !exists || sys_tbl_props->get(tab_obj->name(), tbl_prop_str)) {
+      !exists || sys_tbl_props->get(tab_obj->name(), &tbl_prop_str)) {
     my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
     return true;
   }
@@ -2151,31 +2150,31 @@ static bool get_se_private_data(THD *thd, dd::Table *tab_obj) {
   Object_id space_id = INVALID_OBJECT_ID;
   String_type se_data;
 
-  if (tbl_props->get_uint64(
-          DD_properties::dd_key(DD_properties::DD_property::ID), &se_id) ||
-      tbl_props->get_uint64(
+  if (tbl_props->get(DD_properties::dd_key(DD_properties::DD_property::ID),
+                     &se_id) ||
+      tbl_props->get(
           DD_properties::dd_key(DD_properties::DD_property::SPACE_ID),
           &space_id) ||
       tbl_props->get(DD_properties::dd_key(DD_properties::DD_property::DATA),
-                     se_data)) {
+                     &se_data)) {
     my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
     return true;
   }
 
   tab_obj->set_se_private_id(se_id);
   tab_obj->set_tablespace_id(space_id);
-  tab_obj->set_se_private_data_raw(se_data);
+  tab_obj->set_se_private_data(se_data);
 
   // Assign SE private data for indexes.
   int count = 0;
   for (auto idx : *tab_obj->indexes()) {
     std::stringstream ss;
     ss << DD_properties::dd_key(DD_properties::DD_property::IDX) << count++;
-    if (tbl_props->get(ss.str().c_str(), se_data)) {
+    if (tbl_props->get(ss.str().c_str(), &se_data)) {
       my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
       return true;
     }
-    idx->set_se_private_data_raw(se_data);
+    idx->set_se_private_data(se_data);
     // Assign the same tablespace id for the indexes as for the table.
     idx->set_tablespace_id(space_id);
   }
@@ -2185,11 +2184,11 @@ static bool get_se_private_data(THD *thd, dd::Table *tab_obj) {
   for (auto col : *tab_obj->columns()) {
     std::stringstream ss;
     ss << DD_properties::dd_key(DD_properties::DD_property::COL) << count++;
-    if (tbl_props->get(ss.str().c_str(), se_data)) {
+    if (tbl_props->get(ss.str().c_str(), &se_data)) {
       my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), tab_obj->name().c_str());
       return true;
     }
-    col->set_se_private_data_raw(se_data);
+    col->set_se_private_data(se_data);
   }
   return false;
 }
@@ -2593,7 +2592,8 @@ static void copy_tablespace_ids(const Table &t, IT it) {
  */
 Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t) {
   if (t.options().exists("encrypt_type")) {
-    const String_type &et = t.options().value("encrypt_type");
+    String_type et;
+    (void)t.options().get("encrypt_type", &et);
     DBUG_ASSERT(et.empty() == false);
     if (et == "Y" || et == "y") {
       return {false, true};
@@ -2626,7 +2626,8 @@ Encrypt_result is_tablespace_encrypted(THD *thd, const Table &t) {
           return false;
         }
 
-        const String_type &e = tsp->options().value("encryption");
+        String_type e;
+        (void)tsp->options().get("encryption", &e);
         DBUG_ASSERT(e.empty() == false);
         if (e == "Y" || e == "y") {
           return true;

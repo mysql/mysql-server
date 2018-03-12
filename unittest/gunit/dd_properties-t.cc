@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,23 +57,30 @@ class PropertiesTest : public ::testing::Test {
   GTEST_DISALLOW_COPY_AND_ASSIGN_(PropertiesTest);
 };
 
+static const dd::String_type value(const dd::Properties &p,
+                                   const dd::String_type &key) {
+  dd::String_type val;
+  (void)p.get(key, &val);
+  return val;
+}
+
 // Tests that valid option parsing is handled
 TEST_F(PropertiesTest, ValidStringParsing) {
   dd::Properties *p = dd::Properties_impl::parse_properties("a=b;b=c");
-  EXPECT_TRUE(p->value("a") == "b");
-  EXPECT_TRUE(p->value("b") == "c");
+  EXPECT_TRUE(value(*p, "a") == "b");
+  EXPECT_TRUE(value(*p, "b") == "c");
   EXPECT_TRUE(p->raw_string() == "a=b;b=c;");
   delete p;
 
   p = dd::Properties_impl::parse_properties("a=b;b=c;");
-  EXPECT_TRUE(p->value("a") == "b");
-  EXPECT_TRUE(p->value("b") == "c");
+  EXPECT_TRUE(value(*p, "a") == "b");
+  EXPECT_TRUE(value(*p, "b") == "c");
   EXPECT_TRUE(p->raw_string() == "a=b;b=c;");
   delete p;
 
   p = dd::Properties_impl::parse_properties("\\=a=\\;b;b\\==\\=c");
-  EXPECT_TRUE(p->value("=a") == ";b");
-  EXPECT_TRUE(p->value("b=") == "=c");
+  EXPECT_TRUE(value(*p, "=a") == ";b");
+  EXPECT_TRUE(value(*p, "b=") == "=c");
   EXPECT_TRUE(p->raw_string() == "\\=a=\\;b;b\\==\\=c;");
   delete p;
 
@@ -84,7 +91,7 @@ TEST_F(PropertiesTest, ValidStringParsing) {
 
   p = dd::Properties_impl::parse_properties("a=;");
   EXPECT_TRUE(p != NULL);
-  EXPECT_TRUE(p->value("a") == "");
+  EXPECT_TRUE(value(*p, "a") == "");
   delete p;
 }
 
@@ -120,8 +127,8 @@ TEST_F(PropertiesTest, EmptyValue) {
   dd::Properties *p = dd::Properties_impl::parse_properties("k=;");
   dd::String_type string_value("");
 
-  EXPECT_TRUE(p->value("k") == "");
-  EXPECT_TRUE(!p->get("k", string_value) && string_value == "");
+  EXPECT_TRUE(value(*p, "k") == "");
+  EXPECT_TRUE(!p->get("k", &string_value) && string_value == "");
   delete p;
 }
 
@@ -146,21 +153,21 @@ TEST_F(PropertiesTest, UTF8) {
   p->set("1/100 " + CNY, "Who knows, but not " + JPY + " for sure");
   p->set("1/100 " + USD, "Half of my 2 " + CNT + "s worth");
 
-  EXPECT_TRUE(p->value("EUR") == EUR);
-  EXPECT_TRUE(p->value("1/100 " + p->value("EUR")) == "Cent, but not " + CNT);
+  EXPECT_TRUE(value(*p, "EUR") == EUR);
+  EXPECT_TRUE(value(*p, "1/100 " + value(*p, "EUR")) == "Cent, but not " + CNT);
 
-  EXPECT_TRUE(p->value("CNY") == CNY);
-  EXPECT_TRUE(p->value("1/100 " + p->value("CNY")) ==
+  EXPECT_TRUE(value(*p, "CNY") == CNY);
+  EXPECT_TRUE(value(*p, "1/100 " + value(*p, "CNY")) ==
               "Who knows, but not " + JPY + " for sure");
 
-  EXPECT_TRUE(p->value("JPY") == JPY);
+  EXPECT_TRUE(value(*p, "JPY") == JPY);
 
-  EXPECT_TRUE(p->value("GBP") == GBP);
-  EXPECT_TRUE(p->value("1/100 " + p->value("GBP")) ==
+  EXPECT_TRUE(value(*p, "GBP") == GBP);
+  EXPECT_TRUE(value(*p, "1/100 " + value(*p, "GBP")) ==
               "Pence, whatever that symbol is");
 
-  EXPECT_TRUE(p->value("USD") == USD);
-  EXPECT_TRUE(p->value("1/100 " + p->value("USD")) ==
+  EXPECT_TRUE(value(*p, "USD") == USD);
+  EXPECT_TRUE(value(*p, "1/100 " + value(*p, "USD")) ==
               "Half of my 2 " + CNT + "s worth");
   delete p;
 }
@@ -169,51 +176,36 @@ TEST_F(PropertiesTest, UTF8) {
 TEST_F(PropertiesTest, SetGetStrings) {
   dd::Properties *p = new dd::Properties_impl();
   dd::String_type str("");
-  const char *value = NULL;
 
   p->set("a", "b");
-  EXPECT_TRUE(p->value("a") == "b");
-  EXPECT_TRUE(!p->get("a", str) && str == "b");
-  value = p->value_cstr("a");
-  EXPECT_TRUE(strcmp(value, "b") == 0);
-  EXPECT_TRUE(strlen(value) == 1);
-  EXPECT_TRUE(value[strlen(value)] == '\0');
+  EXPECT_TRUE(value(*p, "a") == "b");
+  EXPECT_TRUE(!p->get("a", &str) && str == "b");
 
   p->set("b=", "c;");
-  EXPECT_TRUE(p->value("b=") == "c;");
-  EXPECT_TRUE(!p->get("b=", str) && str == "c;");
-  value = p->value_cstr("b=");
-  EXPECT_TRUE(strcmp(value, "c;") == 0);
-  EXPECT_TRUE(strlen(value) == 2);
-  EXPECT_TRUE(value[strlen(value)] == '\0');
+  EXPECT_TRUE(value(*p, "b=") == "c;");
+  EXPECT_TRUE(!p->get("b=", &str) && str == "c;");
 
   p->set("d\\=", "e\\;");
-  EXPECT_TRUE(p->value("d\\=") == "e\\;");
-  EXPECT_TRUE(!p->get("d\\=", str) && str == "e\\;");
-  value = p->value_cstr("d\\=");
-  EXPECT_TRUE(strcmp(value, "e\\;") == 0);
-  EXPECT_TRUE(strlen(value) == 3);
-  EXPECT_TRUE(value[strlen(value)] == '\0');
+  EXPECT_TRUE(value(*p, "d\\=") == "e\\;");
+  EXPECT_TRUE(!p->get("d\\=", &str) && str == "e\\;");
 
   p->set(";f", "=g");
-  EXPECT_TRUE(p->value(";f") == "=g");
-  EXPECT_TRUE(!p->get(";f", str) && str == "=g");
-  value = p->value_cstr(";f");
-  EXPECT_TRUE(strcmp(value, "=g") == 0);
-  EXPECT_TRUE(strlen(value) == 2);
-  EXPECT_TRUE(value[strlen(value)] == '\0');
+  EXPECT_TRUE(value(*p, ";f") == "=g");
+  EXPECT_TRUE(!p->get(";f", &str) && str == "=g");
 
   p->set("\\;h", "\\=i");
-  EXPECT_TRUE(p->value("\\;h") == "\\=i");
-  EXPECT_TRUE(!p->get("\\;h", str) && str == "\\=i");
-  value = p->value_cstr("\\;h");
-  EXPECT_TRUE(strcmp(value, "\\=i") == 0);
-  EXPECT_TRUE(strlen(value) == 3);
-  EXPECT_TRUE(value[strlen(value)] == '\0');
+  EXPECT_TRUE(value(*p, "\\;h") == "\\=i");
+  EXPECT_TRUE(!p->get("\\;h", &str) && str == "\\=i");
 
   // Key "" is illegal and will not be added
   p->set("", "");
-  EXPECT_TRUE(p->get("", str));
+
+#if !defined(DBUG_OFF)
+  EXPECT_DEATH_IF_SUPPORTED(p->get("", &str), ".*UTC - mysqld got.*");
+#else
+  EXPECT_TRUE(p->get("", &str));
+#endif
+
   EXPECT_FALSE(p->exists(""));
   EXPECT_TRUE(p->remove(""));
 
@@ -224,16 +216,11 @@ TEST_F(PropertiesTest, SetGetStrings) {
   dd::Properties *p_copy =
       dd::Properties_impl::parse_properties(p->raw_string());
   // Verify same values
-  EXPECT_TRUE(p->value("a") == p_copy->value("a"));
-  EXPECT_TRUE(strcmp(p->value_cstr("a"), p_copy->value_cstr("a")) == 0);
-  EXPECT_TRUE(p->value("b=") == p_copy->value("b="));
-  EXPECT_TRUE(strcmp(p->value_cstr("b="), p_copy->value_cstr("b=")) == 0);
-  EXPECT_TRUE(p->value("d\\=") == p_copy->value("d\\="));
-  EXPECT_TRUE(strcmp(p->value_cstr("d\\="), p_copy->value_cstr("d\\=")) == 0);
-  EXPECT_TRUE(p->value(";f") == p_copy->value(";f"));
-  EXPECT_TRUE(strcmp(p->value_cstr(";f"), p_copy->value_cstr(";f")) == 0);
-  EXPECT_TRUE(p->value("\\;h") == p_copy->value("\\;h"));
-  EXPECT_TRUE(strcmp(p->value_cstr("\\;h"), p_copy->value_cstr("\\;h")) == 0);
+  EXPECT_TRUE(value(*p, "a") == value(*p_copy, "a"));
+  EXPECT_TRUE(value(*p, "b=") == value(*p_copy, "b="));
+  EXPECT_TRUE(value(*p, "d\\=") == value(*p_copy, "d\\="));
+  EXPECT_TRUE(value(*p, ";f") == value(*p_copy, ";f"));
+  EXPECT_TRUE(value(*p, "\\;h") == value(*p_copy, "\\;h"));
 
   EXPECT_TRUE(p->raw_string() == p_copy->raw_string());
 
@@ -276,134 +263,134 @@ TEST_F(PropertiesTest, ValidSetGetIntBool) {
 
   // Set and get as strings and ints, int64
   p->set("str_int64", MAX_INT64_STR);
-  p->set_int64("num_int64", MAX_INT64);
+  p->set("num_int64", MAX_INT64);
 
-  EXPECT_TRUE(p->value("str_int64") == p->value("num_int64") &&
-              p->value("str_int64") == MAX_INT64_STR);
-  EXPECT_TRUE(!p->get_int64("str_int64", &val1_int64) &&
-              !p->get_int64("num_int64", &val2_int64));
+  EXPECT_TRUE(value(*p, "str_int64") == value(*p, "num_int64") &&
+              value(*p, "str_int64") == MAX_INT64_STR);
+  EXPECT_TRUE(!p->get("str_int64", &val1_int64) &&
+              !p->get("num_int64", &val2_int64));
   EXPECT_TRUE(val1_int64 == val2_int64 && val1_int64 == MAX_INT64);
 
   p->set("str_int64", MIN_INT64_STR);
-  p->set_int64("num_int64", MIN_INT64);
+  p->set("num_int64", MIN_INT64);
 
-  EXPECT_TRUE(p->value("str_int64") == p->value("num_int64") &&
-              p->value("str_int64") == MIN_INT64_STR);
-  EXPECT_TRUE(!p->get_int64("str_int64", &val1_int64) &&
-              !p->get_int64("num_int64", &val2_int64));
+  EXPECT_TRUE(value(*p, "str_int64") == value(*p, "num_int64") &&
+              value(*p, "str_int64") == MIN_INT64_STR);
+  EXPECT_TRUE(!p->get("str_int64", &val1_int64) &&
+              !p->get("num_int64", &val2_int64));
   EXPECT_TRUE(val1_int64 == val2_int64 && val1_int64 == MIN_INT64);
 
   // Set and get as strings and ints, uint64
   p->set("str_uint64", MAX_UINT64_STR);
-  p->set_uint64("num_uint64", MAX_UINT64);
+  p->set("num_uint64", MAX_UINT64);
 
-  EXPECT_TRUE(p->value("str_uint64") == p->value("num_uint64") &&
-              p->value("str_uint64") == MAX_UINT64_STR);
-  EXPECT_TRUE(!p->get_uint64("str_uint64", &val1_uint64) &&
-              !p->get_uint64("num_uint64", &val2_uint64));
+  EXPECT_TRUE(value(*p, "str_uint64") == value(*p, "num_uint64") &&
+              value(*p, "str_uint64") == MAX_UINT64_STR);
+  EXPECT_TRUE(!p->get("str_uint64", &val1_uint64) &&
+              !p->get("num_uint64", &val2_uint64));
   EXPECT_TRUE(val1_uint64 == val2_uint64 && val1_uint64 == MAX_UINT64);
 
   p->set("str_uint64", MIN_UINT64_STR);
-  p->set_uint64("num_uint64", MIN_UINT64);
+  p->set("num_uint64", MIN_UINT64);
 
-  EXPECT_TRUE(p->value("str_uint64") == p->value("num_uint64") &&
-              p->value("str_uint64") == MIN_UINT64_STR);
-  EXPECT_TRUE(!p->get_uint64("str_uint64", &val1_uint64) &&
-              !p->get_uint64("num_uint64", &val2_uint64));
+  EXPECT_TRUE(value(*p, "str_uint64") == value(*p, "num_uint64") &&
+              value(*p, "str_uint64") == MIN_UINT64_STR);
+  EXPECT_TRUE(!p->get("str_uint64", &val1_uint64) &&
+              !p->get("num_uint64", &val2_uint64));
   EXPECT_TRUE(val1_uint64 == val2_uint64 && val1_uint64 == MIN_UINT64);
 
   // Set and get as strings and ints, int32
   p->set("str_int32", MAX_INT32_STR);
-  p->set_int32("num_int32", MAX_INT32);
+  p->set("num_int32", MAX_INT32);
 
-  EXPECT_TRUE(p->value("str_int32") == p->value("num_int32") &&
-              p->value("str_int32") == MAX_INT32_STR);
-  EXPECT_TRUE(!p->get_int32("str_int32", &val1_int32) &&
-              !p->get_int32("num_int32", &val2_int32));
+  EXPECT_TRUE(value(*p, "str_int32") == value(*p, "num_int32") &&
+              value(*p, "str_int32") == MAX_INT32_STR);
+  EXPECT_TRUE(!p->get("str_int32", &val1_int32) &&
+              !p->get("num_int32", &val2_int32));
   EXPECT_TRUE(val1_int32 == val2_int32 && val1_int32 == MAX_INT32);
 
   p->set("str_int32", MIN_INT32_STR);
-  p->set_int32("num_int32", MIN_INT32);
+  p->set("num_int32", MIN_INT32);
 
-  EXPECT_TRUE(p->value("str_int32") == p->value("num_int32") &&
-              p->value("str_int32") == MIN_INT32_STR);
-  EXPECT_TRUE(!p->get_int32("str_int32", &val1_int32) &&
-              !p->get_int32("num_int32", &val2_int32));
+  EXPECT_TRUE(value(*p, "str_int32") == value(*p, "num_int32") &&
+              value(*p, "str_int32") == MIN_INT32_STR);
+  EXPECT_TRUE(!p->get("str_int32", &val1_int32) &&
+              !p->get("num_int32", &val2_int32));
   EXPECT_TRUE(val1_int32 == val2_int32 && val1_int32 == MIN_INT32);
 
   // Set and get as strings and ints, uint32
   p->set("str_uint32", MAX_UINT32_STR);
-  p->set_uint32("num_uint32", MAX_UINT32);
+  p->set("num_uint32", MAX_UINT32);
 
-  EXPECT_TRUE(p->value("str_uint32") == p->value("num_uint32") &&
-              p->value("str_uint32") == MAX_UINT32_STR);
-  EXPECT_TRUE(!p->get_uint32("str_uint32", &val1_uint32) &&
-              !p->get_uint32("num_uint32", &val2_uint32));
+  EXPECT_TRUE(value(*p, "str_uint32") == value(*p, "num_uint32") &&
+              value(*p, "str_uint32") == MAX_UINT32_STR);
+  EXPECT_TRUE(!p->get("str_uint32", &val1_uint32) &&
+              !p->get("num_uint32", &val2_uint32));
   EXPECT_TRUE(val1_uint32 == val2_uint32 && val1_uint32 == MAX_UINT32);
 
   p->set("str_uint32", MIN_UINT32_STR);
-  p->set_uint32("num_uint32", MIN_UINT32);
+  p->set("num_uint32", MIN_UINT32);
 
-  EXPECT_TRUE(p->value("str_uint32") == p->value("num_uint32") &&
-              p->value("str_uint32") == MIN_UINT32_STR);
-  EXPECT_TRUE(!p->get_uint32("str_uint32", &val1_uint32) &&
-              !p->get_uint32("num_uint32", &val2_uint32));
+  EXPECT_TRUE(value(*p, "str_uint32") == value(*p, "num_uint32") &&
+              value(*p, "str_uint32") == MIN_UINT32_STR);
+  EXPECT_TRUE(!p->get("str_uint32", &val1_uint32) &&
+              !p->get("num_uint32", &val2_uint32));
   EXPECT_TRUE(val1_uint32 == val2_uint32 && val1_uint32 == MIN_UINT32);
 
   // Set and get as strings and bool
   bool maybe = false;
 
-  p->set_bool("bool", true);
-  EXPECT_TRUE(p->value("bool") == "1");
-  EXPECT_TRUE(!p->get_bool("bool", &maybe) && maybe == true);
-  EXPECT_TRUE(!p->get_int64("bool", &val1_int64) && val1_int64 == 1);
-  EXPECT_TRUE(!p->get_uint64("bool", &val1_uint64) && val1_uint64 == 1);
-  EXPECT_TRUE(!p->get_int32("bool", &val1_int32) && val1_int32 == 1);
-  EXPECT_TRUE(!p->get_uint32("bool", &val1_uint32) && val1_uint32 == 1);
-  p->set_bool("bool", false);
-  EXPECT_TRUE(p->value("bool") == "0");
-  EXPECT_TRUE(!p->get_bool("bool", &maybe) && maybe == false);
-  EXPECT_TRUE(!p->get_int64("bool", &val1_int64) && val1_int64 == 0);
-  EXPECT_TRUE(!p->get_uint64("bool", &val1_uint64) && val1_uint64 == 0);
-  EXPECT_TRUE(!p->get_int32("bool", &val1_int32) && val1_int32 == 0);
-  EXPECT_TRUE(!p->get_uint32("bool", &val1_uint32) && val1_uint32 == 0);
+  p->set("bool", true);
+  EXPECT_TRUE(value(*p, "bool") == "1");
+  EXPECT_TRUE(!p->get("bool", &maybe) && maybe == true);
+  EXPECT_TRUE(!p->get("bool", &val1_int64) && val1_int64 == 1);
+  EXPECT_TRUE(!p->get("bool", &val1_uint64) && val1_uint64 == 1);
+  EXPECT_TRUE(!p->get("bool", &val1_int32) && val1_int32 == 1);
+  EXPECT_TRUE(!p->get("bool", &val1_uint32) && val1_uint32 == 1);
+  p->set("bool", false);
+  EXPECT_TRUE(value(*p, "bool") == "0");
+  EXPECT_TRUE(!p->get("bool", &maybe) && maybe == false);
+  EXPECT_TRUE(!p->get("bool", &val1_int64) && val1_int64 == 0);
+  EXPECT_TRUE(!p->get("bool", &val1_uint64) && val1_uint64 == 0);
+  EXPECT_TRUE(!p->get("bool", &val1_int32) && val1_int32 == 0);
+  EXPECT_TRUE(!p->get("bool", &val1_uint32) && val1_uint32 == 0);
   p->remove("bool");
 
-  p->set_int64("str_int_bool", 0);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == false);
-  p->set_int64("str_int_bool", 1);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
-  p->set_int64("str_int_bool", MAX_INT64);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
-  p->set_int64("str_int_bool", MIN_INT64);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", 0);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == false);
+  p->set("str_int_bool", 1);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", MAX_INT64);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", MIN_INT64);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
 
-  p->set_uint64("str_int_bool", 0);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == false);
-  p->set_uint64("str_int_bool", 1);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
-  p->set_uint64("str_int_bool", MAX_UINT64);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
-  p->set_uint64("str_int_bool", MIN_UINT64);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == false);
+  p->set("str_int_bool", 0);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == false);
+  p->set("str_int_bool", 1);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", MAX_UINT64);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", MIN_UINT64);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == false);
 
-  p->set_int32("str_int_bool", 0);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == false);
-  p->set_int32("str_int_bool", 1);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
-  p->set_int32("str_int_bool", MAX_INT32);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
-  p->set_int32("str_int_bool", MIN_INT32);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", 0);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == false);
+  p->set("str_int_bool", 1);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", MAX_INT32);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", MIN_INT32);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
 
-  p->set_uint32("str_int_bool", 0);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == false);
-  p->set_uint32("str_int_bool", 1);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
-  p->set_uint32("str_int_bool", MAX_UINT32);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == true);
-  p->set_uint32("str_int_bool", MIN_UINT32);
-  EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == false);
+  p->set("str_int_bool", 0);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == false);
+  p->set("str_int_bool", 1);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", MAX_UINT32);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == true);
+  p->set("str_int_bool", MIN_UINT32);
+  EXPECT_TRUE(!p->get("str_int_bool", &maybe) && maybe == false);
 
   EXPECT_TRUE(p->raw_string() ==
               "num_int32=-2147483648;num_int64=-9223372036854775808;num_uint32="
@@ -438,64 +425,60 @@ TEST_F(PropertiesTestDeathTest, FailingSetGetIntBool) {
   dd::Properties *p = new dd::Properties_impl();
 
   p->set("num_int64", OFL_INT64_STR);
-  EXPECT_TRUE(p->value("num_int64") == OFL_INT64_STR);
-  EXPECT_DEATH_IF_SUPPORTED(p->get_int64("num_int64", &val_int64),
+  EXPECT_TRUE(value(*p, "num_int64") == OFL_INT64_STR);
+  EXPECT_DEATH_IF_SUPPORTED(p->get("num_int64", &val_int64),
                             ".*UTC - mysqld got.*");
 
   p->set("num_int64", UFL_INT64_STR);
-  EXPECT_TRUE(p->value("num_int64") == UFL_INT64_STR);
-  EXPECT_DEATH_IF_SUPPORTED(p->get_int64("num_int64", &val_int64),
+  EXPECT_TRUE(value(*p, "num_int64") == UFL_INT64_STR);
+  EXPECT_DEATH_IF_SUPPORTED(p->get("num_int64", &val_int64),
                             ".*UTC - mysqld got.*");
 
   p->set("num_uint64", OFL_UINT64_STR);
-  EXPECT_TRUE(p->value("num_uint64") == OFL_UINT64_STR);
-  EXPECT_DEATH_IF_SUPPORTED(p->get_uint64("num_uint64", &val_uint64),
+  EXPECT_TRUE(value(*p, "num_uint64") == OFL_UINT64_STR);
+  EXPECT_DEATH_IF_SUPPORTED(p->get("num_uint64", &val_uint64),
                             ".*UTC - mysqld got.*");
 
   p->set("num_int32", OFL_INT32_STR);
-  EXPECT_TRUE(p->value("num_int32") == OFL_INT32_STR);
-  EXPECT_DEATH_IF_SUPPORTED(p->get_int32("num_int32", &val_int32),
+  EXPECT_TRUE(value(*p, "num_int32") == OFL_INT32_STR);
+  EXPECT_DEATH_IF_SUPPORTED(p->get("num_int32", &val_int32),
                             ".*UTC - mysqld got.*");
 
   p->set("num_int32", UFL_INT32_STR);
-  EXPECT_TRUE(p->value("num_int32") == UFL_INT32_STR);
-  EXPECT_DEATH_IF_SUPPORTED(p->get_int32("num_int32", &val_int32),
+  EXPECT_TRUE(value(*p, "num_int32") == UFL_INT32_STR);
+  EXPECT_DEATH_IF_SUPPORTED(p->get("num_int32", &val_int32),
                             ".*UTC - mysqld got.*");
 
   p->set("num_uint32", OFL_UINT32_STR);
-  EXPECT_DEATH_IF_SUPPORTED(p->get_uint32("num_uint32", &val_uint32),
+  EXPECT_DEATH_IF_SUPPORTED(p->get("num_uint32", &val_uint32),
                             ".*UTC - mysqld got.*");
 
   // The overflowed unit32 may be retrieved as 64 bit
-  EXPECT_TRUE(!p->get_uint64("num_uint32", &val_uint64) &&
-              !p->get_int64("num_uint32", &val_int64));
+  EXPECT_TRUE(!p->get("num_uint32", &val_uint64) &&
+              !p->get("num_uint32", &val_int64));
 
   // An overflowing 64 bit int should not be accepted as a bool
   bool maybe = false;
 
   p->set("bool", OFL_UINT64_STR);
-  EXPECT_TRUE(p->value("bool") == OFL_UINT64_STR);
-  EXPECT_DEATH_IF_SUPPORTED(p->get_uint64("bool", &val_uint64),
+  EXPECT_TRUE(value(*p, "bool") == OFL_UINT64_STR);
+  EXPECT_DEATH_IF_SUPPORTED(p->get("bool", &val_uint64),
                             ".*UTC - mysqld got.*");
-  EXPECT_DEATH_IF_SUPPORTED(p->get_bool("bool", &maybe),
-                            ".*UTC - mysqld got.*");
+  EXPECT_DEATH_IF_SUPPORTED(p->get("bool", &maybe), ".*UTC - mysqld got.*");
 
   p->set("bool", UFL_INT64_STR);
-  EXPECT_TRUE(p->value("bool") == UFL_INT64_STR);
-  EXPECT_DEATH_IF_SUPPORTED(p->get_int64("bool", &val_int64),
-                            ".*UTC - mysqld got.*");
-  EXPECT_DEATH_IF_SUPPORTED(p->get_bool("bool", &maybe),
-                            ".*UTC - mysqld got.*");
+  EXPECT_TRUE(value(*p, "bool") == UFL_INT64_STR);
+  EXPECT_DEATH_IF_SUPPORTED(p->get("bool", &val_int64), ".*UTC - mysqld got.*");
+  EXPECT_DEATH_IF_SUPPORTED(p->get("bool", &maybe), ".*UTC - mysqld got.*");
   p->remove("bool");
 
   // Integers with empty keys and non existing keys.
-  p->set_int64("", 0);
+  p->set("", 0);
   EXPECT_FALSE(p->exists(""));
-  EXPECT_DEATH_IF_SUPPORTED(p->get_int64("non_existing", &val_int64),
+  EXPECT_DEATH_IF_SUPPORTED(p->get("non_existing", &val_int64),
                             ".*UTC - mysqld got.*");
-  EXPECT_DEATH_IF_SUPPORTED(p->get_int64("", &val_int64),
-                            ".*UTC - mysqld got.*");
-  EXPECT_DEATH_IF_SUPPORTED(p->value(""), ".*UTC - mysqld got.*");
+  EXPECT_DEATH_IF_SUPPORTED(p->get("", &val_int64), ".*UTC - mysqld got.*");
+  EXPECT_DEATH_IF_SUPPORTED(value(*p, ""), ".*UTC - mysqld got.*");
   EXPECT_TRUE(p->remove(""));
 
   EXPECT_TRUE(p->raw_string() ==
@@ -518,20 +501,20 @@ TEST_F(PropertiesTest, OptionsExist) {
 
   p->set("empty", "");
   EXPECT_TRUE(p->exists("empty"));
-  EXPECT_TRUE(p->value("empty") == "");
+  EXPECT_TRUE(value(*p, "empty") == "");
 
   p->set("a", "b");
   EXPECT_TRUE(p->exists("a"));
-  EXPECT_TRUE(p->value("a") == "b");
+  EXPECT_TRUE(value(*p, "a") == "b");
 
   // Create another object with the raw string as input
   dd::Properties *p_copy =
       dd::Properties_impl::parse_properties(p->raw_string());
   EXPECT_TRUE(p->exists("empty"));
-  EXPECT_TRUE(p->value("empty") == "");
+  EXPECT_TRUE(value(*p, "empty") == "");
 
   EXPECT_TRUE(p->exists("a"));
-  EXPECT_TRUE(p->value("a") == "b");
+  EXPECT_TRUE(value(*p, "a") == "b");
 
   delete p;
   delete p_copy;
@@ -545,27 +528,27 @@ TEST_F(PropertiesTest, ReplaceValues) {
 
   p->set("empty", "");
   EXPECT_TRUE(p->exists("empty"));
-  EXPECT_TRUE(p->value("empty") == "");
+  EXPECT_TRUE(value(*p, "empty") == "");
 
   p->set("empty too", "");
   EXPECT_TRUE(p->exists("empty too"));
-  EXPECT_TRUE(p->value("empty too") == "");
+  EXPECT_TRUE(value(*p, "empty too") == "");
 
   p->set("empty", " ");
   EXPECT_TRUE(p->exists("empty"));
-  EXPECT_TRUE(p->value("empty") == " ");
+  EXPECT_TRUE(value(*p, "empty") == " ");
 
   p->set("a", "b");
   EXPECT_TRUE(p->exists("a"));
-  EXPECT_TRUE(p->value("a") == "b");
+  EXPECT_TRUE(value(*p, "a") == "b");
 
   p->set("a", "b too");
   EXPECT_TRUE(p->exists("a"));
-  EXPECT_TRUE(p->value("a") == "b too");
+  EXPECT_TRUE(value(*p, "a") == "b too");
 
   p->set("a", "");
   EXPECT_TRUE(p->exists("a"));
-  EXPECT_TRUE(p->value("a") == "");
+  EXPECT_TRUE(value(*p, "a") == "");
 
   EXPECT_TRUE(p->raw_string() == "a=;empty= ;empty too=;");
 
@@ -584,14 +567,14 @@ TEST_F(PropertiesTest, RemoveOptions) {
 
   p->set("a", "");
   EXPECT_TRUE(p->exists("a"));
-  EXPECT_TRUE(p->value("a") == "");
+  EXPECT_TRUE(value(*p, "a") == "");
   EXPECT_FALSE(p->remove("a"));
   EXPECT_FALSE(p->exists("a"));
   EXPECT_TRUE(p->remove("a"));
 
   p->set("a", "b");
   EXPECT_TRUE(p->exists("a"));
-  EXPECT_TRUE(p->value("a") == "b");
+  EXPECT_TRUE(value(*p, "a") == "b");
   EXPECT_FALSE(p->remove("a"));
   EXPECT_FALSE(p->exists("a"));
   EXPECT_TRUE(p->remove("a"));
@@ -628,7 +611,7 @@ TEST_F(PropertiesTest, IterationSize) {
   EXPECT_TRUE(p->size() == 2);
 
   int i = 0;
-  for (dd::Properties::Iterator it = p->begin(); it != p->end(); ++it, ++i)
+  for (dd::Properties::iterator it = p->begin(); it != p->end(); ++it, ++i)
     if (it->first == "b")
       EXPECT_TRUE(it->second == "c");
     else if (it->first == "c")
@@ -644,7 +627,8 @@ TEST_F(PropertiesTest, IterationSize) {
 
   EXPECT_TRUE(p->size() == 0);
 
-  for (dd::Properties::Iterator it = p->begin(); it != p->end(); ++it)
+  for (dd::Properties::iterator it MY_ATTRIBUTE((unused)) = p->begin();
+       it != p->end(); ++it, ++i)
     EXPECT_TRUE(false);
 
   delete p;
@@ -708,51 +692,51 @@ TEST_F(PropertiesTest, ValidIntConversions) {
   // ======================================
 
   // PTC1
-  EXPECT_TRUE(!p->to_int64("123", &val_int64) && val_int64 == 123);
+  EXPECT_TRUE(!p->from_str("123", &val_int64) && val_int64 == 123);
   // PTC2
-  EXPECT_TRUE(!p->to_int64("-123", &val_int64) && val_int64 == -123);
+  EXPECT_TRUE(!p->from_str("-123", &val_int64) && val_int64 == -123);
   // PTC3
-  EXPECT_TRUE(!p->to_int64("0", &val_int64) && val_int64 == 0);
+  EXPECT_TRUE(!p->from_str("0", &val_int64) && val_int64 == 0);
   // PTC4
-  EXPECT_TRUE(!p->to_int64(MAX_INT64_STR, &val_int64) &&
+  EXPECT_TRUE(!p->from_str(MAX_INT64_STR, &val_int64) &&
               val_int64 == MAX_INT64);
   // PTC5
-  EXPECT_TRUE(!p->to_int64(MIN_INT64_STR, &val_int64) &&
+  EXPECT_TRUE(!p->from_str(MIN_INT64_STR, &val_int64) &&
               val_int64 == MIN_INT64);
 
   // PTC6
-  EXPECT_TRUE(!p->to_uint64("123", &val_uint64) && val_uint64 == 123);
+  EXPECT_TRUE(!p->from_str("123", &val_uint64) && val_uint64 == 123);
   // PTC7
-  EXPECT_TRUE(!p->to_uint64("0", &val_uint64) && val_uint64 == 0);
+  EXPECT_TRUE(!p->from_str("0", &val_uint64) && val_uint64 == 0);
   // PTC8
-  EXPECT_TRUE(!p->to_uint64(MAX_UINT64_STR, &val_uint64) &&
+  EXPECT_TRUE(!p->from_str(MAX_UINT64_STR, &val_uint64) &&
               val_uint64 == MAX_UINT64);
   // PTC9
-  EXPECT_TRUE(!p->to_uint64(MIN_UINT64_STR, &val_uint64) &&
+  EXPECT_TRUE(!p->from_str(MIN_UINT64_STR, &val_uint64) &&
               val_uint64 == MIN_UINT64);
 
   // PTC10
-  EXPECT_TRUE(!p->to_int32("123", &val_int32) && val_int32 == 123);
+  EXPECT_TRUE(!p->from_str("123", &val_int32) && val_int32 == 123);
   // PTC11
-  EXPECT_TRUE(!p->to_int32("-123", &val_int32) && val_int32 == -123);
+  EXPECT_TRUE(!p->from_str("-123", &val_int32) && val_int32 == -123);
   // PTC12
-  EXPECT_TRUE(!p->to_int32("0", &val_int32) && val_int32 == 0);
+  EXPECT_TRUE(!p->from_str("0", &val_int32) && val_int32 == 0);
   // PTC13
-  EXPECT_TRUE(!p->to_int32(MAX_INT32_STR, &val_int32) &&
+  EXPECT_TRUE(!p->from_str(MAX_INT32_STR, &val_int32) &&
               val_int32 == MAX_INT32);
   // PTC14
-  EXPECT_TRUE(!p->to_int32(MIN_INT32_STR, &val_int32) &&
+  EXPECT_TRUE(!p->from_str(MIN_INT32_STR, &val_int32) &&
               val_int32 == MIN_INT32);
 
   // PTC15
-  EXPECT_TRUE(!p->to_uint32("123", &val_uint32) && val_uint32 == 123);
+  EXPECT_TRUE(!p->from_str("123", &val_uint32) && val_uint32 == 123);
   // PTC16
-  EXPECT_TRUE(!p->to_uint32("0", &val_uint32) && val_uint32 == 0);
+  EXPECT_TRUE(!p->from_str("0", &val_uint32) && val_uint32 == 0);
   // PTC17
-  EXPECT_TRUE(!p->to_uint32(MAX_UINT32_STR, &val_uint32) &&
+  EXPECT_TRUE(!p->from_str(MAX_UINT32_STR, &val_uint32) &&
               val_uint32 == MAX_UINT32);
   // PTC18
-  EXPECT_TRUE(!p->to_uint32(MIN_UINT32_STR, &val_uint32) &&
+  EXPECT_TRUE(!p->from_str(MIN_UINT32_STR, &val_uint32) &&
               val_uint32 == MIN_UINT32);
 
   delete p;
@@ -800,32 +784,32 @@ TEST_F(PropertiesTest, FailingIntConversions) {
   // ======================================
 
   // NTC1
-  EXPECT_TRUE(p->to_int64(OFL_INT64_STR, &val_int64));
+  EXPECT_TRUE(p->from_str(OFL_INT64_STR, &val_int64));
   // NTC2
-  EXPECT_TRUE(p->to_int64(UFL_INT64_STR, &val_int64));
+  EXPECT_TRUE(p->from_str(UFL_INT64_STR, &val_int64));
   // NTC3
-  EXPECT_TRUE(p->to_int64("abc", &val_int64));
+  EXPECT_TRUE(p->from_str("abc", &val_int64));
 
   // NTC4
-  EXPECT_TRUE(p->to_uint64(OFL_UINT64_STR, &val_uint64));
+  EXPECT_TRUE(p->from_str(OFL_UINT64_STR, &val_uint64));
   // NTC5
-  EXPECT_TRUE(p->to_uint64("abc", &val_uint64));
+  EXPECT_TRUE(p->from_str("abc", &val_uint64));
   // NTC6
-  EXPECT_TRUE(p->to_uint64("-1", &val_uint64));
+  EXPECT_TRUE(p->from_str("-1", &val_uint64));
 
   // NTC7
-  EXPECT_TRUE(p->to_int32(OFL_INT32_STR, &val_int32));
+  EXPECT_TRUE(p->from_str(OFL_INT32_STR, &val_int32));
   // NTC8
-  EXPECT_TRUE(p->to_int32(UFL_INT32_STR, &val_int32));
+  EXPECT_TRUE(p->from_str(UFL_INT32_STR, &val_int32));
   // NTC9
-  EXPECT_TRUE(p->to_int32("abc", &val_int32));
+  EXPECT_TRUE(p->from_str("abc", &val_int32));
 
   // NTC10
-  EXPECT_TRUE(p->to_uint32(OFL_UINT32_STR, &val_uint32));
+  EXPECT_TRUE(p->from_str(OFL_UINT32_STR, &val_uint32));
   // NTC11
-  EXPECT_TRUE(p->to_uint32("abc", &val_uint32));
+  EXPECT_TRUE(p->from_str("abc", &val_uint32));
   // NTC12
-  EXPECT_TRUE(p->to_uint32("-1", &val_uint32));
+  EXPECT_TRUE(p->from_str("-1", &val_uint32));
 
   delete p;
 }
@@ -856,21 +840,21 @@ TEST_F(PropertiesTest, ValidBoolConversions) {
   // =======================================
 
   // PTC1
-  EXPECT_TRUE(!p->to_bool("true", &val) && val == true);
+  EXPECT_TRUE(!p->from_str("true", &val) && val == true);
   // PTC2
-  EXPECT_TRUE(!p->to_bool("1", &val) && val == true);
+  EXPECT_TRUE(!p->from_str("1", &val) && val == true);
   // PTC3
-  EXPECT_TRUE(!p->to_bool("false", &val) && val == false);
+  EXPECT_TRUE(!p->from_str("false", &val) && val == false);
   // PTC4
-  EXPECT_TRUE(!p->to_bool("0", &val) && val == false);
+  EXPECT_TRUE(!p->from_str("0", &val) && val == false);
   // PTC5
-  EXPECT_TRUE(!p->to_bool(MIN_INT64_STR, &val) && val == true);
+  EXPECT_TRUE(!p->from_str(MIN_INT64_STR, &val) && val == true);
   // PTC6
-  EXPECT_TRUE(!p->to_bool(MAX_INT64_STR, &val) && val == true);
+  EXPECT_TRUE(!p->from_str(MAX_INT64_STR, &val) && val == true);
   // PTC7
-  EXPECT_TRUE(!p->to_bool(MAX_UINT64_STR, &val) && val == true);
+  EXPECT_TRUE(!p->from_str(MAX_UINT64_STR, &val) && val == true);
   // PTC8
-  EXPECT_TRUE(!p->to_bool(OFL_INT64_STR, &val) && val == true);
+  EXPECT_TRUE(!p->from_str(OFL_INT64_STR, &val) && val == true);
 
   delete p;
 }
@@ -900,23 +884,23 @@ TEST_F(PropertiesTest, FailingBoolConversions) {
   // =======================================
 
   // NTC1
-  EXPECT_TRUE(p->to_bool("TRUE", &val));
+  EXPECT_TRUE(p->from_str("TRUE", &val));
   // NTC2
-  EXPECT_TRUE(p->to_bool("FALSE", &val));
+  EXPECT_TRUE(p->from_str("FALSE", &val));
   // NTC3
-  EXPECT_TRUE(p->to_bool("", &val));
+  EXPECT_TRUE(p->from_str("", &val));
   // NTC4
-  EXPECT_TRUE(p->to_bool("ttrue", &val));
+  EXPECT_TRUE(p->from_str("ttrue", &val));
   // NTC5
-  EXPECT_TRUE(p->to_bool("truee", &val));
+  EXPECT_TRUE(p->from_str("truee", &val));
   // NTC6
-  EXPECT_TRUE(p->to_bool("ffalse", &val));
+  EXPECT_TRUE(p->from_str("ffalse", &val));
   // NTC7
-  EXPECT_TRUE(p->to_bool("falsee", &val));
+  EXPECT_TRUE(p->from_str("falsee", &val));
   // NTC8
-  EXPECT_TRUE(p->to_bool(UFL_INT64_STR, &val));
+  EXPECT_TRUE(p->from_str(UFL_INT64_STR, &val));
   // NTC9
-  EXPECT_TRUE(p->to_bool(OFL_UINT64_STR, &val));
+  EXPECT_TRUE(p->from_str(OFL_UINT64_STR, &val));
 
   delete p;
 }
@@ -929,47 +913,114 @@ TEST_F(PropertiesTest, StaticConversionMethods) {
   uint64 val_uint64 = 0;
   bool maybe = false;
 
-  EXPECT_TRUE(!dd::Properties::to_int64("-123", &val_int64) &&
+  EXPECT_TRUE(!dd::Properties::from_str("-123", &val_int64) &&
               val_int64 == -123);
 
-  EXPECT_TRUE(dd::Properties::to_uint64("-123", &val_uint64));
-  EXPECT_TRUE(!dd::Properties::to_uint64("0", &val_uint64) && val_uint64 == 0);
+  EXPECT_TRUE(dd::Properties::from_str("-123", &val_uint64));
+  EXPECT_TRUE(!dd::Properties::from_str("0", &val_uint64) && val_uint64 == 0);
 
-  EXPECT_TRUE(!dd::Properties::to_int32("-123", &val_int32) &&
+  EXPECT_TRUE(!dd::Properties::from_str("-123", &val_int32) &&
               val_int32 == -123);
 
-  EXPECT_TRUE(dd::Properties::to_uint32("-123", &val_uint32));
-  EXPECT_TRUE(!dd::Properties::to_uint32("0", &val_uint32) && val_uint32 == 0);
+  EXPECT_TRUE(dd::Properties::from_str("-123", &val_uint32));
+  EXPECT_TRUE(!dd::Properties::from_str("0", &val_uint32) && val_uint32 == 0);
 
-  EXPECT_TRUE(!dd::Properties::to_bool("true", &maybe) && maybe == true);
-  EXPECT_TRUE(!dd::Properties::to_bool("1", &maybe) && maybe == true);
-  EXPECT_TRUE(!dd::Properties::to_bool("false", &maybe) && maybe == false);
-  EXPECT_TRUE(!dd::Properties::to_bool("0", &maybe) && maybe == false);
+  EXPECT_TRUE(!dd::Properties::from_str("true", &maybe) && maybe == true);
+  EXPECT_TRUE(!dd::Properties::from_str("1", &maybe) && maybe == true);
+  EXPECT_TRUE(!dd::Properties::from_str("false", &maybe) && maybe == false);
+  EXPECT_TRUE(!dd::Properties::from_str("0", &maybe) && maybe == false);
 
-  EXPECT_TRUE(dd::Properties::to_bool("", &maybe));
+  EXPECT_TRUE(dd::Properties::from_str("", &maybe));
 }
 
 // Test assignment operator for deep copy of Property objects
 TEST_F(PropertiesTest, Assign) {
   dd::Properties *p = new dd::Properties_impl();
-  p->set_int32("a", 1);
+  p->set("a", 1);
 
   // Assign to a different object
   dd::Properties *p_copy = new dd::Properties_impl();
-  p_copy->assign(*p);
+  p_copy->insert_values(*p);
 
   // The "a" key should be present with the same value in both objects
   int32 val_p = 0;
   int32 val_p_copy = 0;
-  EXPECT_TRUE(!p->get_int32("a", &val_p) && val_p == 1 &&
-              !p_copy->get_int32("a", &val_p_copy) && val_p_copy == 1);
+  EXPECT_TRUE(!p->get("a", &val_p) && val_p == 1 &&
+              !p_copy->get("a", &val_p_copy) && val_p_copy == 1);
 
   // Changing the value in one object should not be reflected in the other
-  p->set_int32("a", 2);
-  EXPECT_TRUE(!p->get_int32("a", &val_p) && val_p == 2 &&
-              !p_copy->get_int32("a", &val_p_copy) && val_p_copy == 1);
+  p->set("a", 2);
+  EXPECT_TRUE(!p->get("a", &val_p) && val_p == 2 &&
+              !p_copy->get("a", &val_p_copy) && val_p_copy == 1);
   delete p_copy;
   delete p;
+}
+
+TEST_F(PropertiesTest, ValidKeys) {
+  // Create a property object with valid keys.
+  dd::Properties_impl p({"a"});
+
+  EXPECT_FALSE(p.set("a", "1"));
+#if defined(DBUG_OFF)
+  EXPECT_TRUE(p.set("b", "2"));
+#else
+  EXPECT_DEATH_IF_SUPPORTED(p.set("b", "2"), ".*UTC - mysqld got.*");
+#endif
+  EXPECT_TRUE(p.raw_string() == "a=1;");
+  // Adding a valid key makes it possible to set it.
+  p.add_valid_keys({"b"});
+  EXPECT_FALSE(p.set("b", "2"));
+  EXPECT_TRUE(p.raw_string() == "a=1;b=2;");
+
+  // Clearing the valid keys still gives us the
+  // same raw string.
+  p.clear_valid_keys();
+  EXPECT_TRUE(p.raw_string() == "a=1;b=2;");
+
+  // And we can get the keys present.
+  dd::String_type str;
+  EXPECT_TRUE(!p.get("b", &str) && str == "2");
+
+#if !defined(DBUG_OFF)
+  // Then adding a valid key asserts in dbug, though, because
+  // we might then hide keys present.
+  EXPECT_DEATH_IF_SUPPORTED(p.add_valid_keys({"c"}), ".*UTC - mysqld got.*");
+#endif
+
+  // Removing all key-values will
+  // allow us to add a valid key, though.
+  p.clear();
+  p.clear_valid_keys();
+  p.add_valid_keys({"c"});
+
+  // Adding another valid key is allowed even if there are
+  // key-values present as long as there is already
+  // a set of valid keys.
+  EXPECT_FALSE(p.set("c", "3"));
+  p.add_valid_keys({"c"});
+
+  // Copying values from a raw string will skip invalid keys.
+  p.clear();
+  p.add_valid_keys({"b"});
+  p.insert_values("a=1;b=2;");
+  p.clear_valid_keys();
+  EXPECT_TRUE(p.raw_string() == "b=2;");
+  EXPECT_TRUE(p.size() == 1);
+
+  // Copying values from another property object will skip keys
+  // that are invalid.
+  p.clear();
+  p.add_valid_keys({"b", "c"});
+  dd::Properties_impl p_other;
+  EXPECT_FALSE(p_other.set("a", "1_other"));
+  EXPECT_FALSE(p_other.set("b", "2_other"));
+  EXPECT_FALSE(p_other.set("c", "3_other"));
+  EXPECT_TRUE(p_other.raw_string() == "a=1_other;b=2_other;c=3_other;");
+
+  // Now, only "b" and  "c" will be copied, since "a" is invalid in p.
+  p.insert_values(p_other);
+  p.clear_valid_keys();
+  EXPECT_TRUE(p.raw_string() == "b=2_other;c=3_other;");
 }
 
 }  // namespace dd_properties_unittest

@@ -45,10 +45,8 @@ ndb_dd_disk_data_set_object_id_and_version(dd::Tablespace* object_def,
   DBUG_PRINT("enter", ("object_id: %d, object_version: %d",
                        object_id, object_version));
 
-  object_def->se_private_data().set_int32(object_id_key,
-                                          object_id);
-  object_def->se_private_data().set_int32(object_version_key,
-                                          object_version);
+  object_def->se_private_data().set(object_id_key, object_id);
+  object_def->se_private_data().set(object_version_key, object_version);
   DBUG_VOID_RETURN;
 }
 
@@ -67,7 +65,7 @@ ndb_dd_disk_data_get_object_id_and_version(const dd::Tablespace* object_def,
     DBUG_RETURN(false);
   }
 
-  if (object_def->se_private_data().get_int32(object_id_key, &object_id))
+  if (object_def->se_private_data().get(object_id_key, &object_id))
   {
     DBUG_PRINT("error", ("Disk data definition didn't have a valid number "
                          "for '%s'", object_id_key));
@@ -81,8 +79,7 @@ ndb_dd_disk_data_get_object_id_and_version(const dd::Tablespace* object_def,
     DBUG_RETURN(false);
   }
 
-  if (object_def->se_private_data().get_int32(object_version_key,
-                                              &object_version))
+  if (object_def->se_private_data().get(object_version_key, &object_version))
   {
     DBUG_PRINT("error", ("Disk data definition didn't have a valid number "
                          "for '%s'", object_version_key));
@@ -146,7 +143,7 @@ ndb_dd_disk_data_get_object_type(const dd::Properties &se_private_data,
 
   dd::String_type type_str;
   if (se_private_data.get(object_type_key,
-                          type_str))
+                          &type_str))
   {
     DBUG_PRINT("error", ("Disk data definition didn't have a valid value for"
                          " '%s'", object_type_key));

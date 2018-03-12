@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ View_impl::View_impl()
       m_check_option(CO_NONE),
       m_algorithm(VA_UNDEFINED),
       m_security_type(ST_INVOKER),
-      m_column_names(new Properties_impl()),
+      m_column_names(),
       m_tables(),
       m_routines(),
       m_client_collation_id(INVALID_OBJECT_ID),
@@ -127,20 +127,9 @@ bool View_impl::drop_children(Open_dictionary_tables_ctx *otx) const {
 
 void View_impl::remove_children() {
   columns()->remove_all();
-  column_names().clear();
+  m_column_names.clear();
   m_tables.remove_all();
   m_routines.remove_all();
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool View_impl::set_column_names_raw(const String_type &column_names_raw) {
-  Properties *properties = Properties_impl::parse_properties(column_names_raw);
-
-  if (!properties) return true; /* purecov: inspected */
-
-  m_column_names.reset(properties);
-  return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -191,7 +180,7 @@ bool View_impl::restore_attributes(const Raw_record &r) {
   m_connection_collation_id =
       r.read_ref_id(Tables::FIELD_VIEW_CONNECTION_COLLATION_ID);
 
-  set_column_names_raw(r.read_str(Tables::FIELD_VIEW_COLUMN_NAMES));
+  m_column_names.insert_values(r.read_str(Tables::FIELD_VIEW_COLUMN_NAMES));
 
   return false;
 }
@@ -220,7 +209,7 @@ bool View_impl::store_attributes(Raw_record *r) {
                          m_client_collation_id) ||
          r->store_ref_id(Tables::FIELD_VIEW_CONNECTION_COLLATION_ID,
                          m_connection_collation_id) ||
-         r->store(Tables::FIELD_VIEW_COLUMN_NAMES, *m_column_names);
+         r->store(Tables::FIELD_VIEW_COLUMN_NAMES, m_column_names);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -241,7 +230,7 @@ void View_impl::debug_print(String_type &outb) const {
      << "m_definer_host: " << m_definer_host << "; "
      << "m_client_collation: {OID: " << m_client_collation_id << "}; "
      << "m_connection_collation: {OID: " << m_connection_collation_id << "}; "
-     << "m_column_names: " << m_column_names->raw_string() << "; "
+     << "m_column_names: " << m_column_names.raw_string() << "; "
      << "m_tables: " << m_tables.size() << " [ ";
 
   for (const View_table *f : tables()) {
@@ -304,8 +293,7 @@ View_impl::View_impl(const View_impl &src)
       m_definition_utf8(src.m_definition_utf8),
       m_definer_user(src.m_definer_user),
       m_definer_host(src.m_definer_host),
-      m_column_names(
-          Properties_impl::parse_properties(src.m_column_names->raw_string())),
+      m_column_names(src.m_column_names),
       m_tables(),
       m_routines(),
       m_client_collation_id(src.m_client_collation_id),

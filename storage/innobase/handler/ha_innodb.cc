@@ -3205,13 +3205,13 @@ void Validate_files::check(const Const_iter &begin, const Const_iter &end,
     /* There should be exactly one file name associated
     with each InnoDB tablespace, except innodb_system */
 
-    if (p.get_uint32(se_key_value[DD_SPACE_ID], &space_id)) {
+    if (p.get(se_key_value[DD_SPACE_ID], &space_id)) {
       /* Failed to fetch the tablespace ID */
       ++m_n_errors;
       break;
     }
 
-    if (p.get_uint32(se_key_value[DD_SPACE_FLAGS], &flags)) {
+    if (p.get(se_key_value[DD_SPACE_FLAGS], &flags)) {
       /* Failed to fetch the tablespace flags. */
       ++m_n_errors;
       break;
@@ -12518,7 +12518,7 @@ int create_table_info_t::create_table_update_global_dd(Table *dd_table) {
     if (index_space == NULL) {
       my_error(ER_TABLESPACE_MISSING, MYF(0), m_table->name.m_name);
       DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
-    } else if (index_space->se_private_data().get_uint32(
+    } else if (index_space->se_private_data().get(
                    dd_space_key_strings[DD_SPACE_ID], &id) ||
                id != m_table->space) {
       ut_ad(!"missing or incorrect tablespace id");
@@ -13502,8 +13502,8 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
   /* Set the table id for each column to be conform with the
   implementation in dd_write_table(). */
   for (auto dd_column : *dd_table->table().columns()) {
-    dd_column->se_private_data().set_uint64(dd_index_key_strings[DD_TABLE_ID],
-                                            n_tables);
+    dd_column->se_private_data().set(dd_index_key_strings[DD_TABLE_ID],
+                                     n_tables);
   }
 
   for (dd::Index *i : *dd_table->indexes()) {
@@ -13516,12 +13516,11 @@ bool ha_innobase::get_se_private_data(dd::Table *dd_table, bool reset) {
 
     dd::Properties &p = i->se_private_data();
 
-    p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], n_pages++);
-    p.set_uint64(dd_index_key_strings[DD_INDEX_ID], ++n_indexes);
-    p.set_uint64(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
-    p.set_uint64(dd_index_key_strings[DD_INDEX_SPACE_ID],
-                 dict_sys_t::s_space_id);
-    p.set_uint64(dd_index_key_strings[DD_TABLE_ID], n_tables);
+    p.set(dd_index_key_strings[DD_INDEX_ROOT], n_pages++);
+    p.set(dd_index_key_strings[DD_INDEX_ID], ++n_indexes);
+    p.set(dd_index_key_strings[DD_INDEX_TRX_ID], 0);
+    p.set(dd_index_key_strings[DD_INDEX_SPACE_ID], dict_sys_t::s_space_id);
+    p.set(dd_index_key_strings[DD_TABLE_ID], n_tables);
   }
 
   DBUG_ASSERT(n_indexes - n_indexes_old == data.n_indexes);
@@ -13989,10 +13988,11 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
 
   bool encrypted = false;
   if (dd_space->options().exists("encryption")) {
-    const char *encrypt = dd_space->options().value("encryption").data();
+    dd::String_type encrypt;
+    (void)dd_space->options().get("encryption", &encrypt);
 
     /* Validate Encryption option provided */
-    if (Encryption::validate(encrypt) != DB_SUCCESS) {
+    if (Encryption::validate(encrypt.c_str()) != DB_SUCCESS) {
       /* Incorrect encryption option */
       my_error(ER_INVALID_ENCRYPTION_OPTION, MYF(0));
       err = DB_UNSUPPORTED;
@@ -14000,7 +14000,7 @@ static int innodb_create_tablespace(handlerton *hton, THD *thd,
     }
 
     /* If encryption is to be done */
-    if (!Encryption::is_none(encrypt)) {
+    if (!Encryption::is_none(encrypt.c_str())) {
       /* Check if keyring is ready. */
       if (!Encryption::check_keyring()) {
         my_error(ER_CANNOT_FIND_KEY_IN_KEYRING, MYF(0));
@@ -14087,8 +14087,8 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
                                       alter_info->tablespace_name));
 
   /* Be sure that this tablespace is known and valid. */
-  if (old_dd_space->se_private_data().get_uint32(
-          dd_space_key_strings[DD_SPACE_ID], &space_id) ||
+  if (old_dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                          &space_id) ||
       space_id == SPACE_UNKNOWN) {
     DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
   }
@@ -14113,12 +14113,13 @@ static int innobase_alter_encrypt_tablespace(handlerton *hton, THD *thd,
   /* Get value of old encryption option. */
   dd::String_type oldenc;
   if (oldopts.exists("encryption")) {
-    oldenc = oldopts.value("encryption");
+    (void)oldopts.get("encryption", &oldenc);
   }
 
   /* Get value of new encryption option. */
   ut_ad(newopts.exists("encryption"));
-  dd::String_type newenc = newopts.value("encryption");
+  dd::String_type newenc;
+  (void)newopts.get("encryption", &newenc);
 
   /* Validate new encryption option provided */
   const char *encrypt = newenc.data();
@@ -14203,8 +14204,8 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
                                       alter_info->tablespace_name));
 
   /* Be sure that this tablespace is known and valid. */
-  if (old_dd_space->se_private_data().get_uint32(
-          dd_space_key_strings[DD_SPACE_ID], &space_id) ||
+  if (old_dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                          &space_id) ||
       space_id == SPACE_UNKNOWN || fil_space_get_size(space_id) == 0) {
     DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
   }
@@ -14295,8 +14296,8 @@ static int innodb_drop_tablespace(handlerton *hton, THD *thd,
         validate_tablespace_name(DROP_TABLESPACE, alter_info->tablespace_name));
 
   /* Be sure that this tablespace is known and valid. */
-  if (dd_space->se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
-                                             &space_id) ||
+  if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                      &space_id) ||
       space_id == SPACE_UNKNOWN) {
     DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
   }
@@ -14516,8 +14517,8 @@ static int innodb_alter_undo_tablespace(handlerton *hton, THD *thd,
                                       alter_info->tablespace_name));
 
   /* Be sure that this tablespace is known and valid. */
-  if (dd_space->se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
-                                             &space_id) ||
+  if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                      &space_id) ||
       space_id == SPACE_UNKNOWN || fil_space_get_size(space_id) == 0) {
     DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
   }
@@ -14535,7 +14536,7 @@ static int innodb_alter_undo_tablespace(handlerton *hton, THD *thd,
   const dd::Properties &p = dd_space->se_private_data();
   ut_ad(p.exists(dd_space_key_strings[DD_SPACE_STATE]));
   dd::String_type dd_state;
-  p.get(dd_space_key_strings[DD_SPACE_STATE], dd_state);
+  p.get(dd_space_key_strings[DD_SPACE_STATE], &dd_state);
 
   /* Serialize all undo tablespace DDLs */
   mutex_enter(&(undo::ddl_mutex));
@@ -14591,8 +14592,8 @@ static int innodb_drop_undo_tablespace(handlerton *hton, THD *thd,
                                       alter_info->tablespace_name));
 
   /* Be sure that this tablespace is known and valid. */
-  if (dd_space->se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
-                                             &space_id) ||
+  if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID],
+                                      &space_id) ||
       space_id == SPACE_UNKNOWN) {
     DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
   }
@@ -15771,8 +15772,7 @@ static ib_uint64_t innodb_get_auto_increment_for_uncached(
 
   /** Get the auto_increment from the table SE private data. */
   if (exists) {
-    tbl_se_private_data.get_uint64(dd_table_key_strings[DD_TABLE_AUTOINC],
-                                   &autoinc);
+    tbl_se_private_data.get(dd_table_key_strings[DD_TABLE_AUTOINC], &autoinc);
   }
 
   /** Get the auto_increment value from innodb_dynamic_metadata
@@ -15831,7 +15831,7 @@ static bool innodb_get_table_statistics_for_uncached(
   bool exists = ts_se_private_data.exists(dd_space_key_strings[DD_SPACE_ID]);
 
   if (exists) {
-    ts_se_private_data.get_uint32(dd_space_key_strings[DD_SPACE_ID], &space_id);
+    ts_se_private_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id);
   } else {
     space_id = fil_space_get_id_by_name(norm_name);
 
@@ -16056,10 +16056,9 @@ static bool innobase_get_tablespace_type(const dd::Tablespace &space,
 
   ut_ad(innobase_strcasecmp(space.engine().c_str(), "InnoDB") == 0);
 
-  if (space.se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_ID],
-                                         &id) ||
-      space.se_private_data().get_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
-                                         &flags)) {
+  if (space.se_private_data().get(dd_space_key_strings[DD_SPACE_ID], &id) ||
+      space.se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
+                                  &flags)) {
     return true;
   }
 
@@ -16095,7 +16094,7 @@ static bool innobase_get_tablespace_statistics(
 
   space_id_t space_id;
 
-  ts_se_private_data.get_uint32(dd_space_key_strings[DD_SPACE_ID], &space_id);
+  ts_se_private_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id);
 
   auto space = fil_space_acquire(space_id);
 

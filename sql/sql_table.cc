@@ -2493,7 +2493,8 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
 
   // Nothing to unload if table has no secondary engine defined.
   LEX_STRING secondary_engine;
-  if (table_def.options().get("secondary_engine", secondary_engine,
+  if (!table_def.options().exists("secondary_engine") ||
+      table_def.options().get("secondary_engine", &secondary_engine,
                               thd->mem_root))
     return false;
 
@@ -9251,10 +9252,11 @@ static bool alter_table_drop_histograms(THD *thd, TABLE_LIST *table,
 
   bool encryption_enabled = false;
   if (altered_table_def->options().exists("encrypt_type")) {
+    dd::String_type str;
+    (void)altered_table_def->options().get("encrypt_type", &str);
+
     encryption_enabled =
-        0 != my_strcasecmp(
-                 system_charset_info, "n",
-                 altered_table_def->options().value("encrypt_type").c_str());
+        0 != my_strcasecmp(system_charset_info, "n", str.c_str());
   }
 
   bool single_part_unique_index = false;
@@ -13897,8 +13899,8 @@ static bool simple_rename_or_index_change(
       else {
         DBUG_ASSERT(tab_obj != nullptr);
 
-        tab_obj->options().set_uint32(
-            "keys_disabled", (keys_onoff == Alter_info::DISABLE ? 1 : 0));
+        tab_obj->options().set("keys_disabled",
+                               (keys_onoff == Alter_info::DISABLE ? 1 : 0));
 
         // Update the changes
         bool result = thd->dd_client()->update(tab_obj);

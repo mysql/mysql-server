@@ -69,8 +69,7 @@ class Tablespace_file : virtual public Weak_object {
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(
-      const String_type &se_private_data_raw) = 0;
+  virtual bool set_se_private_data(const String_type &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // tablespace.

@@ -4224,8 +4224,8 @@ all_done:
   if (!in_recovery) {
     ut_ad(dd_space != nullptr);
     /* Update DD flags for tablespace */
-    dd_space->se_private_data().set_uint32(dd_space_key_strings[DD_SPACE_FLAGS],
-                                           static_cast<uint32>(space->flags));
+    dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
+                                    static_cast<uint32>(space->flags));
   }
 
   /* Crash before resetting progress on page 0 */
@@ -4436,9 +4436,8 @@ static dberr_t resume_alter_encrypt_tablespace(THD *thd) {
       }
 
       /* Update DD flags for tablespace */
-      recv_dd_space->se_private_data().set_uint32(
-          dd_space_key_strings[DD_SPACE_FLAGS],
-          static_cast<uint32>(space->flags));
+      recv_dd_space->se_private_data().set(dd_space_key_strings[DD_SPACE_FLAGS],
+                                           static_cast<uint32>(space->flags));
 
       /* Validate tablespace In-mem representation */
       ut_d(validate_tablespace_encryption(space));

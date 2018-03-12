@@ -181,8 +181,8 @@ bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
       If user has specified special tablespace name like
       'innodb_file_per_table' then we read it from tablespace options.
     */
-    const dd::Properties *table_options = &obj->options();
-    table_options->get("tablespace", name);
+    if (obj->options().exists("tablespace"))
+      (void)obj->options().get("tablespace", &name);
   }
 
   *tablespace_name = NULL;

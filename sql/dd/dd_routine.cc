@@ -193,7 +193,7 @@ static void fill_parameter_info_from_field(THD *thd, Create_field *field,
   // Set geometry sub type
   if (field->sql_type == MYSQL_TYPE_GEOMETRY) {
     Properties *param_options = &param->options();
-    param_options->set_uint32("geom_type", field->geom_type);
+    param_options->set("geom_type", field->geom_type);
   }
 
   // Set elements of enum or set data type.

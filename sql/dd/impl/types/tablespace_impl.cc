@@ -26,6 +26,7 @@
 #include <atomic>
 #include <functional>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -85,42 +86,24 @@ namespace dd {
 class Sdi_rcontext;
 class Sdi_wcontext;
 
+static const std::set<String_type> default_valid_option_keys = {"encryption"};
+
+static const std::set<String_type> default_valid_se_private_data_keys = {
+    // NDB keys:
+    "object_id", "object_version", "object_type",
+    // InnoDB keys:
+    "flags", "id", "server_version", "space_version", "state"};
+
 ///////////////////////////////////////////////////////////////////////////
 // Tablespace_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
 Tablespace_impl::Tablespace_impl()
-    : m_options(new Properties_impl()),
-      m_se_private_data(new Properties_impl()),
+    : m_options(default_valid_option_keys),
+      m_se_private_data(default_valid_se_private_data_keys),
       m_files() {} /* purecov: tested */
 
 Tablespace_impl::~Tablespace_impl() {}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Tablespace_impl::set_options_raw(const String_type &options_raw) {
-  Properties *properties = Properties_impl::parse_properties(options_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_options.reset(properties);
-  return false;
-}
-
-///////////////////////////////////////////////////////////////////////////
-
-bool Tablespace_impl::set_se_private_data_raw(
-    const String_type &se_private_data_raw) {
-  Properties *properties =
-      Properties_impl::parse_properties(se_private_data_raw);
-
-  if (!properties)
-    return true;  // Error status, current values has not changed.
-
-  m_se_private_data.reset(properties);
-  return false;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -180,11 +163,9 @@ bool Tablespace_impl::restore_attributes(const Raw_record &r) {
 
   m_comment = r.read_str(Tablespaces::FIELD_COMMENT);
 
-  m_options.reset(Properties_impl::parse_properties(
-      r.read_str(Tablespaces::FIELD_OPTIONS)));
+  set_options(r.read_str(Tablespaces::FIELD_OPTIONS));
 
-  m_se_private_data.reset(Properties_impl::parse_properties(
-      r.read_str(Tablespaces::FIELD_SE_PRIVATE_DATA)));
+  set_se_private_data(r.read_str(Tablespaces::FIELD_SE_PRIVATE_DATA));
 
   m_engine = r.read_str(Tablespaces::FIELD_ENGINE);
 
@@ -197,8 +178,8 @@ bool Tablespace_impl::store_attributes(Raw_record *r) {
   return store_id(r, Tablespaces::FIELD_ID) ||
          store_name(r, Tablespaces::FIELD_NAME) ||
          r->store(Tablespaces::FIELD_COMMENT, m_comment) ||
-         r->store(Tablespaces::FIELD_OPTIONS, *m_options) ||
-         r->store(Tablespaces::FIELD_SE_PRIVATE_DATA, *m_se_private_data) ||
+         r->store(Tablespaces::FIELD_OPTIONS, m_options) ||
+         r->store(Tablespaces::FIELD_SE_PRIVATE_DATA, m_se_private_data) ||
          r->store(Tablespaces::FIELD_ENGINE, m_engine);
 }
 
@@ -276,8 +257,8 @@ void Tablespace_impl::debug_print(String_type &outb) const {
      << "id: {OID: " << id() << "}; "
      << "m_name: " << name() << "; "
      << "m_comment: " << m_comment << "; "
-     << "m_options " << m_options->raw_string() << "; "
-     << "m_se_private_data " << m_se_private_data->raw_string() << "; "
+     << "m_options " << m_options.raw_string() << "; "
+     << "m_se_private_data " << m_se_private_data.raw_string() << "; "
      << "m_engine: " << m_engine << "; "
      << "m_files: " << m_files.size() << " [ ";
 
@@ -333,9 +314,8 @@ Tablespace_impl::Tablespace_impl(const Tablespace_impl &src)
     : Weak_object(src),
       Entity_object_impl(src),
       m_comment(src.m_comment),
-      m_options(Properties_impl::parse_properties(src.m_options->raw_string())),
-      m_se_private_data(Properties_impl::parse_properties(
-          src.m_se_private_data->raw_string())),
+      m_options(src.m_options),
+      m_se_private_data(src.m_se_private_data),
       m_engine(src.m_engine),
       m_files() {
   m_files.deep_copy(src.m_files, this);
