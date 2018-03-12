@@ -5374,27 +5374,23 @@ Item_func::optimize_type Item_func_like::select_optimize() const {
                                                    : OPTIMIZE_OP;
 }
 
-/**
-  The method updates covering keys depending on the
-  length of wild string prefix.
-*/
-
-void Item_func_like::check_covering_prefix_keys() {
+bool Item_func_like::check_covering_prefix_keys(THD *thd) {
   Item *first_arg = args[0]->real_item();
   Item *second_arg = args[1]->real_item();
   if (first_arg->type() == Item::FIELD_ITEM) {
     Field *field = down_cast<Item_field *>(first_arg)->field;
     Key_map covering_keys = field->get_covering_prefix_keys();
-    if (covering_keys.is_clear_all()) return;
+    if (covering_keys.is_clear_all()) return false;
     if (second_arg->const_item()) {
       size_t prefix_length = 0;
       String *wild_str = second_arg->val_str(&cmp.value2);
+      if (thd->is_error()) return true;
+      if (second_arg->is_null()) return false;
       if (my_is_prefixidx_cand(wild_str->charset(), wild_str->ptr(),
                                wild_str->ptr() + wild_str->length(), escape,
                                wild_many, &prefix_length))
-        field->table->update_covering_prefix_keys(
-            field, prefix_length * wild_str->charset()->mbmaxlen,
-            &covering_keys);
+        field->table->update_covering_prefix_keys(field, prefix_length,
+                                                  &covering_keys);
       else
         // Not comparing to a prefix, remove all prefix indexes
         field->table->covering_keys.subtract(field->part_of_prefixkey);
@@ -5402,6 +5398,7 @@ void Item_func_like::check_covering_prefix_keys() {
       // Second argument is not a const
       field->table->covering_keys.subtract(field->part_of_prefixkey);
   }
+  return false;
 }
 
 bool Item_func_like::fix_fields(THD *thd, Item **ref) {
@@ -5435,9 +5432,7 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
     if (eval_escape_clause(thd)) return true;
   }
 
-  check_covering_prefix_keys();
-
-  return false;
+  return check_covering_prefix_keys(thd);
 }
 
 void Item_func_like::cleanup() {

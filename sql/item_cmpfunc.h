@@ -1861,7 +1861,16 @@ class Item_func_like final : public Item_bool_func2 {
                              double rows_in_table) override;
 
  private:
-  void check_covering_prefix_keys();
+  /**
+    The method updates covering keys depending on the
+    length of wild string prefix.
+
+    @param thd Pointer to THD object.
+
+    @retval true if error happens during wild string prefix claculation,
+            false otherwise.
+  */
+  bool check_covering_prefix_keys(THD *thd);
 };
 
 class Item_cond : public Item_bool_func {
