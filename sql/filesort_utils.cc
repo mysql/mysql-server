@@ -276,6 +276,13 @@ void Filesort_buffer::reset() {
 }
 
 bool Filesort_buffer::preallocate_records(size_t num_records) {
+  if (m_max_record_length == 0xFFFFFFFFu) {
+    // The rest of the code uses this value for “infinite” and saturates to it,
+    // so even if we have a large sort buffer (> 4 GB), we we can't know for
+    // sure there's going to be room.
+    return true;
+  }
+
   reset();
 
   const size_t bytes_needed = num_records * m_max_record_length;
@@ -297,18 +304,18 @@ bool Filesort_buffer::preallocate_records(size_t num_records) {
     m_record_pointers.reserve(num_records);
   }
   while (m_record_pointers.size() < num_records) {
-    uchar *ptr = get_next_record_pointer();
+    Bounds_checked_array<uchar> ptr =
+        get_next_record_pointer(m_max_record_length);
     (void)ptr;
-    DBUG_ASSERT(ptr != nullptr);
+    DBUG_ASSERT(ptr.array() != nullptr);
+    commit_used_memory(m_max_record_length);
   }
   return false;
 }
 
-bool Filesort_buffer::allocate_block(size_t num_rows) {
+bool Filesort_buffer::allocate_block(size_t num_bytes) {
   DBUG_EXECUTE_IF("alloc_sort_buffer_fail",
                   DBUG_SET("+d,simulate_out_of_memory"););
-
-  const size_t bytes_needed = num_rows * m_max_record_length;
 
   size_t next_block_size;
   if (m_current_block_size == 0) {
@@ -316,6 +323,18 @@ bool Filesort_buffer::allocate_block(size_t num_rows) {
     next_block_size = MIN_SORT_MEMORY;
   } else {
     next_block_size = m_current_block_size + m_current_block_size / 2;
+  }
+
+  /*
+    If our last block isn't used at all, we can safely free it
+    before we try to allocate a larger one. Note that we do this
+    after the calculation above, which uses m_current_block_size.
+  */
+  if (!m_blocks.empty() && m_blocks.back().get() == m_next_rec_ptr) {
+    m_current_block_size = 0;
+    m_next_rec_ptr = nullptr;
+    m_current_block_end = nullptr;
+    m_blocks.pop_back();
   }
 
   // Figure out how much space we've used, to see how much is left (if
@@ -349,9 +368,8 @@ bool Filesort_buffer::allocate_block(size_t num_rows) {
                   sizeof(m_record_pointers[0]);
   }
 
-  next_block_size =
-      std::min(std::max(next_block_size, bytes_needed), space_left);
-  if (next_block_size < bytes_needed) {
+  next_block_size = std::min(std::max(next_block_size, num_bytes), space_left);
+  if (next_block_size < num_bytes) {
     /*
       If we're really out of space, but have at least 32 kB unused in
       m_record_pointers, try to reclaim some space and try again. This should
@@ -367,7 +385,7 @@ bool Filesort_buffer::allocate_block(size_t num_rows) {
       size_t old_capacity = m_record_pointers.capacity();
       m_record_pointers.shrink_to_fit();
       if (m_record_pointers.capacity() < old_capacity) {
-        return allocate_block(num_rows);
+        return allocate_block(num_bytes);
       }
     }
 

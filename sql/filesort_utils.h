@@ -106,7 +106,6 @@ class Filesort_buffer {
   Filesort_buffer()
       : m_next_rec_ptr(nullptr),
         m_current_block_end(nullptr),
-        m_max_record_length(0),
         m_max_size_in_bytes(0),
         m_current_block_size(0),
         m_space_used_other_blocks(0) {}
@@ -121,18 +120,34 @@ class Filesort_buffer {
 
   /**
     Where should the next record be stored?
-   */
-  uchar *get_next_record_pointer() {
+
+    If a block is returned, it is always at least "min_size" bytes long.
+    If the returned block is not large enough for your purposes,
+    call get_next_record_pointer() again with a larger value of min_size than
+    the size you got back. Just increasing the size by one byte is fine;
+    the class will still try to make exponentially larger blocks each time.
+
+    If there's no room for a record of the given size, returns nullptr.
+
+    After you've written data to the given record, call commit_used_memory()
+    with the number of bytes you've actually written. This ensures it will
+    not get reused for subsequent records.
+  */
+  Bounds_checked_array<uchar> get_next_record_pointer(size_t min_size) {
+    DBUG_ASSERT(min_size != 0xFFFFFFFFu);
     // See if we need to allocate a new block.
-    if (m_next_rec_ptr + m_max_record_length > m_current_block_end) {
-      if (allocate_block(1)) return nullptr;
+    if (m_next_rec_ptr + min_size > m_current_block_end) {
+      if (allocate_block(min_size)) return Bounds_checked_array<uchar>();
     }
 
     // Allocate space within the current block.
-    uchar *retval = m_next_rec_ptr;
+    return Bounds_checked_array<uchar>(m_next_rec_ptr,
+                                       m_current_block_end - m_next_rec_ptr);
+  }
+
+  void commit_used_memory(size_t num_bytes) {
     m_record_pointers.push_back(m_next_rec_ptr);
-    m_next_rec_ptr += m_max_record_length;
-    return retval;
+    m_next_rec_ptr += num_bytes;
   }
 
   /**
@@ -145,15 +160,6 @@ class Filesort_buffer {
     size would exceed max_size_in_bytes().
   */
   bool preallocate_records(size_t num_records);
-
-  /**
-    Adjusts for actual record length. get_next_record_pointer() above was
-    pessimistic, and assumed that the record could not be packed.
-   */
-  void adjust_next_record_pointer(uint val) {
-    DBUG_ASSERT(m_max_record_length >= val);
-    m_next_rec_ptr -= (m_max_record_length - val);
-  }
 
   size_t max_size_in_bytes() const { return m_max_size_in_bytes; }
 
@@ -231,12 +237,12 @@ class Filesort_buffer {
 
  private:
   /**
-    Allocate a new block with space for at least `num_rows` rows.
+    Allocate a new block with space for at least `num_bytes` bytes.
 
     @returns true if the allocation failed (including if m_max_size_in_bytes
     was exceeded).
   */
-  bool allocate_block(size_t num_rows);
+  bool allocate_block(size_t num_bytes);
 
   /**
     Allocate a new block of exactly `block_size` bytes, and sets it

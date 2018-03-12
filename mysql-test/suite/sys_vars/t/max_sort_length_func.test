@@ -49,7 +49,7 @@ CREATE TABLE t1
 (
 id INT AUTO_INCREMENT PRIMARY KEY,
 c BLOB(30)
-) charset latin1;
+);  # Charset doesn't matter for blob nor int.
 
 CREATE TABLE t2
 (
@@ -206,13 +206,13 @@ INSERT INTO t1 set c = concat(repeat('x',28),'r','x');
 INSERT INTO t1 set c = concat(repeat('x',28),'s','y');
 INSERT INTO t1 set c = concat(repeat('x',28),'g','w');
 SELECT c from t1 ORDER BY c, id;
---echo ** Results should not be sorted **
+--echo ** Results should still be sorted **
 
 --echo '#--------------------FN_DYNVARS_098_08-------------------------#'
 ###########################################
-#Check if sorting is applied on CHAR type #
+#Check if sorting is applied on TEXT type #
 ###########################################
---echo Testing type CHAR
+--echo Testing type TEXT
 # Setting global value of variable and inserting data in table
 SET @@global.max_sort_length = 30;
 SELECT @@global.max_sort_length;

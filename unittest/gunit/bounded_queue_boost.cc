@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,10 +104,11 @@ void Bounded_queue_boost<Element_type, Key_type, Key_generator,
   DBUG_ASSERT(pimpl != NULL);
   if (m_num_elements == m_max_elements) {
     const heap_data<Key_type, Key_compare> &pq_top = pimpl->m_queue.top();
-    m_sort_param->make_sortkey(pq_top.m_key, element);
+    m_sort_param->make_sortkey(pq_top.m_key, sizeof(Key_type), element);
     pimpl->m_queue.update(pq_top.m_handle);
   } else {
-    m_sort_param->make_sortkey(m_sort_keys[m_num_elements], element);
+    m_sort_param->make_sortkey(m_sort_keys[m_num_elements], sizeof(Key_type),
+                               element);
     typename heap_data<Key_type, Key_compare>::handle_type handle =
         pimpl->m_queue.push(heap_data<Key_type, Key_compare>(
             m_sort_keys[m_num_elements], m_cmp));

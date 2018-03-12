@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -165,11 +165,12 @@ void Bounded_QUEUE<Element_type, Key_type, Key_generator>::push(
   if (queue_is_full((&m_queue))) {
     // Replace top element with new key, and re-order the queue.
     Key_type *pq_top = reinterpret_cast<Key_type *>(queue_top(&m_queue));
-    m_sort_param->make_sortkey(*pq_top, element);
+    m_sort_param->make_sortkey(*pq_top, sizeof(Key_type), element);
     queue_replaced(&m_queue);
   } else {
     // Insert new key into the queue.
-    m_sort_param->make_sortkey(m_sort_keys[m_queue.elements], element);
+    m_sort_param->make_sortkey(m_sort_keys[m_queue.elements], sizeof(Key_type),
+                               element);
     queue_insert(&m_queue,
                  reinterpret_cast<uchar *>(&m_sort_keys[m_queue.elements]));
   }

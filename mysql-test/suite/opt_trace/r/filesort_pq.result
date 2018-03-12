@@ -12874,6 +12874,8 @@ DROP VIEW v1, v2;
 # end of WL#1393 - Optimizing filesort with small limit
 # end of WL#5834 - Add optimizer traces for sorting
 # WL#8741 Varlen keys for sorting JSON values
+# Note that JSON keys can't use the priority queue optimization for LIMIT,
+# since they can be of unbounded length.
 CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
 INSERT INTO t(j) VALUES
 (NULL), ('true'), ('false'),
@@ -13038,22 +13040,23 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j, id limit 2 offset 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 4,
-              "chosen": true
+              "usable": false,
+              "cause": "contains records of unbounded length"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 1051,
-              "row_size": 1051,
-              "max_rows_per_buffer": 5,
+              "key_size": 4294967295,
+              "row_size": 4294967295,
+              "max_rows_per_buffer": 0,
               "num_rows_estimate": 24,
-              "num_rows_found": 5,
+              "num_rows_found": 14,
               "num_examined_rows": 14,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "unpacked_addon_fields": "row_contains_blob",
               "sort_mode": "<varlen_sort_key, rowid>"
             }
           }
@@ -13217,22 +13220,23 @@ SELECT j, JSON_TYPE(j) AS tp FROM t ORDER BY j DESC, id limit 2 offset 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 4,
-              "chosen": true
+              "usable": false,
+              "cause": "contains records of unbounded length"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 1051,
-              "row_size": 1051,
-              "max_rows_per_buffer": 5,
+              "key_size": 4294967295,
+              "row_size": 4294967295,
+              "max_rows_per_buffer": 0,
               "num_rows_estimate": 24,
-              "num_rows_found": 5,
+              "num_rows_found": 14,
               "num_examined_rows": 14,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "unpacked_addon_fields": "row_contains_blob",
               "sort_mode": "<varlen_sort_key, rowid>"
             }
           }
@@ -13397,22 +13401,23 @@ limit 2 offset 2	{
             ],
             "filesort_priority_queue_optimization": {
               "limit": 4,
-              "chosen": true
+              "usable": false,
+              "cause": "contains records of unbounded length"
             },
             "filesort_execution": [
             ],
             "filesort_summary": {
               "memory_available": 32768,
-              "key_size": 795,
-              "row_size": 795,
-              "max_rows_per_buffer": 5,
+              "key_size": 4294967295,
+              "row_size": 4294967295,
+              "max_rows_per_buffer": 0,
               "num_rows_estimate": 24,
-              "num_rows_found": 5,
+              "num_rows_found": 14,
               "num_examined_rows": 14,
               "num_initial_chunks_spilled_to_disk": 0,
               "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
-              "unpacked_addon_fields": "using_priority_queue",
+              "unpacked_addon_fields": "row_contains_blob",
               "sort_mode": "<varlen_sort_key, rowid>"
             }
           }

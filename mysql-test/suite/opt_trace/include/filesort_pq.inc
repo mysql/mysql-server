@@ -295,6 +295,8 @@ DROP VIEW v1, v2;
 --echo # end of WL#5834 - Add optimizer traces for sorting
 
 --echo # WL#8741 Varlen keys for sorting JSON values
+--echo # Note that JSON keys can't use the priority queue optimization for LIMIT,
+--echo # since they can be of unbounded length.
 
 CREATE TABLE t(id INT PRIMARY KEY AUTO_INCREMENT, j JSON);
 

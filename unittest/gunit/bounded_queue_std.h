@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,8 @@ class Bounded_queue_std {
       --m_num_elements;
     }
     {
-      m_sort_param->make_sortkey(m_sort_keys[m_queue.size()], element);
+      m_sort_param->make_sortkey(m_sort_keys[m_queue.size()], sizeof(Key_type),
+                                 element);
       m_queue.push(m_sort_keys[m_queue.size()]);
       ++m_num_elements;
     }

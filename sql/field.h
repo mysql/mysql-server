@@ -1379,8 +1379,8 @@ class Field : public Proto_field {
     ptr = old_ptr;
     return str;
   }
-  virtual bool send_binary(Protocol *protocol);
-  virtual bool send_text(Protocol *protocol);
+  virtual bool send_binary(Protocol *protocol) override;
+  virtual bool send_text(Protocol *protocol) override;
 
   virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
                       bool low_byte_first);
@@ -1652,22 +1652,26 @@ class Field : public Proto_field {
   }
 
  protected:
-  uchar *pack_int16(uchar *to, const uchar *from, bool low_byte_first_to);
+  uchar *pack_int16(uchar *to, const uchar *from, uint max_length,
+                    bool low_byte_first_to);
 
   const uchar *unpack_int16(uchar *to, const uchar *from,
                             bool low_byte_first_from);
 
-  uchar *pack_int24(uchar *to, const uchar *from, bool low_byte_first_to);
+  uchar *pack_int24(uchar *to, const uchar *from, uint max_length,
+                    bool low_byte_first_to);
 
   const uchar *unpack_int24(uchar *to, const uchar *from,
                             bool low_byte_first_from);
 
-  uchar *pack_int32(uchar *to, const uchar *from, bool low_byte_first_to);
+  uchar *pack_int32(uchar *to, const uchar *from, uint max_length,
+                    bool low_byte_first_to);
 
   const uchar *unpack_int32(uchar *to, const uchar *from,
                             bool low_byte_first_from);
 
-  uchar *pack_int64(uchar *to, const uchar *from, bool low_byte_first_to);
+  uchar *pack_int64(uchar *to, const uchar *from, uint max_length,
+                    bool low_byte_first_to);
 
   const uchar *unpack_int64(uchar *to, const uchar *from,
                             bool low_byte_first_from);
@@ -1999,10 +2003,9 @@ class Field_short : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_SHORT);
     return new (*THR_MALLOC) Field_short(*this);
   }
-  virtual uchar *pack(uchar *to, const uchar *from,
-                      uint max_length MY_ATTRIBUTE((unused)),
+  virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
                       bool low_byte_first) {
-    return pack_int16(to, from, low_byte_first);
+    return pack_int16(to, from, max_length, low_byte_first);
   }
 
   virtual const uchar *unpack(uchar *to, const uchar *from,
@@ -2111,10 +2114,9 @@ class Field_long : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_LONG);
     return new (*THR_MALLOC) Field_long(*this);
   }
-  virtual uchar *pack(uchar *to, const uchar *from,
-                      uint max_length MY_ATTRIBUTE((unused)),
+  virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
                       bool low_byte_first) {
-    return pack_int32(to, from, low_byte_first);
+    return pack_int32(to, from, max_length, low_byte_first);
   }
   virtual const uchar *unpack(uchar *to, const uchar *from,
                               uint param_data MY_ATTRIBUTE((unused)),
@@ -2171,10 +2173,9 @@ class Field_longlong : public Field_num {
     DBUG_ASSERT(type() == MYSQL_TYPE_LONGLONG);
     return new (*THR_MALLOC) Field_longlong(*this);
   }
-  virtual uchar *pack(uchar *to, const uchar *from,
-                      uint max_length MY_ATTRIBUTE((unused)),
+  virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
                       bool low_byte_first) {
-    return pack_int64(to, from, low_byte_first);
+    return pack_int64(to, from, max_length, low_byte_first);
   }
   virtual const uchar *unpack(uchar *to, const uchar *from,
                               uint param_data MY_ATTRIBUTE((unused)),
@@ -2780,9 +2781,9 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
     DBUG_ASSERT(type() == MYSQL_TYPE_TIMESTAMP);
     return new (*THR_MALLOC) Field_timestamp(*this);
   }
-  uchar *pack(uchar *to, const uchar *from,
-              uint max_length MY_ATTRIBUTE((unused)), bool low_byte_first) {
-    return pack_int32(to, from, low_byte_first);
+  uchar *pack(uchar *to, const uchar *from, uint max_length,
+              bool low_byte_first) {
+    return pack_int32(to, from, max_length, low_byte_first);
   }
   const uchar *unpack(uchar *to, const uchar *from,
                       uint param_data MY_ATTRIBUTE((unused)),
@@ -3169,9 +3170,9 @@ class Field_datetime : public Field_temporal_with_date_and_time {
     DBUG_ASSERT(type() == MYSQL_TYPE_DATETIME);
     return new (*THR_MALLOC) Field_datetime(*this);
   }
-  uchar *pack(uchar *to, const uchar *from,
-              uint max_length MY_ATTRIBUTE((unused)), bool low_byte_first) {
-    return pack_int64(to, from, low_byte_first);
+  uchar *pack(uchar *to, const uchar *from, uint max_length,
+              bool low_byte_first) {
+    return pack_int64(to, from, max_length, low_byte_first);
   }
   const uchar *unpack(uchar *to, const uchar *from,
                       uint param_data MY_ATTRIBUTE((unused)),
@@ -3483,28 +3484,32 @@ class Field_blob : public Field_longstr {
   ~Field_blob() { mem_free(); }
 
   /* Note that the default copy constructor is used, in clone() */
-  enum_field_types type() const { return MYSQL_TYPE_BLOB; }
-  bool match_collation_to_optimize_range() const { return true; }
-  enum ha_base_keytype key_type() const {
+  enum_field_types type() const override { return MYSQL_TYPE_BLOB; }
+  bool match_collation_to_optimize_range() const override { return true; }
+  enum ha_base_keytype key_type() const override {
     return binary() ? HA_KEYTYPE_VARBINARY2 : HA_KEYTYPE_VARTEXT2;
   }
   type_conversion_status store(const char *to, size_t length,
-                               const CHARSET_INFO *charset);
-  type_conversion_status store(double nr);
-  type_conversion_status store(longlong nr, bool unsigned_val);
-  double val_real(void);
-  longlong val_int(void);
-  String *val_str(String *, String *);
-  my_decimal *val_decimal(my_decimal *);
-  int cmp_max(const uchar *, const uchar *, uint max_length);
-  int cmp(const uchar *a, const uchar *b) { return cmp_max(a, b, ~0L); }
-  int cmp(const uchar *a, uint32 a_length, const uchar *b, uint32 b_length);
-  int cmp_binary(const uchar *a, const uchar *b, uint32 max_length = ~0L);
-  int key_cmp(const uchar *, const uchar *);
-  int key_cmp(const uchar *str, uint length);
-  uint32 key_length() const { return 0; }
-  size_t make_sort_key(uchar *buff, size_t length);
-  uint32 pack_length() const {
+                               const CHARSET_INFO *charset) override;
+  type_conversion_status store(double nr) override;
+  type_conversion_status store(longlong nr, bool unsigned_val) override;
+  double val_real(void) override;
+  longlong val_int(void) override;
+  String *val_str(String *, String *) override;
+  my_decimal *val_decimal(my_decimal *) override;
+  int cmp_max(const uchar *, const uchar *, uint max_length) override;
+  int cmp(const uchar *a, const uchar *b) override {
+    return cmp_max(a, b, ~0L);
+  }
+  int cmp(const uchar *a, uint32 a_length, const uchar *b,
+          uint32 b_length);  // No override.
+  int cmp_binary(const uchar *a, const uchar *b,
+                 uint32 max_length = ~0L) override;
+  int key_cmp(const uchar *, const uchar *) override;
+  int key_cmp(const uchar *str, uint length) override;
+  uint32 key_length() const override { return 0; }
+  size_t make_sort_key(uchar *buff, size_t length) override;
+  uint32 pack_length() const override {
     return (uint32)(packlength + portable_sizeof_char_ptr);
   }
 
@@ -3517,16 +3522,19 @@ class Field_blob : public Field_longstr {
      @returns The length of the raw data itself without the pointer.
   */
   uint32 pack_length_no_ptr() const { return (uint32)(packlength); }
-  uint row_pack_length() const { return pack_length_no_ptr(); }
-  uint32 sort_length() const;
-  virtual uint32 max_data_length() const {
+  uint row_pack_length() const override { return pack_length_no_ptr(); }
+  uint32 sort_length() const override;
+  bool sort_key_is_varlen() const override {
+    return (field_charset->pad_attribute == NO_PAD);
+  }
+  virtual uint32 max_data_length() const override {
     return (uint32)(((ulonglong)1 << (packlength * 8)) - 1);
   }
-  type_conversion_status reset(void) {
+  type_conversion_status reset(void) override {
     memset(ptr, 0, packlength + sizeof(uchar *));
     return TYPE_OK;
   }
-  void reset_fields() {
+  void reset_fields() override {
     value = String();
     old_value = String();
   }
@@ -3541,11 +3549,13 @@ class Field_blob : public Field_longstr {
   inline void store_length(uint32 number) {
     store_length(ptr, packlength, number);
   }
-  uint32 data_length(uint row_offset = 0) { return get_length(row_offset); }
+  uint32 data_length(uint row_offset = 0) override {
+    return get_length(row_offset);
+  }
   uint32 get_length(uint row_offset = 0);
   uint32 get_length(const uchar *ptr, uint packlength, bool low_byte_first);
   uint32 get_length(const uchar *ptr_arg);
-  inline void get_ptr(uchar **str) {
+  inline void get_ptr(uchar **str) override {
     memcpy(str, ptr + packlength, sizeof(uchar *));
   }
   inline void get_ptr(uchar **str, uint row_offset) {
@@ -3563,9 +3573,9 @@ class Field_blob : public Field_longstr {
   inline void set_ptr(uint32 length, uchar *data) {
     set_ptr_offset(0, length, data);
   }
-  size_t get_key_image(uchar *buff, size_t length, imagetype type);
-  void set_key_image(const uchar *buff, size_t length);
-  void sql_type(String &str) const;
+  size_t get_key_image(uchar *buff, size_t length, imagetype type) override;
+  void set_key_image(const uchar *buff, size_t length) override;
+  void sql_type(String &str) const override;
   inline bool copy() {
     uchar *tmp;
     get_ptr(&tmp);
@@ -3578,33 +3588,33 @@ class Field_blob : public Field_longstr {
     memcpy(ptr + packlength, &tmp, sizeof(char *));
     return 0;
   }
-  Field_blob *clone(MEM_ROOT *mem_root) const {
+  Field_blob *clone(MEM_ROOT *mem_root) const override {
     DBUG_ASSERT(type() == MYSQL_TYPE_BLOB);
     return new (mem_root) Field_blob(*this);
   }
-  Field_blob *clone() const {
+  Field_blob *clone() const override {
     DBUG_ASSERT(type() == MYSQL_TYPE_BLOB);
     return new (*THR_MALLOC) Field_blob(*this);
   }
   virtual uchar *pack(uchar *to, const uchar *from, uint max_length,
-                      bool low_byte_first);
+                      bool low_byte_first) override;
   virtual const uchar *unpack(uchar *, const uchar *from, uint param_data,
-                              bool low_byte_first);
-  uint max_packed_col_length();
-  void mem_free() {
+                              bool low_byte_first) override;
+  uint max_packed_col_length() override;
+  void mem_free() override {
     // Free all allocated space
     value.mem_free();
     old_value.mem_free();
   }
   friend type_conversion_status field_conv(Field *to, Field *from);
-  bool has_charset(void) const {
+  bool has_charset(void) const override {
     return charset() == &my_charset_bin ? false : true;
   }
-  uint32 max_display_length();
-  uint32 char_length();
+  uint32 max_display_length() override;
+  uint32 char_length() override;
   bool copy_blob_value(MEM_ROOT *mem_root);
-  uint is_equal(const Create_field *new_field);
-  virtual bool is_text_key_type() const { return binary() ? false : true; }
+  uint is_equal(const Create_field *new_field) override;
+  bool is_text_key_type() const override { return binary() ? false : true; }
 
   /**
     Mark that the BLOB stored in value should be copied before updating it.
@@ -3685,7 +3695,7 @@ class Field_blob : public Field_longstr {
   }
 
  private:
-  int do_save_field_metadata(uchar *first_byte);
+  int do_save_field_metadata(uchar *first_byte) override;
 };
 
 class Field_geom : public Field_blob {

@@ -599,9 +599,9 @@ The following options may be given as the first argument:
  --max-seeks-for-key=# 
  Limit assumed max number of seeks when looking up rows
  based on a key
- --max-sort-length=# The number of bytes to use when sorting BLOB or TEXT
- values (only the first max_sort_length bytes of each
- value are used; the rest are ignored)
+ --max-sort-length=# The number of bytes to use when sorting long values with
+ PAD SPACE collations (only the first max_sort_length
+ bytes of each value are used; the rest are ignored)
  --max-sp-recursion-depth[=#] 
  Maximum stored procedure recursion depth
  --max-user-connections=# 

@@ -1166,8 +1166,8 @@ length(c1)	c1
 0	
 SELECT DISTINCT length(c1), c1 FROM t1 ORDER BY c1;
 length(c1)	c1
-0	
 2		A
+0	
 2	 B
 DROP TABLE t1;
 End of 4.1 tests

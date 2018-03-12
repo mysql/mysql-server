@@ -2519,9 +2519,9 @@ static Sys_var_ulong Sys_max_relay_log_size(
 
 static Sys_var_ulong Sys_max_sort_length(
     "max_sort_length",
-    "The number of bytes to use when sorting BLOB or TEXT values (only "
-    "the first max_sort_length bytes of each value are used; the rest "
-    "are ignored)",
+    "The number of bytes to use when sorting long values with PAD SPACE "
+    "collations (only the first max_sort_length bytes of each value are "
+    "used; the rest are ignored)",
     HINT_UPDATEABLE SESSION_VAR(max_sort_length), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(4, 8192 * 1024L), DEFAULT(1024), BLOCK_SIZE(1));
 

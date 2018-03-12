@@ -54,7 +54,7 @@ class MakeSortKeyTest : public ::testing::Test {
     m_sort_param.local_sortorder =
         Bounds_checked_array<st_sort_field>(m_sort_fields, 1);
     memset(m_buff, 'a', sizeof(m_buff));
-    m_to = &m_buff[8];
+    m_to = Bounds_checked_array<uchar>(&m_buff[8], sizeof(m_buff) - 8);
   }
 
   virtual void SetUp() { initializer.SetUp(); }
@@ -63,10 +63,10 @@ class MakeSortKeyTest : public ::testing::Test {
   THD *thd() { return initializer.thd(); }
 
   void verify_buff(uint length) {
-    for (uchar *pu = m_buff; pu < m_to; ++pu) {
+    for (uchar *pu = m_buff; pu < m_to.array(); ++pu) {
       EXPECT_EQ('a', *pu) << " position " << pu - m_buff;
     }
-    for (uchar *pu = m_to + length; pu < m_buff + 100; ++pu) {
+    for (uchar *pu = m_to.array() + length; pu < m_buff + 100; ++pu) {
       EXPECT_EQ('a', *pu) << " position " << pu - m_buff;
     }
   }
@@ -77,7 +77,7 @@ class MakeSortKeyTest : public ::testing::Test {
   st_sort_field m_sort_fields[2];  // sortlength() adds an end marker !!
   uchar m_ref_buff[4];             // unused, but needed for make_sortkey()
   uchar m_buff[100];
-  uchar *m_to;
+  Bounds_checked_array<uchar> m_to;
 };
 
 TEST_F(MakeSortKeyTest, IntResult) {

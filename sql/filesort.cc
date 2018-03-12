@@ -34,10 +34,13 @@
 #include <string.h>
 #include <algorithm>
 #include <atomic>
+#include <limits>
 #include <memory>
 #include <new>
+#include <type_traits>
 #include <vector>
 
+#include "add_with_saturate.h"
 #include "binary_log_types.h"
 #include "binlog_config.h"
 #include "decimal.h"
@@ -62,6 +65,7 @@
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bounded_queue.h"
 #include "sql/cmp_varlen_keys.h"
+#include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/error_handler.h"
@@ -99,6 +103,7 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
+using Mysql::Nullable;
 using std::max;
 using std::min;
 
@@ -122,6 +127,7 @@ struct Mem_compare_queue_key {
   size_t m_compare_length;
   Sort_param *m_param;
 };
+
 }  // namespace
 
 /* functions defined in this file */
@@ -180,13 +186,13 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
       The reference to the record is considered
       as an additional sorted field
     */
-    m_fixed_sort_length += ref_length;
+    AddWithSaturate(ref_length, &m_fixed_sort_length);
   }
 
   m_num_varlen_keys = count_varlen_keys();
   m_num_json_keys = count_json_keys();
   if (using_varlen_keys()) {
-    m_fixed_sort_length += size_of_varlength_field;
+    AddWithSaturate(size_of_varlength_field, &m_fixed_sort_length);
   }
   /*
     Add hash at the end of sort key to order cut values correctly.
@@ -194,10 +200,10 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
   */
   if (using_json_keys()) {
     use_hash = true;
-    m_fixed_sort_length += sizeof(ulonglong);
+    AddWithSaturate(sizeof(ulonglong), &m_fixed_sort_length);
   }
 
-  m_fixed_rec_length = m_fixed_sort_length + m_addon_length;
+  m_fixed_rec_length = AddWithSaturate(m_fixed_sort_length, m_addon_length);
   max_rows = maxrows;
 }
 
@@ -349,8 +355,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   IO_CACHE chunk_file;  // For saving Merge_chunk structs.
   IO_CACHE *outfile;    // Contains the final, sorted result.
   Sort_param param;
-  Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> pq(
-      (Malloc_allocator<uchar *>(key_memory_Filesort_info_record_pointers)));
   Opt_trace_context *const trace = &thd->opt_trace;
   QEP_TAB *const qep_tab = filesort->qep_tab;
   TABLE *const table = qep_tab->table();
@@ -400,6 +404,10 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   // If number of rows is not known, use as much of sort buffer as possible.
   num_rows_estimate = table->file->estimate_rows_upper_bound();
+
+  Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> pq(
+      param.max_record_length(),
+      (Malloc_allocator<uchar *>(key_memory_Filesort_info_record_pointers)));
 
   if (check_if_pq_applicable(trace, &param, &table->sort, table,
                              num_rows_estimate, memory_available,
@@ -461,7 +469,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     Opt_trace_array ota(trace, "filesort_execution");
     num_rows_found =
         read_all_rows(thd, &param, qep_tab, &table->sort, &chunk_file,
-                      &tempfile, param.using_pq ? &pq : NULL, found_rows);
+                      &tempfile, param.using_pq ? &pq : nullptr, found_rows);
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
 
@@ -822,6 +830,24 @@ class Filesort_error_handler : public Internal_error_handler {
   }
 };
 
+static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
+                                   uchar *ref_pos) {
+  size_t min_bytes = 1;
+  for (;;) {  // Termination condition within loop.
+    Bounds_checked_array<uchar> sort_key_buf =
+        fs_info->get_next_record_pointer(min_bytes);
+    if (sort_key_buf.array() == nullptr) return true;
+    const uint rec_sz = param->make_sortkey(sort_key_buf, ref_pos);
+    if (rec_sz > sort_key_buf.size()) {
+      // The record wouldn't fit. Try again, asking for a larger buffer.
+      min_bytes = sort_key_buf.size() + 1;
+    } else {
+      fs_info->commit_used_memory(rec_sz);
+      return false;
+    }
+  }
+}
+
 static const Item::enum_walk walk_subquery =
     Item::enum_walk(Item::WALK_POSTFIX | Item::WALK_SUBQUERY);
 
@@ -851,9 +877,13 @@ static const Item::enum_walk walk_subquery =
          push sort key into queue
        else
        {
+         try to put sort key into buffer;
          if (no free space in sort buffer)
          {
-           allocate new, larger buffer;
+           do {
+             allocate new, larger buffer;
+             retry putting sort key into buffer;
+           } until (record fits or no space for new buffer)
            if (no space for new buffer)
            {
              sort record pointers (all buffers);
@@ -861,7 +891,6 @@ static const Item::enum_walk walk_subquery =
              dump Merge_chunk describing sequence location into 'chunk_file';
            }
          }
-         put sort key into buffer;
          if (key was packed)
            tell sort buffer the actual number of bytes used;
        }
@@ -883,9 +912,6 @@ static ha_rows read_all_rows(
     IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
     ha_rows *found_rows) {
-  const bool packed_addon_fields = param->using_packed_addons();
-  const bool using_varlen_keys = param->using_varlen_keys();
-
   /*
     Set up an error handler for filesort. It is automatically pushed
     onto the internal error handler stack upon creation, and will be
@@ -982,8 +1008,8 @@ static ha_rows read_all_rows(
       if (pq)
         pq->push(ref_pos);
       else {
-        uchar *start_of_rec = fs_info->get_next_record_pointer();
-        if (start_of_rec == nullptr) {
+        bool out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
+        if (out_of_mem) {
           // Out of room, so flush chunk to disk (if there's anything to flush).
           if (num_records_this_chunk > 0) {
             if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
@@ -996,22 +1022,17 @@ static ha_rows read_all_rows(
             fs_info->reset();
 
             // Now we should have room for a new row.
-            start_of_rec = fs_info->get_next_record_pointer();
+            out_of_mem = alloc_and_make_sortkey(param, fs_info, ref_pos);
           }
 
           // If we're still out of memory after flushing to disk, give up.
-          if (start_of_rec == nullptr) {
+          if (out_of_mem) {
             my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
             LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
             num_total_records = HA_POS_ERROR;
             goto cleanup;
           }
         }
-
-        const uint rec_sz = param->make_sortkey(start_of_rec, ref_pos);
-        if ((packed_addon_fields || using_varlen_keys) &&
-            rec_sz != param->max_record_length())
-          fs_info->adjust_next_record_pointer(rec_sz);
 
         num_records_this_chunk++;
         num_total_records++;
@@ -1211,35 +1232,81 @@ static uint MY_ATTRIBUTE((noinline))
 namespace {
 
 /*
+  Returns true if writing the given uint8_t would overflow <to> past <to_end>.
+  Writes the value and advances <to> otherwise.
+*/
+inline bool write_uint8_overflows(uint8_t val, uchar *to_end, uchar **to) {
+  if (to_end - *to < 1) return true;
+  **to = val;
+  (*to)++;
+  return false;
+}
+
+/*
+  Returns true if writing <num_bytes> zeros would overflow <to> past <to_end>.
+  Writes the zeros and advances <to> otherwise.
+*/
+inline bool clear_overflows(size_t num_bytes, uchar *to_end, uchar **to) {
+  if (static_cast<size_t>(to_end - *to) < num_bytes) return true;
+  memset(*to, 0, num_bytes);
+  *to += num_bytes;
+  return false;
+}
+
+/*
+  Returns true if advancing <to> by <num_bytes> would put it past <to_end>.
+  Advances <to> otherwise (does not write anything to the buffer).
+*/
+inline bool advance_overflows(size_t num_bytes, uchar *to_end, uchar **to) {
+  if (static_cast<size_t>(to_end - *to) < num_bytes) return true;
+  *to += num_bytes;
+  return false;
+}
+
+/*
   Writes a NULL indicator byte (if the field may be NULL), leaves space for a
   varlength prefix (if varlen and not NULL), and then the actual sort key.
-  Returns the length of the key, sans NULL indicator byte and varlength prefix.
+  Returns the length of the key, sans NULL indicator byte and varlength prefix,
+  or UINT_MAX if the value would not provably fit within the given bounds.
 */
-size_t make_sortkey_from_field(Field *field, bool is_varlen, size_t max_length,
-                               uchar *to, bool *maybe_null) {
+size_t make_sortkey_from_field(Field *field, Nullable<size_t> dst_length,
+                               uchar *to, uchar *to_end, bool *maybe_null) {
+  bool is_varlen = !dst_length.has_value();
+
   *maybe_null = field->maybe_null();
   if (field->maybe_null()) {
+    if (write_uint8_overflows(field->is_null() ? 0 : 1, to_end, &to))
+      return UINT_MAX;
     if (field->is_null()) {
-      *to++ = 0;
       if (is_varlen) {
         // Don't store anything except the NULL flag.
         return 0;
       }
-      memset(to, 0, max_length);
-      return max_length;
-    } else
-      *to++ = 1;
+      if (clear_overflows(dst_length.value(), to_end, &to)) return UINT_MAX;
+      return dst_length.value();
+    }
   }
 
   size_t actual_length;
   if (is_varlen) {
-    DBUG_ASSERT(max_length >= VARLEN_PREFIX);
-    actual_length =
-        field->make_sort_key(to + VARLEN_PREFIX, max_length - VARLEN_PREFIX);
-    DBUG_ASSERT(actual_length <= max_length - VARLEN_PREFIX);
-  } else {
+    if (advance_overflows(VARLEN_PREFIX, to_end, &to)) return UINT_MAX;
+    size_t max_length = to_end - to;
+    if (max_length % 2 != 0) {
+      // Heed the contract that strnxfrm needs an even number of bytes.
+      --max_length;
+    }
     actual_length = field->make_sort_key(to, max_length);
-    DBUG_ASSERT(actual_length == max_length);
+    if (actual_length >= max_length) {
+      /*
+        The sort key either fit perfectly, or overflowed; we can't distinguish
+        between the two, so we have to count it as overflow.
+      */
+      return UINT_MAX;
+    }
+  } else {
+    if (static_cast<size_t>(to_end - to) < dst_length.value()) return UINT_MAX;
+    actual_length = field->make_sort_key(to, dst_length.value());
+    DBUG_ASSERT(actual_length == dst_length.value());
   }
   return actual_length;
 }
@@ -1247,31 +1314,40 @@ size_t make_sortkey_from_field(Field *field, bool is_varlen, size_t max_length,
 /*
   Writes a NULL indicator byte (if the field may be NULL), leaves space for a
   varlength prefix (if varlen and not NULL), and then the actual sort key.
-  Returns the length of the key, sans NULL indicator byte and varlength prefix.
+  Returns the length of the key, sans NULL indicator byte and varlength prefix,
+  or UINT_MAX if the value would not provably fit within the given bounds.
 */
 size_t make_sortkey_from_item(Item *item, Item_result result_type,
-                              bool is_varlen, size_t max_length,
-                              String *tmp_buffer, uchar *to, bool *maybe_null,
+                              Nullable<size_t> dst_length, String *tmp_buffer,
+                              uchar *to, uchar *to_end, bool *maybe_null,
                               ulonglong *hash) {
+  bool is_varlen = !dst_length.has_value();
+
   uchar *null_indicator = nullptr;
   *maybe_null = item->maybe_null;
   if (item->maybe_null) {
-    null_indicator = to++;
+    null_indicator = to;
     /*
       Assume not NULL by default. Will be overwritten if needed.
       Note that we can't check item->null_value at this time,
       because it will only get properly set after a call to val_*().
     */
-    *null_indicator = 1;
+    if (write_uint8_overflows(1, to_end, &to)) return UINT_MAX;
+  }
+
+  if (is_varlen) {
+    // Check that there is room for the varlen prefix, and advance past it.
+    if (advance_overflows(VARLEN_PREFIX, to_end, &to)) return UINT_MAX;
+  } else {
+    // Check that there is room for the fixed-size value.
+    if (static_cast<size_t>(to_end - to) < dst_length.value()) return UINT_MAX;
   }
 
   switch (result_type) {
     case STRING_RESULT: {
       if (item->data_type() == MYSQL_TYPE_JSON) {
         DBUG_ASSERT(is_varlen);
-        DBUG_ASSERT(max_length >= VARLEN_PREFIX);
-        return make_json_sort_key(item, to + VARLEN_PREFIX, null_indicator,
-                                  max_length - VARLEN_PREFIX, hash);
+        return make_json_sort_key(item, to, null_indicator, to_end - to, hash);
       }
 
       const CHARSET_INFO *cs = item->collation.collation;
@@ -1285,25 +1361,37 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
           return 0;
         }
         *null_indicator = 0;
-        memset(to, 0, max_length);
-        return max_length;
+        memset(to, 0, dst_length.value());
+        return dst_length.value();
       }
 
-      uint length = static_cast<uint>(res->length());
+      uint src_length = static_cast<uint>(res->length());
       char *from = (char *)res->ptr();
 
       size_t actual_length;
       if (is_varlen) {
-        actual_length = cs->coll->strnxfrm(
-            cs, to + VARLEN_PREFIX, max_length - VARLEN_PREFIX,
-            item->max_char_length(), (uchar *)from, length, 0);
-        DBUG_ASSERT(actual_length <= max_length - VARLEN_PREFIX);
-      } else {
+        size_t max_length = to_end - to;
+        if (max_length % 2 != 0) {
+          // Heed the contract that strnxfrm needs an even number of bytes.
+          --max_length;
+        }
         actual_length =
             cs->coll->strnxfrm(cs, to, max_length, item->max_char_length(),
-                               (uchar *)from, length, MY_STRXFRM_PAD_TO_MAXLEN);
-        DBUG_ASSERT(actual_length == max_length);
+                               (uchar *)from, src_length, 0);
+        if (actual_length == max_length) {
+          /*
+            The sort key eithen fit perfectly, or overflowed; we can't
+            distinguish between the two, so we have to count it as overflow.
+          */
+          return UINT_MAX;
+        }
+      } else {
+        actual_length = cs->coll->strnxfrm(
+            cs, to, dst_length.value(), item->max_char_length(), (uchar *)from,
+            src_length, MY_STRXFRM_PAD_TO_MAXLEN);
+        DBUG_ASSERT(actual_length == dst_length.value());
       }
+      DBUG_ASSERT(to + actual_length <= to_end);
       return actual_length;
     }
     case INT_RESULT: {
@@ -1322,10 +1410,11 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
       */
       if (item->maybe_null && item->null_value) {
         *null_indicator = 0;
-        memset(to, 0, max_length);
+        memset(to, 0, dst_length.value());
       } else
-        copy_native_longlong(to, max_length, value, item->unsigned_flag);
-      return max_length;
+        copy_native_longlong(to, dst_length.value(), value,
+                             item->unsigned_flag);
+      return dst_length.value();
     }
     case DECIMAL_RESULT: {
       DBUG_ASSERT(!is_varlen);
@@ -1339,19 +1428,19 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
       */
       if (item->maybe_null && item->null_value) {
         *null_indicator = 0;
-        memset(to, 0, max_length);
-      } else if (max_length < DECIMAL_MAX_FIELD_SIZE) {
+        memset(to, 0, dst_length.value());
+      } else if (dst_length.value() < DECIMAL_MAX_FIELD_SIZE) {
         uchar buf[DECIMAL_MAX_FIELD_SIZE];
         my_decimal2binary(E_DEC_FATAL_ERROR, dec_val, buf,
                           item->max_length - (item->decimals ? 1 : 0),
                           item->decimals);
-        memcpy(to, buf, max_length);
+        memcpy(to, buf, dst_length.value());
       } else {
         my_decimal2binary(E_DEC_FATAL_ERROR, dec_val, to,
                           item->max_length - (item->decimals ? 1 : 0),
                           item->decimals);
       }
-      return max_length;
+      return dst_length.value();
     }
     case REAL_RESULT: {
       DBUG_ASSERT(!is_varlen);
@@ -1359,45 +1448,56 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
       if (item->null_value) {
         DBUG_ASSERT(item->maybe_null);
         *null_indicator = 0;
-        memset(to, 0, max_length);
-      } else if (max_length < sizeof(double)) {
+        memset(to, 0, dst_length.value());
+      } else if (dst_length.value() < sizeof(double)) {
         uchar buf[sizeof(double)];
         change_double_for_sort(value, buf);
-        memcpy(to, buf, max_length);
+        memcpy(to, buf, dst_length.value());
       } else {
         change_double_for_sort(value, to);
       }
-      return max_length;
+      return dst_length.value();
     }
     case ROW_RESULT:
     default:
       // This case should never be choosen
       DBUG_ASSERT(0);
-      return max_length;
+      return dst_length.value();
   }
 }
 
 }  // namespace
 
-uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos) {
+uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
+                              const uchar *ref_pos) {
+  uchar *to = dst.array();
+  uchar *to_end = dst.array() + dst.size();
   uchar *orig_to = to;
   const st_sort_field *sort_field;
   ulonglong hash = 0;
 
   if (using_varlen_keys()) {
     to += size_of_varlength_field;
+    if (to >= to_end) return UINT_MAX;
   }
   for (sort_field = local_sortorder.begin();
        sort_field != local_sortorder.end(); sort_field++) {
-    bool maybe_null;
-    uint actual_length = sort_field->length;
+    if (to >= to_end ||
+        (!sort_field->is_varlen &&
+         static_cast<size_t>(to_end - to) < sort_field->length)) {
+      return UINT_MAX;
+    }
 
+    bool maybe_null;
+    Nullable<size_t> dst_length;
+    if (!sort_field->is_varlen) dst_length = sort_field->length;
+    uint actual_length;
     if (sort_field->field) {
       Field *field = sort_field->field;
       DBUG_ASSERT(sort_field->field_type == field->type());
 
-      actual_length = make_sortkey_from_field(
-          field, sort_field->is_varlen, sort_field->length, to, &maybe_null);
+      actual_length =
+          make_sortkey_from_field(field, dst_length, to, to_end, &maybe_null);
 
       if (sort_field->field_type == MYSQL_TYPE_JSON) {
         DBUG_ASSERT(use_hash);
@@ -1407,9 +1507,14 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos) {
       Item *item = sort_field->item;
       DBUG_ASSERT(sort_field->field_type == item->data_type());
 
-      actual_length = make_sortkey_from_item(
-          item, sort_field->result_type, sort_field->is_varlen,
-          sort_field->length, &tmp_buffer, to, &maybe_null, &hash);
+      actual_length =
+          make_sortkey_from_item(item, sort_field->result_type, dst_length,
+                                 &tmp_buffer, to, to_end, &maybe_null, &hash);
+    }
+
+    if (actual_length == UINT_MAX) {
+      // Overflow.
+      return UINT_MAX;
     }
 
     /*
@@ -1444,6 +1549,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos) {
   }
 
   if (use_hash) {
+    if (to_end - to < 8) return UINT_MAX;
     int8store(to, hash);
     to += 8;
   }
@@ -1463,28 +1569,42 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos) {
     uchar *p_len = to;
 
     Addon_fields_array::const_iterator addonf = addon_fields->begin();
-    uint32 res_len = addonf->offset;
-    const bool packed_addon_fields = addon_fields->using_packed_addons();
-    memset(nulls, 0, addonf->offset);
-    to += addonf->offset;
-    for (; addonf != addon_fields->end(); ++addonf) {
-      Field *field = addonf->field;
-      if (addonf->null_bit && field->is_null()) {
-        nulls[addonf->null_offset] |= addonf->null_bit;
-        if (!packed_addon_fields) to += addonf->max_length;
-      } else {
-        uchar *ptr = field->pack(to, field->ptr);
-        int sz = static_cast<int>(ptr - to);
-        res_len += sz;
-        if (packed_addon_fields)
-          to += sz;
-        else
-          to += addonf->max_length;
+    if (clear_overflows(addonf->offset, to_end, &to)) return UINT_MAX;
+    if (addon_fields->using_packed_addons()) {
+      for (; addonf != addon_fields->end(); ++addonf) {
+        Field *field = addonf->field;
+        if (addonf->null_bit && field->is_null()) {
+          nulls[addonf->null_offset] |= addonf->null_bit;
+        } else {
+          to = field->pack(to, field->ptr, to_end - to,
+                           field->table->s->db_low_byte_first);
+          if (to >= to_end) return UINT_MAX;
+        }
+      }
+      Addon_fields::store_addon_length(p_len, to - p_len);
+    } else {
+      for (; addonf != addon_fields->end(); ++addonf) {
+        Field *field = addonf->field;
+        if (static_cast<size_t>(to_end - to) < addonf->max_length) {
+          return UINT_MAX;
+        }
+        if (addonf->null_bit && field->is_null()) {
+          nulls[addonf->null_offset] |= addonf->null_bit;
+        } else {
+          uchar *ptr = field->pack(to, field->ptr, to_end - to,
+                                   field->table->s->db_low_byte_first);
+          if (ptr >= to_end) return UINT_MAX;
+        }
+        to += addonf->max_length;
       }
     }
-    if (packed_addon_fields) Addon_fields::store_addon_length(p_len, res_len);
-    DBUG_PRINT("info", ("make_sortkey %p %u", orig_to, res_len));
+    DBUG_PRINT("info", ("make_sortkey %p %u", orig_to,
+                        static_cast<unsigned>(to - p_len)));
   } else {
+    if (static_cast<size_t>(to_end - to) < ref_length) {
+      return UINT_MAX;
+    }
+
     /* Save filepos last */
     memcpy(to, ref_pos, ref_length);
     to += ref_length;
@@ -1645,6 +1765,11 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
 
   if (param->max_rows + 2 >= UINT_MAX) {
     trace_filesort.add("usable", false).add_alnum("cause", "limit too large");
+    DBUG_RETURN(false);
+  }
+  if (param->max_record_length() >= 0xFFFFFFFFu) {
+    trace_filesort.add("usable", false)
+        .add_alnum("cause", "contains records of unbounded length");
     DBUG_RETURN(false);
   }
 
@@ -2059,6 +2184,7 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
   const uint max_sort_length_even = (thd->variables.max_sort_length + 1) & ~1;
 
   for (; s_length--; sortorder++) {
+    bool is_string_type = false;
     if (sortorder->field) {
       const Field *field = sortorder->field;
       const CHARSET_INFO *cs = field->sort_charset();
@@ -2066,20 +2192,20 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
       sortorder->is_varlen = field->sort_key_is_varlen();
 
       // How many bytes do we need (including sort weights) for strnxfrm()?
-      sortorder->length = cs->coll->strnxfrmlen(cs, sortorder->length);
-
-      /*
-        NOTE: The corresponding test below also has a check for
-        NO PAD collations to sort truncated blobs deterministically;
-        however, that part is dealt by in Field_blob/Field_varstring,
-        so we don't need it here.
-      */
-      sortorder->maybe_null = field->maybe_null();
-      if (field->result_type() == STRING_RESULT && !field->is_temporal()) {
-        set_if_smaller(sortorder->length, max_sort_length_even);
+      if (sortorder->length < (10 << 20)) {  // 10 MB.
+        sortorder->length = cs->coll->strnxfrmlen(cs, sortorder->length);
+      } else {
+        /*
+          If over 10 MB, just set the length as effectively infinite, so we
+          don't get overflows in strnxfrmlen().
+         */
+        sortorder->length = 0xFFFFFFFFu;
       }
 
+      sortorder->maybe_null = field->maybe_null();
       sortorder->field_type = field->type();
+      is_string_type =
+          field->result_type() == STRING_RESULT && !field->is_temporal();
     } else {
       const Item *item = sortorder->item;
       sortorder->result_type = item->result_type();
@@ -2093,14 +2219,23 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
         case STRING_RESULT: {
           const CHARSET_INFO *cs = item->collation.collation;
           sortorder->length = item->max_length;
-          set_if_smaller(sortorder->length, max_sort_length_even);
-
-          // How many bytes do we need (including sort weights) for strnxfrm()?
-          sortorder->length = cs->coll->strnxfrmlen(cs, sortorder->length);
 
           if (cs->pad_attribute == NO_PAD) {
             sortorder->is_varlen = true;
           }
+
+          if (sortorder->length < (10 << 20)) {  // 10 MB.
+            // How many bytes do we need (including sort weights) for
+            // strnxfrm()?
+            sortorder->length = cs->coll->strnxfrmlen(cs, sortorder->length);
+          } else {
+            /*
+              If over 10 MB, just set the length as effectively infinite, so we
+              don't get overflows in strnxfrmlen().
+             */
+            sortorder->length = 0xFFFFFFFFu;
+          }
+          is_string_type = true;
           break;
         }
         case INT_RESULT:
@@ -2125,9 +2260,23 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length) {
       }
       sortorder->maybe_null = item->maybe_null;
     }
-    if (sortorder->maybe_null) total_length++;  // Place for NULL marker
-    if (sortorder->is_varlen) sortorder->length += VARLEN_PREFIX;
-    total_length += sortorder->length;
+    if (!sortorder->is_varlen && is_string_type) {
+      /*
+        We would love to never have to care about max_sort_length anymore,
+        but that would make it impossible for us to sort blobs (TEXT) with
+        PAD SPACE collations, since those are not variable-length (the padding
+        is serialized as part of the sort key) and thus require infinite space.
+        Thus, as long as we need to sort such fields by storing their sort
+        keys, we need to heed max_sort_length for such fields.
+      */
+      sortorder->length = std::min(sortorder->length, max_sort_length_even);
+    }
+
+    if (sortorder->maybe_null)
+      AddWithSaturate(1u, &total_length);  // Place for NULL marker
+    if (sortorder->is_varlen)
+      AddWithSaturate(VARLEN_PREFIX, &sortorder->length);
+    AddWithSaturate(sortorder->length, &total_length);
   }
   sortorder->field = NULL;  // end marker
   DBUG_PRINT("info", ("sort_length: %u", total_length));

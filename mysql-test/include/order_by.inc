@@ -835,7 +835,6 @@ DROP TABLE t1;
 create table t1(a int, b text);
 insert into t1 values (1,REPEAT('x', 60000)),(3,REPEAT('y', 60000));
 set session sort_buffer_size= 32768;
-set session max_sort_length= 20000;
 CALL mtr.add_suppression("Out of sort memory");
 --error ER_OUT_OF_SORTMEMORY
 select * from t1 order by b;

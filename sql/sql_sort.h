@@ -210,12 +210,12 @@ class Filesort_info {
 
   void clear_peak_memory_used() { filesort_buffer.clear_peak_memory_used(); }
 
-  uchar *get_next_record_pointer() {
-    return filesort_buffer.get_next_record_pointer();
+  Bounds_checked_array<uchar> get_next_record_pointer(size_t min_size) {
+    return filesort_buffer.get_next_record_pointer(min_size);
   }
 
-  void adjust_next_record_pointer(uint32 val) {
-    filesort_buffer.adjust_next_record_pointer(val);
+  void commit_used_memory(size_t num_bytes) {
+    filesort_buffer.commit_used_memory(num_bytes);
   }
 
   uchar *get_sorted_record(uint idx) {

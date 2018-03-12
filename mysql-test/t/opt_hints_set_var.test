@@ -235,13 +235,6 @@ CALL test_hint("SET_VAR(max_points_in_geometry=1048576)", "max_points_in_geometr
 --replace_result 18446744073709551615 DEFAULT 4294967295 DEFAULT
 CALL test_hint("SET_VAR(max_seeks_for_key=1)", "max_seeks_for_key");
 
-# Testing max_sort_length variable, order is changed with the hint.
-CREATE TABLE t1 (f1 VARCHAR(10));
-INSERT INTO t1 VALUES ('aaaaac'), ('aaaaab'), ('aaaaaa');
-SELECT /*+ SET_VAR(max_sort_length=4) */ f1 FROM t1 ORDER BY f1;
-DROP TABLE t1;
-CALL test_hint("SET_VAR(max_sort_length=4)", "max_sort_length");
-
 # Testing optimizer_prune_level, optimizer_search_depth variables,
 # EXPLAIN output is different depending on SET_VAR hint use.
 CREATE TABLE t1 (a INT, b INT, PRIMARY KEY (a));

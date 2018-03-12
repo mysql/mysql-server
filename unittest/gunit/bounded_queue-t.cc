@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,7 +110,7 @@ class Test_key_compare {
  */
 class Test_keymaker {
  public:
-  uint make_sortkey(Test_key *key, Test_element *element) {
+  uint make_sortkey(Test_key *key, size_t, Test_element *element) {
     key->element = element;
     key->key = element->val;
     return sizeof(key->key);
@@ -343,7 +343,7 @@ class Int_ptr_compare {
  */
 class Int_keymaker {
  public:
-  uint make_sortkey(int *to, int *from) {
+  uint make_sortkey(int *to, size_t, int *from) {
     memcpy(to, from, sizeof(int));
     return sizeof(int);
   }
