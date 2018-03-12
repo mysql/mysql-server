@@ -342,7 +342,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
               ha_rows *returned_rows) {
   int error;
   ulong memory_available = thd->variables.sortbuff_size;
-  size_t num_chunks, num_initial_chunks;
   ha_rows num_rows_found = HA_POS_ERROR;
   ha_rows num_rows_estimate = HA_POS_ERROR;
   IO_CACHE tempfile;    // Temporary file for storing intermediate results.
@@ -478,10 +477,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     }
   }
 
-  if (open_cached_file(&chunk_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
-                       MYF(MY_WME)))
-    goto err;
-
   param.sort_form = table;
 
   // New scope, because subquery execution must be traced within an array.
@@ -493,8 +488,14 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
 
-  num_chunks =
-      static_cast<size_t>(my_b_tell(&chunk_file)) / sizeof(Merge_chunk);
+  size_t num_chunks, num_initial_chunks;
+  if (my_b_inited(&chunk_file)) {
+    num_chunks =
+        static_cast<size_t>(my_b_tell(&chunk_file)) / sizeof(Merge_chunk);
+  } else {
+    num_chunks = 0;
+  }
+
   num_initial_chunks = num_chunks;
 
   if (num_chunks == 0)  // The whole set is in memory
@@ -1099,6 +1100,11 @@ static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
   DBUG_ENTER("write_keys");
 
   fs_info->sort_buffer(param, count);
+
+  if (!my_b_inited(chunk_file) &&
+      open_cached_file(chunk_file, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
+                       MYF(MY_WME)))
+    DBUG_RETURN(1);
 
   if (!my_b_inited(tempfile) &&
       open_cached_file(tempfile, mysql_tmpdir, TEMP_PREFIX, DISK_BUFFER_SIZE,
