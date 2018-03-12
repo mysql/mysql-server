@@ -961,11 +961,13 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   initData();
   
   UintR apiConnect;
+  UintR apiConnectFail;
   UintR tcConnectFail;
   UintR tables;
   UintR tcScan;
 
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_API_CONNECT, &apiConnect));
+  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_API_CONNECT_FAIL, &apiConnectFail));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TC_CONNECT_FAIL, &tcConnectFail));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_TABLE, &tables));
   ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TC_SCAN, &tcScan));
@@ -974,6 +976,18 @@ void Dbtc::execREAD_CONFIG_REQ(Signal* signal)
   ctcConnectFailCount = tcConnectFail;
   ctabrecFilesize     = tables;
   cscanrecFileSize = tcScan;
+
+  if (instance() < 2)
+  {
+    // Only first Dbtc instance does take over
+    ctcConnectFailCount = tcConnectFail;
+    capiConnectFailCount = apiConnectFail;
+  }
+  else
+  {
+    ctcConnectFailCount = 0;
+    capiConnectFailCount = 0;
+  }
 
   initRecords();
   initialiseRecordsLab(signal, 0, ref, senderData);
@@ -11041,12 +11055,11 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
        * This could happen if the master node has less transaction records
        * than the failed node which is possible but not recommended.
        */
-      Uint32 apiConnect = capiConnectFilesize / 3;
       g_eventLogger->info("Need to do another round of TC takeover handling."
                           " The failed node had a higher setting of "
                           "MaxNoOfConcurrentTransactions than this node has, "
                           "this node has MaxNoOfConcurrentTransactions = %u",
-                          apiConnect);
+                          capiConnectFailCount);
       tcNodeFailptr.p->takeOverFailed = true;
       return;
     }
@@ -15073,6 +15086,7 @@ void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
 
 void Dbtc::initApiConnect(Signal* signal) 
 {
+#if  0
   Uint32 tiacTmp;
   Uint32 guard4;
   ApiConnectRecordPtr apiConnectptr;
@@ -15150,17 +15164,19 @@ void Dbtc::initApiConnect(Signal* signal)
   apiConnectptr.i = (2 * tiacTmp) - 1;  // guard4
   c_apiConnectRecordPool.getPtr(apiConnectptr);
   apiConnectptr.p->nextApiConnect = RNIL;
-
+#endif
   c_apiConnectFailList.init();
   LocalApiConnectRecord_api_list apiConListFail(c_apiConnectRecordPool,
                                                 c_apiConnectFailList);
-  for (Uint32 j = 0; j < tiacTmp; j++)
+//  for (Uint32 j = 0; j < tiacTmp; j++)
+fprintf(stderr,"YYY: %s: %u: %s: %p: instance %u: m_max_writes_per_trans = %u\n",__FILE__,__LINE__,__func__,this,instance(),capiConnectFailCount);
+  for (Uint32 j = 0; j < capiConnectFailCount; j++)
   {
     refresh_watch_dog();
     jam();
     ApiConnectRecordPtr apiConnectptr;
     ndbrequire(c_apiConnectRecordPool.seize(apiConnectptr));
-    i = apiConnectptr.i;
+//    i = apiConnectptr.i;
     apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->m_apiConTimer = RNIL;
     ndbrequire(seizeApiConTimer(apiConnectptr));
@@ -15184,7 +15200,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->apiCopyRecord = RNIL;
     apiConListFail.addFirst(apiConnectptr);
   }//for
-
+#if 0
   /* release api connect and copy records */
   guard4 = (2 * tiacTmp) - 1;
   for (i = 0; i <= guard4; i++)
@@ -15198,7 +15214,7 @@ void Dbtc::initApiConnect(Signal* signal)
     releaseApiConTimer(apiConnectptr);
     c_apiConnectRecordPool.release(apiConnectptr);
   }
-
+#endif
   capiConnectPREPARE_TO_COMMITList.init();
 }//Dbtc::initApiConnect()
 
@@ -16267,6 +16283,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
+#if 0 /* TODO YYY */
   if (dumpState->args[0] == DumpStateOrd::TcDumpApiConnectRecSummary)
   {
     /**
@@ -16497,7 +16514,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
     return;
   }
-
+#endif
+#if 0 /* TODO YYY */
   if (arg == 2551)
   {
     jam();
@@ -16553,7 +16571,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 #endif
-
+#endif
   if (arg == DumpStateOrd::DihTcSumaNodeFailCompleted &&
       signal->getLength() == 2)
   {

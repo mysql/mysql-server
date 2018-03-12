@@ -2527,6 +2527,7 @@ private:
 
   TableRecordPtr tabptr;
   LocalApiConnectRecord_api_list::Head c_apiConnectFailList;
+  Uint32 capiConnectFailCount;
 
   BlockReference cdihblockref;
   BlockReference cownref;                   /* OWN BLOCK REFERENCE */

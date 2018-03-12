@@ -1010,8 +1010,11 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     }
 
     cfg.put(CFG_TC_API_CONNECT, 
-	    3 * noOfTransactions);
+	    2 * noOfTransactions);
     
+    cfg.put(CFG_TC_API_CONNECT_FAIL,
+           noOfTransactions);
+
     cfg.put(CFG_TC_TC_CONNECT,
 	    noOfOperations + 8 + (noOfTransactions + 1) / 2);
 
