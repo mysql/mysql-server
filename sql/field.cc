@@ -10263,6 +10263,92 @@ void Field::init(TABLE *table_arg) {
   table_name = &table_arg->alias;
 }
 
+static inline void handle_int16(uchar *to, const uchar *from,
+                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
+                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+  int16 val;
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_from)
+    val = sint2korr(from);
+  else
+#endif
+    shortget(&val, from);
+
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_to)
+    int2store(to, val);
+  else
+#endif
+    shortstore(to, val);
+}
+
+static inline void handle_int24(uchar *to, const uchar *from,
+                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
+                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+  int32 val;
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_from)
+    val = sint3korr(from);
+  else
+#endif
+    val = (from[0] << 16) + (from[1] << 8) + from[2];
+
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_to)
+    int2store(to, val);
+  else
+#endif
+  {
+    to[0] = 0xFF & (val >> 16);
+    to[1] = 0xFF & (val >> 8);
+    to[2] = 0xFF & val;
+  }
+}
+
+/*
+  Helper function to pack()/unpack() int32 values
+*/
+static inline void handle_int32(uchar *to, const uchar *from,
+                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
+                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+  int32 val;
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_from)
+    val = sint4korr(from);
+  else
+#endif
+    longget(&val, from);
+
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_to)
+    int4store(to, val);
+  else
+#endif
+    longstore(to, val);
+}
+
+/*
+  Helper function to pack()/unpack() int64 values
+*/
+static inline void handle_int64(uchar *to, const uchar *from,
+                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
+                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+  int64 val;
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_from)
+    val = sint8korr(from);
+  else
+#endif
+    longlongget(&val, from);
+
+#ifdef WORDS_BIGENDIAN
+  if (low_byte_first_to)
+    int8store(to, val);
+  else
+#endif
+    longlongstore(to, val);
+}
+
 uchar *Field::pack_int16(uchar *to, const uchar *from, bool low_byte_first_to) {
   handle_int16(to, from, table->s->db_low_byte_first, low_byte_first_to);
   return to + sizeof(int16);
