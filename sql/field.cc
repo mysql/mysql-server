@@ -3942,12 +3942,13 @@ void Field_longlong::sql_type(String &res) const {
 uchar *Field_real::pack(uchar *to, const uchar *from, uint max_length,
                         bool low_byte_first) {
   DBUG_ENTER("Field_real::pack");
-  DBUG_ASSERT(max_length >= pack_length());
 #ifdef WORDS_BIGENDIAN
   if (low_byte_first != table->s->db_low_byte_first) {
-    const uchar *dptr = from + pack_length();
-    while (dptr-- > from) *to++ = *dptr;
-    DBUG_RETURN(to);
+    unsigned len = std::min(pack_length(), max_length);
+    for (unsigned i = 0; i < len; ++i) {
+      to[i] = from[pack_length() - i - 1];
+    }
+    DBUG_RETURN(to + pack_length());
   } else
 #endif
     DBUG_RETURN(Field::pack(to, from, max_length, low_byte_first));
@@ -8832,7 +8833,9 @@ void Field_bit::sql_type(String &res) const {
 
 uchar *Field_bit::pack(uchar *to, const uchar *from, uint max_length,
                        bool low_byte_first MY_ATTRIBUTE((unused))) {
-  DBUG_ASSERT(max_length > 0);
+  if (max_length == 0) {
+    return to + 1;
+  }
   uint length;
   if (bit_len > 0) {
     /*
