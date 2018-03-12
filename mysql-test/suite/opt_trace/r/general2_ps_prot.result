@@ -1173,7 +1173,7 @@ TRACE
               "num_rows_found": 4,
               "num_examined_rows": 4,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": "NNN",
+              "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<varlen_sort_key, rowid>"
@@ -5213,7 +5213,7 @@ GROUP BY field2 ORDER BY alias1.col_int_key,alias2.pk	{
               "num_rows_found": 8,
               "num_examined_rows": 8,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": "NNN",
+              "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"

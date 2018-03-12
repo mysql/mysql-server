@@ -16710,7 +16710,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
               "num_rows_found": 24,
               "num_examined_rows": 24,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": "NNN",
+              "peak_memory_used": "NNN",
               "sort_algorithm": "std::stable_sort",
               "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
@@ -16755,7 +16755,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
               "num_rows_found": 24,
               "num_examined_rows": 24,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": "NNN",
+              "peak_memory_used": "NNN",
               "sort_algorithm": "std::stable_sort",
               "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"
@@ -16800,7 +16800,7 @@ SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t 
               "num_rows_found": 24,
               "num_examined_rows": 24,
               "num_initial_chunks_spilled_to_disk": 0,
-              "sort_buffer_size": "NNN",
+              "peak_memory_used": "NNN",
               "sort_algorithm": "std::sort",
               "unpacked_addon_fields": "using_heap_table",
               "sort_mode": "<fixed_sort_key, rowid>"

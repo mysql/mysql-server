@@ -1150,7 +1150,7 @@ EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER (PARTITION BY i) FROM t;
 --echo Test optimizer trace with window costs
 SET optimizer_trace="enabled=on";
 SELECT ROW_NUMBER() OVER (PARTITION BY i), SUM(i) OVER (ORDER BY i DESC) FROM t GROUP BY i ORDER BY i;
---replace_regex /("sort_buffer_size":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
+--replace_regex /("peak_memory_used":) [0-9]+/\1 "NNN"/ /("key_size":) [0-9]+/\1 "XXX"/ /("row_size":) [0-9]+/\1 "XXX"/
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 SET optimizer_trace="enabled=off";
 

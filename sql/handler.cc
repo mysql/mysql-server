@@ -4815,6 +4815,7 @@ int ha_create_table(THD *thd, const char *path, const char *db,
 #endif
 
   // When db_stat is 0, we can pass nullptr as dd::Table since it won't be used.
+  destroy(&table);
   if (open_table_from_share(thd, &share, "", 0, (uint)READ_ALL, 0, &table, true,
                             nullptr)) {
 #ifdef HAVE_PSI_TABLE_INTERFACE

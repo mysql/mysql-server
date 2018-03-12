@@ -2505,6 +2505,7 @@ void free_tmp_table(THD *thd, TABLE *entry) {
       So we need a copy to free it.
     */
     MEM_ROOT own_root = std::move(entry->s->mem_root);
+    destroy(entry);
     free_root(&own_root, MYF(0));
   }
 

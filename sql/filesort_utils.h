@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,11 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <memory>
 #include <utility>
+#include <vector>
 
+#include "map_helpers.h"
 #include "my_base.h"  // ha_rows
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -62,187 +65,229 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
                                       const Cost_model_table *cost_model);
 
 /**
-  A wrapper class around the buffer used by filesort().
-  The sort buffer is a contiguous chunk of memory,
-  containing both records to be sorted, and pointers to said records:
+  Buffer used for storing records to be sorted. The records are stored in
+  a series of buffers that are allocated incrementally, growing 50% each
+  time, similar to how a MEM_ROOT works. This allows the user to set a large
+  maximum buffer size without getting huge allocations for sorting small result
+  sets. It means that if you actually _do_ use the entire buffer, there will be
+  more allocations than one large allocation up-front, but this is a worthwhile
+  tradeoff (those allocation will tend to disappear into the cost of actually
+  getting all the rows and sorting them).
 
-  <start of buffer       | still unused   |                      end of buffer>
-  |rec 0|record 1  |rec 2|  ............  |ptr to rec2|ptr to rec1|ptr to rec0|
+  In addition, Filesort_buffer stores a vector of pointers to the beginning of
+  each record. It is these pointers that are actually sorted in filesort.
+  If the records are small, this can add up to overhead on top of the amount of
+  memory the user expected to use. We _do_ take already allocated pointers into
+  account when calculating how big a new block can be, so the amount of badness
+  is bounded:
 
-  Records will be inserted "left-to-right". Records are not necessarily
-  fixed-size, they can be packed and stored without any "gaps".
+  Assume that we have set maximum record size to infinity, but that in
+  practice, they are are about the smallest size possible (4-byte sort key plus
+  4-byte rowid) and that we are on a 64-bit system. Then, the worst possible
+  overhead is that we use as much space on pointers as the size of the last
+  (largest) block. We can look at the two possible extremes:
 
-  Record pointers will be inserted "right-to-left", as a side-effect
-  of inserting the actual records.
+    - Smallest possible sort buffer (32 kB): 32 kB overhead.
+    - A huge sort buffer (x kB): If the last block is y kB, the total size will
+      be y + 2/3y + (2/3)²y + ... = 3y, which means the last block is 1/3 of the
+      total size. Thus, pointer overhead will be no worse than 33%.
 
-  We wrap the buffer in order to be able to do lazy initialization of the
-  pointers: the buffer is often much larger than what we actually need.
-
-  With this allocation scheme, and lazy initialization of the pointers,
-  we are able to pack variable-sized records in the buffer,
-  and thus possibly have space for more records than we initially estimated.
+  In most practical cases, it will be much better than this. In particular,
+  even when allocating a block (where we don't yet know how many records will
+  fit), we allow space for the record pointers we'd need given maximum-sized
+  rows.
 
   The buffer must be kept available for multiple executions of the
-  same sort operation, so we have explicit allocate and free functions,
-  rather than doing alloc/free in CTOR/DTOR.
- */
+  same sort operation, so one can call reset() for reuse. Again similar
+  to MEM_ROOT, this keeps the last (largest) block and discards the others.
+*/
 class Filesort_buffer {
  public:
   Filesort_buffer()
-      : m_next_rec_ptr(NULL),
-        m_rawmem(NULL),
-        m_record_pointers(NULL),
-        m_sort_keys(NULL),
-        m_num_records(0),
-        m_record_length(0),
-        m_size_in_bytes(0),
-        m_idx(0) {}
+      : m_next_rec_ptr(nullptr),
+        m_current_block_end(nullptr),
+        m_max_record_length(0),
+        m_max_size_in_bytes(0),
+        m_current_block_size(0),
+        m_space_used_other_blocks(0) {}
 
   /** Sort me... */
   void sort_buffer(Sort_param *param, uint count);
 
   /**
-    Reverses the record pointer array, to avoid recording new results for
-    non-deterministic mtr tests.
-  */
-  void reverse_record_pointers() {
-    if (m_idx < 2)  // There is nothing to swap.
-      return;
-    uchar **keys = get_sort_keys();
-    const longlong count = m_idx - 1;
-    for (longlong ix = 0; ix <= count / 2; ++ix)
-      std::swap(keys[ix], keys[count - ix]);
-  }
-
-  /**
-    Initializes all the record pointers.
-  */
-  void init_record_pointers() {
-    init_next_record_pointer();
-    while (m_idx < m_num_records) (void)get_next_record_pointer();
-    reverse_record_pointers();
-  }
-
-  /**
     Prepares the buffer for the next batch of records to process.
    */
-  void init_next_record_pointer() {
-    m_idx = 0;
-    m_next_rec_ptr = m_rawmem;
-    m_sort_keys = NULL;
-  }
-
-  /**
-    @returns the number of bytes currently in use for data.
-   */
-  size_t space_used_for_data() const {
-    return m_next_rec_ptr ? m_next_rec_ptr - m_rawmem : 0;
-  }
-
-  /**
-    @returns the number of bytes left in the buffer.
-  */
-  size_t spaceleft() const {
-    DBUG_ASSERT(m_next_rec_ptr >= m_rawmem);
-    const size_t spaceused = (m_next_rec_ptr - m_rawmem) +
-                             (static_cast<size_t>(m_idx) * sizeof(uchar *));
-    return m_size_in_bytes - spaceused;
-  }
-
-  /**
-    Is the buffer full?
-  */
-  bool isfull() const {
-    if (m_idx < m_num_records) return false;
-    return spaceleft() < (m_record_length + sizeof(uchar *));
-  }
+  void reset();
 
   /**
     Where should the next record be stored?
    */
   uchar *get_next_record_pointer() {
+    // See if we need to allocate a new block.
+    if (m_next_rec_ptr + m_max_record_length > m_current_block_end) {
+      if (allocate_block(1)) return nullptr;
+    }
+
+    // Allocate space within the current block.
     uchar *retval = m_next_rec_ptr;
-    // Save the return value in the record pointer array.
-    m_record_pointers[-m_idx] = m_next_rec_ptr;
-    // Prepare for the subsequent request.
-    m_idx++;
-    m_next_rec_ptr += m_record_length;
+    m_record_pointers.push_back(m_next_rec_ptr);
+    m_next_rec_ptr += m_max_record_length;
     return retval;
   }
+
+  /**
+    Removes any existing rows and allocates `num_records` maximum-sized rows
+    (call get_sorted_record() to get their pointers). This is somewhat more
+    efficient than calling reset() and then get_next_record_pointer()
+    repeatedly, as it guarantees that at most one allocation is needed.
+
+    @returns true on memory allocation error, including if the allocated
+    size would exceed max_size_in_bytes().
+  */
+  bool preallocate_records(size_t num_records);
 
   /**
     Adjusts for actual record length. get_next_record_pointer() above was
     pessimistic, and assumed that the record could not be packed.
    */
   void adjust_next_record_pointer(uint val) {
-    DBUG_ASSERT(m_record_length >= val);
-    m_next_rec_ptr -= (m_record_length - val);
+    DBUG_ASSERT(m_max_record_length >= val);
+    m_next_rec_ptr -= (m_max_record_length - val);
+  }
+
+  size_t max_size_in_bytes() const { return m_max_size_in_bytes; }
+
+  /**
+    How much memory has been allocated (counting both the sort buffer and the
+    record pointers) at most since last call to clear_peak_memory_used().
+    Note in particular that reset() and free_sort_buffer() does _not_ zero this
+    counter.
+  */
+  size_t peak_memory_used() const {
+    update_peak_memory_used();
+    return m_peak_memory_used;
+  }
+
+  /// See peak_memory_used.
+  void clear_peak_memory_used() { m_peak_memory_used = 0; }
+
+  /**
+    Set the memory limit for the sort buffer before starting to add records.
+    If trying to allocate space for a new row (in get_next_record_pointer)
+    would take us past the set limit, allocation will fail. Note that we can go
+    a bit over this limit due to having to store record pointers; see the class
+    comment.
+
+    @param max_size       Maximum size of the sort buffer, in bytes.
+    @param record_length  Worst-case size of each record, in bytes.
+  */
+  void set_max_size(size_t max_size, size_t record_length) {
+    m_max_size_in_bytes = max_size;
+    m_max_record_length = record_length;
   }
 
   /**
-    @returns total size of buffer: pointer array + record buffers.
+    Frees all memory. Unlike reset(), which keeps one block for future use,
+    this actually releases all blocks. It is intended to release memory
+    in an error situation, for final shutdown, or if even the largest block
+    will not be large enough for future allocations.
+
+    You do not need to call this if you are destroying the object anyway.
   */
-  size_t sort_buffer_size() const { return m_size_in_bytes; }
+  void free_sort_buffer();
 
   /**
-    Allocates the buffer, but does *not* initialize pointers.
-    Total size = (num_records * record_length) + (num_records * sizeof(pointer))
-                  space for records               space for pointer to records
-    Caller is responsible for raising an error if allocation fails.
-
-    @param num_records   Number of records.
-    @param record_length (maximum) size of each record.
-    @returns Pointer to allocated area, or NULL in case of out-of-memory.
-  */
-  uchar *alloc_sort_buffer(uint num_records, uint record_length);
-
-  /// Frees the buffer.
-  void free_sort_buffer() {
-    my_free(m_rawmem);
-    *this = Filesort_buffer();
-  }
-
-  /**
-    Used to access the "right-to-left" array of record pointers as an ordinary
-    "left-to-right" array, so that we can pass it directly on to std::sort().
+    Get the list of record pointers as a contiguous array. Will be invalidated
+    by calling get_next_record_pointer() or otherwise changing the number of
+    records.
   */
   uchar **get_sort_keys() {
-    if (m_idx == 0) return NULL;
-    return &m_record_pointers[1 - m_idx];
+    if (m_record_pointers.empty()) return nullptr;
+    return m_record_pointers.data();
   }
 
   /**
     Gets sorted record number ix. @see get_sort_keys()
     Only valid after buffer has been sorted!
   */
-  uchar *get_sorted_record(uint ix) { return m_sort_keys[ix]; }
+  uchar *get_sorted_record(size_t ix) { return m_record_pointers[ix]; }
 
   /**
-    @returns The entire buffer, as a character array.
-    This is for reusing the memory for merge buffers.
-   */
-  Bounds_checked_array<uchar> get_raw_buf() {
-    return Bounds_checked_array<uchar>(m_rawmem, m_size_in_bytes);
-  }
+    Clears all rows, then returns a contiguous buffer of maximum size.
+    (This may or may not involve allocation.) This is for reusing the memory
+    for merge buffers, which requires the memory to be a single contiguous
+    chunk; one could in theory adjust merging to allow using multiple buffers
+    like sorting does, but once we need to merge, that means we've hit disk
+    anyway (or at the very least, need to talk to the OS' buffer cache),
+    and the cost of a single allocation is small compared to I/O.
+
+    If you use this memory area, you cannot also use the Filesort_buffer to
+    store sort records (get_next_record_pointer etc.); that would use the
+    same memory.
+
+    Can return nullptr, if allocation fails.
+  */
+  Bounds_checked_array<uchar> get_contiguous_buffer();
 
  private:
-  uchar *m_next_rec_ptr;      /// The next record will be inserted here.
-  uchar *m_rawmem;            /// The raw memory buffer.
-  uchar **m_record_pointers;  /// The "right-to-left" array of record pointers.
-  uchar **m_sort_keys;        /// Caches the value of get_sort_keys()
-  uint m_num_records;         /// Saved value from alloc_sort_buffer()
-  uint m_record_length;       /// Saved value from alloc_sort_buffer()
-  size_t m_size_in_bytes;     /// Size of raw buffer, in bytes.
+  /**
+    Allocate a new block with space for at least `num_rows` rows.
+
+    @returns true if the allocation failed (including if m_max_size_in_bytes
+    was exceeded).
+  */
+  bool allocate_block(size_t num_rows);
 
   /**
-    This is the index in the "right-to-left" array of the next record to
-    be inserted into the buffer. It is signed, because we use it in signed
-    expressions like:
-        m_record_pointers[-m_idx];
-    It is longlong rather than int, to ensure that it covers UINT_MAX32
-    without any casting/warning.
+    Allocate a new block of exactly `block_size` bytes, and sets it
+    as the current block. Does not check m_max_size_in_bytes.
+
+    @returns true if the allocation failed
   */
-  longlong m_idx;
+  bool allocate_sized_block(size_t num_bytes);
+
+  /// See m_peak_memory_used.
+  void update_peak_memory_used() const;
+
+  uchar *m_next_rec_ptr;       ///< The next record will be inserted here.
+  uchar *m_current_block_end;  ///< The limit of the current block, exclusive.
+
+  /// The memory blocks used for the actual data.
+  std::vector<unique_ptr_my_free<uchar[]>> m_blocks;
+
+  /// Pointer to the beginning of each record.
+  std::vector<uchar *> m_record_pointers;
+
+  uint m_max_record_length;  ///< Worst-case length of each record.
+
+  /// Maximum number of bytes we are allowed to allocate in all.
+  size_t m_max_size_in_bytes;
+
+  /**
+    The size of the current memory block (m_blocks.back()), in bytes
+    (or 0 if no block). If nothing has been allocated from the block yet,
+    the invariant m_next_rec_ptr + m_current_block_size == m_current_block_end
+    holds.
+  */
+  size_t m_current_block_size;
+
+  /**
+    The total size of all blocks except the current one, not including
+    record pointers. Used for bookkeeping how far away we are from
+    reaching m_max_size_in_bytes.
+  */
+  size_t m_space_used_other_blocks;
+
+  /**
+    The largest amount of total memory we've been using since last call to
+    clear_peak_memory_used(). This is updated lazily so that we don't need
+    to do the calculations for every record (and thus is mutable). The only
+    point where it _must_ be explicitly updated (by calling
+    update_peak_memory_used()), except when being asked for the value,
+    is right before we deallocate memory, as otherwise, there could be a peak
+    we had forgotten.
+  */
+  mutable size_t m_peak_memory_used{0};
 
   // Privately movable, but not copyable.
   Filesort_buffer &operator=(const Filesort_buffer &rhs) = delete;

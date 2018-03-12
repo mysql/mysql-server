@@ -34,6 +34,7 @@
 #include <string.h>
 #include <algorithm>
 #include <atomic>
+#include <memory>
 #include <new>
 #include <vector>
 
@@ -408,9 +409,13 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       For PQ queries (with limit) we know exactly how many pointers/records
       we have in the buffer, so to simplify things, we initialize
       all pointers here. (We cannot pack fields anyways, so there is no
-      point in doing lazy initialization).
+      point in doing incremental allocation).
      */
-    table->sort.init_record_pointers();
+    if (table->sort.preallocate_records(param.max_rows_per_buffer)) {
+      my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
+      LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
+      goto err;
+    }
 
     if (pq.init(param.max_rows, &param, table->sort.get_sort_keys())) {
       /*
@@ -440,36 +445,22 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       We need space for at least one record from each merge chunk, i.e.
         param->max_rows_per_buffer >= MERGEBUFF2
       See merge_buffers()),
-      memory_available must be large enough for
-        param->max_rows_per_buffer * (record + record pointer) bytes
-      (the main sort buffer, see alloc_sort_buffer()).
       Hence this minimum:
     */
     const ulong min_sort_memory = max<ulong>(
         MIN_SORT_MEMORY,
         ALIGN_SIZE(MERGEBUFF2 * (param.max_record_length() + sizeof(uchar *))));
     /*
-      Cannot depend on num_rows. For external sort, space for upto MERGEBUFF2
-      rows is required.
+      NOTE: param.max_rows_per_buffer is merely informative (for optimizer
+      trace) in this case, not actually used.
     */
     if (num_rows_estimate < MERGEBUFF2) num_rows_estimate = MERGEBUFF2;
+    ha_rows keys =
+        memory_available / (param.max_record_length() + sizeof(char *));
+    param.max_rows_per_buffer =
+        min(num_rows_estimate > 0 ? num_rows_estimate : 1, keys);
 
-    while (memory_available >= min_sort_memory) {
-      ha_rows keys =
-          memory_available / (param.max_record_length() + sizeof(char *));
-      // If the table is empty, allocate space for one row.
-      param.max_rows_per_buffer =
-          min(num_rows_estimate > 0 ? num_rows_estimate : 1, keys);
-
-      table->sort.alloc_sort_buffer(param.max_rows_per_buffer,
-                                    param.max_record_length());
-      if (table->sort.sort_buffer_size() > 0) break;
-      ulong old_memory_available = memory_available;
-      memory_available = memory_available / 4 * 3;
-      if (memory_available < min_sort_memory &&
-          old_memory_available > min_sort_memory)
-        memory_available = min_sort_memory;
-    }
+    table->sort.set_max_size(memory_available, param.max_record_length());
     if (memory_available < min_sort_memory) {
       my_error(ER_OUT_OF_SORTMEMORY, MYF(ME_FATALERROR));
       LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
@@ -520,21 +511,23 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
       goto err;
     if (reinit_io_cache(outfile, WRITE_CACHE, 0L, 0, 0)) goto err;
 
-    /*
-      Use also the space previously used by string pointers in sort_buffer
-      for temporary key storage.
-    */
     param.max_rows_per_buffer = static_cast<uint>(
-        table->sort.sort_buffer_size() / param.max_record_length());
+        table->sort.max_size_in_bytes() / param.max_record_length());
 
-    if (merge_many_buff(thd, &param, table->sort.get_raw_buf(),
-                        table->sort.merge_chunks, &num_chunks, &tempfile))
+    Bounds_checked_array<uchar> merge_buf = table->sort.get_contiguous_buffer();
+    if (merge_buf.array() == nullptr) {
+      my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
+      LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
+      goto err;
+    }
+    if (merge_many_buff(thd, &param, merge_buf, table->sort.merge_chunks,
+                        &num_chunks, &tempfile))
       goto err;
     if (flush_io_cache(&tempfile) ||
         reinit_io_cache(&tempfile, READ_CACHE, 0L, 0, 0))
       goto err;
     if (merge_index(
-            thd, &param, table->sort.get_raw_buf(),
+            thd, &param, merge_buf,
             Merge_chunk_array(table->sort.merge_chunks.begin(), num_chunks),
             &tempfile, outfile))
       goto err;
@@ -567,7 +560,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
         .add("num_rows_found", num_rows_found)
         .add("num_examined_rows", param.num_examined_rows)
         .add("num_initial_chunks_spilled_to_disk", num_initial_chunks)
-        .add("sort_buffer_size", table->sort.sort_buffer_size())
+        .add("peak_memory_used", table->sort.peak_memory_used())
         .add_alnum("sort_algorithm", algo_text[param.m_sort_algorithm]);
     if (!param.using_packed_addons())
       filesort_summary.add_alnum(
@@ -874,9 +867,13 @@ static const Item::enum_walk walk_subquery =
        {
          if (no free space in sort buffer)
          {
-           sort buffer;
-           dump sorted sequence to 'tempfile';
-           dump Merge_chunk describing sequence location into 'chunk_file';
+           allocate new, larger buffer;
+           if (no space for new buffer)
+           {
+             sort record pointers (all buffers);
+             dump sorted sequence to 'tempfile';
+             dump Merge_chunk describing sequence location into 'chunk_file';
+           }
          }
          put sort key into buffer;
          if (key was packed)
@@ -967,6 +964,8 @@ static ha_rows read_all_rows(
   DEBUG_SYNC(thd, "after_index_merge_phase1");
   ha_rows num_total_records = 0, num_records_this_chunk = 0;
   uint num_written_chunks = 0;
+  fs_info->reset();
+  fs_info->clear_peak_memory_used();
   for (;;) {
     if (is_range_scan) {
       if ((error = qep_tab->quick()->get_next())) break;
@@ -997,18 +996,31 @@ static ha_rows read_all_rows(
       if (pq)
         pq->push(ref_pos);
       else {
-        if (fs_info->isfull())  // Flush chunk to disk.
-        {
-          if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
-                         tempfile)) {
+        uchar *start_of_rec = fs_info->get_next_record_pointer();
+        if (start_of_rec == nullptr) {
+          // Out of room, so flush chunk to disk (if there's anything to flush).
+          if (num_records_this_chunk > 0) {
+            if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
+                           tempfile)) {
+              num_total_records = HA_POS_ERROR;
+              goto cleanup;
+            }
+            num_records_this_chunk = 0;
+            num_written_chunks++;
+            fs_info->reset();
+
+            // Now we should have room for a new row.
+            start_of_rec = fs_info->get_next_record_pointer();
+          }
+
+          // If we're still out of memory after flushing to disk, give up.
+          if (start_of_rec == nullptr) {
+            my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
+            LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
             num_total_records = HA_POS_ERROR;
             goto cleanup;
           }
-          num_records_this_chunk = 0;
-          num_written_chunks++;
         }
-        if (num_records_this_chunk == 0) fs_info->init_next_record_pointer();
-        uchar *start_of_rec = fs_info->get_next_record_pointer();
 
         const uint rec_sz = param->make_sortkey(start_of_rec, ref_pos);
         if ((packed_addon_fields || using_varlen_keys) &&
@@ -1658,10 +1670,9 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
   if (num_rows < num_available_keys) {
     // The whole source set fits into memory.
     if (param->max_rows < num_rows / PQ_slowness) {
-      filesort_info->alloc_sort_buffer(param->max_rows_per_buffer,
-                                       param->max_record_length());
+      filesort_info->set_max_size(memory_available, param->max_record_length());
       trace_filesort.add("chosen", true);
-      DBUG_RETURN(filesort_info->sort_buffer_size() > 0);
+      DBUG_RETURN(filesort_info->max_size_in_bytes() > 0);
     } else {
       // PQ will be slower.
       trace_filesort.add("chosen", false).add_alnum("cause", "sort_is_cheaper");
@@ -1671,10 +1682,9 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
 
   // Do we have space for LIMIT rows in memory?
   if (param->max_rows_per_buffer < num_available_keys) {
-    filesort_info->alloc_sort_buffer(param->max_rows_per_buffer,
-                                     param->max_record_length());
+    filesort_info->set_max_size(memory_available, param->max_record_length());
     trace_filesort.add("chosen", true);
-    DBUG_RETURN(filesort_info->sort_buffer_size() > 0);
+    DBUG_RETURN(filesort_info->max_size_in_bytes() > 0);
   }
 
   // Try to strip off addon fields.
@@ -1717,10 +1727,9 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
       }
 
       trace_addon.add("chosen", true);
-      filesort_info->alloc_sort_buffer(
-          param->max_rows_per_buffer,
-          param->max_compare_length() + param->ref_length);
-      if (filesort_info->sort_buffer_size() > 0) {
+      filesort_info->set_max_size(
+          memory_available, param->max_compare_length() + param->ref_length);
+      if (filesort_info->max_size_in_bytes() > 0) {
         // Make attached data to be references instead of fields.
         filesort_info->addon_fields = NULL;
         param->addon_fields = NULL;
@@ -1738,10 +1747,12 @@ bool check_if_pq_applicable(Opt_trace_context *trace, Sort_param *param,
 }
 
 /**
-  Read data to buffer.
+  Read from a disk file into the merge chunk's buffer. We generally read as
+  many complete rows as we can, except when bounded by max_keys() or rowcount().
+  Incomplete rows will be left in the file.
 
   @returns
-    (uint)-1 if something goes wrong
+    Number of bytes read, or (uint)-1 if something went wrong.
 */
 static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
                            Sort_param *param) {
