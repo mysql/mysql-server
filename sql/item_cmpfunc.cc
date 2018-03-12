@@ -2713,10 +2713,9 @@ float Item_func_between::get_filtering_effect(THD *thd,
   @retval true if: args[1] <= args[0] <= args[2]
  */
 template <typename LLorULL>
-longlong compare_between_int_result(bool compare_as_temporal_dates,
-                                    bool compare_as_temporal_times,
-                                    bool negated, Item **args,
-                                    bool *null_value) {
+static inline longlong compare_between_int_result(
+    bool compare_as_temporal_dates, bool compare_as_temporal_times,
+    bool negated, Item **args, bool *null_value) {
   {
     LLorULL a, b, value;
     value = compare_as_temporal_times
