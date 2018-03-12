@@ -90,3 +90,24 @@ ANALYZE TABLE t1;
 --echo # Index access is used since key is covering.
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE b like 'aaaa';
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27660560 RECENT REGRESSION: CRASH IN CHECK_COVERING_PREFIX_KEYS.
+--echo #
+
+CREATE TABLE t1(f1 BLOB, KEY(f1(1))) ENGINE=INNODB;
+INSERT INTO t1 VALUES ('ccc'), ('aa');
+ANALYZE TABLE t1;
+
+SELECT (f1 LIKE null) from t1;
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT 1 FROM t1 WHERE f1 NOT LIKE json_merge('' ,'+' );
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT 1 FROM t1 WHERE f1 LIKE json_contains('key2' ,'key4' );
+SELECT 1 FROM t1 WHERE f1 LIKE json_depth(null);
+
+# Tests below should use index access.
+EXPLAIN SELECT (f1 LIKE null) from t1;
+EXPLAIN SELECT (f1 LIKE null) from t1 WHERE f1 LIKE 'a%';
+
+DROP TABLE t1;

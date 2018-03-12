@@ -7517,9 +7517,10 @@ void TABLE::update_covering_prefix_keys(Field *field, uint16 key_read_length,
       for (KEY_PART_INFO *part = key_info->key_part,
                          *part_end = part + actual_key_parts(key_info);
            part != part_end; ++part)
-        if ((part->key_part_flag & HA_PART_KEY_SEG) && field->eq(part->field) &&
-            part->length < key_read_length)
-          covering_keys.clear_bit(keyno);
+        if ((part->key_part_flag & HA_PART_KEY_SEG) && field->eq(part->field)) {
+          uint16 key_part_length = part->length / field->charset()->mbmaxlen;
+          if (key_part_length < key_read_length) covering_keys.clear_bit(keyno);
+        }
     }
 }
 

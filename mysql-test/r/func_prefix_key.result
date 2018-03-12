@@ -776,3 +776,32 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`b` like 'aaaa')
 DROP TABLE t1;
+#
+# Bug#27660560 RECENT REGRESSION: CRASH IN CHECK_COVERING_PREFIX_KEYS.
+#
+CREATE TABLE t1(f1 BLOB, KEY(f1(1))) ENGINE=INNODB;
+INSERT INTO t1 VALUES ('ccc'), ('aa');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT (f1 LIKE null) from t1;
+(f1 LIKE null)
+NULL
+NULL
+SELECT 1 FROM t1 WHERE f1 NOT LIKE json_merge('' ,'+' );
+ERROR 22032: Invalid JSON text in argument 1 to function json_merge_preserve: "The document is empty." at position 0.
+SELECT 1 FROM t1 WHERE f1 LIKE json_contains('key2' ,'key4' );
+ERROR 22032: Invalid JSON text in argument 1 to function json_contains: "Invalid value." at position 0.
+SELECT 1 FROM t1 WHERE f1 LIKE json_depth(null);
+1
+EXPLAIN SELECT (f1 LIKE null) from t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	index	NULL	f1	4	NULL	2	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t1`.`f1` like NULL) AS `(f1 LIKE null)` from `test`.`t1`
+EXPLAIN SELECT (f1 LIKE null) from t1 WHERE f1 LIKE 'a%';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	f1	f1	4	NULL	1	100.00	Using where; Using index
+Warnings:
+Note	1003	/* select#1 */ select (`test`.`t1`.`f1` like NULL) AS `(f1 LIKE null)` from `test`.`t1` where (`test`.`t1`.`f1` like 'a%')
+DROP TABLE t1;
