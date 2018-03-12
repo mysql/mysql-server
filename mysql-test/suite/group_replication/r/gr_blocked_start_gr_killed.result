@@ -10,7 +10,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 SET sql_log_bin=0;
 CALL mtr.add_suppression("Error writing file.*(errno: 28 - No space left on device)");
-CALL mtr.add_suppression("Disk is full writing.*(Errcode: 28 - No space left on device)");
+CALL mtr.add_suppression("Disk is full writing.*(OS errno 28 - No space left on device)");
 CALL mtr.add_suppression("Retry in 60 secs. Message reprinted in 600 secs");
 CALL mtr.add_suppression("Unblocking the group replication thread waiting for applier to start, as the start group replication was killed");
 CALL mtr.add_suppression("Unable to initialize the Group Replication applier module.");
