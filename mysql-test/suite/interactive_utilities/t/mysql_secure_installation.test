@@ -2,6 +2,7 @@
 # If not, the test will be skipped.
 --source include/have_expect.inc
 --source include/not_windows.inc
+--source include/have_validate_password_component.inc
 
 SELECT plugin into @plugin from mysql.user where user= 'root' and host='localhost';
 SELECT password_last_changed into @plc from mysql.user where user= 'root' and host='localhost';
@@ -144,7 +145,7 @@ $i++;
 EOF
 
 # Uninstalling validate_password plugin
-UNINSTALL PLUGIN validate_password;
+UNINSTALL COMPONENT "file://component_validate_password";
 
 # Restoring the server to the state prior to this test.
 SET PASSWORD for root@localhost = '';

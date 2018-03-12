@@ -13,10 +13,10 @@ mysql_secure_installation: [Warning] Using a password on the command line interf
 Securing the MySQL server deployment.
 
 
-VALIDATE PASSWORD PLUGIN can be used to test passwords
+VALIDATE PASSWORD COMPONENT can be used to test passwords
 and improve security. It checks the strength of password
 and allows the users to set only those passwords which are
-secure enough. Would you like to setup VALIDATE PASSWORD plugin?
+secure enough. Would you like to setup VALIDATE PASSWORD component?
 
 Press y|Y for Yes, any other key for No: Using existing password for root.
 Change the password for root ? ((Press y|Y for Yes, any other key for No) : 
@@ -55,10 +55,10 @@ mysql_secure_installation: [Warning] Using a password on the command line interf
 Securing the MySQL server deployment.
 
 
-VALIDATE PASSWORD PLUGIN can be used to test passwords
+VALIDATE PASSWORD COMPONENT can be used to test passwords
 and improve security. It checks the strength of password
 and allows the users to set only those passwords which are
-secure enough. Would you like to setup VALIDATE PASSWORD plugin?
+secure enough. Would you like to setup VALIDATE PASSWORD component?
 
 Press y|Y for Yes, any other key for No: 
 There are three levels of password validation policy:
@@ -114,9 +114,7 @@ CREATE DATABASE test;
 REPLACE INTO mysql.user VALUES ('localhost','root','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'mysql_native_password','','N',NULL,NULL,'N','Y','Y', NULL, NULL);
 REPLACE INTO mysql.user VALUES ('localhost','mysql.sys','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','N','','','','',0,0,0,0,'mysql_native_password','*THISISNOTAVALIDPASSWORDTHATCANBEUSEDHERE','N',NULL,NULL,'Y','N','N', NULL, NULL);
 INSERT INTO mysql.db VALUES ('%','test','','Y','Y','Y','Y','Y','Y','N','Y','Y','Y','Y','Y','Y','Y','Y','N','N','Y','Y');
-UNINSTALL PLUGIN validate_password;
-Warnings:
-Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+UNINSTALL COMPONENT "file://component_validate_password";
 UPDATE mysql.user SET password_last_changed=@plc, authentication_string=@auth_str, plugin= @plugin where user='root';
 UPDATE mysql.user SET password_last_changed=@sys_plc, authentication_string=@sys_auth_str, plugin= @sys_plugin where user='mysql.sys';
 FLUSH PRIVILEGES;

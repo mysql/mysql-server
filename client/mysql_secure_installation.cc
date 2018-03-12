@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -273,17 +273,19 @@ static bool execute_query(const char **query, size_t length) {
 }
 
 /**
-  Checks if the validate_password plugin is installed and returns true if it is.
+  Checks if the validate_password component is installed and returns true
+  if it is.
 */
 static bool validate_password_exists() {
   MYSQL_ROW row;
   bool res = true;
   const char *query =
-      "SELECT NAME FROM mysql.plugin WHERE NAME "
-      "= \'validate_password\'";
+      "SELECT component_urn FROM mysql.component WHERE component_urn "
+      "= \'file://component_validate_password\'";
   if (!execute_query(&query, strlen(query)))
     DBUG_PRINT("info", ("query success!"));
   MYSQL_RES *result = mysql_store_result(&mysql);
+  if (!result) return false;
   row = mysql_fetch_row(result);
   if (!row) res = false;
 
@@ -292,40 +294,29 @@ static bool validate_password_exists() {
 }
 
 /**
-  Installs validate_password plugin and sets the password validation policy.
+  Installs validate_password component and sets the password validation policy.
 
-  @return   Returns 1 on successfully setting the plugin and 0 in case of
+  @return   Returns 1 on successfully setting the component and 0 in case of
             of any error.
 */
-static int install_password_validation_plugin() {
+static int install_password_validation_component() {
   int reply;
-  int plugin_set = 0;
+  int component_set = 0;
   char *strength = NULL;
   bool option_read = false;
-  reply= get_response((const char *) "\nVALIDATE PASSWORD PLUGIN can be used "
-                                     "to test passwords\nand improve security. "
-				     "It checks the strength of password\nand "
-				     "allows the users to set only those "
-				     "passwords which are\nsecure enough. "
-				     "Would you like to setup VALIDATE "
-				     "PASSWORD plugin?\n\nPress y|Y for Yes, "
-				     "any other key for No: ", 'y');
+  reply= get_response((const char *) "\nVALIDATE PASSWORD COMPONENT can be "
+                                     "used to test passwords\nand improve "
+                                     "security. It checks the strength of "
+                                     "password\nand allows the users to set "
+                                     "only those passwords which are\nsecure "
+                                     "enough. Would you like to setup VALIDATE "
+				     "PASSWORD component?\n\nPress y|Y for Yes,"
+				     " any other key for No: ", 'y');
   if (reply == (int)'y' || reply == (int)'Y') {
-#ifdef _WIN32
     const char *query_tmp;
-    query_tmp =
-        "INSTALL PLUGIN validate_password SONAME "
-        "'validate_password.dll'";
-    if (!execute_query(&query_tmp, strlen(query_tmp)))
-#else
-    const char *query_tmp;
-    query_tmp =
-        "INSTALL PLUGIN validate_password SONAME "
-        "'validate_password.so'";
-    if (!execute_query(&query_tmp, strlen(query_tmp)))
-#endif
-    {
-      plugin_set = 1;
+    query_tmp = "INSTALL COMPONENT 'file://component_validate_password'";
+    if (!execute_query(&query_tmp, strlen(query_tmp))) {
+      component_set = 1;
       while (!option_read) {
         reply= get_response((const char *) "\nThere are three levels of "
    "password validation policy:\n\n"
@@ -352,7 +343,7 @@ static int install_password_validation_plugin() {
         }
       }
       char *query, *end;
-      int tmp = sizeof("SET GLOBAL validate_password_policy = ") + 3;
+      int tmp = sizeof("SET GLOBAL validate_password.policy = ") + 3;
       size_t strength_length = strlen(strength);
       /*
         query string needs memory which is atleast the length of initial part
@@ -361,7 +352,7 @@ static int install_password_validation_plugin() {
       query = (char *)my_malloc(PSI_NOT_INSTRUMENTED,
                                 (strength_length * 2 + tmp) * sizeof(char),
                                 MYF(MY_WME));
-      end = my_stpcpy(query, "SET GLOBAL validate_password_policy = ");
+      end = my_stpcpy(query, "SET GLOBAL validate_password.policy = ");
       *end++ = '\'';
       end += mysql_real_escape_string_quote(&mysql, end, strength,
                                             (ulong)strength_length, '\'');
@@ -371,10 +362,10 @@ static int install_password_validation_plugin() {
       my_free(query);
     } else
       fprintf(stdout,
-              "The password validation plugin is not available. "
-              "Proceeding with the further steps without the plugin.\n");
+              "The password validation component is not available. "
+              "Proceeding with the further steps without the component.\n");
   }
-  return (plugin_set);
+  return (component_set);
 }
 
 /**
@@ -474,11 +465,11 @@ static bool mysql_expire_password(MYSQL *mysql) {
   if he wants to continue with the password, or provide a new one,
   depending on the strength displayed.
 
-  @param    plugin_set   1 if validate_password plugin is set and
+  @param component_set   1 if validate_password component is set and
                          0 if it is not.
 */
 
-static void set_opt_user_password(int plugin_set) {
+static void set_opt_user_password(int component_set) {
   char *password1 = 0, *password2 = 0;
   int reply = 0;
 
@@ -506,7 +497,7 @@ static void set_opt_user_password(int plugin_set) {
       continue;
     }
 
-    if (plugin_set == 1) {
+    if (component_set == 1) {
       estimate_password_strength(password1);
       reply = get_response((
           const char *)"Do you wish to continue with the "
@@ -516,7 +507,7 @@ static void set_opt_user_password(int plugin_set) {
 
     size_t pass_length = strlen(password1);
 
-    if ((!plugin_set) || (reply == (int)'y' || reply == (int)'Y')) {
+    if ((!component_set) || (reply == (int)'y' || reply == (int)'Y')) {
       char *query = NULL, *end;
       int tmp = sizeof("SET PASSWORD=") + 3;
       /*
@@ -834,7 +825,7 @@ error:
 int main(int argc, char *argv[]) {
   int reply;
   int rc;
-  int hadpass, plugin_set = 0;
+  int hadpass, component_set = 0;
 
   MY_INIT(argv[0]);
   DBUG_ENTER("main");
@@ -870,23 +861,23 @@ int main(int argc, char *argv[]) {
   hadpass = get_opt_user_password();
 
   if (!validate_password_exists())
-    plugin_set = install_password_validation_plugin();
+    component_set = install_password_validation_component();
   else {
     fprintf(stdout,
-            "The 'validate_password' plugin is installed on the server.\n"
+            "The 'validate_password' component is installed on the server.\n"
             "The subsequent steps will run with the existing "
-            "configuration\nof the plugin.\n");
-    plugin_set = 1;
+            "configuration\nof the component.\n");
+    component_set = 1;
   }
 
   if (!hadpass) {
     fprintf(stdout, "Please set the password for %s here.\n", opt_user);
-    set_opt_user_password(plugin_set);
+    set_opt_user_password(component_set);
   } else if (opt_use_default == false) {
     char prompt[256];
     fprintf(stdout, "Using existing password for %s.\n", opt_user);
 
-    if (plugin_set == 1) estimate_password_strength(password);
+    if (component_set == 1) estimate_password_strength(password);
 
     snprintf(prompt, sizeof(prompt) - 1,
              "Change the password for %s ? ((Press y|Y "
@@ -895,7 +886,7 @@ int main(int argc, char *argv[]) {
     reply = get_response(prompt, 'n');
 
     if (reply == (int)'y' || reply == (int)'Y')
-      set_opt_user_password(plugin_set);
+      set_opt_user_password(component_set);
     else
       fprintf(stdout, "\n ... skipping.\n");
   }
