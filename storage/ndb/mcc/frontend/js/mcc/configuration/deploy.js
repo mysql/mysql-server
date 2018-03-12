@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1308,7 +1308,16 @@ function getStopProcessCommands(process) {
         sc.addopt("--ndb-connectstring", getConnectstring());
         sc.addopt("--execute", "shutdown");
         sc.progTitle = "Running ndb_mgm -e shutdown to take down cluster";
-
+        //This is CLIENT command thus probably in /usr/bin and not /usr/sbin 
+        //(default install directory) so we have to use autocomplete.
+        if(!isWin) {
+            var instDir = sc.msg.file.path;
+            //NO path prefix!
+            sc.msg.file.path = '';
+            //Look for ndb_mgm in InstallDirectory, /usr/bin' and in PATH.
+            sc.msg.file.autoComplete = [instDir, '/usr/bin/',''];
+        }
+        //mcc.util.dbg("SC for ndb_mgm is " + sc + ".");
         if(!isWin) {
           sc.isDone = function () 
             { return mcc.gui.getStatii(nodeid) =="UNKNOWN" };
@@ -1326,6 +1335,16 @@ function getStopProcessCommands(process) {
             getEffectiveInstanceValue(process, "Socket")));
         sc.progTitle = "mysqldadmin shutdown on node "+nodeid;
         sc.nodeid = nodeid;
+        //This is CLIENT command thus probably in /usr/bin and not /usr/sbin 
+        //(default install directory) so we have to use autocomplete.
+        if(!isWin) {
+            var instDir = sc.msg.file.path;
+            //NO path prefix!
+            sc.msg.file.path = '';
+            //Look for mysqladmin in InstallDirectory, /usr/bin' and in PATH.
+            sc.msg.file.autoComplete = [instDir, '/usr/bin/',''];
+        }
+        //mcc.util.dbg("SC for mysqladmin is " + sc + ".");
         if (!isWin) {
           sc.isDone = function () 
             { return mcc.gui.getStatii(nodeid) == "NO_CONTACT" };
