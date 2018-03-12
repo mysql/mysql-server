@@ -442,15 +442,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     param.try_to_pack_addons(thd->variables.max_length_for_sort_data);
 
     /*
-      We need space for at least one record from each merge chunk, i.e.
-        param->max_rows_per_buffer >= MERGEBUFF2
-      See merge_buffers()),
-      Hence this minimum:
-    */
-    const ulong min_sort_memory = max<ulong>(
-        MIN_SORT_MEMORY,
-        ALIGN_SIZE(MERGEBUFF2 * (param.max_record_length() + sizeof(uchar *))));
-    /*
       NOTE: param.max_rows_per_buffer is merely informative (for optimizer
       trace) in this case, not actually used.
     */
@@ -461,11 +452,6 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
         min(num_rows_estimate > 0 ? num_rows_estimate : 1, keys);
 
     table->sort.set_max_size(memory_available, param.max_record_length());
-    if (memory_available < min_sort_memory) {
-      my_error(ER_OUT_OF_SORTMEMORY, MYF(ME_FATALERROR));
-      LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
-      goto err;
-    }
   }
 
   param.sort_form = table;
@@ -1763,15 +1749,23 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
   const bool packed_addon_fields = param->using_packed_addons();
   const bool using_varlen_keys = param->using_varlen_keys();
 
-  if ((count = min(merge_chunk->max_keys(), merge_chunk->rowcount()))) {
+  if (merge_chunk->rowcount() > 0) {
     size_t bytes_to_read;
     if (packed_addon_fields || using_varlen_keys) {
       count = merge_chunk->rowcount();
       bytes_to_read = min(merge_chunk->buffer_size(),
                           static_cast<size_t>(fromfile->end_of_file -
                                               merge_chunk->file_position()));
-    } else
+    } else {
+      count = min(merge_chunk->max_keys(), merge_chunk->rowcount());
       bytes_to_read = rec_length * static_cast<size_t>(count);
+      if (count == 0) {
+        // Not even room for the first row.
+        my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
+        LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
+        DBUG_RETURN((uint)-1);
+      }
+    }
 
     DBUG_PRINT("info",
                ("read_to_buffer %p at file_pos %llu bytes %llu", merge_chunk,
@@ -1816,7 +1810,12 @@ static uint read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
         DBUG_ASSERT(res_length > 0);
         record = start_of_payload + res_length;
       }
-      DBUG_ASSERT(ix > 0);
+      if (ix == 0) {
+        // Not even room for the first row.
+        my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
+        LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
+        DBUG_RETURN((uint)-1);
+      }
       count = ix;
       num_bytes_read = record - merge_chunk->buffer_start();
       DBUG_PRINT("info", ("read %llu bytes of complete records",
@@ -1893,7 +1892,6 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   int error = 0;
   uint rec_length, res_length;
   size_t sort_length;
-  ha_rows maxcount;
   ha_rows max_rows, org_max_rows;
   my_off_t to_start_filepos;
   uchar *strpos;
@@ -1912,13 +1910,12 @@ static int merge_buffers(THD *thd, Sort_param *param, IO_CACHE *from_file,
   res_length = param->fixed_res_length;
   sort_length = param->max_compare_length();
   uint offset = (flag == 0) ? 0 : (rec_length - res_length);
-  maxcount = (param->max_rows_per_buffer / chunk_array.size());
   to_start_filepos = my_b_tell(to_file);
   strpos = sort_buffer.array();
   org_max_rows = max_rows = param->max_rows;
 
-  /* The following will fire if there is not enough space in sort_buffer */
-  DBUG_ASSERT(maxcount != 0);
+  // Only relevant for fixed-length rows.
+  ha_rows maxcount = param->max_rows_per_buffer / chunk_array.size();
 
   Merge_chunk_greater mcl = param->using_varlen_keys()
                                 ? Merge_chunk_greater(param)

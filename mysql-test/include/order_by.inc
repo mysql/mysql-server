@@ -832,10 +832,10 @@ DROP TABLE t1;
 --echo #
 --echo # Bug#31590: Wrong error message on sort buffer being too small.
 --echo #
-create table t1(a int, b tinytext);
-insert into t1 values (1,2),(3,2);
-set session sort_buffer_size= 30000;
-set session max_sort_length= 2180;
+create table t1(a int, b text);
+insert into t1 values (1,REPEAT('x', 60000)),(3,REPEAT('y', 60000));
+set session sort_buffer_size= 32768;
+set session max_sort_length= 20000;
 CALL mtr.add_suppression("Out of sort memory");
 --error ER_OUT_OF_SORTMEMORY
 select * from t1 order by b;
