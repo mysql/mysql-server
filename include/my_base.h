@@ -46,7 +46,6 @@
 #define HA_OPEN_ABORT_IF_CRASHED 16
 #define HA_OPEN_FOR_REPAIR 32 /* open even if crashed */
 #define HA_OPEN_FROM_SQL_LAYER 64
-#define HA_OPEN_MMAP 128 /* open memory mapped */
 #define HA_OPEN_COPY 256 /* Open copy (for repair) */
 /**
    Internal temp table, used for temporary results; one or more instance of it
@@ -348,7 +347,6 @@ enum ha_extra_function {
     This is a strictly InnoDB feature that is more or less undocumented.
   */
   HA_EXTRA_KEYREAD_PRESERVE_FIELDS,
-  HA_EXTRA_MMAP,
   /*
     Ignore if the a tuple is not found, continue processing the
     transaction and ignore that 'row'.  Needed for idempotency

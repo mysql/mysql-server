@@ -729,24 +729,6 @@ int ha_myisam::open(const char *name, int mode, uint test_if_locked,
   uint i;
 
   /*
-    If the user wants to have memory mapped data files, add an
-    open_flag. Do not memory map temporary tables because they are
-    expected to be inserted and thus extended a lot. Memory mapping is
-    efficient for files that keep their size, but very inefficient for
-    growing files. Using an open_flag instead of calling mi_extra(...
-    HA_EXTRA_MMAP ...) after mi_open() has the advantage that the
-    mapping is not repeated for every open, but just done on the initial
-    open, when the MyISAM share is created. Everytime the server
-    requires to open a new instance of a table it calls this method. We
-    will always supply HA_OPEN_MMAP for a permanent table. However, the
-    MyISAM storage engine will ignore this flag if this is a secondary
-    open of a table that is in use by other threads already (if the
-    MyISAM share exists already).
-  */
-  if (!(test_if_locked & HA_OPEN_TMP_TABLE) && opt_myisam_use_mmap)
-    test_if_locked |= HA_OPEN_MMAP;
-
-  /*
      We are allocating the handler share only in case of normal MyISAM tables
   */
   if (table->s->tmp_table == NO_TMP_TABLE) {
@@ -1741,7 +1723,6 @@ int ha_myisam::info(uint flag) {
 }
 
 int ha_myisam::extra(enum ha_extra_function operation) {
-  if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap) return 0;
   return mi_extra(file, operation, 0);
 }
 

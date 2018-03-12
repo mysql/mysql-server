@@ -214,10 +214,6 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
   info->table = table;
   info->forms = &info->table; /* Only one table */
 
-  if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE &&
-      !table->sort.using_addon_fields())
-    (void)table->file->extra(HA_EXTRA_MMAP);
-
   if (table->sort_result.has_result() && table->sort.using_addon_fields()) {
     info->rec_buf = table->sort.addon_fields->get_addon_buf();
     info->ref_length = table->sort.addon_fields->get_addon_buf_length();

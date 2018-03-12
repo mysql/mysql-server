@@ -191,24 +191,6 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
     case HA_EXTRA_CHANGE_KEY_TO_DUP:
       mi_extra_keyflag(info, function);
       break;
-    case HA_EXTRA_MMAP:
-      mysql_mutex_lock(&share->intern_lock);
-      /*
-        Memory map the data file if it is not already mapped. It is safe
-        to memory map a file while other threads are using file I/O on it.
-        Assigning a new address to a function pointer is an atomic
-        operation. intern_lock prevents that two or more mappings are done
-        at the same time.
-      */
-      if (!share->file_map) {
-        if (mi_dynmap_file(info, share->state.state.data_file_length)) {
-          DBUG_PRINT("warning", ("mmap failed: errno: %d", errno));
-          error = errno;
-          set_my_errno(error);
-        }
-      }
-      mysql_mutex_unlock(&share->intern_lock);
-      break;
     case HA_EXTRA_MARK_AS_LOG_TABLE:
       mysql_mutex_lock(&share->intern_lock);
       share->is_log_table = true;

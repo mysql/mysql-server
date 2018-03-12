@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -521,13 +521,6 @@ MI_INFO *mi_open_share(const char *name, MYISAM_SHARE *old_share, int mode,
         share->lock.restore_status = mi_restore_status;
         share->lock.check_status = mi_check_status;
       }
-    }
-    /*
-      Memory mapping can only be requested after initializing intern_lock.
-    */
-    if (open_flags & HA_OPEN_MMAP) {
-      info.s = share;
-      mi_extra(&info, HA_EXTRA_MMAP, 0);
     }
   } else {
     share = old_share;
