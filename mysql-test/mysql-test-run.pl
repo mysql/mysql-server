@@ -4025,16 +4025,16 @@ test case was executed:\n";
 sub start_run_one ($$) {
   my ($mysqld, $run) = @_;
 
-  my $name = "$run-" . $mysqld->name();
-
   my $args;
   mtr_init_args(\$args);
 
   mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+  mtr_add_arg($args, "--logdir=%s/tmp",            $opt_vardir);
   mtr_add_arg($args, "--test-file=%s",             "include/$run.test");
   mtr_add_arg($args, "--silent");
 
+  my $name    = "$run-" . $mysqld->name();
   my $errfile = "$opt_vardir/tmp/$name.err";
   my $proc = My::SafeProcess->new(name      => $name,
                                   path      => $exe_mysqltest,
@@ -4043,6 +4043,7 @@ sub start_run_one ($$) {
                                   args      => \$args,
                                   user_data => $errfile,
                                   verbose   => $opt_verbose,);
+
   mtr_verbose("Started $proc");
   return $proc;
 }

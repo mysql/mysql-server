@@ -9323,8 +9323,8 @@ int main(int argc, char **argv) {
     log_file.flush();
 
     if (!result_file_name) {
-      temp_log_file.flush();
       temp_log_file.write(&ds_res);
+      temp_log_file.flush();
     }
     dynstr_set(&ds_res, 0);
   }
