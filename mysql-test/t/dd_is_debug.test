@@ -37,5 +37,25 @@ INSERT INTO t1 VALUES ('a','b');
 SELECT table_name, cardinality  FROM INFORMATION_SCHEMA.STATISTICS
   WHERE cardinality > 0 and table_schema='test';
 DROP TABLE t1;
+
 SET SESSION debug= "-d,information_schema_fetch_table_stats";
 SET SESSION information_schema_stats_expiry=default;
+
+
+--echo #
+--echo # Bug #27569314: ASSERTION `(UCHAR *)TABLE->DEF_READ_SET.BITMAP +
+--echo # TABLE->S->COLUMN_BITMAP_SIZE
+--echo #
+--echo # RQG bug, not directly re-producible. Provoking same issue using
+--echo # fault injection. Without fix, this would trigger same assert as seen
+--echo # in RQG. Triggered by a failure to call tmp_restore_column_map in case
+--echo # of errors.
+
+CREATE TABLE t1(i INT);
+
+SET SESSION debug="+d,sim_acq_fail_in_store_ci";
+--error ER_UNKNOWN_ERROR_NUMBER
+SHOW CREATE TABLE t1;
+
+SET SESSION debug="";
+DROP TABLE t1;
