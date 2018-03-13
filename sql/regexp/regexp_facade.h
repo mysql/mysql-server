@@ -30,6 +30,7 @@
 */
 
 #include <stdint.h>
+#include <string>
 
 #include "nullable.h"
 #include "sql/item.h"
@@ -42,33 +43,16 @@ extern int32_t opt_regexp_stack_limit;
 namespace regexp {
 
 /**
-   Evaluates an expression to a string value, performing character set
-   conversion to regexp_lib_charset if necessary. There are three cases:
+  Evaluates an expression to an output buffer, performing character set
+  conversion to regexp_lib_charset if necessary.
 
-   -# If the expression expr is a string constant already in the needed
-   character set, a shallow pointer to its character data is returned.
+  @param expr The expression to be printed.
 
-   -# If the expression expr is a string constant not in the needed
-   character set, the same process as in #4 is employed.
+  @param[out] out Will be cleared, and the result stored.
 
-   -# If the expression is not a string, but the server's character set
-   matches that if the library. the function attempts to render it as a
-   string directly in the out buffer.
-
-   -# If the expression is not a string, and the server's character set
-   differs from that if the library. the function attempts to render it as
-   a string to an intermediate buffer. The buffer is then copied as part of
-   conversion into the output buffer.
-
-   All of the above follows how the server generally handles character set
-   conversion, but is usually not documented.
-
-   @param expr The expression to be printed.
-
-   @param[out] out The String object whose internal buffer will contain the
-   result in case of copying.
+  @return false on success, true on error.
 */
-String *EvalExprToCharset(Item *expr, String *out);
+bool EvalExprToCharset(Item *expr, std::u16string *out);
 
 /**
   This class handles
@@ -87,10 +71,6 @@ String *EvalExprToCharset(Item *expr, String *out);
 */
 class Regexp_facade {
  public:
-  explicit Regexp_facade()
-      : m_current_subject(static_cast<const char *>(nullptr), 0,
-                          regexp_lib_charset) {}
-
   /**
     Sets the pattern if called for the first time or the pattern_expr is
     non-constant. This function is meant to be called for every row in a
@@ -189,14 +169,12 @@ class Regexp_facade {
   unique_ptr_destroy_only<Regexp_engine> m_engine;
 
   /**
-    ICU does not copy the subject string, so we keep the buffer here. It is
-    overwritten in reset(). It is treated as a UChar buffer inside ICU, and is
-    expected to be aligned as such. So we construct this class with
-    regexp_lib_charset.
+    ICU does not copy the subject string, so we keep the subject buffer
+    here. A call to Reset() causes it to be overwritten.
 
     @see Regexp_engine::reset()
   */
-  String m_current_subject;
+  std::u16string m_current_subject;
 
   /**
     `NULL` handling. In case the reset() function is called with a `NULL`

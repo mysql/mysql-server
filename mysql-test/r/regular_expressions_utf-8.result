@@ -338,7 +338,7 @@ CREATE TABLE t2 ( g GEOMETRY NOT NULL );
 INSERT INTO t2 VALUES ( POINT(1,2) );
 SELECT concat( regexp_like(g, g), 'x' ) FROM t2;
 concat( regexp_like(g, g), 'x' )
-1x
+0x
 SET sql_mode = DEFAULT;
 DROP TABLE t2;
 #
@@ -662,7 +662,7 @@ SELECT @buf_sz_utf16;
 512.000000000
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ));
 length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'b' ))
-1022
+1024
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16 + 1), 'a', 'b' ));
 ERROR HY000: The result string is larger than the result buffer.
 SELECT length(regexp_replace( repeat('a', @buf_sz_utf16), 'a', 'bb' ));
@@ -834,3 +834,8 @@ c	0
 i	1
 c	0
 DROP TABLE t1;
+#
+# Bug#27612255: VALGRIND WARNING ON INVALID CAPTURE GROUP
+#
+SELECT regexp_replace( ' F' , '^ ', '[,$' );
+ERROR HY000: A capture group has an invalid name.

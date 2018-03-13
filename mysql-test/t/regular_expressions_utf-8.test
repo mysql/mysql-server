@@ -710,4 +710,11 @@ INSERT INTO t1 VALUES ( 'i' ), ( 'c' ), ( 'i' ), ( 'c' );
 SELECT match_parameter, regexp_like ( 'a', 'A', match_parameter ) FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#27612255: VALGRIND WARNING ON INVALID CAPTURE GROUP
+--echo #
+
+--error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+SELECT regexp_replace( ' F' , '^ ', '[,$' );
+
 --source ../mysql-test/include/cleanup_icu_utils.inc
