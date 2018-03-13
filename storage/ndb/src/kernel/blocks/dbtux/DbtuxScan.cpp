@@ -61,22 +61,20 @@ Dbtux::prepare_scan_bounds()
   if (likely(scanBound.m_cnt != 0))
   {
     jamDebug();
-    c_ctx.searchBoundData = new (c_ctx.searchBoundData)
-                            KeyDataC(index.m_keySpec, true);
-    c_ctx.searchBound = new (c_ctx.searchBound)
-                        KeyBoundC(*c_ctx.searchBoundData);
-    unpackBound(c_ctx.c_nextKey, scanBound, *c_ctx.searchBound);
-/*
-    c_ctx.entryKey = new (c_ctx.entryKey)
-                        KeyData(index.m_keySpec, true, 0);
-    c_ctx.entryKey->set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
-*/
-    c_ctx.numAttrs = index.m_numAttrs;
-    c_ctx.boundCnt = c_ctx.searchBound->get_data().get_cnt();
+    KeyDataC searchBoundData(index.m_keySpec, true);
+    KeyBoundC searchBound(searchBoundData);
+    unpackBound(c_ctx.c_nextKey, scanBound, searchBound);
+    c_ctx.searchDataArray = new (c_ctx.searchDataArray)
+                               KeyDataArray();
+    c_ctx.searchDataArray->init_bound(searchBound, scanBound.m_cnt);
+    c_ctx.searchBoundArray = new (c_ctx.searchBoundArray)
+       KeyBoundArray(index.m_keySpec,
+                     *c_ctx.searchDataArray,
+                     scanBound.m_side);
+
     const DescHead& descHead = getDescHead(index);
     const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
     c_ctx.keyAttrs = (Uint32*)keyAttrs;
-    jamLineDebug((Uint16)c_ctx.numAttrs);
   }
   c_ctx.descending = scan.m_descending;
   c_ctx.scanBoundCnt = scanBound.m_cnt;
@@ -936,7 +934,7 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
       c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
                                         tupLoc.getPageOffset());
       jamDebug();
-      if (likely(scanCheck(scan, ent)))
+      if (unlikely(scanCheck(scan, ent)))
       {
         jamDebug();
         c_ctx.m_current_ent = ent;
@@ -1275,20 +1273,25 @@ Dbtux::scanCheck(ScanOp& scan, TreeEnt ent)
   int ret = 0;
   if (likely(scanBoundCnt != 0))
   {
+    const Uint32 tupVersion = ent.m_tupVersion;
+    Uint32* const outputBuffer = c_ctx.c_dataBuffer;
+    const Uint32 count = c_ctx.scanBoundCnt;
+    const Uint32* keyAttrs32 = (const Uint32*)&c_ctx.keyAttrs[0];
+    ret = c_tup->tuxReadAttrsCurr(c_ctx.jamBuffer,
+                                  keyAttrs32,
+                                  count,
+                                  outputBuffer,
+                                  false,
+                                  tupVersion);
+    thrjamDebug(c_ctx.jamBuffer);
+    thrjamLineDebug(c_ctx.jamBuffer, count);
+    KeyDataArray key_data;
+    key_data.init_poai(outputBuffer, count);
+    // compare bound to key
+    ret = c_ctx.searchBoundArray->cmp(key_data);
+    ndbrequire(ret != 0);
     const unsigned idir = c_ctx.descending;
     const int jdir = 1 - 2 * (int)idir;
-    KeyData keyData(c_ctx.indexPtr.p->m_keySpec, true, 0);
-    keyData.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
-    readKeyAttrsCurr(c_ctx,
-                     ent,
-                     keyData,
-                     c_ctx.numAttrs);
-    // compare bound to key
-    ret = cmpSearchBound(c_ctx,
-                         *c_ctx.searchBound,
-                         keyData,
-                         c_ctx.boundCnt);
-    ndbrequire(ret != 0);
     ret = (-1) * ret; // reverse for key vs bound
     ret = jdir * ret; // reverse for descending scan
   }

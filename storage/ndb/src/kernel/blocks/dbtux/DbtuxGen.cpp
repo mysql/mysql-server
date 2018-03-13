@@ -49,9 +49,8 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
       (sizeof(DescHead) & 0x3) == 0 &&
       (sizeof(KeyType) & 0x3) == 0
   );
-  c_ctx.searchBoundData = (KeyDataC*)&c_ctx.searchBoundData_c[0];
-  c_ctx.searchBound = (KeyBoundC*)&c_ctx.searchBound_c[0];
-  c_ctx.entryKey = (KeyData*)&c_ctx.entryKey_c[0];
+  c_ctx.searchBoundArray = (KeyBoundArray*)&c_ctx.searchBoundArray_c[0];
+  c_ctx.searchDataArray = (KeyDataArray*)&c_ctx.searchDataArray_c[0];
   /*
    * DbtuxGen.cpp
    */
@@ -321,51 +320,6 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 
 // utils
 
-void
-Dbtux::readKeyAttrsCurr(TuxCtx& ctx,
-                        TreeEnt ent,
-                        KeyData& keyData,
-                        Uint32 count)
-{
-  Uint32* const outputBuffer = ctx.c_dataBuffer;
-
-#ifdef VM_TRACE
-  const Index& index = *c_ctx.indexPtr.p;
-  ndbrequire(&keyData.get_spec() == &index.m_keySpec);
-  ndbrequire(keyData.get_spec().validate() == 0);
-  ndbrequire(count <= index.m_numAttrs);
-#endif
-
-  const Uint32 tupVersion = ent.m_tupVersion;
-  const Uint32* keyAttrs32 = (const Uint32*)&c_ctx.keyAttrs[0];
-
-  int ret;
-  ret = c_tup->tuxReadAttrsCurr(ctx.jamBuffer,
-                                keyAttrs32,
-                                count,
-                                outputBuffer,
-                                false,
-                                tupVersion);
-  thrjamDebug(ctx.jamBuffer);
-  thrjamLineDebug(ctx.jamBuffer, count);
-  ndbrequire(ret > 0);
-  keyData.reset();
-  Uint32 len;
-  ret = keyData.add_poai(outputBuffer, count, &len);
-  ndbrequire(ret == 0);
-  ret = keyData.finalize();
-  ndbrequire(ret == 0);
-
-#ifdef VM_TRACE
-  if (debugFlags & (DebugMaint | DebugScan)) {
-    debugOut << "readKeyAttrs: ";
-    debugOut << " ent:" << ent << " count:" << count;
-    debugOut << " data:" << keyData.print(ctx.c_debugBuffer, DebugBufferBytes);
-    debugOut << endl;
-  }
-#endif
-}
-
 /**
  * This method can be called from MT-build process.
  */
@@ -452,7 +406,9 @@ Dbtux::unpackBound(Uint32* const outputBuffer,
   }
   // set bound to the unpacked data buffer
   KeyDataC& searchBoundData = searchBound.get_data();
-  searchBoundData.set_buf(outputBuffer, MaxAttrDataSize << 2, scanBound.m_cnt);
+  searchBoundData.set_buf(outputBuffer,
+                          MaxAttrDataSize << 2,
+                          scanBound.m_cnt);
   int ret = searchBound.finalize(scanBound.m_side);
   ndbrequire(ret == 0);
 }
