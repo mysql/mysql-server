@@ -431,22 +431,7 @@ int JOIN::optimize() {
 
   if (zero_result_cause) goto setup_subq_exit;
 
-  if (rollup.state != ROLLUP::STATE_NONE) {
-    if (rollup_process_const_fields()) {
-      DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
-      DBUG_RETURN(1);
-    }
-    /*
-      Fields may have been replaced by Item_func_rollup_const, so
-      recalculate the number of fields and functions for this query block.
-    */
-
-    // JOIN::optimize_rollup() may set quick_group=0, and we must not undo that.
-    const uint save_quick_group = tmp_table_param.quick_group;
-
-    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
-    tmp_table_param.quick_group = save_quick_group;
-  } else {
+  if (rollup.state == ROLLUP::STATE_NONE) {
     /* Remove distinct if only const tables */
     select_distinct &= !plan_is_const();
   }
@@ -569,6 +554,23 @@ int JOIN::optimize() {
     }
   }
 
+  if (rollup.state != ROLLUP::STATE_NONE) {
+    if (rollup_process_const_fields()) {
+      DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
+      DBUG_RETURN(1);
+    }
+    /*
+      Fields may have been replaced by Item_func_rollup_const, so
+      recalculate the number of fields and functions for this query block.
+    */
+
+    // JOIN::optimize_rollup() may set quick_group=0, and we must not undo that.
+    const uint save_quick_group = tmp_table_param.quick_group;
+
+    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
+    tmp_table_param.quick_group = save_quick_group;
+  }
+
   /* Cache constant expressions in WHERE, HAVING, ON clauses. */
   if (!plan_is_const() && cache_const_exprs()) DBUG_RETURN(1);
 
@@ -636,8 +638,7 @@ int JOIN::optimize() {
     Check if we need to create a temporary table prior to any windowing.
 
     (1) If there is ROLLUP, which happens before DISTINCT, windowing and ORDER
-    BY, any of those clauses needs the result of ROLLUP in a tmp table. We
-    needn't test ORDER BY in the condition as it's forbidden with ROLLUP.
+    BY, any of those clauses needs the result of ROLLUP in a tmp table.
 
     Rows which ROLLUP adds to the result are visible only to DISTINCT,
     windowing and ORDER BY which we handled above. So for the rest of
@@ -675,7 +676,7 @@ int JOIN::optimize() {
   */
 
   if (rollup.state != ROLLUP::STATE_NONE &&  // (1)
-      (select_distinct || has_windows))
+      (select_distinct || has_windows || order))
     need_tmp_before_win = true;
 
   if (!plan_is_const())  // (2)
@@ -1098,7 +1099,9 @@ bool JOIN::optimize_distinct_group_order() {
   {
     ORDER *org_order = order;
     order = ORDER_with_src(
-        remove_const(order, where_cond, 1, &simple_order, false), order.src);
+        remove_const(order, where_cond, rollup.state == ROLLUP::STATE_NONE,
+                     &simple_order, false),
+        order.src);
     if (thd->is_error()) {
       error = 1;
       DBUG_PRINT("error", ("Error from remove_const"));
@@ -1267,11 +1270,12 @@ bool JOIN::optimize_distinct_group_order() {
   send_group_parts = tmp_table_param.group_parts; /* Save org parts */
 
   /*
-    Grouping orders row; so if windowing doesn't change this order, and
-    ORDER BY is a prefix of GROUP BY, ORDER BY is useless.
+    Grouping orders row; so if windowing or ROLLUP doesn't change this
+    order, and ORDER BY is a prefix of GROUP BY, ORDER BY is useless.
     Also true if the result is one row.
-    */
-  if ((test_if_subpart(group_list, order) && !m_windows_sort) ||
+  */
+  if ((test_if_subpart(group_list, order) && !m_windows_sort &&
+       select_lex->olap != ROLLUP_TYPE) ||
       (!group_list && tmp_table_param.sum_func_count)) {
     if (order) {
       order = 0;

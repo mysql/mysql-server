@@ -773,8 +773,10 @@ class JOIN {
   bool rollup_process_const_fields();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
                           Item_sum ***func);
+  bool switch_slice_for_rollup_fields(List<Item> &all_fields,
+                                      List<Item> &fields);
   bool rollup_send_data(uint idx);
-  bool rollup_write_data(uint idx, TABLE *table);
+  bool rollup_write_data(uint idx, QEP_TAB *qep_tab);
   void remove_subq_pushed_predicates();
   /**
     Release memory and, if possible, the open tables held by this execution

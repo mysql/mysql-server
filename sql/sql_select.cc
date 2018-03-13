@@ -3516,6 +3516,98 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 }
 
 /**
+  Switch the ref item slice for rollup structures which need to use
+  fields from the first temp table to evaluate functions and
+  having_condition correctly.
+  ROLLUP has a ref_item_slice which is pointing to the output
+  of join operation. Super aggregates are calculated with the regular
+  aggregations using the join output.
+  In rollup_make_fields, we create a ref_item_array where
+  1. Fields which are part of group by are replaced with Item_null_result
+  objects.
+  2. New aggregation functions to calculate super aggregates are added to
+  the list of sum_funcs.
+  3. The remaining objects point to join output.
+
+  For operations like order by, distinct, windowing functions
+  that are done post rollup, output of rollup data needs to be written
+  into a temp table. For evaluation of having conditions and functions,
+  we need the objects which are not dependent on ROLLUP NULL's to
+  point to temp table fields. So we switch the ref_array pointers
+  to refer to REF_ITEM_SLICE_1 (contents of first temp table).
+
+  @param fields_arg		List of all fields (hidden and real ones)
+  @param sel_fields		Pointer to selected fields
+  @param func			Store here a pointer to all fields
+
+  @retval
+    0	if ok;
+    In this case func is pointing to next not used element.
+  @retval
+    1    on error
+*/
+
+bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
+                                          List<Item> &curr_sel_fields) {
+  List_iterator_fast<Item> it(curr_all_fields);
+  Item *first_field = curr_sel_fields.head();
+  uint level;
+
+  for (level = 0; level < send_group_parts; level++) {
+    uint pos = send_group_parts - level - 1;
+    bool real_fields = false;
+    Item *item;
+    List_iterator<Item> new_it_fields_list(rollup.fields_list[pos]);
+    List_iterator<Item> new_it_all_fields(rollup.all_fields[pos]);
+    Ref_item_array ref_array_start = rollup.ref_item_arrays[pos];
+
+    /* Point to first hidden field */
+    uint ref_array_ix = curr_all_fields.elements - 1;
+
+    it.rewind();
+    while ((item = it++)) {
+      bool has_rollup_fields = false;
+      if (item == first_field) {
+        real_fields = true;  // End of hidden fields
+        ref_array_ix = 0;
+      }
+      /*
+        Check if the existing ref_array_item is a group by field or
+        a function which uses group by fields or an aggregation function.
+        We do not replace these items with the items in temp table as they
+        need the ROLLUP NULL's.
+      */
+      Item *ref_array_item = ref_array_start[ref_array_ix];
+      if (ref_array_item->type() == Item::NULL_RESULT_ITEM ||
+          ref_array_item->has_rollup_field() ||
+          (ref_array_item->type() == Item::SUM_FUNC_ITEM &&
+           !ref_array_item->m_is_window_function)) {
+        has_rollup_fields = true;
+      }
+      if (real_fields) {
+        (void)new_it_fields_list++;  // Point to next item
+        (void)new_it_all_fields++;
+        // Replace all the items which do not need ROLLUP nulls for evaluation
+        if (!has_rollup_fields) {
+          ref_array_start[ref_array_ix] = item;
+          new_it_fields_list.replace(item);  // Replace previous
+          new_it_all_fields.replace(item);
+        }
+        ref_array_ix++;
+      } else {
+        // Replace all the items which do not need ROLLUP nulls for evaluation
+        if (!has_rollup_fields) {
+          ref_array_start[ref_array_ix] = item;
+          rollup.all_fields[pos].replace(ref_array_ix, item);
+        }
+        ref_array_ix--;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
   Change the Query_result object of the query block.
 
   If old_result is not used, forward the call to the current
@@ -3582,9 +3674,14 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
     added as filter conditions of curr_tmp_table. If condition's used_tables is
     not read yet for example subquery in having, then it will be kept as it is
     in original having_cond of join.
+    If ROLLUP, having condition needs to be tested after writing rollup data.
+    So do not move the having condition.
   */
   Item *sort_table_cond =
-      make_cond_for_table(thd, having_cond, used_tables, (table_map)0, false);
+      (rollup.state == ROLLUP::STATE_NONE)
+          ? make_cond_for_table(thd, having_cond, used_tables, (table_map)0,
+                                false)
+          : nullptr;
   if (sort_table_cond) {
     if (!curr_table->condition())
       curr_table->set_condition(sort_table_cond);
@@ -3813,6 +3910,9 @@ bool JOIN::make_tmp_tables_info() {
     setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_tbl);
     last_slice_before_windowing = REF_SLICE_TMP1;
 
+    if (rollup.state == ROLLUP::STATE_READY)
+      switch_slice_for_rollup_fields(*curr_all_fields, *curr_fields_list);
+
     /*
       If having is not handled here, it will be checked before the row is sent
       to the client.
@@ -3820,8 +3920,8 @@ bool JOIN::make_tmp_tables_info() {
     if (having_cond &&
         (sort_and_group || (exec_tmp_table->is_distinct && !group_list))) {
       /*
-        If there is no select distinct then move the having to table conds of
-        tmp table.
+        If there is no select distinct or rollup, then move the having to table
+        conds of tmp table.
         NOTE : We cannot apply having after distinct. If columns of having are
                not part of select distinct, then distinct may remove rows
                which can satisfy having.
@@ -3829,7 +3929,8 @@ bool JOIN::make_tmp_tables_info() {
         As this condition will read the tmp table, it is appropriate that
         REF_SLICE_TMP1 is in effect when we create it below.
       */
-      if (!select_distinct && add_having_as_tmp_table_cond(curr_tmp_table))
+      if ((!select_distinct && rollup.state == ROLLUP::STATE_NONE) &&
+          add_having_as_tmp_table_cond(curr_tmp_table))
         DBUG_RETURN(true);
 
       /*
@@ -3871,12 +3972,14 @@ bool JOIN::make_tmp_tables_info() {
       and copy it to a second temporary table.
       This code is also used if we are using distinct something
       we haven't been able to store in the temporary table yet
-      like SEC_TO_TIME(SUM(...)).
+      like SEC_TO_TIME(SUM(...)) or when distinct is used with rollup.
     */
 
-    if ((group_list && (!test_if_subpart(group_list, order) ||
-                        select_distinct || m_windowing_steps)) ||
-        (select_distinct && tmp_table_param.using_outer_summary_function)) {
+    if ((group_list &&
+         (!test_if_subpart(group_list, order) || select_distinct ||
+          m_windowing_steps || rollup.state != ROLLUP::STATE_NONE)) ||
+        (select_distinct && (tmp_table_param.using_outer_summary_function ||
+                             rollup.state != ROLLUP::STATE_NONE))) {
       DBUG_PRINT("info", ("Creating group table"));
 
       calc_group_buffer(this, group_list);
@@ -4079,8 +4182,12 @@ bool JOIN::make_tmp_tables_info() {
     ASSERT_BEST_REF_IN_JOIN_ORDER(this);
     DBUG_PRINT("info", ("Sorting for send_result_set_metadata"));
     THD_STAGE_INFO(thd, stage_sorting_result);
-    /* If we have already done the group, add HAVING to sorted table */
-    if (having_cond && !group_list && !sort_and_group) {
+    /*
+      If we have already done the group, add HAVING to sorted table except
+      when rollup is present
+    */
+    if (having_cond && !group_list && !sort_and_group &&
+        rollup.state == ROLLUP::STATE_NONE) {
       if (add_having_as_tmp_table_cond(curr_tmp_table)) DBUG_RETURN(true);
     }
 

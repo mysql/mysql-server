@@ -5545,14 +5545,14 @@ bool Item_func_grouping::fix_fields(THD *thd, Item **ref) {
   }
 
   /*
-    GROUPING() is allowed to be present only in SELECT list and
-    HAVING clause.
+    GROUPING() is not allowed in a WHERE condition or a JOIN condition and
+    cannot be used without rollup.
   */
   SELECT_LEX *select = thd->lex->current_select();
 
   if (select->olap == UNSPECIFIED_OLAP_TYPE ||
-      (select->resolve_place != SELECT_LEX::RESOLVE_SELECT_LIST &&
-       select->resolve_place != SELECT_LEX::RESOLVE_HAVING)) {
+      select->resolve_place == SELECT_LEX::RESOLVE_JOIN_NEST ||
+      select->resolve_place == SELECT_LEX::RESOLVE_CONDITION) {
     my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
     return true;
   }
@@ -5639,12 +5639,11 @@ bool Item_func_grouping::aggregate_check_group(uchar *arg) {
   return true;
 }
 
-/**
-  Resets the aggregation property which was set during creation of
-  references to GROUP BY fields in SELECT_LEX::change_func_or_wf_group_ref.
-  Calls Item_int_func::cleanup() to do the rest of the cleanup.
-*/
-void Item_func_grouping::cleanup() {
-  reset_aggregation();
-  Item_int_func::cleanup();
+void Item_func_grouping::update_used_tables() {
+  Item_int_func::update_used_tables();
+  /*
+    GROUPING function can never be a constant item. It's
+    result always depends on ROLLUP result.
+  */
+  used_tables_cache |= current_thd->lex->current_select()->all_tables_map();
 }

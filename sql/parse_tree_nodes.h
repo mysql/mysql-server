@@ -265,14 +265,6 @@ class PT_gorder_list : public PT_order_list {
 
  public:
   virtual bool contextualize(Parse_context *pc) {
-    SELECT_LEX *sel = pc->select;
-    if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
-        sel->olap != UNSPECIFIED_OLAP_TYPE &&
-        (sel->linkage != UNION_TYPE || sel->braces)) {
-      my_error(ER_WRONG_USAGE, MYF(0), "CUBE/ROLLUP", "ORDER BY");
-      return true;
-    }
-
     return super::contextualize(pc);
   }
 };

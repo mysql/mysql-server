@@ -2486,6 +2486,12 @@ class Item : public Parse_tree_node {
   }
   virtual Field *get_orig_field() { return NULL; }
   virtual void set_orig_field(Field *){};
+  void set_has_rollup_field() {
+    m_has_rollup_field = true;
+    return;
+  }
+  bool has_rollup_field() { return m_has_rollup_field; }
+  virtual bool has_grouping_func_processor(uchar *) { return false; }
 
  private:
   virtual bool subq_opt_away_processor(uchar *) { return false; }
@@ -2606,6 +2612,7 @@ class Item : public Parse_tree_node {
     which is actually used by outer query.
   */
   bool derived_used;
+  bool m_has_rollup_field;
 
  protected:
   /**

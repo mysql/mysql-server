@@ -159,11 +159,6 @@ bool PT_group::contextualize(Parse_context *pc) {
                  "global union parameters");
         return true;
       }
-      if (select->is_distinct()) {
-        // DISTINCT+ROLLUP does not work
-        my_error(ER_WRONG_USAGE, MYF(0), "WITH ROLLUP", "DISTINCT");
-        return true;
-      }
       select->olap = ROLLUP_TYPE;
       break;
     default:
@@ -180,12 +175,6 @@ bool PT_order::contextualize(Parse_context *pc) {
   SELECT_LEX_UNIT *const unit = pc->select->master_unit();
   const bool braces = pc->select->braces;
 
-  if (pc->select->linkage != GLOBAL_OPTIONS_TYPE &&
-      pc->select->olap != UNSPECIFIED_OLAP_TYPE &&
-      (pc->select->linkage != UNION_TYPE || braces)) {
-    my_error(ER_WRONG_USAGE, MYF(0), "CUBE/ROLLUP", "ORDER BY");
-    return true;
-  }
   if (lex->sql_command != SQLCOM_ALTER_TABLE && !unit->fake_select_lex) {
     /*
       A query of the of the form (SELECT ...) ORDER BY order_list is

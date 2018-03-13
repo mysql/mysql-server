@@ -3020,7 +3020,9 @@ NULL
 1.0000
 1.0000
 select distinct avg(s1) as x from t1 group by s1 with rollup;
-ERROR HY000: Incorrect usage of WITH ROLLUP and DISTINCT
+x
+NULL
+1.0000
 drop table t1;
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (a int);

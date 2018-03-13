@@ -616,8 +616,11 @@ Item *Item_func::get_tmp_table_item(THD *thd) {
     For items with windowing functions, return the same
     object (temp table fields are not created for windowing
     functions if they are not evaluated at this stage).
+    For items which need to store ROLLUP NULLs, we need
+    the same object as we need to detect if ROLLUP NULL's
+    need to be written for this item (in has_rollup_result).
   */
-  if (!has_aggregation() && !const_item() && !has_wf()) {
+  if (!has_aggregation() && !const_item() && !has_wf() && !has_rollup_field()) {
     Item *result = new Item_field(result_field);
     DBUG_RETURN(result);
   }

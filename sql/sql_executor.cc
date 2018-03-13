@@ -151,6 +151,7 @@ static int join_read_linked_first(QEP_TAB *tab);
 static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
+static bool has_rollup_result(Item *item);
 
 /**
    Evaluates HAVING condition
@@ -447,6 +448,36 @@ bool JOIN::rollup_send_data(uint idx) {
 }
 
 /**
+  Checks if an item has a ROLLUP NULL which needs to be written to
+  temp table.
+
+  @param item         Item for which we need to detect if ROLLUP
+                      NULL has to be written.
+
+  @returns false if ROLLUP NULL need not be written for this item.
+           true if it has to be written.
+*/
+
+bool has_rollup_result(Item *item) {
+  if (item->type() == Item::NULL_RESULT_ITEM) return true;
+
+  if (item->type() == Item::FUNC_ITEM) {
+    for (uint i = 0; i < ((Item_func *)item)->arg_count; i++) {
+      Item *real_item = ((Item_func *)item)->arguments()[i];
+      while (real_item->type() == Item::REF_ITEM)
+        real_item = *((down_cast<Item_ref *>(real_item))->ref);
+
+      if (real_item->type() == Item::NULL_RESULT_ITEM)
+        return true;
+      else if (real_item->type() == Item::FUNC_ITEM &&
+               has_rollup_result(real_item))
+        return true;
+    }
+  }
+  return false;
+}
+
+/**
   Write all rollup levels higher than the current one to a temp table.
 
   @b SAMPLE
@@ -458,28 +489,26 @@ bool JOIN::rollup_send_data(uint idx) {
                                - 0 = Total sum level
                                - 1 = First group changed  (a)
                                - 2 = Second group changed (a,b)
-  @param table_arg           Reference to temp table
+  @param qep_tab             temp table
 
   @returns false if success, true if error
 */
 
-bool JOIN::rollup_write_data(uint idx, TABLE *table_arg) {
+bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
   uint save_slice = current_ref_item_slice;
   for (uint i = send_group_parts; i-- > idx;) {
     // Get references to sum functions in place
     copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
     current_ref_item_slice = -1;  // as we switched to a not-numbered slice
-    if (having_is_true(having_cond)) {
+    if (having_is_true(qep_tab->having)) {
       int write_error;
       Item *item;
       List_iterator_fast<Item> it(rollup.all_fields[i]);
       while ((item = it++)) {
-        if ((item->type() == Item::NULL_ITEM ||
-             item->type() == Item::NULL_RESULT_ITEM) &&
-            item->is_result_field())
-          item->save_in_result_field(1);
+        if (has_rollup_result(item)) item->save_in_result_field(1);
       }
       copy_sum_funcs(sum_funcs_end[i + 1], sum_funcs_end[i]);
+      TABLE *table_arg = qep_tab->table();
       if ((write_error = table_arg->file->ha_write_row(table_arg->record[0]))) {
         if (create_ondisk_from_heap(
                 thd, table_arg, tmp_table_param.start_recinfo,
@@ -1088,8 +1117,7 @@ static int do_select(JOIN *join) {
 
   join->send_records = 0;
 
-  if (join->plan_is_const()) {
-    DBUG_ASSERT(!join->need_tmp_before_win);
+  if (join->plan_is_const() && !join->need_tmp_before_win) {
     Next_select_func end_select = join->get_end_select_func();
     /*
       HAVING will be checked after processing aggregate functions,
@@ -5275,7 +5303,7 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
             DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         if (join->rollup.state != ROLLUP::STATE_NONE) {
-          if (join->rollup_write_data((uint)(idx + 1), table))
+          if (join->rollup_write_data((uint)(idx + 1), qep_tab))
             DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         // Restore NULL values if needed.
@@ -5330,9 +5358,14 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
 static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *qep_tab) {
   DBUG_ENTER("create_sort_index");
 
-  // One row, no need to sort. make_tmp_tables_info should already handle this.
   Filesort *fsort = qep_tab->filesort;
-  DBUG_ASSERT(!join->plan_is_const() && fsort);
+  /*
+    One row, no need to sort. make_tmp_tables_info should already handle this.
+    ROLLUP generates one more row. So that is the only exception.
+  */
+  DBUG_ASSERT(
+      (!join->plan_is_const() || join->rollup.state != ROLLUP::STATE_NONE) &&
+      fsort);
 
   TABLE *table = qep_tab->table();
   table->sort_result.io_cache =
@@ -5835,11 +5868,12 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
           copy++;
         }
       }
-    } else if ((real_pos->type() == Item::FUNC_ITEM ||
-                real_pos->type() == Item::SUBSELECT_ITEM ||
-                real_pos->type() == Item::CACHE_ITEM ||
-                real_pos->type() == Item::COND_ITEM) &&
-               !real_pos->has_aggregation()) {  // Save for send fields
+    } else if (((real_pos->type() == Item::FUNC_ITEM ||
+                 real_pos->type() == Item::SUBSELECT_ITEM ||
+                 real_pos->type() == Item::CACHE_ITEM ||
+                 real_pos->type() == Item::COND_ITEM) &&
+                !real_pos->has_aggregation() &&
+                !real_pos->has_rollup_field())) {  // Save for send fields
       pos = real_pos;
       /* TODO:
          In most cases this result will be sent to the user.
