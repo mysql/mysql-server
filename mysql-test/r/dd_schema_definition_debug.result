@@ -112,7 +112,7 @@ LOCATE('DD_VERSION', properties), 30), ';', 1)
 AS DD_VERSION
 FROM mysql.dd_properties;
 DD_VERSION
-DD_VERSION=80005
+DD_VERSION=80011
 ########################################################################
 # The id of the mysql schema must be fixed.
 ########################################################################
@@ -761,5 +761,5 @@ view_table_usage	CREATE TABLE `view_table_usage` (
 ########################################################################
 include/assert.inc [The group concat max length is sufficient.]
 CHECK_STATUS
-The schema checksum corresponds to DD version 80005.
+The schema checksum corresponds to DD version 80011.
 include/assert.inc [The schema checksum corresponds to a known DD version.]

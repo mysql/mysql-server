@@ -16,8 +16,8 @@
 #     Time zone table warning found 1 times.
 # 1.6 Delete bootstrap file, log file and datadir.
 #
-# 2. Try restart after deleting the mysql dd tablespace.
-# -----------------------------------------------------
+# 2. Try restart after deleting the mysql dd tablespace file.
+# -----------------------------------------------------------
 # 2.1 First start the server with --initialize.
 # 2.2 Delete the physical tablespace file for mysql.ibd.
 # 2.3 Restart the server against DDIR - should fail.

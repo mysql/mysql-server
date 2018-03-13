@@ -546,10 +546,10 @@ INSERT INTO dd_published_schema
   VALUES ('80004', 1,
     'f607ab08b2d2b2d93d8867ad75116655d9c942647245d7846be440ec916c440f');
 INSERT INTO dd_published_schema
-  VALUES ('80005', 0,
+  VALUES ('80011', 0,
     '78718cc3e520fdfcaa82ec1b21d11d4b604b27c3f97a9f3ec4ed214a7ba0232c');
 INSERT INTO dd_published_schema
-  VALUES ('80005', 1,
+  VALUES ('80011', 1,
     '56729f3744c0f7400aa45ffa02af97676a27db7903ae79dc3660c5e32c016de9');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
