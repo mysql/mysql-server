@@ -1,0 +1,86 @@
+call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP' cannot be aborted.");
+call mtr.add_suppression("Event 'MYSQL_AUDIT_AUTHENTICATION_FLUSH' cannot be aborted.");
+INSTALL PLUGIN null_audit SONAME 'adt_null.so';
+##############################################
+## MYSQL_AUDIT_AUTHENTICATION_AUTHID_CREATE ##
+##############################################
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="84";;'
+                                          'MYSQL_AUDIT_QUERY_STATUS_END;sql_command_id="84";;'
+                                          'MYSQL_AUDIT_GENERAL_RESULT;;;'
+                                          'MYSQL_AUDIT_GENERAL_STATUS;;;'
+                                          'MYSQL_AUDIT_COMMAND_END;command_id="<expected_command_id>";';
+CREATE USER testuser@localhost IDENTIFIED BY 'testpwd';
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-OK
+## MYSQL_AUDIT_AUTHENTICATION_AUTHID_CREATE - END ##
+##################################################
+## MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE ##
+##################################################
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="134";;'
+                                          'MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE;;ABORT_RET';
+ALTER USER testuser@localhost IDENTIFIED BY 'NewPass';
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+## MYSQL_AUDIT_AUTHENTICATION_CREDENTIAL_CHANGE - END ##
+##############################################
+## MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME ##
+##############################################
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="86";;'
+                                          'MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME;;ABORT_RET';
+RENAME USER testuser@localhost TO newuser@localhost;
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+## MYSQL_AUDIT_AUTHENTICATION_AUTHID_RENAME - END ##
+############################################
+## MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP ##
+############################################
+SET @@null_audit_event_order_check_exact = <expected_check_exact>;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="<expected_command_id>";;'
+                                          'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                          'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                          'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                          'MYSQL_AUDIT_QUERY_START;sql_command_id="85";;'
+                                          'MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP;;ABORT_RET';
+DROP USER newuser@localhost;
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+## MYSQL_AUDIT_AUTHENTICATION_AUTHID_DROP - END ##
+######################################
+## MYSQL_AUDIT_AUTHENTICATION_FLUSH ##
+######################################
+SET @@null_audit_event_order_check_exact = 1;
+SET @@null_audit_event_order_check = 'MYSQL_AUDIT_COMMAND_START;command_id="3";;'
+                                     'MYSQL_AUDIT_PARSE_PREPARSE;;;'
+                                     'MYSQL_AUDIT_PARSE_POSTPARSE;;;'
+                                     'MYSQL_AUDIT_GENERAL_LOG;;;'
+                                     'MYSQL_AUDIT_QUERY_START;sql_command_id="49";;'
+                                     'MYSQL_AUDIT_AUTHENTICATION_FLUSH;;ABORT_RET';
+FLUSH PRIVILEGES;
+SELECT @@null_audit_event_order_check;
+@@null_audit_event_order_check
+EVENT-ORDER-ABORT
+## MYSQL_AUDIT_AUTHENTICATION_FLUSH - END ##
+UNINSTALL PLUGIN null_audit;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
