@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1659,6 +1659,8 @@ end_with_cleanup:
 
 void my_tz_free() {
   if (tz_inited) {
+    default_tz = nullptr;
+    global_system_variables.time_zone = my_tz_SYSTEM;
     tz_inited = 0;
     mysql_mutex_destroy(&tz_LOCK);
     offset_tzs.clear();
