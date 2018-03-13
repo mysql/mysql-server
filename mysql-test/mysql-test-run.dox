@@ -4322,15 +4322,39 @@
       needed by the <b>mysql</b> client to connect to the server. Each
       <b>`--extern`</b> can only take one option/value pair as
       argument, so it you need more you need to repeat
-      <b>`--extern`</b> for each of them. Example:
+      <b>`--extern`</b> for each of them.
 
       @verbatim
-  ./mysql-test-run.pl --extern socket=var/tmp/mysqld.1.sock alias
+  ./mysql-test-run.pl --extern socket=var/tmp/mysqld.1.sock main.1st
       @endverbatim
 
-      Note: If a test case has an <b>.opt</b> file that requires the
-      server to be restarted with specific options, the file will not
-      be used. The test case likely will fail as a result.
+      During server initialization, @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl" creates a default database <b>test</b> which
+      is used while establishing an initial connection with the
+      server. When running a test case with <b>--extern</b> option, if
+      <b>test</b> database doesn't exist on an already running server,
+      then the test case will fail with following error.
+
+      @verbatim
+  mysqltest: Could not open connection 'default': 1049 Unknown database 'test'
+      @endverbatim
+
+      So if you're running a test case on an already running server
+      using <b>--extern</b> option, it is necessary to create
+      <b>test</b> database on the server before running the test case
+      if it doesn't exist.
+
+      Similarly, @ref PAGE_MYSQL_TEST_RUN_PL "mysql-test-run.pl"
+      creates <b>mtr</b> database during server initialization which
+      contains tables and procedures used to suppress global or test
+      specific warnings. If a test case refers to this database and
+      the database doesn't exist on running server, then the test case
+      will fail.
+
+      @note
+      If a test case has an <b>.opt</b> file that requires the server
+      to be restarted with specific options, the file will not be
+      used. The test case likely will fail as a result.
     </li>
 
     <li>
