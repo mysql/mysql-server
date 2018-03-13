@@ -264,6 +264,8 @@ private:
   typedef NdbPack::Data KeyData;
   typedef NdbPack::BoundC KeyBoundC;
   typedef NdbPack::Bound KeyBound;
+  typedef NdbPack::DataArray KeyDataArray;
+  typedef NdbPack::BoundArray KeyBoundArray;
 
   // range scan
 
@@ -594,10 +596,6 @@ private:
                     TreeEnt ent,
                     KeyData& keyData,
                     Uint32 count);
-  void readKeyAttrsCurr(TuxCtx&,
-                        TreeEnt ent,
-                        KeyData& keyData,
-                        Uint32 count);
   void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
   void unpackBound(Uint32* const outputBuffer,
                    const ScanBound& bound,
@@ -838,19 +836,15 @@ private:
     Uint32 attrDataOffset;
     Uint32 tuxFixHeaderSize;
 
-    char searchBoundData_c[sizeof(KeyDataC)];
-    char searchBound_c[sizeof(KeyBoundC)];
-    char entryKey_c[sizeof(KeyData)];
+    char searchBoundArray_c[sizeof(KeyBoundArray)];
+    char searchDataArray_c[sizeof(KeyDataArray)];
 
-    KeyDataC *searchBoundData;
-    KeyBoundC *searchBound;
-    KeyData *entryKey;
+    KeyDataArray *searchDataArray;
+    KeyBoundArray *searchBoundArray;
     Uint32 *keyAttrs;
 
     Uint32 scanBoundCnt;
     Uint32 descending;
-    Uint32 numAttrs;
-    Uint32 boundCnt;
 
     TreeEnt m_current_ent;
 

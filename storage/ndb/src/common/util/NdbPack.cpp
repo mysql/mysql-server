@@ -300,6 +300,92 @@ NdbPack::Iter::desc_null()
   return 0;
 }
 
+/**
+ * Initialise a DataArray from a NdbPack::BoundC object.
+ */
+void NdbPack::DataArray::init_bound(const BoundC& b,
+                                    const Uint32 cnt)
+{
+  m_cnt = cnt;
+  const DataC& data = b.m_data;
+  Iter iter(data);
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    data.desc(iter);
+    m_entries[i].m_data_ptr = (Uint8*)&data.m_buf[iter.m_itemPos];
+    m_entries[i].m_data_len = iter.m_itemLen;
+  }
+}
+
+/**
+ * Initialise a DataArray object from Attrinfo retrieved
+ * from DBTUP.
+ */
+void
+NdbPack::DataArray::init_poai(const Uint32 *buffer,
+                              const Uint32 cnt)
+{
+  Uint32 inx = 0;
+  m_cnt = cnt;
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    const AttributeHeader ah =
+      *(const AttributeHeader*)&buffer[inx++];
+
+    if (!ah.isNULL())
+    {
+      Uint32 byte_size = ah.getByteSize();
+      Uint32 word_size = ah.getDataSize();
+      m_entries[i].m_data_len = byte_size;
+      m_entries[i].m_data_ptr = (Uint8*)&buffer[inx];
+      inx += word_size;
+    }
+    else
+    {
+      m_entries[i].m_data_ptr = 0;
+      m_entries[i].m_data_len = 0;
+    }
+  }
+}
+
+int
+NdbPack::DataArray::cmp(const Spec& spec,
+                        const DataArray& d2,
+                        const Uint32 cnt) const
+{
+  const DataArray& d1 = *this;
+  int res = 0;
+  for (Uint32 i = 0; i < cnt; i++)
+  {
+    const Type& type = spec.m_buf[i];
+    const Uint8* p1 = d1.m_entries[i].m_data_ptr;
+    const Uint32 n1 = d1.m_entries[i].m_data_len;
+    const NdbSqlUtil::Type& sqlType = getSqlType(type.m_typeId);
+    const Uint8* p2 = d2.m_entries[i].m_data_ptr;
+    const Uint32 n2 = d2.m_entries[i].m_data_len;
+    CHARSET_INFO* cs = all_charsets[type.m_csNumber];
+    if (n1 != 0)
+    {
+      if (n2 != 0)
+      {
+        res = (*sqlType.m_cmp)(cs, p1, n1, p2, n2);
+      }
+      else
+      {
+        res = +1;
+      }
+    }
+    else
+    {
+      if (n2 != 0)
+        res = -1;
+    }
+    if (res != 0)
+      break;
+  }
+  return res;
+}
+
 int
 NdbPack::Iter::cmp(const Iter& r2, const Uint8* buf1, const Uint8* buf2) const
 {
