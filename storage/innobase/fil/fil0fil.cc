@@ -10181,6 +10181,13 @@ bool Fil_path::is_valid_location(const char *space_name,
 
   dirpath.resize(pos);
 
+  /* Get the subdir that the file is in. */
+  pos = dirpath.find_last_of(SEPARATOR);
+
+  std::string subdir = (pos == std::string::npos)
+                           ? dirpath
+                           : dirpath.substr(pos + 1, dirpath.length());
+
   pos = name.find_last_of(SEPARATOR);
 
   if (pos == std::string::npos) {
@@ -10197,8 +10204,6 @@ bool Fil_path::is_valid_location(const char *space_name,
     /* This is a file-per-table datafile.
     Reduce the name to just the db name. */
 
-    name.resize(pos);
-
     if (MySQL_datadir_path.is_same_as(dirpath)) {
       ib::error(ER_IB_MSG_389) << "A file-per-table tablespace cannot"
                                << " be located in the datadir."
@@ -10206,17 +10211,31 @@ bool Fil_path::is_valid_location(const char *space_name,
       return (false);
     }
 
-    /* Get the subdir that the file is in. */
-    pos = dirpath.find_last_of(SEPARATOR);
+    /* In case of space_name in system charset, there is a possibility
+    that the space_name contains more than one SEPARATOR character.
+    We cannot rely on finding the last SEPARATOR only once.
+    Search the space_name string backwards until we find the
+    db name that matches with the directory name in dirpath. */
 
-    std::string subdir = (pos == std::string::npos)
-                             ? dirpath
-                             : dirpath.substr(pos + 1, dirpath.length());
+    while (pos < std::string::npos) {
+      name.resize(pos);
+      std::string temp = name;
 
-    if (name != subdir) {
-      Fil_path::convert_to_filename_charset(name);
+      if (temp == subdir) {
+        break;
+      }
 
-      if (name != subdir) {
+      /* Convert to filename charset and compare again. */
+      Fil_path::convert_to_filename_charset(temp);
+      if (temp == subdir) {
+        break;
+      }
+
+      /* Still no match, iterate through the next SEPARATOR. */
+      pos = name.find_last_of(SEPARATOR);
+
+      /* If end of string is hit, there is no match. */
+      if (pos == std::string::npos) {
         return (false);
       }
     }
@@ -10234,8 +10253,6 @@ void Fil_path::convert_to_filename_charset(std::string &name) {
 
   strncpy(filename, name.c_str(), sizeof(filename) - 1);
   strncpy(old_name, filename, sizeof(old_name));
-
-  ut_ad(strchr(filename, '/') == nullptr);
 
   innobase_convert_to_filename_charset(filename, old_name, MAX_TABLE_NAME_LEN);
 
