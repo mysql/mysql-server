@@ -69,6 +69,7 @@
 #include "mysql_time.h"
 #include "mysqld_error.h"
 #include "nullable.h"
+#include "scope_guard.h"  // Scope_guard
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_grant_db
 #include "sql/auth/sql_security_ctx.h"
@@ -1263,7 +1264,8 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
     of row based replication.
   */
   old_map = tmp_use_all_columns(table, table->read_set);
-
+  auto grd = create_scope_guard(
+      [&]() { tmp_restore_column_map(table->read_set, old_map); });
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Table *table_obj = nullptr;
   if (share->tmp_table)
@@ -1273,6 +1275,10 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                   dd::String_type(share->table_name.str),
                                   &table_obj))
       DBUG_RETURN(true);
+    DBUG_EXECUTE_IF("sim_acq_fail_in_store_ci", {
+      my_error(ER_UNKNOWN_ERROR_NUMBER, MYF(0), 42);
+      DBUG_RETURN(true);
+    });
   }
 
   for (ptr = table->field; (field = *ptr); ptr++) {
@@ -1681,7 +1687,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       }
     }
   }
-  tmp_restore_column_map(table->read_set, old_map);
   DBUG_RETURN(error);
 }
 
