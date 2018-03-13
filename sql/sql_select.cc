@@ -3536,15 +3536,11 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
   point to temp table fields. So we switch the ref_array pointers
   to refer to REF_ITEM_SLICE_1 (contents of first temp table).
 
-  @param fields_arg		List of all fields (hidden and real ones)
-  @param sel_fields		Pointer to selected fields
-  @param func			Store here a pointer to all fields
+  @param curr_all_fields    List of all fields(hidden and real ones)
+  @param curr_sel_fields    Pointer to selected fields
 
-  @retval
-    0	if ok;
-    In this case func is pointing to next not used element.
-  @retval
-    1    on error
+  @retval  0    if ok
+  @retval  1    if error
 */
 
 bool JOIN::switch_slice_for_rollup_fields(List<Item> &curr_all_fields,
