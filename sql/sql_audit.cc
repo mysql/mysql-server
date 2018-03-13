@@ -949,8 +949,10 @@ int mysql_audit_notify(THD *thd, mysql_event_authentication_subclass_t subclass,
   event.new_host.str = obj_str.str;
   event.new_host.length = obj_str.length;
 
-  return event_class_dispatch_error(thd, MYSQL_AUDIT_AUTHENTICATION_CLASS,
-                                    subclass_name, &event);
+  Ignore_event_error_handler handler(thd, subclass_name);
+
+  return handler.get_result(event_class_dispatch_error(
+      thd, MYSQL_AUDIT_AUTHENTICATION_CLASS, subclass_name, &event));
 }
 
 /**
