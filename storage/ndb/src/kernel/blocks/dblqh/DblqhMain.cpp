@@ -14775,6 +14775,7 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
    */
 #define ZABS_MAX_SCAN_DIRECT_COUNT 128
 #define ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN 500
+#define ZROWS_PER_MICRO 2
   Uint32 prioAFlag = scanPtr->prioAFlag;
   Uint32 cnf_max_scan_direct_count = c_max_scan_direct_count;
   const Uint32 scan_direct_count = scanPtr->scan_direct_count;
@@ -14787,7 +14788,6 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
                                  scanPtr->m_exec_direct_batch_size_words,
                                  scanPtr->lcpScan,
                                  clientPtrI);
-
 
   do
   {
@@ -14820,7 +14820,9 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
        * will gradually decrease the amount of time we are allowed to
        * execute. If there are 10 signals in the job buffer we will set
        * the maximum limit to 50, with 20 we set it to 25 and so forth.
-       * We check this by dividing 500 by the JBB level.
+       * We check this by dividing 500 by the JBB level and multiplying
+       * by number of rows executed per microsecond which we estimate to
+       * 2.
        */
       Uint32 jbb_level = getSignalsInJBB();
       Uint32 tot_scan_direct_count = m_tot_scan_direct_count +
@@ -14829,7 +14831,8 @@ void Dblqh::send_next_NEXT_SCANREQ(Signal* signal,
       if (jbb_level > 4)
       {
         jamDebug();
-        tot_scan_limit = ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN / jbb_level;
+        tot_scan_limit = (ZMICROS_TO_WAIT_IN_JBB_WITH_MARGIN *
+                          ZROWS_PER_MICRO) / jbb_level;
       }
       if (exec_direct_batch_size_words <
           ZMAX_WORDS_PER_SCAN_BATCH_HIGH_PRIO &&
