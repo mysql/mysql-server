@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2005, 2006 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    Use is subject to license terms.
+  Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/***************************************************************
-* I N C L U D E D   F I L E S                                  *
-***************************************************************/
-
-#include <ndb_global.h>
-
 #include "dbGenerator.h"
+#include "my_byteorder.h"
 #include <NdbApi.hpp>
 #include <NdbOut.hpp>
 #include <NdbSleep.h>

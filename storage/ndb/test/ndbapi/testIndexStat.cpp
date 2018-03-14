@@ -22,7 +22,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <algorithm>
+
 #include <ndb_global.h>
+#include "m_ctype.h"
 #include <ndb_opts.h>
 #include <NdbApi.hpp>
 #include <NdbIndexStat.hpp>
@@ -31,11 +34,6 @@
 #include <NDBT_Stats.hpp>
 #include <math.h>
 #include <NdbHost.h>
-
-#undef min
-#undef max
-#define min(a, b) ((a) <= (b) ? (a) : (b))
-#define max(a, b) ((a) >= (b) ? (a) : (b))
 
 struct Opts {
   int loglevel;
@@ -1136,13 +1134,13 @@ Rng::Rng()
 uint
 Rng::minattrs() const
 {
-  return min(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
+  return std::min(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
 }
 
 uint
 Rng::maxattrs() const
 {
-  return max(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
+  return std::max(m_bnd[0].m_val.m_numattrs, m_bnd[1].m_val.m_numattrs);
 }
 
 bool
@@ -1234,8 +1232,8 @@ Rng::rowcount() const
 
   // verify is expensive due to makeranges() multiple tries
   const bool verify = (urandom(10) == 0);
-  const int lo = max(lim[0], 0);
-  const int hi = min(lim[1], (int)g_opts.rows - 1);
+  const int lo = std::max(lim[0], 0);
+  const int hi = std::min(lim[1], (int)g_opts.rows - 1);
   if (verify) {
     int pos = -1; // before, within, after
     for (i = 0; i < (int)g_opts.rows; i++) {
@@ -2236,7 +2234,7 @@ checkoptions()
   chkrc(g_opts.rows != 0);
   chkrc(g_opts.nullkeys <= 100);
   chkrc(g_opts.rpk != 0);
-  g_opts.rpk = min(g_opts.rpk, g_opts.rows);
+  g_opts.rpk = std::min(g_opts.rpk, g_opts.rows);
   chkrc(g_opts.rpkvar != 0);
   chkrc(g_opts.scanpct <= 100);
   chkrc(g_opts.eqscans <= 100);

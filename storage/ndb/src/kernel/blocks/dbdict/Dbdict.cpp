@@ -24,6 +24,7 @@
 
 #include <ndb_global.h>
 #include "my_sys.h"
+#include "m_ctype.h"
 
 #define DBDICT_C
 #include "Dbdict.hpp"

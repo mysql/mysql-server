@@ -131,9 +131,6 @@
 #endif
 #endif
 
-#include "m_ctype.h"
-#include <ctype.h>
-
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
 #endif

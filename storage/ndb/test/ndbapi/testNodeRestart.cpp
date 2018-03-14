@@ -34,7 +34,8 @@
 #include <RefConvert.hpp>
 #include <NdbEnv.h>
 #include <NdbMgmd.hpp>
-#include <my_sys.h>
+#include "m_ctype.h"
+#include "my_sys.h"
 #include <ndb_rand.h>
 #include <NdbHost.h>
 #include <BlockNumbers.h>

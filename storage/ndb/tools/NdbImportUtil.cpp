@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "NdbImportUtil.hpp"
+
+#include "m_ctype.h"
 #include "my_sys.h"
 #include <NdbDictionaryImpl.hpp>
-#include "NdbImportUtil.hpp"
-// legacy
-#include <BaseString.hpp>
-#include <Vector.hpp>
 
-#define snprintf BaseString::snprintf
-#define vsnprintf BaseString::vsnprintf
+#include <Vector.hpp>
 
 NdbImportUtil::NdbImportUtil() :
   m_util(*this),
