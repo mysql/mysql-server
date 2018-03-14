@@ -1301,7 +1301,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
     results.emplace("", histograms::Message::MULTIPLE_TABLES_SPECIFIED);
     res = true;
   } else {
-    if (read_only) {
+    if (read_only || thd->tx_read_only) {
       // Do not try to update histograms when in read_only mode.
       results.emplace("", histograms::Message::SERVER_READ_ONLY);
       res = false;
