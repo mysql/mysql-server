@@ -33,6 +33,7 @@
 #include "sql/regexp/regexp_facade.h"
 #include "sql/sql_class.h"
 #include "sql_string.h"
+#include "template_utils.h"
 
 namespace regexp {
 
@@ -45,7 +46,8 @@ const char *icu_version_string() { return U_ICU_VERSION; }
 void Regexp_engine::Reset(const std::u16string &subject) {
   auto usubject = subject.data();
   int length = subject.size();
-  uregex_setText(m_re, usubject, length, &m_error_code);
+  uregex_setText(m_re, pointer_cast<const UChar *>(usubject), length,
+                 &m_error_code);
   m_current_subject = subject;
 }
 
@@ -143,12 +145,13 @@ void Regexp_engine::AppendHead(size_t size) {
 }
 
 int Regexp_engine::TryToAppendReplacement(const std::u16string &replacement) {
-  UChar *ptr = &m_replace_buffer.at(0) + m_replace_buffer_pos;
+  UChar *ptr =
+      pointer_cast<UChar *>(&m_replace_buffer.at(0) + m_replace_buffer_pos);
   int capacity = m_replace_buffer.size() - m_replace_buffer_pos;
   auto repl = replacement.data();
   size_t length = replacement.size();
-  return uregex_appendReplacement(m_re, repl, length, &ptr, &capacity,
-                                  &m_error_code);
+  return uregex_appendReplacement(m_re, pointer_cast<const UChar *>(repl),
+                                  length, &ptr, &capacity, &m_error_code);
 }
 
 void Regexp_engine::AppendReplacement(const std::u16string &replacement) {
@@ -176,7 +179,8 @@ void Regexp_engine::AppendReplacement(const std::u16string &replacement) {
 }
 
 int Regexp_engine::TryToAppendTail() {
-  UChar *ptr = &m_replace_buffer.at(0) + m_replace_buffer_pos;
+  UChar *ptr =
+      pointer_cast<UChar *>(&m_replace_buffer.at(0) + m_replace_buffer_pos);
   int capacity = m_replace_buffer.size() - m_replace_buffer_pos;
   return uregex_appendTail(m_re, &ptr, &capacity, &m_error_code);
 }

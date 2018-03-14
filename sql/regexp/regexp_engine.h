@@ -36,6 +36,7 @@
 #include "sql/regexp/errors.h"
 #include "sql/sql_class.h"  // THD
 #include "sql_string.h"
+#include "template_utils.h"
 
 extern CHARSET_INFO my_charset_utf16le_general_ci;
 extern CHARSET_INFO my_charset_utf16_general_ci;
@@ -100,7 +101,8 @@ class Regexp_engine {
     UParseError error;
     auto upattern = pattern.data();
     int length = pattern.size();
-    m_re = uregex_open(upattern, length, flags, &error, &m_error_code);
+    m_re = uregex_open(pointer_cast<const UChar *>(upattern), length, flags,
+                       &error, &m_error_code);
     uregex_setStackLimit(m_re, stack_limit, &m_error_code);
     uregex_setTimeLimit(m_re, time_limit, &m_error_code);
     uregex_setMatchCallback(m_re, QueryNotKilled, current_thd, &m_error_code);

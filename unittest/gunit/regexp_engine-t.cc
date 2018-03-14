@@ -61,7 +61,7 @@ class Mock_regexp_engine : public regexp::Regexp_engine {
  public:
   Mock_regexp_engine(const std::u16string &pattern,
                      const std::u16string &subject,
-                     std::initializer_list<UChar> expected_buffer)
+                     std::initializer_list<char16_t> expected_buffer)
       : Regexp_engine(pattern, 0, 0, 0), m_expected_buffer(expected_buffer) {
     EXPECT_EQ(U_ZERO_ERROR, m_error_code);
     Reset(subject);
@@ -81,7 +81,7 @@ class Mock_regexp_engine : public regexp::Regexp_engine {
           << "at position " << i << ".";
   }
 
-  void set_replace_buffer(std::initializer_list<UChar> buffer) {
+  void set_replace_buffer(std::initializer_list<char16_t> buffer) {
     m_replace_buffer = buffer;
   }
 
