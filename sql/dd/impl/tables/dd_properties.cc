@@ -59,7 +59,7 @@ DD_properties::DD_properties() : m_properties() {
   m_target_def.set_table_name("dd_properties");
 
   m_target_def.add_field(FIELD_PROPERTIES, "FIELD_PROPERTIES",
-                         "properties MEDIUMTEXT");
+                         "properties MEDIUMBLOB");
 
   m_target_def.add_populate_statement(
       "INSERT INTO dd_properties (properties)"
