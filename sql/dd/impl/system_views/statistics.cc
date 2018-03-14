@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ Statistics_base::Statistics_base() {
                          "tbl.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(
       FIELD_NON_UNIQUE, "NON_UNIQUE",
-      "IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE','0','1')");
+      "IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE',0,1)");
   m_target_def.add_field(FIELD_INDEX_SCHEMA, "INDEX_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_INDEX_NAME, "INDEX_NAME",
