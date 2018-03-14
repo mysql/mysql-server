@@ -193,7 +193,7 @@ if($mach64)
 --disable_warnings
 SELECT @@global.myisam_sort_buffer_size   = VARIABLE_VALUE 
 FROM performance_schema.global_variables 
-WHERE VARIABLE_NAME='myisam_sort_buffer_size';
+WHERE VARIABLE_NAME='myisam_sort_buffer_size  ';
 --enable_warnings
 
 --echo '#------------------FN_DYNVARS_005_07-----------------------#'
@@ -204,7 +204,7 @@ WHERE VARIABLE_NAME='myisam_sort_buffer_size';
 --disable_warnings
 SELECT @@session.myisam_sort_buffer_size   = VARIABLE_VALUE 
 FROM performance_schema.session_variables 
-WHERE VARIABLE_NAME='myisam_sort_buffer_size';
+WHERE VARIABLE_NAME='myisam_sort_buffer_size  ';
 --enable_warnings
 
 --echo '#------------------FN_DYNVARS_005_08-----------------------#'

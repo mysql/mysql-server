@@ -49,7 +49,7 @@ explain select COUNT(*)
 from performance_schema.file_summary_by_instance 
 where FILE_NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	file_summary_by_instance	NULL	ref	FILE_NAME	FILE_NAME	2050	const	#	100.00	NULL
+1	SIMPLE	file_summary_by_instance	NULL	ref	FILE_NAME	FILE_NAME	1538	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.file_summary_by_instance
@@ -67,7 +67,7 @@ explain select COUNT(*)
 from performance_schema.file_summary_by_instance
 where FILE_NAME = @fname;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	file_summary_by_instance	NULL	ref	FILE_NAME	FILE_NAME	2050	const	#	100.00	NULL
+1	SIMPLE	file_summary_by_instance	NULL	ref	FILE_NAME	FILE_NAME	1538	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select COUNT(*)
@@ -85,7 +85,7 @@ explain select COUNT(*)
 from performance_schema.file_summary_by_instance 
 where EVENT_NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	file_summary_by_instance	NULL	ref	EVENT_NAME	EVENT_NAME	514	const	#	100.00	NULL
+1	SIMPLE	file_summary_by_instance	NULL	ref	EVENT_NAME	EVENT_NAME	386	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select COUNT(*)
 from performance_schema.file_summary_by_instance
@@ -103,7 +103,7 @@ explain select COUNT(*)
 from performance_schema.file_summary_by_instance
 where EVENT_NAME = @ename;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	file_summary_by_instance	NULL	ref	EVENT_NAME	EVENT_NAME	514	const	#	100.00	NULL
+1	SIMPLE	file_summary_by_instance	NULL	ref	EVENT_NAME	EVENT_NAME	386	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select COUNT(*)

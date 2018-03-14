@@ -60,7 +60,7 @@ explain select SUM_CONNECT_ERRORS
 from performance_schema.host_cache
 where IP = "192.0.2.4";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	host_cache	NULL	const	PRIMARY	PRIMARY	258	const	#	100.00	NULL
+1	SIMPLE	host_cache	NULL	const	PRIMARY	PRIMARY	194	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select SUM_CONNECT_ERRORS
@@ -78,7 +78,7 @@ explain select SUM_CONNECT_ERRORS
 from performance_schema.host_cache 
 where HOST = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	host_cache	NULL	ref	HOST	HOST	1023	const	#	100.00	NULL
+1	SIMPLE	host_cache	NULL	ref	HOST	HOST	768	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select SUM_CONNECT_ERRORS
 from performance_schema.host_cache
@@ -96,7 +96,7 @@ explain select SUM_CONNECT_ERRORS
 from performance_schema.host_cache
 where HOST = "santa.claus.ipv4.example.com";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	host_cache	NULL	ref	HOST	HOST	1023	const	#	100.00	NULL
+1	SIMPLE	host_cache	NULL	ref	HOST	HOST	768	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select SUM_CONNECT_ERRORS

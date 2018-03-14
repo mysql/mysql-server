@@ -27,7 +27,7 @@ explain select TOTAL_CONNECTIONS
 from performance_schema.users
 where USER = "foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	users	NULL	const	USER	USER	129	const	#	100.00	NULL
+1	SIMPLE	users	NULL	const	USER	USER	97	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select TOTAL_CONNECTIONS

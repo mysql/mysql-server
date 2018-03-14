@@ -27,7 +27,7 @@ explain select TOTAL_CONNECTIONS
 from performance_schema.hosts
 where HOST = "localhost";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	hosts	NULL	const	HOST	HOST	241	const	#	100.00	NULL
+1	SIMPLE	hosts	NULL	const	HOST	HOST	181	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select TOTAL_CONNECTIONS

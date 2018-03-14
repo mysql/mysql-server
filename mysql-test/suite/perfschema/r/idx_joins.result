@@ -9,7 +9,7 @@ USE performance_schema;
 EXPLAIN SELECT * FROM (users AS t1 INNER JOIN hosts AS t2 ON (t2.host = t1.user));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	USER	NULL	NULL	NULL	#	100.00	Using where
-1	SIMPLE	t2	NULL	ref	HOST	HOST	241	performance_schema.t1.USER	#	100.00	Using where
+1	SIMPLE	t2	NULL	ref	HOST	HOST	181	performance_schema.t1.USER	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`t1`.`USER` AS `USER`,`performance_schema`.`t1`.`CURRENT_CONNECTIONS` AS `CURRENT_CONNECTIONS`,`performance_schema`.`t1`.`TOTAL_CONNECTIONS` AS `TOTAL_CONNECTIONS`,`performance_schema`.`t2`.`HOST` AS `HOST`,`performance_schema`.`t2`.`CURRENT_CONNECTIONS` AS `CURRENT_CONNECTIONS`,`performance_schema`.`t2`.`TOTAL_CONNECTIONS` AS `TOTAL_CONNECTIONS` from `performance_schema`.`users` `t1` join `performance_schema`.`hosts` `t2` where (`performance_schema`.`t2`.`HOST` = `performance_schema`.`t1`.`USER`)
 
@@ -23,7 +23,7 @@ COUNT(*)
 EXPLAIN SELECT * FROM (file_instances AS t1 INNER JOIN session_variables AS t2 ON (t2.variable_value = t1.file_name));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
-1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	2050	performance_schema.t2.VARIABLE_VALUE	#	100.00	Using where
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	1538	performance_schema.t2.VARIABLE_VALUE	#	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `performance_schema`.`t1`.`FILE_NAME` AS `FILE_NAME`,`performance_schema`.`t1`.`EVENT_NAME` AS `EVENT_NAME`,`performance_schema`.`t1`.`OPEN_COUNT` AS `OPEN_COUNT`,`performance_schema`.`t2`.`VARIABLE_NAME` AS `VARIABLE_NAME`,`performance_schema`.`t2`.`VARIABLE_VALUE` AS `VARIABLE_VALUE` from `performance_schema`.`file_instances` `t1` join `performance_schema`.`session_variables` `t2` where (`performance_schema`.`t2`.`VARIABLE_VALUE` = `performance_schema`.`t1`.`FILE_NAME`)
 

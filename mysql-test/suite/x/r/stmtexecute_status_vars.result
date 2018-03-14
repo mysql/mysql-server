@@ -333,7 +333,7 @@ Mysqlx_rows_sent	2
 0 rows affected
 RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
 Variable_name	Value
-Mysqlx_bytes_sent	706
+Mysqlx_bytes_sent	700
 0 rows affected
 send Mysqlx.Sql.StmtExecute {
   stmt: "create_collection"
@@ -670,7 +670,7 @@ Mysqlx_rows_sent	7
 0 rows affected
 RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
 Variable_name	Value
-Mysqlx_bytes_sent	2737
+Mysqlx_bytes_sent	2721
 0 rows affected
 Filter data by unsigned int
 send Mysqlx.Sql.StmtExecute {
@@ -718,7 +718,7 @@ Mysqlx_rows_sent	15
 0 rows affected
 RUN SHOW STATUS like 'Mysqlx_bytes_sent%'
 Variable_name	Value
-Mysqlx_bytes_sent	5042
+Mysqlx_bytes_sent	5018
 0 rows affected
 RUN SHOW STATUS like 'Mysqlx_stmt_drop_collection'
 Variable_name	Value

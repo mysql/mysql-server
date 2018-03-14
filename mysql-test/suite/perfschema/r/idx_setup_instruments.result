@@ -25,7 +25,7 @@ explain select ENABLED
 from performance_schema.setup_instruments
 where NAME = "statement/sql/select";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	setup_instruments	NULL	const	PRIMARY	PRIMARY	514	const	#	100.00	NULL
+1	SIMPLE	setup_instruments	NULL	const	PRIMARY	PRIMARY	386	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select ENABLED

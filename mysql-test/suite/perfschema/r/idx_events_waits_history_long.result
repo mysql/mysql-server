@@ -20,7 +20,7 @@ events_waits_history_long	CREATE TABLE `events_waits_history_long` (
   `OPERATION` varchar(32) NOT NULL,
   `NUMBER_OF_BYTES` bigint(20) DEFAULT NULL,
   `FLAGS` int(10) unsigned DEFAULT NULL
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 select * from INFORMATION_SCHEMA.STATISTICS
 where TABLE_SCHEMA = "performance_schema"
   and TABLE_NAME = "events_waits_history_long";

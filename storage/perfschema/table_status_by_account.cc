@@ -52,8 +52,8 @@ Plugin_table table_status_by_account::m_table_def(
     /* Name */
     "status_by_account",
     /* Definition */
-    "  USER CHAR(32) collate utf8mb4_bin default null,\n"
-    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
     "  VARIABLE_NAME VARCHAR(64) not null,\n"
     "  VARIABLE_VALUE VARCHAR(1024),\n"
     "  UNIQUE KEY `ACCOUNT` (USER, HOST, VARIABLE_NAME) USING HASH\n",

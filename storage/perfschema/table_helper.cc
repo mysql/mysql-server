@@ -179,7 +179,7 @@ double get_field_double(Field *f) {
 void set_field_char_utf8(Field *f, const char *str, uint len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
   Field_string *f2 = (Field_string *)f;
-  f2->store(str, len, &my_charset_utf8mb4_bin);
+  f2->store(str, len, &my_charset_utf8_bin);
 }
 String *get_field_char_utf8(Field *f, String *val) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
@@ -208,12 +208,12 @@ void set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str,
 void set_field_varchar_utf8(Field *f, const char *str) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
+  f2->store(str, strlen(str), &my_charset_utf8_bin);
 }
 void set_field_varchar_utf8(Field *f, const char *str, uint len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
-  f2->store(str, len, &my_charset_utf8mb4_bin);
+  f2->store(str, len, &my_charset_utf8_bin);
 }
 String *get_field_varchar_utf8(Field *f, String *val) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
@@ -246,7 +246,7 @@ void set_field_varchar_utf8mb4(Field *f, const char *str, uint len) {
 void set_field_blob(Field *f, const char *val, size_t len) {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
   Field_blob *f2 = (Field_blob *)f;
-  f2->store(val, len, &my_charset_utf8mb4_bin);
+  f2->store(val, len, &my_charset_utf8_bin);
 }
 
 /* TEXT TYPE */

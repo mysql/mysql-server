@@ -45,7 +45,7 @@ Plugin_table table_host_cache::m_table_def(
     "host_cache",
     /* Definition */
     "  IP VARCHAR(64) not null,\n"
-    "  HOST VARCHAR(255) collate utf8mb4_bin,\n"
+    "  HOST VARCHAR(255) collate utf8_bin,\n"
     "  HOST_VALIDATED ENUM ('YES', 'NO') not null,\n"
     "  SUM_CONNECT_ERRORS BIGINT not null,\n"
     "  COUNT_HOST_BLOCKED_ERRORS BIGINT not null,\n"

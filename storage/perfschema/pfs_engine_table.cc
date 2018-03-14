@@ -1396,7 +1396,7 @@ enum ha_rkey_function PFS_key_reader::read_text_utf8(
     memcpy(buffer, m_remaining_key + data_offset, string_len);
     *buffer_length = (uint)string_len;
 
-    const CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
+    const CHARSET_INFO *cs = &my_charset_utf8_bin;  // FIXME
     uchar *pos = (uchar *)buffer;
     if (cs->mbmaxlen > 1) {
       size_t char_length;

@@ -39,10 +39,10 @@ Warnings:
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY binlog_order_commits = @@GLOBAL.binlog_order_commits;
+SET PERSIST_ONLY binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
 SET PERSIST_ONLY binlog_row_image = @@GLOBAL.binlog_row_image;
 SET PERSIST_ONLY binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
 SET PERSIST_ONLY binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
-SET PERSIST_ONLY binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
 SET PERSIST_ONLY binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
 SET PERSIST_ONLY binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
 SET PERSIST_ONLY binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
@@ -144,10 +144,10 @@ RESET PERSIST binlog_group_commit_sync_no_delay_count;
 RESET PERSIST binlog_gtid_simple_recovery;
 RESET PERSIST binlog_max_flush_queue_time;
 RESET PERSIST binlog_order_commits;
+RESET PERSIST binlog_rows_query_log_events;
 RESET PERSIST binlog_row_image;
 RESET PERSIST binlog_row_metadata;
 RESET PERSIST binlog_row_value_options;
-RESET PERSIST binlog_rows_query_log_events;
 RESET PERSIST binlog_stmt_cache_size;
 RESET PERSIST binlog_transaction_dependency_history_size;
 RESET PERSIST binlog_transaction_dependency_tracking;

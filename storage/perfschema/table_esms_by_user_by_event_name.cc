@@ -50,7 +50,7 @@ Plugin_table table_esms_by_user_by_event_name::m_table_def(
     /* Name */
     "events_statements_summary_by_user_by_event_name",
     /* Definition */
-    "  USER CHAR(32) collate utf8mb4_bin default null,\n"
+    "  USER CHAR(32) collate utf8_bin default null,\n"
     "  EVENT_NAME VARCHAR(128) not null,\n"
     "  COUNT_STAR BIGINT unsigned not null,\n"
     "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"

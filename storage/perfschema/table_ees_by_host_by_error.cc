@@ -50,7 +50,7 @@ Plugin_table table_ees_by_host_by_error::m_table_def(
     /* Name */
     "events_errors_summary_by_host_by_error",
     /* Definition */
-    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
     "  ERROR_NUMBER INTEGER,\n"
     "  ERROR_NAME VARCHAR(64),\n"
     "  SQL_STATE VARCHAR(5),\n"

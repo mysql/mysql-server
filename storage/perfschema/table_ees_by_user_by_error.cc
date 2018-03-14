@@ -50,7 +50,7 @@ Plugin_table table_ees_by_user_by_error::m_table_def(
     /* Name */
     "events_errors_summary_by_user_by_error",
     /* Definition */
-    "  USER CHAR(32) collate utf8mb4_bin default null,\n"
+    "  USER CHAR(32) collate utf8_bin default null,\n"
     "  ERROR_NUMBER INTEGER,\n"
     "  ERROR_NAME VARCHAR(64),\n"
     "  SQL_STATE VARCHAR(5),\n"

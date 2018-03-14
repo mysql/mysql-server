@@ -25,7 +25,7 @@ explain select COUNT_STAR
 from performance_schema.events_waits_summary_global_by_event_name
 where EVENT_NAME = "wait/lock/table/sql/handler";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_global_by_event_name	NULL	const	PRIMARY	PRIMARY	514	const	#	100.00	NULL
+1	SIMPLE	events_waits_summary_global_by_event_name	NULL	const	PRIMARY	PRIMARY	386	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select COUNT_STAR

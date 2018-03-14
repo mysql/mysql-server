@@ -25,7 +25,7 @@ explain select VARIABLE_VALUE
 from performance_schema.global_variables
 where VARIABLE_NAME = "performance_schema";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	global_variables	NULL	const	PRIMARY	PRIMARY	258	const	#	100.00	NULL
+1	SIMPLE	global_variables	NULL	const	PRIMARY	PRIMARY	194	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select VARIABLE_VALUE

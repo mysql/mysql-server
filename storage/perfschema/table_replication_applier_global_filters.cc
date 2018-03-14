@@ -52,7 +52,7 @@ Plugin_table table_replication_applier_global_filters::m_table_def(
     /* Name */
     "replication_applier_global_filters",
     /* Definition */
-    "  FILTER_NAME CHAR(64) not null,\n"
+    "  FILTER_NAME CHAR(64) collate utf8_general_ci not null,\n"
     "  FILTER_RULE LONGTEXT not null,\n"
     "  CONFIGURED_BY ENUM('STARTUP_OPTIONS',\n"
     "                     'CHANGE_REPLICATION_FILTER') not null,\n"

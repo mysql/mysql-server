@@ -144,13 +144,13 @@ SELECT @@session.myisam_repair_threads ;
 '#------------------FN_DYNVARS_005_06-----------------------#'
 SELECT @@global.myisam_repair_threads  = VARIABLE_VALUE 
 FROM performance_schema.global_variables 
-WHERE VARIABLE_NAME='myisam_repair_threads';
+WHERE VARIABLE_NAME='myisam_repair_threads ';
 @@global.myisam_repair_threads  = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_005_07-----------------------#'
 SELECT @@session.myisam_repair_threads  = VARIABLE_VALUE 
 FROM performance_schema.session_variables 
-WHERE VARIABLE_NAME='myisam_repair_threads';
+WHERE VARIABLE_NAME='myisam_repair_threads ';
 @@session.myisam_repair_threads  = VARIABLE_VALUE
 1
 '#------------------FN_DYNVARS_005_08-----------------------#'

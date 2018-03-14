@@ -147,18 +147,7 @@ SELECT table_name, index_name, is_visible
 FROM information_schema.statistics
 WHERE index_name = 'idx_id';
 
-# This prints warning 3719:
-#
-# 'utf8' is currently an alias for the character set UTF8MB3, which will be
-# replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in
-# order to be unambiguous.
-#
-# The number of warnings printed depends on the platform,
-# so use disable_warnings to get a stable result file.
-
---disable_warnings
 SELECT * FROM sys.schema_unused_indexes WHERE index_name = 'idx_id';
---enable_warnings
 
 SELECT rows_selected
 FROM sys.schema_index_statistics

@@ -37,7 +37,7 @@ explain select SERVICE_STATE
 from performance_schema.replication_applier_status_by_coordinator
 where CHANNEL_NAME = @c_name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	replication_applier_status_by_coordinator	NULL	const	PRIMARY	PRIMARY	256	const	#	100.00	NULL
+1	SIMPLE	replication_applier_status_by_coordinator	NULL	const	PRIMARY	PRIMARY	192	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select SERVICE_STATE
