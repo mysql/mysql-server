@@ -1260,6 +1260,7 @@ found_none:
  * once.  This terminates the scan and also avoids kernel crash on
  * invalid data.
  */
+inline
 bool
 Dbtux::scanCheck(ScanOp& scan, TreeEnt ent)
 {
