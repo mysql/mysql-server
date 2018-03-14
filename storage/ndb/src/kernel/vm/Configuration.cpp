@@ -902,7 +902,10 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
       1 /* LCP */; 
   }
   if (noOfLocalOperations == 0) {
-    noOfLocalOperations= (11 * noOfOperations) / 10;
+    if (noOfOperations == 0)
+      noOfLocalOperations = 11 * 32768 / 10;
+    else
+      noOfLocalOperations= (11 * noOfOperations) / 10;
   }
 
   Uint32 noOfTCScanRecords = noOfScanRecords;
