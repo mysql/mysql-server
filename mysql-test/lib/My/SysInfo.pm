@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,223 +21,201 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-
 package My::SysInfo;
 
 use strict;
 use Carp;
+
 use My::Platform;
 
-sub _nproc
-{
-  my ($self)= @_;
+# Use 'nproc' command to get the number of CPUs if available
+sub _nproc {
+  my ($self) = @_;
 
-  # Use 'nproc' command to get the number of CPUs if available
-  my $null_dev= (IS_WINDOWS) ? 'nul' : '/dev/null';
-  my $ncpu= `nproc 2> $null_dev`;
+  my $null_dev = (IS_WINDOWS) ? 'nul' : '/dev/null';
+  my $ncpu = `nproc 2> $null_dev`;
   chomp($ncpu);
 
-  if ($ncpu ne '')
-  {
-    for(1..$ncpu)
-    {
-      my $cpuinfo->{processor}= $_;
-      push(@{$self->{cpus}}, $cpuinfo);
+  if ($ncpu ne '') {
+    for (1 .. $ncpu) {
+      my $cpuinfo->{processor} = $_;
+      push(@{ $self->{cpus} }, $cpuinfo);
     }
     return $self;
   }
   return undef;
 }
 
-sub _cpuinfo
-{
-  my ($self)= @_;
+sub _cpuinfo {
+  my ($self) = @_;
 
-  my $info_file= "/proc/cpuinfo";
-  if ( !(  -e $info_file and -f $info_file) ) {
+  my $info_file = "/proc/cpuinfo";
+  if (!(-e $info_file and -f $info_file)) {
     return undef;
   }
 
-  my $F= IO::File->new($info_file) or return undef;
+  my $F = IO::File->new($info_file) or return undef;
 
   # Set input separator to blank line
   local $/ = '';
 
-  while ( my $cpu_chunk= <$F>) {
+  while (my $cpu_chunk = <$F>) {
     chomp($cpu_chunk);
 
     my $cpuinfo = {};
-
-    foreach my $cpuline ( split(/\n/, $cpu_chunk) ) {
-      my ( $attribute, $value ) = split(/\s*:\s*/, $cpuline);
+    foreach my $cpuline (split(/\n/, $cpu_chunk)) {
+      my ($attribute, $value) = split(/\s*:\s*/, $cpuline);
 
       $attribute =~ s/\s+/_/;
       $attribute = lc($attribute);
 
-      if ( $value =~ /^(no|not available|yes)$/ ) {
-	$value = $value eq 'yes' ? 1 : 0;
+      if ($value =~ /^(no|not available|yes)$/) {
+        $value = $value eq 'yes' ? 1 : 0;
       }
 
-      if ( $attribute eq 'flags' ) {
-	@{ $cpuinfo->{flags} } = split / /, $value;
+      if ($attribute eq 'flags') {
+        @{ $cpuinfo->{flags} } = split / /, $value;
       } else {
-	$cpuinfo->{$attribute} = $value;
+        $cpuinfo->{$attribute} = $value;
       }
     }
 
     # Cpus reported once, but with 'cpu_count' set to the actual number
-    my $cpu_count= $cpuinfo->{cpu_count} || 1;
-    for(1..$cpu_count){
-      push(@{$self->{cpus}}, $cpuinfo);
+    my $cpu_count = $cpuinfo->{cpu_count} || 1;
+    for (1 .. $cpu_count) {
+      push(@{ $self->{cpus} }, $cpuinfo);
     }
   }
-  $F= undef; # Close file
+
+  # Close the file
+  $F = undef;
   return $self;
 }
 
-
 sub _kstat {
-  my ($self)= @_;
-  while (1){
-    my $instance_num= $self->{cpus} ? @{$self->{cpus}} : 0;
-    my $null_dev= (IS_WINDOWS) ? 'nul' : '/dev/null';
-    my $list= `kstat -p -m cpu_info -i $instance_num 2> $null_dev`;
-    my @lines= split('\n', $list) or last; # Break loop
+  my ($self) = @_;
+  while (1) {
+    my $instance_num = $self->{cpus} ? @{ $self->{cpus} } : 0;
+    my $null_dev     = (IS_WINDOWS)  ? 'nul'              : '/dev/null';
+    my $list         = `kstat -p -m cpu_info -i $instance_num 2> $null_dev`;
+    my @lines = split('\n', $list) or last;    # Break loop
 
-    my $cpuinfo= {};
-    foreach my $line (@lines)
-    {
-      my ($module, $instance, $name, $statistic, $value)=
-	$line=~ /(\w*):(\w*):(\w*):(\w*)\t(.*)/;
+    my $cpuinfo = {};
+    foreach my $line (@lines) {
+      my ($module, $instance, $name, $statistic, $value) =
+        $line =~ /(\w*):(\w*):(\w*):(\w*)\t(.*)/;
 
-      $cpuinfo->{$statistic}= $value;
+      $cpuinfo->{$statistic} = $value;
     }
 
-    push(@{$self->{cpus}}, $cpuinfo);
+    push(@{ $self->{cpus} }, $cpuinfo);
   }
 
-  # At least one cpu should have been found
-  # if this method worked
-  if ( $self->{cpus} ) {
+  # At least one cpu should have been found if this method worked.
+  if ($self->{cpus}) {
     return $self;
   }
+
   return undef;
 }
 
 sub _sysctl {
-  my ($self)= @_;
-  my $null_dev= (IS_WINDOWS) ? 'nul' : '/dev/null';
-  my $ncpu= `sysctl hw.ncpu 2> $null_dev`;
+  my ($self) = @_;
+  my $null_dev = (IS_WINDOWS) ? 'nul' : '/dev/null';
+  my $ncpu = `sysctl hw.ncpu 2> $null_dev`;
   if ($ncpu eq '') {
-  return undef;
+    return undef;
   }
 
-  my $cpuinfo= {};
   $ncpu =~ s/\D//g;
-  my $list = `sysctl machdep.cpu 2> $null_dev | grep machdep\.cpu\.[^.]*: 2> $null_dev`;
-  my @lines= split('\n', $list);
+  my $list =
+    `sysctl machdep.cpu 2> $null_dev | grep machdep\.cpu\.[^.]*: 2> $null_dev`;
+  my @lines = split('\n', $list);
 
+  my $cpuinfo = {};
   foreach my $line (@lines) {
-    my ($statistic, $value)=
-    $line=~ /machdep\.cpu\.(.*):\s+(.*)/;
-    $cpuinfo->{$statistic}= $value;
+    my ($statistic, $value) = $line =~ /machdep\.cpu\.(.*):\s+(.*)/;
+    $cpuinfo->{$statistic} = $value;
   }
 
-  for (1..$ncpu) {
+  for (1 .. $ncpu) {
     my $temp_cpuinfo = $cpuinfo;
-    $temp_cpuinfo->{processor}= $_;
-    push(@{$self->{cpus}}, $temp_cpuinfo);
+    $temp_cpuinfo->{processor} = $_;
+    push(@{ $self->{cpus} }, $temp_cpuinfo);
   }
 
-  # At least one cpu should have been found
-  # if this method worked
-  if ( $self->{cpus} ) {
+  # At least one cpu should have been found if this method worked
+  if ($self->{cpus}) {
     return $self;
   }
+
+  return undef;
 }
 
 sub _unamex {
-  my ($self)= @_;
+  my ($self) = @_;
   # TODO
   return undef;
 }
 
+sub new {
+  my ($class) = @_;
+  my $self = bless { cpus => (), }, $class;
 
-sub new
-{
-  my ($class)= @_;
-  my $self= bless {
-		   cpus => (),
-		  }, $class;
-
-  my @info_methods=
-  (
-    \&_nproc,
-    \&_cpuinfo,
-    \&_kstat,
-    \&_sysctl,
-    \&_unamex,
-  );
+  my @info_methods = (\&_nproc, \&_cpuinfo, \&_kstat, \&_sysctl, \&_unamex,);
 
   # Detect virtual machines
-  my $isvm= 0;
+  my $isvm = 0;
 
-  if (IS_WINDOWS)
-  {
+  if (IS_WINDOWS) {
     # Detect vmware service
-    $isvm= `tasklist` =~ /vmwareservice/i;
+    $isvm = `tasklist` =~ /vmwareservice/i;
   }
-  $self->{isvm}= $isvm;
+  $self->{isvm} = $isvm;
 
-  foreach my $method (@info_methods)
-  {
+  foreach my $method (@info_methods) {
     return $self if ($method->($self));
   }
 
   # Push a dummy cpu
-  push(@{$self->{cpus}}, { model_name => "unknown", });
+  push(@{ $self->{cpus} }, { model_name => "unknown", });
 
   return $self;
 }
 
-
 # Return the list of cpus found
 sub cpus {
-  my ($self)= @_;
-  return @{$self->{cpus}} or
+  my ($self) = @_;
+  return @{ $self->{cpus} } or
     confess "INTERNAL ERROR: No cpus in list";
 }
-
 
 # Return the number of cpus found
 sub num_cpus {
+  my ($self) = @_;
   if (IS_WINDOWS) {
     return $ENV{NUMBER_OF_PROCESSORS} || 1;
   }
-  my ($self)= @_;
-  return int(@{$self->{cpus}}) or
+  return int(@{ $self->{cpus} }) or
     confess "INTERNAL ERROR: No cpus in list";
 }
 
-
 sub isvm {
-  my ($self)= @_;
-
+  my ($self) = @_;
   return $self->{isvm};
 }
 
-
-# Prit the cpuinfo
+# Print the cpuinfo
 sub print_info {
-  my ($self)= @_;
+  my ($self) = @_;
 
-  foreach my $cpu (@{$self->{cpus}}) {
+  foreach my $cpu (@{ $self->{cpus} }) {
     while ((my ($key, $value)) = each(%$cpu)) {
       print " ", $key, "= ";
       if (ref $value eq "ARRAY") {
-	print "[", join(", ", @$value), "]";
+        print "[", join(", ", @$value), "]";
       } else {
-	print $value;
+        print $value;
       }
       print "\n";
     }
