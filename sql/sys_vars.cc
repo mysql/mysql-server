@@ -352,7 +352,7 @@ static Sys_var_ulong Sys_pfs_max_cond_classes(
     "performance_schema_max_cond_classes",
     "Maximum number of condition instruments.",
     READ_ONLY GLOBAL_VAR(pfs_param.m_cond_class_sizing), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, 256), DEFAULT(PFS_MAX_COND_CLASS), BLOCK_SIZE(1),
+    VALID_RANGE(0, 1024), DEFAULT(PFS_MAX_COND_CLASS), BLOCK_SIZE(1),
     PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_cond_instances(
@@ -383,7 +383,7 @@ static Sys_var_ulong Sys_pfs_max_file_classes(
     "performance_schema_max_file_classes",
     "Maximum number of file instruments.",
     READ_ONLY GLOBAL_VAR(pfs_param.m_file_class_sizing), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, 256), DEFAULT(PFS_MAX_FILE_CLASS), BLOCK_SIZE(1),
+    VALID_RANGE(0, 1024), DEFAULT(PFS_MAX_FILE_CLASS), BLOCK_SIZE(1),
     PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_file_handles(
@@ -413,14 +413,14 @@ static Sys_var_ulong Sys_pfs_max_socket_classes(
     "performance_schema_max_socket_classes",
     "Maximum number of socket instruments.",
     READ_ONLY GLOBAL_VAR(pfs_param.m_socket_class_sizing),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256), DEFAULT(PFS_MAX_SOCKET_CLASS),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024), DEFAULT(PFS_MAX_SOCKET_CLASS),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_mutex_classes(
     "performance_schema_max_mutex_classes",
     "Maximum number of mutex instruments.",
     READ_ONLY GLOBAL_VAR(pfs_param.m_mutex_class_sizing),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256), DEFAULT(PFS_MAX_MUTEX_CLASS),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024), DEFAULT(PFS_MAX_MUTEX_CLASS),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_mutex_instances(
@@ -435,7 +435,7 @@ static Sys_var_ulong Sys_pfs_max_rwlock_classes(
     "performance_schema_max_rwlock_classes",
     "Maximum number of rwlock instruments.",
     READ_ONLY GLOBAL_VAR(pfs_param.m_rwlock_class_sizing),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256), DEFAULT(PFS_MAX_RWLOCK_CLASS),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024), DEFAULT(PFS_MAX_RWLOCK_CLASS),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_rwlock_instances(
@@ -482,7 +482,7 @@ static Sys_var_ulong Sys_pfs_max_thread_classes(
     "performance_schema_max_thread_classes",
     "Maximum number of thread instruments.",
     READ_ONLY GLOBAL_VAR(pfs_param.m_thread_class_sizing),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256), DEFAULT(PFS_MAX_THREAD_CLASS),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024), DEFAULT(PFS_MAX_THREAD_CLASS),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_max_thread_instances(
@@ -537,7 +537,7 @@ static Sys_var_ulong Sys_pfs_max_stage_classes(
     "performance_schema_max_stage_classes",
     "Maximum number of stage instruments.",
     READ_ONLY GLOBAL_VAR(pfs_param.m_stage_class_sizing),
-    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 256), DEFAULT(PFS_MAX_STAGE_CLASS),
+    CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024), DEFAULT(PFS_MAX_STAGE_CLASS),
     BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_long Sys_pfs_events_stages_history_long_size(
