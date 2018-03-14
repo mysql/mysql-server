@@ -28,8 +28,8 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --echo # Create an orphan .frm
 --copy_file $MYSQL_TMP_DIR/data57/sakila/actor.frm $MYSQL_TMP_DIR/data57/sakila/zzz.frm
 
-let $MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
-let $MYSQL_UPGRADE_LOG= $MYSQL_TMP_DIR/mysql_upgrade.log;
+let $MYSQLD_LOG= $MYSQL_TMP_DIR/upgrade_orphan.log;
+let $MYSQL_UPGRADE_LOG= $MYSQL_TMP_DIR/mysql_upgrade_orphan.log;
 
 --source include/shutdown_mysqld.inc
 
@@ -143,5 +143,3 @@ let $restart_parameters =;
 --source include/restart_mysqld.inc
 --force-rmdir $MYSQLD_DATADIR1
 --remove_file $MYSQL_TMP_DIR/data57.zip
---remove_file $MYSQLD_LOG
---remove_file $MYSQL_UPGRADE_LOG

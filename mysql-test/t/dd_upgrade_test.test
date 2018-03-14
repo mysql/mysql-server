@@ -204,7 +204,7 @@ EOF
 --echo # Files in 'test' dir
 --list_files $MYSQL_TMP_DIR/data57/
 
-let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/dd_upgrade_1.log;
 
 # Add '--read-only' option in the scope of fix of Bug#26636238, to avoid creation of another bulky test.
 --echo # Start the DB server. Server will create and populate Dictionary tables.
@@ -694,7 +694,6 @@ if ($RECORD == 1) {
 }
 
 --echo # Remove copied files
---remove_file $MYSQLD_LOG
 --force-rmdir $MYSQL_TMP_DIR/data57
 
 if ($RECORD == 1) {
@@ -708,7 +707,7 @@ if ($RECORD == 1) {
 --echo # Unzip the zip file.
 --exec unzip -qo $MYSQL_TMP_DIR/data57.zip -d $MYSQL_TMP_DIR
 
-let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/dd_upgrade_2.log;
 
 # These files are used by other test cases, and is not required here.
 --remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.frm
@@ -730,7 +729,6 @@ SHOW CREATE TABLE test.t_set;
 
 --echo # Remove copied files
 --remove_file $MYSQL_TMP_DIR/data57.zip
---remove_file $MYSQLD_LOG
 --force-rmdir $MYSQL_TMP_DIR/data57
 
 --echo # Restart the server with default options.
@@ -741,7 +739,7 @@ SHOW CREATE TABLE test.t_set;
 --echo #
 --echo #
 
-let MYSQLD_LOG= $MYSQL_TMP_DIR/server2.log;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/dd_upgrade_3.log;
 
 --echo # Zip file contains data directory of a clean 5.7 server.
 --echo # made by: ./mtr --mem --mysqld=--default_time_zone="+01:00" main.1st
