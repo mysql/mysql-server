@@ -1,4 +1,4 @@
-// Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -241,7 +241,7 @@ bool gis::srs::wkt_parser::parse_wkt(
     srid_t srid, const char *begin, const char *end,
     gis::srs::wkt_parser::Coordinate_system *cs) {
   // gis::srs::parse_wkt() should have filtered these out already
-  DBUG_ASSERT(begin != nullptr && begin != end);
+  DBUG_ASSERT(begin != nullptr && begin < (end - 1));
 
   namespace wp = gis::srs::wkt_parser;
 
