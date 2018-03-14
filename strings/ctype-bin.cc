@@ -370,7 +370,7 @@ static size_t my_strnxfrm_8bit_bin_pad_space(const CHARSET_INFO *cs, uchar *dst,
                                              uint flags) {
   srclen = std::min(srclen, dstlen);
   srclen = std::min<size_t>(srclen, nweights);
-  if (dst != src) memcpy(dst, src, srclen);
+  if (dst != src && srclen > 0) memcpy(dst, src, srclen);
   return my_strxfrm_pad(cs, dst, dst + srclen, dst + dstlen,
                         static_cast<uint>(nweights - srclen), flags);
 }
@@ -381,7 +381,7 @@ static size_t my_strnxfrm_8bit_bin_no_pad(const CHARSET_INFO *cs, uchar *dst,
                                           uint flags) {
   srclen = std::min(srclen, dstlen);
   srclen = std::min<size_t>(srclen, nweights);
-  if (dst != src) memcpy(dst, src, srclen);
+  if (dst != src && srclen > 0) memcpy(dst, src, srclen);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && srclen < dstlen) {
     cs->cset->fill(cs, pointer_cast<char *>(dst) + srclen, dstlen - srclen,
                    cs->pad_char);
