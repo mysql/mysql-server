@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_SRS_SRS_H_INCLUDED
 #define SQL_GIS_SRS_SRS_H_INCLUDED
 
-// Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -1796,7 +1796,7 @@ class Lambert_cylindrical_equal_area_srs : public Projected_srs {
 
   @param[in] srid Spatial reference system ID to use when reporting errors
   @param[in] begin Start of WKT string in UTF-8
-  @param[in] end End of WKT string
+  @param[in] end End of WKT string (one past the last byte)
   @param[out] result Spatial reference system
 
   @retval true An error has occurred
