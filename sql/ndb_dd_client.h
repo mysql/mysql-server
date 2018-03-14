@@ -110,7 +110,7 @@ public:
   bool get_table(const char* schema_name, const char* table_name,
                  const dd::Table **table_def);
 
-  bool fetch_schema_names(class std::vector<std::string>*);
+  bool fetch_schema_names(std::vector<std::string>*);
   bool get_ndb_table_names_in_schema(const char* schema_name,
                                      std::unordered_set<std::string> *names);
   bool have_local_tables_in_schema(const char* schema_name,
