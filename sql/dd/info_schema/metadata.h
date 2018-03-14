@@ -58,6 +58,10 @@ namespace info_schema {
   - Bug#27309116: Add a new column `external_language` to `mysql`.`routines`
     and update `information_schema`.`routines` to reflect this column.
 
+  - Bug#27593348: INFORMATION_SCHEMA.STATISTICS FIELD TYPE CHANGE.
+    Changes the column I_S.STATISTICS.NON_UNIQUE type from VARCHAR
+    to INT.
+
   80012: Next I_S version number to use when there is change.
   -----------------------------------------------------------
   No changes yet, hence this number is not used yet.
