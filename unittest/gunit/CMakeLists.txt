@@ -514,7 +514,7 @@ FOREACH(test ${SERVER_TESTS})
   TARGET_LINK_LIBRARIES(${test}-t sql_main sql_gis sql_dd)
   TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug mysys)
   TARGET_LINK_LIBRARIES(${test}-t
-    sql_main binlog rpl master slave sql_gis sql_main sql_dd)
+    sql_main binlog rpl master slave sql_gis sql_main sql_dd sql_gis)
   TARGET_LINK_LIBRARIES(${test}-t ${ICU_LIBRARIES})
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
