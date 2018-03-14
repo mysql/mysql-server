@@ -2590,7 +2590,7 @@ static int ssl_verify_server_cert(Vio *vio, const char *server_hostname,
   X509 *server_cert = NULL;
   int ret_validation = 1;
 
-#if OPENSSL_VERSION_NUMBER < 0x10002000L
+#if !(OPENSSL_VERSION_NUMBER >= 0x10002000L || defined(HAVE_WOLFSSL))
   int cn_loc = -1;
   char *cn = NULL;
   ASN1_STRING *cn_asn1 = NULL;
