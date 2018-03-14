@@ -838,8 +838,10 @@ IF(NOT WITHOUT_SERVER)
   # Add storage engines and plugins.
   CONFIGURE_PLUGINS()
 ELSE()
-  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
-  ADD_SUBDIRECTORY(storage/ndb)
+  IF(EXISTS "${CMAKE_SOURCE_DIR}/storage/ndb")
+    # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
+    ADD_SUBDIRECTORY(storage/ndb)
+  ENDIF()
 ENDIF()
 
 IF(NOT WITHOUT_SERVER)
