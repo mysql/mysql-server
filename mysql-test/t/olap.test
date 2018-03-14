@@ -930,6 +930,7 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES(7,3);
 
+--sorted_result
 SELECT  alias1.f1 AS field1, alias1.f1 AS field2, (alias1.f1 +1) AS field3 FROM
   ( t1 AS alias1, t1 as alias2 ) WHERE alias1.pk = 3
   GROUP BY field1, field2, field3 WITH ROLLUP  ORDER BY field2;

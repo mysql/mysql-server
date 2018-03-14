@@ -1913,10 +1913,10 @@ SELECT  alias1.f1 AS field1, alias1.f1 AS field2, (alias1.f1 +1) AS field3 FROM
 ( t1 AS alias1, t1 as alias2 ) WHERE alias1.pk = 3
 GROUP BY field1, field2, field3 WITH ROLLUP  ORDER BY field2;
 field1	field2	field3
-NULL	NULL	NULL
-NULL	NULL	NULL
 7	7	8
 7	7	NULL
+NULL	NULL	NULL
+NULL	NULL	NULL
 SELECT f1 FROM t1 WHERE pk = 3 GROUP BY f1 WITH ROLLUP ORDER BY f1;
 f1
 NULL

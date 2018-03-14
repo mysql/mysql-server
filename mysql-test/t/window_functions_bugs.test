@@ -223,22 +223,26 @@ DROP TABLE t1;
 CREATE TABLE t(a INT);
 INSERT INTO t values (1),(2),(3),(6),(0);
 
+#Costs vary in some of the platforms. So not printing these values.
 --echo Discard w
 let $query=
    SELECT 1 FROM t WINDOW w AS(PARTITION BY NULL,NULL ORDER BY NULL ASC);
 eval $query;
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w
 let $query=
    SELECT 1 FROM t WINDOW w AS(PARTITION BY 1+2,3+4,5+6 ORDER BY 1+2,3+4);
 eval $query;
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w2
 let $query=
    SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
 eval $query;
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Don't discard either w1 or w2. Non-optimal: could replace with
@@ -247,30 +251,35 @@ eval EXPLAIN FORMAT=JSON $query;
 let $query=
    SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1);
 eval $query;
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w3. Non-optimal: see previous case.
 let $query=
    SELECT RANK() OVER w2 FROM t WINDOW w1 AS (ORDER BY a), w2 AS (w1), w3 AS (w1);
 eval $query;
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w1. Non-optimal: see previous case.
 let $query=
    SELECT RANK() OVER w3 FROM t WINDOW w1 AS (w2), w3 AS (w2), w2 AS ();
 eval $query;
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard w2.
 let $query=
    SELECT RANK() OVER w1 FROM t WINDOW w2 AS (w1), w1 AS (ORDER BY a);
 eval $query;
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
 eval EXPLAIN FORMAT=JSON $query;
 
 --echo Discard none.
 let $query=
    SELECT RANK() OVER w1 FROM t WINDOW w1 AS (ROWS UNBOUNDED PRECEDING);
 eval $query;
+--replace_regex /(_cost": )"[0-9.]+"/\1"#"/ /(per_join": )"[0-9]+"/\1"#"/ /(per_scan": )[0-9]+/\1"#"/ /(per_join": )[0-9]+/\1"#"/
 eval EXPLAIN FORMAT=JSON $query;
 
 DROP TABLE t;
