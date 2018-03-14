@@ -70,7 +70,7 @@ test.t1	analyze	status	OK
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	mysql	tables	SHOW_STATISTICS	Table	Table	253	256	2	N	#	0	255
-def			SHOW_STATISTICS	Non_unique	Non_unique	253	4	1	N	1	0	255
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	256	7	Y	0	0	255
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	256	1	Y	0	0	255
@@ -696,7 +696,7 @@ PRIMARY KEY(field1(750))
 show index from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	mysql	tables	SHOW_STATISTICS	Table	Table	253	64	2	N	#	0	63
-def			SHOW_STATISTICS	Non_unique	Non_unique	253	1	1	N	1	0	63
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	64	7	Y	0	0	63
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	64	6	Y	0	0	63
@@ -914,7 +914,7 @@ t1	CREATE TABLE `t1` (
 SHOW INDEX FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def	mysql	tables	SHOW_STATISTICS	Table	Table	253	192	2	N	#	0	33
-def			SHOW_STATISTICS	Non_unique	Non_unique	253	3	1	N	1	0	33
+def			SHOW_STATISTICS	Non_unique	Non_unique	3	1	1	N	32769	0	63
 def			SHOW_STATISTICS	Key_name	Key_name	253	192	7	Y	0	0	33
 def	mysql	index_column_usage	SHOW_STATISTICS	Seq_in_index	Seq_in_index	3	10	1	N	36897	0	63
 def			SHOW_STATISTICS	Column_name	Column_name	253	192	1	Y	0	0	33
