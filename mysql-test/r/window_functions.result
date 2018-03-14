@@ -1945,7 +1945,7 @@ EXPLAIN
           "read_cost": "2.59",
           "eval_cost": "0.70",
           "prefix_cost": "3.29",
-          "data_read_per_join": "560"
+          "data_read_per_join": "952"
         },
         "used_columns": [
           "id",
@@ -6026,7 +6026,7 @@ EXPLAIN
             "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
-            "key_length": "4",
+            "key_length": "8",
             "rows_examined_per_scan": 1,
             "materialized_from_subquery": {
               "using_temporary_table": true,

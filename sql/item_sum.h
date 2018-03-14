@@ -2054,7 +2054,7 @@ class Item_row_number : public Item_non_framing_wf {
   enum Sumfunctype sum_func() const override { return ROW_NUMBER_FUNC; }
 
   bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
-    set_data_type_from_result(result_type(), 0);
+    set_data_type_longlong();
     return false;
   }
 
@@ -2107,7 +2107,7 @@ class Item_rank : public Item_non_framing_wf {
   }
 
   bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
-    set_data_type_from_result(result_type(), 0);
+    set_data_type_longlong();
     return false;
   }
 
@@ -2142,7 +2142,7 @@ class Item_cume_dist : public Item_non_framing_wf {
   enum Sumfunctype sum_func() const override { return CUME_DIST_FUNC; }
 
   bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
-    set_data_type_from_result(result_type(), 0);
+    set_data_type_double();
     return false;
   }
 
@@ -2156,7 +2156,6 @@ class Item_cume_dist : public Item_non_framing_wf {
   String *val_str(String *) override;
   my_decimal *val_decimal(my_decimal *buffer) override;
   Item_result result_type() const override { return REAL_RESULT; }
-  bool fix_fields(THD *thd, Item **ref) override;
 };
 
 /**
@@ -2183,7 +2182,7 @@ class Item_percent_rank : public Item_non_framing_wf {
   enum Sumfunctype sum_func() const override { return PERCENT_RANK_FUNC; }
 
   bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
-    set_data_type_from_result(result_type(), 0);
+    set_data_type_double();
     return false;
   }
 
@@ -2198,7 +2197,6 @@ class Item_percent_rank : public Item_non_framing_wf {
   String *val_str(String *) override;
   my_decimal *val_decimal(my_decimal *buffer) override;
   Item_result result_type() const override { return REAL_RESULT; }
-  bool fix_fields(THD *thd, Item **ref) override;
 };
 
 /**
@@ -2218,7 +2216,7 @@ class Item_ntile : public Item_non_framing_wf {
   enum Sumfunctype sum_func() const override { return NTILE_FUNC; }
 
   bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
-    set_data_type_from_result(result_type(), 0);
+    set_data_type_longlong();
     return false;
   }
 

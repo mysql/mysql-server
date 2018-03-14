@@ -800,3 +800,22 @@ PARTITION BY b ORDER BY a RANGE BETWEEN CURRENT ROW AND 1 FOLLOWING
 ) FROM t;
 ERROR 22003: BIGINT value is out of range in '(<cache>(`test`.`t`.`a`) + 1)'
 DROP TABLE t;
+#
+# Bug#27452179: WINDOW: ASSERTION FAILED: SCALE >= 0 && PRECISION > 0
+#               && SCALE <= PRECISION
+#
+CREATE TABLE t(f1 INTEGER);
+INSERT INTO t VALUES(0),(1),(2),(3);
+SELECT * FROM (SELECT IF(1, WEEKDAY('1'), ROW_NUMBER() OVER (PARTITION BY f1))
+FROM t) AS a;
+IF(1, WEEKDAY('1'), ROW_NUMBER() OVER (PARTITION BY f1))
+NULL
+NULL
+NULL
+NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Incorrect datetime value: '1'
+Warning	1292	Incorrect datetime value: '1'
+DROP TABLE t;

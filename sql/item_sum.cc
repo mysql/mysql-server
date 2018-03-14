@@ -4427,20 +4427,10 @@ void Item_rank::cleanup() {
   m_previous.empty();
 }
 
-bool Item_cume_dist::fix_fields(THD *thd, Item **items) {
-  if (super::fix_fields(thd, items)) return true;
-
-  decimals = NOT_FIXED_DEC;
-  max_length = float_length(decimals);
-
-  return false;
-}
-
-bool Item_cume_dist::check_wf_semantics(
-    THD *thd MY_ATTRIBUTE((unused)), SELECT_LEX *select MY_ATTRIBUTE((unused)),
-    Window::Evaluation_requirements *r) {
-  r->needs_buffer =
-      true;  // we need to know partition cardinality, so two passes
+bool Item_cume_dist::check_wf_semantics(THD *, SELECT_LEX *,
+                                        Window::Evaluation_requirements *r) {
+  // we need to know partition cardinality, so two passes
+  r->needs_buffer = true;
   // Before we can compute for the current row we need the count of its peers
   r->needs_peerset = true;
   // SQL2015 6.10 <window function> SR 6.h: don't require ORDER BY.
@@ -4476,20 +4466,10 @@ my_decimal *Item_cume_dist::val_decimal(my_decimal *buffer) {
   return buffer;
 }
 
-bool Item_percent_rank::fix_fields(THD *thd, Item **items) {
-  if (super::fix_fields(thd, items)) return true;
-
-  decimals = NOT_FIXED_DEC;
-  max_length = float_length(decimals);
-
-  return false;
-}
-
-bool Item_percent_rank::check_wf_semantics(
-    THD *thd MY_ATTRIBUTE((unused)), SELECT_LEX *select MY_ATTRIBUTE((unused)),
-    Window::Evaluation_requirements *r) {
-  r->needs_buffer =
-      true;  // we need to know partition cardinality, so two passes
+bool Item_percent_rank::check_wf_semantics(THD *, SELECT_LEX *,
+                                           Window::Evaluation_requirements *r) {
+  // we need to know partition cardinality, so two passes
+  r->needs_buffer = true;
   /*
     The family of RANK functions doesn't need the peer set: even though they
     give the same value to peers, that value can be computed for the first row
