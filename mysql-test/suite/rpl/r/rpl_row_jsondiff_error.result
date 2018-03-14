@@ -53,8 +53,13 @@ UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 2. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -69,8 +74,13 @@ UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 3. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -85,8 +95,13 @@ UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 4. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -101,8 +116,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -123,8 +143,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -153,8 +178,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 7. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -179,8 +209,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 8. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -205,8 +240,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 9. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -231,8 +271,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 10. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -257,8 +302,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 11. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -283,8 +333,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 12. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -309,8 +364,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 13. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -335,8 +395,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 14. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -361,8 +426,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 15. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -398,8 +468,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
@@ -430,8 +505,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 17. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -444,8 +524,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 18. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -458,8 +543,13 @@ INSERT INTO test.t (i, j) VALUES (1, '[1, {"s" : 1}]');
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 19. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -472,8 +562,13 @@ INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}'), (2, '{"id": 2, 
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -492,8 +587,13 @@ SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 ## Removing debug point 'simulate_oom_in_apply_json_diffs' from @@GLOBAL.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -515,8 +615,13 @@ d,binlog_corrupt_json_diff_bad_op
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_op' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 22. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -534,8 +639,13 @@ d,binlog_corrupt_json_diff_truncate_before_path_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path_length' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 23. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -553,8 +663,13 @@ d,binlog_corrupt_json_diff_bad_path_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_length' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 24. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -572,8 +687,13 @@ d,binlog_corrupt_json_diff_truncate_before_path
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_path' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 25. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -591,8 +711,13 @@ d,binlog_corrupt_json_diff_bad_path_char
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_path_char' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 26. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -610,8 +735,13 @@ d,binlog_corrupt_json_diff_truncate_before_doc_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc_length' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 27. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -629,8 +759,13 @@ d,binlog_corrupt_json_diff_bad_doc_length
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_length' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 28. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -648,8 +783,13 @@ d,binlog_corrupt_json_diff_truncate_before_doc
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_truncate_before_doc' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 29. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -667,8 +807,13 @@ d,binlog_corrupt_json_diff_bad_doc_char
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_corrupt_json_diff_bad_doc_char' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 30. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -686,8 +831,13 @@ d,binlog_omit_last_column_from_table_map_event
 UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 ## Removing debug point 'binlog_omit_last_column_from_table_map_event' from @@SESSION.debug
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
@@ -721,8 +871,13 @@ UPDATE t SET j = JSON_REMOVE(j, '$[1].m') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 32. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -737,8 +892,13 @@ UPDATE t SET j = JSON_SET(j, '$[1].m', 2) WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 33. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -753,8 +913,13 @@ UPDATE t SET j = JSON_SET(j, '$[1].s', 2) WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 34. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -767,8 +932,13 @@ INSERT INTO test.t (i, j) VALUES (1, '{"id": 1, "value": "x"}'), (2, '{"id": 2, 
 SET SQL_LOG_BIN = 1;
 UPDATE t SET j = JSON_SET(j, '$.id', 2) WHERE i = 1;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -789,8 +959,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', REPEAT('a', 1024)) WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -819,8 +994,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 37. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -845,8 +1025,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 38. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -871,8 +1056,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 39. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -897,8 +1087,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 40. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -923,8 +1118,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 41. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -949,8 +1149,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 42. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -975,8 +1180,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 43. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1001,8 +1211,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 44. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1027,8 +1242,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== 45. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1064,8 +1284,13 @@ UPDATE t SET j = JSON_SET(j, '$.id', '[1]') WHERE i = 1;
 RESET SLAVE;
 RESET MASTER;
 DROP TABLE test.t;
-RESET SLAVE;
+RESET SLAVE ALL;
 RESET MASTER;
+RESET MASTER;
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
