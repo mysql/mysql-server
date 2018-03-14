@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2288,6 +2288,9 @@ uint sp_get_flags_for_command(LEX *lex) {
     case SQLCOM_DROP_ROLE:
     case SQLCOM_CREATE_SRS:
     case SQLCOM_DROP_SRS:
+    case SQLCOM_CREATE_RESOURCE_GROUP:
+    case SQLCOM_ALTER_RESOURCE_GROUP:
+    case SQLCOM_DROP_RESOURCE_GROUP:
       flags = sp_head::HAS_COMMIT_OR_ROLLBACK;
       break;
     default:
