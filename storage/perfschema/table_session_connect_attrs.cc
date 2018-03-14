@@ -45,7 +45,7 @@ Plugin_table table_session_connect_attrs::m_table_def(
     "  ORDINAL_POSITION INT,\n"
     "  PRIMARY KEY (PROCESSLIST_ID, ATTR_NAME)\n",
     /* Options */
-    " ENGINE=PERFORMANCE_SCHEMA CHARACTER SET utf8mb4 COLLATE utf8mb4_bin",
+    " ENGINE=PERFORMANCE_SCHEMA CHARACTER SET utf8 COLLATE utf8_bin",
     /* Tablespace */
     nullptr);
 

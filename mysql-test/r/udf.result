@@ -27,9 +27,9 @@ EXPLAIN
 SELECT udf_type FROM performance_schema.user_defined_functions
 WHERE udf_name = 'metaphon';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	user_defined_functions	NULL	const	PRIMARY	PRIMARY	258	const	1	100.00	NULL
+1	SIMPLE	user_defined_functions	NULL	const	PRIMARY	PRIMARY	194	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select 'function' AS `udf_type` from `performance_schema`.`user_defined_functions` where 1
+Note	1003	/* select#1 */ select 'function' AS `udf_type` from `performance_schema`.`user_defined_functions` where ('metaphon' = 'metaphon')
 select myfunc_double();
 ERROR HY000: Can't initialize function 'myfunc_double'; myfunc_double must have at least one argument
 select myfunc_double(1);

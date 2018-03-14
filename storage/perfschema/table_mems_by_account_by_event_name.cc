@@ -50,8 +50,8 @@ Plugin_table table_mems_by_account_by_event_name::m_table_def(
     /* Name */
     "memory_summary_by_account_by_event_name",
     /* Definition */
-    "  USER CHAR(32) collate utf8mb4_bin default null,\n"
-    "  HOST CHAR(60) collate utf8mb4_bin default null,\n"
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
     "  EVENT_NAME VARCHAR(128) not null,\n"
     "  COUNT_ALLOC BIGINT unsigned not null,\n"
     "  COUNT_FREE BIGINT unsigned not null,\n"

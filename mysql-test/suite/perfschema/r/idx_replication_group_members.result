@@ -1,14 +1,14 @@
 show create table performance_schema.replication_group_members;
 Table	Create Table
 replication_group_members	CREATE TABLE `replication_group_members` (
-  `CHANNEL_NAME` char(64) NOT NULL,
-  `MEMBER_ID` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  `MEMBER_HOST` char(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `CHANNEL_NAME` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+  `MEMBER_ID` char(36) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `MEMBER_HOST` char(60) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
   `MEMBER_PORT` int(11) DEFAULT NULL,
-  `MEMBER_STATE` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  `MEMBER_ROLE` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
-  `MEMBER_VERSION` char(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  `MEMBER_STATE` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `MEMBER_ROLE` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `MEMBER_VERSION` char(64) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 select * from INFORMATION_SCHEMA.STATISTICS
 where TABLE_SCHEMA = "performance_schema"
   and TABLE_NAME = "replication_group_members";

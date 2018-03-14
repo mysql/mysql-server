@@ -221,7 +221,7 @@ if($mach64)
 --disable_warnings
 SELECT @@global.myisam_repair_threads  = VARIABLE_VALUE 
 FROM performance_schema.global_variables 
-WHERE VARIABLE_NAME='myisam_repair_threads';
+WHERE VARIABLE_NAME='myisam_repair_threads ';
 --enable_warnings
 
 --echo '#------------------FN_DYNVARS_005_07-----------------------#'
@@ -232,7 +232,7 @@ WHERE VARIABLE_NAME='myisam_repair_threads';
 --disable_warnings
 SELECT @@session.myisam_repair_threads  = VARIABLE_VALUE 
 FROM performance_schema.session_variables 
-WHERE VARIABLE_NAME='myisam_repair_threads';
+WHERE VARIABLE_NAME='myisam_repair_threads ';
 --enable_warnings
 
 

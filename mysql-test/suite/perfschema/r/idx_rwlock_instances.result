@@ -52,7 +52,7 @@ explain select READ_LOCKED_BY_COUNT
 from performance_schema.rwlock_instances 
 where NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	rwlock_instances	NULL	ref	NAME	NAME	514	const	#	100.00	NULL
+1	SIMPLE	rwlock_instances	NULL	ref	NAME	NAME	386	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select READ_LOCKED_BY_COUNT
 from performance_schema.rwlock_instances
@@ -70,7 +70,7 @@ explain select READ_LOCKED_BY_COUNT
 from performance_schema.rwlock_instances
 where NAME = @name;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	rwlock_instances	NULL	ref	NAME	NAME	514	const	#	100.00	NULL
+1	SIMPLE	rwlock_instances	NULL	ref	NAME	NAME	386	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select READ_LOCKED_BY_COUNT

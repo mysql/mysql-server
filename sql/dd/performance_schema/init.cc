@@ -87,7 +87,7 @@ bool create_pfs_schema(THD *thd) {
     ret =
         execute_query(thd, dd::String_type("CREATE SCHEMA ") +
                                dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
-                               dd::String_type(" CHARACTER SET utf8mb4"));
+                               dd::String_type(" CHARACTER SET utf8"));
 
   return ret || execute_query(
                     thd, dd::String_type("USE ") +

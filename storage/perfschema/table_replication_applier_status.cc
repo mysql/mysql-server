@@ -52,7 +52,7 @@ Plugin_table table_replication_applier_status::m_table_def(
     /* Name */
     "replication_applier_status",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) not null,\n"
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
     "  SERVICE_STATE ENUM('ON','OFF') not null,\n"
     "  REMAINING_DELAY INTEGER unsigned,\n"
     "  COUNT_TRANSACTIONS_RETRIES BIGINT unsigned not null,\n"

@@ -36,7 +36,7 @@
 
 #define MAX_ATTR_NAME_CHARS 32
 #define MAX_ATTR_VALUE_CHARS 1024
-#define MAX_UTF8MB4_BYTES 4
+#define MAX_UTF8_BYTES 6
 
 /** symbolic names for field offsets, keep in sync with field_types */
 enum field_offsets {
@@ -53,12 +53,12 @@ enum field_offsets {
 struct row_session_connect_attrs {
   /** Column PROCESS_ID. */
   ulong m_process_id;
-  /** Column ATTR_NAME. In UTF8MB4 */
-  char m_attr_name[MAX_ATTR_NAME_CHARS * MAX_UTF8MB4_BYTES];
+  /** Column ATTR_NAME. In UTF-8 */
+  char m_attr_name[MAX_ATTR_NAME_CHARS * MAX_UTF8_BYTES];
   /** Length in bytes of @c m_attr_name. */
   uint m_attr_name_length;
-  /** Column ATTR_VALUE. In UTF8MB4 */
-  char m_attr_value[MAX_ATTR_VALUE_CHARS * MAX_UTF8MB4_BYTES];
+  /** Column ATTR_VALUE. In UTF-8 */
+  char m_attr_value[MAX_ATTR_VALUE_CHARS * MAX_UTF8_BYTES];
   /** Length in bytes of @c m_attr_name. */
   uint m_attr_value_length;
   /** Column ORDINAL_POSITION. */

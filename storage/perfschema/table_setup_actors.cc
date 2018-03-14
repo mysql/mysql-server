@@ -48,9 +48,9 @@ Plugin_table table_setup_actors::m_table_def(
     /* Name */
     "setup_actors",
     /* Definition */
-    "  HOST CHAR(60) COLLATE utf8mb4_bin default '%' not null,\n"
-    "  USER CHAR(32) COLLATE utf8mb4_bin default '%' not null,\n"
-    "  `ROLE` CHAR(32) COLLATE utf8mb4_bin default '%' not null,\n"
+    "  HOST CHAR(60) COLLATE utf8_bin default '%' not null,\n"
+    "  USER CHAR(32) COLLATE utf8_bin default '%' not null,\n"
+    "  `ROLE` CHAR(32) COLLATE utf8_bin default '%' not null,\n"
     "  ENABLED ENUM ('YES', 'NO') not null default 'YES',\n"
     "  HISTORY ENUM ('YES', 'NO') not null default 'YES',\n"
     "  PRIMARY KEY (HOST, USER, `ROLE`) USING HASH\n",
@@ -103,9 +103,9 @@ PFS_engine_table *table_setup_actors::create(PFS_engine_table_share *) {
 int table_setup_actors::write_row(PFS_engine_table *, TABLE *table,
                                   unsigned char *, Field **fields) {
   Field *f;
-  String user_data("%", 1, &my_charset_utf8mb4_bin);
-  String host_data("%", 1, &my_charset_utf8mb4_bin);
-  String role_data("%", 1, &my_charset_utf8mb4_bin);
+  String user_data("%", 1, &my_charset_utf8_bin);
+  String host_data("%", 1, &my_charset_utf8_bin);
+  String role_data("%", 1, &my_charset_utf8_bin);
   String *user = &user_data;
   String *host = &host_data;
   String *role = &role_data;
@@ -345,7 +345,7 @@ int table_setup_actors::update_row_values(TABLE *table, const unsigned char *,
 
 int table_setup_actors::delete_row_values(TABLE *, const unsigned char *,
                                           Field **) {
-  CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
+  CHARSET_INFO *cs = &my_charset_utf8_bin;
   String user(m_row.m_username, m_row.m_username_length, cs);
   String role(m_row.m_rolename, m_row.m_rolename_length, cs);
   String host(m_row.m_hostname, m_row.m_hostname_length, cs);

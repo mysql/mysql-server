@@ -53,7 +53,7 @@ Plugin_table table_status_by_user::m_table_def(
     /* Name */
     "status_by_user",
     /* Definition */
-    "  USER CHAR(32) collate utf8mb4_bin default null,\n"
+    "  USER CHAR(32) collate utf8_bin default null,\n"
     "  VARIABLE_NAME VARCHAR(64) not null,\n"
     "  VARIABLE_VALUE VARCHAR(1024),\n"
     "  UNIQUE KEY (USER, VARIABLE_NAME) USING HASH\n",

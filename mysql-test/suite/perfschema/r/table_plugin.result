@@ -223,7 +223,7 @@ insert into performance_schema.pfs_example_employee_name values
 explain select * from performance_schema.pfs_example_employee_name
 where FIRST_NAME='foo';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	pfs_example_employee_name	NULL	ref	FIRST_NAME	FIRST_NAME	81	const	10	100.00	NULL
+1	SIMPLE	pfs_example_employee_name	NULL	ref	FIRST_NAME	FIRST_NAME	61	const	10	100.00	NULL
 -------------------------------------------------
 Verify stats collection in PFS stats tables
 -------------------------------------------------

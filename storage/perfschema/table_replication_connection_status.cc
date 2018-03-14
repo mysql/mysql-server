@@ -88,9 +88,9 @@ Plugin_table table_replication_connection_status::m_table_def(
     /* Name */
     "replication_connection_status",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) not null,\n"
-    "  GROUP_NAME CHAR(36) collate utf8mb4_bin not null,\n"
-    "  SOURCE_UUID CHAR(36) collate utf8mb4_bin not null,\n"
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  GROUP_NAME CHAR(36) collate utf8_bin not null,\n"
+    "  SOURCE_UUID CHAR(36) collate utf8_bin not null,\n"
     "  THREAD_ID BIGINT unsigned,\n"
     "  SERVICE_STATE ENUM('ON','OFF','CONNECTING') not null,\n"
     "  COUNT_RECEIVED_HEARTBEATS bigint unsigned NOT NULL DEFAULT 0,\n"

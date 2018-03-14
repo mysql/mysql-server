@@ -16,10 +16,10 @@ thread/innodb/io_read_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	
 thread/innodb/io_write_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/log_checkpointer_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/log_closer_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
-thread/innodb/log_flush_notifier_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/log_flusher_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
-thread/innodb/log_write_notifier_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/log_flush_notifier_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/log_writer_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/log_write_notifier_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/page_flush_coordinator_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_error_monitor_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_lock_timeout_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES

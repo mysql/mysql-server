@@ -51,7 +51,7 @@ Plugin_table table_replication_applier_status_by_coordinator::m_table_def(
     /* Name */
     "replication_applier_status_by_coordinator",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) not null,\n"
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
     "  THREAD_ID BIGINT UNSIGNED,\n"
     "  SERVICE_STATE ENUM('ON','OFF') not null,\n"
     "  LAST_ERROR_NUMBER INTEGER not null,\n"

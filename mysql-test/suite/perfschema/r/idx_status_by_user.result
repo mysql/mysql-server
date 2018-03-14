@@ -10,7 +10,7 @@ explain select VARIABLE_VALUE
 from performance_schema.status_by_user
 where USER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	status_by_user	NULL	ref	USER	USER	129	const	#	100.00	NULL
+1	SIMPLE	status_by_user	NULL	ref	USER	USER	97	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select VARIABLE_VALUE
 from performance_schema.status_by_user
@@ -28,7 +28,7 @@ explain select VARIABLE_VALUE
 from performance_schema.status_by_user
 where USER = "foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	status_by_user	NULL	ref	USER	USER	129	const	#	100.00	NULL
+1	SIMPLE	status_by_user	NULL	ref	USER	USER	97	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select VARIABLE_VALUE
 from performance_schema.status_by_user
@@ -49,21 +49,21 @@ from performance_schema.status_by_user
 where USER = "foo"
 and VARIABLE_NAME > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	status_by_user	NULL	ref	USER	USER	129	const	#	33.33	Using where
+1	SIMPLE	status_by_user	NULL	ref	USER	USER	97	const	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select VARIABLE_VALUE
 from performance_schema.status_by_user
 where USER = "foo"
 and VARIABLE_NAME < "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	status_by_user	NULL	ref	USER	USER	129	const	#	33.33	Using where
+1	SIMPLE	status_by_user	NULL	ref	USER	USER	97	const	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select VARIABLE_VALUE
 from performance_schema.status_by_user
 where USER = "foo"
 and VARIABLE_NAME = "Max_execution_time_exceeded";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	status_by_user	NULL	const	USER	USER	387	const,const	#	100.00	NULL
+1	SIMPLE	status_by_user	NULL	const	USER	USER	291	const,const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select VARIABLE_VALUE

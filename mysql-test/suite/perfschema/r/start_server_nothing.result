@@ -183,11 +183,11 @@ memory/performance_schema/events_statements_current	YES	NULL	global_statistics	1
 memory/performance_schema/events_statements_current.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_current, column digest_text
 memory/performance_schema/events_statements_current.sql_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_current, column sql_text
 memory/performance_schema/events_statements_history	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history
+memory/performance_schema/events_statements_history.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history, column digest_text
+memory/performance_schema/events_statements_history.sql_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history, column sql_text
 memory/performance_schema/events_statements_history_long	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history_long
 memory/performance_schema/events_statements_history_long.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history_long, column digest_text
 memory/performance_schema/events_statements_history_long.sql_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history_long, column sql_text
-memory/performance_schema/events_statements_history.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history, column digest_text
-memory/performance_schema/events_statements_history.sql_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_history, column sql_text
 memory/performance_schema/events_statements_summary_by_account_by_event_name	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_account_by_event_name
 memory/performance_schema/events_statements_summary_by_digest	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_digest
 memory/performance_schema/events_statements_summary_by_digest.digest_text	YES	NULL	global_statistics	1	Memory used for table performance_schema.events_statements_summary_by_digest, column digest_text
@@ -236,8 +236,8 @@ memory/performance_schema/table_handles	YES	NULL	global_statistics	1	Memory used
 memory/performance_schema/table_io_waits_summary_by_index_usage	YES	NULL	global_statistics	1	Memory used for table performance_schema.table_io_waits_summary_by_index_usage
 memory/performance_schema/table_lock_waits_summary_by_table	YES	NULL	global_statistics	1	Memory used for table performance_schema.table_lock_waits_summary_by_table
 memory/performance_schema/table_shares	YES	NULL	global_statistics	1	Memory used for table performance_schema.table_shares
-memory/performance_schema/thread_class	YES	NULL	global_statistics	1	Memory used for thread instrument classes
 memory/performance_schema/threads	YES	NULL	global_statistics	1	Memory used for table performance_schema.threads
+memory/performance_schema/thread_class	YES	NULL	global_statistics	1	Memory used for thread instrument classes
 memory/performance_schema/users	YES	NULL	global_statistics	1	Memory used for table performance_schema.users
 transaction	YES	YES		0	NULL
 wait/io/table/sql/handler	YES	YES		0	NULL
