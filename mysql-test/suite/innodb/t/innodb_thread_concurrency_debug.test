@@ -4,6 +4,7 @@
 
 --echo # Setup connections
 SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_concurrency_tickets := @@innodb_concurrency_tickets;
 SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 
 connect (con1, localhost, root);
@@ -115,12 +116,27 @@ connection con1;
 SELECT * FROM t1 ORDER BY col1;
 DROP TABLE t1;
 
+--echo #
+--echo # bug#27661171 INNODB: TRX->DECLARED_TO_BE_INSIDE_INNODB
+--echo #
+CREATE TABLE t1 (col1 INT AUTO_INCREMENT PRIMARY KEY, col2 int)
+PARTITION BY KEY(col1) PARTITIONS 2;
+
+--echo # Insert 2 rows in same statement consuming the tickets
+SET GLOBAL innodb_concurrency_tickets = 2;
+SHOW VARIABLES LIKE 'innodb_concurrency_tickets';
+INSERT INTO t1(col2) VALUES (10), (20);
+
+SELECT * FROM t1 ORDER BY col1;
+DROP TABLE t1;
+
 --echo # Cleanup
 disconnect con1;
 disconnect con2;
 
 SET DEBUG_SYNC='reset';
 SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_concurrency_tickets = @old_innodb_concurrency_tickets;
 SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;
 
 --source include/wait_until_count_sessions.inc

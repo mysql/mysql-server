@@ -958,9 +958,30 @@ class ha_innopart : public ha_innobase,
                              thr_lock_type lock_type);
 
   int write_row(uchar *record) {
-    srv_concurrency_enter();
+    bool entered = false;
+    auto trx = m_prebuilt->trx;
+
+    /* Enter innodb to order Auto INC partition lock after Innodb. No need to
+    enter if there are tickets left. Currently we cannot handle re-enter
+    without exit if no more tickets left.
+
+    1. We avoid consuming the last ticket as there could be another enter
+    call from innobase.
+
+    2. If we enter innodb here, there is at least one more ticket left as
+    the minimum value for "innodb_concurrency_tickets" is 1 */
+
+    if (!trx->declared_to_be_inside_innodb) {
+      srv_concurrency_enter();
+      entered = true;
+    }
+
     auto err = Partition_helper::ph_write_row(record);
-    srv_concurrency_exit();
+
+    if (entered) {
+      srv_concurrency_exit();
+    }
+
     return (err);
   }
 
