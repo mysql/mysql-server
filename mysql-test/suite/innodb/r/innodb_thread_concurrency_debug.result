@@ -1,5 +1,6 @@
 # Setup connections
 SET @old_innodb_thread_concurrency := @@innodb_thread_concurrency;
+SET @old_innodb_concurrency_tickets := @@innodb_concurrency_tickets;
 SET @old_innodb_thread_sleep_delay := @@innodb_thread_sleep_delay;
 #
 # Bug #19386426	SHUTDOWN HANGS: CLIENT THREAD IN A LOOP
@@ -75,7 +76,24 @@ col1	col2
 2	20
 3	30
 DROP TABLE t1;
+#
+# bug#27661171 INNODB: TRX->DECLARED_TO_BE_INSIDE_INNODB
+#
+CREATE TABLE t1 (col1 INT AUTO_INCREMENT PRIMARY KEY, col2 int)
+PARTITION BY KEY(col1) PARTITIONS 2;
+# Insert 2 rows in same statement consuming the tickets
+SET GLOBAL innodb_concurrency_tickets = 2;
+SHOW VARIABLES LIKE 'innodb_concurrency_tickets';
+Variable_name	Value
+innodb_concurrency_tickets	2
+INSERT INTO t1(col2) VALUES (10), (20);
+SELECT * FROM t1 ORDER BY col1;
+col1	col2
+1	10
+2	20
+DROP TABLE t1;
 # Cleanup
 SET DEBUG_SYNC='reset';
 SET GLOBAL innodb_thread_concurrency = @old_innodb_thread_concurrency;
+SET GLOBAL innodb_concurrency_tickets = @old_innodb_concurrency_tickets;
 SET GLOBAL innodb_thread_sleep_delay = @old_innodb_thread_sleep_delay;
