@@ -11110,15 +11110,18 @@ Backup::copy_prev_lcp_info(BackupRecordPtr ptr,
   ndbrequire(lcpCtlFilePtr->NumPartPairs > 0);
   ptr.p->m_prepare_max_parts_in_lcp = lcpCtlFilePtr->MaxPartPairs;
   ptr.p->m_prepare_num_parts_in_lcp = lcpCtlFilePtr->NumPartPairs;
+  jam();
+  Uint32 total_parts = 0;
   for (Uint32 i = 0; i < ptr.p->m_prepare_num_parts_in_lcp; i++)
   {
-    jam();
     Uint32 start_part = lcpCtlFilePtr->partPairs[i].startPart;
     Uint32 num_parts = lcpCtlFilePtr->partPairs[i].numParts;
     next_start_part = get_part_add(start_part, num_parts);
     ptr.p->m_prepare_part_info[i].startPart = start_part;
     ptr.p->m_prepare_part_info[i].numParts = num_parts;
+    total_parts += num_parts;
   }
+  ndbrequire(total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
   ptr.p->m_prepare_first_start_part_in_lcp = next_start_part;
   ptr.p->m_prepare_scan_change_gci = lcpCtlFilePtr->MaxGciCompleted;
   ptr.p->preparePrevLcpId = lcpCtlFilePtr->LcpId;
@@ -11389,6 +11392,7 @@ Backup::compress_part_pairs(struct BackupFormat::LCPCtlFile *lcpCtlFilePtr,
      */
     Uint32 startPart = lcpCtlFilePtr->partPairs[part].startPart;
     Uint32 numParts = lcpCtlFilePtr->partPairs[part].numParts;
+    ndbrequire(numParts <= BackupFormat::NDB_MAX_LCP_PARTS);
     Uint32 startPart_bit0_3 = (startPart & 0xF);
     Uint32 startPart_bit4_11 = (startPart >> 4) & 0xFF;
     Uint32 numParts_bit0_3 = (numParts & 0xF);
@@ -11433,6 +11437,7 @@ Uint32 Backup::decompress_part_pairs(
     Uint32 part_2 = c_part_array[j+2];
     Uint32 startPart = ((part_1 & 0xF) + (part_0 << 4));
     Uint32 numParts = (((part_1 >> 4) & 0xF)) + (part_2 << 4);
+    ndbrequire(numParts <= BackupFormat::NDB_MAX_LCP_PARTS);
     partPairs[part].startPart = startPart;
     partPairs[part].numParts = numParts;
     total_parts += numParts;
@@ -11985,8 +11990,10 @@ Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
   }
 
   /* Insert the new parts at the end */
+  jamLineDebug(ptr.p->m_num_lcp_files);
   for (Uint32 i = 0; i < ptr.p->m_num_lcp_files; i++)
   {
+    jamDebug();
     ptr.p->m_part_info[old_num_parts + i].startPart =
       ptr.p->m_scan_info[i].m_start_all_part;
     ptr.p->m_part_info[old_num_parts + i].numParts =
@@ -11996,8 +12003,19 @@ Backup::prepare_new_part_info(BackupRecordPtr ptr, Uint32 new_parts)
     ndbrequire(ptr.p->m_part_info[old_num_parts + i].numParts <=
                BackupFormat::NDB_MAX_LCP_PARTS);
   }
+  jamLineDebug(remaining_files);
   ptr.p->m_num_parts_in_lcp = ptr.p->m_num_lcp_files + remaining_files;
   ptr.p->m_max_parts_in_lcp = BackupFormat::NDB_MAX_LCP_PARTS;
+#ifdef VM_TRACE
+  Uint32 total_parts = 0;
+  jam();
+  for (Uint32 i = 0; i < ptr.p->m_num_parts_in_lcp; i++)
+  {
+    Uint32 numParts = ptr.p->m_part_info[i].numParts;
+    total_parts += numParts;
+  }
+  ndbassert(total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
+#endif
 }
 
 Uint32
@@ -12473,11 +12491,16 @@ void
 Backup::copy_lcp_info_from_prepare(BackupRecordPtr ptr)
 {
   ptr.p->m_scan_change_gci = ptr.p->m_prepare_scan_change_gci;
+  Uint32 total_parts = 0;
   for (Uint32 i = 0; i < ptr.p->m_prepare_num_parts_in_lcp; i++)
   {
-    jam();
+    Uint32 num_parts = ptr.p->m_prepare_part_info[i].numParts;
+    total_parts += num_parts;
     ptr.p->m_part_info[i] = ptr.p->m_prepare_part_info[i];
   }
+  ndbrequire(total_parts == 0 || /* First LCP */
+             total_parts == BackupFormat::NDB_MAX_LCP_PARTS);
+
   ptr.p->m_num_parts_in_lcp = ptr.p->m_prepare_num_parts_in_lcp;
   ptr.p->m_max_parts_in_lcp = ptr.p->m_prepare_max_parts_in_lcp;
   ptr.p->m_first_start_part_in_lcp =
