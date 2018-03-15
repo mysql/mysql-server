@@ -1577,8 +1577,11 @@ NdbScanOperation::fix_receivers(Uint32 parallel){
       setErrorCodeAbort(4000);
       return -1;
     }
-    // Save old receivers
-    memcpy(tmp, m_receivers, m_allocated_receivers*sizeof(char*));
+    if (m_allocated_receivers > 0)
+    {
+      // Save old receivers
+      memcpy(tmp, m_receivers, m_allocated_receivers*sizeof(char*));
+    }
     delete[] m_array;
     m_array = (Uint32*)tmp;
     

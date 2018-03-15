@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,14 +53,20 @@ public:
   };
 
   int append(const void *d, size_t l) {
-    int ret;
-    ret = grow(len+l);
-    if(ret != 0)
-      return ret;
+    if (likely(l > 0))
+    {
+      if (unlikely(d == NULL))
+      {
+        errno = EINVAL;
+        return -1;
+      }
+      const int ret = grow(len+l);
+      if (unlikely(ret != 0))
+        return ret;
       
-    memcpy((char *)data+len, d, l);
-    len+=l;
-
+      memcpy((char *)data+len, d, l);
+      len += l;
+    }
     return 0;
   };
 

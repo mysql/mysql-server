@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -955,7 +955,7 @@ int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
   }
   
   /* Create an NdbRecord scan operation */
-  const NdbScanOperation* tabScan=
+  NdbScanOperation* tabScan =
     trans->scanTable(myTable->getDefaultRecord());
   
   if (tabScan==NULL)
@@ -968,7 +968,7 @@ int runScanFilterConstructorFail(NDBT_Context* ctx, NDBT_Step* step)
    * is defined.  This will cause a failure within the 
    * constructor
    */
-  NdbScanFilter brokenSf((NdbScanOperation*) tabScan);
+  NdbScanFilter brokenSf(tabScan);
 
   /* Scan operation should have an error */
   if (tabScan->getNdbError().code != 4536)
