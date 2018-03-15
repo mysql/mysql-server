@@ -488,6 +488,9 @@ struct recv_sys_t {
   /** Buffer for parsing log records */
   byte *buf;
 
+  /** Size of the parsing buffer */
+  size_t buf_len;
+
   /** Amount of data in buf */
   ulint len;
 

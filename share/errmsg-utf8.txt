@@ -16181,7 +16181,7 @@ ER_IB_MSG_722
   eng "Log scan progressed past the checkpoint LSN %llu."
 
 ER_IB_MSG_723
-  eng "Log parsing buffer overflow. Recovery may have failed!"
+  eng "Log parsing buffer overflow. Recovery may have failed! Please set log_buffer_size to a value higher than %lu."
 
 ER_IB_MSG_724
   eng "Set innodb_force_recovery to ignore this error.";
@@ -16229,10 +16229,10 @@ ER_IB_MSG_738
   eng "Waiting for recv_writer to finish flushing of buffer pool"
 
 ER_IB_MSG_739
-  eng "%s"
+  eng "Recovery parsing buffer extended to %lu."
 
 ER_IB_MSG_740
-  eng "%s"
+  eng "Out of memory while resizing recovery parsing buffer."
 
 ER_IB_MSG_741
   eng "%s"
