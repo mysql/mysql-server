@@ -8738,18 +8738,34 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
 int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
 {
   Ndb *pNdb = GETNDB(step);
-  int loops = 2108;
-  int result = NDBT_OK;
+  int loops = 2800;
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   NdbRestarter restarter;
-  int i = 0;
   const Uint32 nodeCount = restarter.getNumDbNodes();
   int nodeId = 2;
   HugoOperations hugoOps(*ctx->getTab());
-  if (nodeCount < 2)
+  NdbMgmd mgmd;
+  if (nodeCount != 2)
   {
-    return NDBT_OK; /* Requires at least 2 nodes to run */
+    return NDBT_OK; /* Requires exact 2 nodes to run */
+  }
+  if (!mgmd.connect()) 
+  {
+    g_err << "Failed to connect to ndb_mgmd." << endl;
+    return NDBT_FAILED;
+  }
+  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
+                                   200, 1, &restarter) == NDBT_FAILED)
+  {
+    g_err << "Failed to set TimeBetweenGlobalCheckpoints to 200" << endl;
+    return NDBT_FAILED;
+  }
+  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
+                                   200, 2, &restarter) == NDBT_FAILED)
+  {
+    g_err << "Failed to set TimeBetweenGlobalCheckpoints to 200" << endl;
+    return NDBT_FAILED;
   }
   if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
   {
@@ -8758,16 +8774,18 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
   }
 
   g_err << "Executing " << loops << " loops" << endl;
-  while(++i <= loops && result != NDBT_FAILED)
+  if (restarter.insertErrorInNode(nodeId, 10048) != 0)
+  {
+    g_err << "ERROR: Error insert 10048 failed" << endl;
+    return NDBT_FAILED;
+  }
+  int i = 0;
+  int result = NDBT_OK;
+  while (++i <= loops && result != NDBT_FAILED)
   {
     g_err << "Start loop " << i << endl;
     ndbout << "Start an LCP" << endl;
     {
-      if (restarter.insertErrorInNode(nodeId, 10048) != 0)
-      {
-        g_err << "ERROR: Error insert 10048 failed" << endl;
-        return NDBT_FAILED;
-      }
       int val = DumpStateOrd::DihStartLcpImmediately;
       if(restarter.dumpStateAllNodes(&val, 1) != 0)
       {
@@ -8776,42 +8794,31 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
         return NDBT_FAILED;
       }
     }
-    bool skip = false;
-    if ((i % 50) == 0)
-    {
-      skip = true;
-    }
-    Uint32 batch = 4;
+    Uint32 batch = 8;
     Uint32 row;
-    if (!skip)
-    {
-      row = rand() % records;
-      if(row + batch > (Uint32)records)
-        batch = records - row;
+    row = rand() % records;
+    if(row + batch > (Uint32)records)
+      row = records - batch;
 
-      if ((hugoOps.startTransaction(pNdb) != 0) ||
-          (hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0) ||
-          (hugoOps.execute_Commit(pNdb)) ||
-          (hugoOps.closeTransaction(pNdb)))
-      {
-        g_err << "Update failed" << endl;
-        //return NDBT_FAILED;
-      }
+    if ((hugoOps.startTransaction(pNdb) != 0) ||
+        (hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0) ||
+        (hugoOps.execute_Commit(pNdb)) ||
+        (hugoOps.closeTransaction(pNdb)))
+    {
+      g_err << "Update failed" << endl;
+      //return NDBT_FAILED;
     }
     NdbSleep_SecSleep(1);
-    if (!skip)
+    row = rand() % records;
+    if(row + batch > (Uint32)records)
+      row = records - batch;
+    if ((hugoOps.startTransaction(pNdb) != 0) ||
+        (hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0) ||
+        (hugoOps.execute_Commit(pNdb)) ||
+        (hugoOps.closeTransaction(pNdb)))
     {
-      row = rand() % records;
-      if(row + batch > (Uint32)records)
-        batch = records - row;
-      if ((hugoOps.startTransaction(pNdb) != 0) ||
-          (hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0) ||
-          (hugoOps.execute_Commit(pNdb)) ||
-          (hugoOps.closeTransaction(pNdb)))
-      {
-        g_err << "Update failed" << endl;
-        //return NDBT_FAILED;
-      }
+      g_err << "Update failed" << endl;
+      //return NDBT_FAILED;
     }
   }
   /**
@@ -8841,6 +8848,19 @@ int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
   if (restarter.waitNodesStarted(&nodeId, 1) != 0)
   {
     g_err << "Wait node start failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Reset TimeBetweenGlobalCheckpoints to 2000" << endl;
+  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
+                                   2000, 1, &restarter) == NDBT_FAILED)
+  {
+    g_err << "Failed to set TimeBetweenGlobalCheckpoints to 2000" << endl;
+    return NDBT_FAILED;
+  }
+  if (setConfigValueAndRestartNode(&mgmd, CFG_DB_GCP_INTERVAL,
+                                   2000, 2, &restarter) == NDBT_FAILED)
+  {
+    g_err << "Failed to set TimeBetweenGlobalCheckpoints to 2000" << endl;
     return NDBT_FAILED;
   }
   ndbout << "Test complete" << endl;
