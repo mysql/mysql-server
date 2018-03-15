@@ -47,7 +47,7 @@
                       Description="The MySQL Command Line Shell in UTF8 Mode"
                       Icon="Icon.MysqlCmdShell"
                       Target="[D.bin]mysql.exe"
-                      Arguments='"--defaults-file=[INSTALLDIR]my.ini" "-uroot" "-p" "--default-character-set=utf8"'
+                      Arguments='"--defaults-file=[INSTALLDIR]my.ini" "-uroot" "-p" "--default-character-set=utf8mb4"'
                       WorkingDirectory="D.bin"/>
             <!-- Write Console settings for applications with this name to the registry -->
               <RegistryKey Root="HKCU" 
