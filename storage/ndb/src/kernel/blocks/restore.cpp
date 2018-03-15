@@ -808,14 +808,14 @@ Restore::lcp_create_ctl_done_open(Signal *signal, FilePtr file_ptr)
   lcpCtlFilePtr->partPairs[0] = locPartPair;
   lcpCtlFilePtr->NumPartPairs = 1;
 
-  c_backup->convert_ctl_page_to_network((Uint32*)lcpCtlFilePtr);
-  lcp_create_ctl_write(signal, file_ptr);
-}
-
-void
-Restore::lcp_create_ctl_write(Signal *signal, FilePtr file_ptr)
-{
+  /**
+   * Since the LCP control file will only contain 1 part we are
+   * certain that we will fit in the small LCP control file size.
+   */
+  c_backup->convert_ctl_page_to_network((Uint32*)lcpCtlFilePtr,
+                              BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL);
   FsReadWriteReq *req = (FsReadWriteReq*)signal->getDataPtrSend();
+
   req->userPointer = file_ptr.i;
   req->filePointer = file_ptr.p->m_fd;
   req->userReference = reference();
@@ -830,7 +830,7 @@ Restore::lcp_create_ctl_write(Signal *signal, FilePtr file_ptr)
    * Data will be written from m_lcp_ctl_file_data as prepared by Bat */
   req->data.memoryAddress.memoryOffset = 0;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL;
 
   sendSignal(NDBFS_REF, GSN_FSWRITEREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);
@@ -1364,7 +1364,7 @@ Restore::read_ctl_file_done(Signal *signal, FilePtr file_ptr, Uint32 bytesRead)
   BackupFormat::LCPCtlFile *lcpCtlFilePtr = (BackupFormat::LCPCtlFile*)
     &m_lcp_ctl_file_data[file_ptr.p->m_ctl_file_no];
 
-  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE &&
+  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL &&
       bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG)
   {
     /**

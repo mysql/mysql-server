@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -522,7 +522,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
    */
   NewVARIABLE *bat = allocateBat(1);
   bat[0].WA = &m_read_ctl_file_data[0];
-  bat[0].nrr = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  bat[0].nrr = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 }
 
 void Dbtup::initRecords() 
