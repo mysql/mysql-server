@@ -33,7 +33,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c= grep(/\[Warning\] \[[^]]*\] Failed to set up SSL.*/gi,<FILE>);
+  my $c= grep(/\[Warning\] \[[^]]*\] \[[^]]*\] Failed to set up SSL.*/gi,<FILE>);
   print "ssl failed message found $c times\n";
   close(FILE);
 EOF
@@ -60,7 +60,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c= grep(/\[Warning\] \[[^]]*\] Failed to set up SSL.*/gi,<FILE>);
+  my $c= grep(/\[Warning\] \[[^]]*\] \[[^]]*\] Failed to set up SSL.*/gi,<FILE>);
   print "ssl failed message found $c times\n";
   close(FILE);
 EOF
