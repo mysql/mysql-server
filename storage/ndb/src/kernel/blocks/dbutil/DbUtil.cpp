@@ -1154,11 +1154,12 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   // Release long signal sections
   releaseSections(handle);
   // Check table properties with DICT
-  SimplePropertiesSectionReader reader(ptr, getSectionSegmentPool());
+  SimplePropertiesLinearReader reader(&prepPtr.p->preparePages.getPtr(0)->data[0],
+                                      prepPtr.p->prepDataLen);
   prepPtr.p->clientRef = senderRef;
   prepPtr.p->clientData = senderData;
   prepPtr.p->schemaTransId = schemaTransId;
-  // Release long signal sections
+  // Read the properties
   readPrepareProps(signal, &reader, prepPtr);
 }
 
