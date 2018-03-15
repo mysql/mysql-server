@@ -2622,7 +2622,7 @@ Dbtup::lcp_read_ctl_file(Signal *signal,
   FsReadWriteReq::setPartialReadFlag(req->operationFlag, 1);
   req->data.memoryAddress.memoryOffset = 0;
   req->data.memoryAddress.fileOffset = 0;
-  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  req->data.memoryAddress.size = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
   sendSignal(NDBFS_REF, GSN_FSREADREQ, signal,
              FsReadWriteReq::FixedLength + 3, JBA);
 }
@@ -2723,8 +2723,10 @@ Dbtup::handle_ctl_info(TablerecPtr tabPtr,
 {
   BackupFormat::LCPCtlFile *lcpCtlFilePtr =
     (BackupFormat::LCPCtlFile*)&m_read_ctl_file_data[0];
-  ndbassert(bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE);
-  if (bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE ||
+  ndbassert(bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL ||
+            bytesRead == BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG);
+  if ((bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_SMALL &&
+       bytesRead != BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG) ||
       !c_backup->convert_ctl_page_to_host(lcpCtlFilePtr))
   {
     jam();

@@ -527,7 +527,7 @@ void Dbtup::execREAD_CONFIG_REQ(Signal* signal)
    */
   NewVARIABLE *bat = allocateBat(1);
   bat[0].WA = &m_read_ctl_file_data[0];
-  bat[0].nrr = BackupFormat::NDB_LCP_CTL_FILE_SIZE;
+  bat[0].nrr = BackupFormat::NDB_LCP_CTL_FILE_SIZE_BIG;
 }
 
 void Dbtup::initRecords() 
