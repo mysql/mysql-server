@@ -28,13 +28,8 @@
 #include "sql/ndb_thd_ndb.h"
 #include "sql/ha_ndbcluster_tables.h"
 
-Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb* thd_ndb)
-    : Ndb_util_table(thd_ndb, NDB_REP_DB, NDB_SCHEMA_TABLE) {}
-
-Ndb_schema_dist_table::~Ndb_schema_dist_table() {}
-
-static const char* COL_DB = "db";
-static const char* COL_NAME = "name";
+const char* Ndb_schema_dist_table::COL_DB = "db";
+const char* Ndb_schema_dist_table::COL_NAME = "name";
 static const char* COL_SLOCK = "slock";
 static const char* COL_QUERY = "query";
 static const char* COL_NODEID = "node_id";
@@ -42,6 +37,11 @@ static const char* COL_EPOCH = "epoch";
 static const char* COL_ID = "id";
 static const char* COL_VERSION = "version";
 static const char* COL_TYPE = "type";
+
+Ndb_schema_dist_table::Ndb_schema_dist_table(Thd_ndb* thd_ndb)
+    : Ndb_util_table(thd_ndb, NDB_REP_DB, NDB_SCHEMA_TABLE) {}
+
+Ndb_schema_dist_table::~Ndb_schema_dist_table() {}
 
 bool Ndb_schema_dist_table::check_schema() const {
   // db
@@ -112,4 +112,22 @@ bool Ndb_schema_dist_table::check_schema() const {
   }
 
   return true;
+}
+
+bool Ndb_schema_dist_table::check_column_identifier_limit(
+    const char *column_name, const std::string &identifier) const {
+  DBUG_ENTER("Ndb_schema_dist_table::check_column_identifier_limit");
+  DBUG_PRINT("enter", ("column_name: '%s', identifier: '%s'", column_name,
+                       identifier.c_str()));
+
+  if (!check_column_exist(column_name)) {
+    DBUG_RETURN(false);
+  }
+
+  const int max_length = get_column_max_length(column_name);
+  if (identifier.length() > static_cast<size_t>(max_length)) {
+    push_warning("Identifier length exceeds the %d byte limit", max_length);
+    DBUG_RETURN(false);
+  }
+  DBUG_RETURN(true);
 }

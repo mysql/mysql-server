@@ -29,7 +29,7 @@
 #include <vector>
 
 #include "my_compiler.h"
-#include "ndb_table_guard.h"
+#include "sql/ndb_table_guard.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 
 // Base class used for working with tables created in NDB by the
@@ -64,6 +64,8 @@ class Ndb_util_table {
   bool check_column_minlength(const char* name, int min_length) const;
 
   bool check_primary_key(const std::vector<const char*> columns) const;
+
+  int get_column_max_length(const char* name) const;
 
  public:
   bool open();

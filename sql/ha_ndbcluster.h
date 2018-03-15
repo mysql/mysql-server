@@ -32,10 +32,6 @@
 
 #include "sql/sql_base.h"
 
-/* DDL names have to fit in system table ndb_schema */
-#define NDB_MAX_DDL_NAME_BYTESIZE 63
-#define NDB_MAX_DDL_NAME_BYTESIZE_STR "63"
-
 #include "sql/ha_ndbcluster_cond.h"
 #include "sql/ndb_conflict.h"
 #include "sql/ndb_table_map.h"

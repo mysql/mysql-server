@@ -2337,12 +2337,8 @@ class Ndb_binlog_setup {
                                STRING_WITH_LEN("mysql"),
                                STRING_WITH_LEN("ndb_schema"),
                                // table_definition
-                               "db VARBINARY("
-                               NDB_MAX_DDL_NAME_BYTESIZE_STR
-                               ") NOT NULL,"
-                               "name VARBINARY("
-                               NDB_MAX_DDL_NAME_BYTESIZE_STR
-                               ") NOT NULL,"
+                               "db VARBINARY(63) NOT NULL,"
+                               "name VARBINARY(63) NOT NULL,"
                                "slock BINARY(32) NOT NULL,"
                                "query BLOB NOT NULL,"
                                "node_id INT UNSIGNED NOT NULL,"
@@ -2581,21 +2577,6 @@ int Ndb_schema_dist_client::log_schema_op_impl(
   {
     DBUG_RETURN(0);
   }
-
-  /* Check that the database name will fit within limits */
-  if(strlen(db) > NDB_MAX_DDL_NAME_BYTESIZE)
-  {
-    // Catch unexpected commands with too long db length
-    DBUG_ASSERT(type == SOT_CREATE_DB ||
-                type == SOT_ALTER_DB ||
-                type == SOT_DROP_DB);
-    push_warning_printf(m_thd, Sql_condition::SL_WARNING,
-                        ER_TOO_LONG_IDENT,
-                        "Ndb has an internal limit of %u bytes on the size of schema identifiers",
-                        NDB_MAX_DDL_NAME_BYTESIZE);
-    DBUG_RETURN(ER_TOO_LONG_IDENT);
-  }
-
 
   NDB_SCHEMA_OBJECT *ndb_schema_object;
   {

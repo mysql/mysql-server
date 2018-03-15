@@ -8,7 +8,7 @@ id int primary key
 ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 show warnings;
 Level	Code	Message
-Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
 Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 Error	1031	Table storage engine for 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' doesn't have this option
 # ############################################################
@@ -35,8 +35,8 @@ DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz12;
 CREATE DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 Warnings:
-Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
-Warning	1296	Schema distribution failed!
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
+Warning	1296	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 # Verify database existence
 USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 # Create non NDB table
@@ -50,7 +50,7 @@ a int
 ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 show warnings;
 Level	Code	Message
-Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
 Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 Error	1031	Table storage engine for 't2' doesn't have this option
 #
@@ -67,8 +67,8 @@ ALTER DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123
 character set=utf8mb4;
 Warnings:
-Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
-Warning	1296	Schema distribution failed!
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
+Warning	1296	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (
 a int
@@ -81,7 +81,7 @@ RENAME abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123.t3;
 ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
 Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 Error	1025	Error on rename of './db1/t1' to './abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123/t3' (errno: 140 - Wrong create options)
 #
@@ -92,14 +92,14 @@ RENAME db1.abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
 Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 Error	1025	Error on rename of './db1/t1' to './db1/abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' (errno: 140 - Wrong create options)
 DROP DATABASE db1;
 DROP DATABASE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 Warnings:
-Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
-Warning	1296	Schema distribution failed!
+Warning	1296	[mysql.ndb_schema] Identifier length exceeds the 63 byte limit
+Warning	1296	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
 # Checking that database doesn't exists
 USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123'

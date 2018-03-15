@@ -106,8 +106,12 @@ class Ndb_schema_dist_client {
   class Thd_ndb* const m_thd_ndb;
   struct NDB_SHARE *m_share{nullptr};
   class Prepared_keys {
-    std::vector<std::pair<std::string, std::string>> m_keys;
-  public:
+    using Key = std::pair<std::string, std::string>;
+    std::vector<Key> m_keys;
+   public:
+    const std::vector<Key>& keys() {
+      return m_keys;
+    }
     void add_key(const char* db, const char* tabname);
     bool check_key(const char* db, const char* tabname) const;
   } m_prepared_keys;
@@ -184,6 +188,20 @@ class Ndb_schema_dist_client {
   */
   bool prepare_rename(const char *db, const char *tabname, const char *new_db,
                       const char *new_tabname);
+
+  /**
+    @brief Check that the prepared identifiers is supported by the schema
+           distribution. For example long identifiers can't be communicated
+           between the MySQL Servers unless the table used for communication
+           have large enough columns.
+    @note This is done separately from @prepare since different error
+          code(or none at all) should be returned for this error.
+    @note Always done early to avoid changing metadata which is
+          hard to rollback at a later stage.
+    @param invalid_identifer The name of the identifier that failed the check
+    @return true if check succeed
+  */
+  bool check_identifier_limits(std::string& invalid_identifier);
 
   /**
    * @brief Check if given name is the schema distribtution table, special

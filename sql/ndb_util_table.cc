@@ -115,6 +115,11 @@ bool Ndb_util_table::check_primary_key(
   return true;
 }
 
+int Ndb_util_table::get_column_max_length(const char* name) const
+{
+  return get_column(name)->getLength();
+}
+
 bool Ndb_util_table::check_column_type(const NdbDictionary::Column* col,
                                        NdbDictionary::Column::Type type,
                                        const char* type_name) const {

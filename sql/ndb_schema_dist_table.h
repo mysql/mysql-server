@@ -25,15 +25,22 @@
 #ifndef NDB_SCHEMA_DIST_TABLE_H
 #define NDB_SCHEMA_DIST_TABLE_H
 
+#include <string>
 #include "sql/ndb_util_table.h"
 
 // RAII style class for working with the schema distribution table in NDB
 class Ndb_schema_dist_table : public Ndb_util_table {
  public:
+  static const char* COL_DB;
+  static const char* COL_NAME;
+
   Ndb_schema_dist_table(class Thd_ndb*);
   ~Ndb_schema_dist_table();
 
   bool check_schema() const;
+
+  bool check_column_identifier_limit(const char* column_name,
+                                     const std::string& identifier) const;
 };
 
 #endif

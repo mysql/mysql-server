@@ -10591,22 +10591,6 @@ int ha_ndbcluster::create(const char *name,
 
   Ndb_schema_dist_client schema_dist_client(thd);
 
-  /*
-    Check that database name and table name will fit within limits
-  */
-  if (strlen(m_dbname) > NDB_MAX_DDL_NAME_BYTESIZE ||
-      strlen(m_tabname) > NDB_MAX_DDL_NAME_BYTESIZE)
-  {
-    char *invalid_identifier=
-        (strlen(m_dbname) > NDB_MAX_DDL_NAME_BYTESIZE)?m_dbname:m_tabname;
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_TOO_LONG_IDENT,
-                        "Ndb has an internal limit of %u bytes on the size of schema identifiers",
-                        NDB_MAX_DDL_NAME_BYTESIZE);
-    my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier);
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
-  }
-
   if (check_ndb_connection(thd))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
 
@@ -10717,6 +10701,14 @@ int ha_ndbcluster::create(const char *name,
       // Failed to prepare schema distributions
       DBUG_PRINT("info", ("Schema distribution failed to initialize"));
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    }
+
+    std::string invalid_identifier;
+    if (!schema_dist_client.check_identifier_limits(invalid_identifier))
+    {
+      // Check of db or table name limits failed
+      my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier.c_str());
+      DBUG_RETURN(HA_WRONG_CREATE_OPTION);
     }
   }
 
@@ -12129,26 +12121,10 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
   DBUG_PRINT("info", ("old_tabname: '%s'", m_tabname));
   DBUG_PRINT("info", ("new_tabname: '%s'", new_tabname));
 
-  Ndb_schema_dist_client schema_dist_client(thd);
-
-  /* Check that the new table or database name does not exceed max limit */
-  if (strlen(new_dbname) > NDB_MAX_DDL_NAME_BYTESIZE ||
-       strlen(new_tabname) > NDB_MAX_DDL_NAME_BYTESIZE)
-  {
-    char *invalid_identifier=
-        (strlen(new_dbname) > NDB_MAX_DDL_NAME_BYTESIZE) ?
-          new_dbname : new_tabname;
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_TOO_LONG_IDENT,
-                        "Ndb has an internal limit of %u bytes on the "\
-                        "size of schema identifiers",
-                        NDB_MAX_DDL_NAME_BYTESIZE);
-    my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier);
-    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
-  }
-
   if (check_ndb_connection(thd))
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
+
+  Ndb_schema_dist_client schema_dist_client(thd);
 
   {
     // Prepare schema distribution, find the names which will be used in this
@@ -12179,6 +12155,14 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
                                            new_dbname, new_tabname)) {
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
+  }
+
+  std::string invalid_identifier;
+  if (!schema_dist_client.check_identifier_limits(invalid_identifier))
+  {
+    // Check of db or table name limits failed
+    my_error(ER_TOO_LONG_IDENT, MYF(0), invalid_identifier.c_str());
+    DBUG_RETURN(HA_WRONG_CREATE_OPTION);
   }
 
   Thd_ndb *thd_ndb= get_thd_ndb(thd);

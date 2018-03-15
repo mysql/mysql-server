@@ -124,6 +124,36 @@ bool Ndb_schema_dist_client::prepare_rename(const char* db, const char* tabname,
   DBUG_RETURN(true);
 }
 
+bool Ndb_schema_dist_client::check_identifier_limits(
+    std::string& invalid_identifier) {
+  DBUG_ENTER("Ndb_schema_dist_client::check_identifier_limits");
+
+  Ndb_schema_dist_table schema_dist_table(m_thd_ndb);
+  if (!schema_dist_table.open()) {
+    invalid_identifier = "<open failed>";
+    DBUG_RETURN(false);
+  }
+
+  // Check that identifiers does not exceed the limits imposed
+  // by the ndb_schema table layout
+  for (auto key: m_prepared_keys.keys())
+  {
+    // db
+    if (!schema_dist_table.check_column_identifier_limit(
+            Ndb_schema_dist_table::COL_DB, key.first)) {
+      invalid_identifier = key.first;
+      DBUG_RETURN(false);
+    }
+    // name
+    if (!schema_dist_table.check_column_identifier_limit(
+            Ndb_schema_dist_table::COL_NAME, key.second)) {
+      invalid_identifier = key.second;
+      DBUG_RETURN(false);
+    }
+  }
+  DBUG_RETURN(true);
+}
+
 void Ndb_schema_dist_client::Prepared_keys::add_key(const char* db,
                                                     const char* tabname) {
   m_keys.emplace_back(db, tabname);
@@ -224,6 +254,17 @@ bool Ndb_schema_dist_client::log_schema_op(const char* query,
   if (m_thd_ndb->check_option(Thd_ndb::NO_LOG_SCHEMA_OP)) {
     DBUG_PRINT("info", ("NO_LOG_SCHEMA_OP set - > skip schema distribution"));
     DBUG_RETURN(true); // Ok, skipped
+  }
+
+  // Verify identifier limits, this should already have been caught earlier
+  {
+    std::string invalid_identifier;
+    if (!check_identifier_limits(invalid_identifier))
+    {
+      m_thd_ndb->push_warning("INTERNAL ERROR: identifier limits exceeded");
+      DBUG_ASSERT(false); // Catch in debug
+      DBUG_RETURN(false);
+    }
   }
 
   const int result = log_schema_op_impl(
@@ -367,6 +408,18 @@ bool Ndb_schema_dist_client::drop_table(const char* db, const char* table_name,
 bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
                                        const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::create_db");
+
+  // Checking identifier limits "late", there is no way to return
+  // an error to fail the CREATE DATABASE command
+  std::string invalid_identifier;
+  if (!check_identifier_limits(invalid_identifier))
+  {
+    // Check of db name limit failed
+    m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
+                            invalid_identifier.c_str());
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
                             unique_version(), SOT_CREATE_DB));
 }
@@ -374,12 +427,36 @@ bool Ndb_schema_dist_client::create_db(const char* query, uint query_length,
 bool Ndb_schema_dist_client::alter_db(const char* query, uint query_length,
                                       const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::alter_db");
+
+  // Checking identifier limits "late", there is no way to return
+  // an error to fail the ALTER DATABASE command
+  std::string invalid_identifier;
+  if (!check_identifier_limits(invalid_identifier))
+  {
+    // Check of db name limit failed
+    m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
+                            invalid_identifier.c_str());
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(log_schema_op(query, query_length, db, "", unique_id(),
                             unique_version(), SOT_ALTER_DB));
 }
 
 bool Ndb_schema_dist_client::drop_db(const char* db) {
   DBUG_ENTER("Ndb_schema_dist_client::drop_db");
+
+  // Checking identifier limits "late", there is no way to return
+  // an error to fail the DROP DATABASE command
+  std::string invalid_identifier;
+  if (!check_identifier_limits(invalid_identifier))
+  {
+    // Check of db name limit failed
+    m_thd_ndb->push_warning("Identifier name '%-.100s' is too long",
+                            invalid_identifier.c_str());
+    DBUG_RETURN(false);
+  }
+
   DBUG_RETURN(log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd),
                             db, "", unique_id(), unique_version(),
                             SOT_DROP_DB));
