@@ -1088,12 +1088,3 @@ ENGINE=ndb;
 show warnings;
 Level	Code	Message
 drop table t1;
-create table
-abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
-primary key) engine=ndb;
-ERROR 42000: Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-show warnings;
-Level	Code	Message
-Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
-Error	1059	Identifier name 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' is too long
-Error	1031	Table storage engine for 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123' doesn't have this option

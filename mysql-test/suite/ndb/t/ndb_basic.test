@@ -885,12 +885,3 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb;
 show warnings;
 drop table t1;
-
-#
-#Bug #11753491 44940: MYSQLD CRASHES WHEN CREATING A CLUSTER TABLE WITH 64 CHARACTER TABLE NAME
-#
---error ER_TOO_LONG_IDENT
-create table
-abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
-primary key) engine=ndb;
-show warnings;
