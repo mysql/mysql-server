@@ -994,6 +994,12 @@ class Item : public Parse_tree_node {
     m_data_type = static_cast<uint8>(data_type);
   }
 
+  inline void set_data_type_bool() {
+    set_data_type(MYSQL_TYPE_LONG);
+    collation.set_numeric();
+    max_length = 1;
+  }
+
   /**
     Set the data type of the Item to be longlong.
     Maximum display width is set to be the maximum of a 64-bit integer,
@@ -1082,7 +1088,7 @@ class Item : public Parse_tree_node {
     @param max_l  Maximum number of characters in string
     @param cs     Pointer to character set and collation struct
   */
-  inline void set_data_type_string(uint32 max_l, const CHARSET_INFO *cs) {
+  inline void set_data_type_string(ulonglong max_l, const CHARSET_INFO *cs) {
     collation.collation = cs;
     set_data_type_string(max_l);
   }

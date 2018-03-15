@@ -32,6 +32,7 @@
 #include "sql/item_regexp_func.h"
 
 #include "my_dbug.h"
+#include "mysql_com.h"  // MAX_BLOB_WIDTH
 #include "nullable.h"
 #include "sql/item_func.h"  // agg_arg_charsets_for_comparison()
 #include "sql/sql_class.h"  // THD
@@ -184,7 +185,7 @@ longlong Item_func_regexp_like::val_int() {
 
 bool Item_func_regexp_replace::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
-  collation.collation = regexp::regexp_lib_charset;
+  set_data_type_string(ulonglong{MAX_BLOB_WIDTH}, regexp::regexp_lib_charset);
   return false;
 }
 
@@ -213,7 +214,8 @@ String *Item_func_regexp_replace::val_str(String *buf) {
 
 bool Item_func_regexp_substr::resolve_type(THD *thd) {
   if (Item_func_regexp::resolve_type(thd)) return true;
-  collation.collation = regexp::regexp_lib_charset;
+  set_data_type_string(subject()->max_char_length(),
+                       regexp::regexp_lib_charset);
   return false;
 }
 

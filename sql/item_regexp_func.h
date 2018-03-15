@@ -62,7 +62,8 @@
 
 #include <string>
 
-#include "my_dbug.h"  // DBUG_ASSERT
+#include "my_dbug.h"      // DBUG_ASSERT
+#include "my_inttypes.h"  // MY_INT32_NUM_DECIMAL_DIGITS
 #include "sql/item_cmpfunc.h"
 #include "sql/item_strfunc.h"
 #include "sql/mysqld.h"  // make_unique_destroy_only
@@ -280,7 +281,7 @@ class Item_func_regexp_like : public Item_func_regexp {
  public:
   Item_func_regexp_like(const POS &pos, PT_item_list *args)
       : Item_func_regexp(pos, args) {
-    set_data_type_longlong();
+    set_data_type_bool();
   }
 
   Item_result result_type() const override { return INT_RESULT; }

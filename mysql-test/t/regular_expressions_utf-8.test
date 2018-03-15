@@ -765,4 +765,20 @@ UPDATE t1 SET a = regexp_substr ('b', 'b', 1);
 SELECT * FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#27682225: WRONG METADATA FOR REGEXP FUNCTIONS
+--echo #
+
+CREATE TABLE t1 AS SELECT
+  regexp_instr( 'a', 'a' ) AS a,
+  regexp_like( 'a', 'a' ) AS b,
+  regexp_replace( 'abc', 'b', 'x' ) AS c,
+  regexp_substr( 'a', 'a' ) AS d,
+  regexp_substr( repeat('a', 512), 'a' ) AS e,
+  regexp_substr( repeat('a', 513), 'a' ) AS f;
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
 --source ../mysql-test/include/cleanup_icu_utils.inc
