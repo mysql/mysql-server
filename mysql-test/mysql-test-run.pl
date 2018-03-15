@@ -140,9 +140,6 @@ my $opt_valgrind_mysqltest = 0;
 
 my @opt_skip_test_list;
 
-# Storage for changed environment variables
-my %old_env;
-
 # Options used when connecting to an already running server
 my %opts_extern;
 
@@ -156,6 +153,7 @@ my $exe_ndb_mgmd;
 my $exe_ndb_waiter;
 my $exe_ndbd;
 my $exe_ndbmtd;
+my $initial_bootstrap_cmd;
 my $mysql_base_version;
 my $mysqlx_baseport;
 my $path_config_file;       # The generated config file, var/my.cnf
@@ -169,13 +167,15 @@ my $daemonize_mysqld                 = 0;
 my $debug_d                          = "d";
 my $exe_ndbmtd_counter               = 0;
 my $ports_per_thread                 = 10;
-my $previous_test_had_bootstrap_opts = 0;
 my $source_dist                      = 0;
 my $valgrind_reports                 = 0;
 
 my @valgrind_args;
 
 my %mysqld_logs;
+
+# Storage for changed environment variables
+my %old_env;
 
 # Global variables
 our $opt_client_dbx;
@@ -3544,6 +3544,11 @@ sub initialize_servers {
       setup_vardir();
 
       mysql_install_db(default_mysqld(), "$opt_vardir/data/");
+
+      # Save the value of MYSQLD_BOOTSTRAP_CMD before a test with bootstrap
+      # options in the opt file runs, so that its original value is restored
+      # later.
+      $initial_bootstrap_cmd = $ENV{'MYSQLD_BOOTSTRAP_CMD'};
     }
   }
 }
@@ -5950,6 +5955,11 @@ sub start_servers($) {
         copytree($install_db, $datadir) if -d $install_db;
         mtr_error("Failed to copy system db to '$datadir'")
           unless -d $datadir;
+
+        # Restore the value of bootstrap command for the next run.
+        if ($initial_bootstrap_cmd ne $ENV{'MYSQLD_BOOTSTRAP_CMD'}) {
+          $ENV{'MYSQLD_BOOTSTRAP_CMD'} = $initial_bootstrap_cmd;
+        }
       }
     } else {
       mysql_install_db($mysqld);    # For versional testing
@@ -5962,16 +5972,7 @@ sub start_servers($) {
     my $bootstrap_opts = (is_slave($mysqld) ? $tinfo->{bootstrap_slave_opt} :
                             $tinfo->{bootstrap_master_opt});
 
-    my $clean_datadir = 0;
     if ($bootstrap_opts) {
-      $clean_datadir                    = 1;
-      $previous_test_had_bootstrap_opts = 1;
-    } elsif ($previous_test_had_bootstrap_opts) {
-      $clean_datadir                    = 1;
-      $previous_test_had_bootstrap_opts = 0;
-    }
-
-    if ($clean_datadir) {
       clean_dir($datadir);
       mysql_install_db($mysqld, $datadir, $bootstrap_opts);
 
