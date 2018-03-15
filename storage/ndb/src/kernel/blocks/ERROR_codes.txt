@@ -23,7 +23,7 @@ Next DBDICT 6223
 Next DBDIH 7249
 Next DBTC 8117
 Next CMVMI 9000
-Next BACKUP 10048
+Next BACKUP 10049
 Next PGMAN 11010
 Next DBTUX 12010
 Next SUMA 13049
@@ -620,6 +620,7 @@ Backup Stuff:
 10045: Crash insertion at FSAPPENDREF
 10046: DIH scan tab around Get next fragment
 10047: Delay start of scan for LCPs
+10048: Ensure that LCP runs with exactly 1 part
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 

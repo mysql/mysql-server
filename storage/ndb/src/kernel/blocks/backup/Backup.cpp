@@ -12385,6 +12385,16 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
                      MAX(min_parts_rule3,
                      MAX(min_parts_rule4, min_parts_rule5)));
 
+  if (ERROR_INSERTED(10048) && min_parts_rule4 == 0)
+  {
+    /**
+     * We need this in test cases to ensure that we can create a situation
+     * with 1 part per LCP and having more than 980 parts and even close to
+     * 2048 LCPs to restore a LCP.
+     */
+    jam();
+    parts = 1;
+  }
 #ifdef DEBUG_LCP_STAT
   TablePtr debTabPtr;
   FragmentPtr fragPtr;
@@ -14155,6 +14165,11 @@ Backup::execEND_LCPREQ(Signal* signal)
   ptr.p->slaveState.setState(INITIAL);
   ptr.p->slaveState.setState(DEFINING);
   ptr.p->slaveState.setState(DEFINED);
+
+  if (ERROR_INSERTED(10048))
+  {
+    CLEAR_ERROR_INSERT_VALUE;
+  }
 
   DEB_LCP(("(%u)TAGE Send SYNC_EXTENT_PAGES_REQ", instance()));
   /**
