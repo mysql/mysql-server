@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,6 +141,8 @@ public:
   EventBufData_list();
   ~EventBufData_list();
 
+  // delete all Gci_op[] / Gci_ops[] in this EventBufData_list
+  void delete_gci_ops();
   // remove first and return its size
   void remove_first(Uint32 & full_count, Uint32 & full_sz);
   // for remove+append avoid double call to get_full_size()
@@ -199,7 +201,14 @@ public:
         m_next(NULL),
         m_gci_op_count(0)
       {};
-    ~Gci_ops() {};
+    ~Gci_ops()
+    {
+      if (m_gci_op_list)
+      {
+        DBUG_PRINT_EVENT("info", ("delete m_gci_op_list: %p", m_gci_op_list));
+        delete [] m_gci_op_list;
+      }
+    };
 
     MonotonicEpoch m_gci;
     Uint32 m_error;
@@ -238,7 +247,7 @@ EventBufData_list::EventBufData_list()
     m_count(0),
     m_sz(0),
     m_gci_op_list(NULL),
-    m_gci_ops_list_tail(0),
+    m_gci_ops_list_tail(NULL),
     m_gci_op_alloc(0)
 {
   DBUG_ENTER_EVENT("EventBufData_list::EventBufData_list");
@@ -249,7 +258,13 @@ EventBufData_list::EventBufData_list()
 inline
 EventBufData_list::~EventBufData_list()
 {
-  DBUG_ENTER_EVENT("EventBufData_list::~EventBufData_list");
+  delete_gci_ops();
+}
+
+inline
+void EventBufData_list::delete_gci_ops()
+{
+  DBUG_ENTER_EVENT("EventBufData_list::delete_gci_ops");
   DBUG_PRINT_EVENT("info", ("this: %p  m_is_not_multi_list: %u",
                             this, m_is_not_multi_list));
   if (m_is_not_multi_list)
@@ -342,12 +357,6 @@ EventBufData_list::delete_next_gci_ops()
   assert(!m_is_not_multi_list);
   Gci_ops *first = m_gci_ops_list;
   m_gci_ops_list = first->m_next;
-  if (first->m_gci_op_list)
-  {
-    DBUG_PRINT_EVENT("info", ("this: %p  delete m_gci_op_list: %p",
-                              this, first->m_gci_op_list));
-    delete [] first->m_gci_op_list;
-  }
   delete first;
   if (m_gci_ops_list == 0)
     m_gci_ops_list_tail = 0;

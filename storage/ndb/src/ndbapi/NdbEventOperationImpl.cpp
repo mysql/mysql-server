@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3974,7 +3974,7 @@ NdbEventBuffer::free_list(EventBufData_list &list)
     list.m_head = list.m_tail = NULL;
     list.m_count = list.m_sz = 0;
   }
-  list.~EventBufData_list(); // free gci ops
+  list.delete_gci_ops(); // free gci ops
 }
 
 void EventBufData_list::append_list(EventBufData_list *list,
