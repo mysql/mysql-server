@@ -199,14 +199,14 @@ NdbEventOperationImpl::~NdbEventOperationImpl()
   DBUG_ENTER("NdbEventOperationImpl::~NdbEventOperationImpl");
   m_magic_number= 0;
 
-#ifndef NDEBUG
-  m_state = (NdbEventOperation::State)0xDead;
-#endif
-
   if (m_oid == ~(Uint32)0)
     DBUG_VOID_RETURN;
 
   stop();
+
+#ifndef NDEBUG
+  m_state = (NdbEventOperation::State)0xDead;
+#endif
   
   if (theMainOp == NULL)
   {
@@ -3608,9 +3608,12 @@ NdbEventBuffer::copy_data(const SubTableData * const sdata, Uint32 len,
     data->sdata->transId2 = ~Uint32(0);
   }
 
-  int i;
-  for (i = 0; i <= 2; i++)
-    memcpy(data->ptr[i].p, ptr[i].p, ptr[i].sz << 2);
+  for (int i = 0; i <= 2; i++) {
+    if (ptr[i].sz > 0) {
+      memcpy(data->ptr[i].p, ptr[i].p, ptr[i].sz << 2);
+    }
+  }
+
   DBUG_RETURN_EVENT(0);
 }
 
