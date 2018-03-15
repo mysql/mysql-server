@@ -74,6 +74,21 @@ SET GLOBAL autocommit = 0;
 
 SET GLOBAL autocommit = default;
 
+--echo #
+--echo # Bug #27568278: CAN'T LOCATE SERVER PUBLIC KEY 'ROOT' WHEN RUNNING MYSQL_UPGRADE
+--echo #
+
+CREATE USER root_sha256@localhost IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO root_sha256@localhost WITH GRANT OPTION;
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --force -uroot_sha256 --protocol=tcp --ssl-mode=disabled 2>&1
+DROP USER root_sha256@localhost;
+
+CREATE USER root_caching_sha2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'abcd';
+GRANT ALL ON *.* TO root_caching_sha2@localhost WITH GRANT OPTION;
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --force -uroot_caching_sha2 -pabcd --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem --protocol=tcp --ssl-mode=disabled 2>&1
+DROP USER root_caching_sha2@localhost;
 
 --source include/mysql_upgrade_cleanup.inc
 
