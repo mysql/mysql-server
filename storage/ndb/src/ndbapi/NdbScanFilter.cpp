@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,21 @@
 
 class NdbScanFilterImpl {
 public:
-  NdbScanFilterImpl() {}
+  NdbScanFilterImpl()
+    : m_label(0),
+      m_negative(0),
+      m_stack(),
+      m_stack2(),
+      m_code(NULL),
+      m_error(),
+      m_associated_op(NULL)
+  {
+    m_current.m_group = (NdbScanFilter::Group)0;
+    m_current.m_popCount = 0;
+    m_current.m_ownLabel = 0;
+    m_current.m_trueLabel = ~0;
+    m_current.m_falseLabel = ~0;
+  }
   struct State {
     NdbScanFilter::Group m_group;
     Uint32 m_popCount;
@@ -61,26 +75,6 @@ public:
   
   int cond_col_const(Interpreter::BinaryCondition, Uint32 attrId, 
 		     const void * value, Uint32 len);
-
-  /* Method to initialise the members */
-  void init (NdbInterpretedCode *code)
-  {
-    m_current.m_group = (NdbScanFilter::Group)0;
-    m_current.m_popCount = 0;
-    m_current.m_ownLabel = 0;
-    m_current.m_trueLabel = ~0;
-    m_current.m_falseLabel = ~0;
-    m_label = 0;
-    m_negative = 0;
-    m_code= code;
-    m_associated_op= NULL;
-    
-    if (code == NULL)
-      /* NdbInterpretedCode not supported for operation type */
-      m_error.code = 4539;
-    else
-      m_error.code = 0;
-  };
 
   /* This method propagates an error code from NdbInterpretedCode
    * back to the NdbScanFilter object
@@ -129,7 +123,12 @@ NdbScanFilter::NdbScanFilter(NdbInterpretedCode* code) :
   m_impl(* new NdbScanFilterImpl())
 {
   DBUG_ENTER("NdbScanFilter::NdbScanFilter(NdbInterpretedCode)");
-  m_impl.init(code);
+  if (unlikely(code == NULL))
+  {
+    /* NdbInterpretedCode not supported for operation type */
+    m_impl.m_error.code = 4539; 
+  }
+  m_impl.m_code = code;
   DBUG_VOID_RETURN;
 }
 
@@ -138,27 +137,29 @@ NdbScanFilter::NdbScanFilter(class NdbOperation * op) :
 {
   DBUG_ENTER("NdbScanFilter::NdbScanFilter(NdbOperation)");
   
-  NdbInterpretedCode* code= NULL;
-  NdbOperation::Type opType= op->getType();
+  const NdbOperation::Type opType= op->getType();
 
-  /* If the operation is not of the correct type then
-   * m_impl.init() will set an error on the scan filter
-   */
   if (likely((opType == NdbOperation::TableScan) || 
              (opType == NdbOperation::OrderedIndexScan)))
-  {    
+  {
+    NdbScanOperation* scanOp = (NdbScanOperation*)op;
+    
     /* We ask the NdbScanOperation to allocate an InterpretedCode
      * object for us.  It will look after freeing it when 
      * necessary.  This allows the InterpretedCode object to 
      * survive after the NdbScanFilter has gone out of scope
      */
-    code= ((NdbScanOperation *)op)->allocInterpretedCodeOldApi();
+    NdbInterpretedCode* code= scanOp->allocInterpretedCodeOldApi();
+    if (likely(code != NULL))
+    {
+      m_impl.m_code = code;
+      m_impl.m_associated_op = scanOp;
+      DBUG_VOID_RETURN;
+    }
   }
-
-  m_impl.init(code);
-
-  m_impl.m_associated_op= (NdbScanOperation*) op;
-
+  
+  /* Fall through: NdbInterpretedCode not supported for operation type */
+  m_impl.m_error.code = 4539;
   DBUG_VOID_RETURN;
 }
 
