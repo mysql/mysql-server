@@ -4462,8 +4462,11 @@ NdbDictInterface::serializeTableDesc(Ndb & ndb,
     Frm Data, FragmentData, TablespaceData, RangeListData, TsNameData
   */
   tmpTab->FrmLen = impl.m_frm.length();
-  memcpy(tmpTab->FrmData, impl.m_frm.get_data(), impl.m_frm.length());
-
+  if (tmpTab->FrmLen > 0)
+  {
+    memcpy(tmpTab->FrmData, impl.m_frm.get_data(), impl.m_frm.length());
+  }
+  
   {
     /**
      * NOTE: fragment data is currently an array of Uint16
@@ -4635,10 +4638,10 @@ loop:
     tmpAttr.AttributeAutoIncrement = col->m_autoIncrement;
     {
       Uint32 ah;
-      Uint32 byteSize = col->m_defaultValue.length();
+      const Uint32 byteSize = col->m_defaultValue.length();
       assert(byteSize <= NDB_MAX_TUPLE_SIZE);
 
-      if (byteSize)
+      if (byteSize > 0)
       {
         if (unlikely(! ndb_native_default_support(ndb.getMinDbNodeVersion())))
         {
@@ -4660,8 +4663,11 @@ loop:
        */
       Uint32 a = htonl(ah);
       memcpy(tmpAttr.AttributeDefaultValue, &a, sizeof(Uint32));
-      memcpy(tmpAttr.AttributeDefaultValue + sizeof(Uint32), 
-             col->m_defaultValue.get_data(), byteSize);
+      if (byteSize > 0)
+      {
+        memcpy(tmpAttr.AttributeDefaultValue + sizeof(Uint32), 
+               col->m_defaultValue.get_data(), byteSize);
+      }
       Uint32 defValByteLen = ((col->m_defaultValue.length() + 3) / 4) * 4;
       tmpAttr.AttributeDefaultValueLen = defValByteLen + sizeof(Uint32);
 

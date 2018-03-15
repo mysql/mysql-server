@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1423,7 +1423,10 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   if (m_recv_buffer != NULL)
   {
     Uint32 *row_recv = m_recv_buffer->allocRow(aLength);
-    memcpy(row_recv, aDataPtr, aLength*sizeof(Uint32));
+    if (likely(aLength > 0))
+    {
+      memcpy(row_recv, aDataPtr, aLength*sizeof(Uint32));
+    }
   }
   else
   {
