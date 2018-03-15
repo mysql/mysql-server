@@ -1154,12 +1154,14 @@ public:
   void lcp_write_ctl_file(Signal*, BackupRecordPtr);
   void lcp_write_ctl_file_to_disk(Signal*, BackupFilePtr, Page32Ptr);
   void lcp_init_ctl_file(Page32Ptr pagePtr);
-  Uint32 compress_part_pairs(struct BackupFormat::LCPCtlFile*, Uint32);
+  Uint32 compress_part_pairs(struct BackupFormat::LCPCtlFile*,
+                             Uint32 numPartPairs,
+                             Uint32 file_size);
   Uint32 decompress_part_pairs(struct BackupFormat::LCPCtlFile*,
                                Uint32,
                                struct BackupFormat::PartPair*);
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
-  void convert_ctl_page_to_network(Uint32*);
+  void convert_ctl_page_to_network(Uint32*, Uint32 file_size);
   void handle_idle_lcp(Signal*, BackupRecordPtr);
   Uint32 calculate_min_parts(Uint64 row_count,
                              Uint64 row_change_count,
