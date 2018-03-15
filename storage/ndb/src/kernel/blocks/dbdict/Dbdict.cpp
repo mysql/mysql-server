@@ -409,25 +409,29 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         c_attributeRecordPool.getSize(),
         c_attributeRecordPool.getEntrySize(),
         c_attributeRecordPool.getUsedHi(),
-        { CFG_DB_NO_ATTRIBUTES,0,0,0 }},
+        { CFG_DB_NO_ATTRIBUTES,0,0,0 },
+        0},
       { "Table Record",
         c_tableRecordPool_.getUsed(),
         c_noOfMetaTables,
         c_tableRecordPool_.getEntrySize(),
         c_tableRecordPool_.getUsedHi(),
-        { CFG_DB_NO_TABLES,0,0,0 }},
+        { CFG_DB_NO_TABLES,0,0,0 },
+        0},
       { "Trigger Record",
         c_triggerRecordPool_.getUsed(),
         c_triggerRecordPool_.getSize(),
         c_triggerRecordPool_.getEntrySize(),
         c_triggerRecordPool_.getUsedHi(),
-        { CFG_DB_NO_TRIGGERS,0,0,0 }},
+        { CFG_DB_NO_TRIGGERS,0,0,0 },
+        0},
       { "FS Connect Record",
         c_fsConnectRecordPool.getUsed(),
         c_fsConnectRecordPool.getSize(),
         c_fsConnectRecordPool.getEntrySize(),
         c_fsConnectRecordPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "DictObject",
         c_obj_pool.getUsed(),
         c_obj_pool.getSize(),
@@ -436,20 +440,23 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
         { CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
           CFG_DB_NO_UNIQUE_HASH_INDEXES,
-          CFG_DB_NO_TRIGGERS }},
+          CFG_DB_NO_TRIGGERS },
+        0},
       { "Transaction Handle",
         c_txHandlePool.getUsed(),
         c_txHandlePool.getSize(),
         c_txHandlePool.getEntrySize(),
         c_txHandlePool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Operation Record",
         c_opRecordPool.getUsed(),
         c_opRecordPool.getSize(),
         c_opRecordPool.getEntrySize(),
         c_opRecordPool.getUsedHi(),
-        { 0,0,0,0 }},
-      { NULL, 0,0,0,0,{0,0,0,0}}
+        { 0,0,0,0 },
+        0},
+      { NULL, 0,0,0,0,{0,0,0,0},0}
     };
 
     const size_t num_config_params =
@@ -470,6 +477,8 @@ void Dbdict::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))

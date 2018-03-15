@@ -53,14 +53,16 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
         c_indexPool.getUsedHi(),
         { CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+        0},
       { "Fragment",
         c_fragPool.getUsed(),
         c_fragPool.getSize(),
         c_fragPool.getEntrySize(),
         c_fragPool.getUsedHi(),
         { CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_REPLICAS,0,0 }},
+          CFG_DB_NO_REPLICAS,0,0 },
+        0},
       { "Descriptor page",
         c_descPagePool.getUsed(),
         c_descPagePool.getSize(),
@@ -68,33 +70,38 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
         c_descPagePool.getUsedHi(),
         { CFG_DB_NO_TABLES,
           CFG_DB_NO_ORDERED_INDEXES,
-          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 }},
+          CFG_DB_NO_UNIQUE_HASH_INDEXES,0 },
+        0},
       { "Fragment Operation",
         c_fragOpPool.getUsed(),
         c_fragOpPool.getSize(),
         c_fragOpPool.getEntrySize(),
         c_fragOpPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Scan Operation",
         c_scanOpPool.getUsed(),
         c_scanOpPool.getSize(),
         c_scanOpPool.getEntrySize(),
         c_scanOpPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+        0},
       { "Scan Bound",
         c_scanBoundPool.getUsed(),
         c_scanBoundPool.getSize(),
         c_scanBoundPool.getEntrySize(),
         c_scanBoundPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+        0},
       { "Scan Lock",
         c_scanLockPool.getUsed(),
         c_scanLockPool.getSize(),
         c_scanLockPool.getEntrySize(),
         c_scanLockPool.getUsedHi(),
         { CFG_DB_NO_LOCAL_SCANS,
-          CFG_DB_BATCH_SIZE,0,0 }},
-      { NULL, 0,0,0,0,{ 0,0,0,0 }}
+          CFG_DB_BATCH_SIZE,0,0 },
+        0},
+      { NULL, 0,0,0,0,{ 0,0,0,0 },0}
     };
 
     const size_t num_config_params =
@@ -115,6 +122,8 @@ void Dbtux::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))

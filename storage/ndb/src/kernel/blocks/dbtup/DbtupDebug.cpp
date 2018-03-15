@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,37 +102,43 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
         c_scanLockPool.getSize(),
         c_scanLockPool.getEntrySize(),
         c_scanLockPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,CFG_DB_BATCH_SIZE,0,0 }},
+        { CFG_DB_NO_LOCAL_SCANS,CFG_DB_BATCH_SIZE,0,0 },
+        0},
       { "Scan Operation",
         c_scanOpPool.getUsed(),
         c_scanOpPool.getSize(),
         c_scanOpPool.getEntrySize(),
         c_scanOpPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+        0},
       { "Trigger",
         c_triggerPool.getUsed(),
         c_triggerPool.getSize(),
         c_triggerPool.getEntrySize(),
         c_triggerPool.getUsedHi(),
-        { CFG_DB_NO_TRIGGERS,0,0,0 }},
+        { CFG_DB_NO_TRIGGERS,0,0,0 },
+        0},
       { "Stored Proc",
         c_storedProcPool.getUsed(),
         c_storedProcPool.getSize(),
         c_storedProcPool.getEntrySize(),
         c_storedProcPool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_SCANS,0,0,0 }},
+        { CFG_DB_NO_LOCAL_SCANS,0,0,0 },
+        0},
       { "Build Index",
         c_buildIndexPool.getUsed(),
         c_buildIndexPool.getSize(),
         c_buildIndexPool.getEntrySize(),
         c_buildIndexPool.getUsedHi(),
-        { 0,0,0,0 }},
+        { 0,0,0,0 },
+        0},
       { "Operation",
         c_operation_pool.getUsed(),
         c_operation_pool.getSize(),
         c_operation_pool.getEntrySize(),
         c_operation_pool.getUsedHi(),
-        { CFG_DB_NO_LOCAL_OPS,CFG_DB_NO_OPS,0,0 }},
+        { CFG_DB_NO_LOCAL_OPS,CFG_DB_NO_OPS,0,0 },
+        0},
       { "L2PMap pages",
         pmpInfo.pg_count,
         0,                  /* No real limit */
@@ -142,7 +148,8 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
           and therefore of limited interest.
         */
         0,
-        { 0, 0, 0}},
+        { 0, 0, 0},
+        RG_DATAMEM},
       { "L2PMap nodes",
         pmpInfo.inuse_nodes,
         pmpInfo.pg_count * pmpInfo.nodes_per_page, /* Max within current pages */
@@ -152,14 +159,16 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
           and therefore of limited interest.
         */
         0,
-        { 0, 0, 0 }},
+        { 0, 0, 0 },
+        RT_DBTUP_PAGE_MAP},
       { "Data memory",
         m_pages_allocated,
         0, // Allocated from global resource group RG_DATAMEM
         sizeof(Page),
         m_pages_allocated_max,
-        { CFG_DB_DATA_MEM,0,0,0 }},
-      { NULL, 0,0,0,0, { 0,0,0,0 }}
+        { CFG_DB_DATA_MEM,0,0,0 },
+        0},
+      { NULL, 0,0,0,0, { 0,0,0,0 }, 0}
     };
 
     const size_t num_config_params =
@@ -181,6 +190,8 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))

@@ -8868,7 +8868,8 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
         cpageCount,
         sizeof(Page8),
         cnoOfAllocatedPagesMax,
-        { CFG_DB_INDEX_MEM,0,0,0 }},
+        { CFG_DB_INDEX_MEM,0,0,0 },
+        RG_DATAMEM},
       { "L2PMap pages",
         pmpInfo.pg_count,
         0,                  /* No real limit */
@@ -8878,7 +8879,8 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
           and therefore of limited interest.
         */
         0,
-        { 0, 0, 0}},
+        { 0, 0, 0},
+        RG_DATAMEM},
       { "L2PMap nodes",
         pmpInfo.inuse_nodes,
         pmpInfo.pg_count * pmpInfo.nodes_per_page, // Max within current pages.
@@ -8888,8 +8890,9 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
           and therefore of limited interest.
         */
         0,
-        { 0, 0, 0 }},
-      { NULL, 0,0,0,0,{ 0,0,0,0 }}
+        { 0, 0, 0 },
+        RT_DBACC_DIRECTORY},
+      { NULL, 0,0,0,0,{ 0,0,0,0 }, 0}
     };
 
     static const size_t num_config_params =
@@ -8911,6 +8914,8 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint64(pools[pool].entry_size);
       for (size_t i = 0; i < num_config_params; i++)
         row.write_uint32(pools[pool].config_params[i]);
+      row.write_uint32(GET_RG(pools[pool].record_type));
+      row.write_uint32(GET_TID(pools[pool].record_type));
       ndbinfo_send_row(signal, req, row, rl);
       pool++;
       if (rl.need_break(req))
