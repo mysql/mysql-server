@@ -8714,6 +8714,139 @@ int runTestStartNode(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+/**
+ * In Partial LCP we need many LCPs to restore a checkpoint. The
+ * maximum number of LCPs we need in order to restore a checkpoint
+ * is 2048. This test uses error insert 10048 to ensure that each
+ * LCP only stores 1 part completely. This means that this test
+ * can generate checkpoints that have to write LCP control files
+ * consisting of close to 2048 parts and similarly to restore those.
+ * 
+ * The test loops for more than 2048 times to ensure that we come
+ * to a situation with a large number of parts in each LCP and in
+ * particular for the last one that we are to restore. The number
+ * 2058 is somewhat arbitrarily choosen to ensure this.
+ *
+ * The test case is hardcoded to make those special LCPs in node 2.
+ *
+ * Between each LCP we perform a random amount of updates to ensure
+ * that each part of this table will create a non-empty LCP. We
+ * insert a number of random LCPs that are empty as well to ensure
+ * that we generate empty LCPs correctly as well even if there are
+ * many parts in the LCP.
+ */
+int run_PLCP_many_parts(NDBT_Context *ctx, NDBT_Step *step)
+{
+  Ndb *pNdb = GETNDB(step);
+  int loops = 2108;
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  HugoTransactions hugoTrans(*ctx->getTab());
+  NdbRestarter restarter;
+  int i = 0;
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+  int nodeId = 2;
+  HugoOperations hugoOps(*ctx->getTab());
+  if (nodeCount < 2)
+  {
+    return NDBT_OK; /* Requires at least 2 nodes to run */
+  }
+  if (hugoTrans.loadTable(pNdb, records) != NDBT_OK)
+  {
+    g_err << "Failed to load table" << endl;
+    return NDBT_FAILED;
+  }
+
+  g_err << "Executing " << loops << " loops" << endl;
+  while(++i <= loops && result != NDBT_FAILED)
+  {
+    g_err << "Start loop " << i << endl;
+    ndbout << "Start an LCP" << endl;
+    {
+      if (restarter.insertErrorInNode(nodeId, 10048) != 0)
+      {
+        g_err << "ERROR: Error insert 10048 failed" << endl;
+        return NDBT_FAILED;
+      }
+      int val = DumpStateOrd::DihStartLcpImmediately;
+      if(restarter.dumpStateAllNodes(&val, 1) != 0)
+      {
+        g_err << "ERR: "<< step->getName()
+              << " failed on line " << __LINE__ << endl;
+        return NDBT_FAILED;
+      }
+    }
+    bool skip = false;
+    if ((i % 50) == 0)
+    {
+      skip = true;
+    }
+    Uint32 batch = 4;
+    Uint32 row;
+    if (!skip)
+    {
+      row = rand() % records;
+      if(row + batch > (Uint32)records)
+        batch = records - row;
+
+      if ((hugoOps.startTransaction(pNdb) != 0) ||
+          (hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0) ||
+          (hugoOps.execute_Commit(pNdb)) ||
+          (hugoOps.closeTransaction(pNdb)))
+      {
+        g_err << "Update failed" << endl;
+        //return NDBT_FAILED;
+      }
+    }
+    NdbSleep_SecSleep(1);
+    if (!skip)
+    {
+      row = rand() % records;
+      if(row + batch > (Uint32)records)
+        batch = records - row;
+      if ((hugoOps.startTransaction(pNdb) != 0) ||
+          (hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0) ||
+          (hugoOps.execute_Commit(pNdb)) ||
+          (hugoOps.closeTransaction(pNdb)))
+      {
+        g_err << "Update failed" << endl;
+        //return NDBT_FAILED;
+      }
+    }
+  }
+  /**
+   * Finally after creating a complex restore situation we test this
+   * by restarting node 2 to ensure that we can also recover the
+   * complex LCP setup.
+   */
+  ndbout << "Restart node 2" << endl;
+  if (restarter.restartOneDbNode(nodeId,
+                                 false, /* initial */
+                                 true,  /* nostart  */
+                                 false, /* abort */
+                                 false  /* force */) != 0)
+  {
+    g_err << "Restart failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Wait for NoStart state" << endl;
+  restarter.waitNodesNoStart(&nodeId, 1);
+  ndbout << "Start node" << endl;
+  if (restarter.startNodes(&nodeId, 1) != 0)
+  {
+    g_err << "Start failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Waiting for node to start" << endl;
+  if (restarter.waitNodesStarted(&nodeId, 1) != 0)
+  {
+    g_err << "Wait node start failed" << endl;
+    return NDBT_FAILED;
+  }
+  ndbout << "Test complete" << endl;
+  return NDBT_OK;
+}
+
 int run_PLCP_I1(NDBT_Context *ctx, NDBT_Step *step)
 {
   Ndb *pNdb = GETNDB(step);
@@ -9590,6 +9723,11 @@ TESTCASE("MultiCrashTest",
   INITIALIZER(runLoadTable);
   STEP(runMultiCrashTest);
   FINALIZER(runClearTable);
+}
+TESTCASE("LCP_with_many_parts",
+         "Ensure that LCP has many parts")
+{
+  INITIALIZER(run_PLCP_many_parts);
 }
 TESTCASE("PLCP_I1",
          "Initial node restart while deleting rows")
