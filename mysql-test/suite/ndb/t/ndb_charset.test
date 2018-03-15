@@ -272,3 +272,31 @@ drop table t1;
 
 
 # End of 4.1 tests
+
+
+# Start of 8.0 tests
+
+# Bug #27477829 UNICODE 9.0 COLLATIONS INCORRECTLY DETECT DUPLICATES
+# Truncation of the xfrm'ed normalized string caused false
+# detection of duplicates.
+
+create table t1 (
+  c1 varchar(10) collate utf8mb4_0900_as_cs,
+  primary key(c1)
+) engine = ndbcluster;
+
+
+#Inserting short string was OK.
+insert into t1 values('ABC_x'), ('ABC_X');
+
+# However, longer strings were truncated when transformed into
+# a normalized form. Thus false duplicates were detected. 
+insert into t1 values('ABCDEF_x'), ('ABCDEF_X');
+insert into t1 values('ABCDEFGH_x'), ('ABCDEFGH_X');
+
+--sorted_result
+select * from t1;
+
+drop table t1;
+
+# End of 8.0 tests
