@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ struct BackupFormat {
   static const Uint32 NDB_MAX_LCP_PARTS_PER_ROUND =
     NDB_MAX_LCP_PARTS / NDB_MAX_FILES_PER_LCP;
   static const Uint32 NDB_MAX_LCP_FILES = 2064;
-  static const Uint32 NDB_LCP_CTL_FILE_SIZE = 4096;
+  static const Uint32 NDB_LCP_CTL_FILE_SIZE_SMALL = 4096;
   static const Uint32 NDB_LCP_CTL_FILE_SIZE_BIG = 8192;
 
   enum RecordType
