@@ -12447,6 +12447,7 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
      * 2048 LCPs to restore a LCP.
      */
     jam();
+    g_eventLogger->info("Set to 1 part by ERROR 10048 injection");
     parts = 1;
   }
 #ifdef DEBUG_LCP_STAT
@@ -14219,11 +14220,6 @@ Backup::execEND_LCPREQ(Signal* signal)
   ptr.p->slaveState.setState(INITIAL);
   ptr.p->slaveState.setState(DEFINING);
   ptr.p->slaveState.setState(DEFINED);
-
-  if (ERROR_INSERTED(10048))
-  {
-    CLEAR_ERROR_INSERT_VALUE;
-  }
 
   DEB_LCP(("(%u)TAGE Send SYNC_EXTENT_PAGES_REQ", instance()));
   /**
