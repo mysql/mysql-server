@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -188,19 +188,21 @@ NdbInterpretedCode::add3(Uint32 x1, Uint32 x2, Uint32 x3)
 inline int 
 NdbInterpretedCode::addN(Uint32 *data, Uint32 length)
 {
-  if (unlikely(! have_space_for(length)))
-    return error(TooManyInstructions);
+  if (likely(length > 0))
+  {
+    if (unlikely(! have_space_for(length)))
+      return error(TooManyInstructions);
   
-  /* data* may be unaligned, so we do a byte copy
-   * using memcpy
-   */
-  memcpy(&m_buffer[m_instructions_length],
-         data,
-         length << 2);
+    /* data* may be unaligned, so we do a byte copy
+     * using memcpy
+     */
+    memcpy(&m_buffer[m_instructions_length],
+           data,
+           length << 2);
 
-  m_instructions_length+= length;
-  m_available_length-= length;
-  
+    m_instructions_length += length;
+    m_available_length -= length;
+  }
   return 0;
 }
 
@@ -529,7 +531,7 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
         Uint32 bitLen= col->getLength();
         Uint32 lastWordBits= bitLen & 0x1F;
         if (lastWordBits)
-          lastWordMask= (1 << lastWordBits) -1;
+          lastWordMask = ((Uint32)1 << lastWordBits) -1;
       }
       len= col->m_attrSize * col->m_arraySize;
     }
