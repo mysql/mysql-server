@@ -259,7 +259,7 @@ my $build_thread= 0;
 our $build_thread_id_dir;
 our $build_thread_id_file;
 
-my $previous_test_had_bootstrap_opts = 0;
+my $initial_bootstrap_cmd;
 
 my $ports_per_thread= 10;
 our $group_replication= 0;
@@ -3966,6 +3966,11 @@ sub initialize_servers {
       setup_vardir();
 
       mysql_install_db(default_mysqld(), "$opt_vardir/data/");
+
+      # Save the value of MYSQLD_BOOTSTRAP_CMD before a test with bootstrap
+      # options in the opt file runs, so that its original value is restored
+      # later.
+      $initial_bootstrap_cmd = $ENV{'MYSQLD_BOOTSTRAP_CMD'};
     }
   }
 }
@@ -6730,8 +6735,13 @@ sub start_servers($) {
         my $path= ($opt_parallel == 1) ? "$opt_vardir" : "$opt_vardir/..";
         my $install_db= "$path/data/";
         copytree($install_db, $datadir) if -d $install_db;
-	mtr_error("Failed to copy system db to '$datadir'")
-	  unless -d $datadir;
+        mtr_error("Failed to copy system db to '$datadir'")
+          unless -d $datadir;
+
+        # Restore the value of bootstrap command for the next run.
+        if ($initial_bootstrap_cmd ne $ENV{'MYSQLD_BOOTSTRAP_CMD'}) {
+          $ENV{'MYSQLD_BOOTSTRAP_CMD'} = $initial_bootstrap_cmd;
+        }
       }
     }
     else
@@ -6749,20 +6759,7 @@ sub start_servers($) {
                         $tinfo->{bootstrap_slave_opt} :
                         $tinfo->{bootstrap_master_opt});
 
-    my $clean_datadir = 0;
-    if ($bootstrap_opts) 
-      {
-	$clean_datadir = 1;
-	$previous_test_had_bootstrap_opts=1;
-      }
-    elsif ($previous_test_had_bootstrap_opts)
-      {
-	$clean_datadir = 1;
-	$previous_test_had_bootstrap_opts = 0;
-      }
-
-    if ($clean_datadir)
-    {
+    if ($bootstrap_opts) {
       clean_dir($datadir);
       mysql_install_db($mysqld, $datadir, $bootstrap_opts);
 
