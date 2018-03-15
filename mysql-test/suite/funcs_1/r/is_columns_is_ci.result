@@ -258,7 +258,7 @@ def	information_schema	SCHEMA_PRIVILEGES	IS_GRANTABLE	5		NO	varchar	1	3	NULL	NUL
 def	information_schema	STATISTICS	TABLE_CATALOG	1	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	TABLE_SCHEMA	2	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	TABLE_NAME	3	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
-def	information_schema	STATISTICS	NON_UNIQUE	4		NO	varchar	1	3	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1)			select			NULL
+def	information_schema	STATISTICS	NON_UNIQUE	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(1)			select			NULL
 def	information_schema	STATISTICS	INDEX_SCHEMA	5	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	INDEX_NAME	6	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)			select			NULL
 def	information_schema	STATISTICS	SEQ_IN_INDEX	7	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select			NULL
@@ -693,7 +693,7 @@ NULL	information_schema	SCHEMATA	SQL_PATH	binary	0	0	NULL	NULL	binary(0)
 3.0000	information_schema	STATISTICS	TABLE_CATALOG	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	TABLE_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	TABLE_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
-3.0000	information_schema	STATISTICS	NON_UNIQUE	varchar	1	3	utf8	utf8_general_ci	varchar(1)
+NULL	information_schema	STATISTICS	NON_UNIQUE	int	NULL	NULL	NULL	NULL	int(1)
 3.0000	information_schema	STATISTICS	INDEX_SCHEMA	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	information_schema	STATISTICS	INDEX_NAME	varchar	64	192	utf8	utf8_bin	varchar(64)
 NULL	information_schema	STATISTICS	SEQ_IN_INDEX	int	NULL	NULL	NULL	NULL	int(10) unsigned
