@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1050,11 +1050,12 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   // Release long signal sections
   releaseSections(handle);
   // Check table properties with DICT
-  SimplePropertiesSectionReader reader(ptr, getSectionSegmentPool());
+  SimplePropertiesLinearReader reader(&prepPtr.p->preparePages.getPtr(0)->data[0],
+                                      prepPtr.p->prepDataLen);
   prepPtr.p->clientRef = senderRef;
   prepPtr.p->clientData = senderData;
   prepPtr.p->schemaTransId = schemaTransId;
-  // Release long signal sections
+  // Read the properties
   readPrepareProps(signal, &reader, prepPtr);
 }
 
