@@ -249,7 +249,10 @@ if (!$skip_case)
   --source include/rpl_connection_master.inc
   RESET MASTER;
   --source include/rpl_connection_slave.inc
+  --replace_result $MASTER_MYPORT MASTER_PORT
+  --disable_warnings
   eval CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=$MASTER_MYPORT,MASTER_HOST='localhost';
+  --enable_warnings
   --source include/start_slave.inc
 
 }
