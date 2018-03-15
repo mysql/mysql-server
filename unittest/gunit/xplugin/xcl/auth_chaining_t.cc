@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,7 @@ class Auth_chaining_test_suite : public Xcl_session_impl_tests {
   }
 
   XError m_ok_auth{ngs::Authentication_interface::Status::Succeeded, ""};
-  XError m_failed_auth{ngs::Authentication_interface::Status::Failed, ""};
+  XError m_failed_auth{ER_NO_SUCH_USER, "Invalid user or password"};
 };
 
 TEST_F(Auth_chaining_test_suite, cap_auth_method_server_supports_nothing) {
@@ -426,7 +426,7 @@ TEST_F(Auth_chaining_test_suite, only_plain_method_ssl_disabled) {
   m_sut->set_mysql_option(XSession::Mysqlx_option::Authentication_method,
                           std::vector<std::string>{"PLAIN"});
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
-      .WillOnce(Return(m_ok_auth));
+      .Times(0);
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
   m_sut->connect("host", 1290, "user", "pass", "schema");
@@ -488,24 +488,21 @@ TEST_F(Auth_chaining_test_suite, duplicate_auth_methods) {
 TEST_F(Auth_chaining_test_suite, sequence_with_plain_and_no_ssl) {
   set_ssl_state(false);
 
-  // SSL is disables still force PLAIN authentication
   m_sut->set_mysql_option(
       XSession::Mysqlx_option::Authentication_method,
       std::vector<std::string>{"MYSQL41", "PLAIN", "SHA256_MEMORY"});
 
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "MYSQL41"))
       .WillOnce(Return(m_failed_auth));
-  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
-      .WillOnce(Return(m_failed_auth));
-  // If client specified PLAIN, lets execute it
   EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "PLAIN"))
+      .Times(0);
+  EXPECT_CALL(*m_mock_protocol, execute_authenticate(_, _, _, "SHA256_MEMORY"))
       .WillOnce(Return(m_failed_auth));
 
   EXPECT_CALL(m_mock_connection_state, get_connection_type())
       .WillOnce(Return(Connection_type::Tcp));
 
-  // PLAIN & NON SSL must result in following error
-  ASSERT_EQ(CR_X_INVALID_AUTH_METHOD,
+  ASSERT_EQ(ER_NO_SUCH_USER,
             m_sut->connect("host", 1290, "user", "pass", "schema").error());
 }
 

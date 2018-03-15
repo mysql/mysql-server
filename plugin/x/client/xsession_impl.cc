@@ -689,33 +689,34 @@ XError Session_impl::authenticate(const char *user, const char *pass,
     setup_server_supported_features(capabilities.get());
   }
 
-  const auto can_use_plain = connection.state().is_ssl_activated() ||
-                             (connection_type == Connection_type::Unix_socket);
-  const auto &optional_auth_methods =
-      validate_and_adjust_auth_methods(m_use_auth_methods, can_use_plain);
+  const auto is_secure_connection =
+      connection.state().is_ssl_activated() ||
+      (connection_type == Connection_type::Unix_socket);
+  const auto &optional_auth_methods = validate_and_adjust_auth_methods(
+      m_use_auth_methods, is_secure_connection);
   const auto &error = optional_auth_methods.first;
   if (error) return error;
 
   XError auth_error;
-  bool plain_over_unsecure = false;
   for (const auto &auth_method : optional_auth_methods.second) {
-    if (auth_method == "PLAIN" && !can_use_plain) {
-      plain_over_unsecure = true;
+    const bool is_last = &auth_method == &optional_auth_methods.second.back();
+    if (auth_method == "PLAIN" && !is_secure_connection) {
+      // If this is not the last authentication mechanism then do not report
+      // error but try those other methods instead.
+      if (is_last) {
+        return XError{
+            CR_X_INVALID_AUTH_METHOD,
+            "Invalid authentication method: PLAIN over unsecure channel"};
+      }
+    } else {
+      auth_error = protocol.execute_authenticate(
+          details::value_or_empty_string(user),
+          details::value_or_empty_string(pass),
+          details::value_or_empty_string(schema), auth_method);
     }
-
-    auth_error = protocol.execute_authenticate(
-        details::value_or_empty_string(user),
-        details::value_or_empty_string(pass),
-        details::value_or_empty_string(schema), auth_method);
 
     // Authentication successful, otherwise try to use different auth method
     if (!auth_error) return {};
-  }
-
-  // Overwrite the error received from the server
-  if (plain_over_unsecure) {
-    return XError{CR_X_INVALID_AUTH_METHOD,
-                  "Invalid authentication method: PLAIN over unsecure channel"};
   }
 
   return auth_error;
