@@ -1080,25 +1080,35 @@ NdbSqlUtil::strnxfrm_hash(const CHARSET_INFO* cs,
                           const uchar* src, unsigned srcLen,
                           unsigned maxLen)
 {
-  if (cs->strxfrm_multiply == 0)
+  /**
+   * The NO_PAD Unicode-9.0 collations were introduced in MySQL-9.0.
+   * As we dont have to be bug-compatible when these (new) collations
+   * are used, we use the hash function provided by the collation
+   * directly, and use the calculated hash value as our contribution
+   * to the xfrm'ed hash string.
+   */
+  if (cs->pad_attribute == NO_PAD && cs != &my_charset_bin)
   {
-    /**
-     * Temporary workaround to avoid massive test failures.
-     * Will be replaced in later patches.
-     *
-     * New Unicode-9.0 collations are default in MySQL-8.0.
-     * However, these return 'strxfrm_multiply == 0', which
-     * we previously interpreted as '1'. In reality these
-     * collations all produced a fairly large xfrm'ed string.
-     * So effectively '1', introduced a truncation of the
-     * xfrm'ed string.
-     *
-     * For now we keep this incorrect convention
-     */
-    assert(cs->pad_attribute == NO_PAD); //Is a U-900 collation
-    const Uint32 dstLen = maxLen;
-    return strnxfrm_bug7284(cs, dst, dstLen, src, srcLen);
+    // Hash the string using the collations hash function.
+    ulong hash = 0, n2 = 0;
+    (*cs->coll->hash_sort)(cs, src, srcLen, &hash, &n2);
+
+    if (verify_hash_only_usage)  //Debug only
+      hash = 0;
+
+    // Store the hash as part of the normalized hash string:
+    if (likely(sizeof(hash) <= bufLen))
+    {
+      memcpy(dst, &hash, sizeof(hash));
+      return sizeof(hash);
+    }
   }
+  /**
+   * Need to be bug- and feature-compatible with older collations.
+   * Produce the fully xfrm'ed and space padded string.
+   * May unfortunately become quite huge, adding significant
+   * overhead when later md5_hash'ing (the space padding)
+   */
   else if (likely(cs->strxfrm_multiply > 0))
   {
     /**
@@ -1131,10 +1141,10 @@ Uint32
 NdbSqlUtil::strnxfrm_hash_len(const CHARSET_INFO* cs,
                               unsigned maxLen)
 {
-  if (cs->strxfrm_multiply == 0)
+  if (cs->pad_attribute == NO_PAD && cs != &my_charset_bin)
   {
-    // Temp workaround, see srnxfrm_hash() comments.
-    return maxLen;  
+    //The hash_sort() value, see strnxfrm_hash
+    return sizeof(ulong);
   }
   else if (likely(cs->strxfrm_multiply > 0))
   {
