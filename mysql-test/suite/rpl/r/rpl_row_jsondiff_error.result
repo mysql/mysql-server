@@ -56,10 +56,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 2. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -77,10 +74,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 3. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -98,10 +92,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 4. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -119,10 +110,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -146,10 +134,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -181,10 +166,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 7. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -212,10 +194,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 8. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -243,10 +222,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 9. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -274,10 +250,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 10. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -305,10 +278,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 11. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -336,10 +306,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 12. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -367,10 +334,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 13. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -398,10 +362,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 14. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -429,10 +390,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 15. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/FAIL]
 SET SQL_LOG_BIN = 0;
@@ -471,10 +429,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
@@ -508,10 +463,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 17. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -527,10 +479,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 18. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -546,10 +495,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 19. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -565,10 +511,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -590,10 +533,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -618,10 +558,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 22. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -642,10 +579,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 23. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -666,10 +600,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 24. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -690,10 +621,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 25. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -714,10 +642,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 26. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -738,10 +663,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 27. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -762,10 +684,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 28. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -786,10 +705,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 29. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -810,10 +726,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 30. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/SKIP]
 SET SQL_LOG_BIN = 0;
@@ -834,10 +747,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
@@ -874,10 +784,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 32. E1. Path exists on master but not on slave, JSON_SET ====
 include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -895,10 +802,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 33. E2. Path exists on slave but not on master ====
 include/rpl_row_jsondiff_error_scenario [3648/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -916,10 +820,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 34. E4. Violation of slave-only uniqueness constraint in generated column ====
 include/rpl_row_jsondiff_error_scenario [1062/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -935,10 +836,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = '';
 include/stop_slave_sql.inc
@@ -962,10 +860,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 [connection slave]
 SET GLOBAL BINLOG_ROW_VALUE_OPTIONS = 'PARTIAL_JSON';
 include/stop_slave_sql.inc
@@ -997,10 +892,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 37. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1028,10 +920,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 38. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1059,10 +948,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 39. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1090,10 +976,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 40. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1121,10 +1004,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 41. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1152,10 +1032,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 42. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1183,10 +1060,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 43. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1214,10 +1088,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 44. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [3649/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1245,10 +1116,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ==== 45. E6. Corruption in event ====
 include/rpl_row_jsondiff_error_scenario [1610/IDEMPOTENT]
 SET SQL_LOG_BIN = 0;
@@ -1287,10 +1155,7 @@ DROP TABLE test.t;
 RESET SLAVE ALL;
 RESET MASTER;
 RESET MASTER;
-CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=13000,MASTER_HOST='localhost';
-Warnings:
-Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+CHANGE MASTER TO MASTER_USER='root',MASTER_PORT=MASTER_PORT,MASTER_HOST='localhost';
 ---- Clean up partial JSON on slave ----
 [connection slave]
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
