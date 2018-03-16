@@ -142,8 +142,8 @@ int table_setup_objects::write_row(PFS_engine_table *, TABLE *table,
   int result;
   Field *f;
   enum_object_type object_type = OBJECT_TYPE_TABLE;
-  String object_schema_data("%", 1, &my_charset_utf8_bin);
-  String object_name_data("%", 1, &my_charset_utf8_bin);
+  String object_schema_data("%", 1, &my_charset_utf8mb4_bin);
+  String object_name_data("%", 1, &my_charset_utf8mb4_bin);
   String *object_schema = &object_schema_data;
   String *object_name = &object_name_data;
   enum_yes_no enabled_value = ENUM_YES;
@@ -384,7 +384,7 @@ int table_setup_objects::update_row_values(TABLE *table, const unsigned char *,
 
 int table_setup_objects::delete_row_values(TABLE *, const unsigned char *,
                                            Field **) {
-  CHARSET_INFO *cs = &my_charset_utf8_bin;
+  CHARSET_INFO *cs = &my_charset_utf8mb4_bin;
   enum_object_type object_type = m_row.m_object_type;
   String object_schema(m_row.m_schema_name, m_row.m_schema_name_length, cs);
   String object_name(m_row.m_object_name, m_row.m_object_name_length, cs);

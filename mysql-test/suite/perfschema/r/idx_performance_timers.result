@@ -5,7 +5,7 @@ performance_timers	CREATE TABLE `performance_timers` (
   `TIMER_FREQUENCY` bigint(20) DEFAULT NULL,
   `TIMER_RESOLUTION` bigint(20) DEFAULT NULL,
   `TIMER_OVERHEAD` bigint(20) DEFAULT NULL
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from INFORMATION_SCHEMA.STATISTICS
 where TABLE_SCHEMA = "performance_schema"
   and TABLE_NAME = "performance_timers";

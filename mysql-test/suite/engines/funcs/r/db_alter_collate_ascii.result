@@ -278,7 +278,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d9   COLLATE ascii_bin;
@@ -288,7 +288,7 @@ def	d9	ascii	ascii_bin	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d9;
@@ -299,7 +299,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d9 DEFAULT COLLATE ascii_bin;
@@ -309,7 +309,7 @@ def	d9	ascii	ascii_bin	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d9;
@@ -320,7 +320,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d9   COLLATE ascii_general_ci;
@@ -330,7 +330,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d9;
@@ -341,7 +341,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d9 DEFAULT COLLATE ascii_general_ci;
@@ -351,7 +351,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d9;
@@ -362,7 +362,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d9   COLLATE ascii_bin;
@@ -372,7 +372,7 @@ def	d9	ascii	ascii_bin	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d9;
@@ -383,7 +383,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d9 DEFAULT COLLATE ascii_bin;
@@ -393,7 +393,7 @@ def	d9	ascii	ascii_bin	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d9;
@@ -404,7 +404,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d9   COLLATE ascii_general_ci;
@@ -414,7 +414,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d9;
@@ -425,7 +425,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d9 DEFAULT COLLATE ascii_general_ci;
@@ -435,7 +435,7 @@ def	d9	ascii	ascii_general_ci	NULL
 def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	performance_schema	utf8	utf8_general_ci	NULL
+def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	sys	utf8	utf8_general_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d9;
