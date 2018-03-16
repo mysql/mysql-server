@@ -34,14 +34,14 @@ from performance_schema.memory_summary_by_account_by_event_name
 where HOST = "impossible"
     and USER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	100.00	NULL
+1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select LOW_COUNT_USED
 from performance_schema.memory_summary_by_account_by_event_name
 where HOST = "localhost"
 and USER = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	100.00	NULL
+1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select LOW_COUNT_USED
 from performance_schema.memory_summary_by_account_by_event_name
@@ -62,7 +62,7 @@ from performance_schema.memory_summary_by_account_by_event_name
 where HOST = "localhost"
 and USER = "foo";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	100.00	NULL
+1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select LOW_COUNT_USED
 from performance_schema.memory_summary_by_account_by_event_name
@@ -86,7 +86,7 @@ where HOST = "localhost"
 and USER = "foo"
 and EVENT_NAME > "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	33.33	Using where
+1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select LOW_COUNT_USED
 from performance_schema.memory_summary_by_account_by_event_name
@@ -94,7 +94,7 @@ where HOST = "localhost"
 and USER = "foo"
 and EVENT_NAME < "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	278	const,const	#	33.33	Using where
+1	SIMPLE	memory_summary_by_account_by_event_name	NULL	ref	ACCOUNT	ACCOUNT	370	const,const	#	33.33	Using where
 ############ Explain for Query ####################################
 explain select LOW_COUNT_USED
 from performance_schema.memory_summary_by_account_by_event_name
@@ -102,7 +102,7 @@ where HOST = "localhost"
 and USER = "foo"
 and EVENT_NAME = "memory/sql/help";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	memory_summary_by_account_by_event_name	NULL	const	ACCOUNT	ACCOUNT	664	const,const,const	#	100.00	NULL
+1	SIMPLE	memory_summary_by_account_by_event_name	NULL	const	ACCOUNT	ACCOUNT	884	const,const,const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select LOW_COUNT_USED

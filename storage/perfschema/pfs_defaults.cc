@@ -57,13 +57,13 @@ void install_default_setup(PSI_thread_bootstrap *thread_boot) {
     /* LF_HASH needs a thread, for PINS */
     psi->set_thread(psi_thread);
 
-    String percent("%", 1, &my_charset_utf8_bin);
+    String percent("%", 1, &my_charset_utf8mb4_bin);
     /* Enable all users on all hosts by default */
     insert_setup_actor(&percent, &percent, &percent, true, true);
 
-    String mysql_db("mysql", 5, &my_charset_utf8_bin);
-    String PS_db("performance_schema", 18, &my_charset_utf8_bin);
-    String IS_db("information_schema", 18, &my_charset_utf8_bin);
+    String mysql_db("mysql", 5, &my_charset_utf8mb4_bin);
+    String PS_db("performance_schema", 18, &my_charset_utf8mb4_bin);
+    String IS_db("information_schema", 18, &my_charset_utf8mb4_bin);
 
     /* Disable sp by default in mysql. */
     insert_setup_object(OBJECT_TYPE_EVENT, &mysql_db, &percent, false, false);

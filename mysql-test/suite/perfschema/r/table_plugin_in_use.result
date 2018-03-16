@@ -44,7 +44,7 @@ pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
   `LAST_NAME` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`EMPLOYEE_NUMBER`),
   KEY `FIRST_NAME` (`FIRST_NAME`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from performance_schema.pfs_example_employee_name;
 EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
 1	foo1	bar1
@@ -156,7 +156,7 @@ pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
   `LAST_NAME` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`EMPLOYEE_NUMBER`),
   KEY `FIRST_NAME` (`FIRST_NAME`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from performance_schema.pfs_example_employee_name;
 EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
 1	foo1	bar1
@@ -264,7 +264,7 @@ pfs_example_employee_name	CREATE TABLE `pfs_example_employee_name` (
   `LAST_NAME` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`EMPLOYEE_NUMBER`),
   KEY `FIRST_NAME` (`FIRST_NAME`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from performance_schema.pfs_example_employee_name;
 EMPLOYEE_NUMBER	FIRST_NAME	LAST_NAME
 1	foo1	bar1

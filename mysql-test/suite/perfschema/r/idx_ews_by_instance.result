@@ -47,7 +47,7 @@ explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_instance 
 where EVENT_NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_by_instance	NULL	ref	EVENT_NAME	EVENT_NAME	386	const	#	100.00	NULL
+1	SIMPLE	events_waits_summary_by_instance	NULL	ref	EVENT_NAME	EVENT_NAME	514	const	#	100.00	NULL
 ############ Explain for Query ####################################
 explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_instance
@@ -65,7 +65,7 @@ explain select COUNT_STAR
 from performance_schema.events_waits_summary_by_instance
 where EVENT_NAME = @ename;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_by_instance	NULL	ref	EVENT_NAME	EVENT_NAME	386	const	#	100.00	NULL
+1	SIMPLE	events_waits_summary_by_instance	NULL	ref	EVENT_NAME	EVENT_NAME	514	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select COUNT_STAR

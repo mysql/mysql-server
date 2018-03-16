@@ -4,7 +4,7 @@ persisted_variables	CREATE TABLE `persisted_variables` (
   `VARIABLE_NAME` varchar(64) NOT NULL,
   `VARIABLE_VALUE` varchar(1024) DEFAULT NULL,
   PRIMARY KEY (`VARIABLE_NAME`)
-) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from INFORMATION_SCHEMA.STATISTICS
 where TABLE_SCHEMA = "performance_schema"
   and TABLE_NAME = "persisted_variables";

@@ -30,7 +30,7 @@ explain select DESIRED_DELAY
 from performance_schema.replication_applier_configuration
 where CHANNEL_NAME = "channel_1";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	replication_applier_configuration	NULL	const	PRIMARY	PRIMARY	192	const	#	100.00	NULL
+1	SIMPLE	replication_applier_configuration	NULL	const	PRIMARY	PRIMARY	256	const	#	100.00	NULL
 ############# Explain End #########################################
 flush status;
 select DESIRED_DELAY

@@ -30,7 +30,7 @@ UPDATE t1 SET s1 = 400;
 --echo
 SELECT query_sample_text
 FROM performance_schema.events_statements_summary_by_digest
-WHERE digest_text = "UPDATE `t1` SET `s1` = ?"; 
+WHERE digest_text = "UPDATE `t1` SET `s1` = ?";
 
 --echo
 --echo #### CLEANUP

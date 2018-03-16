@@ -33,7 +33,7 @@ where THREAD_ID = 1 and EVENT_NAME = "impossible";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `THREAD_ID`,NULL AS `EVENT_NAME` from `performance_schema`.`events_waits_summary_by_thread_by_event_name` where ((NULL = 'impossible') and multiple equal(1, NULL))
+Note	1003	/* select#1 */ select NULL AS `THREAD_ID`,NULL AS `EVENT_NAME` from `performance_schema`.`events_waits_summary_by_thread_by_event_name` where (multiple equal(1, NULL) and multiple equal('impossible', NULL))
 ############ Explain for Query ####################################
 explain select THREAD_ID, EVENT_NAME
 from performance_schema.events_waits_summary_by_thread_by_event_name
@@ -41,15 +41,15 @@ where THREAD_ID = 99999 and EVENT_NAME = "wait/lock/table/sql/handler";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	no matching row in const table
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `THREAD_ID`,NULL AS `EVENT_NAME` from `performance_schema`.`events_waits_summary_by_thread_by_event_name` where ((NULL = 'wait/lock/table/sql/handler') and multiple equal(99999, NULL))
+Note	1003	/* select#1 */ select NULL AS `THREAD_ID`,NULL AS `EVENT_NAME` from `performance_schema`.`events_waits_summary_by_thread_by_event_name` where (multiple equal(99999, NULL) and multiple equal('wait/lock/table/sql/handler', NULL))
 ############ Explain for Query ####################################
 explain select THREAD_ID, EVENT_NAME
 from performance_schema.events_waits_summary_by_thread_by_event_name
 where THREAD_ID = 1 and EVENT_NAME = "wait/lock/table/sql/handler";
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	events_waits_summary_by_thread_by_event_name	NULL	const	PRIMARY	PRIMARY	394	const,const	#	100.00	NULL
+1	SIMPLE	events_waits_summary_by_thread_by_event_name	NULL	const	PRIMARY	PRIMARY	522	const,const	#	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '1' AS `THREAD_ID`,'wait/lock/table/sql/handler' AS `EVENT_NAME` from `performance_schema`.`events_waits_summary_by_thread_by_event_name` where (('wait/lock/table/sql/handler' = 'wait/lock/table/sql/handler'))
+Note	1003	/* select#1 */ select '1' AS `THREAD_ID`,'wait/lock/table/sql/handler' AS `EVENT_NAME` from `performance_schema`.`events_waits_summary_by_thread_by_event_name` where 1
 ############# Explain End #########################################
 flush status;
 select EVENT_NAME, COUNT_STAR
