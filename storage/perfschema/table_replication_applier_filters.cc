@@ -52,8 +52,8 @@ Plugin_table table_replication_applier_filters::m_table_def(
     /* Name */
     "replication_applier_filters",
     /* Definition */
-    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
-    "  FILTER_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  CHANNEL_NAME CHAR(64) not null,\n"
+    "  FILTER_NAME CHAR(64) not null,\n"
     "  FILTER_RULE LONGTEXT not null,\n"
     "  CONFIGURED_BY ENUM('STARTUP_OPTIONS','CHANGE_REPLICATION_FILTER',\n"
     "                     'STARTUP_OPTIONS_FOR_CHANNEL',\n"

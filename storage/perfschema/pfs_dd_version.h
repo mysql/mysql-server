@@ -80,12 +80,10 @@
 
   80011:
 
-  Reverted UTF8MB4 changes.
   Version bump from 8.0.6 to 8.0.11,
   versions [8.0.5 - 8.0.10] inclusive are abandoned.
 
   Version published is now 80011.
-
 */
 static const uint PFS_DD_VERSION = 80011;
 

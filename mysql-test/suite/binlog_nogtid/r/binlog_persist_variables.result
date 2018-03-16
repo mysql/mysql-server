@@ -40,10 +40,10 @@ Warnings:
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 Warning	1287	'@@binlog_max_flush_queue_time' is deprecated and will be removed in a future release.
 SET PERSIST binlog_order_commits = @@GLOBAL.binlog_order_commits;
-SET PERSIST binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
 SET PERSIST binlog_row_image = @@GLOBAL.binlog_row_image;
 SET PERSIST binlog_row_metadata = @@GLOBAL.binlog_row_metadata;
 SET PERSIST binlog_row_value_options = @@GLOBAL.binlog_row_value_options;
+SET PERSIST binlog_rows_query_log_events = @@GLOBAL.binlog_rows_query_log_events;
 SET PERSIST binlog_stmt_cache_size = @@GLOBAL.binlog_stmt_cache_size;
 SET PERSIST binlog_transaction_dependency_history_size = @@GLOBAL.binlog_transaction_dependency_history_size;
 SET PERSIST binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
@@ -151,10 +151,10 @@ Warnings:
 Warning	3615	Variable binlog_gtid_simple_recovery does not exist in persisted config file
 RESET PERSIST IF EXISTS binlog_max_flush_queue_time;
 RESET PERSIST IF EXISTS binlog_order_commits;
-RESET PERSIST IF EXISTS binlog_rows_query_log_events;
 RESET PERSIST IF EXISTS binlog_row_image;
 RESET PERSIST IF EXISTS binlog_row_metadata;
 RESET PERSIST IF EXISTS binlog_row_value_options;
+RESET PERSIST IF EXISTS binlog_rows_query_log_events;
 RESET PERSIST IF EXISTS binlog_stmt_cache_size;
 RESET PERSIST IF EXISTS binlog_transaction_dependency_history_size;
 RESET PERSIST IF EXISTS binlog_transaction_dependency_tracking;

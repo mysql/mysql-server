@@ -44,7 +44,7 @@ Plugin_table table_instance_log_status::m_table_def(
     /* Name */
     "instance_log_status",
     /* Definition */
-    "  SERVER_UUID CHAR(36) collate utf8_bin not null,\n"
+    "  SERVER_UUID CHAR(36) collate utf8mb4_bin not null,\n"
     "  MASTER JSON not null,\n"
     "  CHANNELS JSON not null,\n"
     "  STORAGE_ENGINES JSON not null\n",

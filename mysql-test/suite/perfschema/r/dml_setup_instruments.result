@@ -28,7 +28,7 @@ wait/synch/rwlock/sql/channel_to_filter_lock	YES	YES		0	NULL
 wait/synch/rwlock/sql/gtid_commit_rollback	YES	YES	singleton	0	NULL
 wait/synch/rwlock/sql/gtid_mode_lock	YES	YES	singleton	0	NULL
 wait/synch/rwlock/sql/gtid_retrieved	YES	YES	singleton	0	NULL
-wait/synch/rwlock/sql/LOCK_system_variables_hash	YES	YES	singleton	0	NULL
+wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES	singleton	0	NULL
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
@@ -47,8 +47,8 @@ wait/synch/cond/sql/COND_manager	YES	YES	singleton	0	NULL
 wait/synch/cond/sql/COND_queue_state	YES	YES	singleton	0	NULL
 wait/synch/cond/sql/COND_server_started	YES	YES	singleton	0	NULL
 wait/synch/cond/sql/COND_thd_list	YES	YES		0	NULL
-wait/synch/cond/sql/COND_thread_cache	YES	YES	singleton	0	NULL
 wait/synch/cond/sql/COND_thr_lock	YES	YES		0	NULL
+wait/synch/cond/sql/COND_thread_cache	YES	YES	singleton	0	NULL
 select * from performance_schema.setup_instruments
 where name='Wait';
 select * from performance_schema.setup_instruments
