@@ -25,7 +25,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --rmdir $MYSQL_TMP_DIR/data57/partitions
 --force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
 
-let $MYSQLD_LOG= $MYSQL_TMP_DIR/upgrade_compressed.log;
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/innodb_upgrade_compressed.log;
 let $MYSQL_UPGRADE_LOG= $MYSQL_TMP_DIR/mysql_upgrade_compressed.log;
 
 --source include/shutdown_mysqld.inc

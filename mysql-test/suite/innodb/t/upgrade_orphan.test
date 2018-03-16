@@ -21,6 +21,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYD
 --remove_file $MYSQL_TMP_DIR/data57/test/55_temporal.MYI
 --echo # Remove myisam partitioned tables. There are used for negative testing.
+--list_files $MYSQLD_TMP_DIR/ *.log
 --remove_files_wildcard $MYSQL_TMP_DIR/data57/partitions *
 --rmdir $MYSQL_TMP_DIR/data57/partitions
 --force-rmdir $MYSQL_TMP_DIR/data57/mismatch_frms
@@ -28,7 +29,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --echo # Create an orphan .frm
 --copy_file $MYSQL_TMP_DIR/data57/sakila/actor.frm $MYSQL_TMP_DIR/data57/sakila/zzz.frm
 
-let $MYSQLD_LOG= $MYSQL_TMP_DIR/upgrade_orphan.log;
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/innodb_upgrade_orphan.log;
 let $MYSQL_UPGRADE_LOG= $MYSQL_TMP_DIR/mysql_upgrade_orphan.log;
 
 --source include/shutdown_mysqld.inc
