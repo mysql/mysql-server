@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 
 # ==== Purpose ====
@@ -93,6 +93,18 @@ if (!$tmp) {
   --replace_column 4 # 5 # 6 # 7 # 8 # 9 # 10 # 13 # 14 # 15 # 16 # 17 # 18 # 22 # 23 # 24 # 25 # 26 # 40 # 41 # 42 # 46 # 52 # 53 # 55 # 56 #
   query_vertical
   SHOW SLAVE STATUS;
+}
+
+# Check that the backup directory used for ndb tests have been
+# removed by test(and also that it does not exist before test).
+if ($NDB_BACKUP_DIR)
+{
+  #Include backup_restore_cleanup.inc at the end of test case
+  #to remove the backup directory inside test case.
+  let $backup_dir = $NDB_BACKUP_DIR/BACKUP;
+  echo Checking that $backup_dir directory does not exist;
+  --error 1
+  file_exists $backup_dir;
 }
 
 call mtr.check_testcase();

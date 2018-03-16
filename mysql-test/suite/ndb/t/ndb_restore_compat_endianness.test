@@ -3,6 +3,7 @@
 ######################################################################
 
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 # Directory containing the saved backup files
 let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
@@ -150,8 +151,8 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 USE test;
 DROP TABLE IF EXISTS t_num,t_datetime,t_string_1,t_string_2,t_gis;
 --enable_warnings
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $backup_data_dir/51_data_le >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_data_le >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_data_le >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_data_le >> $NDB_TOOLS_OUTPUT
 --sorted_result
 SHOW TABLES;
 --disable_warnings
@@ -174,8 +175,8 @@ SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER b
 #
 
 DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $backup_data_dir/51_data_be >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/51_data_be >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m -r $backup_data_dir/51_data_be >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/51_data_be >> $NDB_TOOLS_OUTPUT
 --sorted_result
 SHOW TABLES;
 --disable_warnings
@@ -194,3 +195,4 @@ SELECT ST_AsText(t_multipoint), ST_AsText(t_multilinestring),ST_AsText(t_multipo
 SELECT ST_AsText(t_geometrycollection), ST_AsText(t_geometry) FROM t_gis ORDER by t_pk;
 
 DROP TABLE t_num,t_datetime,t_string_1,t_string_2,t_gis;
+--source suite/ndb/include/backup_restore_cleanup.inc

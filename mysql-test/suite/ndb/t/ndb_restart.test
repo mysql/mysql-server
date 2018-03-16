@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
 
 #
 # Setup
@@ -74,4 +75,6 @@ insert into t1 values (4, 5);
 # Check table is gone
 --error ER_NO_SUCH_TABLE
 select * from t1;
+
+--source suite/ndb/include/backup_restore_cleanup.inc
 

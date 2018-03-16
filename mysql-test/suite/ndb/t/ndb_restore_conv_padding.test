@@ -3,6 +3,7 @@
 ######################################################################
 
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 # mysqld's configuration is not relevant to this test
 
@@ -30,7 +31,7 @@ SELECT length(c1), length(b1) FROM t3;
 --source include/ndb_backup.inc
 
 # command shortcuts
---let $restore_cmd=$NDB_RESTORE --no-defaults -b $the_backup_id
+--let $restore_cmd=$NDB_RESTORE -b $the_backup_id
 --let $restore_cmd=$restore_cmd -r --backup_path=$NDB_BACKUPS-$the_backup_id
 
 --echo ************************************************************
@@ -44,9 +45,10 @@ CREATE TABLE t3_myisam ENGINE=MYISAM AS SELECT * FROM t3;
 
 # restore table
 DELETE FROM t3;
+
 # for debugging:
-#    --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -L -r --print $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
-#    --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -L -r --print $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+#    --exec $NDB_RESTORE -b $the_backup_id -n 1 -L -r --print $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+#    --exec $NDB_RESTORE -b $the_backup_id -n 2 -L -r --print $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $restore_cmd -n 1 --print > /dev/null
 --exec $restore_cmd -n 2 --print > /dev/null
 SELECT length(c1), length(b1) FROM t3;
@@ -263,4 +265,7 @@ DROP TABLE t3_myisam;
 
 DROP TABLE t3;
 
+
+
 --source suite/ndb/include/restore_sql_mode_after_turn_off_strict.inc
+--source suite/ndb/include/backup_restore_cleanup.inc

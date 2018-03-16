@@ -1,5 +1,6 @@
 --source include/have_ndb.inc
 --source suite/ndb/include/ndb_find_import_tool.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 --echo # manual ndb_import tests
 
@@ -618,3 +619,4 @@ EOF
 
 drop table t1, t1ver, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
            t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver;
+--source suite/ndb/include/backup_restore_cleanup.inc

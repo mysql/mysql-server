@@ -3,6 +3,7 @@
 ######################################################################
 
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 --disable_warnings
 use test;
@@ -286,3 +287,4 @@ drop table t1;
 --let ndb_restore_filter=test t1
 --let ndb_restore_opts=--verbose=0 --print_data --hex --fields-enclosed-by="'" --fields-optionally-enclosed-by="X"
 --source include/ndb_backup_print.inc
+--source suite/ndb/include/backup_restore_cleanup.inc

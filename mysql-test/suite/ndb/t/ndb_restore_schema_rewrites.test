@@ -3,6 +3,7 @@
 ######################################################################
 
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 # mysqld's configuration is not relevant to this test
 
@@ -85,7 +86,7 @@ CREATE TABLE db2.t0_data ENGINE=MYISAM AS SELECT * FROM db2.t0;
 --source include/ndb_backup.inc
 
 # command shortcuts, cover rebuilding of indexes
---let $restore_cmd=$NDB_RESTORE --no-defaults
+--let $restore_cmd=$NDB_RESTORE
 --let $restore_cmd=$restore_cmd --disable-indexes --rebuild-indexes
 --let $restore_cmd=$restore_cmd -b $the_backup_id -r
 --let $restore_cmd=$restore_cmd --backup_path=$NDB_BACKUPS-$the_backup_id
@@ -410,3 +411,4 @@ DROP TABLE db2.t0_temp;
 DROP DATABASE db0;
 DROP DATABASE db1;
 DROP DATABASE db2;
+--source suite/ndb/include/backup_restore_cleanup.inc

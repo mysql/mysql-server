@@ -1,6 +1,7 @@
 -- source include/have_ndb.inc
 -- source include/have_ndb_debug.inc
 
+-- source suite/ndb/include/backup_restore_setup.inc
 
 --echo Check that backup contains the expected log entries
 
@@ -49,8 +50,8 @@ truncate test.t1;
 
 --echo Now restore it and check the log content
 --let $outfile = $MYSQLTEST_VARDIR/tmp/ndb_backup_log.txt
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print-log $NDB_BACKUPS-$the_backup_id > $outfile 2>&1
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print-log $NDB_BACKUPS-$the_backup_id >> $outfile 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --print-log $NDB_BACKUPS-$the_backup_id > $outfile 2>&1
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print-log $NDB_BACKUPS-$the_backup_id >> $outfile 2>&1
 
 drop table test.t1;
 
@@ -83,5 +84,7 @@ select a, count(1) from logentries group by a having (count(1) > 1);
 drop table logentries;
 drop table txt;
 
+
+--source suite/ndb/include/backup_restore_cleanup.inc
 
 

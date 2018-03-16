@@ -1,5 +1,6 @@
 -- source include/have_ndb.inc
 -- source include/count_sessions.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 --echo #
 --echo # 18075170 - sql node restart required to avoid deadlock after
@@ -68,3 +69,4 @@ drop table t2;
 
 # Wait till all disconnects are completed
 -- source include/wait_until_count_sessions.inc
+--source suite/ndb/include/backup_restore_cleanup.inc
