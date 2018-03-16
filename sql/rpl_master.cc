@@ -362,7 +362,7 @@ bool show_slave_hosts(THD *thd) {
   @ref sect_protocol_replication_event_start_v3.
 
   <table>
-  <caption>Binlog::FORMAT_DESCRIPTION_EVENT:</caption>
+  <caption>Payload</caption>
   <tr><th>Type</th><th>Name</th><th>Description</th></tr>
   <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
       <td>binlog-version</td>
@@ -483,10 +483,67 @@ bool show_slave_hosts(THD *thd) {
   For mysql-5.5.2-m2 it is `0x1b` (`27`).
 
   @subsection sect_protocol_replication_event_stop STOP_EVENT
+
+  A @ref sect_protocol_replication_event_stop has not payload or post-header
+
   @subsection sect_protocol_replication_event_rotate ROTATE_EVENT
+
+  The rotate event is added to the binlog as last event to tell the reader what
+  binlog to request next.
+
+  <table>
+  <caption>Post-header</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td colspan="3">if binlog-version > 1 {</td></tr>
+  <tr><td>@ref a_protocol_type_int8 "int&lt;8&gt;"</td>
+      <td>position</td>
+      <td></td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>binlog</td>
+      <td>name of the next binlog</td></tr>
+  </table>
+
   @subsection sect_protocol_replication_event_slave SLAVE_EVENT
+
+  @note Ignored !
+
   @subsection sect_protocol_replication_event_incident INCIDENT_EVENT
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>type</td>
+      <td>
+         <table>
+         <tr><th>Hex</th><th>Name</th></tr>
+         <tr><td>0x0000</td><td>INCIDENT_NONE</td></tr>
+         <tr><td>0x0001</td><td>INCIDENT_LOST_EVENTS</td></tr>
+      </td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>message_length</td>
+      <td>Length of `message`</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>message</td>
+      <td>Incident message with length `message_length`</td></tr>
+  </table>
+
   @subsection sect_protocol_replication_event_heartbeat HEARTBEAT_EVENT
+
+  An artificial event genereted by the master. It isn't written to the relay
+  logs.
+
+  It is added by the master after the replication connection was idle for
+  `x` seconds to update the slave's `Seconds_behind_master timestamp in the
+  SHOW SLAVE STATUS output.
+
+  It has no payload nor post-header.
 
   @section sect_protocol_replication_binlog_event_sbr Statement Based Replication Events
 
@@ -495,6 +552,212 @@ bool show_slave_hosts(THD *thd) {
   connection's state on the slave side.
 
   @subsection sect_protocol_replication_event_query QUERY_EVENT
+
+  The query event is used to send text queries through the binlod
+
+  <table>
+  <caption>Post-header</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>slave_proxy_id</td>
+      <td></td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>execution time</td>
+      <td></td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>schema length</td>
+      <td></td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>error code</td>
+      <td></td></tr>
+  <tr><td colspan="3">if binlog-version >= 4 {</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>status_vars length</td>
+      <td>Number of bytes in the following sequence of `status_vars`</td></tr>
+  <tr><td colspan="3">}</td></tr>
+  </table>
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+  <td>status-vars</td>
+  <td>A sequence of status key/value pairs. The key is 1-byte, while the
+  value is dependent on the key
+  <table>
+  <tr><th>Hex</th><th>Flag</th><th>Value Length</th></tr>
+  <tr><td>0x00</td><td>@ref sect_protocol_replication_event_query_00 "Q_FLAGS2_CODE"</td>
+    <td>4</td></tr>
+  <tr><td>0x01</td><td>@ref sect_protocol_replication_event_query_01 "Q_SQL_MODE_CODE"</td>
+    <td>8</td></tr>
+  <tr><td>0x02</td><td>@ref sect_protocol_replication_event_query_02 "Q_AUTO_INCREMENT"</td>
+    <td>1 + n + 1</td></tr>
+  <tr><td>0x03</td><td>@ref sect_protocol_replication_event_query_03 "Q_CATALOG"</td>
+    <td>2 + 2</td></tr>
+  <tr><td>0x04</td><td>@ref sect_protocol_replication_event_query_04 "Q_CHARSET_CODE"</td>
+    <td>2 + 2 + 2</td></tr>
+  <tr><td>0x05</td><td>@ref sect_protocol_replication_event_query_05 "Q_TIME_ZONE_CODE"</td>
+    <td>1 + 1</td></tr>
+  <tr><td>0x06</td><td>@ref sect_protocol_replication_event_query_06 "Q_CATALOG_NZ_CODE"</td>
+    <td>1 + n</td></tr>
+  <tr><td>0x07</td><td>@ref sect_protocol_replication_event_query_07 "Q_LC_TIME_NAMES_CODE"</td>
+    <td>2</td></tr>
+  <tr><td>0x08</td><td>@ref sect_protocol_replication_event_query_08 "Q_CHARSET_DATABASE_CODE"</td>
+    <td>2</td></tr>
+  <tr><td>0x09</td><td>@ref sect_protocol_replication_event_query_09 "Q_TABLE_MAP_FOR_UPDATE_CODE"</td>
+    <td>8</td></tr>
+  <tr><td>0x0a</td><td>@ref sect_protocol_replication_event_query_0a "Q_MASTER_DATA_WRITTEN_CODE"</td>
+    <td>4</td></tr>
+  <tr><td>0x0b</td><td>@ref sect_protocol_replication_event_query_0b "Q_INVOKERS"</td>
+    <td>1 + n + 1 + n</td></tr>
+  <tr><td>0x0c</td><td>@ref sect_protocol_replication_event_query_0c "Q_UPDATED_DB_NAMES"</td>
+    <td>1 + n*nul-term-string</td></tr>
+  <tr><td>0x0d</td><td>@ref sect_protocol_replication_event_query_0d "Q_MICROSECONDS"</td>
+    <td>3</td></tr>
+  </table>
+
+  The value of the different status vars are:
+
+  @anchor sect_protocol_replication_event_query_00 <b>Q_FLAGS2_CODE</b>
+
+  Bitmask of flags that are usually set with the SET command:
+
+  * SQL_AUTO_IS_NULL
+  * FOREIGN_KEY_CHECKS
+  * UNIQUE_CHECKS
+  * AUTOCOMMIT
+
+  <table>
+    <tr><th>Hex</th><th>Flag</th></tr>
+    <tr><td>0x00004000</td><td>::OPTION_AUTO_IS_NULL</td></tr>
+    <tr><td>0x00080000</td><td>::OPTION_NOT_AUTOCOMMIT</td></tr>
+    <tr><td>0x04000000</td><td>::OPTION_NO_FOREIGN_KEY_CHECKS</td></tr>
+    <tr><td>0x08000000</td><td>::OPTION_RELAXED_UNIQUE_CHECKS</td></tr>
+  </table>
+
+  @anchor sect_protocol_replication_event_query_01 <b>Q_SQL_MODE_CODE</b>
+
+  Bitmask of flags that are usually set with SET sql_mode:
+
+  <table>
+    <tr><th>Hex</th><th>Flag</th></tr>
+    <tr><td>0x00000001</td><td>::MODE_REAL_AS_FLOAT</td></tr>
+    <tr><td>0x00000002</td><td>::MODE_PIPES_AS_CONCAT</td></tr>
+    <tr><td>0x00000004</td><td>::MODE_ANSI_QUOTES</td></tr>
+    <tr><td>0x00000008</td><td>::MODE_IGNORE_SPACE</td></tr>
+    <tr><td>0x00000010</td><td>::MODE_NOT_USED</td></tr>
+    <tr><td>0x00000020</td><td>::MODE_ONLY_FULL_GROUP_BY</td></tr>
+    <tr><td>0x00000040</td><td>::MODE_NO_UNSIGNED_SUBTRACTION</td></tr>
+    <tr><td>0x00000080</td><td>::MODE_NO_DIR_IN_CREATE</td></tr>
+    <tr><td>0x00000100</td><td>MODE_POSTGRESQL</td></tr>
+    <tr><td>0x00000200</td><td>MODE_ORACLE</td></tr>
+    <tr><td>0x00000400</td><td>MODE_MSSQL</td></tr>
+    <tr><td>0x00000800</td><td>MODE_DB2</td></tr>
+    <tr><td>0x00001000</td><td>MODE_MAXDB</td></tr>
+    <tr><td>0x00002000</td><td>MODE_NO_KEY_OPTIONS</td></tr>
+    <tr><td>0x00004000</td><td>MODE_NO_TABLE_OPTIONS</td></tr>
+    <tr><td>0x00008000</td><td>MODE_NO_FIELD_OPTIONS</td></tr>
+    <tr><td>0x00010000</td><td>MODE_MYSQL323</td></tr>
+    <tr><td>0x00020000</td><td>MODE_MYSQL40</td></tr>
+    <tr><td>0x00040000</td><td>::MODE_ANSI</td></tr>
+    <tr><td>0x00080000</td><td>::MODE_NO_AUTO_VALUE_ON_ZERO</td></tr>
+    <tr><td>0x00100000</td><td>::MODE_NO_BACKSLASH_ESCAPES</td></tr>
+    <tr><td>0x00200000</td><td>::MODE_STRICT_TRANS_TABLES</td></tr>
+    <tr><td>0x00400000</td><td>::MODE_STRICT_ALL_TABLES</td></tr>
+    <tr><td>0x00800000</td><td>::MODE_NO_ZERO_IN_DATE</td></tr>
+    <tr><td>0x01000000</td><td>::MODE_NO_ZERO_DATE</td></tr>
+    <tr><td>0x02000000</td><td>::MODE_INVALID_DATES</td></tr>
+    <tr><td>0x04000000</td><td>::MODE_ERROR_FOR_DIVISION_BY_ZERO</td></tr>
+    <tr><td>0x08000000</td><td>::MODE_TRADITIONAL</td></tr>
+    <tr><td>0x10000000</td><td>MODE_NO_AUTO_CREATE_USER</td></tr>
+    <tr><td>0x20000000</td><td>::MODE_HIGH_NOT_PRECEDENCE</td></tr>
+    <tr><td>0x40000000</td><td>::MODE_NO_ENGINE_SUBSTITUTION</td></tr>
+    <tr><td>0x80000000</td><td>::MODE_PAD_CHAR_TO_FULL_LENGTH</td></tr>
+  </table>
+
+  @anchor sect_protocol_replication_event_query_02 <b>Q_AUTO_INCREMENT</b>
+
+  2 byte autoincrement-increment and 2 byte autoincrement-offset
+
+  @note Only written if the -increment is > 1
+
+
+  @anchor sect_protocol_replication_event_query_03 <b>Q_CATALOG</b>
+
+  1 byte length + &lt;length&gt; chars of the cataiog + &lsquo;0&lsquo;-char
+
+  @note Oly written if length > 0
+
+
+  @anchor sect_protocol_replication_event_query_04 <b>Q_CHARSET_CODE</b>
+
+  2 bytes character_set_client + 2 bytes collation_connection + 2 bytes collation_server
+
+  See @ref page_protocol_basic_character_set
+
+
+  @anchor sect_protocol_replication_event_query_05 <b>Q_TIME_ZONE_CODE</b>
+
+  1 byte length + &lt;length&gt; chars of the timezone.
+
+  Timezone the master is in.
+
+  @note only written when length > 0
+
+
+  @anchor sect_protocol_replication_event_query_06 <b>Q_CATALOG_NZ_CODE</b>
+
+  1 byte length + &lt;length&gt; chars of the catalog.
+
+  @note only written when length > 0
+
+
+  @anchor sect_protocol_replication_event_query_07 <b>Q_LC_TIME_NAMES_CODE</b>
+
+  LC_TIME of the server. Defines how to parse week-, month and day-names in timestamps
+
+  @note only written when length > 0
+
+
+  @anchor sect_protocol_replication_event_query_08 <b>Q_CHARSET_DATABASE_CODE</b>
+
+  character set and collation of the schema
+
+
+  @anchor sect_protocol_replication_event_query_09 <b>Q_TABLE_MAP_FOR_UPDATE_CODE</b>
+
+  a 64bit field ... should only be used in @ref sect_protocol_replication_binlog_event_rbr
+  and multi-table updates
+
+
+  @anchor sect_protocol_replication_event_query_0a <b>Q_MASTER_DATA_WRITTEN_CODE</b>
+
+  4 byte ...
+
+
+  @anchor sect_protocol_replication_event_query_0b <b>Q_INVOKERS</b>
+
+  1 byte length + &lt;length&gt; bytes username and 1 byte length + &lt;length&gt; bytes hostname
+
+
+  @anchor sect_protocol_replication_event_query_0c <b>Q_UPDATED_DB_NAMES</b>
+
+  1 byte count + &lt;count&gt; \0 terminated string
+
+
+  @anchor sect_protocol_replication_event_query_0d <b>Q_MICROSECONDS</b>
+
+  3 byte microseconds
+
+  </td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_var "binary&lt;var&gt;"</td>
+      <td>schema</td>
+      <td></td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "binary&lt;eof&gt;"</td>
+      <td>query</td>
+      <td>text of the query</td></tr>
+  </table>
+
   @subsection sect_protocol_replication_event_intvar INTVAR_EVENT
   @subsection sect_protocol_replication_event_rand RAND_EVENT
   @subsection sect_protocol_replication_event_uservar USER_VAR_EVENT
