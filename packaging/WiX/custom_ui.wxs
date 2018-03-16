@@ -37,7 +37,7 @@
       <Control Id="Back" Type="PushButton" X="156" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)" Disabled="yes" />
       <Control Id="Description" Type="Text" X="135" Y="80" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgDescription)" />
       <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Transparent="yes" NoPrefix="yes" Text="!(loc.WelcomeDlgTitle)" />
-      <Control Id="CopyrightText" Type="Text" X="135" Y="200" Width="220" Height="40" Transparent="yes" Text="Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved." />
+      <Control Id="CopyrightText" Type="Text" X="135" Y="200" Width="220" Height="40" Transparent="yes" Text="Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved." />
       <Control Id="Bitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="234" TabSkip="no" Text="!(loc.WelcomeDlgBitmap)" />
       <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
     </Dialog>
