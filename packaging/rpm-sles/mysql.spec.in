@@ -217,6 +217,7 @@ Obsoletes:      mariadb-embedded-devel
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql-tools = %{version}-%{release}
 %if 0%{?systemd}
+Requires:       systemd >= 228
 %{?systemd_requires}
 %else
 PreReq:         insserv
