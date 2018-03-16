@@ -79,7 +79,7 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Slave SQL for channel '': Error in Xid_log_event: Commit could not be completed, 'Plugin instructed the server to rollback the current transaction.', Error_code:.*");
 call mtr.add_suppression("Slave: Plugin instructed the server to rollback the current transaction. Error_code:.*");
 call mtr.add_suppression("Slave SQL for channel '': Worker.* failed executing transaction");
-call mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*. Error_code: 1756");
+call mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
 SET SESSION sql_log_bin= 1;
 
 ############################################################
