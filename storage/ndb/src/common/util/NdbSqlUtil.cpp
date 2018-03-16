@@ -900,12 +900,30 @@ NdbSqlUtil::check_column_for_pk(Uint32 typeId, const void* info)
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
       if(cs != 0 &&
          cs->cset != 0 &&
-         cs->coll != 0 &&
-         cs->coll->strnxfrm != 0 &&
-         cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
-        return 0;
-      else
-        return 743;
+         cs->coll != 0)
+      {
+	/**
+         * Check that we can produce a hash value
+         * - NO_PAD collations use the builtin hash_sort function
+         *   creating a single 'ulong' value.
+         */
+        if (cs->pad_attribute == NO_PAD)
+        {
+          if (cs->coll->hash_sort != NULL)
+            return 0;
+        }
+        /**
+         * 'Old' NO_PAD collations will 'multiply' the size of the
+         * frm'ed result. Check that it is within supported limits.
+         */
+        else if (cs->strxfrm_multiply > 0 &&
+                 cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
+        {
+          return 0;
+        }
+      }
+      // Fall through; can't 'hash' this charset. 
+      return 743;
     }
     break;
   case Type::Undefined:
@@ -936,13 +954,12 @@ NdbSqlUtil::check_column_for_ordered_index(Uint32 typeId, const void* info)
   case Type::Varchar:
   case Type::Longvarchar:
     {
+      // Note: Only strnncollsp used for compare - no strnxfrm! 
       const CHARSET_INFO *cs = (const CHARSET_INFO*)info;
       if (cs != 0 &&
           cs->cset != 0 &&
           cs->coll != 0 &&
-          cs->coll->strnxfrm != 0 &&
-          cs->coll->strnncollsp != 0 &&
-          cs->strxfrm_multiply <= MAX_XFRM_MULTIPLY)
+          cs->coll->strnncollsp != 0)
         return 0;
       else
         return 743;
