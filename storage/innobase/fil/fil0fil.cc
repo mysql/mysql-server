@@ -5884,25 +5884,35 @@ bool Fil_shard::space_extend(fil_space_t *space, page_no_t size) {
 
     int ret = posix_fallocate(file->handle.m_file, node_start, len);
 
-    /* We already pass the valid offset and len in, if EINVAL
-    is returned, it could only mean that the file system doesn't
-    support fallocate(), currently one known case is
-    ext3 FS with O_DIRECT. We ignore EINVAL here so that the
-    error message won't flood. */
-    if (ret != 0 && ret != EINVAL) {
-      ib::error(ER_IB_MSG_319)
-          << "posix_fallocate(): Failed to preallocate"
-             " data for file "
-          << file->name << ", desired size " << len
-          << " bytes."
-             " Operating system error number "
-          << ret
-          << ". Check"
-             " that the disk is not full or a disk quota"
-             " exceeded. Make sure the file system supports"
-             " this function. Some operating system error"
-             " numbers are described at " REFMAN
-             " operating-system-error-codes.html";
+    DBUG_EXECUTE_IF("ib_posix_fallocate_fail_eintr", ret = EINTR;);
+
+    DBUG_EXECUTE_IF("ib_posix_fallocate_fail_einval", ret = EINVAL;);
+
+    if (ret != 0) {
+      /* We already pass the valid offset and len in, if EINVAL
+      is returned, it could only mean that the file system doesn't
+      support fallocate(), currently one known case is ext3 with O_DIRECT.
+
+      Also because above call could be interrupted, in this case,
+      simply go to plan B by writing zeroes.
+
+      Both error messages for above two scenarios are skipped in case
+      of flooding error messages, because they can be ignored by users. */
+      if (ret != EINTR && ret != EINVAL) {
+        ib::error(ER_IB_MSG_319)
+            << "posix_fallocate(): Failed to preallocate"
+               " data for file "
+            << file->name << ", desired size " << len
+            << " bytes."
+               " Operating system error number "
+            << ret
+            << ". Check"
+               " that the disk is not full or a disk quota"
+               " exceeded. Make sure the file system supports"
+               " this function. Some operating system error"
+               " numbers are described at " REFMAN
+               "operating-system-error-codes.html";
+      }
 
       err = DB_IO_ERROR;
     }
