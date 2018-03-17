@@ -1947,7 +1947,7 @@ private:
   void fk_scanFromChildTable(Signal* signal,
                              TcFiredTriggerData* firedTriggerData,
                              ApiConnectRecordPtr* transPtr,
-                             TcConnectRecordPtr* opPtr,
+                             Uint32 opPtrI,
                              TcFKData* fkData,
                              Uint32 op, Uint32 attrValuesPtrI);
   void fk_scanFromChildTable_done(Signal* signal, TcConnectRecordPtr);

@@ -1,0 +1,4 @@
+!include ../my.cnf
+
+[cluster_config]
+MaxDMLOperationsPerTransaction=32
