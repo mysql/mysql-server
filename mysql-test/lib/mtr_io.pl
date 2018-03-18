@@ -1,7 +1,6 @@
 # -*- cperl -*-
-# Copyright (c) 2004-2008 MySQL AB, 2008 Sun Microsystems, Inc.
-# Use is subject to license terms.
-# 
+# Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
 # as published by the Free Software Foundation.
@@ -29,89 +28,83 @@
 use strict;
 use Carp;
 
-sub mtr_fromfile ($);
-sub mtr_tofile ($@);
-sub mtr_tonewfile($@);
-sub mtr_appendfile_to_file ($$);
-sub mtr_grab_file($);
-sub mtr_printfile($);
-sub mtr_lastlinesfromfile ($$);
-
 # Read a whole file, stripping leading and trailing whitespace.
 sub mtr_fromfile ($) {
-  my $file=  shift;
+  my $file = shift;
 
-  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
-  my $text= join('', <FILE>);
+  open(FILE, "<", $file) or mtr_error("can't open file \"$file\": $!");
+  my $text = join('', <FILE>);
   close FILE;
-  $text =~ s/^\s+//;                    # Remove starting space, incl newlines
-  $text =~ s/\s+$//;                    # Remove ending space, incl newlines
+
+  # Remove starting space, incl newlines
+  $text =~ s/^\s+//;
+
+  # Remove ending space, incl newlines
+  $text =~ s/\s+$//;
+
   return $text;
 }
 
-
 sub mtr_tofile ($@) {
-  my $file=  shift;
+  my $file = shift;
 
-  open(FILE,">>",$file) or mtr_error("can't open file \"$file\": $!");
+  open(FILE, ">>", $file) or mtr_error("can't open file \"$file\": $!");
   print FILE join("", @_);
   close FILE;
 }
-
 
 sub mtr_tonewfile ($@) {
-  my $file=  shift;
+  my $file = shift;
 
-  open(FILE,">",$file) or mtr_error("can't open file \"$file\": $!");
+  open(FILE, ">", $file) or mtr_error("can't open file \"$file\": $!");
   print FILE join("", @_);
   close FILE;
 }
 
-
 sub mtr_appendfile_to_file ($$) {
-  my $from_file=  shift;
-  my $to_file=  shift;
+  my $from_file = shift;
+  my $to_file   = shift;
 
-  open(TOFILE,">>",$to_file) or mtr_error("can't open file \"$to_file\": $!");
-  open(FROMFILE,"<",$from_file)
-    or mtr_error("can't open file \"$from_file\": $!");
+  open(TOFILE, ">>", $to_file) or mtr_error("can't open file \"$to_file\": $!");
+  open(FROMFILE, "<", $from_file) or
+    mtr_error("can't open file \"$from_file\": $!");
+
   print TOFILE while (<FROMFILE>);
   close FROMFILE;
   close TOFILE;
 }
 
-
 # Read a whole file verbatim.
 sub mtr_grab_file($) {
-  my $file= shift;
-  open(FILE, '<', $file)
-    or return undef;
-  local $/= undef;
-  my $data= scalar(<FILE>);
+  my $file = shift;
+
+  open(FILE, '<', $file) or return undef;
+  local $/ = undef;
+  my $data = scalar(<FILE>);
   close FILE;
   return $data;
 }
 
-
 # Print the file to STDOUT
 sub mtr_printfile($) {
-  my $file= shift;
-  open(FILE, '<', $file)
-    or warn $!;
-  print while(<FILE>);
+  my $file = shift;
+
+  open(FILE, '<', $file) or warn $!;
+  print while (<FILE>);
   close FILE;
   return;
 }
 
 sub mtr_lastlinesfromfile ($$) {
   croak "usage: mtr_lastlinesfromfile(file,numlines)" unless (@_ == 2);
-  my ($file, $num_lines)= @_; 
+
+  my ($file, $num_lines) = @_;
   my $text;
-  open(FILE,"<",$file) or mtr_error("can't open file \"$file\": $!");
-  my @lines= reverse <FILE>;
+  open(FILE, "<", $file) or mtr_error("can't open file \"$file\": $!");
+  my @lines = reverse <FILE>;
   close FILE;
-  my $size= scalar(@lines);
-  $num_lines= $size unless ($size >= $num_lines);
+  my $size = scalar(@lines);
+  $num_lines = $size unless ($size >= $num_lines);
   return join("", reverse(splice(@lines, 0, $num_lines)));
 }
 
