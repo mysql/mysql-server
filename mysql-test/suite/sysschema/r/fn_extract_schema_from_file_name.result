@@ -1,9 +1,6 @@
 SELECT sys.extract_schema_from_file_name(NULL);
 sys.extract_schema_from_file_name(NULL)
 NULL
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT sys.extract_schema_from_file_name('/var/lib/mysql/employees/employee.ibd');
 sys.extract_schema_from_file_name('/var/lib/mysql/employees/employee.ibd')
 employees
