@@ -18038,6 +18038,8 @@ ER_STARTING_INIT
 ER_ENDING_INIT
   eng "%s (mysqld %s) initializing of server has completed"
 
+ER_IB_MSG_1272
+  eng "Cannot boot server version %lu on data directory built by version %lu. Downgrade is not supported"
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
