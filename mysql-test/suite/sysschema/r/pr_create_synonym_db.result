@@ -6,11 +6,6 @@ CREATE SQL SECURITY INVOKER VIEW myview AS SELECT * FROM t1 NATURAL JOIN t2;
 CALL sys.create_synonym_db('test', 'test1');
 summary
 Created 5 views in the `test1` database
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'test1' ORDER BY TABLE_NAME;
 TABLE_NAME	SECURITY_TYPE
 ab`c	INVOKER
@@ -29,9 +24,6 @@ COUNT(*)
 CALL sys.create_synonym_db('test', 'is');
 summary
 Created 5 views in the `is` database
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'is' ORDER BY TABLE_NAME;
 TABLE_NAME	SECURITY_TYPE
 ab`c	INVOKER
@@ -42,11 +34,6 @@ t2	INVOKER
 CALL sys.create_synonym_db('is', 'i`s');
 summary
 Created 5 views in the `i``s` database
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT TABLE_NAME, SECURITY_TYPE FROM information_schema.VIEWS WHERE TABLE_SCHEMA = 'i`s' ORDER BY TABLE_NAME;
 TABLE_NAME	SECURITY_TYPE
 ab`c	INVOKER

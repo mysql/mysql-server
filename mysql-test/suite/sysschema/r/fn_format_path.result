@@ -2,9 +2,6 @@
 SELECT sys.format_path(NULL);
 sys.format_path(NULL)
 NULL
-Warnings:
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET @mypath := CONCAT(@@global.basedir, 'logs/binlog.000001');
 SELECT sys.format_path(@mypath);
 sys.format_path(@mypath)
