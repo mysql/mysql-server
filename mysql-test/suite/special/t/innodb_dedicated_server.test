@@ -108,7 +108,7 @@ select VARIABLE_VALUE as INNODB_FLUSH_METHOD from performance_schema.global_vari
 --echo #  innodb_flush_method     = autoscaled #
 --echo #########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON;
-let $explicit_time_out_counter=4000;
+let $explicit_default_wait_coutner=4000;
 
 --source include/restart_mysqld.inc
 
