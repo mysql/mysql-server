@@ -211,6 +211,7 @@ let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 --echo # Start the DB server. Server will create and populate Dictionary tables.
 --exec echo "restart: --loose-skip-log-bin --read-only --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
+--let $wait_counter= 3000
 --source include/wait_until_connected_again.inc
 
 --echo # Test for Bug#25518436 : MYSQL 8.0.1 - MYSQLD ERRORLOG HAS UPGRADE ERRORS
@@ -722,6 +723,7 @@ let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_upgrade_2.log;
 # Test with --explicit-defaults-for-timestamp=0
 --exec echo "restart: --loose-skip-log-bin --explicit-defaults-for-timestamp=0 --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
+--let $wait_counter= 3000
 --source include/wait_until_connected_again.inc
 
 SHOW CREATE TABLE test.t_set;
@@ -768,6 +770,7 @@ let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug/data;
 --echo # Start the DB server
 --exec echo "restart: --default_time_zone="+01:00" --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
+--let $wait_counter= 3000
 --source include/wait_until_connected_again.inc
 
 --disable_query_log

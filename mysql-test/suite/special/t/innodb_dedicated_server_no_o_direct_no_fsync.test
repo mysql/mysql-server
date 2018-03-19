@@ -106,7 +106,7 @@ select VARIABLE_VALUE/(1024*1024) as LOG_FILE_SIZE_IN_MB from performance_schema
 --echo #  innodb_log_file_size    = autoscaled #
 --echo #########################################
 let $restart_parameters = restart: --innodb_dedicated_server=ON;
-let $explicit_time_out_counter=4000;
+let $explicit_default_wait_counter=4000;
 --source include/restart_mysqld.inc
 
 ###############################################################################
