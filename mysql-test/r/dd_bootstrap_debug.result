@@ -13,7 +13,7 @@
 # 1.3 Restart the server against DDIR - should fail.
 # 1.4 Look for error.
 #     Data Dictionary initialization error found 1 times.
-# 1.5 Delete bootstrap file, log file and datadir.
+# 1.5 Delete bootstrap file and datadir.
 #
 # 2. Try restart after dropping the properties table.
 # ---------------------------------------------------
@@ -21,7 +21,7 @@
 # 2.2 First start the server with --initialize, and drop the properties table. Should fail.
 # 2.3 Look for error.
 #     Data Dictionary initialization error found 1 times.
-# 2.4 Delete bootstrap file, log file and datadir.
+# 2.4 Delete bootstrap file and datadir.
 #
 # 3. Try restart after dropping the tables table.
 # -----------------------------------------------
@@ -29,7 +29,7 @@
 # 3.2 First start the server with --initialize, and drop the tables table: Should fail.
 # 3.3 Look for error.
 #     Data Dictionary initialization error found 1 times.
-# 3.4 Delete bootstrap file, log file and datadir.
+# 3.4 Delete bootstrap file and datadir.
 #
 # 4. Try restart after altering the schemata table.
 # -------------------------------------------------
@@ -48,7 +48,7 @@ Altered table
 SET SESSION debug= '-d,skip_dd_table_access_check';
 # 4.6 Shut server down.
 # 4.7 Close the test connection.
-# 4.8 Delete bootstrap file, log file and datadir.
+# 4.8 Delete bootstrap file and datadir.
 #
 # 5. Try to access a DD table in an init-file during --initialize.
 # ----------------------------------------------------------------
@@ -56,7 +56,7 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 # 5.2 First start the server with --initialize, and submit the init file.
 # 5.3 Look for error.
 #     Data Dictionary table access error found 1 times.
-# 5.4 Delete bootstrap file, log file and datadir.
+# 5.4 Delete bootstrap file and datadir.
 #
 # 6. Try to access a DD table in an init-file during plain restart.
 # -----------------------------------------------------------------
@@ -66,6 +66,6 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 # 6.4 An init file error does not make the server exit, so we need to stop the server.
 # 6.5 Look for error.
 #     Data Dictionary initialization error found 1 times.
-# 6.6 Delete bootstrap file, log file and datadir.
+# 6.6 Delete bootstrap file and datadir.
 #
 # Cleanup: Restarting the server against default datadir.
