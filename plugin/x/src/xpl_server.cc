@@ -722,31 +722,6 @@ std::string xpl::Server::get_tcp_bind_address() {
   return ::STATUS_VALUE_FOR_NOT_CONFIGURED_INTERFACE;
 }
 
-struct Client_check_handler_thd {
-  Client_check_handler_thd(THD *thd) : m_thd(thd) {}
-
-  bool operator()(ngs::Client_ptr &client) {
-    xpl::Client *xpl_client = (xpl::Client *)client.get();
-
-    return xpl_client->is_handler_thd(m_thd);
-  }
-
-  THD *m_thd;
-};
-
-xpl::Client_ptr xpl::Server::get_client_by_thd(Server_ptr &server, THD *thd) {
-  std::vector<ngs::Client_ptr> clients;
-  Client_check_handler_thd client_check_thd(thd);
-
-  (*server)->server().get_client_list().get_all_clients(clients);
-
-  std::vector<ngs::Client_ptr>::iterator i =
-      std::find_if(clients.begin(), clients.end(), client_check_thd);
-  if (clients.end() != i) return ngs::dynamic_pointer_cast<Client>(*i);
-
-  return Client_ptr();
-}
-
 void xpl::Server::register_udfs() {
   udf::Registrator r;
   r.registration(udf::get_mysqlx_error_record(), &m_udf_names);
