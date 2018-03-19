@@ -1148,6 +1148,7 @@ bool reset_master(THD *thd, bool unlock_global_read_lock) {
   thd->set_skip_readonly_check();
   if (is_group_replication_running()) {
     my_error(ER_CANT_RESET_MASTER, MYF(0), "Group Replication is running");
+    ret = true;
     goto end;
   }
 
