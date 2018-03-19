@@ -10,8 +10,7 @@
 
 let BASEDIR=    `select @@basedir`;
 let DDIR=       $MYSQL_TMP_DIR/dd_bootstrap_test;
-let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
-let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --log-syslog=0 --secure-file-priv="" --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let extra_args= --no-defaults --innodb_dedicated_server=OFF --log-syslog=0 --secure-file-priv="" --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=   $MYSQL_TMP_DIR/password_file.txt;
 
@@ -24,6 +23,9 @@ let PASSWD_FILE=   $MYSQL_TMP_DIR/password_file.txt;
 --echo # 1. Try restart after setting an invalid version.
 --echo # ------------------------------------------------
 
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_bootstrap_1.log;
+let ENV_MYSQLD_LOG= $MYSQLD_LOG;
+
 --echo # 1.1 Create bootstrap file.
 write_file $BOOTSTRAP_SQL;
   SET SESSION debug= '+d,skip_dd_table_access_check';
@@ -33,30 +35,32 @@ write_file $BOOTSTRAP_SQL;
 EOF
 
 --echo # 1.2 First start the server with --initialize, and update the version.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
+--exec $MYSQLD $extra_args --log-error=$MYSQLD_LOG --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 1.3 Restart the server against DDIR - should fail.
 --error 1
---exec $MYSQLD $extra_args --datadir=$DDIR
+--exec $MYSQLD $extra_args --log-error=$MYSQLD_LOG --datadir=$DDIR
 
 --echo # 1.4 Look for error.
 perl;
   use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
+  my $log= $ENV{'ENV_MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
   my $c_w= grep(/No data dictionary version number found./gi,<FILE>);
   print "#     Data Dictionary initialization error found $c_w times.\n";
   close(FILE);
 EOF
 
---echo # 1.5 Delete bootstrap file, log file and datadir.
+--echo # 1.5 Delete bootstrap file and datadir.
 remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo #
 --echo # 2. Try restart after dropping the properties table.
 --echo # ---------------------------------------------------
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_bootstrap_2.log;
+let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 
 --echo # 2.1 Create bootstrap file.
 write_file $BOOTSTRAP_SQL;
@@ -68,26 +72,28 @@ EOF
 
 --echo # 2.2 First start the server with --initialize, and drop the properties table. Should fail.
 --error 1
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
+--exec $MYSQLD $extra_args --log-error=$MYSQLD_LOG --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 2.3 Look for error.
 perl;
   use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
+  my $log= $ENV{'ENV_MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
   my $c_w= grep(/The used command is not allowed with this MySQL version/gi,<FILE>);
   print "#     Data Dictionary initialization error found $c_w times.\n";
   close(FILE);
 EOF
 
---echo # 2.4 Delete bootstrap file, log file and datadir.
+--echo # 2.4 Delete bootstrap file and datadir.
 remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo #
 --echo # 3. Try restart after dropping the tables table.
 --echo # -----------------------------------------------
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_bootstrap_3.log;
+let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 
 --echo # 3.1 Create bootstrap file.
 write_file $BOOTSTRAP_SQL;
@@ -100,26 +106,28 @@ EOF
 
 --echo # 3.2 First start the server with --initialize, and drop the tables table: Should fail.
 --error 1
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
+--exec $MYSQLD $extra_args --log-error=$MYSQLD_LOG --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 3.3 Look for error.
 perl;
   use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
+  my $log= $ENV{'ENV_MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
   my $c_w= grep(/The used command is not allowed with this MySQL version/gi,<FILE>);
   print "#     Data Dictionary initialization error found $c_w times.\n";
   close(FILE);
 EOF
 
---echo # 3.4 Delete bootstrap file, log file and datadir.
+--echo # 3.4 Delete bootstrap file and datadir.
 remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo #
 --echo # 4. Try restart after altering the schemata table.
 --echo # -------------------------------------------------
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_bootstrap_4.log;
+let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 
 --echo # 4.1 Create bootstrap file.
 write_file $BOOTSTRAP_SQL;
@@ -130,7 +138,7 @@ write_file $BOOTSTRAP_SQL;
 EOF
 
 --echo # 4.2 First start the server with --initialize, and alter the schemata table.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
+--exec $MYSQLD $extra_args --log-error=$MYSQLD_LOG --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 4.3 Restart the server against DDIR.
 --exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -157,14 +165,16 @@ SET SESSION debug= '-d,skip_dd_table_access_check';
 connection default;
 disconnect root_con;
 
---echo # 4.8 Delete bootstrap file, log file and datadir.
+--echo # 4.8 Delete bootstrap file and datadir.
 remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo #
 --echo # 5. Try to access a DD table in an init-file during --initialize.
 --echo # ----------------------------------------------------------------
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_bootstrap_5.log;
+let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 
 --echo # 5.1 Create bootstrap file.
 write_file $BOOTSTRAP_SQL;
@@ -173,26 +183,28 @@ EOF
 
 --echo # 5.2 First start the server with --initialize, and submit the init file.
 --error 1
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL;
+--exec $MYSQLD $extra_args --log-error=$MYSQLD_LOG --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 5.3 Look for error.
 perl;
   use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
+  my $log= $ENV{'ENV_MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
   my $c_w= grep(/Access to data dictionary table \'mysql.st_spatial_reference_systems\' is rejected/gi,<FILE>);
   print "#     Data Dictionary table access error found $c_w times.\n";
   close(FILE);
 EOF
 
---echo # 5.4 Delete bootstrap file, log file and datadir.
+--echo # 5.4 Delete bootstrap file and datadir.
 remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo #
 --echo # 6. Try to access a DD table in an init-file during plain restart.
 --echo # -----------------------------------------------------------------
+
+let $MYSQLD_LOG= $MYSQLTEST_VARDIR/log/save_dd_bootstrap_6.log;
+let ENV_MYSQLD_LOG= $MYSQLD_LOG;
 
 --echo # 6.1 Create bootstrap file.
 write_file $BOOTSTRAP_SQL;
@@ -201,10 +213,10 @@ write_file $BOOTSTRAP_SQL;
 EOF
 
 --echo # 6.2 First start the server with --initialize.
---exec $MYSQLD $extra_args --initialize-insecure --datadir=$DDIR
+--exec $MYSQLD $extra_args --log-error=$MYSQLD_LOG --initialize-insecure --datadir=$DDIR
 
 --echo # 6.3 Restart the server against DDIR with an init-file.
---exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG" --init-file=$BOOTSTRAP_SQL > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --datadir=$DDIR --no-console --log-error=$MYSQLD_LOG --init-file=$BOOTSTRAP_SQL" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -216,16 +228,15 @@ EOF
 --echo # 6.5 Look for error.
 perl;
   use strict;
-  my $log= $ENV{'MYSQLD_LOG'} or die;
+  my $log= $ENV{'ENV_MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
   my $c_w= grep(/Access to data dictionary table \'mysql.tables\' is rejected/gi,<FILE>);
   print "#     Data Dictionary initialization error found $c_w times.\n";
   close(FILE);
 EOF
 
---echo # 6.6 Delete bootstrap file, log file and datadir.
+--echo # 6.6 Delete bootstrap file and datadir.
 remove_file $BOOTSTRAP_SQL;
-remove_file $MYSQLD_LOG;
 --force-rmdir $DDIR
 
 --echo #
