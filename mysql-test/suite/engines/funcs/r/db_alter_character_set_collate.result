@@ -7,7 +7,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d11 CHARACTER SET utf8 COLLATE utf8_general_ci;
 Warnings:
@@ -19,7 +19,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d11;
 CREATE DATABASE d11 DEFAULT CHARACTER SET ascii DEFAULT COLLATE ascii_bin;
@@ -30,7 +30,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d11 CHARACTER SET latin2 COLLATE latin2_general_ci;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -40,7 +40,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d11;
 CREATE DATABASE d11 DEFAULT CHARACTER SET ascii DEFAULT COLLATE ascii_bin;
@@ -51,7 +51,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER DATABASE d11 CHARACTER SET  cp1250 COLLATE cp1250_croatian_ci;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -61,7 +61,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d11;
 CREATE DATABASE d11 DEFAULT CHARACTER SET ascii DEFAULT COLLATE ascii_bin;
@@ -72,7 +72,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d11 CHARACTER SET utf8 COLLATE utf8_general_ci;
 Warnings:
@@ -84,7 +84,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d11;
 CREATE DATABASE d11 DEFAULT CHARACTER SET ascii DEFAULT COLLATE ascii_bin;
@@ -95,7 +95,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d11 CHARACTER SET latin2 COLLATE latin2_general_ci;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -105,7 +105,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d11;
 CREATE DATABASE d11 DEFAULT CHARACTER SET ascii DEFAULT COLLATE ascii_bin;
@@ -116,7 +116,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 ALTER SCHEMA d11 CHARACTER SET  cp1250 COLLATE cp1250_croatian_ci;
 SELECT * FROM INFORMATION_SCHEMA.SCHEMATA ORDER BY SCHEMA_NAME;
@@ -126,6 +126,6 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d11;

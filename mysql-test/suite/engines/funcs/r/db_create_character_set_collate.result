@@ -9,7 +9,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d13;
 CREATE DATABASE d13 CHARACTER SET latin2 COLLATE latin2_general_ci;
@@ -20,7 +20,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d13;
 CREATE DATABASE d13 CHARACTER SET  cp1250 COLLATE cp1250_croatian_ci;
@@ -31,7 +31,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP DATABASE d13;
 CREATE SCHEMA d13 CHARACTER SET utf8 COLLATE utf8_general_ci;
@@ -44,7 +44,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP SCHEMA d13;
 CREATE SCHEMA d13 CHARACTER SET latin2 COLLATE latin2_general_ci;
@@ -55,7 +55,7 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP SCHEMA d13;
 CREATE SCHEMA d13 CHARACTER SET  cp1250 COLLATE cp1250_croatian_ci;
@@ -66,6 +66,6 @@ def	information_schema	utf8	utf8_general_ci	NULL
 def	mtr	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	mysql	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	performance_schema	utf8mb4	utf8mb4_0900_ai_ci	NULL
-def	sys	utf8	utf8_general_ci	NULL
+def	sys	utf8mb4	utf8mb4_0900_ai_ci	NULL
 def	test	utf8mb4	utf8mb4_0900_ai_ci	NULL
 DROP SCHEMA d13;
