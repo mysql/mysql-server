@@ -1,4 +1,5 @@
 --source include/have_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
 
 --disable_warnings
 drop table if exists t1, t1sum;
@@ -133,7 +134,7 @@ load data local infile 'suite/ndb/data/wl946_main3.dat'
 drop table t1;
 
 --echo # restore meta from backup
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
 --disable_warnings
 show create table t1;
 --enable_warnings
@@ -141,8 +142,8 @@ show create table t1;
 --source show_indexes.inc
 
 --echo # restore data from backup
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 2 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 1 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 2 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -172,7 +173,7 @@ load data local infile 'suite/ndb/data/wl946_main6.dat'
 drop table t1;
 
 --echo # restore meta from backup
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
 --disable_warnings
 show create table t1;
 --enable_warnings
@@ -180,8 +181,8 @@ show create table t1;
 --source show_indexes.inc
 
 --echo # restore data from backup
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 2 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 1 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 2 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -222,8 +223,8 @@ show create table t1;
 --source show_indexes.inc
 
 --echo # restore data from backup with promote
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 2 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 1 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_3 -n 2 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents
 # replace fraction .000123 by .123
@@ -243,8 +244,8 @@ show create table t1;
 --source show_indexes.inc
 
 --echo # restore data from backup with demote
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 2 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 1 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $backup_id_6 -n 2 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
 
 --echo # check contents truncated to prec 3
 select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
@@ -253,3 +254,4 @@ set time_zone = default;
 select @@session.time_zone;
 
 drop table t1, t1sum;
+--source suite/ndb/include/backup_restore_cleanup.inc

@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 --echo # bug#17275798
 # use a canned backup with NULL char(10) log entries promoted to char(20)
@@ -10,7 +11,7 @@ create table t1 (
 ) engine=ndb;
 
 --echo # restore canned backup
---exec $NDB_RESTORE --no-defaults -b 1 -n 21 -r --promote-attributes $MYSQL_TEST_DIR/suite/ndb/backups/bug17275798 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 21 -r --promote-attributes $backup_data_dir/bug17275798 >> $NDB_TOOLS_OUTPUT
 
 select sum(1),sum(isnull(b)),min(b),max(b) from t1;
 
@@ -40,8 +41,8 @@ create table t1 (
 ) engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*) from t1 x, t1old y
 where x.a = y.a and x.b = y.b and x.c = y.c;
@@ -95,8 +96,8 @@ create table t1 (
 ) engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --eval $qry
 
@@ -135,8 +136,8 @@ create table t1 (
 ) engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --eval $qry
 
@@ -187,8 +188,8 @@ create table t1 (
 ) engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --eval $qry
 
@@ -233,8 +234,8 @@ create table t1 (
 ) engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --exclude-missing-columns -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --exclude-missing-columns -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --exclude-missing-columns -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --exclude-missing-columns -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*),max(a),max(b),max(c),max(length(d)) from t1;
 
@@ -273,8 +274,8 @@ create table t1 (
 ) engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --eval $qry
 
@@ -337,8 +338,8 @@ insert into t1 select * from t1old;
 drop table t1;
 --eval $cre2
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --eval $qry
 drop table t1;
 
@@ -352,8 +353,8 @@ insert into t1 select * from t1old;
 drop table t1;
 --eval $cre2 tablespace ts1 storage disk
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r -A -L $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --eval $qry
 drop table t1;
 
@@ -383,8 +384,8 @@ create table t1 (
 ) engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r -A $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1;
 drop table t1;
@@ -423,8 +424,8 @@ create table t1(
 
 --echo # run restore
 
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select count(*) from t1 x, t1old y
 where x.a = y.a and x.b = y.b and x.c = y.c;
@@ -488,8 +489,8 @@ create table text2text (pk int primary key,
                         t13 text, t14 mediumtext, t15 longtext, t16 tinytext)engine=NDB;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo # run ndb_select_all to print restored table 
 --exec $NDB_SELECT_ALL -d test text2text -o PRIMARY
@@ -506,10 +507,10 @@ create table text2text (pk int primary key,
 
 --echo # run restore
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --echo # ndb_restore fails with error 1
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --echo # ndb_restore fails with error 1
 
 
@@ -522,11 +523,11 @@ create table text2text (pk int primary key,
                         t13 text not null, t14 mediumtext not null, t15 longtext not null, t16 tinytext not null)engine=NDB;
 --echo # run restore
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --echo # ndb_restore fails with error 1
 --exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST1 >> $NDB_TOOLS_OUTPUT
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --echo # ndb_restore fails with error 1
 --exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST2 >> $NDB_TOOLS_OUTPUT
 
@@ -540,10 +541,10 @@ create table text2text (pk int primary key,
 
 --echo # run restore
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --echo # ndb_restore fails with error 1
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 --echo # ndb_restore fails with error 1
 
 --echo # restore with mix of staging and built-in conversions 
@@ -555,8 +556,8 @@ create table text2text (pk mediumint primary key,
                         t13 text, t14 mediumtext, t15 longtext, t16 tinytext)engine=NDB;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --lossy-conversions --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 2 -r --lossy-conversions --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --lossy-conversions --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 2 -r --lossy-conversions --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 
 --echo # run ndb_select_all to print restored table 
 --exec $NDB_SELECT_ALL -d test text2text -o PRIMARY
@@ -575,8 +576,8 @@ drop table text2text;
 create table text2text(id varchar(5) primary key, val mediumtext)engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo # run ndb_select_all to print restored table 
 --exec $NDB_SELECT_ALL -d test text2text -o PRIMARY
@@ -595,8 +596,8 @@ drop table text2text;
 create table text2text(id int primary key, val tinytext character set utf8)engine=ndb;
 
 --echo # run restore
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo # run ndb_select_all to see charset-aware truncation in ndb
 --exec $NDB_SELECT_ALL -d test text2text -o PRIMARY
@@ -618,3 +619,4 @@ drop tablespace ts1;
 
 drop logfile group lg1
 engine=ndb;
+--source suite/ndb/include/backup_restore_cleanup.inc

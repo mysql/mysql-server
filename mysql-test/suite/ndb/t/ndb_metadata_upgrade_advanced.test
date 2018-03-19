@@ -1,4 +1,5 @@
 --source include/have_multi_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 # Directory containing the saved backup files
 let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
@@ -38,9 +39,9 @@ let $backup_data_dir=$MYSQL_TEST_DIR/suite/ndb/backups;
 # INSERT INTO t3 VALUES(1,'a','a');
 #
 
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r --disable-indexes $backup_data_dir/metadata_upgrade_advanced_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $backup_data_dir/metadata_upgrade_advanced_backup >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults -b 1 -n 1 --rebuild-indexes $backup_data_dir/metadata_upgrade_advanced_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 -m -r --disable-indexes $backup_data_dir/metadata_upgrade_advanced_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 2 -r $backup_data_dir/metadata_upgrade_advanced_backup >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 1 -n 1 --rebuild-indexes $backup_data_dir/metadata_upgrade_advanced_backup >> $NDB_TOOLS_OUTPUT
 
 --echo Backup from 7.5 restored
 
@@ -93,3 +94,4 @@ INSERT INTO t3 VALUES (2,'b','b',2);
 SELECT * FROM t3;
 
 DROP TABLE t3;
+let NDB_RESTORE=;

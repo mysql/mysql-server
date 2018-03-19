@@ -1,4 +1,5 @@
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 -- disable_warnings
 drop table if exists t2, t1;
@@ -883,7 +884,7 @@ drop table t2, t1;
 drop table t4, t3;
 
 --echo # run restore meta
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --disable_warnings
 show create table t2;
@@ -1003,3 +1004,4 @@ show create table t2;
 
 --echo #Drop tables
 drop table t2, t1;
+--source suite/ndb/include/backup_restore_cleanup.inc

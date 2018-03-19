@@ -5,6 +5,7 @@
 
 -- source include/have_ndb.inc
 -- source have_ndb_error_insert.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 create table t1
  (id1 int unsigned not null,
@@ -64,8 +65,8 @@ while ($mysql_errno)
 --echo
 --echo "Restore with --print-sql-log option"
 --let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
---exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id
---exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 2 $NDB_BACKUPS-$the_backup_id
+--exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id
+--exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 2 $NDB_BACKUPS-$the_backup_id
 
 drop table t1;
 --disable_warnings
@@ -125,7 +126,7 @@ while ($mysql_errno)
 --echo "Restore with --print-sql-log option"
 --let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
 --error 1
---exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
+--exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 
 drop table t3;
 --disable_warnings
@@ -182,7 +183,7 @@ while ($mysql_errno)
 --echo "Restore with --print-sql-log and --print-log options"
 --let ndb_restore_opts= --print-sql-log --print-log --verbose=0 --core-file=0
 --error 1
---exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
+--exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 
 drop table t5;
 --disable_warnings
@@ -239,9 +240,11 @@ while ($mysql_errno)
 --echo "Restore with --print-sql-log option"
 --let ndb_restore_opts= --print-sql-log --verbose=0 --core-file=0
 --error 1
---exec $NDB_RESTORE --no-defaults $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
+--exec $NDB_RESTORE $ndb_restore_opts -b $the_backup_id -n 1 $NDB_BACKUPS-$the_backup_id 2>&1
 
 drop table t7;
 --disable_warnings
 drop table if exists t8;
 --enable_warnings
+
+--source suite/ndb/include/backup_restore_cleanup.inc

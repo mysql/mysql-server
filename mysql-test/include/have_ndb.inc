@@ -9,5 +9,4 @@ if (`SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.ENGINES
   --skip Test requires ndbcluster
 }
 
---let NDB_BACKUPS=$NDB_BACKUP_DIR/BACKUP/BACKUP
 

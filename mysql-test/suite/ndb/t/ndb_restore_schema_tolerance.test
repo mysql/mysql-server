@@ -3,6 +3,7 @@
 ######################################################################
 
 -- source include/have_ndb.inc
+-- source suite/ndb/include/backup_restore_setup.inc
 
 --echo Test ndb_restore ability to ignore some schema differences
 
@@ -34,8 +35,8 @@ select * from t1 order by a;
 drop table t1;
 
 --echo Normal restore
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r -m  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r     $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r -m  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r     $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --disable_warnings
 show create table t1;
@@ -50,12 +51,12 @@ truncate t1;
 alter table t1 change c cc int;
 
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo Retry with --exclude-missing-columns
 
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --exclude-missing-columns $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --exclude-missing-columns $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r --exclude-missing-columns $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1 order by a;
 truncate t1;
@@ -67,12 +68,12 @@ alter table t1 change cc c bigint;
 show create table t1; #REMOVE!
 --enable_warnings
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo Retry with --promote-attributes
 
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1 order by a;
 truncate t1;
@@ -82,7 +83,7 @@ truncate t1;
 alter table t1 change c c int not null;
 
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 alter table t1 change c c int;
 
@@ -93,14 +94,14 @@ alter table t1 change c c int;
 alter table t1 change g g char(22);
 
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo Character set difference, should fail
 
 alter table t1 change g g char(20) character set binary;
 
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 alter table t1 change g g char(20);
 
@@ -109,13 +110,13 @@ alter table t1 change g g char(20);
 alter table t1 change b b int auto_increment;
 
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo Default difference, should pass 
 alter table t1 change b b int default 22;
 
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1 order by a;
 truncate t1;
@@ -126,7 +127,7 @@ alter table t1 change b b int;
 alter table t1 change e e varchar(300);
 
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 alter table t1 change e e varchar(200);
 
@@ -145,8 +146,8 @@ ENGINE NDB;
 
 alter table t1 TABLESPACE ts1, change i i int storage disk;
 
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1 order by a;
 
@@ -159,8 +160,8 @@ truncate t1;
 
 alter table t1 change c c int column_format dynamic;
 
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1 order by a;
 
@@ -183,7 +184,7 @@ create table t1 (
   primary key (a)) engine = ndb;
 
 --error 1
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 drop table t1;
 
@@ -201,8 +202,8 @@ create table t1 (
   i int,
   primary key(a,b)) engine = ndb partition by key(a);
 
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 2 -r  $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 select * from t1 order by a;
 
@@ -217,47 +218,47 @@ drop table test.t1;
 --echo Test ndb_restore of backup containing unique index, should warn only for data restore
 
 --echo # print metadata+data+log : should not warn
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --print $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # print metadata : should not warn
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --print-meta $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-meta $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # metadata restore : should not warn
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # disable-indexes : should not warn
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --disable-indexes $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --disable-indexes $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # print data : should not warn
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --print-data $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-data $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # print log : should not warn
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --print-log $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --print-log $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # restore data, but exclude indexed table : should not warn since unique indexes excluded
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --exclude-tables=test.t1 $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --exclude-tables=test.t1 $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # restore data, but exclude database containing indexed table : should not warn since unique indexes excluded
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --exclude-databases=test $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r --exclude-databases=test $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # restore data : should warn since unique indexes to be restored
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # restore epoch : should not warn
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -e $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 -e $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 --echo # rebuild-indexes : should not warn
---exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id > $dump_file
+--exec $NDB_RESTORE --core-file=0 -b $the_backup_id -n 1 --rebuild-indexes $NDB_BACKUPS-$the_backup_id > $dump_file
 --source suite/ndb/include/ndb_restore_check_warn.inc
 
 drop table test.t1;
@@ -782,8 +783,9 @@ t512 bigint default 65535
 drop table grp_hssesmusersstoredbytenant;
 
 -- source suite/ndb/include/ndb_find_tools.inc
---exec $NDB_PRINT_BACKUP_FILE $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id/BACKUP-$the_backup_id.1.ctl >> $NDB_TOOLS_OUTPUT
+--exec $NDB_PRINT_BACKUP_FILE $NDB_BACKUPS-$the_backup_id/BACKUP-$the_backup_id.1.ctl >> $NDB_TOOLS_OUTPUT
 
---exec $NDB_RESTORE --no-defaults --core-file=false -b $the_backup_id -n 1 -m  --print-log $NDB_BACKUP_DIR/BACKUP/BACKUP-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --core-file=false -b $the_backup_id -n 1 -m  --print-log $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 drop table grp_hssesmusersstoredbytenant;
+--source suite/ndb/include/backup_restore_cleanup.inc

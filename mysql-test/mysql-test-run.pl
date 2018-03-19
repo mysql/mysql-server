@@ -2806,11 +2806,6 @@ sub environment_setup {
 
     $ENV{'NDB_WAITER'}= $exe_ndb_waiter;
 
-    $ENV{'NDB_RESTORE'}=
-      my_find_bin($bindir,
-		  ["runtime_output_directory", "bin"],
-		  "ndb_restore");
-
     $ENV{'NDB_CONFIG'}=
       my_find_bin($bindir,
 		  ["runtime_output_directory", "bin"],
