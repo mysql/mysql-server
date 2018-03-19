@@ -29,8 +29,8 @@ REQUIRES_SERVICE_PLACEHOLDER(mysqlx_maintenance);
 
 namespace {
 
-long long reset_global_status_variables(UDF_INIT *, UDF_ARGS *, char *,
-                                        char *) {
+long long reset_global_status_variables(  // NOLINT(runtime/int)
+    UDF_INIT *, UDF_ARGS *, unsigned char *, unsigned char *) {
   return mysql_service_mysqlx_maintenance->reset_global_status_variables() ? 1
                                                                            : 0;
 }
