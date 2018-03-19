@@ -194,9 +194,12 @@ EOF
 
   open(MYSQLD_OUT, $mysqld_out) || die "Failed to open '$mysqld_out': $!";
   print "# Look for output (there should be none):\n";
+  print "# Supressing output for initialize:\n";
   while(<MYSQLD_OUT>)
   {
-    print;
+    if (!(/initializing of server has completed/)) {
+      print;
+    }
   }
   close(MYSQLD_OUT);
 EOF

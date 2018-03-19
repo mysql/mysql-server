@@ -25,6 +25,7 @@
 # Try using -D with relative path
 # Look for [ERROR] in error log (there should be none):
 # Look for output (there should be none):
+# Supressing output for initialize:
 #
 # Cleanup
 #

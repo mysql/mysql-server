@@ -18038,6 +18038,12 @@ ER_AUDIT_LOG_JSON_FILTER_DOES_NOT_EXIST
 ER_IB_MSG_1271
   eng "Cannot upgrade server earlier than 5.7 to 8.0"
 
+ER_STARTING_INIT
+  eng "%s (mysqld %s) initializing of server in progress as process %lu"
+
+ER_ENDING_INIT
+  eng "%s (mysqld %s) initializing of server has completed"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
