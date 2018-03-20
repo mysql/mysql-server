@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,6 +110,31 @@ List<Create_field> *Table_function_json::get_field_list() {
 }
 
 /**
+  Check if a JSON value is a JSON OPAQUE, and if it can be printed in the field
+  as a non base64 value.
+
+  This is currently used by JSON_TABLE to see if we can print the JSON value in
+  a field without having to encode it in base64.
+
+  @param field_to_store_in The field we want to store the JSON value in
+  @param json_data The JSON value we want to store.
+
+  @returns
+    true The JSON value can be stored without encoding it in base64
+    false The JSON value can not be stored without encoding it, or it is not a
+          JSON OPAQUE value.
+*/
+static bool can_store_json_value_unencoded(const Field *field_to_store_in,
+                                           const Json_wrapper *json_data) {
+  return (field_to_store_in->type() == MYSQL_TYPE_VARCHAR ||
+          field_to_store_in->type() == MYSQL_TYPE_BLOB ||
+          field_to_store_in->type() == MYSQL_TYPE_STRING) &&
+         json_data->type() == enum_json_type::J_OPAQUE &&
+         (json_data->field_type() == MYSQL_TYPE_STRING ||
+          json_data->field_type() == MYSQL_TYPE_VARCHAR);
+}
+
+/**
   Save JSON to a JSON_TABLE's column
 
   Value is saved in type-aware manner. Into a JSON-typed column any JSON
@@ -185,7 +210,12 @@ static bool save_json_to_column(THD *thd, Field *field, Json_table_column *col,
         break;
       }
       String str;
-      err = w->to_string(&str, false, "JSON_TABLE");
+      if (can_store_json_value_unencoded(field, w)) {
+        str.set(w->get_data(), w->get_data_length(), field->charset());
+      } else {
+        err = w->to_string(&str, false, "JSON_TABLE");
+      }
+
       if (!err && (field->store(str.ptr(), str.length(), str.charset()) >=
                    TYPE_WARN_OUT_OF_RANGE))
         err = true;
