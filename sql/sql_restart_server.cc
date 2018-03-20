@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -72,14 +72,14 @@ bool Sql_cmd_restart_server::execute(THD *thd) {
   thd->lex->no_write_to_binlog = 1;
 
   query_logger.general_log_print(thd, COM_QUERY, NullS);
-  LogErr(SYSTEM_LEVEL, ER_RESTART_RECEIVED_INFO,
-         thd->security_context()->user().str, server_version);
 
   if (signal_restart_server()) {
     my_error(ER_RESTART_SERVER_FAILED, MYF(0), "Restart server failed");
     DBUG_RETURN(true);
   }
 
+  LogErr(SYSTEM_LEVEL, ER_RESTART_RECEIVED_INFO,
+         thd->security_context()->user().str, server_version);
   my_ok(thd);
 
   DBUG_RETURN(false);
