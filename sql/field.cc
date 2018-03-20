@@ -1910,6 +1910,7 @@ Field_str::Field_str(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
   field_charset = charset_arg;
   if (charset_arg->state & MY_CS_BINSORT) flags |= BINARY_FLAG;
   field_derivation = DERIVATION_IMPLICIT;
+  char_length_cache = char_length();
 }
 
 void Field_str::make_field(Send_field *field) {
@@ -5995,8 +5996,8 @@ type_conversion_status Field_longstr::report_if_important_data(
           set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
       }
       return TYPE_WARN_TRUNCATED;
-    } else if (count_spaces) { /* If we lost only spaces then produce a NOTE,
-                                  not a WARNING */
+    } else if (count_spaces) {
+      // If we lost only spaces then produce a NOTE, not a WARNING
       if (table->in_use->check_for_truncated_fields) {
         set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
       }
@@ -6258,8 +6259,9 @@ size_t Field_string::make_sort_key(uchar *to, size_t length) {
         field_charset, (const char *)ptr, input_length);
   }
 
+  DBUG_ASSERT(char_length_cache == char_length());
   size_t tmp MY_ATTRIBUTE((unused)) = field_charset->coll->strnxfrm(
-      field_charset, to, length, char_length(), ptr, input_length,
+      field_charset, to, length, char_length_cache, ptr, input_length,
       MY_STRXFRM_PAD_TO_MAXLEN);
   DBUG_ASSERT(tmp == length);
   return length;
@@ -6632,8 +6634,10 @@ size_t Field_varstring::make_sort_key(uchar *to, size_t length) {
   const int flags =
       (field_charset->pad_attribute == NO_PAD) ? 0 : MY_STRXFRM_PAD_TO_MAXLEN;
 
-  return field_charset->coll->strnxfrm(field_charset, to, length, char_length(),
-                                       ptr + length_bytes, input_bytes, flags);
+  DBUG_ASSERT(char_length_cache == char_length());
+  return field_charset->coll->strnxfrm(field_charset, to, length,
+                                       char_length_cache, ptr + length_bytes,
+                                       input_bytes, flags);
 }
 
 enum ha_base_keytype Field_varstring::key_type() const {

@@ -757,7 +757,11 @@ class Field : public Proto_field {
   };
   enum imagetype { itRAW, itMBR };
 
-  uint32 field_length;  // Length of field
+  // Length of field. Never write to this member directly; instead, use
+  // set_field_length().
+  uint32 field_length;
+  virtual void set_field_length(uint32 length) { field_length = length; }
+
   uint32 flags;
   uint16 field_index;  // field number in fields array
   uchar null_bit;      // Bit used to test null bit
@@ -1722,29 +1726,44 @@ class Field_str : public Field {
   Field_str(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
             uchar null_bit_arg, uchar auto_flags_arg,
             const char *field_name_arg, const CHARSET_INFO *charset);
-  Item_result result_type() const { return STRING_RESULT; }
-  Item_result numeric_context_result_type() const { return REAL_RESULT; }
-  uint decimals() const { return NOT_FIXED_DEC; }
-  void make_field(Send_field *field);
-  type_conversion_status store(double nr);
-  type_conversion_status store(longlong nr, bool unsigned_val) = 0;
-  type_conversion_status store_decimal(const my_decimal *);
+  Item_result result_type() const override { return STRING_RESULT; }
+  Item_result numeric_context_result_type() const override {
+    return REAL_RESULT;
+  }
+  uint decimals() const override { return NOT_FIXED_DEC; }
+  void make_field(Send_field *field) override;
+  type_conversion_status store(double nr) override;
+  type_conversion_status store(longlong nr, bool unsigned_val) override = 0;
+  type_conversion_status store_decimal(const my_decimal *) override;
   type_conversion_status store(const char *to, size_t length,
-                               const CHARSET_INFO *cs) = 0;
-  uint repertoire(void) const { return my_charset_repertoire(field_charset); }
-  const CHARSET_INFO *charset(void) const { return field_charset; }
+                               const CHARSET_INFO *cs) override = 0;
+
+  uint repertoire(void) const override {
+    return my_charset_repertoire(field_charset);
+  }
+  const CHARSET_INFO *charset(void) const override { return field_charset; }
   void set_charset(const CHARSET_INFO *charset_arg) {
     field_charset = charset_arg;
+    char_length_cache = char_length();
   }
-  enum Derivation derivation(void) const { return field_derivation; }
-  virtual void set_derivation(enum Derivation derivation_arg) {
+  void set_field_length(uint32 length) override {
+    Field::set_field_length(length);
+    char_length_cache = char_length();
+  }
+  enum Derivation derivation(void) const override { return field_derivation; }
+  virtual void set_derivation(enum Derivation derivation_arg) override {
     field_derivation = derivation_arg;
   }
-  bool binary() const { return field_charset == &my_charset_bin; }
-  uint32 max_display_length() { return field_length; }
+  bool binary() const override { return field_charset == &my_charset_bin; }
+  uint32 max_display_length() override { return field_length; }
   friend class Create_field;
-  virtual bool str_needs_quotes() { return true; }
-  uint is_equal(const Create_field *new_field);
+  virtual bool str_needs_quotes() override { return true; }
+  uint is_equal(const Create_field *new_field) override;
+
+  // An always-updated cache of the result of char_length(), because
+  // dividing by charset()->mbmaxlen can be surprisingly costly compared
+  // to the rest of e.g. make_sort_key().
+  uint32 char_length_cache;
 };
 
 /* base class for Field_string, Field_varstring and Field_blob */

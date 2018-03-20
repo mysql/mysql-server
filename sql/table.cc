@@ -2835,7 +2835,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
             Create a new field for the key part that matches the index
           */
           field = key_part->field = field->new_field(root, outparam, 0);
-          field->field_length = key_part->length;
+          field->set_field_length(key_part->length);
         }
       }
       /* Skip unused key parts if they exist */
