@@ -75,6 +75,8 @@ require "lib/mtr_process.pl";
 
 $SIG{INT} = sub { mtr_error("Got ^C signal"); };
 
+sub env_or_val($$) { defined $ENV{ $_[0] } ? $ENV{ $_[0] } : $_[1] }
+
 # Local variables
 my $opt_boot_dbx;
 my $opt_boot_ddd;
@@ -280,8 +282,6 @@ our %gprof_dirs;
 our %mysqld_variables;
 
 sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
-
-sub env_or_val($$) { defined $ENV{ $_[0] } ? $ENV{ $_[0] } : $_[1] }
 
 sub suite_timeout { return $opt_suite_timeout * 60; }
 
