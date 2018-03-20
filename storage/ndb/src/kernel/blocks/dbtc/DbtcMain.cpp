@@ -4782,7 +4782,6 @@ void Dbtc::packLqhkeyreq040Lab(Signal* signal,
 /* ========================================================================= */
 void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* const regApiPtr)
 {
-  CacheRecord * const regCachePtr = cachePtr.p;
   Uint32 attrInfoSectionI= cachePtr.p->attrInfoSectionI;
 
   /* Release AttrInfo section if there is one */
@@ -5042,16 +5041,16 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
      * may not be in cases where we drop the first signal of
      * a transaction
      */
-    apiConnectptr.p->transid[0] = transId1;
-    apiConnectptr.p->transid[1] = transId2;
-    apiConnectptr.p->returncode = ZGET_DATAREC_ERROR;
+    regApiPtr->transid[0] = transId1;
+    regApiPtr->transid[1] = transId2;
+    regApiPtr->returncode = ZGET_DATAREC_ERROR;
 
     /* Set m_exec_flag according to the dropped request */
-    apiConnectptr.p->m_flags |=
+    regApiPtr->m_flags |=
       TcKeyReq::getExecuteFlag(truncatedTcKeyReq->requestInfo) ?
       ApiConnectRecord::TF_EXEC_FLAG : 0;
 
-    DEBUG(" Execute flag set to " << tc_testbit(apiConnectptr.p->m_flags,
+    DEBUG(" Execute flag set to " << tc_testbit(regApiPtr->m_flags,
                                                 ApiConnectRecord::TF_EXEC_FLAG)
           );
 
@@ -6136,20 +6135,20 @@ Dbtc::ApiConnectRecord::ApiConnectRecord()
 //theFiredTriggers
 //noIndexOp
 //...
+  noIndexOp(0),
+  immediateTriggerId(RNIL),
+  firedFragId(RNIL),
   accumulatingIndexOp(RNIL),
   executingIndexOp(RNIL),
-  m_pre_commit_pass(0),
-  cascading_scans_count(0),
 //  returnsignal = RS_TCKEYCONF;
-  firedFragId(RNIL),
 //  failureNr(TfailureNr;
 //  transid[0] = Ttransid0;
 //  transid[1] = Ttransid1;
-  noIndexOp(0),
 #ifdef ERROR_INSERT
   continueBCount(0),
 #endif
-  immediateTriggerId(RNIL)
+  m_pre_commit_pass(0),
+  cascading_scans_count(0)
 //...
 {
   NdbTick_Invalidate(&m_start_ticks);
