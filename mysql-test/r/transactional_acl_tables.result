@@ -1804,7 +1804,7 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 mysql.user_bak                                     OK
-The sys schema is already up to date (version 1.6.0).
+The sys schema is already up to date (version 2.0.0).
 Checking databases.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
