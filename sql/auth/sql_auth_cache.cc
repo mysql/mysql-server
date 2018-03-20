@@ -3426,10 +3426,9 @@ bool Acl_cache_lock_guard::lock(bool raise_error) /* = true */
       !m_thd->mdl_context.acquire_lock(&lock_request, ACL_CACHE_LOCK_TIMEOUT);
   m_thd->pop_internal_handler();
 
-  if (!m_locked && raise_error) {
+  if (!m_locked && raise_error)
     my_error(ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES, MYF(0));
-    DBUG_ASSERT(false);
-  }
+
   return m_locked;
 }
 
