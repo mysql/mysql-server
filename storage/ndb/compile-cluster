@@ -169,18 +169,14 @@ if(! -d "$opt_srcdir/libmysqld")
   {
     # Use default options for building
     print("compile-cluster: vanilla build requested, no sugar\n");
-
-    # Turn off automatic detection of WITH_NDBCLUSTER
-    # in MySQL Cluster version(i.e when version string ends in -ndb-Y.Y.Y)
-    push(@args, "-DWITH_NDB_DEFAULT_PLUGIN_DETECT=0");
   }
   else
   {
     # Hardcoded options controlling how to build MySQL Server
     push(@args, "-DWITH_SSL=system"); # Consistent error messages
+    push(@args, "-DWITH_NDBCLUSTER=1"); # Build MySQL Cluster
 
     # Hardcoded options controlling how to build NDB
-    push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
     push(@args, "-DWITH_NDB_TEST=1");
     push(@args, "-DWITH_NDBAPI_EXAMPLES=1")
       unless ($^O eq "cygwin" or $^O eq "MSWin32")

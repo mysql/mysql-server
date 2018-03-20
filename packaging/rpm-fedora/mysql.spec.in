@@ -45,7 +45,7 @@
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
 
-%global src_dir               %{src_base}-@VERSION@
+%global src_dir               %{src_base}-@VERSION_SRC@
 
 # No debuginfo for now
 %if 0%{?nodebuginfo}
@@ -452,6 +452,9 @@ mkdir debug
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_SYSTEMD=1 \
+%if 0%{?with_cluster:1}
+           -DWITH_NDBCLUSTER=1 \
+%endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
 %endif
@@ -489,6 +492,9 @@ mkdir release
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_SYSTEMD=1 \
+%if 0%{?with_cluster:1}
+           -DWITH_NDBCLUSTER=1 \
+%endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
 %endif

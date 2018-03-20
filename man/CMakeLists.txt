@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,7 @@ IF(MAN1_FILES)
   IF(MAN1_EXCLUDE)
     LIST(REMOVE_ITEM MAN1_FILES ${MAN1_EXCLUDE})
   ENDIF()
-  IF(MAN1_NDB AND NOT VERSION MATCHES "-ndb-")
+  IF(MAN1_NDB AND NOT WITH_NDBCLUSTER)
     LIST(REMOVE_ITEM MAN1_FILES ${MAN1_NDB})
   ENDIF()
   FOREACH(file ${MAN1_FILES})
@@ -44,7 +44,7 @@ IF(MAN1_FILES)
   ENDFOREACH()
 ENDIF()
 IF(MAN8_FILES)
-  IF(MAN8_NDB AND NOT VERSION MATCHES "-ndb-")
+  IF(MAN8_NDB AND NOT WITH_NDBCLUSTER)
     LIST(REMOVE_ITEM MAN8_FILES ${MAN8_NDB})
   ENDIF()
   INSTALL(FILES ${MAN8_FILES} DESTINATION ${INSTALL_MANDIR}/man8

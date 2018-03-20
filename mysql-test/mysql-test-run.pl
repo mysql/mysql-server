@@ -2990,10 +2990,10 @@ sub check_ndbcluster_support ($) {
               " and --skip-ndbcluster was specified");
   }
 
-  # Check if this is MySQL Cluster, ie. mysql version string ends
-  # with -ndb-Y.Y.Y[-status]
+  # Check if this is MySQL Cluster, ie. mysql version extra string
+  # contains -cluster
   if (defined $mysql_version_extra &&
-      $mysql_version_extra =~ /-ndb-([0-9]*)\.([0-9]*)\.([0-9]*)/) {
+      $mysql_version_extra =~ /-cluster/) {
     # MySQL Cluster tree
     mtr_report(" - MySQL Cluster detected");
 

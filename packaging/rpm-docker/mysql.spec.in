@@ -36,7 +36,7 @@
 %{!?compilation_comment_debug:   %global compilation_comment_debug MySQL Community Server - GPL - Debug}
 %{!?src_base:                    %global src_base mysql%{?cluster:-cluster-gpl}}
 
-%global src_dir               %{src_base}-@VERSION@
+%global src_dir               %{src_base}-@VERSION_SRC@
 
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 
@@ -164,6 +164,9 @@ mkdir release
            -DWITH_NUMA=ON \
            %{?mecab_option} \
            -DWITH_SSL=system \
+%if 0%{?cluster}
+           -DWITH_NDBCLUSTER=1 \
+%endif
 %if 0%{?with_meb:1}
            -DWITH_MEB=1 \
 %endif

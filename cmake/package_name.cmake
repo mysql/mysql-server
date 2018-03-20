@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -119,9 +119,8 @@ IF(NOT VERSION)
     SET(PRODUCT_TAG)
   ENDIF()
 
-  IF("${VERSION}" MATCHES "-ndb-")
-    STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
-    SET(package_name "mysql-cluster${PRODUCT_TAG}-${NDBVERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
+  IF(WITH_NDBCLUSTER)
+    SET(package_name "mysql${PRODUCT_TAG}-${MYSQL_CLUSTER_VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
   ELSE()
     SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
   ENDIF()

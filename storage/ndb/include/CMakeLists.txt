@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -34,43 +34,19 @@ CONFIGURE_FILE(ndb_types.h.in
 # Exclude ndb_types.h from "make dist"
 LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_types\\\\.h$)
 
-#
-# Read ndb_configure.m4 and extract the NDB_VERSION_XX=YY variables
-#
-INCLUDE("${NDB_SOURCE_DIR}/cmake/ndb_get_config_value.cmake")
-NDB_GET_CONFIG_VALUE(NDB_VERSION_MAJOR major)
-SET(NDB_VERSION_MAJOR "${major}" CACHE INTERNAL "NDB Major Version" FORCE)
+INCLUDE(ndb_require_variable)
+# Require the MySQL Cluster version variable to be set by
+# higher level script.
+NDB_REQUIRE_VARIABLE(MYSQL_CLUSTER_VERSION)
 
-NDB_GET_CONFIG_VALUE(NDB_VERSION_MINOR minor)
-SET(NDB_VERSION_MINOR "${minor}" CACHE INTERNAL "NDB Minor Version" FORCE)
-
-NDB_GET_CONFIG_VALUE(NDB_VERSION_BUILD build)
-SET(NDB_VERSION_BUILD "${build}" CACHE INTERNAL "NDB Build Version" FORCE)
-
-NDB_GET_CONFIG_VALUE(NDB_VERSION_STATUS status)
-# Trim surrounding "'s from status
-STRING(REGEX REPLACE "\"" "" status "${status}")
-SET(NDB_VERSION_STATUS "${status}" CACHE INTERNAL "NDB Status Version" FORCE)
-
-IF(NOT DEFINED NDB_VERSION_MAJOR OR
-   NOT DEFINED NDB_VERSION_MINOR OR
-   NOT DEFINED NDB_VERSION_BUILD)
-  MESSAGE(STATUS "NDB_VERSION_MAJOR: ${NDB_VERSION_MAJOR}")
-  MESSAGE(STATUS "NDB_VERSION_MINOR: ${NDB_VERSION_MINOR}")
-  MESSAGE(STATUS "NDB_VERSION_BUILD: ${NDB_VERSION_BUILD}")
-  MESSAGE(FATAL_ERROR "Couldn't parse version numbers from ndb_configure.m4")
-ENDIF()
-
-IF (DEFINED MYSQL_CLUSTER_VERSION)
-  # This is MySQL Cluster, the MySQL Cluster version must match NDB version
-  IF(NOT MYSQL_CLUSTER_VERSION_MAJOR EQUAL NDB_VERSION_MAJOR OR
-     NOT MYSQL_CLUSTER_VERSION_MINOR EQUAL NDB_VERSION_MINOR OR  
-     NOT MYSQL_CLUSTER_VERSION_BUILD EQUAL NDB_VERSION_BUILD)
-    MESSAGE(STATUS "MYSQL_CLUSTER_VERSION_MAJOR: ${MYSQL_CLUSTER_VERSION_MAJOR}")
-    MESSAGE(STATUS "MYSQL_CLUSTER_VERSION_MINOR: ${MYSQL_CLUSTER_VERSION_MINOR}")
-    MESSAGE(STATUS "MYSQL_CLUSTER_VERSION_BUILD: ${MYSQL_CLUSTER_VERSION_BUILD}")
-    MESSAGE(FATAL_ERROR "MySQL Cluster version does not match NDB version")
-  ENDIF()
+# Split the cluster version and set NDB version components
+IF(${MYSQL_CLUSTER_VERSION} MATCHES "([0-9]+)\\.([0-9]+)\\.([0-9]+)(.*)")
+  SET(NDB_VERSION_MAJOR "${CMAKE_MATCH_1}" CACHE INTERNAL "NDB Major Version" FORCE)
+  SET(NDB_VERSION_MINOR "${CMAKE_MATCH_2}" CACHE INTERNAL "NDB Minor Version" FORCE)
+  SET(NDB_VERSION_BUILD "${CMAKE_MATCH_3}" CACHE INTERNAL "NDB Build Version" FORCE)
+  SET(NDB_VERSION_STATUS "${CMAKE_MATCH_4}" CACHE INTERNAL "NDB Status Version" FORCE)
+ELSE()
+  MESSAGE(FATAL_ERROR "Failed to split MYSQL_CLUSTER_VERSION: ${MYSQL_CLUSTER_VERSION}")
 ENDIF()
 
 # Create ndb_version.h

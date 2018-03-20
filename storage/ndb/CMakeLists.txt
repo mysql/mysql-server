@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,44 +20,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+IF(NOT WITH_NDBCLUSTER)
+  RETURN()
+ENDIF()
+
 # Add both MySQL and NDB cmake repositories to search path
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/cmake
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 INCLUDE(ndb_add_target_property)
 INCLUDE(ndb_add_test)
-
-MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
-
-# Check if this is MySQL Cluster build i.e the MySQL Server
-# version string ends in -ndb-Y.Y.Y[-status]    
-MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
-
-  IF(${version_string} MATCHES "(.*)-ndb-(.*)")
-    SET(mysql_version ${CMAKE_MATCH_1})
-    SET(cluster_version ${CMAKE_MATCH_2})
-
-    # Sanity check that the mysql_version matches precalcuated
-    # values from higher level scripts  
-    IF(NOT ${mysql_version} EQUAL "${MYSQL_NO_DASH_VERSION}")
-      MESSAGE(FATAL_ERROR "Sanity check of version_string failed!")
-    ENDIF()
-
-    # Split the cluster_version further into Y.Y.Y subcomponents
-    IF(${cluster_version} MATCHES "([0-9]+)\\.([0-9]+)\\.([0-9]+)")
-      SET(MYSQL_CLUSTER_VERSION_MAJOR ${CMAKE_MATCH_1})
-      SET(MYSQL_CLUSTER_VERSION_MINOR ${CMAKE_MATCH_2})
-      SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3})
-    ENDIF()
-
-    MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
-    # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
-    # that this is a MySQL Cluster build, yay!
-    SET(MYSQL_CLUSTER_VERSION ${cluster_version})
-  ENDIF()
-ENDMACRO()
-
-NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 
 #
 # Add the ndbcluster plugin
@@ -107,34 +79,15 @@ SET(NDBCLUSTER_SOURCES
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
-IF(NOT MYSQL_CLUSTER_VERSION)
-ENDIF()
-
-# NDB is DEFAULT plugin in MySQL Cluster
-SET(is_default_plugin "")
-OPTION(WITH_NDB_DEFAULT_PLUGIN_DETECT
-  "Autodetect MySQL Cluster version and set ndbcluster as DEFAULT plugin" ON)
-MARK_AS_ADVANCED(WITH_NDB_DEFAULT_PLUGIN_DETECT)
-IF(WITH_NDB_DEFAULT_PLUGIN_DETECT)
-  IF(MYSQL_CLUSTER_VERSION)
-    # ndbcluster is DEFAULT plugin in MySQL Cluster
-    SET(is_default_plugin "DEFAULT")
-  ENDIF()
-ENDIF()
-
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-    ${is_default_plugin} STATIC_ONLY
+    DEFAULT STATIC_ONLY
     LINK_LIBRARIES ndbclient_static)
-ENDIF()
 
-#
-# Build NDB only if MYSQL_ADD_PLUGIN has decided(by looking at various
-# cmake args same as all other plugins have) to build ndbcluster(our handler)
-#
-IF (NOT WITH_NDBCLUSTER)
-  MESSAGE(STATUS "Not building NDB")
-  RETURN()
+  # Sanity check that MYSQL_ADD_PLUGIN didn't decide to skip build
+  IF (NOT WITH_NDBCLUSTER)
+    MESSAGE(FATAL_ERROR "MYSQL_ADD_PLUGIN decided to skip build")
+  ENDIF()
 ENDIF()
 
 # Disable strict-aliasing for storage/ndb

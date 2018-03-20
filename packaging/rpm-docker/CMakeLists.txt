@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,6 @@ IF(UNIX)
   SET(prefix ${CMAKE_INSTALL_PREFIX})
 
   SET(SPECFILENAME "mysql.spec")
-  IF("${VERSION}" MATCHES "-ndb-")
-    STRING(REGEX REPLACE "^.*-ndb-" "" NDBVERSION "${VERSION}")
-    SET(SPECFILENAME "mysql-cluster-${NDBVERSION}.spec")
-  ENDIF()
 
   IF ("${PIDFILE_RPM}" STREQUAL "")
     SET(PIDFILE_RPM  "/var/run/mysqld/mysqld.pid")

@@ -70,7 +70,7 @@
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
 
-%global src_dir               %{src_base}-@VERSION@
+%global src_dir               %{src_base}-@VERSION_SRC@
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
@@ -696,6 +696,9 @@ mkdir debug
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
 %endif
+%if 0%{?cluster}
+           -DWITH_NDBCLUSTER=1 \
+%endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
 %endif
@@ -737,6 +740,9 @@ mkdir release
            -DCMAKE_CXX_FLAGS="%{optflags}" \
 %if 0%{?systemd}
            -DWITH_SYSTEMD=1 \
+%endif
+%if 0%{?cluster}
+           -DWITH_NDBCLUSTER=1 \
 %endif
 %if 0%{?ndb_nodejs_path:1}
            -DNDB_NODEJS_PATH=%{ndb_nodejs_path} \
