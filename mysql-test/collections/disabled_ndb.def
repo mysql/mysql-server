@@ -117,3 +117,9 @@ ndb.ndb_bushy_joins: BUG#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
 
 # Disabled pending synchronization functionality to be added in WL#11914
 ndb_ddl.metadata_change_detection: WL#11914 Trigger Schema Distribution Synchronization on metadata change in NDB
+
+ndb.ndb_load : WL#9756
+ndb.ndb_fired_trigger_shortage : WL#9756
+ndb.transmem : WL#9756
+ndb.ndb_config : WL#9756
+ndb.ndb_dd_basic : WL#9756
