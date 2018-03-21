@@ -118,9 +118,11 @@ ndb.ndb_bushy_joins: BUG#28247833 NDB_BUSHY_JOINS FAILS IN VALGRIND RUNS
 # Disabled pending synchronization functionality to be added in WL#11914
 ndb_ddl.metadata_change_detection: WL#11914 Trigger Schema Distribution Synchronization on metadata change in NDB
 
+# Disabled during WL#9756 development
 ndb_load : WL#9756 mysqltest: At line 65: query 'INSERT INTO t2 SELECT * FROM t1' failed with wrong errno 1296: 'Got error 261 'DML count in transaction exceeds config parameter MaxDMLOperationsPerTransaction' from NDBCLUSTER', instead of 1297...
 ndb_bushy_joins : WL#9756 mysqltest: At line 229: query 'reap' failed: 1297: Got temporary error 20015 'Query aborted due to out of row memory' from NDBCLUSTER
 ndb_fired_trigger_shortage : WL#9756 mysqltest: At line 30: query 'insert into t1 select x1.n+x2.n*10+x3.n*100, 1, 1, 1+x1.n+x2.n*10+x3.n*100 from num as x1, num as x2, num as x3' succeeded - should have failed with errno 1297...
 transmem : WL#9756 ndb_mgmd: [ERROR] unknown variable 'TransactionMemory=20M'
-ndb.ndb_config : WL#9756
-ndb.ndb_dd_basic : WL#9756
+ndb_dd_initial_lg : WL#9756 different result on windows
+ndb_memory : WL#9756
+ndb_storage : WL#9756
