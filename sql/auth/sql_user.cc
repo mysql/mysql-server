@@ -320,7 +320,7 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name) {
       by rewrite_default_roles() called from mysql_rewrite_create_alter_user()
       below.
     */
-    get_default_roles(create_authid_from(acl_user), &default_roles);
+    get_default_roles(create_authid_from(acl_user), default_roles);
     if (default_roles.size() > 0) {
       LEX_STRING *tmp_user = nullptr;
       LEX_STRING *tmp_host = nullptr;
