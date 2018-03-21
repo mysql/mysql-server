@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,8 +105,8 @@ FastScheduler::doJob(Uint32 loopStartCount)
   if (TloopMax < MIN_NUMBER_OF_SIG_PER_DO_JOB) {
     TloopMax = MIN_NUMBER_OF_SIG_PER_DO_JOB;
   }//if
-  register Signal* signal = getVMSignals();
-  register Uint32 tHighPrio= globalData.highestAvailablePrio;
+  Signal* signal = getVMSignals();
+  Uint32 tHighPrio= globalData.highestAvailablePrio;
   do{
     while ((tHighPrio < LEVEL_IDLE) && (loopCount < TloopMax)) {
 #ifdef VM_TRACE
@@ -126,10 +126,10 @@ FastScheduler::doJob(Uint32 loopStartCount)
         globalEmulatorData.theThreadConfig->scanZeroTimeQueue();
       }
       // To ensure we find bugs quickly
-      register Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
+      Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
       // also strip any instance bits since this is non-MT code
-      register BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
-      register GlobalSignalNumber reg_gsn = gsnbnr >> 16;
+      BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
+      GlobalSignalNumber reg_gsn = gsnbnr >> 16;
       globalData.incrementWatchDogCounter(1);
       if (reg_bnr > 0) {
         Uint32 tJobCounter = globalData.JobCounter;
@@ -343,7 +343,7 @@ APZJobBuffer::insert(const SignalHeader * const sh,
 		     const Uint32 * const theData, const Uint32 secPtrI[3]){
   Uint32 tOccupancy = theOccupancy + 1;
   Uint32 myWPtr = wPtr;
-  register BufferEntry& buf = buffer[myWPtr];
+  BufferEntry& buf = buffer[myWPtr];
   
   if (tOccupancy < bufSize) {
     Uint32 cond =  (++myWPtr == bufSize) - 1;

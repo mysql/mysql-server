@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2015, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,10 +61,10 @@ void
 TimeQueue::insert(Signal* signal, BlockNumber bnr, 
 		  GlobalSignalNumber gsn, Uint32 delayTime)
 {
-  register Uint32 regCurrentTime = globalData.theCurrentTimer;
-  register Uint32 i;
-  register Uint32 regSave;
-  register TimerEntry newEntry;
+  Uint32 regCurrentTime = globalData.theCurrentTimer;
+  Uint32 i;
+  Uint32 regSave;
+  TimerEntry newEntry;
  
   if (delayTime == 0)
     delayTime = 1;
@@ -84,7 +84,7 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
      * job buffer as soon as we complete the execution in the
      * run job buffer loop.
      */
-    register Uint32 regZeroIndex = globalData.theZeroTQIndex;
+    Uint32 regZeroIndex = globalData.theZeroTQIndex;
     if (regZeroIndex < MAX_NO_OF_ZERO_TQ - 1)
     {
       theZeroQueue[regZeroIndex].copy_struct = newEntry.copy_struct;
@@ -101,7 +101,7 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
   if (newEntry.time_struct.delay_time < globalData.theNextTimerJob)
     globalData.theNextTimerJob = newEntry.time_struct.delay_time;
   if (delayTime < 100){
-    register Uint32 regShortIndex = globalData.theShortTQIndex;
+    Uint32 regShortIndex = globalData.theShortTQIndex;
     if (regShortIndex == 0){
       theShortQueue[0].copy_struct = newEntry.copy_struct;
     } else if (regShortIndex >= MAX_NO_OF_SHORT_TQ - 1) {
@@ -121,7 +121,7 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
         theShortQueue[regShortIndex].copy_struct = regSave;
       } else {
         for (i++; i < regShortIndex; i++) {
-	  register Uint32 regTmp = theShortQueue[i].copy_struct;
+	  Uint32 regTmp = theShortQueue[i].copy_struct;
 	  theShortQueue[i].copy_struct = regSave;
 	  regSave = regTmp;
         }
@@ -130,7 +130,7 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
     }
     globalData.theShortTQIndex = regShortIndex + 1;
   } else if (delayTime <= (unsigned)MAX_TIME_QUEUE_VALUE) {
-    register Uint32 regLongIndex = globalData.theLongTQIndex;
+    Uint32 regLongIndex = globalData.theLongTQIndex;
     if (regLongIndex == 0) {
       theLongQueue[0].copy_struct = newEntry.copy_struct;
     } else if (regLongIndex >= MAX_NO_OF_LONG_TQ - 1) {
@@ -150,7 +150,7 @@ TimeQueue::insert(Signal* signal, BlockNumber bnr,
         theLongQueue[regLongIndex].copy_struct = regSave;
       } else {
         for (i++; i < regLongIndex; i++) {
-          register Uint32 regTmp = theLongQueue[i].copy_struct;
+          Uint32 regTmp = theLongQueue[i].copy_struct;
           theLongQueue[i].copy_struct = regSave;
           regSave = regTmp;
         }
@@ -180,7 +180,7 @@ TimeQueue::scanZeroTimeQueue()
 void
 TimeQueue::scanTable()
 {
-  register Uint32 i, j;
+  Uint32 i, j;
   
   globalData.theCurrentTimer++;
   if (globalData.theCurrentTimer == 32000)

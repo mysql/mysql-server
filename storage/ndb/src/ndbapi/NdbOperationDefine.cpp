@@ -949,9 +949,9 @@ int
 NdbOperation::insertATTRINFO( Uint32 aData )
 {
   NdbApiSignal* tSignal;
-  register Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
-  register Uint32* tAttrPtr = theATTRINFOptr;
-  register Uint32 tTotCurrAILen = theTotalCurrAI_Len;
+  Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
+  Uint32* tAttrPtr = theATTRINFOptr;
+  Uint32 tTotCurrAILen = theTotalCurrAI_Len;
 
   if (tAI_LenInCurrAI >= 25) {
     Ndb* tNdb = theNdb;
@@ -1005,9 +1005,9 @@ NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr,
 				 register Uint32 aLength)
 {
   NdbApiSignal* tSignal;
-  register Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
-  register Uint32 tTotCurrAILen = theTotalCurrAI_Len;
-  register Uint32* tAttrPtr = theATTRINFOptr;  
+  Uint32 tAI_LenInCurrAI = theAI_LenInCurrAI;
+  Uint32 tTotCurrAILen = theTotalCurrAI_Len;
+  Uint32* tAttrPtr = theATTRINFOptr;
   Ndb* tNdb = theNdb;
 
   while (aLength > 0) {
@@ -1033,7 +1033,7 @@ NdbOperation::insertATTRINFOloop(register const Uint32* aDataPtr,
       }//if
     }//if
     {
-      register Uint32 tData = *aDataPtr;
+      Uint32 tData = *aDataPtr;
       aDataPtr++;
       aLength--;
       tAI_LenInCurrAI++;
