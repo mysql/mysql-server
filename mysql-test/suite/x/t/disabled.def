@@ -3,3 +3,6 @@
 #   <testname> : <......>
 # Do not use any TAB characters for whitespace.
 # If the test is disabled due to a bug, start the comment with BUG#<bugnumber>
+x.connection_wolfssl : Bug #27731060 2018-03-21 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
+x.connection_wolfssl_unixsocket : Bug #27731060 2018-03-21 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
+x.connection_tls_version : Bug #27731060 2018-03-21 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
