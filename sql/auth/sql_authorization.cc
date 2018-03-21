@@ -778,7 +778,8 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
     db.append(STRING_WITH_LEN(" ON "));
     append_identifier(thd, &db, db_name.c_str(), db_name.length());
     db.append(STRING_WITH_LEN(".* TO "));
-    append_identifier(thd, &db, role->user, strlen(role->user));
+    append_identifier(thd, &db, role->user,
+                      role->user ? strlen(role->user) : 0);
     db.append('@');
     // host and lex_user->host are equal except for case
     append_identifier(thd, &db, role->host.get_host(),
@@ -817,7 +818,8 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
     db.append(STRING_WITH_LEN(" ON "));
     append_identifier(thd, &db, db_name.c_str(), db_name.length());
     db.append(STRING_WITH_LEN(".* TO "));
-    append_identifier(thd, &db, role->user, strlen(role->user));
+    append_identifier(thd, &db, role->user,
+                      role->user ? strlen(role->user) : 0);
     db.append('@');
     // host and lex_user->host are equal except for case
     append_identifier(thd, &db, role->host.get_host(),
@@ -901,7 +903,8 @@ void make_sp_privilege_statement(THD *thd, ACL_USER *role, Protocol *protocol,
       db.append(STRING_WITH_LEN("FUNCTION "));
     db.append(sp_name.c_str(), sp_name.length());
     db.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &db, role->user, strlen(role->user));
+    append_identifier(thd, &db, role->user,
+                      role->user ? strlen(role->user) : 0);
     db.append(STRING_WITH_LEN("@"));
     // host and lex_user->host are equal except for case
     append_identifier(thd, &db, role->host.get_host(),
@@ -1058,7 +1061,8 @@ void make_roles_privilege_statement(THD *thd, ACL_USER *role,
   }  // end while
   if (found) {
     global.append(STRING_WITH_LEN(" TO "));
-    append_identifier(thd, &global, role->user, strlen(role->user));
+    append_identifier(thd, &global, role->user,
+                      role->user ? strlen(role->user) : 0);
     global.append('@');
     append_identifier(thd, &global, role->host.get_host(),
                       role->host.get_host_len());
