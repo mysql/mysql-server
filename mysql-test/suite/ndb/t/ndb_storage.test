@@ -1,3 +1,5 @@
+--source include/have_ndb.inc
+
 # Terminology:
 # Explicit disk column : A column that has 'storage disk' definition.
 # Implicit disk column : A column that has default storage and thus inherits

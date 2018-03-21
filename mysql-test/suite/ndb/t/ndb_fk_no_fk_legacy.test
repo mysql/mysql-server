@@ -1,3 +1,4 @@
+--source include/have_ndb.inc
 #
 # Run the legacy compatibility test with legacy engine
 #

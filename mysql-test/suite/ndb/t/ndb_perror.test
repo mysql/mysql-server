@@ -1,3 +1,5 @@
+--source include/have_ndb.inc
+
 #
 # Test ndb_perror which is a small tool used to
 # lookup the textual description for various error

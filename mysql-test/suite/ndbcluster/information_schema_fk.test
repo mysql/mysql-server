@@ -1,3 +1,5 @@
+--source include/have_ndb.inc
+
 --echo #
 --echo # basic, i_s.table_constraints, is.key_column_usage
 --echo #

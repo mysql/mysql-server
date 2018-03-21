@@ -1,3 +1,4 @@
+--source include/have_ndb.inc
 #
 # Fragment type: HashMapPartition
 # PartitionCount: 8

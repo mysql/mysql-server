@@ -989,6 +989,14 @@ sub collect_one_test_case {
 
   tags_from_test_file($tinfo, "$testdir/${tname}.test");
 
+  # Check that test wth "ndb" in their suite or test name
+  # have been tagged as 'ndb_test', this is normally fixed
+  # by adding a "source include/have_ndb.inc" to the file
+  if ($tinfo->{name} =~ /ndb/) {
+    mtr_error("The test '$tinfo->{name}' is not tagged as 'ndb_test'")
+      unless ($tinfo->{'ndb_test'});
+  }
+
   # Disable the result file check for NDB tests not having its
   # corresponding result file.
   if ($tinfo->{'ndb_test'} and $tinfo->{'ndb_no_result_file_test'}) {
@@ -1129,15 +1137,6 @@ sub collect_one_test_case {
       # rpl tests must use their suite's cnf file.
       elsif ($tinfo->{rpl_test}) {
         $config = "suite/rpl/my.cnf";
-      }
-
-      # ndb tests must use their suite specific cnf files.
-      if ($tinfo->{ndb_test}) {
-        if ($tinfo->{rpl_test}) {
-          $config = "suite/rpl_ndb/my.cnf";
-        } else {
-          $config = "suite/ndb/my.cnf";
-        }
       }
     }
     $tinfo->{template_path} = $config;

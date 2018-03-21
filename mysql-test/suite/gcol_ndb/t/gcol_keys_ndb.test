@@ -1,3 +1,4 @@
+--source include/have_ndb.inc
 
 #------------------------------------------------------------------------------#
 # General not engine specific settings and requirements

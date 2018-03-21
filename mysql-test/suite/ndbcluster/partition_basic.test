@@ -1,3 +1,5 @@
+--source include/have_ndb.inc
+
 #
 # Partition by key, basic.
 #
