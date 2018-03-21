@@ -1299,48 +1299,6 @@ void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf) {
 }
 
 #else /* !UNIV_HOTBACKUP */
-/** Reads the checkpoint info needed in hot backup.
-@param[in]	hdr		buffer containing the log group header
-@param[out]	lsn		checkpoint lsn
-@param[out]	offset		checkpoint offset in the log group
-@param[out]	cp_no		checkpoint number
-@param[out]	first_header_lsn lsn of of the start of the first log file
-@return true if success */
-bool meb_read_checkpoint_info(const byte *hdr, lsn_t *lsn, lsn_t *offset,
-                              lsn_t *cp_no, lsn_t *first_header_lsn) {
-  ulint max_cp = 0;
-  uint64_t max_cp_no = 0;
-  const byte *cp_buf = hdr + LOG_CHECKPOINT_1;
-
-  if (recv_check_log_header_checksum(cp_buf)) {
-    max_cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
-    max_cp = LOG_CHECKPOINT_1;
-  }
-
-  cp_buf = hdr + LOG_CHECKPOINT_2;
-
-  if (recv_check_log_header_checksum(cp_buf)) {
-    if (mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO) > max_cp_no) {
-      max_cp = LOG_CHECKPOINT_2;
-    }
-  }
-
-  if (max_cp == 0) {
-    return (false);
-  }
-
-  cp_buf = hdr + max_cp;
-
-  *lsn = mach_read_from_8(cp_buf + LOG_CHECKPOINT_LSN);
-  *offset = mach_read_from_8(cp_buf + LOG_CHECKPOINT_OFFSET);
-
-  *cp_no = mach_read_from_8(cp_buf + LOG_CHECKPOINT_NO);
-
-  *first_header_lsn = mach_read_from_8(hdr + LOG_HEADER_START_LSN);
-
-  return (true);
-}
-
 /** Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned.
 @param[in]	buf			buffer containing log data

@@ -326,6 +326,7 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   /** Up to this file offset in the log files, the write-ahead
   has been done or is not required (for any other reason). */
   uint64_t write_ahead_end_offset;
+#endif /* !UNIV_HOTBACKUP */
 
   /** Some lsn value within the current log file. */
   lsn_t current_file_lsn;
@@ -347,6 +348,7 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   including headers of the log files. */
   uint64_t files_real_capacity;
 
+#ifndef UNIV_HOTBACKUP
   /** Mutex which can be used to pause log writer thread. */
   ib_mutex_t writer_mutex;
 
@@ -465,10 +467,12 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
 
   /** Lsn from which recovery has been started. */
   lsn_t recovered_lsn;
+#endif /* !UNIV_HOTBACKUP */
 
   /** Number of log files. */
   uint32_t n_files;
 
+#ifndef UNIV_HOTBACKUP
   /** Format of the redo log: e.g., LOG_HEADER_FORMAT_CURRENT. */
   uint32_t format;
 

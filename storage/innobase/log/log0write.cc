@@ -46,8 +46,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0flu.h"
 #include "dict0boot.h"
 #include "dict0stats_bg.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "fil0fil.h"
 #include "log0log.h"
+#ifndef UNIV_HOTBACKUP
 #include "log0recv.h"
 #include "mem0mem.h"
 #include "mysqld.h" /* server_uuid */
@@ -872,15 +874,19 @@ Wait_stats log_write_up_to(log_t &log, lsn_t end_lsn, bool flush_to_disk) {
   }
 }
 
-/* @} */
+  /* @} */
 
-/**************************************************/ /**
+  /**************************************************/ /**
 
- @name Log writer thread
+   @name Log writer thread
 
- *******************************************************/
+   *******************************************************/
 
-/* @{ */
+  /* @{ */
+
+#else /* !UNIV_HOTBACKUP */
+#define log_writer_mutex_own(log) true
+#endif /* !UNIV_HOTBACKUP */
 
 uint64_t log_files_size_offset(const log_t &log, uint64_t offset) {
   ut_ad(log_writer_mutex_own(log));
@@ -923,6 +929,7 @@ uint64_t log_files_real_offset_for_lsn(const log_t &log, lsn_t lsn) {
 
   return (log_files_real_offset(log, size_offset));
 }
+#ifndef UNIV_HOTBACKUP
 
 void log_files_update_offsets(log_t &log, lsn_t lsn) {
   ut_ad(log_writer_mutex_own(log));
