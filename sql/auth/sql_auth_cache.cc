@@ -1171,7 +1171,7 @@ bool acl_getroot(THD *thd, Security_context *sctx, char *user, char *host,
     List_of_auth_id_refs default_roles;
     Auth_id_ref authid = create_authid_from(acl_user);
     /* Needs Acl_cache_lock_guard in read mode */
-    get_default_roles(authid, &default_roles);
+    get_default_roles(authid, default_roles);
     List_of_auth_id_refs::iterator it = default_roles.begin();
     for (; it != default_roles.end(); ++it) {
       if (sctx->activate_role(it->first, it->second)) {

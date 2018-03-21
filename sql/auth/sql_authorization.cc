@@ -5603,18 +5603,21 @@ void func_current_role(THD *thd, String *active_role) {
   Shallow copy a list of default role authorization IDs from an Role_id storage
 
   @param acl_user A valid authID for which we want the default roles.
-  @param [out] authlist The target list to be populated. Optional if 0
-
+  @param [out] authlist The target list to be populated. The target list is set
+                        to empty if no default role is found.
 */
-
 void get_default_roles(const Auth_id_ref &acl_user,
-                       List_of_auth_id_refs *authlist) {
+                       List_of_auth_id_refs &authlist) {
+  if (g_default_roles == nullptr) return;
+
+  authlist.clear();  // Remove all items
+
   Role_id user(acl_user);
   Default_roles::iterator role_it, role_end;
   boost::tie(role_it, role_end) = g_default_roles->equal_range(user);
   for (; role_it != role_end; ++role_it) {
     Auth_id_ref ref = create_authid_from(role_it->second);
-    authlist->push_back(ref);
+    authlist.push_back(ref);
   }
 }
 
@@ -6028,7 +6031,7 @@ int mysql_set_role_default(THD *thd) {
     Search global structure for target user;
     authids have their own memory storage (Role_id)
   */
-  get_default_roles(current_user_authid, &authids);
+  get_default_roles(current_user_authid, authids);
   if (authids.size() > 0) {
     List_of_auth_id_refs::iterator it = authids.begin();
     for (; it != authids.end() && ret == 0; ++it) {

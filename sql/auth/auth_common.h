@@ -767,7 +767,7 @@ bool mysql_grant_role(THD *thd, const List<LEX_USER> *users,
                       const List<LEX_USER> *roles, bool with_admin_opt);
 bool mysql_revoke_role(THD *thd, const List<LEX_USER> *users,
                        const List<LEX_USER> *roles);
-void get_default_roles(const Auth_id_ref &user, List_of_auth_id_refs *list);
+void get_default_roles(const Auth_id_ref &user, List_of_auth_id_refs &list);
 
 bool is_granted_table_access(THD *thd, ulong required_acl, TABLE_LIST *table);
 
