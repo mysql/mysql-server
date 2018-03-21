@@ -29,17 +29,14 @@
  *
  */
 
+#include <memory>
+
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 
-#include "my_alloc.h"
-
-static Ndb_cluster_connection *ndb_cluster_connection= 0;
-static Ndb* ndb = 0;
-static const NdbDictionary::Dictionary * dic = 0;
 static int _fully_qualified = 0;
 static int _parsable = 0;
 static int show_temp_status = 0;
@@ -57,19 +54,17 @@ fatal(char const* fmt, ...)
     BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << buf;
-    if (ndb)
-      ndbout << " - " << ndb->getNdbError();
     ndbout << endl;
     NDBT_ProgramExit(NDBT_FAILED);
     exit(1);
 }
 
 static void
-fatal_dict(char const* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 1, 2);
+fatal(const NdbError ndberr, char const* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 2, 3);
 
 static void
-fatal_dict(char const* fmt, ...)
+fatal(const NdbError ndberr, char const* fmt, ...)
 {
     va_list ap;
     char buf[500];
@@ -77,16 +72,17 @@ fatal_dict(char const* fmt, ...)
     BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ndbout << buf;
-    if (dic)
-      ndbout << " - " << dic->getNdbError();
+    ndbout << " - " << ndberr;
     ndbout << endl;
     NDBT_ProgramExit(NDBT_FAILED);
     exit(1);
 }
 
 static void
-list(const char * tabname, 
-     NdbDictionary::Object::Type type)
+list(const NdbDictionary::Dictionary* dict,
+     const char * tabname,
+     NdbDictionary::Object::Type type,
+     const bool fully_qualified_names)
 {
     /**
      * Display fully qualified table names if --fully-qualified is set to 1.
@@ -102,15 +98,15 @@ list(const char * tabname,
 
     NdbDictionary::Dictionary::List list;
     if (tabname == 0) {
-	if (dic->listObjects(list, type, useFq) == -1)
-	    fatal_dict("listObjects");
+	if (dict->listObjects(list, type, useFq) == -1)
+	    fatal(dict->getNdbError(), "listObjects");
     } else {
-	if (dic->listIndexes(list, tabname, useFq) == -1)
-	    fatal_dict("listIndexes");
+	if (dict->listIndexes(list, tabname, useFq) == -1)
+	    fatal(dict->getNdbError(), "listIndexes");
     }
     if (!_parsable)
     {
-      if (ndb->usingFullyQualifiedNames())
+      if (fully_qualified_names)
       {
         if (show_temp_status)
           ndbout_c("%-5s %-20s %-8s %-7s %-4s %-12s %-8s %s", "id", "type", "state", "logging", "temp", "database", "schema", "name");
@@ -254,7 +250,7 @@ list(const char * tabname,
               }
           }
         }
-	if (ndb->usingFullyQualifiedNames())
+	if (fully_qualified_names)
         {
           if (_parsable)
           {
@@ -289,8 +285,9 @@ list(const char * tabname,
           }
         }
     }
-    if (_parsable)
+    if (_parsable) {
       exit(0);
+    }
 }
 
 static const char* _dbname = 0;
@@ -327,7 +324,7 @@ static void short_usage_sub(void)
   ndb_short_usage_sub("[table-name]");
 }
 
-int main(int argc, char** argv){
+int main(int argc, char** argv) {
   NDB_INIT(argv[0]);
   Ndb_opts opts(argc, argv, my_long_options);
   opts.set_usage_funcs(short_usage_sub);
@@ -349,49 +346,63 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  ndb_cluster_connection = new Ndb_cluster_connection(opt_ndb_connectstring,
-                                                      opt_ndb_nodeid);
-  if (ndb_cluster_connection == NULL)
+  std::unique_ptr<Ndb_cluster_connection>
+     ndb_cluster_connection{new(std::nothrow)
+       Ndb_cluster_connection(opt_ndb_connectstring, opt_ndb_nodeid)};
+
+  if (ndb_cluster_connection == nullptr) {
     fatal("Unable to create cluster connection");
+  }
 
   ndb_cluster_connection->set_name("ndb_show_tables");
-  if (ndb_cluster_connection->connect(opt_connect_retries - 1, opt_connect_retry_delay, 1))
+
+  if (ndb_cluster_connection->connect(opt_connect_retries - 1,
+                                      opt_connect_retry_delay, 1)) {
     fatal("Unable to connect to management server.\n - Error: '%d: %s'",
           ndb_cluster_connection->get_latest_error(),
           ndb_cluster_connection->get_latest_error_msg());
-  if (ndb_cluster_connection->wait_until_ready(30,0) < 0)
-    fatal("Cluster nodes not ready in 30 seconds.");
+  }
 
-  ndb = new Ndb(ndb_cluster_connection);
-  if (ndb->init() != 0)
-    fatal("init");
+  if (ndb_cluster_connection->wait_until_ready(30,0) < 0) {
+    fatal("Cluster nodes not ready in 30 seconds.");
+  }
+
+
+  std::unique_ptr<Ndb> ndb{new(std::nothrow)
+    Ndb(ndb_cluster_connection.get())};
+
+  if (ndb == nullptr) {
+    fatal("Unable to create Ndb object");
+  }
+
+  if (ndb->init() != 0) {
+    fatal(ndb->getNdbError(), "init");
+  }
+
   if (_dbname == 0 && _tabname != 0)
   {
     _dbname = "TEST_DB";
     using_default_database = true;
   }
   ndb->setDatabaseName(_dbname);
-  dic = ndb->getDictionary();
-  if( argc >0){
-    if(!dic->getTable(_tabname)){
-      if( using_default_database )
-      {
+  const NdbDictionary::Dictionary* dict = ndb->getDictionary();
+  if (argc >0) {
+    if (!dict->getTable(_tabname)) {
+      if (using_default_database) {
         ndbout << "Please specify database name using the -d option. "
                << "Use option --help for more details." << endl;
-      }
-      else
-      {
+      } else {
         ndbout << "Table " << _tabname << ": not found - "
-               << dic->getNdbError() << endl;
+               << dict->getNdbError() << endl;
       }
       return NDBT_ProgramExit(NDBT_FAILED);
     }
   }
   for (int i = 0; _loops == 0 || i < _loops; i++) {
-    list(_tabname, (NdbDictionary::Object::Type)_type);
+    list(dict, _tabname,
+         static_cast<NdbDictionary::Object::Type>(_type),
+         ndb->usingFullyQualifiedNames());
   }
-  delete ndb;
-  delete ndb_cluster_connection;
   return NDBT_ProgramExit(NDBT_OK);
 }
 
