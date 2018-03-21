@@ -65,17 +65,6 @@ extern volatile lsn_t backup_redo_log_flushed_lsn;
 /** TRUE when the redo log is being backed up */
 extern bool recv_is_making_a_backup;
 
-/** Reads the checkpoint info needed in hot backup.
-@param[in]	hdr		buffer containing the log group header
-@param[out]	lsn		checkpoint lsn
-@param[out]	offset		checkpoint offset in the log group
-@param[out]	cp_no		checkpoint number
-@param[out]	first_header_lsn lsn of of the start of the first log file
-@return true if success */
-bool meb_read_checkpoint_info(const byte *hdr, lsn_t *lsn, lsn_t *offset,
-                              lsn_t *cp_no, lsn_t *first_header_lsn)
-    MY_ATTRIBUTE((warn_unused_result));
-
 /** Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned.
 @param[in]	buf			buffer containing log data

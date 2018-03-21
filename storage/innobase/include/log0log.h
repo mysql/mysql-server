@@ -853,6 +853,7 @@ void log_buffer_x_lock_enter(log_t &log);
 /** Releases the log buffer x-lock.
 @param[in,out]	log	redo log */
 void log_buffer_x_lock_exit(log_t &log);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Calculates offset within log files, excluding headers of log files.
 @param[in]	log		redo log
@@ -872,6 +873,7 @@ for the provided lsn value.
 @param[in]	lsn	log sequence number
 @return real offset within the log files */
 uint64_t log_files_real_offset_for_lsn(const log_t &log, lsn_t lsn);
+#ifndef UNIV_HOTBACKUP
 
 /** Changes size of the log buffer. This is a thread-safe version.
 It is used by SET GLOBAL innodb_log_buffer_size = X.
