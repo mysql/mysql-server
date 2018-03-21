@@ -1615,7 +1615,11 @@ Uint32 nextPool; // ArrayPool
    *
    */
   struct ScanRecord {
+    STATIC_CONST( TYPE_ID = RT_DBTC_SCAN_RECORD );
     ScanRecord()
+    : m_magic(Magic::make(TYPE_ID)),
+      scanState(IDLE),
+      scanApiRec(RNIL)
     {
       NdbTick_Invalidate(&m_start_ticks);
     }
@@ -1683,6 +1687,7 @@ Uint32 nextPool; // ArrayPool
     };
 
     // State of this scan
+    Uint32 m_magic;
     ScanState scanState;
     Uint32 scanKeyInfoPtr;
     Uint32 scanAttrInfoPtr;
@@ -1701,9 +1706,6 @@ Uint32 nextPool; // ArrayPool
     
     // Total number of fragments in the table we are scanning
     Uint32 scanNoFrag;
-
-    // Index of next ScanRecords when in free list
-    Uint32 nextScan;
 
     // Length of expected attribute information
     Uint32 m_booked_fragments_count;
@@ -1758,6 +1760,7 @@ Uint32 nextPool; // ArrayPool
     NDB_TICKS m_start_ticks;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
+  typedef TransientPool<ScanRecord> ScanRecord_pool;
   
   /*************************************************************************>*/
   /*                     GLOBAL CHECKPOINT INFORMATION RECORD                */
@@ -2521,7 +2524,6 @@ private:
   LocalApiConnectRecord_api_fifo::Head capiConnectPREPARE_TO_COMMITList;
 
   LocalGcpRecord_list::Head c_gcpRecordList;
-  UintR cfirstfreeScanrec;
   UintR cConcScanCount;
   RSS_OP_SNAPSHOT(cConcScanCount);
 
@@ -2534,7 +2536,7 @@ private:
 
   ApiConnectRecordPtr timeOutptr;
 
-  ScanRecord *scanRecord;
+  ScanRecord_pool scanRecordPool;
   UintR cscanrecFileSize;
 
   ScanFragRec_pool c_scan_frag_pool;

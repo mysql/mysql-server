@@ -424,11 +424,13 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     ScanRecordPtr scanptr;
     scanptr.i = signal->theData[1];
-    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-    ApiConnectRecordPtr apiConnectptr;
-    apiConnectptr.i = scanptr.p->scanApiRec;
-    c_apiConnectRecordPool.getPtr(apiConnectptr);
-    sendDihGetNodesLab(signal, scanptr, apiConnectptr);
+    if (scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull())
+    {
+      ApiConnectRecordPtr apiConnectptr;
+      apiConnectptr.i = scanptr.p->scanApiRec;
+      c_apiConnectRecordPool.getPtr(apiConnectptr);
+      sendDihGetNodesLab(signal, scanptr, apiConnectptr);
+    }
     return;
   }
   case TcContinueB::ZSEND_FRAG_SCANS:
@@ -436,11 +438,13 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     ScanRecordPtr scanptr;
     scanptr.i = signal->theData[1];
-    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-    ApiConnectRecordPtr apiConnectptr;
-    apiConnectptr.i = scanptr.p->scanApiRec;
-    c_apiConnectRecordPool.getPtr(apiConnectptr);
-    sendFragScansLab(signal, scanptr, apiConnectptr);
+    if (scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull())
+    {
+      ApiConnectRecordPtr apiConnectptr;
+      apiConnectptr.i = scanptr.p->scanApiRec;
+      c_apiConnectRecordPool.getPtr(apiConnectptr);
+      sendFragScansLab(signal, scanptr, apiConnectptr);
+    }
     return;
   }
 #ifdef ERROR_INSERT
@@ -1436,10 +1440,12 @@ bool Dbtc::handleFailedApiConnection(Signal *signal,
 
     set_api_fail_state(TapiFailedNode, apiNodeFailed, apiConnectptr.p);
 
-    ScanRecordPtr scanPtr;
-    scanPtr.i = apiConnectptr.p->apiScanRec;
-    ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
-    close_scan_req(signal, scanPtr, true, apiConnectptr);
+    ScanRecordPtr scanptr;
+    scanptr.i = apiConnectptr.p->apiScanRec;
+    ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
+    {
+      close_scan_req(signal, scanptr, true, apiConnectptr);
+    }
 
     (*TloopCount) += 64;
     break;
@@ -9303,10 +9309,12 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
       return;
     }//if
     
-    ScanRecordPtr scanPtr;
-    scanPtr.i = apiConnectptr.p->apiScanRec;
-    ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
-    scanError(signal, scanPtr, ZSCANTIME_OUT_ERROR);
+    ScanRecordPtr scanptr;
+    scanptr.i = apiConnectptr.p->apiScanRec;
+    ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
+    {
+      scanError(signal, scanptr, ZSCANTIME_OUT_ERROR);
+    }
     break;
   }
   case CS_WAIT_ABORT_CONF:
@@ -9710,7 +9718,10 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
 
   ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+  if (!scanRecordPool.getValidPtr(scanptr) || scanptr.isNull())
+  {
+    return;
+  }
 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
@@ -9758,13 +9769,13 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   {
     ScanRecordPtr scanptr;
     scanptr.i = ptr.p->scanRec;
-    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
     ApiConnectRecordPtr TlocalApiConnectptr;
     TlocalApiConnectptr.i = scanptr.p->scanApiRec;
     c_apiConnectRecordPool.getPtr(TlocalApiConnectptr);
 
     DEBUG("[ H'" << hex << TlocalApiConnectptr.p->transid[0]
-	<< " H'" << TlocalApiConnectptr.p->transid[1] << "] "
+        << " H'" << TlocalApiConnectptr.p->transid[1] << "] "
         << TscanConPtr << " timeOutFoundFragLab: scanFragState = "
         << ptr.p->scanFragState);
   }
@@ -9779,7 +9790,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     jam();
     ScanRecordPtr scanptr;
     scanptr.i = ptr.p->scanRec;
-    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
     ApiConnectRecordPtr TlocalApiConnectptr;
     TlocalApiConnectptr.i = scanptr.p->scanApiRec;
     c_apiConnectRecordPool.getPtr(TlocalApiConnectptr);
@@ -9826,8 +9837,10 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     Uint32 connectCount = getNodeInfo(nodeId).m_connectCount;
     ScanRecordPtr scanptr;
     scanptr.i = ptr.p->scanRec;
-    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-
+    if (!scanRecordPool.getValidPtr(scanptr) || scanptr.isNull())
+    {
+      break;
+    }
     if(connectCount != ptr.p->m_connectCount){
       jam();
       /**
@@ -10309,10 +10322,17 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
                                       Uint32 failedNodeId)
 {
   ScanRecordPtr scanptr;
-  for (scanptr.i = scanPtrI; scanptr.i < cscanrecFileSize; scanptr.i++)
+  while (scanPtrI != RNIL)
   {
     jam();
-    ptrAss(scanptr, scanRecord);
+    if (scanRecordPool.getUncheckedPtrs(&scanPtrI, &scanptr, 1) == 0)
+    {
+      continue;
+    }
+    if (!Magic::match(scanptr.p->m_magic, ScanRecord::TYPE_ID))
+    {
+      continue;
+    }
     bool found = false;
     if (scanptr.p->scanState != ScanRecord::IDLE)
     {
@@ -10377,7 +10397,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
 
     // Send CONTINUEB to continue later
     signal->theData[0] = TcContinueB::ZCHECK_SCAN_ACTIVE_FAILED_LQH;
-    signal->theData[1] = scanptr.i + 1; // Check next scanptr
+    signal->theData[1] = scanPtrI; // Check next scanptr
     signal->theData[2] = failedNodeId;
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
     return;
@@ -12874,7 +12894,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   if ((aiLength == 0) ||
       (!tabptr.p->checkTable(schemaVersion)) ||
       (scanConcurrency == 0) ||
-      (cfirstfreeScanrec == RNIL)) {
+      (cConcScanCount == cscanrecFileSize))
+  {
     goto SCAN_error_check;
   }
   if (buddyPtr != RNIL) {
@@ -13008,7 +13029,6 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
     errCode = ZNO_CONCURRENCY_ERROR;
     goto SCAN_TAB_error;
   }//if
-  ndbrequire(cfirstfreeScanrec == RNIL);
   ndbrequire(cConcScanCount == cscanrecFileSize);
   jam();
   errCode = ZNO_SCANREC_ERROR;
@@ -13195,19 +13215,20 @@ void Dbtc::scanKeyinfoLab(Signal* signal, CacheRecord * const regCachePtr, ApiCo
     ndbrequire(apiConnectptr.p->apiScanRec != RNIL);
     ScanRecordPtr scanPtr;
     scanPtr.i = apiConnectptr.p->apiScanRec;
-    ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
-    abortScanLab(signal, 
-                 scanPtr,
-                 ZGET_DATAREC_ERROR, 
-                 true /* Not started */,
-                 apiConnectptr);
-    
-    /* Prepare for up coming ATTRINFO/KEYINFO */
-    apiConnectptr.p->apiConnectstate = CS_ABORTING;
-    apiConnectptr.p->abortState = AS_IDLE;
-    apiConnectptr.p->transid[0] = transid0;
-    apiConnectptr.p->transid[1] = transid1;
+    if (scanRecordPool.getValidPtr(scanPtr) && !scanPtr.isNull())
+    {
+      abortScanLab(signal, 
+                   scanPtr,
+                   ZGET_DATAREC_ERROR, 
+                   true /* Not started */,
+                   apiConnectptr);
 
+      /* Prepare for up coming ATTRINFO/KEYINFO */
+      apiConnectptr.p->apiConnectstate = CS_ABORTING;
+      apiConnectptr.p->abortState = AS_IDLE;
+      apiConnectptr.p->transid[0] = transid0;
+      apiConnectptr.p->transid[1] = transid1;
+    }
     return;
   }
 
@@ -13238,7 +13259,7 @@ void Dbtc::scanAttrinfoLab(Signal* signal, UintR Tlen, ApiConnectRecordPtr const
 {
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+  ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
   CacheRecordPtr cachePtr;
   cachePtr.i = apiConnectptr.p->cachePtr;
   c_cacheRecordPool.getPtr(cachePtr);
@@ -13670,10 +13691,7 @@ void Dbtc::releaseScanResources(Signal* signal,
   }
     
   // link into free list
-  scanPtr.p->nextScan = cfirstfreeScanrec;
-  scanPtr.p->scanState = ScanRecord::IDLE;
-  scanPtr.p->scanApiRec = RNIL;
-  cfirstfreeScanrec = scanPtr.i;
+  scanRecordPool.release(scanPtr);
   ndbassert(cConcScanCount > 0);
   cConcScanCount--;
   
@@ -14064,7 +14082,7 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
 
   ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+  ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
@@ -14162,7 +14180,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
   
   ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+  ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
   
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = scanptr.p->scanApiRec;
@@ -14349,7 +14367,7 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   setApiConTimer(apiConnectptr, 0, __LINE__);
   ScanRecordPtr scanptr;
   scanptr.i = apiConnectptr.p->apiScanRec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+  ndbrequire(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull());
   ScanRecord* scanP = scanptr.p;
 
   /* Copy ReceiverIds to working space past end of signal
@@ -14645,10 +14663,8 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr, ApiConnect
 Dbtc::ScanRecordPtr
 Dbtc::seizeScanrec(Signal* signal) {
   ScanRecordPtr scanptr;
-  scanptr.i = cfirstfreeScanrec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-  cfirstfreeScanrec = scanptr.p->nextScan;
-  scanptr.p->nextScan = RNIL;
+  ndbrequire(cConcScanCount < cscanrecFileSize);
+  ndbrequire(scanRecordPool.seize(scanptr));
   cConcScanCount++;
   ndbrequire(scanptr.p->scanState == ScanRecord::IDLE);
   return scanptr;
@@ -15228,21 +15244,7 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0,
 /* ========================================================================= */
 void Dbtc::initialiseScanrec(Signal* signal) 
 {
-  ScanRecordPtr scanptr;
   ndbrequire(cscanrecFileSize > 0);
-  for (scanptr.i = 0; scanptr.i < cscanrecFileSize; scanptr.i++) {
-    refresh_watch_dog();
-    jam();
-    ptrAss(scanptr, scanRecord);
-    new (scanptr.p) ScanRecord();
-    scanptr.p->scanState = ScanRecord::IDLE;
-    scanptr.p->scanApiRec = RNIL;
-    scanptr.p->nextScan = scanptr.i + 1;
-  }//for
-  scanptr.i = cscanrecFileSize - 1;
-  ptrAss(scanptr, scanRecord);
-  scanptr.p->nextScan = RNIL;
-  cfirstfreeScanrec = 0;
   cConcScanCount = 0;
 }//Dbtc::initialiseScanrec()
 
@@ -15796,22 +15798,28 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-    ScanRecordPtr sp;
-    sp.i = recordNo;
-    ptrAss(sp, scanRecord);
-    if (sp.p->scanState != ScanRecord::IDLE ||
-        !includeOnlyActive)
+    for (; numRecords > 0 && recordNo != RNIL; numRecords--)
     {
-      dumpState->args[0] = DumpStateOrd::TcDumpOneScanRec;
-      dumpState->args[1] = recordNo;
-      dumpState->args[2] = instance();
-      signal->setLength(3);
-      execDUMP_STATE_ORD(signal);
+      ScanRecordPtr sp;
+      if (scanRecordPool.getUncheckedPtrs(&recordNo, &sp, 1) != 1)
+      {
+        continue;
+      }
+      if (!Magic::match(sp.p->m_magic, ScanRecord::TYPE_ID))
+      {
+        continue;
+      }
+      if (sp.p->scanState != ScanRecord::IDLE ||
+          !includeOnlyActive)
+      {
+        dumpState->args[0] = DumpStateOrd::TcDumpOneScanRec;
+        dumpState->args[1] = recordNo;
+        dumpState->args[2] = instance();
+        signal->setLength(3);
+        execDUMP_STATE_ORD(signal);
+      }
     }
-    
-    numRecords--;
-    recordNo++;
-    if (recordNo < cscanrecFileSize && numRecords > 0)
+    if (recordNo != RNIL && numRecords > 0)
     {
       dumpState->args[0] = DumpStateOrd::TcDumpSetOfScanRec;
       dumpState->args[1] = recordNo;
@@ -15850,14 +15858,16 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       return;
     }
-    if (recordNo >= cscanrecFileSize)
+    if (recordNo == RNIL)
+    {
+      return;
+    }
+    ScanRecordPtr sp;
+    if (scanRecordPool.getUncheckedPtrs(&recordNo, &sp, 1) != 1)
     {
       return;
     }
 
-    ScanRecordPtr sp;
-    sp.i = recordNo;
-    ptrAss(sp, scanRecord);
     infoEvent("Dbtc::ScanRecord[%d]: state=%d, "
 	      "nextfrag=%d, nofrag=%d",
 	      sp.i,
@@ -15872,8 +15882,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 	      sp.p->scanSchemaVersion,
 	      sp.p->scanTableref,
 	      sp.p->scanStoredProcId);
-    infoEvent(" apiRec=%d, next=%d",
-	      sp.p->scanApiRec, sp.p->nextScan);
+    infoEvent(" apiRec=%d",
+              sp.p->scanApiRec);
 
     if (sp.p->scanState != ScanRecord::IDLE){
       // Request dump of ScanFragRec
@@ -20165,12 +20175,14 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
 
   SegmentedSectionGuard guard(this, attrValuesPtrI);
 
-  if (unlikely(cfirstfreeScanrec == RNIL))
+  if (unlikely(cConcScanCount == cscanrecFileSize))
   {
     jam();
     abortTransFromTrigger(signal, *transPtr, ZNO_SCANREC_ERROR);
     return;
   }
+// TODO the above condition is not enough to ensure scanrec later, something else may take trans.mem
+// TODO seizeScanrec, if fail fail
 
   // TODO check against MaxDMLOperationsPerTransaction (not for failover?)
   if (unlikely(!tcConnectRecord.seize(tcConnectptr)))

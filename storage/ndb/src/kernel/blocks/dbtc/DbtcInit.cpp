@@ -94,18 +94,6 @@ void Dbtc::initRecords()
 					  sizeof(TableRecord),
 					  ctabrecFilesize);
 
-  scanRecord = (ScanRecord*)allocRecord("ScanRecord",
-					sizeof(ScanRecord),
-					cscanrecFileSize);
-
-  for (Uint32 i = 0; i < cscanrecFileSize; i++)
-  {
-    ScanRecordPtr ptr;
-    ptr.i = i;
-    ptrAss(ptr, scanRecord);
-    new (ptr.p) ScanRecord();
-  }
-  
   Pool_context pc;
   pc.m_block = this;
   c_scan_frag_pool.init(RT_DBTC_SCAN_FRAGMENT, pc, 0, UINT32_MAX);
@@ -126,6 +114,7 @@ void Dbtc::initRecords()
   c_theCommitAckMarkerBufferPool.init(RT_DBTC_COMMIT_ACK_MARKER_BUFFER, pc, 0, UINT32_MAX);
   c_theAttributeBufferPool.init(RT_DBTC_ATTRIBUTE_BUFFER, pc, 0, UINT32_MAX);
   c_apiConnectRecordPool.init(ApiConnectRecord::TYPE_ID, pc, 0, UINT32_MAX);
+  scanRecordPool.init(ScanRecord::TYPE_ID, pc, 0, UINT32_MAX);
 }//Dbtc::initRecords()
 
 bool
@@ -280,14 +269,12 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
 
   hostRecord = 0;
   tableRecord = 0;
-  scanRecord = 0;
   tcFailRecord = 0;
   cpackedListIndex = 0;
   c_ongoing_take_over_cnt = 0;
 
   hostRecord = 0;
   tableRecord = 0;
-  scanRecord = 0;
   tcFailRecord = 0;
   m_deferred_enabled = ~Uint32(0);
   m_max_writes_per_trans = ~Uint32(0);
@@ -305,10 +292,6 @@ Dbtc::~Dbtc()
 		sizeof(TableRecord),
 		ctabrecFilesize);
   
-  deallocRecord((void **)&scanRecord, "ScanRecord",
-		sizeof(ScanRecord),
-		cscanrecFileSize);
-    
   deallocRecord((void **)&tcFailRecord, "TcFailRecord",
 		sizeof(TcFailRecord), 1);
   
