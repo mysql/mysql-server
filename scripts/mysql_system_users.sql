@@ -28,7 +28,7 @@
 
 -- Create an user that is used by plugins.
 CREATE USER 'mysql.session'@localhost IDENTIFIED WITH caching_sha2_password
- AS '$A$001$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED'
+ AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED'
  ACCOUNT LOCK;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.session'@localhost;
 GRANT SELECT ON mysql.user TO 'mysql.session'@localhost;
@@ -37,7 +37,7 @@ GRANT SUPER ON *.* TO 'mysql.session'@localhost;
 
 -- Create an user that is definer for information_schema view
 CREATE USER 'mysql.infoschema'@localhost IDENTIFIED WITH caching_sha2_password
- AS '$A$001$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED'
+ AS '$A$005$THISISACOMBINATIONOFINVALIDSALTANDPASSWORDTHATMUSTNEVERBRBEUSED'
  ACCOUNT LOCK;
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'mysql.infoschema'@localhost;
 GRANT SELECT ON *.* TO 'mysql.infoschema'@localhost;
