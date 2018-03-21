@@ -1,3 +1,6 @@
+--source include/have_ndb.inc
+--source have_ndb_error_insert.inc
+
 call mtr.add_suppression("Failed to release global schema lock");
 
 create table t (x int primary key, y int) engine ndbcluster partition by key() partitions 4;
