@@ -132,7 +132,7 @@ SELECT COUNT(*) FROM ndb$tables t, ndb$columns c
   WHERE t.table_id = c.table_id AND
     t.table_id in (1,2,3,4,5,6);
 COUNT(*)
-47
+49
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
