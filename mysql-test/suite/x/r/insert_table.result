@@ -124,7 +124,7 @@ send Mysqlx.Crud.Insert {
       type: LITERAL
       literal {
         type: V_FLOAT
-        v_float: 0.33333334
+        v_float: 0.333333
       }
     }
     field {
@@ -299,7 +299,7 @@ send Mysqlx.Crud.Insert {
       type: LITERAL
       literal {
         type: V_FLOAT
-        v_float: 0.33333334
+        v_float: 0.333333
       }
     }
     field {
@@ -406,7 +406,7 @@ send Mysqlx.Crud.Insert {
       type: LITERAL
       literal {
         type: V_FLOAT
-        v_float: 0.33333334
+        v_float: 0.333333
       }
     }
     field {
