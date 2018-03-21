@@ -268,7 +268,7 @@ columns	CREATE TABLE `columns` (
 SHOW CREATE TABLE mysql.dd_properties;
 Table	Create Table
 dd_properties	CREATE TABLE `dd_properties` (
-  `properties` mediumtext COLLATE utf8_bin
+  `properties` mediumblob
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE mysql.events;
 Table	Create Table
