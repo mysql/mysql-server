@@ -141,7 +141,7 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx)
     : m_thd(thd),
       m_reset_lex(RESET_LEX),
       m_prev_attachable_trx(prev_trx),
-      m_trx_state(&thd->main_mem_root) {
+      m_trx_state() {
   init();
 }
 
@@ -150,7 +150,7 @@ THD::Attachable_trx::Attachable_trx(THD *thd, Attachable_trx *prev_trx,
     : m_thd(thd),
       m_reset_lex(reset_lex),
       m_prev_attachable_trx(prev_trx),
-      m_trx_state(&thd->main_mem_root) {
+      m_trx_state() {
   init();
 }
 
@@ -2704,9 +2704,11 @@ void add_order_to_list(THD *thd, ORDER *order) {
   thd->lex->select_lex->add_order_to_list(order);
 }
 
-THD::Transaction_state::Transaction_state(MEM_ROOT *root)
-    : m_query_tables_list(new (root) Query_tables_list),
+THD::Transaction_state::Transaction_state()
+    : m_query_tables_list(new Query_tables_list()),
       m_ha_data(PSI_NOT_INSTRUMENTED, m_ha_data.initial_capacity) {}
+
+THD::Transaction_state::~Transaction_state() { delete m_query_tables_list; }
 
 void THD::change_item_tree(Item **place, Item *new_value) {
   /* TODO: check for OOM condition here */

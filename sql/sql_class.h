@@ -1518,7 +1518,8 @@ class THD : public MDL_context_owner,
 
   /** An utility struct for @c Attachable_trx */
   struct Transaction_state {
-    Transaction_state(MEM_ROOT *root);
+    Transaction_state();
+    ~Transaction_state();
     void backup(THD *thd);
     void restore(THD *thd);
 
