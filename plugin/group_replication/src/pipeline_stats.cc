@@ -269,19 +269,19 @@ void Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
     switch (payload_item_type) {
       case PIT_TRANSACTIONS_NEGATIVE_CERTIFIED:
         if (slider + payload_item_length <= end) {
-          uint64 transactions_negative_certified_aux = *slider;
+          uint64 transactions_negative_certified_aux = uint8korr(slider);
           slider += payload_item_length;
           m_transactions_negative_certified =
-              (int64)transactions_negative_certified_aux;
+              static_cast<int64>(transactions_negative_certified_aux);
         }
         break;
 
       case PIT_TRANSACTIONS_ROWS_VALIDATING:
         if (slider + payload_item_length <= end) {
-          uint64 transactions_rows_validating_aux = *slider;
+          uint64 transactions_rows_validating_aux = uint8korr(slider);
           slider += payload_item_length;
           m_transactions_rows_validating =
-              (int64)transactions_rows_validating_aux;
+              static_cast<int64>(transactions_rows_validating_aux);
         }
         break;
 
@@ -303,10 +303,10 @@ void Pipeline_stats_member_message::decode_payload(const unsigned char *buffer,
 
       case PIT_TRANSACTIONS_LOCAL_ROLLBACK:
         if (slider + payload_item_length <= end) {
-          uint64 transactions_local_rollback_aux = *slider;
+          uint64 transactions_local_rollback_aux = uint8korr(slider);
           slider += payload_item_length;
           m_transactions_local_rollback =
-              (int64)transactions_local_rollback_aux;
+              static_cast<int64>(transactions_local_rollback_aux);
         }
         break;
 
