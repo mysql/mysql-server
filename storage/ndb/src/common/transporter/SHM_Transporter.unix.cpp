@@ -27,6 +27,15 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
+
 void SHM_Transporter::make_error_info(char info[], int sz)
 {
   snprintf(info,sz,"Shm key=%d sz=%d id=%d",
@@ -44,10 +53,16 @@ SHM_Transporter::ndb_shm_create()
   shmId = shmget(shmKey, shmSize, IPC_CREAT | 960);
   if (shmId == -1)
   {
-    perror("shmget: ");
+    DEBUG_FPRINTF((stderr, "(%u)shmget(IPC_CREAT)(%u) failed LINE:%d,shmId:%d,"
+                           " errno %d(%s)\n",
+                   localNodeId,
+                   remoteNodeId,
+                   __LINE__,
+                   shmId,
+                   errno,
+                   strerror(errno)));
     return false;
   }
-  _shmSegCreated = true;
   return true;
 }
 
@@ -57,7 +72,14 @@ SHM_Transporter::ndb_shm_get()
   shmId = shmget(shmKey, shmSize, 0);
   if (shmId == -1)
   {
-    perror("shmget: ");
+    DEBUG_FPRINTF((stderr, "(%u)shmget(0)(%u) failed LINE:%d, shmId:%d,"
+                           " errno %d(%s)\n",
+                   localNodeId,
+                   remoteNodeId,
+                   __LINE__,
+                   shmId,
+                   errno,
+                   strerror(errno)));
     return false;
   }
   return true;
@@ -66,11 +88,20 @@ SHM_Transporter::ndb_shm_get()
 bool
 SHM_Transporter::ndb_shm_attach()
 {
+  assert(shmBuf == 0);
   shmBuf = (char *)shmat(shmId, 0, 0);
   if (shmBuf == 0)
   {
-    perror("shmat: ");
-    shmctl(shmId, IPC_RMID, 0);
+    DEBUG_FPRINTF((stderr, "(%u)shmat(%u) failed LINE:%d, shmId:%d,"
+                           " errno %d(%s)\n",
+                   localNodeId,
+                   remoteNodeId,
+                   __LINE__,
+                   shmId,
+                   errno,
+                   strerror(errno)));
+    if (isServer)
+      shmctl(shmId, IPC_RMID, 0);
     _shmSegCreated = false;
     return false;
   }
@@ -92,7 +123,14 @@ SHM_Transporter::ndb_shm_destroy()
   const int res = shmctl(shmId, IPC_RMID, 0);
   if(res == -1)
   {
-    perror("shmctl: ");
+    DEBUG_FPRINTF((stderr, "(%u)shmctl(IPC_RMID)(%u) failed LINE:%d, shmId:%d,"
+                           " errno %d(%s)\n",
+                   localNodeId,
+                   remoteNodeId,
+                   __LINE__,
+                   shmId,
+                   errno,
+                   strerror(errno)));
     return;
   }
   _shmSegCreated = false;
@@ -105,29 +143,23 @@ SHM_Transporter::checkConnected()
   const int res = shmctl(shmId, IPC_STAT, &info);
   if (res == -1)
   {
-    char buf[128];
-    int r= snprintf(buf, sizeof(buf),
-                    "shmctl(%d, IPC_STAT) errno: %d(%s). ", shmId,
-                     errno, strerror(errno));
-    make_error_info(buf+r, sizeof(buf)-r);
-    DBUG_PRINT("error",("%s", buf));
-    switch (errno)
-    {
-    case EACCES:
-      report_error(TE_SHM_IPC_PERMANENT, buf);
-      break;
-    default:
-      report_error(TE_SHM_IPC_STAT, buf);
-      break;
-    }
+    DEBUG_FPRINTF((stderr, "(%u)checkConnected(%u) failed LINE:%d, shmId:%d,"
+                           " errno %d(%s)\n",
+                   localNodeId,
+                   remoteNodeId,
+                   __LINE__,
+                   shmId,
+                   errno,
+                   strerror(errno)));
     return false;
   }
  
   if (info.shm_nattch != 2)
   {
-    char buf[128];
-    make_error_info(buf, sizeof(buf));
-    report_error(TE_SHM_DISCONNECT);
+    DEBUG_FPRINTF((stderr, "(%u)checkConnected(%u) failed LINE:%d, nattch != 2",
+                   localNodeId,
+                   remoteNodeId,
+                   __LINE__));
     DBUG_PRINT("error", ("Already connected to node %d",
                 remoteNodeId));
     return false;
@@ -136,45 +168,105 @@ SHM_Transporter::checkConnected()
 }
 
 void
-SHM_Transporter::disconnectImpl()
+SHM_Transporter::detach_shm(bool rep_error)
 {
-  setupBuffersUndone();
   if (_attached)
   {
     struct shmid_ds info;
     const int ret_val = shmctl(shmId, IPC_STAT, &info);
     if (ret_val != -1)
     {
-      if (info.shm_nattch == 1)
+      if (info.shm_nattch > 0)
       {
-        remove_mutexes();
+        /**
+         * Ensure that the last process to detach from the
+         * shared memory is the one that removes the mutexes.
+         * This ensures that we synchronize the removal of the
+         * mutexes and ensures also that we will destroy the
+         * mutexes before we detach the last shared memory user.
+         */
+        NdbMutex_Lock(serverMutex);
+        if (isServer)
+        {
+          * serverUpFlag = 0;
+        }
+        else
+        {
+          * clientUpFlag = 0;
+        }
+        bool last = (*serverUpFlag == 0 && clientUpFlag == 0);
+        NdbMutex_Unlock(serverMutex);
+        if (last)
+        {
+          remove_mutexes();
+        }
       }
     }
     const int res = shmdt(shmBuf);
     if(res == -1)
     {
-      perror("shmdelete: ");
-      return;
+      DEBUG_FPRINTF((stderr, "(%u)shmdt(%u) failed LINE:%d, shmId:%d,"
+                             " errno %d(%s)\n",
+                     localNodeId,
+                     remoteNodeId,
+                     __LINE__,
+                     shmId,
+                     errno,
+                     strerror(errno)));
+      if (rep_error)
+        report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
     }
     _attached = false;
+    DEBUG_FPRINTF((stderr, "(%u)shmdt(%d)\n",
+                   localNodeId, remoteNodeId));
   }
-  disconnect_socket();
   
   if (isServer && _shmSegCreated)
   {
     /**
      * Normally should not happen.
      */
-    assert(false);
+    assert(!rep_error);
     const int res = shmctl(shmId, IPC_RMID, 0);
     if(res == -1)
     {
-      char buf[64];
-      make_error_info(buf, sizeof(buf));
-      report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
-      return;
+      DEBUG_FPRINTF((stderr, "(%u)shmctl(IPC_RMID)(%u) failed LINE:%d,"
+                             " shmId:%d, errno %d(%s)\n",
+                     localNodeId,
+                     remoteNodeId,
+                     __LINE__,
+                     shmId,
+                     errno,
+                     strerror(errno)));
+      if (rep_error)
+        report_error(TE_SHM_UNABLE_TO_REMOVE_SEGMENT);
     }
-    _shmSegCreated = false;
+    DEBUG_FPRINTF((stderr, "(%u)shmctl(IPC_RMID)(%d)\n",
+                   localNodeId, remoteNodeId));
   }
-  setupBuffersDone=false;
+  _shmSegCreated = false;
+  if (reader != 0)
+  {
+    DEBUG_FPRINTF((stderr, "(%u)detach_shm(%u) LINE:%d",
+                   localNodeId, __LINE__, remoteNodeId));
+    reader->~SHM_Reader();
+    writer->~SHM_Writer();
+    shmBuf = 0;
+    reader = 0;
+    writer = 0;
+  }
+  else
+  {
+    DEBUG_FPRINTF((stderr, "(%u)reader==0(%u) LINE:%d",
+                   localNodeId, __LINE__, remoteNodeId));
+  }
+}
+
+void
+SHM_Transporter::disconnectImpl()
+{
+  DEBUG_FPRINTF((stderr, "(%u)disconnectImpl(%d)\n",
+                 localNodeId, remoteNodeId));
+  disconnect_socket();
+  setupBuffersUndone();
 }

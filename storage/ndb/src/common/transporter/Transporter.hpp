@@ -201,6 +201,8 @@ private:
   virtual bool send_is_possible(int timeout_millisec) const = 0;
   virtual bool send_limit_reached(int bufsize) = 0;
 
+  void update_connect_state(bool connected);
+
 protected:
   Uint32 m_os_max_iovec;
   Uint32 m_timeOutMillis;
