@@ -1,3 +1,6 @@
+# Disable test for WolfSSL: Bug #27731060 2018-03-22 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
+--source include/have_openssl.inc
+
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
