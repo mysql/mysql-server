@@ -18040,6 +18040,10 @@ ER_ENDING_INIT
 
 ER_IB_MSG_1272
   eng "Cannot boot server version %lu on data directory built by version %lu. Downgrade is not supported"
+
+ER_SERVER_SHUTDOWN_INFO
+  eng "Received SHUTDOWN from user %s. Shutting down mysqld (Version: %s)."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
