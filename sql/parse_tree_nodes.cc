@@ -1451,15 +1451,6 @@ bool PT_column_def::contextualize(Table_ddl_parse_context *pc) {
 }
 
 Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
-  auto release_locks_guard = create_scope_guard([thd]() {
-    // While contextualizing column definitions, we may end up taking MDL locks
-    // on spatial reference system objects in order to check that the provided
-    // SRID exists if a column with the SRID attribute was given. If an error
-    // occures, we need to release these locks explicitly since there are no
-    // other mechanisms at any higher level that does this for us.
-    thd->mdl_context.release_transactional_locks();
-  });
-
   LEX *const lex = thd->lex;
 
   lex->sql_command = SQLCOM_CREATE_TABLE;
@@ -1578,7 +1569,6 @@ Sql_cmd *PT_create_table_stmt::make_cmd(THD *thd) {
   }
   create_table_set_open_action_and_adjust_tables(lex);
 
-  release_locks_guard.commit();
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_create_table(&m_alter_info, qe_tables);
 }
@@ -1874,15 +1864,6 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd) {
   if (init_alter_table_stmt(&pc, m_table_name, m_algo, m_lock, m_validation))
     return NULL;
 
-  auto release_locks_guard = create_scope_guard([thd]() {
-    // While contextualizing column definitions, we may end up taking MDL locks
-    // on spatial reference system objects in order to check that the provided
-    // SRID exists if a column with the SRID attribute was given. If an error
-    // occures, we need to release these locks explicitly since there are no
-    // other mechanisms at any higher level that does this for us.
-    thd->mdl_context.release_transactional_locks();
-  });
-
   if (m_opt_actions) {
     /*
       Move RENAME TO <table_name> clauses to the head of array, so they are
@@ -1907,7 +1888,6 @@ Sql_cmd *PT_alter_table_stmt::make_cmd(THD *thd) {
     pc.create_info->used_fields &= ~HA_CREATE_USED_ENGINE;
   }
 
-  release_locks_guard.commit();
   thd->lex->alter_info = &m_alter_info;
   return new (thd->mem_root) Sql_cmd_alter_table(&m_alter_info);
 }

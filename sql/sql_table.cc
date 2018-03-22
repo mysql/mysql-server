@@ -138,7 +138,8 @@
 #include "sql/sql_tablespace.h"  // validate_tablespace_name
 #include "sql/sql_time.h"        // make_truncated_value_warning
 #include "sql/sql_trigger.h"     // change_trigger_table_name
-#include "sql/strfunc.h"         // find_type2
+#include "sql/srs_fetcher.h"
+#include "sql/strfunc.h"  // find_type2
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
@@ -4017,6 +4018,21 @@ bool prepare_create_field(THD *thd, HA_CREATE_INFO *create_info,
                               &sql_field->comment.length, COLUMN_COMMENT_MAXLEN,
                               ER_TOO_LONG_FIELD_COMMENT, sql_field->field_name))
     DBUG_RETURN(true);
+
+  // If this column has an SRID specified, check if the SRID actually exists
+  // in the data dictionary.
+  if (sql_field->m_srid.has_value() && sql_field->m_srid.value() != 0) {
+    bool exists = false;
+    if (Srs_fetcher::srs_exists(thd, sql_field->m_srid.value(), &exists)) {
+      // An error has already been raised
+      DBUG_RETURN(true); /* purecov: deadcode */
+    }
+
+    if (!exists) {
+      my_error(ER_SRS_NOT_FOUND, MYF(0), sql_field->m_srid.value());
+      DBUG_RETURN(true);
+    }
+  }
 
   /* Check if we have used the same field name before */
   Create_field *dup_field;

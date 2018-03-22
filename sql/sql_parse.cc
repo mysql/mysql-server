@@ -152,8 +152,7 @@
 #include "sql/sql_test.h"           // mysql_print_status
 #include "sql/sql_trigger.h"        // add_table_for_trigger
 #include "sql/sql_udf.h"
-#include "sql/sql_view.h"  // mysql_create_view
-#include "sql/srs_fetcher.h"
+#include "sql/sql_view.h"          // mysql_create_view
 #include "sql/system_variables.h"  // System_status_var
 #include "sql/table.h"
 #include "sql/table_cache.h"  // table_cache_manager
@@ -5147,22 +5146,6 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
   if (type != MYSQL_TYPE_GEOMETRY && srid.has_value()) {
     my_error(ER_WRONG_USAGE, MYF(0), "SRID", "non-geometry column");
     DBUG_RETURN(true);
-  }
-
-  // Check if the spatial reference system exists
-  if (srid.has_value() && srid.value() != 0) {
-    Srs_fetcher fetcher(thd);
-    const dd::Spatial_reference_system *srs = nullptr;
-    dd::cache::Dictionary_client::Auto_releaser m_releaser(thd->dd_client());
-    if (fetcher.acquire(srid.value(), &srs)) {
-      // An error has already been raised
-      DBUG_RETURN(true); /* purecov: deadcode */
-    }
-
-    if (srs == nullptr) {
-      my_error(ER_SRS_NOT_FOUND, MYF(0), srid.value());
-      DBUG_RETURN(true);
-    }
   }
 
   if (!(new_field = new (*THR_MALLOC) Create_field()) ||
