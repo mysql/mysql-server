@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -269,10 +269,9 @@ my_long_options[] =
    "Username to log into MySQL Server",
    (uchar**) &opt_user, (uchar**) &opt_user, 0, GET_STR,
    OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"passwd", 'p',
+  {"password", 'p',
    "Password to log into MySQL Server (default is NULL)",
-   (uchar**) &opt_password, (uchar**) &opt_password, 0, GET_STR,
-   OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_PASSWORD, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"node_id", 'n',
    "Node id of data node to watch",
    &opt_node_id, &opt_node_id, 0, GET_UINT,
