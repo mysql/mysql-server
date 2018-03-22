@@ -418,9 +418,9 @@ public:
                                   const dd::Table *old_table_def,
                                   dd::Table *new_table_def) override;
 
-  void notify_table_changed(Alter_inplace_info *ha_alter_info) override;
+  void notify_table_changed(Alter_inplace_info *alter_info) override;
 
-private:
+ private:
   void prepare_inplace__drop_index(uint key_num);
   int inplace__final_drop_index(TABLE *table_arg);
 
@@ -766,6 +766,7 @@ private:
                    uint part_id= ~(uint)0);
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
   int rename_table_impl(THD* thd, Ndb* ndb,
+                        class Ndb_schema_dist_client& schema_dist_client,
                         const NdbDictionary::Table* orig_tab,
                         dd::Table* to_table_def,
                         const char* from, const char* to,

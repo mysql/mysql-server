@@ -328,6 +328,12 @@ USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 CREATE DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz1234;
 
+# Suppress error log messages triggered by failure to distribute in
+# the above tests
+-- disable_query_log ONCE
+call mtr.add_suppression("Failed to distribute");
+
+
 #
 # #Bug#23553267 DEADLOCK WHEN MDL_EXCLUSIVE ACQUIRES A GSL LOCK
 #

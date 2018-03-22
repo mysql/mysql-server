@@ -502,6 +502,7 @@ NDB_SHARE::debug_print(std::string& out, const char* line_separator) const
   ss << "NDB_SHARE { " << line_separator
      << "  db: '" << db << "'," << line_separator
      << "  table_name: '" << table_name << "', " << line_separator
+     << "  key: '" << key_string() << "', " << line_separator
      << "  use_count: " << use_count() << ", " << line_separator
      << "  state: " << share_state_string() << ", " << line_separator;
 

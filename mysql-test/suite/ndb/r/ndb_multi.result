@@ -215,6 +215,7 @@ CREATE DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 Warnings:
 Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Warning	1296	Schema distribution failed!
 #verify database existence
 USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 #create normal table
@@ -241,6 +242,7 @@ character set=utf8;
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Warning	1296	Schema distribution failed!
 #test alter table with this database
 CREATE DATABASE db1;
 CREATE TABLE db1.t1
@@ -267,6 +269,7 @@ DROP DATABASE
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 Warnings:
 Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Warning	1296	Schema distribution failed!
 #checking database doesn't exists
 USE abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123;
 ERROR 42000: Unknown database 'abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123'

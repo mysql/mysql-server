@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,12 +30,15 @@
 
 class Ndb_table_guard
 {
+  NdbDictionary::Dictionary *const m_dict;
+  const NdbDictionary::Table *m_ndbtab{nullptr};
+  int m_invalidate{0};
 public:
   Ndb_table_guard(NdbDictionary::Dictionary *dict)
-    : m_dict(dict), m_ndbtab(NULL), m_invalidate(0)
+    : m_dict(dict)
   {}
   Ndb_table_guard(NdbDictionary::Dictionary *dict, const char *tabname)
-    : m_dict(dict), m_ndbtab(NULL), m_invalidate(0)
+    : m_dict(dict)
   {
     DBUG_ENTER("Ndb_table_guard");
     init(tabname);
@@ -44,22 +47,6 @@ public:
   ~Ndb_table_guard()
   {
     DBUG_ENTER("~Ndb_table_guard");
-    reinit();
-    DBUG_VOID_RETURN;
-  }
-  void init(const char *tabname)
-  {
-    DBUG_ENTER("Ndb_table_guard::init");
-    /* must call reinit() if already initialized */
-    DBUG_ASSERT(m_ndbtab == NULL);
-    m_ndbtab= m_dict->getTableGlobal(tabname);
-    m_invalidate= 0;
-    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
-    DBUG_VOID_RETURN;
-  }
-  void reinit(const char *tabname= 0)
-  {
-    DBUG_ENTER("Ndb_table_guard::reinit");
     if (m_ndbtab)
     {
       DBUG_PRINT("info", ("m_ndbtab: %p  m_invalidate: %d",
@@ -68,12 +55,19 @@ public:
       m_ndbtab= NULL;
       m_invalidate= 0;
     }
-    if (tabname)
-      init(tabname);
+    DBUG_VOID_RETURN;
+  }
+  void init(const char *tabname)
+  {
+    DBUG_ENTER("Ndb_table_guard::init");
+    /* Don't allow init() if already initialized */
+    DBUG_ASSERT(m_ndbtab == NULL);
+    m_ndbtab= m_dict->getTableGlobal(tabname);
+    m_invalidate= 0;
     DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     DBUG_VOID_RETURN;
   }
-  const NdbDictionary::Table *get_table() { return m_ndbtab; }
+  const NdbDictionary::Table *get_table() const { return m_ndbtab; }
   void invalidate() { m_invalidate= 1; }
   const NdbDictionary::Table *release()
   {
@@ -83,11 +77,6 @@ public:
     m_ndbtab = 0;
     DBUG_RETURN(tmp);
   }
-private:
-  NdbDictionary::Dictionary *m_dict;
-  const NdbDictionary::Table *m_ndbtab;
-  int m_invalidate;
 };
 
-/* NDB_TABLE_GUARD_H */
 #endif
