@@ -226,14 +226,13 @@ int yylex(void *yylval, void *yythd);
   @brief Bison callback to report a syntax/OOM error
 
   This function is invoked by the bison-generated parser
-  when a syntax error, a parse error or an out-of-memory
-  condition occurs. This function is not invoked when the
-  parser is requested to abort by semantic action code
-  by means of YYABORT or YYACCEPT macros. This is why these
-  macros should not be used (use MYSQL_YYABORT/MYSQL_YYACCEPT
-  instead).
+  when a syntax error or an out-of-memory
+  condition occurs, then the parser function MYSQLparse()
+  returns 1 to the caller.
 
-  The parser will abort immediately after invoking this callback.
+  This function is not invoked when the
+  parser is requested to abort by semantic action code
+  by means of YYABORT or YYACCEPT macros..
 
   This function is not for use in semantic actions and is internal to
   the parser, as it performs some pre-return cleanup.
@@ -251,8 +250,7 @@ static void MYSQLerror(YYLTYPE *, THD *thd, Parse_tree_root **, const char *s)
   */
   LEX::cleanup_lex_after_parse_error(thd);
 
-  /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
-  if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
+  if (strcmp(s, "syntax error") == 0)
     s= ER_THD(thd, ER_SYNTAX_ERROR);
   thd->syntax_error("%s", s);
 }
@@ -9709,7 +9707,7 @@ fulltext_options:
                             {
                               THD *thd= YYTHD;
                               if (thd->sp_runtime_ctx)
-                                MYSQLerror(NULL,thd,NULL,"syntax error");
+                                YYTHD->syntax_error();
                             });
           }
         ;
