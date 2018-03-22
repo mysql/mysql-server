@@ -48,6 +48,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key3=1025 OR key5 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i3,i5	i3,i5	4,5	NULL	#	100.00	Using union(i3,i5); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key3` = 1025) or isnull(`test`.`t1`.`key5`))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 10
@@ -59,6 +61,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key1=48 OR key4=2 OR key6=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i4,i6	i1,i4,i6	4,4,5	NULL	#	100.00	Using union(i1,i4,i6); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` = 48) or (`test`.`t1`.`key4` = 2) or (`test`.`t1`.`key6` = 3))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 20
@@ -70,6 +74,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key1<2 OR key2<3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` < 2) or (`test`.`t1`.`key2` < 3))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 24
@@ -81,6 +87,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where (((`test`.`t1`.`key1` > 30) and (`test`.`t1`.`key1` < 35)) or ((`test`.`t1`.`key2` > 32) and (`test`.`t1`.`key2` < 40)))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 26
@@ -92,6 +100,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 IGNORE INDEX(i2) WHERE key1<2 OR key2<3
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	i1	NULL	NULL	NULL	#	55.55	Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` IGNORE INDEX (`i2`) where ((`test`.`t1`.`key1` < 2) or (`test`.`t1`.`key2` < 3))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 35
@@ -104,6 +114,8 @@ EXPLAIN  REPLACE INTO t2 SELECT * FROM t1 USE INDEX(i6,i3) WHERE (key4=42 AND ke
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i3,i6	i6,i3	5,4	NULL	#	1.00	Using union(i6,i3); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` USE INDEX (`i3`) USE INDEX (`i6`) where (((`test`.`t1`.`key6` = 3) and (`test`.`t1`.`key4` = 42)) or ((`test`.`t1`.`key3` = 6) and (`test`.`t1`.`key1` = 4)))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 37
@@ -115,6 +127,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 FORCE INDEX(i1,i2) WHERE (key1>1 OR key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where ((`test`.`t1`.`key1` > 1) or (`test`.`t1`.`key2` > 2))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 39
@@ -127,6 +141,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i3,i4,i5,i6	i4,i6,i1,i3	4,5,4,4	NULL	#	100.00	Using union(intersect(i4,i6),intersect(i1,i3)); Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where (((`test`.`t1`.`key6` = 3) and (`test`.`t1`.`key4` = 42)) or ((`test`.`t1`.`key3` = 6) and (`test`.`t1`.`key1` = 4) and (`test`.`t1`.`key5` <> 50)))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2097
@@ -138,6 +154,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i2,i3,i4	i2,i3	4,4	NULL	#	100.00	Using union(i2,i3); Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key2` = 10) or (`test`.`t1`.`key3` = 3) or (`test`.`t1`.`key4` <=> NULL))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2101
@@ -149,6 +167,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 IGNORE INDEX(i1) WHERE key1<2 OR key2<3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	i2	NULL	NULL	NULL	#	55.55	Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` IGNORE INDEX (`i1`) where ((`test`.`t1`.`key1` < 2) or (`test`.`t1`.`key2` < 3))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2104
@@ -160,6 +180,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 USE INDEX(i5,i6) WHERE (key1<2 OR key2<2
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i5,i6	i5,i6	5,5	NULL	#	30.86	Using sort_union(i5,i6); Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` USE INDEX (`i6`) USE INDEX (`i5`) where (((`test`.`t1`.`key1` < 2) or (`test`.`t1`.`key2` < 2)) and ((`test`.`t1`.`key3` < 3) or (`test`.`t1`.`key4` < 3)) and ((`test`.`t1`.`key5` < 5) or (`test`.`t1`.`key6` < 5)))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2106
@@ -171,6 +193,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 FORCE INDEX(i4,i5) WHERE (key4>3 OR key5
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i4,i5	i4,i5	4,5	NULL	#	100.00	Using sort_union(i4,i5); Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` FORCE INDEX (`i5`) FORCE INDEX (`i4`) where ((`test`.`t1`.`key4` > 3) or (`test`.`t1`.`key5` > 5))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2107
@@ -230,6 +254,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key3=1025 OR key5 IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i3,i5	i3,i5	4,5	NULL	#	100.00	Using sort_union(i3,i5); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key3` = 1025) or isnull(`test`.`t1`.`key5`))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 10
@@ -241,6 +267,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key1=48 OR key4=2 OR key6=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i4,i6	i1,i4,i6	4,4,5	NULL	#	100.00	Using sort_union(i1,i4,i6); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` = 48) or (`test`.`t1`.`key4` = 2) or (`test`.`t1`.`key6` = 3))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 20
@@ -252,6 +280,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE key1<2 OR key2<3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key1` < 2) or (`test`.`t1`.`key2` < 3))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 24
@@ -263,6 +293,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where (((`test`.`t1`.`key1` > 30) and (`test`.`t1`.`key1` < 35)) or ((`test`.`t1`.`key2` > 32) and (`test`.`t1`.`key2` < 40)))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 26
@@ -274,6 +306,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 IGNORE INDEX(i2) WHERE key1<2 OR key2<3
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	i1	NULL	NULL	NULL	#	55.55	Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` IGNORE INDEX (`i2`) where ((`test`.`t1`.`key1` < 2) or (`test`.`t1`.`key2` < 3))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 35
@@ -286,6 +320,8 @@ EXPLAIN  REPLACE INTO t2 SELECT * FROM t1 USE INDEX(i6,i3) WHERE (key4=42 AND ke
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i3,i6	i6,i3	5,4	NULL	#	1.00	Using sort_union(i6,i3); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` USE INDEX (`i3`) USE INDEX (`i6`) where (((`test`.`t1`.`key6` = 3) and (`test`.`t1`.`key4` = 42)) or ((`test`.`t1`.`key3` = 6) and (`test`.`t1`.`key1` = 4)))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 37
@@ -297,6 +333,8 @@ EXPLAIN REPLACE INTO t2 SELECT * FROM t1 FORCE INDEX(i1,i2) WHERE (key1>1 OR key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	replace into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` FORCE INDEX (`i2`) FORCE INDEX (`i1`) where ((`test`.`t1`.`key1` > 1) or (`test`.`t1`.`key2` > 2))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 39
@@ -309,6 +347,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i1,i3,i4,i5,i6	i4,i1	4,4	NULL	#	0.83	Using sort_union(i4,i1); Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where (((`test`.`t1`.`key6` = 3) and (`test`.`t1`.`key4` = 42)) or ((`test`.`t1`.`key3` = 6) and (`test`.`t1`.`key1` = 4) and (`test`.`t1`.`key5` <> 50)))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2097
@@ -320,6 +360,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i2,i3,i4	i2,i3	4,4	NULL	#	100.00	Using sort_union(i2,i3); Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` where ((`test`.`t1`.`key2` = 10) or (`test`.`t1`.`key3` = 3) or (`test`.`t1`.`key4` <=> NULL))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2101
@@ -331,6 +373,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 IGNORE INDEX(i1) WHERE key1<2 OR key2<3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	i2	NULL	NULL	NULL	#	55.55	Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` IGNORE INDEX (`i1`) where ((`test`.`t1`.`key1` < 2) or (`test`.`t1`.`key2` < 3))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2104
@@ -342,6 +386,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 USE INDEX(i5,i6) WHERE (key1<2 OR key2<2
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i5,i6	i5,i6	5,5	NULL	#	30.86	Using sort_union(i5,i6); Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` USE INDEX (`i6`) USE INDEX (`i5`) where (((`test`.`t1`.`key1` < 2) or (`test`.`t1`.`key2` < 2)) and ((`test`.`t1`.`key3` < 3) or (`test`.`t1`.`key4` < 3)) and ((`test`.`t1`.`key5` < 5) or (`test`.`t1`.`key6` < 5)))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2106
@@ -353,6 +399,8 @@ EXPLAIN INSERT INTO t2 SELECT * FROM t1 FORCE INDEX(i4,i5) WHERE (key4>3 OR key5
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	index_merge	i4,i5	i4,i5	4,5	NULL	#	100.00	Using sort_union(i4,i5); Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`key1` AS `key1`,`test`.`t1`.`key2` AS `key2`,`test`.`t1`.`key3` AS `key3`,`test`.`t1`.`key4` AS `key4`,`test`.`t1`.`key5` AS `key5`,`test`.`t1`.`key6` AS `key6`,`test`.`t1`.`key7` AS `key7`,`test`.`t1`.`key8` AS `key8` from `test`.`t1` FORCE INDEX (`i5`) FORCE INDEX (`i4`) where ((`test`.`t1`.`key4` > 3) or (`test`.`t1`.`key5` > 5))
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 2107

@@ -251,6 +251,8 @@ EXPLAIN DELETE FROM tab
 WHERE c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	tab	NULL	range	idx2	idx2	8	const	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`tab` where (`test`.`tab`.`c8` = st_geometryfromwkb(st_aswkb(st_geomcollfromtext('GeometryCollection(Point(1 1),LineString(2 2, 3 3))'))))
 #check the spatial values
 SELECT ST_AsText(c1) FROM tab;
 ST_AsText(c1)
@@ -757,6 +759,8 @@ EXPLAIN DELETE FROM tab3
 WHERE c8=ST_GeometryFromWKB(ST_AsWKB(ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))')));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	tab3	NULL	range	idx2	idx2	8	const	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`tab3` where (`test`.`tab3`.`c8` = st_geometryfromwkb(st_aswkb(st_geomcollfromtext('GeometryCollection(Point(1 1),LineString(2 2, 3 3))'))))
 #check the spatial values
 SELECT ST_AsText(c1) FROM tab3;
 ST_AsText(c1)

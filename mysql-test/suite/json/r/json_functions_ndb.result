@@ -7235,6 +7235,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	Table 't2' is not pushable: select list can't contain BLOB columns
 Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`j` = json_insert(`test`.`t2`.`j`,'$[1]',`test`.`t2`.`j`) where (`test`.`t1`.`j` = `test`.`t2`.`j`)
 UPDATE t1, t2 SET t1.j = JSON_INSERT(t2.j, '$[1]', t2.j) WHERE t1.j=t2.j;
 SELECT * FROM t1 ORDER BY (CAST(j AS CHAR));
 j
@@ -9879,6 +9880,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.a','x'),`test`.`t`.`j2` = json_set(`test`.`t`.`j2`,'$.a','y'),`test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.b','z')
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j1, '$.a', 'x'),
 j2 = JSON_SET(j2, '$.a', 'y'),
@@ -9906,7 +9909,7 @@ trace
           ]
         },
         "steps": [
-          "/* select#1 */ select `t`.`j1` AS `j1`,`t`.`j2` AS `j2`,`t`.`j1` AS `j1` from `t`"
+          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.a','x'),`t`.`j2` = json_set(`t`.`j2`,'$.a','y'),`t`.`j1` = json_set(`t`.`j1`,'$.b','z')"
         ]
       }
     },
@@ -9949,6 +9952,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.a','s'),`test`.`t`.`j2` = json_set(`test`.`t`.`j2`,'$.a','abcdefghi'),`test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.b','t')
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j1, '$.a', 's'),
 j2 = JSON_SET(j2, '$.a', 'abcdefghi'),
@@ -9976,7 +9981,7 @@ trace
           ]
         },
         "steps": [
-          "/* select#1 */ select `t`.`j1` AS `j1`,`t`.`j2` AS `j2`,`t`.`j1` AS `j1` from `t`"
+          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.a','s'),`t`.`j2` = json_set(`t`.`j2`,'$.a','abcdefghi'),`t`.`j1` = json_set(`t`.`j1`,'$.b','t')"
         ]
       }
     },
@@ -10017,6 +10022,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.x.y.z','abc','$.b','X')
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j1, '$.x.y.z', 'abc', '$.b', 'X');
 SET optimizer_trace="enabled=off";
@@ -10037,7 +10044,7 @@ trace
           ]
         },
         "steps": [
-          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.x.y.z','abc','$.b','X')"
         ]
       }
     },
@@ -10078,6 +10085,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_replace(`test`.`t`.`j1`,'$.x','abc','$.b','Y')
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_REPLACE(j1, '$.x', 'abc', '$.b', 'Y');
 SET optimizer_trace="enabled=off";
@@ -10098,7 +10107,7 @@ trace
           ]
         },
         "steps": [
-          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+          "update `t` set `t`.`j1` = json_replace(`t`.`j1`,'$.x','abc','$.b','Y')"
         ]
       }
     },
@@ -10139,6 +10148,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j1`,'$.x','abc','$.b','Z')
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j1, '$.x', 'abc', '$.b', 'Z');
 SET optimizer_trace="enabled=off";
@@ -10159,7 +10170,7 @@ trace
           ]
         },
         "steps": [
-          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+          "update `t` set `t`.`j1` = json_set(`t`.`j1`,'$.x','abc','$.b','Z')"
         ]
       }
     },
@@ -10200,6 +10211,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j2`,'$.a','ABC')
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j2, '$.a', 'ABC');
 SET optimizer_trace="enabled=off";
@@ -10220,7 +10233,7 @@ trace
           ]
         },
         "steps": [
-          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+          "update `t` set `t`.`j1` = json_set(`t`.`j2`,'$.a','ABC')"
         ]
       }
     },
@@ -10261,6 +10274,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_array(`test`.`t`.`j1`,`test`.`t`.`j1`)
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_ARRAY(j1, j1);
 SET optimizer_trace="enabled=off";
@@ -10281,7 +10296,7 @@ trace
           ]
         },
         "steps": [
-          "/* select#1 */ select `t`.`j1` AS `j1` from `t`"
+          "update `t` set `t`.`j1` = json_array(`t`.`j1`,`t`.`j1`)"
         ]
       }
     },
@@ -10323,6 +10338,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j1` = json_set(`test`.`t`.`j2`,'$.a',1),`test`.`t`.`j2` = json_set(`test`.`t`.`j2`,'$.a',1)
 SET optimizer_trace="enabled=on";
 UPDATE t SET j1 = JSON_SET(j2, '$.a', 1),
 j2 = JSON_SET(j2, '$.a', 1);
@@ -10349,7 +10366,7 @@ trace
           ]
         },
         "steps": [
-          "/* select#1 */ select `t`.`j1` AS `j1`,`t`.`j2` AS `j2` from `t`"
+          "update `t` set `t`.`j1` = json_set(`t`.`j2`,'$.a',1),`t`.`j2` = json_set(`t`.`j2`,'$.a',1)"
         ]
       }
     },
@@ -10762,6 +10779,7 @@ EXPLAIN
 Warnings:
 Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
 Note	1003	Table 't2' is not pushable: select list can't contain BLOB columns
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`j` = json_set(`test`.`t1`.`j`,'$.a',json_extract(`test`.`t2`.`j`,'$.b')) where (`test`.`t2`.`id` = `test`.`t1`.`id`)
 SET optimizer_trace="enabled=on";
 UPDATE t1, t2
 SET t1.j = JSON_SET(t1.j, '$.a', t2.j->'$.b')
@@ -10875,6 +10893,7 @@ EXPLAIN
 Warnings:
 Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
 Note	1003	Table 't2' is not pushable: select list can't contain BLOB columns
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`j` = json_set(`test`.`t1`.`j`,'$.a',`test`.`t2`.`x`),`test`.`t2`.`j` = json_set(`test`.`t2`.`j`,'$.b',`test`.`t1`.`x`) where (`test`.`t2`.`id` = `test`.`t1`.`id`)
 SET optimizer_trace="enabled=on";
 UPDATE t1, t2 SET t1.j = JSON_SET(t1.j, '$.a', t2.x),
 t2.j = JSON_SET(t2.j, '$.b', t1.x)
@@ -10964,6 +10983,7 @@ EXPLAIN
 Warnings:
 Note	1003	Table 't1' is not pushable: lock modes other than 'read committed' not implemented
 Note	1003	Table 't2' is not pushable: select list can't contain BLOB columns
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`j` = '[123]',`test`.`t2`.`j` = json_set(`test`.`t2`.`j`,'$.b',99)
 SET optimizer_trace="enabled=on";
 UPDATE t1, t2 SET t1.j = '[123]', t2.j = JSON_SET(t2.j, '$.b', 99);
 SET optimizer_trace="enabled=off";
@@ -11075,6 +11095,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`t` set `test`.`t`.`j` = json_remove(`test`.`t`.`j`,'$.x.b','$[1][2]')
 UPDATE t SET j = JSON_REMOVE(j, '$.x.b', '$[1][2]');
 SELECT *, JSON_STORAGE_SIZE(j) ss,
 JSON_STORAGE_FREE(j) sf FROM t ORDER BY id;

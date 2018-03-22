@@ -770,6 +770,8 @@ SET sql_mode = default;
 EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 1) where (`test`.`t1`.`id` < 2)
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET a=a+1 WHERE id < 2;
 SET sql_mode = default;
@@ -793,6 +795,8 @@ binlog_row_image	NOBLOB
 EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 1) where (`test`.`t1`.`id` < 2)
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET a=a+1 WHERE id < 2;
 SET sql_mode = default;
@@ -815,6 +819,8 @@ binlog_row_image	MINIMAL
 EXPLAIN UPDATE t1 SET a=a+1 WHERE id < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	4	const	1	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (`test`.`t1`.`a` + 1) where (`test`.`t1`.`id` < 2)
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 UPDATE t1 SET a=a+1 WHERE id < 2;
 SET sql_mode = default;

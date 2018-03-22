@@ -28,6 +28,8 @@ test.t2	analyze	status	OK
 EXPLAIN UPDATE t1 SET key6=7 WHERE key1=80 OR key4=49;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i4	i1,i4	4,4	NULL	#	100.00	Using union(i1,i4); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key6` = 7 where ((`test`.`t1`.`key1` = 80) or (`test`.`t1`.`key4` = 49))
 SELECT COUNT(*), SUM(key6) FROM t1 WHERE key1=80 OR key4=49;
 COUNT(*)	SUM(key6)
 3	129
@@ -38,6 +40,8 @@ COUNT(*)	SUM(key6)
 EXPLAIN UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i2,i3,i5,i6	i3,i2	4,4	NULL	#	100.00	Using union(i3,i2); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key1` = 18 where (((`test`.`t1`.`key3` = 80) and (`test`.`t1`.`key5` is not null)) or ((`test`.`t1`.`key2` = 49) and isnull(`test`.`t1`.`key6`)))
 SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 COUNT(*)	SUM(key1)
 1	80
@@ -48,6 +52,8 @@ COUNT(*)	SUM(key1)
 EXPLAIN UPDATE t1 SET key3=18 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i2,i4,i5,i6	i4,i5	4,5	NULL	#	100.00	Using union(i4,i5); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key3` = 18 where (((`test`.`t1`.`key4` = 42) and (`test`.`t1`.`key6` is not null)) or ((`test`.`t1`.`key1` > 4) and isnull(`test`.`t1`.`key5`) and (`test`.`t1`.`key2` <> 50)))
 SELECT COUNT(*), SUM(key3) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
 COUNT(*)	SUM(key3)
 10	287
@@ -58,6 +64,8 @@ COUNT(*)	SUM(key3)
 EXPLAIN UPDATE t1 SET key8=64 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i2,i3	i2,i3	4,4	NULL	#	100.00	Using union(i2,i3); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key8` = 64 where ((`test`.`t1`.`key2` = 80) or (`test`.`t1`.`key3` = 1025) or (`test`.`t1`.`key4` <=> NULL))
 SELECT COUNT(*), SUM(key8) FROM t1 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
 COUNT(*)	SUM(key8)
 3	1185
@@ -68,6 +76,8 @@ COUNT(*)	SUM(key8)
 EXPLAIN UPDATE t1 SET key8=18 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i2,i3,i4,i5,i6	i5,i6	5,5	NULL	#	100.00	Using sort_union(i5,i6); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key8` = 18 where (((`test`.`t1`.`key1` < 3) or (`test`.`t1`.`key2` < 2)) and ((`test`.`t1`.`key3` < 3) or (`test`.`t1`.`key4` < 3)) and ((`test`.`t1`.`key5` < 2) or (`test`.`t1`.`key6` < 2)))
 SELECT COUNT(*), SUM(key8) FROM t1 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
 COUNT(*)	SUM(key8)
 1	1
@@ -78,6 +88,8 @@ COUNT(*)	SUM(key8)
 EXPLAIN UPDATE t1 SET key3=32 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key3` = 32 where ((`test`.`t1`.`key1` between 25 and 40) or (`test`.`t1`.`key2` between 15 and 49))
 SELECT COUNT(*), SUM(key3) FROM t1 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
 COUNT(*)	SUM(key3)
 39	1168
@@ -88,6 +100,8 @@ COUNT(*)	SUM(key3)
 EXPLAIN UPDATE t1 SET key7=25 WHERE key1 IN (15,70) OR key2 IN (15,70);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key7` = 25 where ((`test`.`t1`.`key1` in (15,70)) or (`test`.`t1`.`key2` in (15,70)))
 SELECT COUNT(*), SUM(key7) FROM t1 WHERE key1 IN (15,70) OR key2 IN (15,70);
 COUNT(*)	SUM(key7)
 2	85
@@ -98,6 +112,8 @@ COUNT(*)	SUM(key7)
 EXPLAIN UPDATE t1 SET key1=10 WHERE key5<5 OR key8<10 ORDER BY key1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key1` = 10 where ((`test`.`t1`.`key5` < 5) or (`test`.`t1`.`key8` < 10)) order by `test`.`t1`.`key1`
 SELECT COUNT(*), SUM(key1) FROM t1 WHERE key5<5 OR key8<10 ORDER BY key1;
 COUNT(*)	SUM(key1)
 11	56
@@ -109,6 +125,8 @@ EXPLAIN UPDATE t1 left join t2 ON (t2.key1=t2.key1) SET t1.key4=15 WHERE t1.key5
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i4,i5	i5,i4	5,4	NULL	#	100.00	Using union(i5,i4); Using where
 1	SIMPLE	t2	NULL	index	NULL	i1	4	NULL	#	100.00	Using where; Using index
+Warnings:
+Note	1003	update `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`key1` = `test`.`t2`.`key1`)) set `test`.`t1`.`key4` = 15 where ((`test`.`t1`.`key5` = 40) or (`test`.`t1`.`key4` = 15))
 SELECT COUNT(*), SUM(key4) FROM t1;
 COUNT(*)	SUM(key4)
 2057	2098421
@@ -120,6 +138,8 @@ EXPLAIN UPDATE t2 SET key7=7 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	index_merge	i3,i4	i3,i4	4,4	NULL	#	100.00	Using union(i3,i4); Using where
 2	SUBQUERY	t1	NULL	index_merge	i1,i5	i1,i5	4,5	NULL	#	100.00	Using union(i1,i5); Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`key7` = 7 where (((`test`.`t2`.`key3` = 28) or (`test`.`t2`.`key4` = 10)) and <nop>((`test`.`t2`.`key6` < (/* select#2 */ select max(`test`.`t1`.`key6`) from `test`.`t1` where ((`test`.`t1`.`key1` = 10) or (`test`.`t1`.`key5` = 3))))))
 SELECT COUNT(*), SUM(key7) FROM t2 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
 COUNT(*)	SUM(key7)
 0	NULL
@@ -132,6 +152,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	index_merge	i1,i4	i1,i4	4,4	NULL	#	100.00	Using union(i1,i4); Using where
 3	SUBQUERY	t1	NULL	index_merge	i1,i4	i1,i4	4,4	NULL	#	100.00	Using sort_union(i1,i4); Using where
 2	SUBQUERY	t1	NULL	index_merge	i1,i4	i1,i4	4,4	NULL	#	100.00	Using sort_union(i1,i4); Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`key2` = 2 where ((`test`.`t2`.`key1` = 25) or ((`test`.`t2`.`key4` = 40) and <nop>((`test`.`t2`.`key1` < (/* select#3 */ select max(`test`.`t1`.`key1`) from `test`.`t1` where ((`test`.`t1`.`key1` < 5) or (`test`.`t1`.`key4` < 7)))))))
 SELECT COUNT(*), SUM(key2) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
 COUNT(*)	SUM(key2)
 1	25
@@ -143,6 +165,8 @@ EXPLAIN UPDATE t2 SET key3=20 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	SUBQUERY	t1	NULL	index_merge	i4,i6	i6,i4	5,4	NULL	#	100.00	Using sort_union(i6,i4); Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`key3` = 20 where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`key6` < 3) or (`test`.`t1`.`key4` < 10)))
 SELECT COUNT(*), SUM(key3) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
 COUNT(*)	SUM(key3)
 2057	2098421
@@ -153,6 +177,8 @@ COUNT(*)	SUM(key3)
 EXPLAIN UPDATE t1 SET key8=50 WHERE key5=80 OR key6=49;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i5,i6	i5,i6	5,5	NULL	#	100.00	Using union(i5,i6); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key8` = 50 where ((`test`.`t1`.`key5` = 80) or (`test`.`t1`.`key6` = 49))
 SELECT COUNT(*), SUM(key8) FROM t1 WHERE key5=80 OR key6=49;
 COUNT(*)	SUM(key8)
 1	64
@@ -192,6 +218,8 @@ test.t2	analyze	status	OK
 EXPLAIN UPDATE t1 SET key6=7 WHERE key1=80 OR key4=49;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i4	i1,i4	4,4	NULL	#	100.00	Using sort_union(i1,i4); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key6` = 7 where ((`test`.`t1`.`key1` = 80) or (`test`.`t1`.`key4` = 49))
 SELECT COUNT(*), SUM(key6) FROM t1 WHERE key1=80 OR key4=49;
 COUNT(*)	SUM(key6)
 3	129
@@ -202,6 +230,8 @@ COUNT(*)	SUM(key6)
 EXPLAIN UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i2,i3,i5,i6	i3,i2	4,4	NULL	#	100.00	Using sort_union(i3,i2); Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key1` = 18 where (((`test`.`t1`.`key3` = 80) and (`test`.`t1`.`key5` is not null)) or ((`test`.`t1`.`key2` = 49) and isnull(`test`.`t1`.`key6`)))
 SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 COUNT(*)	SUM(key1)
 1	80
@@ -212,6 +242,8 @@ COUNT(*)	SUM(key1)
 EXPLAIN UPDATE t1 SET key3=18 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i2,i4,i5,i6	i4,i5	4,5	NULL	#	100.00	Using sort_union(i4,i5); Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key3` = 18 where (((`test`.`t1`.`key4` = 42) and (`test`.`t1`.`key6` is not null)) or ((`test`.`t1`.`key1` > 4) and isnull(`test`.`t1`.`key5`) and (`test`.`t1`.`key2` <> 50)))
 SELECT COUNT(*), SUM(key3) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
 COUNT(*)	SUM(key3)
 10	287
@@ -222,6 +254,8 @@ COUNT(*)	SUM(key3)
 EXPLAIN UPDATE t1 SET key8=64 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i2,i3	i2,i3	4,4	NULL	#	100.00	Using sort_union(i2,i3); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key8` = 64 where ((`test`.`t1`.`key2` = 80) or (`test`.`t1`.`key3` = 1025) or (`test`.`t1`.`key4` <=> NULL))
 SELECT COUNT(*), SUM(key8) FROM t1 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
 COUNT(*)	SUM(key8)
 3	1185
@@ -232,6 +266,8 @@ COUNT(*)	SUM(key8)
 EXPLAIN UPDATE t1 SET key8=18 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i2,i3,i4,i5,i6	i5,i6	5,5	NULL	#	100.00	Using sort_union(i5,i6); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key8` = 18 where (((`test`.`t1`.`key1` < 3) or (`test`.`t1`.`key2` < 2)) and ((`test`.`t1`.`key3` < 3) or (`test`.`t1`.`key4` < 3)) and ((`test`.`t1`.`key5` < 2) or (`test`.`t1`.`key6` < 2)))
 SELECT COUNT(*), SUM(key8) FROM t1 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
 COUNT(*)	SUM(key8)
 1	1
@@ -242,6 +278,8 @@ COUNT(*)	SUM(key8)
 EXPLAIN UPDATE t1 SET key3=32 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key3` = 32 where ((`test`.`t1`.`key1` between 25 and 40) or (`test`.`t1`.`key2` between 15 and 49))
 SELECT COUNT(*), SUM(key3) FROM t1 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
 COUNT(*)	SUM(key3)
 39	1168
@@ -252,6 +290,8 @@ COUNT(*)	SUM(key3)
 EXPLAIN UPDATE t1 SET key7=25 WHERE key1 IN (15,70) OR key2 IN (15,70);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i1,i2	i1,i2	4,4	NULL	#	100.00	Using sort_union(i1,i2); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key7` = 25 where ((`test`.`t1`.`key1` in (15,70)) or (`test`.`t1`.`key2` in (15,70)))
 SELECT COUNT(*), SUM(key7) FROM t1 WHERE key1 IN (15,70) OR key2 IN (15,70);
 COUNT(*)	SUM(key7)
 2	85
@@ -262,6 +302,8 @@ COUNT(*)	SUM(key7)
 EXPLAIN UPDATE t1 SET key1=10 WHERE key5<5 OR key8<10 ORDER BY key1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i5,i8	i5,i8	5,4	NULL	#	100.00	Using sort_union(i5,i8); Using where; Using filesort
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key1` = 10 where ((`test`.`t1`.`key5` < 5) or (`test`.`t1`.`key8` < 10)) order by `test`.`t1`.`key1`
 SELECT COUNT(*), SUM(key1) FROM t1 WHERE key5<5 OR key8<10 ORDER BY key1;
 COUNT(*)	SUM(key1)
 11	56
@@ -273,6 +315,8 @@ EXPLAIN UPDATE t1 left join t2 ON (t2.key1=t2.key1) SET t1.key4=15 WHERE t1.key5
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i4,i5	i5,i4	5,4	NULL	#	100.00	Using sort_union(i5,i4); Using where
 1	SIMPLE	t2	NULL	index	NULL	i1	8	NULL	#	100.00	Using where; Using index
+Warnings:
+Note	1003	update `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`key1` = `test`.`t2`.`key1`)) set `test`.`t1`.`key4` = 15 where ((`test`.`t1`.`key5` = 40) or (`test`.`t1`.`key4` = 15))
 SELECT COUNT(*), SUM(key4) FROM t1;
 COUNT(*)	SUM(key4)
 2057	2098421
@@ -284,6 +328,8 @@ EXPLAIN UPDATE t2 SET key7=7 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT 
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	index_merge	i3,i4	i3,i4	4,4	NULL	#	100.00	Using sort_union(i3,i4); Using where
 2	SUBQUERY	t1	NULL	index_merge	i1,i5	i1,i5	4,5	NULL	#	100.00	Using sort_union(i1,i5); Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`key7` = 7 where (((`test`.`t2`.`key3` = 28) or (`test`.`t2`.`key4` = 10)) and <nop>((`test`.`t2`.`key6` < (/* select#2 */ select max(`test`.`t1`.`key6`) from `test`.`t1` where ((`test`.`t1`.`key1` = 10) or (`test`.`t1`.`key5` = 3))))))
 SELECT COUNT(*), SUM(key7) FROM t2 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
 COUNT(*)	SUM(key7)
 0	NULL
@@ -296,6 +342,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t2	NULL	index_merge	i1,i4	i1,i4	4,4	NULL	#	100.00	Using sort_union(i1,i4); Using where; Using temporary
 3	SUBQUERY	t1	NULL	index_merge	i1,i4	i1,i4	4,4	NULL	#	100.00	Using sort_union(i1,i4); Using where
 2	SUBQUERY	t1	NULL	index_merge	i1,i4	i1,i4	4,4	NULL	#	100.00	Using sort_union(i1,i4); Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`key2` = 2 where ((`test`.`t2`.`key1` = 25) or ((`test`.`t2`.`key4` = 40) and <nop>((`test`.`t2`.`key1` < (/* select#3 */ select max(`test`.`t1`.`key1`) from `test`.`t1` where ((`test`.`t1`.`key1` < 5) or (`test`.`t1`.`key4` < 7)))))))
 SELECT COUNT(*), SUM(key2) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
 COUNT(*)	SUM(key2)
 1	25
@@ -307,6 +355,8 @@ EXPLAIN UPDATE t2 SET key3=20 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 2	SUBQUERY	t1	NULL	index_merge	i4,i6	i6,i4	5,4	NULL	#	100.00	Using sort_union(i6,i4); Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`key3` = 20 where exists(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`key6` < 3) or (`test`.`t1`.`key4` < 10)))
 SELECT COUNT(*), SUM(key3) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
 COUNT(*)	SUM(key3)
 2057	2098421
@@ -317,6 +367,8 @@ COUNT(*)	SUM(key3)
 EXPLAIN UPDATE t1 SET key8=50 WHERE key5=80 OR key6=49;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	index_merge	i5,i6	i5,i6	5,5	NULL	#	100.00	Using sort_union(i5,i6); Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`key8` = 50 where ((`test`.`t1`.`key5` = 80) or (`test`.`t1`.`key6` = 49))
 SELECT COUNT(*), SUM(key8) FROM t1 WHERE key5=80 OR key6=49;
 COUNT(*)	SUM(key8)
 1	64

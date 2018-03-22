@@ -17,11 +17,15 @@ GRANT INSERT ON privtest_db.t1 TO 'privtest'@'localhost';
 EXPLAIN INSERT INTO t1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `privtest_db`.`t1` values (10)
 INSERT INTO t1 VALUES (10);
 EXPLAIN INSERT INTO t1 SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	insert into `privtest_db`.`t1` /* select#1 */ select `privtest_db`.`t2`.`a` AS `a` from `privtest_db`.`t2`
 INSERT INTO t1 SELECT * FROM t2;
 REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 EXPLAIN REPLACE INTO t1 VALUES (10);
@@ -55,11 +59,15 @@ GRANT INSERT, DELETE ON privtest_db.t1 TO 'privtest'@'localhost';
 EXPLAIN REPLACE INTO t1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `privtest_db`.`t1` values (10)
 REPLACE INTO t1 VALUES (10);
 EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+Warnings:
+Note	1003	replace into `privtest_db`.`t1` /* select#1 */ select `privtest_db`.`t2`.`a` AS `a` from `privtest_db`.`t2`
 REPLACE INTO t1 SELECT * FROM t2;
 REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 EXPLAIN UPDATE t1 SET a = a + 1;
@@ -93,11 +101,15 @@ GRANT UPDATE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
 EXPLAIN UPDATE t1 SET a = a + 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	NULL
+Warnings:
+Note	1003	update `privtest_db`.`t1` set `privtest_db`.`t1`.`a` = (`privtest_db`.`t1`.`a` + 1)
 UPDATE t1 SET a = a + 1;
 EXPLAIN UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	x	NULL
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where
+Warnings:
+Note	1003	update `privtest_db`.`t1` join `privtest_db`.`t2` set `privtest_db`.`t1`.`a` = (`privtest_db`.`t1`.`a` + 1) where (`privtest_db`.`t1`.`a` = `privtest_db`.`t2`.`a`)
 UPDATE t1, t2 SET t1.a = t1.a + 1 WHERE t1.a = t2.a;
 REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 EXPLAIN DELETE FROM t1 WHERE a = 10;
@@ -132,11 +144,15 @@ GRANT DELETE, SELECT ON privtest_db.t1 TO 'privtest'@'localhost';
 EXPLAIN DELETE FROM t1 WHERE a = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where
+Warnings:
+Note	1003	delete from `privtest_db`.`t1` where (`privtest_db`.`t1`.`a` = 10)
 DELETE FROM t1 WHERE a = 10;
 EXPLAIN DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	x	x	NULL
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	x	x	Using where
+Warnings:
+Note	1003	delete `privtest_db`.`t1` from `privtest_db`.`t1` join `privtest_db`.`t2` where (`privtest_db`.`t1`.`a` = `privtest_db`.`t2`.`a`)
 DELETE FROM t1 USING t1, t2 WHERE t1.a = t2.a;
 REVOKE ALL PRIVILEGES ON privtest_db.t1 FROM 'privtest'@'localhost';
 CREATE VIEW privtest_db.v1 (a) AS SELECT a FROM privtest_db.t1;

@@ -1869,8 +1869,18 @@ bool explain_single_table_modification(THD *ethd, const Modification_plan *plan,
   }
   if (ret)
     result.abort_result_set();
-  else
+  else {
+    if (!other) {
+      StringBuffer<1024> str;
+      query_thd->lex->unit->print(
+          &str, enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER |
+                                QT_NO_DATA_EXPANSION));
+      str.append('\0');
+      push_warning(ethd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
+    }
+
     result.send_eof();
+  }
   DBUG_RETURN(ret);
 }
 
@@ -2031,18 +2041,35 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit) {
        against malformed queries, so skip it if we have an error.
     2) The code also isn't thread-safe, skip if explaining other thread
     (see Explain::can_print_clauses())
-    3) Currently only SELECT queries can be printed (TODO: fix this)
+    3) Allow only SELECT, INSERT/REPLACE ... SELECT, Multi-DELETE and
+       Multi-UPDATE. Also Update of VIEW (so techincally it is a single table
+       UPDATE), but if the VIEW refers to multiple tables it will be handled in
+       this function.
   */
-  if (!res &&                                                // (1)
-      !other &&                                              // (2)
-      query_thd->query_plan.get_command() == SQLCOM_SELECT)  // (3)
+  if (!res &&    // (1)
+      !other &&  // (2)
+      (query_thd->query_plan.get_command() == SQLCOM_SELECT ||
+       query_thd->query_plan.get_command() == SQLCOM_INSERT_SELECT ||
+       query_thd->query_plan.get_command() == SQLCOM_REPLACE_SELECT ||
+       query_thd->query_plan.get_command() == SQLCOM_DELETE_MULTI ||
+       query_thd->query_plan.get_command() == SQLCOM_UPDATE ||
+       query_thd->query_plan.get_command() == SQLCOM_UPDATE_MULTI))  // (3)
   {
     StringBuffer<1024> str;
     /*
       The warnings system requires input in utf8, see mysqld_show_warnings().
     */
-    unit->print(&str,
-                enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER));
+
+    enum_query_type eqt =
+        enum_query_type(QT_TO_SYSTEM_CHARSET | QT_SHOW_SELECT_NUMBER);
+
+    /**
+      For DML statements use QT_NO_DATA_EXPANSION to avoid over-simplification.
+    */
+    if (query_thd->query_plan.get_command() != SQLCOM_SELECT)
+      eqt = enum_query_type(eqt | QT_NO_DATA_EXPANSION);
+
+    unit->print(&str, eqt);
     str.append('\0');
     push_warning(ethd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
   }

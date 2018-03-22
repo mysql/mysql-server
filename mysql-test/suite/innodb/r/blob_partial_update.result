@@ -21,6 +21,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_set(`test`.`tab`.`j1`,'$[0]','VISWA')
 # Show Viswa
 json_extract(j1, '$[0]')
 "Viswa"
@@ -40,6 +42,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Nath')
 # Show Nath
 json_extract(j1, '$[0]')
 "Nath"
@@ -57,6 +61,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_set(`test`.`tab`.`j1`,'$[0]','Setlongtext')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Check JSON functions works on TEXT datatype
@@ -80,6 +86,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Replongtext')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Check JSON functions works on TEXT datatype
@@ -107,6 +115,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_set(`test`.`tab`.`j1`,'$[0]','Setjson')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Show Setjson
@@ -128,6 +138,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Repjson')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Show Repjson
@@ -154,6 +166,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_set(`test`.`tab`.`j1`,'$[0]','Setcomp')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Show Setcomp
@@ -175,6 +189,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Repcomp')
 # Show Repcomp
 json_extract(j1, '$[0]')
 "Repcomp"
@@ -201,6 +217,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_set(`test`.`tab`.`j1`,'$[0]','Setdyna')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Show Setdyna
@@ -222,6 +240,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Repdyna')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Show Repdyna
@@ -248,6 +268,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_set(`test`.`tab`.`j1`,'$[0]','Setredu')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Show Setredu
@@ -269,6 +291,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Repredu')
 # Show Repredu
 json_extract(j1, '$[0]')
 "Repredu"
@@ -295,6 +319,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_set(`test`.`tab`.`j1`,'$[0]','Setcomp')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Show Setcomp
@@ -316,6 +342,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab` set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Repcomp')
 # Show Repcomp
 json_extract(j1, '$[0]')
 "Repcomp"
@@ -333,6 +361,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update (`test`.`tab`) set `test`.`tab`.`j1` = json_set(`test`.`tab`.`j1`,'$[0]','Setview')
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Check JSON functions works on views
@@ -356,6 +386,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update (`test`.`tab`) set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Repview')
 # Show Reviewp
 json_extract(j1, '$[0]')
 "Repview"
@@ -448,6 +480,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab3` set `test`.`tab3`.`j1` = json_set(`test`.`tab3`.`j1`,'$.a','x'),`test`.`tab3`.`j2` = json_set(`test`.`tab3`.`j2`,'$.a','y'),`test`.`tab3`.`j1` = json_set(`test`.`tab3`.`j1`,'$.b','z')
 a	j1	j2
 1	{"a": "x", "b": "z"}	{"a": "y", "b": "b"}
 1	{"a": "x", "b": "z"}	{"a": "y", "b": "bb"}
@@ -477,6 +511,8 @@ EXPLAIN
     }
   }
 }
+Warnings:
+Note	1003	update `test`.`tab3` set `test`.`tab3`.`j1` = json_replace(`test`.`tab3`.`j1`,'$[1].A1','partRe')
 # show PartRe
 json_extract(j1, '$[1].A1')
 NULL

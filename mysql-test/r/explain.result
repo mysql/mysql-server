@@ -702,10 +702,14 @@ Note	1003	/* select#1 */ select sql_calc_found_rows `test`.`t1`.`a` AS `a` from 
 EXPLAIN REPLACE INTO t1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	replace into `test`.`t1` values (10)
 EXPLAIN REPLACE INTO t1 SELECT * FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	REPLACE	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+Warnings:
+Note	1003	replace into `test`.`t1` /* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2`
 DROP TABLE t1, t2;
 # End WL#4897
 #
@@ -752,11 +756,15 @@ UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
 EXPLAIN UPDATE t1 SET a=(SELECT c from t2) WHERE 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = (/* select#2 */ select `test`.`t2`.`c` from `test`.`t2`) where 0
 
 # Test delete from single-table with subquery and empty outer query block
 DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
 EXPLAIN DELETE FROM t1 WHERE 0 AND a IN (SELECT c from t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching rows after partition pruning
+Warnings:
+Note	1003	delete from `test`.`t1` where (0 and <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
 DROP TABLE t1, t2;
 # End of test for Bug#23209903

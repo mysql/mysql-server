@@ -105,6 +105,7 @@ Warnings:
 Warning	1739	Cannot use ref access on index 'col_varchar_key' due to type or collation conversion on field 'col_varchar_key'
 Warning	1739	Cannot use ref access on index 'col_blob_key' due to type or collation conversion on field 'col_blob_key'
 Warning	1739	Cannot use ref access on index 'col_varchar_key' due to type or collation conversion on field 'col_varchar_key'
+Note	1003	with `cte` as (/* select#2 */ select `test`.`alias1`.`col_time_key` AS `field1` from `test`.`cc` `alias1` join `test`.`c` where ((`test`.`c`.`col_varchar_key` >= 'n') and (`test`.`alias1`.`col_varchar_key` = `test`.`c`.`col_blob_key`)) order by `field1` limit 9,1000) delete `test`.`c`, `test`.`c` from `cte` `outrcte` join `test`.`c` `outr2` join `test`.`c` `outr1` where ((`test`.`outr1`.`col_blob_key` <> (/* select#3 */ select distinct `test`.`innr1`.`col_blob` AS `y` from `test`.`bb` `innr1` left join `cte` `innrcte` on((`test`.`innr1`.`pk` <> `innrcte`.`field1`)) where 1)) and (`test`.`outr2`.`col_blob` = `outrcte`.`field1`) and multiple equal(`test`.`outr1`.`col_blob_key`, `test`.`outr2`.`col_blob`))
 DROP VIEW view_c;
 DROP TABLE bb,cc,c;
 #
@@ -253,6 +254,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	<derived2>	NULL	ref	<auto_key0>	<auto_key0>	4	test.innr1.col_int_key	2	100.00	Using where
 2	DERIVED	alias1	NULL	index	col_varchar_key	PRIMARY	4	NULL	1	100.00	NULL
 2	DERIVED	alias2	NULL	ref	PRIMARY,col_varchar_key	col_varchar_key	4	test.alias1.col_varchar_key	1	100.00	Using where; Using index
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`alias1`.`col_date` AS `field1`,`test`.`alias1`.`col_blob` AS `field2`,`test`.`alias1`.`pk` AS `field3`,`test`.`alias1`.`pk` AS `field4` from `test`.`dd` `alias1` join `test`.`d` `alias2` where ((`test`.`alias2`.`col_varchar_key` = `test`.`alias1`.`col_varchar_key`) and ((`test`.`alias2`.`pk` <> 0) or (`test`.`alias1`.`col_varchar_key` >= 'v'))) order by `field4`) delete /*+ NO_MERGE(`outrcte`@`select#1`) */ `test`.`d` from `test`.`d` `outr1` join `test`.`d` `outr2` join `cte` `outrcte` where ((`test`.`outr1`.`pk` = `outrcte`.`field1`) and (`test`.`outr1`.`col_datetime_key` = `test`.`outr2`.`col_date`) and multiple equal((/* select#3 */ select `test`.`innr1`.`col_int` AS `y` from `test`.`dd` `innr1` join `cte` `innrcte` where ((`test`.`innr1`.`col_blob_key` = 'h') and (`test`.`innr1`.`col_int_key` = `innrcte`.`field1`))), `test`.`outr1`.`col_int_key`))
 EXPLAIN WITH cte AS (
 SELECT
 alias1 . col_date AS field1 ,
@@ -287,6 +290,7 @@ Warnings:
 Note	1276	Field or reference 'test.outr1.col_int_key' of SELECT #3 was resolved in SELECT #1
 Warning	1739	Cannot use ref access on index 'col_blob_key' due to type or collation conversion on field 'col_blob_key'
 Warning	1739	Cannot use range access on index 'col_blob_key' due to type or collation conversion on field 'col_blob_key'
+Note	1003	with `cte` as (/* select#4 */ select `test`.`d`.`col_date` AS `field1`,`test`.`dd`.`col_blob` AS `field2` from `test`.`d` left join (`test`.`dd`) on((`test`.`dd`.`col_blob_key` = `test`.`d`.`col_blob_key`)) where ((isnull(`test`.`d`.`col_varchar_key`) and (`test`.`dd`.`col_int_key` > 6) and (`test`.`dd`.`col_int_key` <= <cache>((7 + 5)))) or (`test`.`d`.`col_blob_key` >= 'a'))) delete /*+ MERGE(`outrcte`@`select#1`) */ `test`.`d`, `test`.`d` from `test`.`d` `outr1` semi join (`cte` `innrcte` join `test`.`dd` `innr1`) join `test`.`d` `outr2` join `test`.`d` left join (`test`.`dd`) on((`test`.`dd`.`col_blob_key` = `test`.`d`.`col_blob_key`)) where ((`test`.`outr2`.`col_date` = `test`.`outr1`.`col_date`) and (`test`.`innr1`.`col_blob_key` = `test`.`outr1`.`col_blob`) and (`test`.`outr1`.`col_int_key` > 6) and (`test`.`outr2`.`col_blob_key` = `test`.`d`.`col_date`) and ((isnull(`test`.`d`.`col_varchar_key`) and (`test`.`dd`.`col_int_key` > 6) and (`test`.`dd`.`col_int_key` <= <cache>((7 + 5)))) or (`test`.`d`.`col_blob_key` >= 'a')) and (`test`.`innr1`.`pk` >= `innrcte`.`field1`))
 DROP TABLE d,dd;
 DROP VIEW view_d,view_dd;
 #
@@ -493,6 +497,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Warning	1739	Cannot use ref access on index 'col_varchar_key' due to type or collation conversion on field 'col_varchar_key'
 Warning	1739	Cannot use ref access on index 'col_varchar_key' due to type or collation conversion on field 'col_varchar_key'
+Note	1003	with `cte` as (/* select#2 */ select `test`.`alias2`.`col_datetime_key` AS `field1`,`test`.`b`.`col_varchar_key` AS `field2`,`test`.`alias2`.`col_int_key` AS `field3` from `test`.`b` left join (`test`.`cc` `alias2` join `test`.`d`) on(((`test`.`d`.`col_blob_key` = `test`.`b`.`col_blob`) and (`test`.`alias2`.`col_varchar_key` = `test`.`d`.`col_blob_key`))) where ((`test`.`d`.`col_varchar_key` like 'w') or (`test`.`alias2`.`pk` <> 4))) delete /*+ NO_MERGE(`outrcte`@`select#1`) */ quick `test`.`d`, `test`.`d` from `test`.`d` `outr1` semi join (`test`.`cc` `innr1` join `cte` `innrcte`) left join `test`.`d` `outr2` on((`test`.`outr2`.`col_int` = `test`.`outr1`.`col_int`)) join `cte` `outrcte` where ((`test`.`innr1`.`col_int` = 7) and (`test`.`innr1`.`col_int_key` = 4) and (7 >= `test`.`innr1`.`pk`) and (`test`.`outr1`.`pk` = `outrcte`.`field1`) and (`test`.`innr1`.`pk` = `innrcte`.`field1`))
 DROP TABLE b,cc,d;
 DROP VIEW view_d,view_b;
 #
@@ -784,6 +789,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 3	SUBQUERY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 2	DERIVED	alias2	NULL	range	PRIMARY,col_varchar_key	PRIMARY	4	NULL	2	100.00	Using where
 2	DERIVED	alias1	NULL	ref	col_varchar_key	col_varchar_key	4	test.alias2.col_varchar_key	1	100.00	Using index
+Warnings:
+Note	1003	with `cte` as (/* select#2 */ select `test`.`alias1`.`pk` AS `field1`,`test`.`alias2`.`col_blob` AS `field2` from `test`.`bb` `alias1` join `test`.`dd` `alias2` where ((`test`.`alias1`.`col_varchar_key` = `test`.`alias2`.`col_varchar_key`) and (((`test`.`alias2`.`pk` > 3) and (`test`.`alias2`.`pk` < <cache>((1 + 1)))) or ((`test`.`alias2`.`pk` in (7,5)) and (`test`.`alias2`.`pk` <> 3) and (`test`.`alias2`.`pk` is not null))))) delete /*+ NO_MERGE(`outrcte`@`select#1`) */ `test`.`a` from `test`.`d` `outr1` join `test`.`a` `outr2` left join `cte` `outrcte` on((`outrcte`.`field1` = `test`.`outr1`.`col_int`)) where ((`test`.`outr2`.`col_int_key` = `test`.`outr1`.`col_int`) and (`test`.`outr1`.`col_int_key` < (/* select#3 */ select distinct `test`.`innr1`.`col_int` AS `y` from `test`.`cc` `innr1` left join `cte` `innrcte` on((`test`.`innr1`.`col_int_key` <= `innrcte`.`field1`)) where (`test`.`innr1`.`col_int` = 4))))
 DROP TABLE a,d,bb,cc,dd;
 SET @@SESSION.sql_mode=DEFAULT;
 #

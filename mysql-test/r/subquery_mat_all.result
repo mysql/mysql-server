@@ -1618,6 +1618,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 INSERT INTO t3 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t3;
 a
@@ -1630,6 +1632,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using temporary
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 INSERT INTO t2 SELECT * FROM t1 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1642,6 +1646,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using temporary
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	25.00	Using where; FirstMatch(t2); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select sql_buffer_result `test`.`t2`.`a` AS `a` from `test`.`t2` semi join (`test`.`t2`) where ((`test`.`t2`.`a` = `test`.`t2`.`a`) and (`test`.`t2`.`a` <> 2))
 INSERT INTO t2 SELECT * FROM t2 WHERE a IN (SELECT * FROM t2 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1663,6 +1669,8 @@ EXPLAIN UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 1) where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 UPDATE t2 SET a=a-1 WHERE a IN (SELECT * FROM t1);
 SELECT * FROM t2;
 a
@@ -1677,6 +1685,8 @@ EXPLAIN DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`)))
 DELETE FROM t2 WHERE a IN (SELECT * FROM t1);
 SELECT * FROM t2;
 a
@@ -1704,6 +1714,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where; Start temporary
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t2` semi join (`test`.`t1`) join `test`.`t3` set `test`.`t2`.`a` = (`test`.`t2`.`a` - 2) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 UPDATE t2,t3 SET t2.a=t2.a-2 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 SELECT * FROM t2;
 a
@@ -1718,6 +1730,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	66.67	Using where; Start temporary
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where; End temporary
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+Warnings:
+Note	1003	delete `test`.`t2` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t1`.`a` <> 2))
 DELETE t2.* FROM t2,t3 WHERE t2.a IN (SELECT * FROM t1 WHERE a <> 2);
 SELECT * FROM t2;
 a

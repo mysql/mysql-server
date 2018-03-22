@@ -391,16 +391,16 @@ PRIMARY KEY (pk)
 INSERT INTO bb (col_varchar_nokey) VALUES ('j'),('h');
 
 EXPLAIN UPDATE
-d AS OUTR1, b AS OUTR2
-SET OUTR1.col_varchar_nokey = NULL
+d AS outr1, b AS outr2
+SET outr1.col_varchar_nokey = NULL
 WHERE
 ( 't', 'b' )  IN
 (
 SELECT
-INNR1.col_varchar_nokey AS x,
-INNR1.col_varchar_key AS y
-FROM bb AS INNR1
-WHERE OUTR1.pk = 1
+innr1.col_varchar_nokey AS x,
+innr1.col_varchar_key AS y
+FROM bb AS innr1
+WHERE outr1.pk = 1
 );
 
 DROP TABLE IF EXISTS b,bb,d;
@@ -431,69 +431,69 @@ DROP TABLE t;
 }
 
 let $query=
-UPDATE C AS OUTR1, C AS OUTR2
-SET OUTR1.`col_varchar_nokey` = 'f',
-OUTR2.`col_varchar_nokey` = "a";
+UPDATE c AS outr1, c AS outr2
+SET outr1.`col_varchar_nokey` = 'f',
+outr2.`col_varchar_nokey` = "a";
 
 --echo # stored
 
-CREATE TABLE C (
+CREATE TABLE c (
 col_varchar_nokey VARCHAR(1),
 col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
 (CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED
 );
 
-INSERT INTO C (col_varchar_nokey) VALUES ('c');
+INSERT INTO c (col_varchar_nokey) VALUES ('c');
 eval EXPLAIN $query;
 eval $query;
-SELECT * from C;
-DROP TABLE C;
+SELECT * from c;
+DROP TABLE c;
 
 --echo # stored, indexed
 
-CREATE TABLE C (
+CREATE TABLE c (
 col_varchar_nokey VARCHAR(1),
 col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
 (CONCAT(col_varchar_nokey, col_varchar_nokey)) STORED,
 KEY (col_varchar_key, col_varchar_nokey)
 );
 
-INSERT INTO C (col_varchar_nokey) VALUES ('c');
+INSERT INTO c (col_varchar_nokey) VALUES ('c');
 eval EXPLAIN $query;
 eval $query;
-SELECT * from C;
-DROP TABLE C;
+SELECT * from c;
+DROP TABLE c;
 
 --echo # virtual
 
-CREATE TABLE C (
+CREATE TABLE c (
 col_varchar_nokey VARCHAR(1),
 col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
 (CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL
 );
 
-INSERT INTO C (col_varchar_nokey) VALUES ('c');
+INSERT INTO c (col_varchar_nokey) VALUES ('c');
 eval EXPLAIN $query;
 eval $query;
-SELECT * from C;
-DROP TABLE C;
+SELECT * from c;
+DROP TABLE c;
 
 if ($support_virtual_index)
 {
 --echo # virtual, indexed
 
-CREATE TABLE C (
+CREATE TABLE c (
 col_varchar_nokey VARCHAR(1),
 col_varchar_key VARCHAR(2) GENERATED ALWAYS AS
 (CONCAT(col_varchar_nokey, col_varchar_nokey)) VIRTUAL,
 KEY (col_varchar_key, col_varchar_nokey)
 );
 
-INSERT INTO C (col_varchar_nokey) VALUES ('c');
+INSERT INTO c (col_varchar_nokey) VALUES ('c');
 eval EXPLAIN $query;
 eval $query;
-SELECT * from C;
-DROP TABLE C;
+SELECT * from c;
+DROP TABLE c;
 }
 
 if ($support_virtual_index)

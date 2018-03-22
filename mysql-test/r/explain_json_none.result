@@ -60,6 +60,8 @@ set end_markers_in_json=on;
 EXPLAIN             INSERT INTO t1 VALUES (10);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` values (10)
 EXPLAIN FORMAT=JSON INSERT INTO t1 VALUES (10);
 EXPLAIN
 {
@@ -72,6 +74,8 @@ EXPLAIN
     } /* table */
   } /* query_block */
 }
+Warnings:
+Note	1003	insert into `test`.`t1` values (10)
 EXPLAIN             SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -1642,6 +1646,8 @@ EXPLAIN UPDATE t1 SET i=(SELECT i FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = (/* select#2 */ select '1' from dual)
 EXPLAIN FORMAT=JSON UPDATE t1 SET i=(SELECT i FROM t2);
 EXPLAIN
 {
@@ -1684,11 +1690,15 @@ EXPLAIN
     ] /* update_value_subqueries */
   } /* query_block */
 }
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`i` = (/* select#2 */ select '1' from dual)
 EXPLAIN UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t3	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`i` = (/* select#2 */ select '1' from dual)
 EXPLAIN FORMAT=JSON UPDATE t1, t2 SET t1.i=(SELECT i FROM t3);
 EXPLAIN
 {
@@ -1763,6 +1773,8 @@ EXPLAIN
     ] /* update_value_subqueries */
   } /* query_block */
 }
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`i` = (/* select#2 */ select '1' from dual)
 # INSERT ... ON DUPLICATE KEY UPDATE x=(SELECT ...) value list
 EXPLAIN INSERT INTO t1 (i)
 SELECT i FROM t2 ON DUPLICATE KEY UPDATE i=(SELECT i FROM t2);
@@ -1770,6 +1782,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`i`) /* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` on duplicate key update `test`.`t1`.`i` = (/* select#2 */ select '1' from dual)
 EXPLAIN FORMAT=JSON INSERT INTO t1 (i)
 SELECT i FROM t2 ON DUPLICATE KEY UPDATE i=(SELECT i FROM t2);
 EXPLAIN
@@ -1832,11 +1846,15 @@ EXPLAIN
     ] /* insert_update_subqueries */
   } /* query_block */
 }
+Warnings:
+Note	1003	insert into `test`.`t1` (`test`.`t1`.`i`) /* select#1 */ select `test`.`t2`.`i` AS `i` from `test`.`t2` on duplicate key update `test`.`t1`.`i` = (/* select#2 */ select '1' from dual)
 EXPLAIN INSERT INTO t1 VALUES (1)
 ON DUPLICATE KEY UPDATE i = (SELECT i FROM t2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 2	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` values (1) on duplicate key update `test`.`t1`.`i` = (/* select#2 */ select '1' from dual)
 EXPLAIN FORMAT=JSON INSERT INTO t1 VALUES (1)
 ON DUPLICATE KEY UPDATE i = (SELECT i FROM t2);
 EXPLAIN
@@ -1878,12 +1896,16 @@ EXPLAIN
     ] /* insert_update_subqueries */
   } /* query_block */
 }
+Warnings:
+Note	1003	insert into `test`.`t1` values (1) on duplicate key update `test`.`t1`.`i` = (/* select#2 */ select '1' from dual)
 # Subqueries in INSERT VALUES tuples:
 EXPLAIN INSERT INTO t3 VALUES((SELECT i FROM t1)), ((SELECT i FROM t2));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 3	SUBQUERY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	SUBQUERY	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t3` values ((/* select#2 */ select `test`.`t1`.`i` from `test`.`t1`)),((/* select#3 */ select `test`.`t2`.`i` from `test`.`t2`))
 EXPLAIN FORMAT=JSON INSERT INTO t3 VALUES((SELECT i FROM t1)), ((SELECT i FROM t2));
 EXPLAIN
 {
@@ -1950,6 +1972,8 @@ EXPLAIN
     ] /* insert_values_subqueries */
   } /* query_block */
 }
+Warnings:
+Note	1003	insert into `test`.`t3` values ((/* select#2 */ select `test`.`t1`.`i` from `test`.`t1`)),((/* select#3 */ select `test`.`t2`.`i` from `test`.`t2`))
 DROP TABLE t1, t2, t3;
 # Various queries
 EXPLAIN SELECT a, b FROM 

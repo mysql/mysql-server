@@ -1450,6 +1450,8 @@ a	ST_AsText(p)	ST_AsText(l)	ST_AsText(g)
 EXPLAIN UPDATE t1 SET p = ST_GeomFromText('POINT(30 30)') WHERE p = ST_GeomFromText('POINT(20 20)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	27	const	#	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`p` = st_geomfromtext('POINT(30 30)') where (`test`.`t1`.`p` = st_geomfromtext('POINT(20 20)'))
 UPDATE t1 SET p = ST_GeomFromText('POINT(30 30)') WHERE p = ST_GeomFromText('POINT(20 20)');
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 a	ST_AsText(p)	ST_AsText(l)	ST_AsText(g)

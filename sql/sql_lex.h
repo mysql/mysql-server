@@ -1430,6 +1430,189 @@ class SELECT_LEX {
   /// Setup the array containing references to base items
   bool setup_base_ref_items(THD *thd);
   void print(THD *thd, String *str, enum_query_type query_type);
+
+  /**
+    Print detail of the SELECT_LEX object.
+
+    @param      thd          Thread handler
+    @param      query_type   Options to print out string output
+    @param[out] str          String of output.
+  */
+  void print_select(THD *thd, String *str, enum_query_type query_type);
+
+  /**
+    Print detail of the UPDATE statement.
+
+    @param      thd          Thread handler
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_update(THD *thd, String *str, enum_query_type query_type);
+
+  /**
+    Print detail of the DELETE statement.
+
+    @param      thd          Thread handler
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_delete(THD *thd, String *str, enum_query_type query_type);
+
+  /**
+    Print detail of the INSERT statement.
+
+    @param      thd          Thread handler
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_insert(THD *thd, String *str, enum_query_type query_type);
+
+  /**
+    Print detail of Hints.
+
+    @param      thd          Thread handler
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_hints(THD *thd, String *str, enum_query_type query_type);
+
+  /**
+    Print error.
+
+    @param      thd          Thread handler
+    @param[out] str          String of output
+
+    @return
+    @retval false   If there is no error
+    @retval true    else
+  */
+  bool print_error(THD *thd, String *str);
+
+  /**
+    Print select options.
+
+    @param[out] str          String of output
+  */
+  void print_select_options(String *str);
+
+  /**
+    Print UPDATE options.
+
+    @param[out] str          String of output
+  */
+  void print_update_options(String *str);
+
+  /**
+    Print DELETE options.
+
+    @param[out] str          String of output
+  */
+  void print_delete_options(String *str);
+
+  /**
+    Print INSERT options.
+
+    @param[out] str          String of output
+  */
+  void print_insert_options(String *str);
+
+  /**
+    Print list of tables.
+
+    @param      thd          Thread handler
+    @param[out] str          String of output
+    @param      table_list   TABLE_LIST object
+    @param      query_type   Options to print out string output
+  */
+  void print_table_references(THD *thd, String *str, TABLE_LIST *table_list,
+                              enum_query_type query_type);
+
+  /**
+    Print list of items in SELECT_LEX object.
+
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_item_list(String *str, enum_query_type query_type);
+
+  /**
+    Print assignments list. Used in UPDATE and
+    INSERT ... ON DUPLICATE KEY UPDATE ...
+
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+    @param      fields       List columns to be assigned.
+    @param      values       List of values.
+  */
+  void print_update_list(String *str, enum_query_type query_type,
+                         List<Item> fields, List<Item> values);
+
+  /**
+    Print column list to be inserted into. Used in INSERT.
+
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_insert_fields(String *str, enum_query_type query_type);
+
+  /**
+    Print list of values to be inserted. Used in INSERT.
+
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_insert_values(String *str, enum_query_type query_type);
+
+  /**
+    Print list of tables in FROM clause.
+
+    @param      thd          Thread handler
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_from_clause(THD *thd, String *str, enum_query_type query_type);
+
+  /**
+    Print list of conditions in WHERE clause.
+
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_where_cond(String *str, enum_query_type query_type);
+
+  /**
+    Print list of items in GROUP BY clause.
+
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_group_by(String *str, enum_query_type query_type);
+
+  /**
+    Print list of items in HAVING clause.
+
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_having(String *str, enum_query_type query_type);
+
+  /**
+    Print details of Windowing functions.
+
+    @param      thd          Thread handler
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_windows(THD *thd, String *str, enum_query_type query_type);
+
+  /**
+    Print list of items in ORDER BY clause.
+
+    @param[out] str          String of output
+    @param      query_type   Options to print out string output
+  */
+  void print_order_by(String *str, enum_query_type query_type);
+
   static void print_order(String *str, ORDER *order,
                           enum_query_type query_type);
   void print_limit(String *str, enum_query_type query_type);

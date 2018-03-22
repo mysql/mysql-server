@@ -2083,6 +2083,8 @@ EXPLAIN
     ]
   }
 }
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 9,`test`.`t2`.`a` = 10 where (`test`.`t1`.`b` = 'a')
 update t1, t2 set t1.a = 9, t2.a = 10 where t1.b = 'a';
 explain format = json select count(distinct a) from t1;
 EXPLAIN

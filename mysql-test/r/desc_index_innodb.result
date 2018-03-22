@@ -1430,6 +1430,8 @@ WHERE ( t1 . col_int_key IS  NULL AND t1 . pk != 4 )
 ORDER BY pk ASC LIMIT 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	range	PRIMARY,k3	PRIMARY	4	const	24	100.00	Using where; Backward index scan; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`pk` = (`test`.`t1`.`pk` + 1000) where (isnull(`test`.`t1`.`col_int_key`) and (`test`.`t1`.`pk` <> 4)) order by `test`.`t1`.`pk` asc limit 3
 DROP TABLE t1;
 #
 #

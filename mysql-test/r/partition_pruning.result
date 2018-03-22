@@ -3594,9 +3594,13 @@ insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
 explain update t1 set a=100 where a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 100 where (`test`.`t1`.`a` = 5)
 explain update t1 set a=100 where a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 100 where (`test`.`t1`.`a` = 5)
 flush status;
 update t1 set a=100 where a=5;
 show status like 'Handler_read_rnd_next';
@@ -3609,9 +3613,13 @@ Handler_external_lock	0
 explain update t1 set a=100 where a+1=5+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 100 where ((`test`.`t1`.`a` + 1) = (5 + 1))
 explain update t1 set a=100 where a+1=5+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 100 where ((`test`.`t1`.`a` + 1) = (5 + 1))
 flush status;
 update t1 set a=100 where a+1=5+1;
 show status like 'Handler_read_rnd_next';
@@ -3624,9 +3632,13 @@ Handler_external_lock	2
 explain update t1 set a=3 where a=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 3 where (`test`.`t1`.`a` = 4)
 explain update t1 set a=3 where a=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 3 where (`test`.`t1`.`a` = 4)
 flush status;
 update t1 set a=3 where a=4;
 show status like 'Handler_read_rnd_next';
@@ -3639,9 +3651,13 @@ Handler_external_lock	2
 explain update t1 set a=4 where a=3 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 4 where (`test`.`t1`.`a` = 3) limit 2
 explain update t1 set a=4 where a=3 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t1` set `test`.`t1`.`a` = 4 where (`test`.`t1`.`a` = 3) limit 2
 flush status;
 update t1 set a=4 where a=3 LIMIT 2;
 show status like 'Handler_read_rnd_next';
@@ -3664,9 +3680,13 @@ a
 explain delete from t1 where a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` = 5)
 explain delete from t1 where a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` = 5)
 flush status;
 delete from t1 where a=5;
 show status like 'Handler_read_rnd_next';
@@ -3678,9 +3698,13 @@ Handler_external_lock	0
 explain delete from t1 where a+1=5+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`a` + 1) = (5 + 1))
 explain delete from t1 where a+1=5+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0,p1	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where ((`test`.`t1`.`a` + 1) = (5 + 1))
 flush status;
 delete from t1 where a+1=5+1;
 show status like 'Handler_read_rnd_next';
@@ -3693,9 +3717,13 @@ Handler_external_lock	2
 explain delete from t1 where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` = 1)
 explain delete from t1 where a=1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p0	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t1` where (`test`.`t1`.`a` = 1)
 flush status;
 delete from t1 where a=1;
 show status like 'Handler_read_rnd_next';
@@ -3720,10 +3748,14 @@ explain update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1000,`test`.`t2`.`a` = 1000 where ((`test`.`t2`.`a` = 5) and (`test`.`t1`.`a` = 5))
 explain update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 1	UPDATE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t1` join `test`.`t2` set `test`.`t1`.`a` = 1000,`test`.`t2`.`a` = 1000 where ((`test`.`t2`.`a` = 5) and (`test`.`t1`.`a` = 5))
 flush status;
 update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -3736,10 +3768,14 @@ explain delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = 5) and (`test`.`t1`.`a` = 5))
 explain delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = 5) and (`test`.`t1`.`a` = 5))
 flush status;
 delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -3752,10 +3788,14 @@ explain delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))
 explain delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 1	DELETE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 5) and (`test`.`t2`.`a` = 5))
 flush status;
 delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5;
 show status like 'Handler_read_rnd_next';
@@ -3768,10 +3808,14 @@ explain delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
 1	DELETE	t2	p1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 3) and (`test`.`t2`.`a` = 3))
 explain delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	p1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
 1	DELETE	t2	p1	ALL	NULL	NULL	NULL	NULL	#	25.00	Using where
+Warnings:
+Note	1003	delete `test`.`t1`, `test`.`t2` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 3) and (`test`.`t2`.`a` = 3))
 flush status;
 delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3;
 show status like 'Handler_read_rnd_next';
@@ -3818,6 +3862,8 @@ explain insert into t2 select a,1 from t1 where a < 200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`a` AS `a`,1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` < 200)
 insert into t2 select a,1 from t1 where a < 200;
 insert into t2 select a,2 from t1 where a >= 200 and a < 400;
 insert into t2 select a,3 from t1 where a >= 400 and a < 600;
@@ -3832,10 +3878,14 @@ explain insert into t3 select * from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 explain   insert into t3 select * from t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2`
 explain select * from t2 where a < 801 and a > 200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
@@ -3845,6 +3895,8 @@ explain insert into t3 select * from t2 where a < 801 and a > 200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` < 801) and (`test`.`t2`.`a` > 200))
 explain select * from t2 where a < 801 and a > 800;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
@@ -3854,6 +3906,8 @@ explain insert into t3 select * from t2 where a < 801 and a > 800;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p4	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`a` < 801) and (`test`.`t2`.`a` > 800))
 explain select * from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
@@ -3863,6 +3917,8 @@ explain insert into t3 select * from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	33.33	Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`a` > 600)
 explain select * from t2 where a > 600 and b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	3.33	Using where
@@ -3872,6 +3928,8 @@ explain insert into t3 select * from t2 where a > 600 and b = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	3.33	Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 1) and (`test`.`t2`.`a` > 600))
 explain select * from t2 where a > 600 and b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	3.33	Using where
@@ -3881,6 +3939,8 @@ explain insert into t3 select * from t2 where a > 600 and b = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	3.33	Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 4) and (`test`.`t2`.`a` > 600))
 explain select * from t2 where a > 600 and b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	3.33	Using where
@@ -3890,6 +3950,8 @@ explain insert into t3 select * from t2 where a > 600 and b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	3.33	Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where ((`test`.`t2`.`b` = 5) and (`test`.`t2`.`a` > 600))
 explain select * from t2 where b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
@@ -3899,13 +3961,19 @@ explain insert into t3 select * from t2 where b = 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t3	NULL	ALL	NULL	NULL	NULL	NULL	#	NULL	NULL
 1	SIMPLE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where
+Warnings:
+Note	1003	insert into `test`.`t3` /* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t2` where (`test`.`t2`.`b` = 5)
 DROP TABLE t3;
 explain update t2 set b = 100 where b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`b` = 100 where (`test`.`t2`.`b` = 6)
 explain update t2 set b = 100 where b = 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p0,p1,p2,p3,p4	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`b` = 100 where (`test`.`t2`.`b` = 6)
 flush status;
 update t2 set b = 100 where b = 6;
 show status like 'Handler_read_rnd_next';
@@ -3914,6 +3982,8 @@ Handler_read_rnd_next	1010
 explain update t2 set a = 1002 where a = 1001;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	No matching rows after partition pruning
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 1002 where (`test`.`t2`.`a` = 1001)
 flush status;
 update t2 set a = 1002 where a = 1001;
 show status like 'Handler_read_rnd_next';
@@ -3922,6 +3992,8 @@ Handler_read_rnd_next	0
 explain update t2 set b = 6 where a = 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p3	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`b` = 6 where (`test`.`t2`.`a` = 600)
 flush status;
 update t2 set b = 6 where a = 600;
 show status like 'Handler_read_rnd_next';
@@ -3930,6 +4002,8 @@ Handler_read_rnd_next	200
 explain update t2 set b = 6 where a > 600 and a < 800;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p3	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`b` = 6 where ((`test`.`t2`.`a` > 600) and (`test`.`t2`.`a` < 800))
 flush status;
 update t2 set b = 6 where a > 600 and a < 800;
 show status like 'Handler_read_rnd_next';
@@ -3938,9 +4012,13 @@ Handler_read_rnd_next	200
 explain delete from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`a` > 600)
 explain delete from t2 where a > 600;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p3,p4	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`a` > 600)
 flush status;
 delete from t2 where a > 600;
 show status like 'Handler_read_rnd_next';
@@ -4088,9 +4166,13 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` fr
 explain update t2 set a = 111 where b = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 111 where (`test`.`t2`.`b` = 10)
 explain update t2 set a = 111 where b = 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 111 where (`test`.`t2`.`b` = 10)
 flush status;
 update t2 set a = 111 where b = 10;
 show status like 'Handler_read_rnd_next';
@@ -4102,6 +4184,8 @@ Handler_read_key	5
 explain update t2 set a = 111 where b in (5,6,7);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 111 where (`test`.`t2`.`b` in (5,6,7))
 flush status;
 update t2 set a = 111 where b in (5,6,7);
 show status like 'Handler_read_rnd_next';
@@ -4113,6 +4197,8 @@ Handler_read_key	305
 explain update t2 set a = 222 where b = 7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	UPDATE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	#	100.00	Using where; Using temporary
+Warnings:
+Note	1003	update `test`.`t2` set `test`.`t2`.`a` = 222 where (`test`.`t2`.`b` = 7)
 flush status;
 update t2 set a = 222 where b = 7;
 show status like 'Handler_read_rnd_next';
@@ -4124,9 +4210,13 @@ Handler_read_key	105
 explain delete from t2 where b = 8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`b` = 8)
 explain delete from t2 where b = 8;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p0,p1,p2,p3,p4	range	b	b	5	const	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`b` = 8)
 flush status;
 delete from t2 where b = 8;
 show status like 'Handler_read_rnd_next';
@@ -4138,6 +4228,8 @@ Handler_read_key	5
 explain delete from t2 where b > 5;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where (`test`.`t2`.`b` > 5)
 flush status;
 delete from t2 where b > 5;
 show status like 'Handler_read_rnd_next';
@@ -4155,6 +4247,8 @@ Handler_read_next	0
 explain delete from t2 where b < 5 or b > 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t2	p0,p1,p2,p3,p4	ALL	b	NULL	NULL	NULL	#	100.00	Using where
+Warnings:
+Note	1003	delete from `test`.`t2` where ((`test`.`t2`.`b` < 5) or (`test`.`t2`.`b` > 3))
 flush status;
 delete from t2 where b < 5 or b > 3;
 show status like 'Handler_read_rnd_next';
