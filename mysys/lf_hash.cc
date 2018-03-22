@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -123,12 +123,15 @@ static int my_lfind(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
 
 retry:
   cursor->prev = head;
-  do { /* PTR() isn't necessary below, head is a dummy node */
+  do /* PTR() isn't necessary below, head is a dummy node */
+  {
     cursor->curr = (LF_SLIST *)(*cursor->prev);
     lf_pin(pins, 1, cursor->curr);
   } while (*cursor->prev != cursor->curr && LF_BACKOFF);
   for (;;) {
-    if (unlikely(!cursor->curr)) return 0; /* end of the list */
+    if (unlikely(!cursor->curr)) {
+      return 0; /* end of the list */
+    }
     do {
       /* QQ: XXX or goto retry ? */
       link = cursor->curr->link.load();
@@ -147,8 +150,9 @@ retry:
         int r = 1;
         if (cur_hashnr > hashnr ||
             (r = my_strnncoll(cs, (uchar *)cur_key, cur_keylen, (uchar *)key,
-                              keylen)) >= 0)
+                              keylen)) >= 0) {
           return !r;
+        }
       }
       cursor->prev = &(cursor->curr->link);
       lf_pin(pins, 2, cursor->curr);
@@ -158,9 +162,9 @@ retry:
         and remove this deleted node
       */
       if (atomic_compare_exchange_strong(cursor->prev, &cursor->curr,
-                                         cursor->next))
+                                         cursor->next)) {
         lf_pinbox_free(pins, cursor->curr);
-      else {
+      } else {
         (void)LF_BACKOFF;
         goto retry;
       }
@@ -194,12 +198,15 @@ static int my_lfind_match(std::atomic<LF_SLIST *> *head, uint32 first_hashnr,
 
 retry:
   cursor->prev = head;
-  do { /* PTR() isn't necessary below, head is a dummy node */
+  do /* PTR() isn't necessary below, head is a dummy node */
+  {
     cursor->curr = (LF_SLIST *)(*cursor->prev);
     lf_pin(pins, 1, cursor->curr);
   } while (*cursor->prev != cursor->curr && LF_BACKOFF);
   for (;;) {
-    if (unlikely(!cursor->curr)) return 0; /* end of the list */
+    if (unlikely(!cursor->curr)) {
+      return 0; /* end of the list */
+    }
     do {
       /* QQ: XXX or goto retry ? */
       link = cursor->curr->link.load();
@@ -213,11 +220,15 @@ retry:
     }
     if (!DELETED(link)) {
       if (cur_hashnr >= first_hashnr) {
-        if (cur_hashnr > last_hashnr) return 0;
+        if (cur_hashnr > last_hashnr) {
+          return 0;
+        }
 
         if (cur_hashnr & 1) {
           /* Normal node. Check if element matches condition. */
-          if ((*match)((uchar *)(cursor->curr + 1))) return 1;
+          if ((*match)((uchar *)(cursor->curr + 1))) {
+            return 1;
+          }
         } else {
           /*
             Dummy node. Nothing to check here.
@@ -237,9 +248,9 @@ retry:
         and remove this deleted node
       */
       if (atomic_compare_exchange_strong(cursor->prev, &cursor->curr,
-                                         cursor->next))
+                                         cursor->next)) {
         lf_pinbox_free(pins, cursor->curr);
-      else {
+      } else {
         (void)LF_BACKOFF;
         goto retry;
       }
@@ -323,9 +334,9 @@ static int ldelete(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
                                          SET_DELETED(cursor.next))) {
         /* and remove it from the list */
         if (atomic_compare_exchange_strong(cursor.prev, &cursor.curr,
-                                           cursor.next))
+                                           cursor.next)) {
           lf_pinbox_free(pins, cursor.curr);
-        else {
+        } else {
           /*
             somebody already "helped" us and removed the node ?
             Let's check if we need to help that someone too!
@@ -363,7 +374,9 @@ static LF_SLIST *my_lsearch(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
                             LF_PINS *pins) {
   CURSOR cursor;
   int res = my_lfind(head, cs, hashnr, key, keylen, &cursor, pins);
-  if (res) lf_pin(pins, 2, cursor.curr);
+  if (res) {
+    lf_pin(pins, 2, cursor.curr);
+  }
   lf_unpin(pins, 0);
   lf_unpin(pins, 1);
   return res ? cursor.curr : 0;
@@ -371,7 +384,9 @@ static LF_SLIST *my_lsearch(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
 
 static inline const uchar *hash_key(const LF_HASH *hash, const uchar *record,
                                     size_t *length) {
-  if (hash->get_key) return (*hash->get_key)(record, length);
+  if (hash->get_key) {
+    return (*hash->get_key)(record, length);
+  }
   *length = hash->key_length;
   return record + hash->key_offset;
 }
@@ -443,15 +458,18 @@ void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
 void lf_hash_destroy(LF_HASH *hash) {
   LF_SLIST *el, **head = (LF_SLIST **)lf_dynarray_value(&hash->array, 0);
 
-  if (unlikely(!head)) return;
+  if (unlikely(!head)) {
+    return;
+  }
   el = *head;
 
   while (el) {
     LF_SLIST *next = el->link;
-    if (el->hashnr & 1)
+    if (el->hashnr & 1) {
       lf_alloc_direct_free(&hash->alloc, el); /* normal node */
-    else
+    } else {
       my_free(el); /* dummy node */
+    }
     el = (LF_SLIST *)next;
   }
   lf_alloc_destroy(&hash->alloc);
@@ -477,12 +495,14 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data) {
   std::atomic<LF_SLIST *> *el;
 
   node = (LF_SLIST *)lf_alloc_new(pins);
-  if (unlikely(!node)) return -1;
+  if (unlikely(!node)) {
+    return -1;
+  }
   uchar *extra_data =
       (uchar *)(node + 1);  // Stored immediately after the node.
-  if (hash->initialize)
+  if (hash->initialize) {
     (*hash->initialize)(extra_data, (const uchar *)data);
-  else {
+  } else {
     memcpy(extra_data, data, hash->element_size);
   }
   node->key = hash_key(hash, (uchar *)(node + 1), &node->keylen);
@@ -490,18 +510,22 @@ int lf_hash_insert(LF_HASH *hash, LF_PINS *pins, const void *data) {
   bucket = hashnr % hash->size;
   el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, bucket));
-  if (unlikely(!el)) return -1;
-  if (el->load() == nullptr &&
-      unlikely(initialize_bucket(hash, el, bucket, pins)))
+  if (unlikely(!el)) {
     return -1;
+  }
+  if (el->load() == nullptr &&
+      unlikely(initialize_bucket(hash, el, bucket, pins))) {
+    return -1;
+  }
   node->hashnr = my_reverse_bits(hashnr) | 1; /* normal node */
   if (linsert(el, hash->charset, node, pins, hash->flags)) {
     lf_pinbox_free(pins, node);
     return 1;
   }
   csize = hash->size;
-  if ((hash->count.fetch_add(1) + 1.0) / csize > MAX_LOAD)
+  if ((hash->count.fetch_add(1) + 1.0) / csize > MAX_LOAD) {
     atomic_compare_exchange_strong(&hash->size, &csize, csize * 2);
+  }
   return 0;
 }
 
@@ -524,7 +548,9 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen) {
   bucket = hashnr % hash->size;
   el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, bucket));
-  if (unlikely(!el)) return -1;
+  if (unlikely(!el)) {
+    return -1;
+  }
   /*
     note that we still need to initialize_bucket here,
     we cannot return "node not found", because an old bucket of that
@@ -532,8 +558,9 @@ int lf_hash_delete(LF_HASH *hash, LF_PINS *pins, const void *key, uint keylen) {
     that was never accessed before and thus is not initialized.
   */
   if (el->load() == nullptr &&
-      unlikely(initialize_bucket(hash, el, bucket, pins)))
+      unlikely(initialize_bucket(hash, el, bucket, pins))) {
     return -1;
+  }
   if (ldelete(el, hash->charset, my_reverse_bits(hashnr) | 1, (uchar *)key,
               keylen, pins)) {
     return 1;
@@ -575,10 +602,13 @@ void *lf_hash_search(LF_HASH *hash, LF_PINS *pins, const void *key,
   bucket = hashnr % hash->size;
   el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, bucket));
-  if (unlikely(!el)) return MY_LF_ERRPTR;
-  if (el->load() == nullptr &&
-      unlikely(initialize_bucket(hash, el, bucket, pins)))
+  if (unlikely(!el)) {
     return MY_LF_ERRPTR;
+  }
+  if (el->load() == nullptr &&
+      unlikely(initialize_bucket(hash, el, bucket, pins))) {
+    return MY_LF_ERRPTR;
+  }
   found = my_lsearch(el, hash->charset, my_reverse_bits(hashnr) | 1,
                      (uchar *)key, keylen, pins);
   return found ? found + 1 : 0;
@@ -627,7 +657,9 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
 
   el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, bucket));
-  if (unlikely(!el)) return MY_LF_ERRPTR;
+  if (unlikely(!el)) {
+    return MY_LF_ERRPTR;
+  }
   /*
     Bucket might be totally empty if it has not been accessed since last
     time LF_HASH::size has been increased. In this case we initialize it
@@ -636,8 +668,9 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
     access the same bucket.
   */
   if (el->load() == nullptr &&
-      unlikely(initialize_bucket(hash, el, bucket, pins)))
+      unlikely(initialize_bucket(hash, el, bucket, pins))) {
     return MY_LF_ERRPTR;
+  }
 
   /*
     To avoid bias towards the first matching element in the bucket, we start
@@ -659,11 +692,15 @@ void *lf_hash_random_match(LF_HASH *hash, LF_PINS *pins,
     */
     el = static_cast<std::atomic<LF_SLIST *> *>(
         lf_dynarray_lvalue(&hash->array, 0));
-    if (unlikely(!el)) return MY_LF_ERRPTR;
+    if (unlikely(!el)) {
+      return MY_LF_ERRPTR;
+    }
     res = my_lfind_match(el, 1, rev_hashnr, match, &cursor, pins);
   }
 
-  if (res) lf_pin(pins, 2, cursor.curr);
+  if (res) {
+    lf_pin(pins, 2, cursor.curr);
+  }
   lf_unpin(pins, 0);
   lf_unpin(pins, 1);
 
@@ -685,10 +722,13 @@ static int initialize_bucket(LF_HASH *hash, std::atomic<LF_SLIST *> *node,
   LF_SLIST *tmp = 0, *cur;
   std::atomic<LF_SLIST *> *el = static_cast<std::atomic<LF_SLIST *> *>(
       lf_dynarray_lvalue(&hash->array, parent));
-  if (unlikely(!el || !dummy)) return -1;
-  if (el->load() == nullptr && bucket &&
-      unlikely(initialize_bucket(hash, el, parent, pins)))
+  if (unlikely(!el || !dummy)) {
     return -1;
+  }
+  if (el->load() == nullptr && bucket &&
+      unlikely(initialize_bucket(hash, el, parent, pins))) {
+    return -1;
+  }
   dummy->hashnr = my_reverse_bits(bucket) | 0; /* dummy node */
   dummy->key = dummy_key;
   dummy->keylen = 0;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ struct LF_PINS {
   void *purgatory;
   uint32 purgatory_count;
   std::atomic<uint32> link;
-/* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
+  /* we want sizeof(LF_PINS) to be 64 to avoid false sharing */
 #if SIZEOF_INT * 2 + SIZEOF_CHARP * (LF_PINBOX_PINS + 2) != 64
   char pad[64 - sizeof(uint32) * 2 - sizeof(void *) * (LF_PINBOX_PINS + 2)];
 #endif
@@ -147,7 +147,9 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator);
 uint lf_alloc_pool_count(LF_ALLOCATOR *allocator);
 
 static inline void lf_alloc_direct_free(LF_ALLOCATOR *allocator, void *addr) {
-  if (allocator->destructor) allocator->destructor((uchar *)addr);
+  if (allocator->destructor) {
+    allocator->destructor((uchar *)addr);
+  }
   my_free(addr);
 }
 
