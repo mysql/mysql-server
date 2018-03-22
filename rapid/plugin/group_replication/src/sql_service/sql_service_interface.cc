@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -194,8 +194,8 @@ long Sql_service_interface::execute_internal(Sql_resultset *rset,
     if (err != 0)
     {
       log_message(MY_ERROR_LEVEL, "Error running internal SQL query: %s. Got "
-                  "internal SQL error: %s(%d)", cmd.com_query.query,
-                  rset->sql_errno(), rset->err_msg().c_str());
+                  "SQL error: %s(%d)", cmd.com_query.query,
+                  rset->err_msg().c_str(), rset->sql_errno());
     }
     else
     {
