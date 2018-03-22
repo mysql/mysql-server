@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -163,7 +163,7 @@ dd::sdi_key_t get_sdi_key(const dd::Tablespace &tablespace) {
 
 namespace dd {
 namespace sdi_tablespace {
-bool store_tbl_sdi(THD *thd, const handlerton &hton, const dd::Sdi_type &sdi,
+bool store_tbl_sdi(THD *thd, handlerton *hton, const dd::Sdi_type &sdi,
                    const dd::Table &table,
                    const dd::Schema &schema MY_ATTRIBUTE((unused))) {
   const dd::sdi_key_t key = get_sdi_key(table);
@@ -172,7 +172,7 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton, const dd::Sdi_type &sdi,
     DBUG_PRINT("ddsdi", ("store_sdi_with_schema[](Schema" ENTITY_FMT
                          ", Table" ENTITY_FMT ")",
                          ENTITY_VAL(schema), ENTITY_VAL(table)));
-    if (hton.sdi_set(tblspc, &table, &key, sdi.c_str(), sdi.size())) {
+    if (hton->sdi_set(hton, tblspc, &table, &key, sdi.c_str(), sdi.size())) {
       return checked_return(true);
     }
 
@@ -182,12 +182,12 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton, const dd::Sdi_type &sdi,
   return apply_to_tablespaces(thd, table, store_sdi);
 }
 
-bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
+bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
                    const Tablespace &tblspc) {
   dd::sdi_key_t key = get_sdi_key(tblspc);
 
   DBUG_PRINT("ddsdi", ("store_tsp_sdi(" ENTITY_FMT ")", ENTITY_VAL(tblspc)));
-  if (hton.sdi_set(tblspc, nullptr, &key, sdi.c_str(), sdi.size())) {
+  if (hton->sdi_set(hton, tblspc, nullptr, &key, sdi.c_str(), sdi.size())) {
     return checked_return(true);
   }
   return false;

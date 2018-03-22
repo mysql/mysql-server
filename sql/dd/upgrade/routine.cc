@@ -442,12 +442,12 @@ bool migrate_routines_to_dd(THD *thd) {
   uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
   DML_prelocking_strategy prelocking_strategy;
   MEM_ROOT records_mem_root;
+  Thd_mem_root_guard root_guard(thd, &records_mem_root);
 
   tables.init_one_table("mysql", 5, "proc", 4, "proc", TL_READ);
 
   table_list = &tables;
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy)) {
-    close_thread_tables(thd);
     LogErr(ERROR_LEVEL, ER_CANT_OPEN_TABLE_MYSQL_PROC);
     return true;
   }
@@ -473,35 +473,25 @@ bool migrate_routines_to_dd(THD *thd) {
   // Read first record from mysql.proc table. Return if table is empty.
   if ((error = proc_table->file->ha_index_first(proc_table->record[0]))) {
     if (error == HA_ERR_END_OF_FILE) return false;
-
     LogErr(ERROR_LEVEL, ER_CANT_READ_TABLE_MYSQL_PROC);
     return true;
   }
 
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &records_mem_root, MEM_ROOT_BLOCK_SIZE,
-                 0);
-  thd->mem_root = &records_mem_root;
-
   // Migrate first record read to dd routines table.
-  if (migrate_routine_to_dd(thd, proc_table)) goto err;
+  if (migrate_routine_to_dd(thd, proc_table)) return true;
 
   // Read one record from mysql.proc table and
   // migrate it until all records are finished
   while (!(error = proc_table->file->ha_index_next(proc_table->record[0]))) {
-    if (migrate_routine_to_dd(thd, proc_table)) goto err;
+    if (migrate_routine_to_dd(thd, proc_table)) return true;
   }
 
   if (error != HA_ERR_END_OF_FILE) {
     LogErr(ERROR_LEVEL, ER_CANT_READ_TABLE_MYSQL_PROC);
-    goto err;
+    return true;
   }
 
-  free_root(&records_mem_root, MYF(0));
   return false;
-
-err:
-  free_root(&records_mem_root, MYF(0));
-  return true;
 }
 
 }  // namespace upgrade_57

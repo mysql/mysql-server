@@ -545,7 +545,7 @@ namespace sdi {
 
 bool store(THD *thd, const Table *tp) {
   const Table &t = ptr_as_cref(tp);
-  const handlerton &hton = ptr_as_cref(resolve_hton(thd, t));
+  handlerton *hton = resolve_hton(thd, t);
 
   return with_schema(thd, t.schema_id(), [&](const Schema &s) {
     dd::Sdi_type sdi = serialize(thd, t, s.name());
@@ -558,8 +558,8 @@ bool store(THD *thd, const Table *tp) {
       return true;
     });
     return checked_return(
-        hton.sdi_set ? sdi_tablespace::store_tbl_sdi(thd, hton, sdi, t, s)
-                     : sdi_file::store_tbl_sdi(sdi, t, s));
+        hton->sdi_set ? sdi_tablespace::store_tbl_sdi(thd, hton, sdi, t, s)
+                      : sdi_file::store_tbl_sdi(sdi, t, s));
   });
 }
 
@@ -572,7 +572,7 @@ bool store(THD *thd, const Tablespace *ts) {
   if (sdi.empty()) {
     return checked_return(true);
   }
-  return checked_return(sdi_tablespace::store_tsp_sdi(*hton, sdi, *ts));
+  return checked_return(sdi_tablespace::store_tsp_sdi(hton, sdi, *ts));
 }
 
 bool drop(THD *thd, const Table *tp) {

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -126,6 +126,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace,
                   const dd::sdi_key_t *sdi_key, void *sdi, uint64 *sdi_len);
 
 /** Insert/Update SDI in tablespace.
+@param[in]	hton            handlerton object
 @param[in]	tablespace	tablespace object
 @param[in]	table		table object
 @param[in]	sdi_key		SDI key to uniquely identify the tablespace
@@ -134,9 +135,9 @@ object
 @param[in]	sdi_len		SDI length
 @retval		false		success
 @retval		true		failure */
-bool dict_sdi_set(const dd::Tablespace &tablespace, const dd::Table *table,
-                  const dd::sdi_key_t *sdi_key, const void *sdi,
-                  uint64 sdi_len);
+bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
+                  const dd::Table *table, const dd::sdi_key_t *sdi_key,
+                  const void *sdi, uint64 sdi_len);
 
 /** Delete SDI from tablespace.
 @param[in]	tablespace	tablespace object

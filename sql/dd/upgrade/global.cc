@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,14 +40,20 @@ namespace upgrade_57 {
 const char *TRN_EXT = ".TRN";
 const char *TRG_EXT = ".TRG";
 
-System_table_close_guard::System_table_close_guard(THD *thd, TABLE *table) {
+Thd_mem_root_guard::Thd_mem_root_guard(THD *thd, MEM_ROOT *mem_root) {
   m_thd = thd;
-  m_table = table;
-  m_mem_root = m_thd->mem_root;
+  m_thd_prev_mem_root = m_thd->mem_root;
+  m_thd->mem_root = mem_root;
 }
 
+Thd_mem_root_guard::~Thd_mem_root_guard() {
+  m_thd->mem_root = m_thd_prev_mem_root;
+}
+
+System_table_close_guard::System_table_close_guard(THD *thd, TABLE *table)
+    : m_thd(thd), m_table(table) {}
+
 System_table_close_guard::~System_table_close_guard() {
-  m_thd->mem_root = m_mem_root;
   if (m_table->file->inited) (void)m_table->file->ha_index_end();
   close_thread_tables(m_thd);
 }

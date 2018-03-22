@@ -551,12 +551,12 @@ bool migrate_events_to_dd(THD *thd) {
   uint flags = MYSQL_LOCK_IGNORE_TIMEOUT;
   DML_prelocking_strategy prelocking_strategy;
   MEM_ROOT records_mem_root;
+  Thd_mem_root_guard root_guard(thd, &records_mem_root);
 
   tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);
 
   table_list = &tables;
   if (open_and_lock_tables(thd, table_list, flags, &prelocking_strategy)) {
-    close_thread_tables(thd);
     LogErr(ERROR_LEVEL, ER_EVENT_CANT_OPEN_TABLE_MYSQL_EVENT);
     return true;
   }
@@ -593,10 +593,6 @@ bool migrate_events_to_dd(THD *thd) {
     goto err;
   }
 
-  init_sql_alloc(PSI_NOT_INSTRUMENTED, &records_mem_root, MEM_ROOT_BLOCK_SIZE,
-                 0);
-  thd->mem_root = &records_mem_root;
-
   if (migrate_event_to_dd(thd, event_table)) goto err;
 
   // Read the next row in 'event' table via index.
@@ -610,12 +606,10 @@ bool migrate_events_to_dd(THD *thd) {
   }
 
   my_tz_free();
-  free_root(&records_mem_root, MYF(0));
   return false;
 
 err:
   my_tz_free();
-  free_root(&records_mem_root, MYF(0));
   return true;
 }
 

@@ -285,6 +285,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace,
 }
 
 /** Insert/Update SDI in tablespace
+@param[in]	hton		handlerton object
 @param[in]	tablespace	tablespace object
 @param[in]	table		table object
 @param[in]	sdi_key		SDI key to uniquely identify the tablespace
@@ -293,9 +294,9 @@ object
 @param[in]	sdi_len		SDI length
 @retval		false		success
 @retval		true		failure */
-bool dict_sdi_set(const dd::Tablespace &tablespace, const dd::Table *table,
-                  const dd::sdi_key_t *sdi_key, const void *sdi,
-                  uint64 sdi_len) {
+bool dict_sdi_set(handlerton *hton, const dd::Tablespace &tablespace,
+                  const dd::Table *table, const dd::sdi_key_t *sdi_key,
+                  const void *sdi, uint64 sdi_len) {
   const char *operation = "set";
 
   DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_215)
@@ -359,6 +360,8 @@ bool dict_sdi_set(const dd::Tablespace &tablespace, const dd::Table *table,
 
   trx_t *trx = check_trx_exists(current_thd);
   trx_start_if_not_started(trx, true);
+
+  innobase_register_trx(hton, current_thd, trx);
 
   ib_sdi_key_t ib_sdi_key;
   ib_sdi_key.sdi_key = sdi_key;
