@@ -1,10 +1,8 @@
-# Disable test for WolfSSL: Bug #27731060 2018-03-22 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
---source include/have_openssl.inc
 
 ################### suite/binlog/t/binlog_grant_alter_user.test ###################
 # Replication Testing CREATE/ALTER/GRANT USER new syntax with New variable        #
 # "log-builtin-as-identified-by-password" default value "OFF"                     #
-#                                                                                 #
+#                                                                                 # 
 # Test for WL#6409                                                                #
 # created :2015-01-02                                                             #
 # Modified:2015-02-04  WL#6054                                                    #
