@@ -619,6 +619,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true" },
 
   {
+    CFG_DB_USE_SHM,
+    "UseShm",
+    DB_TOKEN,
+    "Use shared memory transporter on same host",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_BOOL,
+    "false",
+    "false",
+    "true" },
+
+  {
     CFG_DB_MEMLOCK,
     "LockPagesInMainMemory",
     DB_TOKEN,
@@ -5885,7 +5897,9 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     if(!tmp->get("Type", &type)) continue;
 
     if (strcmp(type,DB_TOKEN) == 0)
+    {
       p_db_nodes.put("", i_db++, i);
+    }
     else if (strcmp(type,API_TOKEN) == 0)
       p_api_nodes.put("", i_api++, i);
     else if (strcmp(type,MGM_TOKEN) == 0)
@@ -5911,9 +5925,21 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
   {
     for (Uint32 j= 0; p_db_nodes.get("", j, &nodeId2); j++)
     {
+      Uint32 use_shm = 0;
+      {
+        const Properties *shm_check;
+        if (props->get("Node", nodeId2, &shm_check))
+        {
+          shm_check->get("UseShm", &use_shm);
+        }
+      }
       if(!p_connections.get("", nodeId1+(nodeId2<<16), &dummy))
       {
-	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,false))
+	if (!add_a_connection(sections,
+                              ctx,
+                              nodeId1,
+                              nodeId2,
+                              (bool)use_shm))
 	  goto err;
       }
     }

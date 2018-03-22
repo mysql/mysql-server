@@ -116,7 +116,8 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   DBUG_VOID_RETURN;
 }
 
-Transporter::~Transporter(){
+Transporter::~Transporter()
+{
   delete m_socket_client;
 }
 
@@ -140,6 +141,12 @@ Transporter::configure(const TransporterConfiguration* conf)
   return false; // Can't reconfigure
 }
 
+void
+Transporter::update_connect_state(bool connected)
+{
+  assert(connected != m_connected);
+  m_connected  = connected;
+}
 
 bool
 Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
@@ -165,18 +172,21 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
   m_connect_count++;
   resetCounters();
 
-  m_connected  = true;
+  update_connect_state(true);
   DBUG_RETURN(true);
 }
 
 
 bool
-Transporter::connect_client() {
+Transporter::connect_client()
+{
   NDB_SOCKET_TYPE sockfd;
   DBUG_ENTER("Transporter::connect_client");
 
   if(m_connected)
+  {
     DBUG_RETURN(true);
+  }
 
   int port = m_s_port;
   if (port<0)
@@ -196,15 +206,21 @@ Transporter::connect_client() {
   else
   {
     if (!m_socket_client->init())
+    {
       DBUG_RETURN(false);
+    }
 
     if (pre_connect_options(m_socket_client->m_sockfd) != 0)
+    {
       DBUG_RETURN(false);
+    }
 
     if (strlen(localHostName) > 0)
     {
       if (m_socket_client->bind(localHostName, 0) != 0)
+      {
         DBUG_RETURN(false);
+      }
     }
 
     sockfd= m_socket_client->connect(remoteHostName,
@@ -216,8 +232,8 @@ Transporter::connect_client() {
 
 
 bool
-Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
-
+Transporter::connect_client(NDB_SOCKET_TYPE sockfd)
+{
   DBUG_ENTER("Transporter::connect_client(sockfd)");
 
   if(m_connected)
@@ -301,22 +317,25 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   my_socket_connect_address(sockfd, &m_connect_address);
 
   if (!connect_client_impl(sockfd))
+  {
     DBUG_RETURN(false);
+  }
 
   m_connect_count++;
   resetCounters();
 
-  m_connected = true;
+  update_connect_state(true);
   DBUG_RETURN(true);
 }
 
 void
-Transporter::doDisconnect() {
-
+Transporter::doDisconnect()
+{
   if(!m_connected)
+  {
     return;
-
-  m_connected = false;
+  }
+  update_connect_state(false);
   disconnectImpl();
 }
 

@@ -53,7 +53,13 @@ public:
    * SHM destructor
    */
   virtual ~SHM_Transporter();
-  
+
+  /**
+   * Clear any data buffered in the transporter.
+   * Should only be called in a disconnected state.
+   */
+  virtual void resetBuffers();
+
   virtual bool configure_derived(const TransporterConfiguration* conf);
 
   /**
@@ -129,7 +135,7 @@ protected:
   /**
    * Initialises the SHM_Reader and SHM_Writer on the segment 
    */
-  void setupBuffers();
+  bool setupBuffers();
 
   /**
    * doSend (i.e signal receiver)
@@ -179,6 +185,9 @@ private:
   Uint32 *serverAwakenedFlag;
   Uint32 *clientAwakenedFlag;
 
+  Uint32 *serverUpFlag;
+  Uint32 *clientUpFlag;
+
   NdbMutex *serverMutex;
   NdbMutex *clientMutex;
 
@@ -192,10 +201,13 @@ private:
   
   int shmSize;
   char * shmBuf;
-  
-  SHM_Reader * reader;
-  SHM_Writer * writer;
-  
+
+  SHM_Reader *reader;
+  SHM_Writer *writer;
+
+  SHM_Reader m_shm_reader;
+  SHM_Writer m_shm_writer;
+
   /**
    * @return - True if the reader has data to read on its segment.
    */
@@ -210,6 +222,7 @@ private:
     return ((Uint32)bufsize >= m_signal_threshold);
   }
   bool send_is_possible(int timeout_millisec) const;
+  void detach_shm(bool rep_error);
 };
 
 #endif
