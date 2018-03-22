@@ -455,7 +455,7 @@ Mysqlx.Crud.Update {
     value {
       type: LITERAL
       literal {
-        type: V_FLOAT v_float: 356.8594
+        type: V_FLOAT v_float: 356.859
       }
     }
   }

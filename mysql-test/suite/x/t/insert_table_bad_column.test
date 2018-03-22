@@ -14,6 +14,7 @@ create table mycoll (doc JSON, _id VARBINARY(16) GENERATED ALWAYS AS (json_unquo
 create table mytable (i int NOT NULL, ui int unsigned, vc varchar(100), f float, d double, dt datetime, ts timestamp(5), j json);
 create table ` .'"````\\` (` .'"````\\` int);
 -->endsql
+
 Mysqlx.Crud.Insert {
   collection {
     name: "mytable"
@@ -72,7 +73,7 @@ Mysqlx.Crud.Insert {
       type: LITERAL
       literal {
         type: V_FLOAT
-        v_float: 0.333333333333
+        v_float: 0.333333
       }
     }
     field {
