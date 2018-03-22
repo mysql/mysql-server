@@ -1,3 +1,6 @@
+# Disable test for WolfSSL: Bug #27731060 2018-03-22 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
+--source include/have_openssl.inc
+
 # Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 
@@ -67,7 +70,7 @@ let $tls_default= TLSv1.2;
 --source include/wait_until_connected_again.inc
 
 # This test only need to run for openssl build as Camella256 cipher is not supported by yassl
-if ($openssl == 'Rsa_public_key'){ 
+if ($openssl == 'Rsa_public_key'){
   --exec $MYSQL -h 127.0.0.1 -P $MYSQL_PORT --ssl-cipher=CAMELLIA256-SHA -e "SHOW STATUS like 'Ssl_cipher'"
 }
 

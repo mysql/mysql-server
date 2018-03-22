@@ -1,3 +1,6 @@
+# Disable test for WolfSSL: Bug #27731060 2018-03-22 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
+--source include/have_openssl.inc
+
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
@@ -50,12 +53,12 @@ create table t2 select c1 + c1 * (c2 / 100) as col1, round(c1, 5) as col2, round
 select * from t2;
 --enable_ps_protocol
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 show create table t2;
 drop table t1,t2;
 
-# Bug #1022: When a table contains a 'float' field, 
+# Bug #1022: When a table contains a 'float' field,
 # and one of the functions MAX, MIN, or AVG is used on that field,
 # the system crashes.
 
@@ -155,7 +158,7 @@ insert into t2 values ("1.23456780");
 create table t3 select * from t2 union select * from t1;
 select * from t3;
 
-#Replace default engine value with static engine string 
+#Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 show create table t3;
 drop table t1, t2, t3;
@@ -192,7 +195,7 @@ select 10e307;
 #
 create table t1(a int, b double(8, 2));
 insert into t1 values
-(1, 28.50), (1, 121.85), (1, 157.23), (1, 1351.00), (1, -1965.35), (1, 81.75), 
+(1, 28.50), (1, 121.85), (1, 157.23), (1, 1351.00), (1, -1965.35), (1, 81.75),
 (1, 217.08), (1, 7.94), (4, 96.07), (4, 6404.65), (4, -6500.72), (2, 100.00),
 (5, 5.00), (5, -2104.80), (5, 2033.80), (5, 0.07), (5, 65.93),
 (3, -4986.24), (3, 5.00), (3, 4857.34), (3, 123.74), (3,  0.16),
@@ -281,7 +284,7 @@ SELECT * FROM d1;
 DROP TABLE d1;
 
 #
-# Bug #26788 "mysqld (debug) aborts when inserting specific numbers into char 
+# Bug #26788 "mysqld (debug) aborts when inserting specific numbers into char
 #             fields"
 #
 
@@ -290,8 +293,8 @@ insert into t1 values (1.225e-05);
 select a+0 from t1;
 drop table t1;
 
-# 
-# Bug #27483: Casting 'scientific notation type' to 'unsigned bigint' fails on 
+#
+# Bug #27483: Casting 'scientific notation type' to 'unsigned bigint' fails on
 #             windows.
 #
 
@@ -316,7 +319,7 @@ DROP TABLE t1;
 
 --echo #
 --echo # Bug#12406055 BUFFER OVERFLOW OF VARIABLE 'BUFF' IN STRING::SET_REAL
---echo # 
+--echo #
 
 --echo # Ignoring output from misc. float operations
 --disable_result_log

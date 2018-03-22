@@ -1,3 +1,6 @@
+# Disable test for WolfSSL: Bug #27731060 2018-03-22 ivo.roylev X TESTS FAIL WITH WOLFSSL 3.14
+--source include/have_openssl.inc
+
 ##############################################################################
 # BUG#48321 CURRENT_USER() incorrectly replicated for DROP/RENAME USER,
 # REVOKE, GRANT, ALTER EVENT
@@ -65,49 +68,49 @@ REVOKE ALL PRIVILEGES, GRANT OPTION FROM CURRENT_USER();
 let $diff_tables= server_1:v_user, server_2:v_user, server_3:v_user;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'GRANT ... ON TABLE ...' statement
 GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
 --source include/rpl_sync.inc
 let $diff_tables= server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'GRANT ... ON PROCEDURE...' statement
 GRANT ALTER ROUTINE, EXECUTE ON PROCEDURE p1 TO CURRENT_USER();
 --source include/rpl_sync.inc
 let $diff_tables= server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'GRANT ... ON *.* ...' statement
 GRANT ALL PRIVILEGES ON *.* TO CURRENT_USER() WITH GRANT OPTION;
 --source include/rpl_sync.inc
 let $diff_tables= server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'REVOKE ... ON TABLE ...' statement
 REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
 --source include/rpl_sync.inc
 let $diff_tables= server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'REVOKE ... ON PROCEDURE...' statement
 REVOKE ALTER ROUTINE, EXECUTE ON PROCEDURE p1 FROM CURRENT_USER();
 --source include/rpl_sync.inc
 let $diff_tables= server_1:v_procs_priv, server_2:v_procs_priv, server_3:v_procs_priv;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'REVOKE ... ON *.* ...' statement
 REVOKE ALL PRIVILEGES ON *.* FROM CURRENT_USER();
 --source include/rpl_sync.inc
 let $diff_tables= server_1:v_user, server_2:v_user, server_3:v_user;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'GRANT ...' statement in the procedure
 CREATE PROCEDURE my_grant()
   GRANT CREATE, INSERT, SELECT ON TABLE test.t1 TO CURRENT_USER();
@@ -116,7 +119,7 @@ call my_grant;
 let $diff_tables= server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'REVOKE ... ON TABLE ...' statement in the procedure
 CREATE PROCEDURE my_revoke()
   REVOKE CREATE, INSERT, SELECT ON TABLE t1 FROM CURRENT_USER();
@@ -125,7 +128,7 @@ call my_revoke;
 let $diff_tables= server_1:v_tables_priv, server_2:v_tables_priv, server_3:v_tables_priv;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'RENAME USER ...' statement
 RENAME USER CURRENT_USER TO 'bug48321_2'@'localhost';
 --source include/rpl_sync.inc
@@ -134,7 +137,7 @@ source include/diff_tables.inc;
 
 disconnect conn1;
 
---echo 
+--echo
 --echo # Verify 'DROP USER ...' statement
 connection master;
 GRANT CREATE USER ON *.* TO 'bug48321_2'@'localhost';
@@ -145,7 +148,7 @@ DROP USER CURRENT_USER();
 let $diff_tables= server_1:v_user, server_2:v_user, server_3:v_user;
 source include/diff_tables.inc;
 
---echo 
+--echo
 --echo # Verify 'ALTER EVENT...' statement
 connection master;
 CREATE EVENT e1 ON SCHEDULE EVERY 1 DAY DO SELECT * FROM t1;
@@ -165,7 +168,7 @@ let $diff_tables= server_1:v_event, server_2:v_event, server_3:v_event;
 source include/diff_tables.inc;
 
 --echo
---echo # Verify that this patch does not affect the calling of CURRENT_USER() 
+--echo # Verify that this patch does not affect the calling of CURRENT_USER()
 --echo # in the other statements
 connection master;
 --echo # [On master]
@@ -211,8 +214,8 @@ connection master;
 CREATE TABLE t2(c1 char(100));
 
 DELIMITER |;
-CREATE FUNCTION my_user() RETURNS VARCHAR(64) 
-  SQL SECURITY INVOKER 
+CREATE FUNCTION my_user() RETURNS VARCHAR(64)
+  SQL SECURITY INVOKER
 BEGIN
   INSERT INTO t2 VALUES(CURRENT_USER());
   RETURN CURRENT_USER();
@@ -237,7 +240,7 @@ SELECT * FROM t2;
 --echo # END
 connection master;
 DROP TABLE t1, t2;
-DROP VIEW v_user, v_tables_priv, v_procs_priv, v_event; 
+DROP VIEW v_user, v_tables_priv, v_procs_priv, v_event;
 DROP PROCEDURE p1;
 DROP PROCEDURE my_grant;
 DROP PROCEDURE my_revoke;
