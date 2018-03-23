@@ -5,3 +5,5 @@ main.dd_bootstrap                            : Bug#24421481 2016-08-08 edahl
 binlog.binlog_check_flush_log_assertion      : Bug#22732184 2017-03-10 edahl
 innodb.virtual_basic                         : Bug#25431979 2017-03-27 edahl
 main.mysqlpump_partial_bkp                   : Bug#26199978 2017-11-13 shisjais
+ndb.ndb_connection_pool_nodeids              : Bug#27737803 2018-03-23 arnray
+ndb.ndb_startup                              : Bug#27737803 2018-03-23 arnray
