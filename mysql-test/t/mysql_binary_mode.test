@@ -168,6 +168,5 @@ if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) NOT IN ('Win32', 'Win64',
 
 RESET MASTER;
 --remove_file $binlog_uuid_filename
---remove_file $MYSQLTEST_VARDIR/tmp/my.sql
 
 --source include/restore_default_binlog_format.inc

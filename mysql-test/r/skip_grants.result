@@ -76,4 +76,3 @@ End of 5.0 tests
 SET PERSIST max_connections = 18;
 SET PERSIST_ONLY max_connections = 18;
 SET GLOBAL max_connections = DEFAULT;
-RESET PERSIST;

@@ -83,6 +83,3 @@ if (`SELECT @@have_dynamic_loading = 'YES' AND LENGTH('$SEMISYNC_MASTER_PLUGIN')
   UNINSTALL PLUGIN rpl_semi_sync_slave;
   --enable_query_log
 }
-
-# Cleanup
---remove_file $MYSQLTEST_VARDIR/tmp/sys_vars.all_vars.txt

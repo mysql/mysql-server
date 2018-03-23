@@ -160,8 +160,6 @@ connection master;
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/rpl_row_blob_slave.sql
 
 diff_files $MYSQLTEST_VARDIR/tmp/rpl_row_blob_master.sql $MYSQLTEST_VARDIR/tmp/rpl_row_blob_slave.sql;
---remove_file $MYSQLTEST_VARDIR/tmp/rpl_row_blob_master.sql
---remove_file $MYSQLTEST_VARDIR/tmp/rpl_row_blob_slave.sql
 
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;

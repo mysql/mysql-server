@@ -73,7 +73,7 @@ RESET MASTER;
 
 --echo CLEANUP
 
---remove_file $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
+#--remove_file $MYSQLTEST_VARDIR/tmp/rewrite_noleak.sql
 DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;

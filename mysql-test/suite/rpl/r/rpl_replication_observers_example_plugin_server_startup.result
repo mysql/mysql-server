@@ -26,7 +26,3 @@ Occurrences of 'replication_observers_example_plugin:after_engine_recovery' in t
 Matching lines are:
 replication_observers_example_plugin:after_recovery'
 Occurrences of 'replication_observers_example_plugin:after_recovery' in the input file: 1
-#
-# Re-installing the Plugin
-#
-INSTALL PLUGIN replication_observers_example SONAME 'replication_observers_example_plugin.so';

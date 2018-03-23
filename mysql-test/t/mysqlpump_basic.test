@@ -679,4 +679,4 @@ SHOW CREATE TABLE test.t1;
 
 DROP TABLE `test`.`t1`;
 DROP TABLESPACE `mytbsp`;
---remove_file $MYSQL_TMP_DIR/mysqlpump.sql
+

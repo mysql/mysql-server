@@ -24,7 +24,6 @@ source include/wait_for_slave_sql_error_and_skip.inc;
 
 connection master;
 DROP TABLE t1;
---remove_files_wildcard $MYSQLTEST_VARDIR/tmp SQL_LOAD*
 --source include/sync_slave_sql_with_master.inc
 
 --source include/rpl_end.inc

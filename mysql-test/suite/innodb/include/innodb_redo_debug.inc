@@ -168,4 +168,4 @@ SELECT count(*)=0 FROM (SELECT col1,col2 FROM dbredoopt.t1 WHERE col1 NOT BETWEE
 
 DROP DATABASE dbredoopt;
 DROP USER 'redo_wl_user'@'localhost';
---remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ t1_*put*
+#--remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ t1_*put*

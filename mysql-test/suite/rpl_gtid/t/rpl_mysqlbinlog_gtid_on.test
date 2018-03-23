@@ -178,7 +178,6 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000005
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000006
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000007
---remove_file $MYSQLTEST_VARDIR/tmp/$binlog_file
 
 --echo ==== --read-from-remote-master with --exclude-gtids ====
 
@@ -201,7 +200,6 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000002
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000003
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000004
---remove_file $MYSQLTEST_VARDIR/tmp/$binlog_file
 
 --echo ==== --read-from-remote-master with --include-gtids ====
 

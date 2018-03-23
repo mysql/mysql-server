@@ -35,4 +35,3 @@ SELECT * FROM crc32_little_endian;
 
 DROP TABLE crc32_big_endian;
 DROP TABLE crc32_little_endian;
---force-rmdir $MYSQLTEST_VARDIR/tmp/crc32_endianness

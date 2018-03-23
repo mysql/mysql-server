@@ -124,9 +124,6 @@ let SEARCH_PATTERN= lCC;
 --remove_file $BOOTSTRAP_SQL
 
 # Remove residue files
---remove_file $MYSQLTEST_VARDIR/tmp/bootstrap.log
---remove_file $MYSQLTEST_VARDIR/tmp/bootstrap2.log
---remove_file $MYSQL_TMP_DIR/my_key_undo5
 --force-rmdir $MYSQL_TMP_DIR/datadir
 --force-rmdir $MYSQL_TMP_DIR/innodb_data_home_dir
 --force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir

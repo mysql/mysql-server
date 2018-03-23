@@ -141,6 +141,4 @@ DROP TABLE t1, t2, t3;
 #SELECT * FROM t1 ORDER BY a;
 #SELECT * FROM t2 ORDER BY a;
 #SELECT COUNT(*) FROM t3;
-# Cleanup
 #--source include/rpl_end.inc
---remove_files_wildcard $MYSQLTEST_VARDIR/tmp SQL_LOAD_MB*

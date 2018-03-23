@@ -143,9 +143,7 @@ SET GLOBAL debug= 'd,simulate_flush_error';
 --exec $MYSQL_BINLOG -r $MYSQLTEST_VARDIR/tmp/output --read-from-remote-master=BINLOG-DUMP-GTIDS --exclude-gtids=$exclude_gtids master-bin.000001
 
 eval SET GLOBAL debug= '$master_debug';
-# Cleanup
 DROP TABLE t1;
---remove_file $MYSQLTEST_VARDIR/tmp/output
 
 --source include/rpl_connection_slave.inc
 RESET MASTER;

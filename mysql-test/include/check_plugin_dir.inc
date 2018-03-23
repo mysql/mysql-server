@@ -61,4 +61,3 @@ EOF
 if ($skip) {
 	--skip Plugins present in different folders
 }
---remove_file $MYSQL_TMP_DIR/skip_status.txt

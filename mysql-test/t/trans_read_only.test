@@ -3,12 +3,10 @@
 --echo #
 
 --echo #
---echo # Test9:  The --transaction-read-only option.
+--echo # Test9:  The --transaction-read-only startup option.
 
---echo # Saving the initial value of transaction_read_only variable
-SET @transaction_read_only_save = @@transaction_read_only;
-
-SET @@global.transaction_read_only = ON;
+--echo # Check that the option was set by the .opt file.
+SELECT @@transaction_read_only;
 
 --echo # Also for new connections. Switching to con1
 connect (con1, localhost, root);
@@ -38,6 +36,3 @@ START TRANSACTION READ ONLY;
 --echo # The same happens with START TRANSACTION
 DROP TABLE t1;
 --enable_ps_protocol
-
---echo # Restoring the original value of transaction_read_only
-SET @@global.transaction_read_only = @transaction_read_only_save;

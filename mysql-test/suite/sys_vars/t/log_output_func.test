@@ -117,7 +117,6 @@ SET @@global.general_log_file= @start_general_log_file;
 SET @@global.log_output= @start_value;
 SET @@global.general_log= @start_general_log;
 SET @@global.general_log= 'ON';
---remove_file $MYSQLTEST_VARDIR/run/mytest.log
 
 --enable_ps_protocol
 ####################################################

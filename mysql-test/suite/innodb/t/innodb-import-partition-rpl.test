@@ -103,5 +103,3 @@ call mtr.add_suppression("The table .* doesn't have a corresponding tablespace, 
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg
---remove_files_wildcard $MYSQLTEST_VARDIR/tmp t2*.ibd
---remove_files_wildcard $MYSQLTEST_VARDIR/tmp t2*.cfg

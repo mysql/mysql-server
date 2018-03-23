@@ -109,5 +109,3 @@ if ($rand_type != decide)
     --let $rand= `SELECT ($_rand_min) + ($rand * (($_rand_max) - ($_rand_min)) / (1 << 32))`
   }
 }
---error 0,1
---remove_file $MYSQLTEST_VARDIR/tmp/rand_seed

@@ -207,4 +207,3 @@ DROP TABLE t1;
 --force-rmdir $MYSQL_TMP_DIR/datadir
 --force-rmdir $MYSQL_TMP_DIR/innodb_data_home_dir
 --force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir
---remove_file $MYSQLTEST_VARDIR/tmp/bootstrap2.log

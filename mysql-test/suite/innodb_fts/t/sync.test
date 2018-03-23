@@ -104,7 +104,6 @@ disconnect con1;
 DROP TABLE t1;
 
 --echo # Case 3: Test insert crash recovery
---let $_server_id=`SELECT @@server_id`
 --let $_expect_file_name=$MYSQLTEST_VARDIR/tmp/mysqld.$_server_id.expect
 
 CREATE TABLE t1 (
@@ -115,7 +114,7 @@ CREATE TABLE t1 (
 
 INSERT INTO t1(id, title) VALUES(1, 'database');
 
---exec echo "restart" > $_expect_file_name
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 SET SESSION debug="+d,fts_instrument_sync_debug,fts_write_node_crash";
 

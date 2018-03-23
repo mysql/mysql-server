@@ -40,7 +40,6 @@ use warnings;
 use lib "lib";
 
 use Cwd;
-use Cwd 'abs_path';
 use File::Basename;
 use File::Copy;
 use File::Find;
@@ -163,13 +162,13 @@ my $path_vardir_trace;      # Unix formatted opt_vardir for trace files
 my $DEFAULT_SUITES =
 "main,sys_vars,binlog,binlog_gtid,binlog_nogtid,federated,gis,rpl,rpl_gtid,rpl_nogtid,innodb,innodb_gis,innodb_fts,innodb_zip,innodb_undo,perfschema,funcs_1,opt_trace,parts,auth_sec,query_rewrite_plugins,gcol,sysschema,test_service_sql_api,json,connection_control,test_services,collations,service_udf_registration,service_sys_var_registration,service_status_var_registration,x";
 
-my $build_thread       = 0;
-my $daemonize_mysqld   = 0;
-my $debug_d            = "d";
-my $exe_ndbmtd_counter = 0;
-my $ports_per_thread   = 10;
-my $source_dist        = 0;
-my $valgrind_reports   = 0;
+my $build_thread                     = 0;
+my $daemonize_mysqld                 = 0;
+my $debug_d                          = "d";
+my $exe_ndbmtd_counter               = 0;
+my $ports_per_thread                 = 10;
+my $source_dist                      = 0;
+my $valgrind_reports                 = 0;
 
 my @valgrind_args;
 
@@ -2545,16 +2544,15 @@ sub environment_setup {
   $ENV{'LC_COLLATE'} = "C";
   $ENV{'LC_CTYPE'}   = "C";
 
-  $ENV{'DEFAULT_MASTER_PORT'}  = $mysqld_variables{'port'};
-  $ENV{'MYSQL_BINDIR'}         = "$bindir";
-  $ENV{'MYSQL_CHARSETSDIR'}    = $path_charsetsdir;
-  $ENV{'MYSQL_SHAREDIR'}       = $path_language;
-  $ENV{'MYSQL_TEST_DIR'}       = $glob_mysql_test_dir;
-  $ENV{'MYSQL_TEST_DIR_ABS'}   = getcwd();
-  $ENV{'MYSQL_TMP_DIR'}        = $opt_tmpdir;
-  $ENV{'MYSQLTEST_VARDIR'}     = $opt_vardir;
-  $ENV{'MYSQLTEST_VARDIR_ABS'} = abs_path("$opt_vardir");
-  $ENV{'USE_RUNNING_SERVER'}   = using_extern();
+  $ENV{'DEFAULT_MASTER_PORT'} = $mysqld_variables{'port'};
+  $ENV{'MYSQL_BINDIR'}        = "$bindir";
+  $ENV{'MYSQL_CHARSETSDIR'}   = $path_charsetsdir;
+  $ENV{'MYSQL_SHAREDIR'}      = $path_language;
+  $ENV{'MYSQL_TEST_DIR'}      = $glob_mysql_test_dir;
+  $ENV{'MYSQL_TEST_DIR_ABS'}  = getcwd();
+  $ENV{'MYSQL_TMP_DIR'}       = $opt_tmpdir;
+  $ENV{'MYSQLTEST_VARDIR'}    = $opt_vardir;
+  $ENV{'USE_RUNNING_SERVER'}  = using_extern();
 
   if (IS_WINDOWS) {
     $ENV{'SECURE_LOAD_PATH'}      = $glob_mysql_test_dir . "\\std_data";

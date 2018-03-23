@@ -101,7 +101,6 @@ DROP TABLE test.t2;
 
 diff_files $MYSQLTEST_VARDIR/tmp/func002_master.sql $MYSQLTEST_VARDIR/tmp/func002_slave.sql;
 
---remove_file $MYSQLTEST_VARDIR/tmp/func002_master.sql
---remove_file $MYSQLTEST_VARDIR/tmp/func002_slave.sql
---source include/rpl_end.inc
 # End of 5.0 test case
+
+--source include/rpl_end.inc

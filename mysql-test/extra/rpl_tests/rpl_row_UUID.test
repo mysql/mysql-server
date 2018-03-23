@@ -74,5 +74,4 @@ diff_files $MYSQLTEST_VARDIR/tmp/rpl_row_UUID_master.sql $MYSQLTEST_VARDIR/tmp/r
 # Long-term "system rm" is not portable; we could live without
 # this cleanup as no other test will use these files and they'll
 # be removed at next testsuite run.
---remove_file $MYSQLTEST_VARDIR/tmp/rpl_row_UUID_master.sql
---remove_file $MYSQLTEST_VARDIR/tmp/rpl_row_UUID_slave.sql
+

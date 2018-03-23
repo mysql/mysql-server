@@ -272,4 +272,3 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot add field.*");
 # Remove residue files and data folder of page size 32K
 --force-rmdir $MYSQL_TMP_DIR/datadir1
 --remove_file $MYSQLTEST_VARDIR/tmp/wl5757.sql
---remove_file $MYSQLTEST_VARDIR/tmp/bootstrap.log

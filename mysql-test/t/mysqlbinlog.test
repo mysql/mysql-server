@@ -579,10 +579,6 @@ RESET MASTER;
 --remove_file $ofile
 --let $ofile=
 
-#
-# Cleanup
-#
---remove_files_wildcard $MYSQLTEST_VARDIR/tmp/ SQL_LOAD_MB*
 
 --echo
 --echo End of tests

@@ -148,7 +148,6 @@ RESET MASTER;
 #
 --connection master
 DROP TABLE t1;
---remove_file $events_file
 
 --sync_slave_with_master
 

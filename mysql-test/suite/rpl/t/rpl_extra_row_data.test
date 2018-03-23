@@ -34,7 +34,6 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 --enable_query_log
 
 select replace(txt, '\r', '') from raw_data where txt like '%### Extra row data format%' order by txt;
---remove_file $MYSQLTEST_VARDIR/tmp/rpl_extra_row_data.out
 drop table raw_data;
 
 --echo Generate some more insert, update, delete traffic

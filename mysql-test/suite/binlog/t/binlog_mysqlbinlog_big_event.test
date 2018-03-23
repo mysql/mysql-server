@@ -34,7 +34,6 @@ INSERT INTO t2 VALUES(@string);
 let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 FLUSH LOGS;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---replace_regex /SQL_LOAD_MB-[a-f0-9]-[a-f0-9]/SQL_LOAD_MB-#-#/
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec cat $MYSQLD_DATADIR/$binlog_file | $MYSQL_BINLOG  --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ - > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
 DROP TABLE t2;
---remove_file $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
