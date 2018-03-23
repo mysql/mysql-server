@@ -66,12 +66,9 @@ Triggers::Triggers() {
                          "FIELD_ACTION_STATEMENT_UTF8",
                          "action_statement_utf8 LONGTEXT NOT NULL");
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
-                         "created TIMESTAMP(2) NOT NULL DEFAULT "
-                         "CURRENT_TIMESTAMP(2) ON UPDATE "
-                         "CURRENT_TIMESTAMP(2)");
+                         "created TIMESTAMP(2) NOT NULL");
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
-                         "last_altered TIMESTAMP(2) NOT NULL "
-                         "DEFAULT CURRENT_TIMESTAMP(2)");
+                         "last_altered TIMESTAMP(2) NOT NULL");
   m_target_def.add_field(FIELD_SQL_MODE, "FIELD_SQL_MODE",
                          "sql_mode SET( \n"
                          "'REAL_AS_FLOAT',\n"

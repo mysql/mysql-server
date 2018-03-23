@@ -51,6 +51,12 @@ class Collation : virtual public Entity_object {
   typedef Global_name_key Name_key;
   typedef Void_key Aux_key;
 
+  // Persisted pad attribute, mapped from Pad_attribute enum defined
+  // in include/m_ctype.h. The setter is not part of the public API,
+  // and there is no getter, since this attribute is only exposed
+  // throught the I_S.
+  enum enum_pad_attribute { PA_UNDEFINED, PA_PAD_SPACE, PA_NO_PAD };
+
   // We need a set of functions to update a preallocated key.
   virtual bool update_id_key(Id_key *key) const {
     return update_id_key(key, id());

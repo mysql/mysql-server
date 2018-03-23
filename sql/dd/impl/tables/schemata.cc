@@ -60,11 +60,9 @@ Schemata::Schemata() {
                          "FIELD_DEFAULT_COLLATION_ID",
                          "default_collation_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
-                         "created TIMESTAMP NOT NULL\n"
-                         " DEFAULT CURRENT_TIMESTAMP\n"
-                         " ON UPDATE CURRENT_TIMESTAMP");
+                         "created TIMESTAMP NOT NULL");
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
-                         "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
+                         "last_altered TIMESTAMP NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY (id)");
@@ -85,7 +83,8 @@ Schemata::Schemata() {
   m_target_def.add_populate_statement(
       "INSERT INTO schemata (catalog_id, name, default_collation_id, created, "
       "last_altered, options) VALUES "
-      "(1,'information_schema',33, now(), now(), NULL)");
+      "(1,'information_schema',33, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, "
+      "NULL)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
