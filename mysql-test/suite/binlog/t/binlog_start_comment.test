@@ -27,3 +27,4 @@ select * from t2;
 # clean up
 drop table t1,t2;
 remove_file $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog;
+remove_files_wildcard $MYSQLTEST_VARDIR/tmp SQL_LOAD_MB*;

@@ -79,6 +79,9 @@ DROP PROCEDURE p2;
 
 diff_files $MYSQLTEST_VARDIR/tmp/sp006_master.sql $MYSQLTEST_VARDIR/tmp/sp006_slave.sql;
 
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/sp006_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/sp006_slave.sql
 --source include/sync_slave_sql_with_master.inc
 
 # End of 5.1 test case

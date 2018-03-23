@@ -330,6 +330,8 @@ SET @@global.collation_server=@restore_slave_collation_server;
 SET @@global.max_heap_table_size=@restore_slave_max_heap_table_size;
 SET @@global.default_storage_engine=@restore_slave_storage_engine;
 SET @@global.local_infile= @old_local_infile;
+--remove_file $MYSQLTEST_VARDIR/tmp/words.dat
+--remove_file $MYSQLTEST_VARDIR/tmp/words2.dat
 
 # Put at the end since the test otherwise emptied the table.
 

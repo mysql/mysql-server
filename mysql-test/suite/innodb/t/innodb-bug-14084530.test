@@ -38,3 +38,7 @@ SELECT c1 FROM testdb_wl5522.t1;
 SET AUTOCOMMIT = 1;
 DROP TABLE testdb_wl5522.t1;
 DROP DATABASE testdb_wl5522;
+
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd

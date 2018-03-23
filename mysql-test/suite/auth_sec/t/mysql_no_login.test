@@ -113,6 +113,6 @@ GRANT EXECUTE ON noauthdb.* TO noauth@localhost;
  DROP USER noauth@localhost;
  DROP USER otheruser@localhost;
 
- #UNINSTALL PLUGIN mysql_no_auth;
+ UNINSTALL PLUGIN mysql_no_login;
  --enable_query_log
 --exit

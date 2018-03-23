@@ -31,4 +31,5 @@ SHOW GLOBAL STATUS LIKE 'mysqlx%connections%';
 
 UNINSTALL COMPONENT "file://component_mysqlx_global_reset";
 --remove_file $MYSQL_TMP_DIR/check.tmp
+--remove_file $MYSQL_TMP_DIR/reset.tmp
 --source include/xplugin_drop_user.inc

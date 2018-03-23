@@ -62,3 +62,5 @@ SELECT * FROM t1;
 DROP TABLE t1;
 DROP DATABASE db21235226;
 DROP USER uplain@localhost;
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.sql

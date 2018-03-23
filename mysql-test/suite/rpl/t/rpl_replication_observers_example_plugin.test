@@ -86,4 +86,6 @@ DROP TABLE t1;
 --let $grep_pattern=replication_observers_example_plugin:trans_after_rollback
 --source include/grep_pattern.inc
 
+# Cleanup
+UNINSTALL PLUGIN replication_observers_example;
 --echo End of test

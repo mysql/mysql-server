@@ -71,3 +71,8 @@ DROP TABLE t1;
 
 --let $include_filename= rpl_replication_observers_example_plugin_server_startup.inc
 --source include/end_include_file.inc
+
+--echo #
+--echo # Re-installing the Plugin
+--echo #
+INSTALL PLUGIN replication_observers_example SONAME 'replication_observers_example_plugin.so';

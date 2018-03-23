@@ -82,4 +82,6 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db1_1gb;
+--remove_file $MYSQLTEST_VARDIR/tmp/watch_progress_1.log
+--remove_file $MYSQLTEST_VARDIR/tmp/watch_progress_2.log
 

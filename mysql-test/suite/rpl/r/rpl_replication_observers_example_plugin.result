@@ -40,4 +40,5 @@ Occurrences of 'replication_observers_example_plugin:trans_after_commit' in the 
 Matching lines are:
 replication_observers_example_plugin:trans_after_rollback'
 Occurrences of 'replication_observers_example_plugin:trans_after_rollback' in the input file: 1
+UNINSTALL PLUGIN replication_observers_example;
 End of test

@@ -85,4 +85,8 @@ DROP DATABASE db1;
 DROP DATABASE db2;
 DROP DATABASE db3;
 DROP DATABASE db1_1gb;
+--remove_file $MYSQLTEST_VARDIR/tmp/skip_definer_file_1.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/skip_definer_file_2.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/skip_definer_file_3.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/full_bkp.logs
 # END OF TEST

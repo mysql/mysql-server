@@ -1813,5 +1813,7 @@ if (`select @@session.binlog_direct_non_transactional_updates = 0 || @@session.b
 --echo ###################################################################################
 --echo #                                        CLEAN
 --echo ###################################################################################
+--remove_file $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
 --let $commands= clean
 --source extra/rpl_tests/rpl_mixing_engines.inc
