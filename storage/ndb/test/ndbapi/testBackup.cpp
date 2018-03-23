@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 #include <NdbBackup.hpp>
 #include <NdbMgmd.hpp>
 #include <signaldata/DumpStateOrd.hpp>
+#include <NdbHistory.hpp>
 
 int runDropTable(NDBT_Context* ctx, NDBT_Step* step);
 
@@ -425,9 +426,24 @@ int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
   unsigned backupId = 0;
 
-  if (backup.start(backupId) == -1){
-    return NDBT_FAILED;
+  if (ctx->getProperty("SnapshotStart") == 0)
+  {
+    if (backup.start(backupId) == -1)
+    {
+      return NDBT_FAILED;
+    }
   }
+  else
+  {
+    if (backup.start(backupId,
+                     2,  // Wait for backup completion
+                     0,
+                     1) == -1)
+    {
+      return NDBT_FAILED;
+    }
+  }
+
   ndbout << "Started backup " << backupId << endl;
   ctx->setProperty("BackupId", backupId);
 
@@ -1207,6 +1223,619 @@ runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+
+
+
+class DbVersion
+{
+public:
+  NdbHistory::Version* m_version;
+  
+  DbVersion(): m_version(NULL)
+  {};
+
+  ~DbVersion()
+  {
+    delete m_version;
+    m_version = NULL;
+  }
+};
+
+/**
+ * readVersionForRange
+ * 
+ * Method will read version info for the given range
+ * from the database
+ * Each logical row in the range is read by PK, and
+ * its values (if present) are checked using
+ * Hugo.
+ * The passed in Version object is modified to describe
+ * the versions present
+ */
+int readVersionForRange(Ndb* pNdb,
+                        const NdbDictionary::Table* table,
+                        const RecordRange range,
+                        DbVersion& dbVersion)
+{
+  assert(range.m_len > 0);
+  
+  /* Initialise Version */
+  dbVersion.m_version = new NdbHistory::Version(range);
+  
+  HugoCalculator hugoCalc(*table);
+  
+  for (Uint32 i=0; i < range.m_len; i++)
+  {
+    HugoOperations hugoOps(*table);
+    const Uint32 r = range.m_start + i;
+    NdbHistory::RecordState* recordState = dbVersion.m_version->m_states + i;
+    
+    if (hugoOps.startTransaction(pNdb) != 0)
+    {
+      g_err << "Failed to start transaction " << hugoOps.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  
+    if (hugoOps.pkReadRecord(pNdb,
+                             r,
+                             1) != 0)
+    {
+      g_err << "Failed to define read " << hugoOps.getNdbError() << endl;
+    }
+
+    bool exists = true;
+    
+    int execError = hugoOps.execute_Commit(pNdb);
+    if (execError != 0)
+    {
+      if (execError == 626)
+      {
+        /* Row does not exist */
+        exists = false;
+      }
+      else
+      {
+        g_err << "Failed to execute pk read" << hugoOps.getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+    }
+
+    if (exists)
+    {
+      NDBT_ResultRow& row = hugoOps.get_row(0);
+      
+      /* Check row itself */
+      if (hugoCalc.verifyRowValues(&row) != 0)
+      {
+        g_err << "Row inconsistent at record " << r << endl;
+        return NDBT_FAILED;
+      }
+      
+      recordState->m_state = NdbHistory::RecordState::RS_EXISTS;
+      recordState->m_updatesValue = hugoCalc.getUpdatesValue(&row);
+    }
+    else
+    {
+      recordState->m_state = NdbHistory::RecordState::RS_NOT_EXISTS;
+      recordState->m_updatesValue = 0;
+    }
+
+    hugoOps.closeTransaction(pNdb);
+  }
+
+  return NDBT_OK;
+}
+
+
+
+
+// TODO 
+//   Test restore epoch
+//     Currently seems atrt has a problem with
+//     ndb_apply_status not existing
+//
+//   Error insert for stalled GCI
+//     Improve from timing-based testing
+//
+//   Vary transaction size
+//   Vary ordering as pk order == insert order == page order?
+//
+//   Make debug logging more configurable
+
+  
+/* Used to subdivide range amongst steps */  
+static WorkerIdentifier g_workers;  
+
+int
+initWorkerIds(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const Uint32 numWorkers = ctx->getProperty("NumWorkers");
+  g_workers.init(numWorkers);
+  return NDBT_OK;
+}
+
+
+/* Set of version histories recorded for later verification */
+static MutexVector<NdbHistory*>* g_rangeHistories = NULL;
+
+int
+initHistoryList(NDBT_Context* ctx, NDBT_Step* step)
+{
+  assert(g_rangeHistories == NULL);
+  g_rangeHistories = new MutexVector<NdbHistory*>();
+  
+  return NDBT_OK;
+}
+
+int
+clearHistoryList(NDBT_Context* ctx, NDBT_Step* step)
+{
+  if (g_rangeHistories != NULL)
+  {
+    delete g_rangeHistories;
+    g_rangeHistories = NULL;
+  }
+
+  return NDBT_OK;
+}
+      
+int
+runUpdatesWithHistory(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Iterate over a range of records, applying updates 
+   * + increasing the updates value, recording the changes
+   * in a History until told to stop.
+   */
+  Ndb* pNdb = GETNDB(step);
+  const Uint32 totalRecords = (Uint32) ctx->getNumRecords();
+  const Uint32 stepNo = step->getStepNo();
+  const Uint32 workerId = g_workers.getNextWorkerId();
+  Uint32 maxTransactionSize = ctx->getProperty("MaxTransactionSize");
+  const bool AdjustRangeOverTime = ctx->getProperty("AdjustRangeOverTime");
+
+  if (totalRecords < g_workers.getTotalWorkers())
+  {
+    g_err << "Too few records " 
+          << totalRecords 
+          << " / " 
+          << g_workers.getTotalWorkers()
+          << endl;
+    return NDBT_FAILED;
+  }
+  if (maxTransactionSize == 0)
+  {
+    maxTransactionSize = 1;
+  }
+  
+  /* Determine my subrange */
+  const Uint32 numRecords = totalRecords / g_workers.getTotalWorkers();
+  const Uint32 startRecord = workerId * numRecords;
+  const Uint32 endRecord = startRecord + numRecords;
+
+  const RecordRange range(startRecord, numRecords);
+  
+  /**
+   * Create a history and add it to the list for verification
+   * I am interested in GCI boundary states for this
+   * test, no need to record more than that unless debugging
+   */
+  NdbHistory* history = 
+    new NdbHistory(NdbHistory::GR_LATEST_GCI, /* Record latest + Gcis */
+                   range);
+  g_rangeHistories->push_back(history);
+  
+  Uint32 recId = startRecord;
+  Uint32 updatesVal = 1;
+  
+  g_err << stepNo << " : runUpdatesWithHistory AdjustRangeOverTime " 
+        << AdjustRangeOverTime << endl;
+  g_err << stepNo << " : running updates on range " 
+        << startRecord
+        << " -> "
+        << endRecord
+        << endl;
+
+  Uint64 totalUpdates = 0;
+  Uint64 lastCommitGci = 0;
+  Uint32 recordLimit = endRecord;
+
+  if (AdjustRangeOverTime)
+  {
+    /* Start small, build up range over time */
+    recordLimit = startRecord + 1;
+  }
+
+  /* A version which we will use to describe our changes */
+  NdbHistory::Version transaction(range);
+
+  /* Initial version reflects the 'table load' step */
+  transaction.setRows(startRecord,
+                      0,
+                      numRecords);
+  history->commitVersion(&transaction,
+                         0); /* Dummy commit epoch */
+
+  
+  while(ctx->isTestStopped() == false &&
+        ctx->getProperty("StopUpdates") == 0)
+  {
+    HugoOperations hugoOps(*ctx->getTab());
+    if (hugoOps.startTransaction(pNdb) != 0)
+    {
+      g_err << "Failed to start transaction " << hugoOps.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    
+    /* Vary transaction size... */
+    Uint32 recordsInTrans = 1;
+    if (maxTransactionSize > 1)
+    {
+      const Uint32 remain = (recordLimit - recId) -1;
+      if (remain)
+      {
+        recordsInTrans += (rand() % remain);
+      }
+    }
+    
+    if (hugoOps.pkUpdateRecord(pNdb,
+                               recId,
+                               recordsInTrans,
+                               updatesVal) != 0)
+    {
+      g_err << "Failed to define PK updates " << hugoOps.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+    transaction.setRows(recId, updatesVal, recordsInTrans);
+
+    recId+= recordsInTrans;
+    totalUpdates += recordsInTrans;
+
+    if (hugoOps.execute_Commit(pNdb) != 0)
+    {
+      g_err << "Failed to commit pk updates " << hugoOps.getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    Uint64 commitGci;
+    hugoOps.getTransaction()->getGCI(&commitGci);
+    if (commitGci == ~Uint64(0))
+    {
+      g_err << "Failed to get commit epoch " << endl;
+      return NDBT_FAILED;
+    }
+
+    /* Update history with the committed version */
+    history->commitVersion(&transaction,
+                          commitGci);
+
+
+    if (AdjustRangeOverTime &&
+        commitGci != lastCommitGci)
+    {
+      /**
+       * We use observed epoch increments to track
+       * the passage of time, and increase the updatesValue
+       * TODO : Use actual time to reduce confusion / coupling
+       */
+      recordLimit++;
+      if (recordLimit == endRecord)
+      {
+        recordLimit = startRecord + 1;
+      }
+      if((recordLimit % 100) == 0)
+      {
+        g_err << stepNo << " : range upperbound moves to " << recordLimit << endl;
+      }
+    }
+
+    lastCommitGci = commitGci;
+    
+    hugoOps.closeTransaction(pNdb);
+
+    if (recId >= recordLimit)
+    {
+      recId = startRecord;
+      updatesVal++;
+      if ((updatesVal % 100) == 0)
+      {
+        g_err << stepNo << " : updates value moves to " << updatesVal << endl;
+      }
+    }
+  }
+
+  g_err << stepNo << " : finished after " << totalUpdates 
+        << " updates applied" << endl;
+
+  g_err << stepNo << " : history summary " << endl;
+
+  history->dump();
+
+  return NDBT_OK;
+}
+
+int
+runDelayedBackup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * Idea is to have a backup while other activity
+   * is occurring in the cluster
+   * Plan : 
+   *   Wait a while
+   *   Run a backup
+   *   Wait a while
+   */
+  const Uint32 stepNo = step->getStepNo();
+
+  g_err << stepNo << " : runDelayedBackup" << endl;
+  g_err << stepNo << " : sleeping a while" << endl;
+
+  NdbSleep_SecSleep(3);
+
+  g_err << stepNo << " : starting a backup" << endl;
+  
+  if (runBackupOne(ctx, step) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+
+  g_err << stepNo << " : backup completed" << endl;
+  
+  g_err << stepNo << " : sleeping a while" << endl;
+  
+  NdbSleep_SecSleep(3);
+
+  /* Stop updates now */
+  g_err << stepNo << " : stopping updates" << endl;
+  
+  ctx->setProperty("StopUpdates", 1);
+  
+  g_err << stepNo << " : done" << endl;
+
+  return NDBT_OK;
+}
+
+
+int
+verifyDbVsHistories(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /**
+   * This VERIFIER step takes a set of range-histories
+   * produced by earlier steps, and for each 
+   * range-history:
+   *  - Reads the current data for the range from the db.
+   *  - Checks row-level self consistency using HugoCalc
+   *    and determines the row's logical 'update value'
+   *  - Searches the range history for matching versions
+   *    according to the update values.
+   *  - Maps the matching versions in the range-history
+   *    to a set of matching commit epoch ranges
+   *
+   * Then each range-history's matching epoch ranges 
+   * are compared to the other range-history's matching
+   * epoch ranges to find a common set of epoch ranges
+   * which are present in each range-history.
+   *
+   * Finally, the common set of epoch ranges is checked 
+   * to ensure that is describes a consistent GCI 
+   * boundary.
+   *
+   * More visually:
+   * 
+   *      Range1           Range2       ...       RangeN
+   *
+   * (Earlier step)
+   *   
+   *     Update DB        Update DB              Update DB
+   *     and History      and History            and History
+   *     /    \           /    \                 /    \
+   *    DB   History     DB   History           DB   History
+   *     |     |          |     |                |     |            
+   *     |     |          |     |                |     |
+   *     *     .          *     .                *     .
+   *     *     .          *     .                *     .
+   *     *     .          *     .                *     .
+   *     |     |          |     |                |     |
+   *     |     |          |     |                |     |
+   * (Verifier)|          |     |                |     |
+   *    DB   History     DB   History            DB   History
+   *     \    /           \    /                  \    /
+   *       Find             Find                    Find
+   *     matching         matching                matching
+   *      epoch            epoch                   epoch
+   *      ranges           ranges                  ranges
+   *        |                |                       |
+   *        ------------     |    ----- ... ----------
+   *                    |    |    |
+   *                  Find common epoch
+   *                       ranges
+   *                         |
+   *                         |
+   *                    Check for epoch
+   *                   range representing
+   *                        GCI
+   *
+   *  * Represents something interesting happening to the
+   *    database which we want to verify the consistency of
+   *
+   *    Separate ranges exist to simplify testing with 
+   *    multithreaded/concurrent modifications
+   */
+  // TODO : Pull out some of the EpochRangeSet juggling into
+  // reusable code, as it is reused
+  Ndb* pNdb = GETNDB(step);
+  const NdbDictionary::Table* tab = pNdb->getDictionary()->getTable(tabname);
+  Vector<EpochRangeSet> matchingEpochRangeSets;
+  bool verifyOk = true;
+
+  g_err << "verifyDbVsHistories" << endl;
+  g_err << " : History count " << g_rangeHistories->size() << endl;
+  
+  for (Uint32 h=0; h < g_rangeHistories->size(); h++)
+  {
+    g_err << " : History " << h << endl;
+    const NdbHistory& history = *(*g_rangeHistories)[h];
+    
+    g_err << " : Reading version info from DB for range "
+          << history.m_range.m_start 
+          << "->"
+          << history.m_range.m_start + history.m_range.m_len
+          << endl;
+
+    DbVersion dbVersion;
+    if (readVersionForRange(pNdb,
+                            tab,
+                            history.m_range,
+                            dbVersion) != NDBT_OK)
+    {
+      verifyOk = false;
+      continue;
+    }
+
+    g_err << " : searching for matching versions in history" << endl;
+
+    EpochRangeSet epochRanges;
+    NdbHistory::MatchingEpochRangeIterator mri(history,
+                                               dbVersion.m_version);
+    EpochRange er;
+    while (mri.next(er))
+    {
+      epochRanges.addEpochRange(er);
+    }
+
+    const Uint32 rangeCount = epochRanges.m_ranges.size();
+
+    g_err << " : found " << rangeCount
+          << " matching version ranges." << endl;
+    epochRanges.dump();
+
+    if (rangeCount == 0)
+    {
+      g_err << " : No match found - failed" << endl;
+      verifyOk = false;
+      
+      /* Debugging : Dump DB + History content for this range */
+      g_err << " : DB VERSION : " << endl;
+      dbVersion.m_version->dump(false, "    ");
+      
+      g_err << " : HISTORY VERSIONS : " << endl;
+      history.dump(true);
+      history.dumpClosestMatch(dbVersion.m_version);
+      /* Continue with matching to get more info */
+    }
+
+    matchingEpochRangeSets.push_back(epochRanges);
+  }
+
+  if (!verifyOk)
+  {
+    /* Bail out now */
+    return NDBT_FAILED;
+  }
+
+  g_err << " : checking that history matches agree on "
+        << "common epochs" << endl;
+
+  /**
+   * Check that the matching epoch range[s] from each History
+   * intersect on some common epoch range[s]
+   */
+  EpochRangeSet commonRanges(matchingEpochRangeSets[0]);
+  
+  for (Uint32 i=1; i < matchingEpochRangeSets.size(); i++)
+  {
+    commonRanges = 
+      EpochRangeSet::intersect(commonRanges,
+                               matchingEpochRangeSets[i]);
+  }
+
+  if (commonRanges.isEmpty())
+  {
+    g_err << "ERROR : No common epoch range between histories" << endl;
+    verifyOk = false;
+  }
+  else
+  {
+    g_err << " : found "
+          << commonRanges.m_ranges.size() 
+          << " common epoch range[s] between histories" << endl;
+    
+    commonRanges.dump();
+
+    g_err << " : checking that common range[s] span a GCI boundary" << endl;
+    
+    bool foundGciBoundary = false;
+    for (Uint32 i=0; i < commonRanges.m_ranges.size(); i++)
+    {
+      const EpochRange& er = commonRanges.m_ranges[i];
+      if (er.spansGciBoundary())
+      {
+        ndbout_c("  OK - found range spanning GCI boundary");
+        er.dump();
+        foundGciBoundary = true;
+      }
+    }
+    
+    if (!foundGciBoundary)
+    {
+      g_err << "ERROR : No common GCI boundary span found" << endl;
+      verifyOk = false;
+    }
+  }
+
+  return (verifyOk? NDBT_OK : NDBT_FAILED);
+}
+  
+  
+
+
+int
+runGCPStallDuringBackup(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const Uint32 stepNo = step->getStepNo();
+  NdbRestarter restarter;
+
+  g_err << stepNo << " : runGCPStallDuringBackup" << endl;
+  
+  /**
+   * Plan is to stall backup scan, so that some time can
+   * pass during the backup
+   * We then wait to allow a number of GCIs to pass to
+   * avoid Backup weirdness around 3 GCIs
+   * We then cause GCP itself to stall
+   * We then wait a little longer
+   * We then unstall the backup scan and GCP stall
+   */
+
+  g_err << stepNo << " : stalling backup scan" << endl;
+  const Uint32 StallBackupScanCode = 10039;  // BACKUP
+  restarter.insertErrorInAllNodes(StallBackupScanCode);
+  
+  g_err << stepNo << " : waiting a while" << endl;
+
+  /* TODO : Split backup into backup start + wait, and 
+   * trigger this part on backup start
+   */
+  const Uint32 delay1Secs = 6 * 3;
+  NdbSleep_SecSleep(delay1Secs);
+  
+  g_err << stepNo << " : stalling GCP" << endl;
+  
+  const Uint32 StallGCPSaveCode = 7237;  // DIH
+  restarter.insertErrorInAllNodes(StallGCPSaveCode);
+
+  g_err << stepNo << " : waiting a while" << endl;
+  
+  const Uint32 delay2Secs = 2 * 3;
+  NdbSleep_SecSleep(delay2Secs);
+
+  g_err << stepNo << " : Clearing error inserts" << endl;
+  
+  restarter.insertErrorInAllNodes(0);
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBackup);
 TESTCASE("BackupOne", 
 	 "Test that backup and restore works on one table \n"
@@ -1370,6 +1999,67 @@ TESTCASE("Bug19202654",
 {
   INITIALIZER(runBug19202654);
 }
+
+static const int NumUpdateThreads = 5;
+
+TESTCASE("ConsistencyUnderLoad",
+         "Test backup SNAPSHOTEND consistency under load")
+{
+  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+  TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
+  TC_PROPERTY("MaxTransactionSize", Uint32(100));
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(initWorkerIds);
+  INITIALIZER(initHistoryList);
+
+  STEPS(runUpdatesWithHistory, NumUpdateThreads);
+  STEP(runDelayedBackup);
+
+  VERIFIER(runDropTablesRestart);   // Drop tables
+  VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+// TODO : Check restore-epoch
+  FINALIZER(clearHistoryList);
+  FINALIZER(runClearTable);
+}
+
+
+TESTCASE("ConsistencyUnderLoadStallGCP",
+         "Test backup consistency under load with GCP stall")
+{
+  TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
+  TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
+  TC_PROPERTY("MaxTransactionSize", Uint32(2)); // Reduce test runtime
+  INITIALIZER(clearOldBackups);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(initWorkerIds);
+  INITIALIZER(initHistoryList);
+
+  STEPS(runUpdatesWithHistory, NumUpdateThreads);
+  STEP(runDelayedBackup);
+  STEP(runGCPStallDuringBackup);  // Backup adversary
+
+  VERIFIER(runDropTablesRestart);   // Drop tables
+  VERIFIER(runRestoreOne);          // Restore backup
+  VERIFIER(verifyDbVsHistories);    // Check restored data vs histories
+  FINALIZER(clearHistoryList);
+  FINALIZER(runClearTable);
+}
+
+
+// Disabled pending fix for  Bug #27566346 NDB : BACKUP WITH SNAPSHOTSTART CONSISTENCY ISSUES
+// TESTCASE("ConsistencyUnderLoadSnapshotStart",
+//          "Test backup SNAPSHOTSTART consistency under load")
+// {
+// }
+// TESTCASE("ConsistencyUnderLoadSnapshotStartStallGCP",
+//          "Test backup consistency under load with GCP stall")
+// {
+// }
+
+
+
 NDBT_TESTSUITE_END(testBackup);
 
 int main(int argc, const char** argv){

@@ -117,8 +117,16 @@ cmd: testRedo
 args: -n CheckNextRedoFileOpened T1
 max-time: 1440
 
-
 cmd: testNdbApi
 args: -n NdbClusterConnectNR_slow_nostart T1
 max-time: 1800
+
+cmd: atrt-testBackup
+args: -n ConsistencyUnderLoad T1
+max-time: 360
+
+cmd: atrt-testBackup
+args: -n ConsistencyUnderLoadStallGCP T1
+max-time: 360
+
 
