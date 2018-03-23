@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,7 +55,7 @@ class Character_sets : public Entity_object_table_impl {
   enum enum_indexes {
     INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
     INDEX_UK_NAME = static_cast<uint>(Common_index::UK_NAME),
-    INDEX_K_DEFAULT_COLLATION_ID
+    INDEX_UK_DEFAULT_COLLATION_ID
   };
 
   enum enum_foreign_keys { FK_DEFAULT_COLLATION_ID };

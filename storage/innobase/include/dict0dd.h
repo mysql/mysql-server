@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -224,9 +224,9 @@ const innodb_dd_table_t innodb_dd_table[] = {
     INNODB_DD_TABLE("schemata", 3),
     INNODB_DD_TABLE("st_spatial_reference_systems", 3),
     INNODB_DD_TABLE("table_partition_values", 1),
-    INNODB_DD_TABLE("table_partitions", 6),
+    INNODB_DD_TABLE("table_partitions", 7),
     INNODB_DD_TABLE("table_stats", 1),
-    INNODB_DD_TABLE("tables", 6),
+    INNODB_DD_TABLE("tables", 9),
     INNODB_DD_TABLE("tablespace_files", 2),
     INNODB_DD_TABLE("tablespaces", 2),
     INNODB_DD_TABLE("triggers", 6),

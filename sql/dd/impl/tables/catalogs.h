@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,11 +63,9 @@ class Catalogs : public Object_table_impl {
             String_type(
                 Object_table_definition_impl::fs_name_collation()->name));
     m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
-                           "created TIMESTAMP NOT NULL\n"
-                           "  DEFAULT CURRENT_TIMESTAMP"
-                           "  ON UPDATE CURRENT_TIMESTAMP");
+                           "created TIMESTAMP NOT NULL");
     m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
-                           "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
+                           "last_altered TIMESTAMP NOT NULL");
     m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS",
                            "options MEDIUMTEXT");
 
@@ -76,7 +74,7 @@ class Catalogs : public Object_table_impl {
 
     m_target_def.add_populate_statement(
         "INSERT INTO catalogs(id, name, options, created, last_altered) "
-        "VALUES (1, 'def', NULL, now(), now())");
+        "VALUES (1, 'def', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
   }
 };
 

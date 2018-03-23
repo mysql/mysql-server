@@ -151,10 +151,9 @@ Routines::Routines() {
   m_target_def.add_field(FIELD_SCHEMA_COLLATION_ID, "FIELD_SCHEMA_COLLATION_ID",
                          "schema_collation_id BIGINT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
-                         "created TIMESTAMP NOT NULL DEFAULT "
-                         "CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
+                         "created TIMESTAMP NOT NULL");
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
-                         "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
+                         "last_altered TIMESTAMP NOT NULL");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
                          "comment TEXT NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
