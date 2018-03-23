@@ -5027,3 +5027,44 @@ t3	CREATE TABLE `t3` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES DEFAULT;
 DROP TABLE t1, t2, t3;
+#
+# Bug #27410088: LOWER(CHAR(51386)) NOT EVALUATED CONSISTENTLY IN
+#                STORED PROCEDURE
+#
+CREATE PROCEDURE proc (ofs INT, count INT)
+BEGIN
+DECLARE i INT DEFAULT ofs;
+WHILE i < count DO
+SELECT i AS i;
+IF LOWER(CHAR(i USING utf8) COLLATE utf8_tolower_ci) !=
+LOWER(CHAR(i USING utf8mb4) COLLATE utf8mb4_0900_as_ci) THEN
+SELECT i AS 'found funny character';
+END IF;
+SET i = i + 1;
+END WHILE;
+END|
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+CALL proc(51390, 51394);
+i
+51390
+found funny character
+51390
+i
+51391
+i
+51392
+i
+51393
+CALL proc(51390, 51394);
+i
+51390
+found funny character
+51390
+i
+51391
+i
+51392
+i
+51393
+DROP PROCEDURE proc;
