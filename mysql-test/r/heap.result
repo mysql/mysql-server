@@ -446,6 +446,8 @@ e	10
 f	10
 g	10
 h	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select v,count(t) from t1 group by v asc limit 10;
 v	count(t)
 a	1
@@ -458,6 +460,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select v,count(c) from t1 group by v asc limit 10;
 v	count(c)
 a	1
@@ -470,6 +474,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result trim(v),count(t) from t1 group by v asc limit 10;
 trim(v)	count(t)
 a	1
@@ -482,6 +488,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result trim(v),count(c) from t1 group by v asc limit 10;
 trim(v)	count(c)
 a	1
@@ -494,6 +502,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select c,count(*) from t1 group by c asc limit 10;
 c	count(*)
 a	1
@@ -506,6 +516,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select c,count(t) from t1 group by c asc limit 10;
 c	count(t)
 a	1
@@ -518,6 +530,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result c,count(t) from t1 group by c asc limit 10;
 c	count(t)
 a	1
@@ -530,6 +544,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select t,count(*) from t1 group by t asc limit 10;
 t	count(*)
 a	1
@@ -542,6 +558,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select t,count(t) from t1 group by t asc limit 10;
 t	count(t)
 a	1
@@ -554,6 +572,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select sql_big_result trim(t),count(t) from t1 group by t asc limit 10;
 trim(t)	count(t)
 a	1
@@ -566,6 +586,8 @@ f	10
 g	10
 h	10
 i	10
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 drop table t1;
 create table t1 (a char(10), unique (a)) charset latin1;
 insert into t1 values ('a');

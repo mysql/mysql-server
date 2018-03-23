@@ -1493,6 +1493,8 @@ a	count
 7	2
 8	0
 9	0
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 drop table t1, t2;
 #
 # Bug #40134: outer join with not exists optimization and join buffer

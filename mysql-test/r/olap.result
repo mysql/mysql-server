@@ -118,6 +118,8 @@ Calculator	1	125
 Calculator	2	150
 Calculator	NULL	275
 NULL	NULL	7785
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SELECT product, country_id , year, SUM(profit) FROM t1
 GROUP BY product, country_id, year WITH ROLLUP LIMIT 5;
 product	country_id	year	SUM(profit)
@@ -864,6 +866,8 @@ GROUP BY 1 DESC WITH ROLLUP;
 NOT EXISTS (SELECT 1)
 0
 NULL
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 DROP TABLE t1;
 #
 # Tests for WL#1979 - IMPLEMENTATION OF GROUPING FUNCTION

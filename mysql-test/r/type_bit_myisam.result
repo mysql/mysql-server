@@ -835,6 +835,8 @@ CREATE TABLE t1(a POINT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES();
 CREATE TEMPORARY TABLE t2(a BIT(60)) ENGINE=InnoDB SELECT a FROM t1
 GROUP BY a DESC HAVING a IS NULL;
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 DROP TEMPORARY TABLE t2;
 DROP TABLE t1;
 #
