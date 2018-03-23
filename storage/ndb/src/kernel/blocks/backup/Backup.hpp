@@ -194,6 +194,7 @@ protected:
 private:
   void defineBackupMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
   void dictCommitTableMutex_locked(Signal* signal, Uint32 ptrI,Uint32 retVal);
+  void startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal);
 
 public:
   struct Node {
