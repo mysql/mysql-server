@@ -7,3 +7,5 @@ innodb.virtual_basic                         : Bug#25431979 2017-03-27 edahl
 main.mysqlpump_partial_bkp                   : Bug#26199978 2017-11-13 shisjais
 ndb.ndb_connection_pool_nodeids              : Bug#27737803 2018-03-23 arnray
 ndb.ndb_startup                              : Bug#27737803 2018-03-23 arnray
+ndb.ndb_import0                              : Bug#27130143 2018-03-23 arnray
+ndb.ndb_import1                              : Bug#27130143 2018-03-23 arnray
