@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5339,7 +5339,59 @@ Backup::execSTOP_BACKUP_REQ(Signal* signal)
   ptr.p->stopGCP= stopGCP;
 
   /**
-   * Destroy the triggers in local DBTUP we created
+   * Ensure that any in-flight changes are
+   * included in the backup log before
+   * dropping the triggers
+   *
+   * This is necessary as the trigger-drop
+   * signals are routed :
+   *
+   *   Backup Worker 1 <-> Proxy <-> TUP Worker 1..n
+   * 
+   * While the trigger firing signals are
+   * routed :
+   *
+   *   TUP Worker 1..n   -> Backup Worker 1
+   *
+   * So the arrival of signal-drop acks
+   * does not imply that all fired 
+   * triggers have been seen.
+   *
+   *  Backup Worker 1
+   *
+   *        |             SYNC_PATH_REQ
+   *        V
+   *     TUP Proxy
+   *    |  | ... |
+   *    V  V     V
+   *    1  2 ... n        (Workers)
+   *    |  |     |
+   *    |  |     |
+   *   
+   *   Backup Worker 1
+   */
+
+  Uint32 path[] = { DBTUP, 0 };
+  Callback cb = { safe_cast(&Backup::startDropTrig_synced), ptrI };
+  synchronize_path(signal,
+                   path,
+                   cb);
+}
+
+void
+Backup::startDropTrig_synced(Signal* signal, Uint32 ptrI, Uint32 retVal)
+{
+  jamEntry();
+  /**
+   * Get backup record
+   */
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, ptrI);
+  
+  ndbrequire(ptr.p->m_gsn == GSN_STOP_BACKUP_REQ);
+  
+  /**
+   * Now drop the triggers
    */
   sendDropTrig(signal, ptr);
 }
