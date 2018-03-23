@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@ public:
   int push(const T&, unsigned pos);
   T& set(T&, unsigned pos, T& fill_obj);
   T& back();
+  const T& back() const;
   
   void erase(unsigned index);
   
@@ -175,6 +176,14 @@ Vector<T>::operator[](unsigned i) const {
 template<class T>
 T &
 Vector<T>::back(){
+  if(m_size==0)
+    abort();
+  return (* this)[m_size - 1];
+}
+
+template<class T>
+const T &
+Vector<T>::back() const {
   if(m_size==0)
     abort();
   return (* this)[m_size - 1];
@@ -317,6 +326,7 @@ public:
   int push_back(const T &);
   int push_back(const T &, bool lockMutex);
   T& back();
+  const T& back() const;
   
   void erase(unsigned index);
   void erase(unsigned index, bool lockMutex);
@@ -410,6 +420,14 @@ MutexVector<T>::operator[](unsigned i) const {
 template<class T>
 T &
 MutexVector<T>::back(){
+  if(m_size==0)
+    abort();
+  return (* this)[m_size - 1];
+}
+
+template<class T>
+const T &
+MutexVector<T>::back() const {
   if(m_size==0)
     abort();
   return (* this)[m_size - 1];
