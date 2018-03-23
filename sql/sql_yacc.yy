@@ -1182,7 +1182,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         text_string opt_gconcat_separator
 
 %type <num>
-        type type_with_opt_collate int_type real_type order_dir lock_option
+        type type_with_opt_collate int_type real_type lock_option
         udf_type if_exists opt_local opt_table_options table_options
         table_option opt_if_not_exists opt_no_write_to_binlog
         opt_temporary all_or_any opt_distinct
@@ -1192,6 +1192,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
         trg_action_time trg_event field_def
+        ordering_direction opt_ordering_direction
 
 /*
   Bit field of MYSQL_START_TRANS_OPT_* flags.
@@ -1430,6 +1431,7 @@ END_OF_INPUT
 %type <subselect> subselect
 
 %type <order_expr> order_expr
+        grouping_expr
 
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
 
@@ -7444,8 +7446,14 @@ btree_or_rtree:
         ;
 
 key_list:
-          key_list ',' key_part order_dir { Lex->col_list.push_back($3); }
-        | key_part order_dir { Lex->col_list.push_back($1); }
+          key_list ',' key_part opt_ordering_direction
+          {
+            Lex->col_list.push_back($3);
+          }
+        | key_part opt_ordering_direction
+          {
+            Lex->col_list.push_back($1);
+          }
         ;
 
 key_part:
@@ -10809,12 +10817,12 @@ opt_group_clause:
         ;
 
 group_list:
-          group_list ',' order_expr
+          group_list ',' grouping_expr
           {
             $1->push_back($3);
             $$= $1;
           }
-        | order_expr
+        | grouping_expr
           {
             $$= NEW_PTN PT_order_list();
             if ($1 == NULL)
@@ -10857,7 +10865,7 @@ alter_order_list:
         ;
 
 alter_order_item:
-          simple_ident_nospvar order_dir
+          simple_ident_nospvar opt_ordering_direction
           {
             ITEMIZE($1, &$1);
 
@@ -10903,9 +10911,13 @@ order_list:
           }
         ;
 
-order_dir:
+opt_ordering_direction:
           /* empty */ { $$ =  1; }
-        | ASC  { $$ =1; }
+        | ordering_direction
+        ;
+
+ordering_direction:
+          ASC  { $$ =1; }
         | DESC { $$ =0; }
         ;
 
@@ -12958,8 +12970,21 @@ table_wild:
         ;
 
 order_expr:
-          expr order_dir
+          expr opt_ordering_direction
           {
+            $$= NEW_PTN PT_order_expr($1, $2);
+          }
+        ;
+
+grouping_expr:
+          expr
+          {
+            $$= NEW_PTN PT_order_expr($1, 1);
+          }
+        | expr ordering_direction
+          {
+            push_deprecated_warn(YYTHD, "GROUP BY with ASC/DESC",
+                                 "GROUP BY ... ORDER BY ... ASC/DESC");
             $$= NEW_PTN PT_order_expr($1, $2);
           }
         ;
