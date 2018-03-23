@@ -876,6 +876,7 @@ select * from test.t1 where a=2 for update;
 # Wait for locking to become visible
 let $wait_condition=
     select count(1) = 2 from ndbinfo.cluster_locks;
+--source include/wait_condition.inc
 --echo Show using cluster_locks to find the deadlock
 --echo
 
