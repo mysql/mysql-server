@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,6 @@ cmd: testFK
 args: -n AbortWithSlowChildScans T1
 max-time : 180
 
-
 cmd: testNdbApi
 args: -n CheckTransId T1
 max-time : 180
@@ -54,4 +53,12 @@ max-time : 180
 cmd: testNdbApi
 args: -n CheckTransIdMt T1
 max-time : 180
+
+cmd: atrt-testBackup
+args: -n ConsistencyUnderLoad T1
+max-time: 360
+
+cmd: atrt-testBackup
+args: -n ConsistencyUnderLoadStallGCP T1
+max-time: 360
 
