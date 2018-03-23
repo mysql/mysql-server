@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27069,6 +27069,43 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
     return;
   }
 
+  ndbassert(requestType == WaitGCPReq::Complete ||
+            requestType == WaitGCPReq::CompleteForceStart ||
+            requestType == WaitGCPReq::CompleteIfRunning ||
+            requestType == WaitGCPReq::WaitEpoch);
+  
+  /**
+   * At this point, we wish to wait for some GCP/Epoch related
+   * event
+   *
+   * Complete           : Wait for the next GCI completion,
+   *                      and return its identity
+   * CompleteForceStart : Same as complete, but force a GCI to
+   *                      start ASAP
+   * CompleteIfRunning  : Wait for any running GCI to complete
+   *                      Return latest completed GCI
+   * WaitEpoch          : Wait for the next epoch completion,
+   *                      and return its identity
+   *
+   * Notes
+   *   For GCIs, the 'next' GCI is generally next GCI to *start* 
+   *   after the WAIT_GCP_REQ is received.
+   *   This is generally used to ensure that changes prior to 
+   *   WAIT_GCP_REQ are included in the GCI, which requires
+   *   that any currently open epoch be included in the GCI
+   *   waited for.
+   *   Special care is required during epoch transitions.
+   *
+   *   Note that epochs are started and completed by the
+   *   GCP_PREPARE/GCP_COMMIT protocols, but GCIs are completed
+   *   by the GCP_SAVEREQ et al protocols.
+   *   GCI completion is triggered as part of GCP_COMMIT processing,
+   *   but does not stall further GCP_PREPARE/COMMIT rounds.
+   *
+   *   CompleteIfRunning waits for any running GCP_SAVEREQ,
+   *   it is not currently checking GCP_PREPARE/COMMIT status
+   *
+   */
   if(isMaster())
   {
     /**
@@ -27082,10 +27119,22 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
       goto error;
     }
 
+    /**
+     * Beware here : 
+     *   - GCP_SAVE and GCP_PREPARE/COMMIT can run
+     *     concurrently
+     *   - GCP_SAVE can be running concurrently for
+     *     quite an 'old' epoch
+     *   - Care must be taken in each use case to 
+     *     understand the significance of the 
+     *     current state ('now')  when WAIT_GCP_REQ 
+     *     reaches the Master
+     */
     if((requestType == WaitGCPReq::CompleteIfRunning) &&
        (m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE))
     {
       jam();
+      /* No GCP_SAVE running, return last durable GCI */
       conf->senderData = senderData;
       conf->gci_hi = Uint32(m_micro_gcp.m_old_gci >> 32);
       conf->gci_lo = Uint32(m_micro_gcp.m_old_gci);
@@ -27113,15 +27162,69 @@ void Dbdih::execWAIT_GCP_REQ(Signal* signal)
 
     ptr.p->clientRef = senderRef;
     ptr.p->clientData = senderData;
-    
-    if((requestType == WaitGCPReq::CompleteForceStart) && 
-       (m_gcp_save.m_master.m_state == GcpSave::GCP_SAVE_IDLE))
+
+    switch (requestType)
     {
-      jam();
-      // Invalidating GCP timestamp will force an immediate GCP
-      NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
-      NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
-    }//if
+    case WaitGCPReq::WaitEpoch:
+    {
+      /* Wait for the next epoch completion (GCP_PREPARE/COMMIT) */
+      ptr.p->waitGCI = 0;
+      break;
+    }
+    case WaitGCPReq::CompleteIfRunning:
+    {
+      ndbrequire(m_gcp_save.m_master.m_state != GcpSave::GCP_SAVE_IDLE);
+      /* Wait for GCI currently being saved to complete */
+      ptr.p->waitGCI = m_gcp_save.m_gci;
+      break;
+    }
+    case WaitGCPReq::Complete:
+    case WaitGCPReq::CompleteForceStart:
+    {
+      /**
+       * We need to block until the highest known epoch
+       * in the cluster at *this* time has been included
+       * in a subsequent GCP_SAVE round, then return that 
+       * complete, saved GCI to the requestor.
+       * If we are not changing epochs then we wait for
+       * a GCI containing the current epoch.
+       * If we are changing epochs then we wait for a GCI
+       * containing the next epoch.
+       */
+      ptr.p->waitGCI = Uint32(m_micro_gcp.m_current_gci >> 32);
+      
+      if (m_micro_gcp.m_master.m_state == MicroGcp::M_GCP_COMMIT)
+      {
+        jam();
+        /**
+         * DIHs are currently committing the transition to 
+         * a new epoch.
+         * Some TCs may have started committing transactions
+         * in that epoch, so to ensure that all previously
+         * committed transactions from the point of view of the
+         * sender of this signal are included, we will use
+         * the new epoch as the epoch after which to send the
+         * CONF.
+         */
+        ptr.p->waitGCI = Uint32(m_micro_gcp.m_master.m_new_gci >> 32);
+      }
+
+      if (requestType == WaitGCPReq::CompleteForceStart)
+      {
+        jam();
+        // Invalidating timestamps will force GCP_PREPARE/COMMIT
+        // and GCP_SAVEREQ et al ASAP
+        NdbTick_Invalidate(&m_micro_gcp.m_master.m_start_time);
+        NdbTick_Invalidate(&m_gcp_save.m_master.m_start_time);
+      }//if
+      
+      break;
+    }
+    default:
+      jamLine(requestType);
+      ndbrequire(false);
+    }
+    
     return;
   }
   else
@@ -27262,12 +27365,29 @@ void Dbdih::emptyWaitGCPMasterQueue(Signal* signal,
     const Uint32 i = ptr.i;
     const Uint32 clientData = ptr.p->clientData;
     const BlockReference clientRef = ptr.p->clientRef;
+    const Uint32 waitGCI = ptr.p->waitGCI;
 
-    c_waitGCPMasterList.next(ptr);    
+    c_waitGCPMasterList.next(ptr);
+    
+    if (waitGCI != 0)
+    {
+      jam();
+      /* Waiting for a specific GCI */
+      const Uint64 completedGci = (gci >> 32);
+      ndbrequire(completedGci <= waitGCI)
+      
+      if (completedGci < waitGCI)
+      {
+        jam();
+        /* Keep waiting */
+        continue;
+      }
+    }
+
     conf->senderData = clientData;
     conf->blockStatus = cgcpOrderBlocked;
     sendSignal(clientRef, GSN_WAIT_GCP_CONF, signal,
-	       WaitGCPConf::SignalLength, JBB);
+               WaitGCPConf::SignalLength, JBB);
     
     list.release(i);
   }//while
