@@ -65,7 +65,6 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/basic_row_iterators.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -90,7 +89,6 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"   // Query_result
 #include "sql/record_buffer.h"  // Record_buffer
-#include "sql/sort_param.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_bitmap.h"
@@ -99,7 +97,6 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_select.h"
-#include "sql/sql_show.h"  // get_schema_tables_result
 #include "sql/sql_sort.h"
 #include "sql/sql_tmp_table.h"  // create_tmp_table
 #include "sql/system_variables.h"
@@ -2754,120 +2751,6 @@ bool QEP_TAB::use_order() const {
   return false;
 }
 
-SortingIterator::SortingIterator(THD *thd, TABLE *table, Filesort *filesort,
-                                 unique_ptr_destroy_only<RowIterator> source)
-    : RowIterator(thd, table),
-      m_filesort(filesort),
-      m_source_iterator(move(source)) {}
-
-SortingIterator::~SortingIterator() { ReleaseBuffers(); }
-
-void SortingIterator::ReleaseBuffers() {
-  m_result_iterator.reset();
-  if (m_sort_result.io_cache) {
-    // NOTE: The io_cache is only owned by us if it were never used.
-    close_cached_file(m_sort_result.io_cache);
-    my_free(m_sort_result.io_cache);
-    m_sort_result.io_cache = nullptr;
-  }
-  m_sort_result.sorted_result.reset();
-  m_sort_result.sorted_result_in_fsbuf = false;
-}
-
-bool SortingIterator::Init(QEP_TAB *qep_tab) {
-  ReleaseBuffers();
-
-  THD_STAGE_INFO(thd(), stage_creating_sort_index);
-  if (qep_tab->join() != nullptr) {
-    DBUG_ASSERT(qep_tab->join()->m_ordered_index_usage !=
-                (qep_tab->filesort->order == qep_tab->join()->order
-                     ? JOIN::ORDERED_INDEX_ORDER_BY
-                     : JOIN::ORDERED_INDEX_GROUP_BY));
-  }
-
-  // Both empty result and error count as errors. (TODO: Why? This is a legacy
-  // choice that doesn't always seem right to me, although it should nearly
-  // never happen in practice.)
-  if (DoSort(qep_tab) != 0) return true;
-
-  /*
-    Filesort has filtered rows already (see skip_record() in
-    find_all_keys()): so we can simply scan the cache, so have to set
-    quick=NULL.
-    But if we do this, we still need to delete the quick, now or later. We
-    cannot do it now: the dtor of quick_index_merge would do free_io_cache,
-    but the cache has to remain, because scan will read from it.
-    So we delay deletion: we just let the "quick" continue existing in
-    "quick_optim"; double benefit:
-    - EXPLAIN will show the "quick_optim"
-    - it will be deleted late enough.
-
-    There is an exception to the reasoning above. If the filtering condition
-    contains a condition triggered by Item_func_trig_cond::FOUND_MATCH
-    (i.e. QEP_TAB is inner to an outer join), the trigger variable is still
-    false at this stage, so the condition evaluated to true in skip_record()
-    and did not filter rows. In that case, we leave the condition in place for
-    the next stage (evaluate_join_record()). We can still delete the QUICK as
-    triggered conditions don't use that.
-    If you wonder how we can come here for such inner table: it can happen if
-    the outer table is constant (so the inner one is first-non-const) and a
-    window function requires sorting.
-  */
-  qep_tab->set_quick(NULL);
-  if (!qep_tab->is_inner_table_of_outer_join()) qep_tab->set_condition(NULL);
-
-  // Prepare the result iterator for actually reading the data. Read()
-  // will proxy to it.
-  TABLE *table = qep_tab->table();
-  if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
-    // Test if ref-records was used
-    if (table->sort.using_addon_fields()) {
-      DBUG_PRINT("info", ("using SortFileIterator"));
-      if (table->sort.addon_fields->using_packed_addons())
-        m_result_iterator.reset(
-            new (&m_result_iterator_holder.sort_file_packed_addons)
-                SortFileIterator<true>(thd(), table, m_sort_result.io_cache,
-                                       &table->sort));
-      else
-        m_result_iterator.reset(
-            new (&m_result_iterator_holder.sort_file) SortFileIterator<false>(
-                thd(), table, m_sort_result.io_cache, &table->sort));
-    } else {
-      m_result_iterator.reset(
-          new (&m_result_iterator_holder.sort_file_indirect)
-              SortFileIndirectIterator(thd(), table, m_sort_result.io_cache,
-                                       /*request_cache=*/true,
-                                       /*ignore_not_found_rows=*/false));
-    }
-    m_sort_result.io_cache =
-        nullptr;  // The result iterator has taken ownership.
-  } else {
-    DBUG_ASSERT(m_sort_result.has_result_in_memory());
-    if (table->sort.using_addon_fields()) {
-      DBUG_PRINT("info", ("using SortBufferIterator"));
-      DBUG_ASSERT(m_sort_result.sorted_result_in_fsbuf);
-      if (table->sort.addon_fields->using_packed_addons())
-        m_result_iterator.reset(
-            new (&m_result_iterator_holder.sort_buffer_packed_addons)
-                SortBufferIterator<true>(thd(), table, &table->sort,
-                                         &m_sort_result));
-      else
-        m_result_iterator.reset(
-            new (&m_result_iterator_holder.sort_buffer)
-                SortBufferIterator<false>(thd(), table, &table->sort,
-                                          &m_sort_result));
-    } else {
-      DBUG_PRINT("info", ("using SortBufferIndirectIterator (sort)"));
-      m_result_iterator.reset(
-          new (&m_result_iterator_holder.sort_buffer_indirect)
-              SortBufferIndirectIterator(thd(), table, &m_sort_result,
-                                         /*ignore_not_found_rows=*/false));
-    }
-  }
-
-  return m_result_iterator->Init(qep_tab);
-}
-
 int join_read_first(QEP_TAB *tab) {
   int error;
   TABLE *table = tab->table();
@@ -5469,75 +5352,6 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
   }
   if (update_sum_func(join->sum_funcs)) DBUG_RETURN(NESTED_LOOP_ERROR);
   DBUG_RETURN(NESTED_LOOP_OK);
-}
-
-/*
-  Do the actual sort, by calling filesort. The result will be left in one of
-  several places depending on what sort strategy we chose; it is up to Init() to
-  figure out what happened and create the appropriate iterator to read from it.
-
-  RETURN VALUES
-    0		ok
-    -1		Some fatal error
-    1		No records
-*/
-
-int SortingIterator::DoSort(QEP_TAB *qep_tab) {
-  JOIN *join = qep_tab->join();
-
-  /*
-    One row, no need to sort. make_tmp_tables_info should already handle this.
-    ROLLUP generates one more row. So that is the only exception.
-  */
-  if (join != nullptr) {
-    DBUG_ASSERT(
-        (!join->plan_is_const() || join->rollup.state != ROLLUP::STATE_NONE) &&
-        m_filesort);
-  }
-
-  TABLE *table = qep_tab->table();
-  DBUG_ASSERT(m_sort_result.io_cache == nullptr);
-  m_sort_result.io_cache =
-      (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
-                            MYF(MY_WME | MY_ZEROFILL));
-
-  // If table has a range, move it to select
-  if (qep_tab->quick() && qep_tab->ref().key >= 0) {
-    if (qep_tab->type() != JT_REF_OR_NULL && qep_tab->type() != JT_FT) {
-      DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
-      // Update ref value
-      if (cp_buffer_from_ref(thd(), table, &qep_tab->ref()) &&
-          thd()->is_fatal_error)
-        return -1;  // out of memory
-    }
-  }
-
-  if (join != nullptr) {
-    /* Fill schema tables with data before filesort if it's necessary */
-    if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
-        get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
-      return -1;
-  }
-
-  if (table->s->tmp_table)
-    table->file->info(HA_STATUS_VARIABLE);  // Get record count
-  ha_rows examined_rows, found_rows, returned_rows;
-  bool error = filesort(thd(), m_filesort, qep_tab->keep_current_rowid,
-                        m_source_iterator.get(), &m_sort_result, &examined_rows,
-                        &found_rows, &returned_rows);
-  m_sort_result.found_records = returned_rows;
-  qep_tab->set_records(found_rows);  // For SQL_CALC_ROWS
-  if (join != nullptr) {
-    join->examined_rows += examined_rows;
-  } else {
-    thd()->inc_examined_row_count(examined_rows);
-  }
-  table->set_keyread(false);  // Restore if we used indexes
-  if (qep_tab->type() == JT_FT)
-    table->file->ft_end();
-  else
-    table->file->ha_index_or_rnd_end();
-  return error;
 }
 
 /*****************************************************************************

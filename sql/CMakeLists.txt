@@ -398,6 +398,7 @@ SET(SQL_SHARED_SOURCES
   sdi_utils.cc
   session_tracker.cc
   set_var.cc 
+  sorting_iterator.cc
   sp.cc
   sp_cache.cc
   sp_head.cc
