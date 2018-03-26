@@ -507,6 +507,10 @@ int SortFileIndirectIterator::CachedRead() {
     if (m_cache_pos != m_cache_end) {
       if (m_cache_pos[m_error_offset]) {
         shortget(&error, m_cache_pos);
+        if (error == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows) {
+          m_cache_pos += m_reclength;
+          continue;
+        }
         PrintError(error);
       } else {
         error = 0;
@@ -548,7 +552,6 @@ int SortFileIndirectIterator::CachedRead() {
       record_pos = m_cache.get() + record * m_reclength;
       error = (int16)table()->file->ha_rnd_pos(record_pos, m_ref_pos);
       if (error) {
-        // TODO: Should we respect m_ignore_not_found_rows here?
         record_pos[m_error_offset] = 1;
         shortstore(record_pos, error);
         DBUG_PRINT("error", ("Got error: %d:%d when reading row", my_errno(),
