@@ -13,3 +13,5 @@
 analyze_table           @solaris  : Bug#22607584 2016-03-01 Shaohua Failing too often on PB2 due to timeout
 portability_tablespace_linux: Sivert The maintainability of the zip files required by this test is not acceptable.
 portability_tablespace_windows: Sivert The maintainability of the zip files required by this test is not acceptable.
+innodb_collation_test   @darwin : Bug#27753003 2018-03-26 Anitha test fails consistently on Mac and Windows ever since it was added
+innodb_collation_test   @windows : Bug#27753003 2018-03-26 Anitha test fails consistently on Mac and Windows ever since it was added
