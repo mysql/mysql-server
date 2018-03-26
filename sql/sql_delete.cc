@@ -136,8 +136,6 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     = -1: No more rows to process, or reached limit
   */
   int error = 0;
-  unique_ptr_destroy_only<Filesort> fsort;
-  READ_RECORD info;
   ha_rows deleted_rows = 0;
   bool reverse = false;
   /// read_removal is only used by NDB storage engine
@@ -406,6 +404,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (select_lex->active_options() & OPTION_QUICK)
       (void)table->file->extra(HA_EXTRA_QUICK);
 
+    unique_ptr_destroy_only<Filesort> fsort;
+    READ_RECORD info;
     if (usable_index == MAX_KEY || qep_tab.quick())
       setup_read_record(&info, thd, NULL, &qep_tab, false,
                         /*ignore_not_found_rows=*/false);
@@ -534,7 +534,6 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       /* Only handler knows how many records were really written */
       deleted_rows = table->file->end_read_removal();
     }
-    end_read_record(&info);
     if (select_lex->active_options() & OPTION_QUICK)
       (void)table->file->extra(HA_EXTRA_NORMAL);
   }  // End of scope for Modification_plan
@@ -1109,7 +1108,7 @@ int Query_result_delete::do_table_deletes(TABLE *table) {
                        /*ignore_not_found_rows=*/true))
     DBUG_RETURN(1);
   bool will_batch = !table->file->start_bulk_delete();
-  while (!(local_error = info.read_record(&info)) && !thd->killed) {
+  while (!(local_error = info.iterator->Read()) && !thd->killed) {
     if (table->triggers &&
         table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                           TRG_ACTION_BEFORE, false)) {
@@ -1161,8 +1160,6 @@ int Query_result_delete::do_table_deletes(TABLE *table) {
   if (last_deleted != deleted_rows && !table->file->has_transactions())
     thd->get_transaction()->mark_modified_non_trans_table(
         Transaction_ctx::STMT);
-
-  end_read_record(&info);
 
   DBUG_RETURN(local_error);
 }

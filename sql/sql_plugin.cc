@@ -89,6 +89,7 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/records.h"  // READ_RECORD
+#include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sql_audit.h"        // mysql_audit_acquire_plugins
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
@@ -292,6 +293,7 @@
 #endif
 
 #include <algorithm>
+#include <memory>
 #include <new>
 #include <unordered_map>
 #include <utility>
@@ -1642,7 +1644,6 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
   THD thd;
   TABLE_LIST tables;
   TABLE *table;
-  READ_RECORD read_record_info;
   int error;
   THD *new_thd = &thd;
   bool result;
@@ -1663,6 +1664,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     DBUG_VOID_RETURN;
   }
   table = tables.table;
+  READ_RECORD read_record_info;
   if (init_read_record(&read_record_info, new_thd, table, NULL, false,
                        /*ignore_not_found_rows=*/false)) {
     close_trans_system_tables(new_thd);
@@ -1675,7 +1677,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     environment, and it uses mysql_mutex_assert_owner(), so we lock
     the mutex here to satisfy the assert
   */
-  while (!(error = read_record_info.read_record(&read_record_info))) {
+  while (!(error = read_record_info.iterator->Read())) {
     DBUG_PRINT("info", ("init plugin record"));
     String str_name, str_dl;
     get_field(tmp_root, table->field[0], &str_name);
@@ -1708,7 +1710,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     LogErr(ERROR_LEVEL, ER_GET_ERRNO_FROM_STORAGE_ENGINE, my_errno(),
            my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
   }
-  end_read_record(&read_record_info);
+  read_record_info.iterator.reset();
   table->m_needs_reopen = true;  // Force close to free memory
 
   close_trans_system_tables(new_thd);

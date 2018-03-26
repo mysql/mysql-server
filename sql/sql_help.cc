@@ -26,6 +26,7 @@
 #include <sys/types.h>
 #include <algorithm>
 #include <atomic>
+#include <memory>
 
 #include "m_ctype.h"
 #include "m_string.h"
@@ -46,7 +47,8 @@
 #include "sql/opt_range.h"  // SQL_SELECT
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/protocol.h"
-#include "sql/records.h"   // init_read_record, end_read_record
+#include "sql/records.h"  // init_read_record
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"  // REPORT_ALL_ERRORS
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -221,15 +223,13 @@ static int search_topics(THD *thd, QEP_TAB *topics,
                        /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
-  while (!read_record_info.read_record(&read_record_info)) {
+  while (!read_record_info.iterator->Read()) {
     if (!topics->condition()->val_int())  // Doesn't match like
       continue;
     memorize_variant_topic(thd, count, find_fields, names, name, description,
                            example);
     count++;
   }
-  end_read_record(&read_record_info);
-
   DBUG_RETURN(count);
 }
 
@@ -262,7 +262,7 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
                        /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
-  while (!read_record_info.read_record(&read_record_info) && count < 2) {
+  while (!read_record_info.iterator->Read() && count < 2) {
     if (!keywords->condition()->val_int())  // Dosn't match like
       continue;
 
@@ -270,8 +270,6 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
 
     count++;
   }
-  end_read_record(&read_record_info);
-
   DBUG_RETURN(count);
 }
 
@@ -388,7 +386,7 @@ static int search_categories(THD *thd, QEP_TAB *categories,
                        /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
-  while (!read_record_info.read_record(&read_record_info)) {
+  while (!read_record_info.iterator->Read()) {
     if (categories->condition() && !categories->condition()->val_int())
       continue;
     String *lname = new (thd->mem_root) String;
@@ -396,8 +394,6 @@ static int search_categories(THD *thd, QEP_TAB *categories,
     if (++count == 1 && res_id) *res_id = (int16)pcat_id->val_int();
     names->push_back(lname);
   }
-  end_read_record(&read_record_info);
-
   DBUG_RETURN(count);
 }
 
@@ -421,14 +417,12 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
   if (init_read_record(&read_record_info, thd, NULL, items, false,
                        /*ignore_not_found_rows=*/false))
     DBUG_VOID_RETURN;
-  while (!read_record_info.read_record(&read_record_info)) {
+  while (!read_record_info.iterator->Read()) {
     if (!items->condition()->val_int()) continue;
     String *name = new (thd->mem_root) String();
     get_field(thd->mem_root, pfname, name);
     res->push_back(name);
   }
-  end_read_record(&read_record_info);
-
   DBUG_VOID_RETURN;
 }
 

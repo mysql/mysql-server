@@ -14668,8 +14668,6 @@ static int copy_data_between_tables(
   int error;
   Copy_field *copy, *copy_end;
   ulong found_count, delete_count;
-  unique_ptr_destroy_only<Filesort> fsort;
-  READ_RECORD info;
   List<Item> fields;
   List<Item> all_fields;
   bool auto_increment_field_copied = 0;
@@ -14744,6 +14742,8 @@ static int copy_data_between_tables(
   SELECT_LEX *const select_lex = thd->lex->select_lex;
   ORDER *order = select_lex->order_list.first;
 
+  unique_ptr_destroy_only<Filesort> fsort;
+  READ_RECORD info;
   setup_read_record(&info, thd, from, NULL, false,
                     /*ignore_not_found_rows=*/false);
 
@@ -14796,7 +14796,7 @@ static int copy_data_between_tables(
 
   to->file->extra(HA_EXTRA_BEGIN_ALTER_COPY);
 
-  while (!(error = info.read_record(&info))) {
+  while (!(error = info.iterator->Read())) {
     if (thd->killed) {
       thd->send_kill_message();
       error = 1;
@@ -14872,7 +14872,7 @@ static int copy_data_between_tables(
     }
     thd->get_stmt_da()->inc_current_row_for_condition();
   }
-  end_read_record(&info);
+  info.iterator.reset();
   free_io_cache(from);
   destroy_array(copy, to->s->fields);
 

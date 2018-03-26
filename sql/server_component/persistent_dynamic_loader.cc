@@ -211,7 +211,6 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
                      MY_MUTEX_INIT_SLOW);
 
     TABLE *component_table;
-    READ_RECORD read_record_info;
     int res;
 
     mysql_persistent_dynamic_loader_imp::group_id = 0;
@@ -227,6 +226,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     auto guard =
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
+    READ_RECORD read_record_info;
     if (init_read_record(&read_record_info, thd, component_table, NULL, false,
                          /*ignore_not_found_rows=*/false)) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
@@ -244,7 +244,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     std::map<uint64, std::vector<std::string>> component_groups;
 
     for (;;) {
-      res = read_record_info.read_record(&read_record_info);
+      res = read_record_info.iterator->Read();
       if (res != 0) {
         break;
       }
@@ -272,7 +272,7 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
       }
     }
 
-    end_read_record(&read_record_info);
+    read_record_info.iterator.reset();
 
     /* res is guaranteed to be != 0, -1 means end of records encountered, which
       is interpreted as a success. */

@@ -26,7 +26,6 @@
 #include <memory>
 
 #include "my_alloc.h"
-#include "my_inttypes.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/row_iterator.h"
@@ -39,17 +38,13 @@ struct TABLE;
 // TODO: Replace this entire structure with something that holds only a
 // RowIterator.
 struct READ_RECORD {
-  typedef int (*Read_func)(READ_RECORD *);
   typedef void (*Unlock_row_func)(QEP_TAB *);
-  typedef int (*Setup_func)(QEP_TAB *);
-  typedef void (*Cleanup_func)(READ_RECORD *);
 
   // These are only used for the remaining access methods in sql_executor.cc
   // that have not been converted to RowIterator yet.
   TABLE *table{nullptr}; /* Head-form */
   Unlock_row_func unlock_row{nullptr};
 
-  Read_func read_record{nullptr};
   unique_ptr_destroy_only<RowIterator> iterator;
 
   // Holds one out of all RowIterator implementations (except the ones used
@@ -83,9 +78,6 @@ struct READ_RECORD {
   // responsible for destroying the inner object, but the memory will still be
   // held in iterator_holder, so we can't put this in the union.
   char sort_holder[sizeof(SortingIterator)];
-
- public:
-  READ_RECORD() {}
 };
 
 void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
@@ -99,11 +91,7 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
 
 void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
                            bool reverse);
-// TODO: Should go away entirely in the future.
-void end_read_record(READ_RECORD *info);
 
 void rr_unlock_row(QEP_TAB *tab);
-
-int rr_iterator(READ_RECORD *info);
 
 #endif /* SQL_RECORDS_H */

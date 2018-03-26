@@ -1906,7 +1906,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last) {
         }
       }
     }
-  } while (!(error = info->read_record(info)));
+  } while (!(error = info->iterator->Read()));
 
   if (error > 0)  // Fatal error
     rc = NESTED_LOOP_ERROR;

@@ -412,7 +412,6 @@ class QEP_TAB : public QEP_shared_owner {
         materialize_table(NULL),
         next_select(NULL),
         read_record(),
-        save_read_record(NULL),
         used_null_fields(false),
         used_uneven_bit_fields(false),
         keep_current_rowid(false),
@@ -584,12 +583,8 @@ class QEP_TAB : public QEP_shared_owner {
   /// Dependent table functions have to be materialized on each new scan
   bool rematerialize;
 
-  READ_RECORD::Setup_func materialize_table;
-  /**
-     Initialize table for reading and fetch the first row from the table. If
-     table is a materialized derived one, function must materialize it with
-     prepare_scan().
-  */
+  typedef int (*Setup_func)(QEP_TAB *);
+  Setup_func materialize_table;
   bool using_dynamic_range = false;
   Next_select_func next_select;
   READ_RECORD read_record;
@@ -598,7 +593,6 @@ class QEP_TAB : public QEP_shared_owner {
     executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
   */
-  READ_RECORD::Read_func save_read_record; /* to save read_record */
   unique_ptr_destroy_only<RowIterator>
       save_row_iterator;         /* to save read_record.iterator */
   bool save_using_dynamic_range; /* to save using_dynamic_range */

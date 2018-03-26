@@ -23,6 +23,7 @@
 #include "sql/auth/role_tables.h"
 
 #include <string.h>
+#include <memory>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -44,6 +45,7 @@
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
 #include "sql/records.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_const.h"
 #include "sql/table.h"
@@ -228,7 +230,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
                          /*ignore_not_found_rows=*/false)) {
       my_error(ER_TABLE_CORRUPT, MYF(0), roles_edges_table->s->db.str,
                roles_edges_table->s->table_name.str);
-      goto error;
+      DBUG_RETURN(true);
     }
 
     ACL_USER *acl_role;
@@ -238,8 +240,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 128, 0);
     g_authid_to_vertex->clear();
     g_granted_roles->clear();
-    while (
-        !(read_rec_errcode = read_record_info.read_record(&read_record_info))) {
+    while (!(read_rec_errcode = read_record_info.iterator->Read())) {
       char *from_host = get_field(
           &tmp_mem, roles_edges_table->field[MYSQL_ROLE_EDGES_FIELD_FROM_HOST]);
       char *from_user = get_field(
@@ -259,34 +260,27 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
                         "Unknown authorization identifier `%s`@`%s`", MYF(0),
                         to_user, to_host);
         rebuild_vertex_index(thd);
-        end_read_record(&read_record_info);
-        free_root(&tmp_mem, MYF(0));
-        goto error;
+        DBUG_RETURN(true);
       }
       grant_role(acl_role, acl_user, *with_admin_opt == 'Y' ? 1 : 0);
     }
-    end_read_record(&read_record_info);
+    read_record_info.iterator.reset();
 
     default_role_table->use_all_columns();
 
     bool ret =
         init_read_record(&read_record_info, thd, default_role_table, NULL,
                          false, /*ignore_not_found_records=*/false);
-    DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit",
-                    end_read_record(&read_record_info);
-                    ret = true;);
+    DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit", ret = true;);
     if (ret) {
       my_error(ER_TABLE_CORRUPT, MYF(0), default_role_table->s->db.str,
                default_role_table->s->table_name.str);
 
       rebuild_vertex_index(thd);
-      end_read_record(&read_record_info);
-      free_root(&tmp_mem, MYF(0));
-      goto error;
+      DBUG_RETURN(true);
     }
     g_default_roles->clear();
-    while (
-        !(read_rec_errcode = read_record_info.read_record(&read_record_info))) {
+    while (!(read_rec_errcode = read_record_info.iterator->Read())) {
       char *host = get_field(
           &tmp_mem, default_role_table->field[MYSQL_DEFAULT_ROLE_FIELD_HOST]);
       char *user = get_field(
@@ -305,13 +299,9 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
       Role_id role_id(role_user, role_user_len, role_host, role_host_len);
       g_default_roles->emplace(user_id, role_id);
     }
-    end_read_record(&read_record_info);
-    free_root(&tmp_mem, MYF(0));
     rebuild_vertex_index(thd);
     opt_mandatory_roles_cache = false;
   }
 
   DBUG_RETURN(false);
-error:
-  DBUG_RETURN(true);
 }

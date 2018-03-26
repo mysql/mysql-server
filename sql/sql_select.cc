@@ -73,8 +73,10 @@
 #include "sql/opt_trace.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/records.h"  // init_read_record, end_read_record
+#include "sql/records.h"  // init_read_record
+#include "sql/row_iterator.h"
 #include "sql/set_var.h"
+#include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"
 #include "sql/sql_do.h"
 #include "sql/sql_executor.h"
@@ -2484,7 +2486,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     qep_tab->read_record.table = table;
     qep_tab->next_select = sub_select; /* normal select */
     qep_tab->cache_idx_cond = NULL;
-    qep_tab->read_record.read_record = NULL;
     qep_tab->read_record.unlock_row = rr_unlock_row;
 
     Opt_trace_object trace_refine_table(trace);
@@ -2680,7 +2681,7 @@ void QEP_TAB::cleanup() {
   // Delete parts specific of QEP_TAB:
   destroy(filesort);
   filesort = NULL;
-  end_read_record(&read_record);
+  read_record.iterator.reset();
   if (quick_optim() != quick()) delete quick_optim();
 
   TABLE *const t = table();

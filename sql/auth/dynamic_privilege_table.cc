@@ -22,6 +22,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/dynamic_privilege_table.h"
 
 #include <string.h>
+#include <memory>
 #include <string>
 
 #include "lex_string.h"
@@ -49,6 +50,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/handler.h"
 #include "sql/key.h"
 #include "sql/records.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_const.h"
 #include "sql/table.h"
 
@@ -100,7 +102,6 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
   DBUG_ENTER("populate_dynamic_privilege_caches");
   bool error = false;
   DBUG_ASSERT(assert_acl_cache_write_lock(thd));
-  READ_RECORD read_record_info;
   Acl_table_intact table_intact(thd);
 
   if (table_intact.check(tablelst[0].table, ACL_TABLES::TABLE_DYNAMIC_PRIV))
@@ -108,6 +109,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
 
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
+  READ_RECORD read_record_info;
   if (init_read_record(&read_record_info, thd, table, NULL, false,
                        /*ignore_not_found_rows=*/false)) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
@@ -129,8 +131,7 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
       DBUG_RETURN(true);
     }
     init_alloc_root(PSI_NOT_INSTRUMENTED, &tmp_mem, 256, 0);
-    while (!error && !(read_rec_errcode =
-                           read_record_info.read_record(&read_record_info))) {
+    while (!error && !(read_rec_errcode = read_record_info.iterator->Read())) {
       char *host =
           get_field(&tmp_mem, table->field[MYSQL_DYNAMIC_PRIV_FIELD_HOST]);
       if (host == 0) host = &percentile_character[0];
@@ -171,7 +172,6 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
         }
       }
     }
-    end_read_record(&read_record_info);
     /*
       To avoid any issues with inconsistencies we unconditionally increase
       acl cache version here.
@@ -179,7 +179,6 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
     get_global_acl_cache()->increase_version();
   }  // exit scope
   mysql_plugin_registry_release(r);
-  free_root(&tmp_mem, MYF(0));
   DBUG_RETURN(error);
 }
 

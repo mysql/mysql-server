@@ -51,7 +51,7 @@
 
 /**
   Initialize READ_RECORD structure to perform full index scan in desired
-  direction using read_record.read_record() interface
+  direction using the RowIterator interface
 
   This function has been added at late stage and is used only by
   UPDATE/DELETE. Other statements perform index scans using IndexScanIterator.
@@ -73,7 +73,6 @@ void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
 
   unique_ptr_destroy_only<RowIterator> iterator;
 
-  info->read_record = rr_iterator;
   if (reverse) {
     iterator.reset(new (&info->iterator_holder.index_scan_reverse)
                        IndexScanIterator<true>(thd, table, idx,
@@ -186,7 +185,6 @@ void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
   new (info) READ_RECORD;
   info->table = table;
   info->unlock_row = rr_unlock_row;
-  info->read_record = rr_iterator;
 
   unique_ptr_destroy_only<RowIterator> iterator;
 
@@ -233,12 +231,6 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
     return true;
   }
   return false;
-}
-
-void end_read_record(READ_RECORD *info) {
-  if (info->iterator) {
-    info->iterator.reset();
-  }
 }
 
 int RowIterator::HandleError(int error) {
@@ -316,9 +308,6 @@ int IndexRangeScanIterator::Read() {
 
   return 0;
 }
-
-// Temporary adapter.
-int rr_iterator(READ_RECORD *info) { return info->iterator->Read(); }
 
 TableScanIterator::TableScanIterator(THD *thd, TABLE *table)
     : RowIterator(thd, table), m_record(table->record[0]) {}

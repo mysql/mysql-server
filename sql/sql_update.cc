@@ -674,7 +674,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         if (used_index < MAX_KEY && covering_keys_for_cond.is_set(used_index))
           table->set_keyread(false);
         table->file->ha_index_or_rnd_end();
-        end_read_record(&info);
+        info.iterator.reset();
 
         // Change reader to use tempfile
         if (reinit_io_cache(tempfile, READ_CACHE, 0L, 0, 0))
@@ -945,7 +945,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     thd->get_transaction()->mark_modified_non_trans_table(
         Transaction_ctx::STMT);
 
-  end_read_record(&info);
+  info.iterator.reset();
 
   /*
     error < 0 means really no error at all: we processed all rows until the

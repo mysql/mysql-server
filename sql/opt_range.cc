@@ -171,6 +171,7 @@
 #include "sql/opt_trace_context.h"
 #include "sql/partition_info.h"  // partition_info
 #include "sql/psi_memory_key.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"   // free_io_cache
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_error.h"
@@ -1898,7 +1899,7 @@ QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT() {
   quick_selects.delete_elements();
   delete pk_quick_select;
   /* It's ok to call the next two even if they are already deinitialized */
-  end_read_record(&read_record);
+  read_record.iterator.reset();
   free_io_cache(head);
   free_root(&alloc, MYF(0));
   DBUG_VOID_RETURN;
@@ -10438,13 +10439,13 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
 
   if (doing_pk_scan) DBUG_RETURN(pk_quick_select->get_next());
 
-  if ((result = read_record.read_record(&read_record)) == -1) {
+  if ((result = read_record.iterator->Read()) == -1) {
     result = HA_ERR_END_OF_FILE;
 
-    // NOTE: end_read_record() also clears head->unique_result.io_cache
-    // if it is initialized, since the RowIterator owns the io_cache it is
-    // reading from.
-    end_read_record(&read_record);
+    // NOTE: destroying the RowIterator also clears
+    // head->unique_result.io_cache if it is initialized, since it
+    // owns the io_cache it is reading from.
+    read_record.iterator.reset();
 
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select) {

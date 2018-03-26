@@ -41,6 +41,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <iterator>
+#include <memory>
 #include <new>
 #include <string>
 #include <unordered_map>
@@ -74,8 +75,9 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"     // opt_allow_suspicious_udfs
-#include "sql/records.h"    // READ_RECORD
+#include "sql/mysqld.h"   // opt_allow_suspicious_udfs
+#include "sql/records.h"  // READ_RECORD
+#include "sql/row_iterator.h"
 #include "sql/sql_base.h"   // close_mysql_tables
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
@@ -247,7 +249,7 @@ void udf_read_functions_table() {
   if (init_read_record(&read_record_info, new_thd, table, NULL, false,
                        /*ignore_not_found_rows=*/false))
     goto end;
-  while (!(error = read_record_info.read_record(&read_record_info))) {
+  while (!(error = read_record_info.iterator->Read())) {
     DBUG_PRINT("info", ("init udf record"));
     LEX_STRING name;
     name.str = get_field(&mem, table->field[0]);
@@ -309,7 +311,7 @@ void udf_read_functions_table() {
     }
   }
   if (error > 0) LogErr(ERROR_LEVEL, ER_UNKNOWN_ERROR_NUMBER, my_errno());
-  end_read_record(&read_record_info);
+  read_record_info.iterator.reset();
   table->m_needs_reopen = true;  // Force close to free memory
 
 end:

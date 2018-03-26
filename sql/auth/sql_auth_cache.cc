@@ -62,6 +62,7 @@
 #include "sql/mysqld.h"          // my_localhost
 #include "sql/psi_memory_key.h"  // key_memory_acl_mem
 #include "sql/records.h"         // READ_RECORD
+#include "sql/row_iterator.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
@@ -1491,8 +1492,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
 
   allow_all_hosts = 0;
   int read_rec_errcode;
-  while (
-      !(read_rec_errcode = read_record_info.read_record(&read_record_info))) {
+  while (!(read_rec_errcode = read_record_info.iterator->Read())) {
     password_expired = false;
     /* Reading record from mysql.user */
     ACL_USER user;
@@ -1535,8 +1535,6 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
                     table->field[table_schema->authentication_string_idx()]);
     else {
       LogErr(ERROR_LEVEL, ER_AUTHCACHE_USER_TABLE_DODGY);
-
-      end_read_record(&read_record_info);
       goto end;
     }
     if (user.auth_string.str)
@@ -1845,7 +1843,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     }
   }  // END while reading records from the mysql.user table
 
-  end_read_record(&read_record_info);
+  read_record_info.iterator.reset();
   if (read_rec_errcode > 0) goto end;
 
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
@@ -1864,8 +1862,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   table->use_all_columns();
   acl_dbs->clear();
 
-  while (
-      !(read_rec_errcode = read_record_info.read_record(&read_record_info))) {
+  while (!(read_rec_errcode = read_record_info.iterator->Read())) {
     /* Reading record in mysql.db */
     ACL_DB db;
     db.host.update_hostname(
@@ -1904,7 +1901,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     acl_dbs->push_back(db);
   }  // END reading records from mysql.db tables
 
-  end_read_record(&read_record_info);
+  read_record_info.iterator.reset();
   if (read_rec_errcode > 0) goto end;
 
   std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
@@ -1918,19 +1915,17 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
                          false, /*ignore_not_found_rows=*/false))
       goto end;
     table->use_all_columns();
-    while (
-        !(read_rec_errcode = read_record_info.read_record(&read_record_info))) {
+    while (!(read_rec_errcode = read_record_info.iterator->Read())) {
       /* Reading record in mysql.proxies_priv */
       ACL_PROXY_USER proxy;
       proxy.init(table, &global_acl_memory);
       if (proxy.check_validity(check_no_resolve)) continue;
       if (acl_proxy_users->push_back(proxy)) {
-        end_read_record(&read_record_info);
         goto end;
       }
     }  // END reading records from the mysql.proxies_priv table
 
-    end_read_record(&read_record_info);
+    read_record_info.iterator.reset();
     if (read_rec_errcode > 0) goto end;
 
     std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());

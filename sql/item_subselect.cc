@@ -2937,9 +2937,7 @@ bool subselect_single_select_engine::exec() {
               TABLE *table = tab->table();
               /* Change the access method to full table scan */
               tab->save_using_dynamic_range = tab->using_dynamic_range;
-              tab->save_read_record = tab->read_record.read_record;
               tab->save_row_iterator = move(tab->read_record.iterator);
-              tab->read_record.read_record = rr_iterator;
               tab->read_record.iterator.reset(
                   new TableScanIterator(join->thd, table));
               tab->using_dynamic_range = false;
@@ -2957,9 +2955,7 @@ bool subselect_single_select_engine::exec() {
     /* Enable the optimizations back */
     for (QEP_TAB **ptab = changed_tabs; ptab != last_changed_tab; ptab++) {
       QEP_TAB *const tab = *ptab;
-      if (tab->save_read_record != nullptr) {
-        tab->read_record.read_record = tab->save_read_record;
-
+      if (tab->save_row_iterator != nullptr) {
         // This was created with a heap allocation above, and "iterator" is a
         // unique_ptr_destroy_only, so we need to delete it explicitly here.
         delete tab->read_record.iterator.release();

@@ -65,6 +65,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/basic_row_iterators.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -89,6 +90,8 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"   // Query_result
 #include "sql/record_buffer.h"  // Record_buffer
+#include "sql/ref_row_iterators.h"
+#include "sql/sort_param.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"  // fill_record
 #include "sql/sql_bitmap.h"
@@ -1427,7 +1430,6 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
 
     DBUG_RETURN(nls);
   }
-  READ_RECORD *info = &qep_tab->read_record;
 
   if (qep_tab->prepare_scan()) DBUG_RETURN(NESTED_LOOP_ERROR);
 
@@ -1490,6 +1492,7 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
   const bool pfs_batch_update = qep_tab->pfs_batch_update(join);
   if (pfs_batch_update) table->file->start_psi_batch_mode();
 
+  RowIterator *iterator = qep_tab->read_record.iterator.get();
   while (rc == NESTED_LOOP_OK && join->return_tab >= qep_tab_idx) {
     int error;
 
@@ -1503,12 +1506,12 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
 
     if (in_first_read) {
       in_first_read = false;
-      if (info->iterator->Init(qep_tab)) {
+      if (iterator->Init(qep_tab)) {
         rc = NESTED_LOOP_ERROR;
         break;
       }
     }
-    error = info->read_record(info);
+    error = iterator->Read();
 
     DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed = THD::KILL_QUERY;);
 
@@ -2592,7 +2595,6 @@ void join_setup_read_record(QEP_TAB *tab) {
   setup_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false,
                     /*ignore_not_found_rows=*/false);
 
-  DBUG_ASSERT(tab->read_record.read_record == rr_iterator);
   if (tab->filesort) {
     // Wrap the chosen RowIterator in a SortingIterator, so that we get
     // sorted results out.
@@ -2814,7 +2816,6 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
   DBUG_ASSERT(!join_tab->reversed_access || type() == JT_REF ||
               type() == JT_INDEX_SCAN);
   using_dynamic_range = false;
-  read_record.read_record = rr_iterator;
   switch (type()) {
     case JT_REF:
       if (join_tab->reversed_access) {
@@ -6226,7 +6227,7 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
       }
     }
 
-    int error = qep_tab->read_record.read_record(&qep_tab->read_record);
+    int error = qep_tab->read_record.iterator->Read();
     if (error > 0 || (join->thd->is_error()))  // Fatal error
       rc = NESTED_LOOP_ERROR;
     else if (error < 0)
