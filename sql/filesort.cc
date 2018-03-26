@@ -136,7 +136,7 @@ static ha_rows read_all_rows(
     THD *thd, Sort_param *param, QEP_TAB *qep_tab, Filesort_info *fs_info,
     IO_CACHE *buffer_file, IO_CACHE *chunk_file,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
-    ha_rows *found_rows);
+    RowIterator *source_iterator, ha_rows *found_rows);
 static int write_keys(Sort_param *param, Filesort_info *fs_info, uint count,
                       IO_CACHE *buffer_file, IO_CACHE *tempfile);
 static void register_used_fields(Sort_param *param);
@@ -328,6 +328,8 @@ static void trace_filesort_information(Opt_trace_context *trace,
   @param      sort_positions Set to true if we want to force sorting by position
                              (Needed by UPDATE/INSERT or ALTER TABLE or
                               when rowids are required by executor)
+  @param      source_iterator Where to read the rows to be sorted from.
+  @param      sort_result    Where to store the sort result.
   @param[out] examined_rows  Store number of examined rows here
                              This is the number of found rows before
                              applying WHERE condition.
@@ -345,6 +347,7 @@ static void trace_filesort_information(Opt_trace_context *trace,
 */
 
 bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
+              RowIterator *source_iterator, Sort_result *sort_result,
               ha_rows *examined_rows, ha_rows *found_rows,
               ha_rows *returned_rows) {
   int error;
@@ -382,10 +385,10 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   DEBUG_SYNC(thd, "filesort_start");
 
-  DBUG_ASSERT(table->sort_result.sorted_result == NULL);
-  table->sort_result.sorted_result_in_fsbuf = false;
+  DBUG_ASSERT(sort_result->sorted_result == NULL);
+  sort_result->sorted_result_in_fsbuf = false;
 
-  outfile = table->sort_result.io_cache;
+  outfile = sort_result->io_cache;
   my_b_clear(&tempfile);
   my_b_clear(&chunk_file);
   error = 1;
@@ -467,9 +470,9 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   // New scope, because subquery execution must be traced within an array.
   {
     Opt_trace_array ota(trace, "filesort_execution");
-    num_rows_found =
-        read_all_rows(thd, &param, qep_tab, &table->sort, &chunk_file,
-                      &tempfile, param.using_pq ? &pq : nullptr, found_rows);
+    num_rows_found = read_all_rows(
+        thd, &param, qep_tab, &table->sort, &chunk_file, &tempfile,
+        param.using_pq ? &pq : nullptr, source_iterator, found_rows);
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
 
@@ -485,8 +488,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   if (num_chunks == 0)  // The whole set is in memory
   {
-    if (save_index(&param, num_rows_found, &table->sort, &table->sort_result))
-      goto err;
+    if (save_index(&param, num_rows_found, &table->sort, sort_result)) goto err;
   } else {
     // We will need an extra buffer in rr_unpack_from_tempfile()
     if (table->sort.addon_fields != nullptr &&
@@ -571,8 +573,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
 err:
   if (!subselect || !subselect->is_uncacheable()) {
-    if (!table->sort_result.sorted_result_in_fsbuf)
-      table->sort.free_sort_buffer();
+    if (!sort_result->sorted_result_in_fsbuf) table->sort.free_sort_buffer();
     my_free(table->sort.merge_chunks.array());
     table->sort.merge_chunks = Merge_chunk_array(NULL, 0);
   }
@@ -634,9 +635,6 @@ err:
 void filesort_free_buffers(TABLE *table, bool full) {
   DBUG_ENTER("filesort_free_buffers");
 
-  table->sort_result.sorted_result.reset();
-  table->sort_result.sorted_result_in_fsbuf = false;
-
   table->unique_result.sorted_result.reset();
   DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
   table->unique_result.sorted_result_in_fsbuf = false;
@@ -645,9 +643,9 @@ void filesort_free_buffers(TABLE *table, bool full) {
     table->sort.free_sort_buffer();
     my_free(table->sort.merge_chunks.array());
     table->sort.merge_chunks = Merge_chunk_array(NULL, 0);
+    table->sort.addon_fields = NULL;
   }
 
-  table->sort.addon_fields = NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -858,12 +856,14 @@ static const Item::enum_walk walk_subquery =
 
   @param thd               Thread handle
   @param param             Sorting parameter
-  @param qep_tab            Use this to get source data
+  @param qep_tab           Parameters for which data to read (see
+                           source_iterator).
   @param fs_info           Struct containing sort buffer etc.
   @param chunk_file        File to write Merge_chunks describing sorted segments
                            in tempfile.
   @param tempfile          File to write sorted sequences of sortkeys to.
   @param pq                If !NULL, use it for keeping top N elements
+  @param source_iterator   Where to read the rows to be sorted from.
   @param [out] found_rows  The number of FOUND_ROWS().
                            For a query with LIMIT, this value will typically
                            be larger than the function return value.
@@ -911,7 +911,7 @@ static ha_rows read_all_rows(
     THD *thd, Sort_param *param, QEP_TAB *qep_tab, Filesort_info *fs_info,
     IO_CACHE *chunk_file, IO_CACHE *tempfile,
     Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> *pq,
-    ha_rows *found_rows) {
+    RowIterator *source_iterator, ha_rows *found_rows) {
   /*
     Set up an error handler for filesort. It is automatically pushed
     onto the internal error handler stack upon creation, and will be
@@ -928,21 +928,25 @@ static ha_rows read_all_rows(
   int error = 0;
   TABLE *sort_form = param->sort_form;
   handler *file = sort_form->file;
-  const bool is_range_scan = qep_tab->quick() != nullptr;
   *found_rows = 0;
   uchar *ref_pos = &file->ref[0];
-  if (is_range_scan) {
-    if ((error = qep_tab->quick()->reset())) {
-      file->print_error(error, MYF(0));
-      DBUG_RETURN(HA_POS_ERROR);
-    }
-  } else {
-    DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
-    if ((error = file->ha_rnd_init(1))) {
-      file->print_error(error, MYF(0));
-      DBUG_RETURN(HA_POS_ERROR);
-    }
+
+  DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
+  if (source_iterator->Init(qep_tab)) {
+    DBUG_RETURN(HA_POS_ERROR);
   }
+
+  // Now modify the read bitmaps, so that we are sure to get the rows
+  // that we need for the sort (ie., the fields to sort on) as well as
+  // the actual fields we want to return. We need to do this after Init()
+  // has run, as Init() may want to set its own bitmaps and we don't want
+  // it to overwrite ours. This is fairly ugly, though; we could end up
+  // setting fields that the access method doesn't actually need (e.g.
+  // if we set a condition that the access method can satisfy using an
+  // index only), and in theory also clear fields it _would_ need, although
+  // the latter should never happen in practice. A better solution would
+  // involve communicating which extra fields we need down to the
+  // RowIterator, instead of just overwriting the read set.
 
   /* Remember original bitmaps */
   MY_BITMAP *save_read_set = sort_form->read_set;
@@ -981,31 +985,23 @@ static ha_rows read_all_rows(
     fs_info->clear_peak_memory_used();
   }
   for (;;) {
-    if (is_range_scan) {
-      if ((error = qep_tab->quick()->get_next())) break;
-      file->position(sort_form->record[0]);
-      DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, true););
-    } else {
-      DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
-      {
-        error = file->ha_rnd_next(sort_form->record[0]);
-        if (!error) file->position(sort_form->record[0]);
-      }
-      if (error && error != HA_ERR_RECORD_DELETED) break;
+    DBUG_EXECUTE_IF("bug19656296", DBUG_SET("+d,ha_rnd_next_deadlock"););
+    if ((error = source_iterator->Read())) {
+      break;
     }
+    // Note where we are, for the case where we are not using addon fields.
+    file->position(sort_form->record[0]);
+    DBUG_EXECUTE_IF("debug_filesort", dbug_print_record(sort_form, true););
 
     if (thd->killed) {
       DBUG_PRINT("info", ("Sort killed by user"));
-      if (!is_range_scan) {
-        file->ha_rnd_end();
-      }
       num_total_records = HA_POS_ERROR;
       goto cleanup;
     }
-    if (error == 0) param->num_examined_rows++;
+    param->num_examined_rows++;
 
     bool skip_record;
-    if (!error && !qep_tab->skip_record(thd, &skip_record) && !skip_record) {
+    if (!qep_tab->skip_record(thd, &skip_record) && !skip_record) {
       ++(*found_rows);
       if (pq)
         pq->push(ref_pos);
@@ -1049,9 +1045,6 @@ static ha_rows read_all_rows(
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error()) break;
   }
-  if (!is_range_scan) {
-    file->ha_rnd_end();
-  }
 
   if (thd->is_error()) {
     num_total_records = HA_POS_ERROR;
@@ -1063,17 +1056,7 @@ static ha_rows read_all_rows(
 
   DBUG_PRINT("test",
              ("error: %d  num_written_chunks: %d", error, num_written_chunks));
-  if (error != HA_ERR_END_OF_FILE) {
-    myf my_flags;
-    switch (error) {
-      case HA_ERR_LOCK_DEADLOCK:
-      case HA_ERR_LOCK_WAIT_TIMEOUT:
-        my_flags = MYF(0);
-        break;
-      default:
-        my_flags = MYF(ME_ERRORLOG);
-    }
-    file->print_error(error, my_flags);
+  if (error == 1) {
     num_total_records = HA_POS_ERROR;
     goto cleanup;
   }

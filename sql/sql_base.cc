@@ -1070,11 +1070,6 @@ void intern_close_table(TABLE *table) {  // Free all structures
 
 void free_io_cache(TABLE *table) {
   DBUG_ENTER("free_io_cache");
-  if (table->sort_result.io_cache) {
-    close_cached_file(table->sort_result.io_cache);
-    my_free(table->sort_result.io_cache);
-    table->sort_result.io_cache = nullptr;
-  }
   if (table->unique_result.io_cache) {
     close_cached_file(table->unique_result.io_cache);
     my_free(table->unique_result.io_cache);

@@ -75,8 +75,8 @@
   @retval false  success
 */
 
-bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
-                          bool reverse) {
+void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
+                           bool reverse) {
   empty_record(table);
   new (info) READ_RECORD;
 
@@ -90,11 +90,7 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
     iterator.reset(new (&info->iterator_holder.index_scan)
                        IndexScanIterator<false>(thd, table, idx));
   }
-  if (iterator->Init(nullptr)) {
-    return true;
-  }
   info->iterator = std::move(iterator);
-  return false;
 }
 
 template <bool Reverse>
@@ -148,36 +144,28 @@ int IndexScanIterator<true>::Read() {  // Backward read.
 }
 //! @endcond
 
-/*
-  init_read_record is used to scan by using a number of different methods.
+/**
+  setup_read_record is used to scan by using a number of different methods.
   Which method to use is set-up in this call so that you can fetch rows
   through the resulting row iterator afterwards.
 
-  SYNOPSIS
-    init_read_record()
-      info              OUT read structure
-      thd               Thread handle
-      table             Table the data [originally] comes from; if NULL,
-      'table' is inferred from 'qep_tab'; if non-NULL, 'qep_tab' must be NULL.
-      qep_tab           QEP_TAB for 'table', if there is one; we may use
-      qep_tab->quick() as data source
-      disable_rr_cache  Don't use rr_from_cache (used by sort-union
-                        index-merge which produces rowid sequences that
-                        are already ordered)
-      ignore_not_found_rows
-                        Ignore any rows not found in reference tables,
-                        as they may already have been deleted by foreign key
-                        handling. Only relevant for methods that need to
-                        look up rows in tables (those marked “Indirect”).
-
-  @retval true   error
-  @retval false  success
-*/
-bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, bool disable_rr_cache,
-                      bool ignore_not_found_rows) {
-  DBUG_ENTER("init_read_record");
-
+  @param info     OUT read structure
+  @param thd      Thread handle
+  @param table    Table the data [originally] comes from; if NULL,
+    'table' is inferred from 'qep_tab'; if non-NULL, 'qep_tab' must be NULL.
+  @param qep_tab  QEP_TAB for 'table', if there is one; we may use
+    qep_tab->quick() as data source
+  @param disable_rr_cache
+    Don't use rr_from_cache (used by sort-union index-merge which produces
+    rowid sequences that are already ordered)
+  @param ignore_not_found_rows
+    Ignore any rows not found in reference tables, as they may already have
+    been deleted by foreign key handling. Only relevant for methods that need
+    to look up rows in tables (those marked “Indirect”).
+ */
+void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
+                       QEP_TAB *qep_tab, bool disable_rr_cache,
+                       bool ignore_not_found_rows) {
   // If only 'table' is given, assume no quick, no condition.
   DBUG_ASSERT(!(table && qep_tab));
   if (!table) table = qep_tab->table();
@@ -191,59 +179,20 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
   unique_ptr_destroy_only<RowIterator> iterator;
 
   QUICK_SELECT_I *quick = qep_tab ? qep_tab->quick() : NULL;
-  if (quick && quick->clustered_pk_range()) {
-    /*
-      In case of QUICK_INDEX_MERGE_SELECT with clustered pk range we have to
-      use its own access method(i.e QUICK_INDEX_MERGE_SELECT::get_next()) as
-      sort file does not contain rowids which satisfy clustered pk range.
-    */
-    DBUG_PRINT("info", ("using IndexRangeScanIterator"));
-    iterator.reset(new (&info->iterator_holder.index_range_scan)
-                       IndexRangeScanIterator(thd, table, quick));
-  }
-  /*
-    We test for a Unique result before a filesort result, because on
-    any given table, we can have Unique sending its result to filesort
-    (in which case filesort would be half-initialized at this point),
-    but not the other way round. It's possible that we should actually
-    have a “finished” flag instead, though.
-  */
-  else if (table->unique_result.io_cache &&
-           my_b_inited(table->unique_result.io_cache)) {
+  if (table->unique_result.io_cache &&
+      my_b_inited(table->unique_result.io_cache)) {
     DBUG_PRINT("info", ("using SortFileIndirectIterator"));
     iterator.reset(
         new (&info->iterator_holder.sort_file_indirect)
             SortFileIndirectIterator(thd, table, table->unique_result.io_cache,
                                      !disable_rr_cache, ignore_not_found_rows));
-  } else if (table->sort_result.io_cache &&
-             my_b_inited(table->sort_result.io_cache)) {
-    // Test if ref-records was used
-    if (table->sort.using_addon_fields()) {
-      DBUG_PRINT("info", ("using SortFileIterator"));
-      if (table->sort.addon_fields->using_packed_addons())
-        iterator.reset(
-            new (&info->iterator_holder.sort_file_packed_addons)
-                SortFileIterator<true>(thd, table, table->sort_result.io_cache,
-                                       &table->sort));
-      else
-        iterator.reset(
-            new (&info->iterator_holder.sort_file) SortFileIterator<false>(
-                thd, table, table->sort_result.io_cache, &table->sort));
-    } else {
-      iterator.reset(new (&info->iterator_holder.sort_file_indirect)
-                         SortFileIndirectIterator(
-                             thd, table, table->sort_result.io_cache,
-                             !disable_rr_cache, ignore_not_found_rows));
-    }
+    table->unique_result.io_cache =
+        nullptr;  // Now owned by SortFileIndirectIterator.
   } else if (quick) {
     DBUG_PRINT("info", ("using IndexRangeScanIterator"));
     iterator.reset(new (&info->iterator_holder.index_range_scan)
                        IndexRangeScanIterator(thd, table, quick));
-  }
-  /*
-    See further up in the function for why we test for Unique before filesort.
-  */
-  else if (table->unique_result.has_result_in_memory()) {
+  } else if (table->unique_result.has_result_in_memory()) {
     /*
       The Unique class never puts its results into table->sort's
       Filesort_buffer.
@@ -254,39 +203,25 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
         new (&info->iterator_holder.sort_buffer_indirect)
             SortBufferIndirectIterator(thd, table, &table->unique_result,
                                        ignore_not_found_rows));
-  }
-  // See save_index(), which stores the filesort result set.
-  else if (table->sort_result.has_result_in_memory()) {
-    if (table->sort.using_addon_fields()) {
-      DBUG_PRINT("info", ("using SortBufferIterator"));
-      DBUG_ASSERT(table->sort_result.sorted_result_in_fsbuf);
-      if (table->sort.addon_fields->using_packed_addons())
-        iterator.reset(new (&info->iterator_holder.sort_buffer_packed_addons)
-                           SortBufferIterator<true>(thd, table, &table->sort,
-                                                    &table->sort_result));
-      else
-        iterator.reset(new (&info->iterator_holder.sort_buffer)
-                           SortBufferIterator<false>(thd, table, &table->sort,
-                                                     &table->sort_result));
-    } else {
-      DBUG_PRINT("info", ("using SortBufferIndirectIterator (sort)"));
-      iterator.reset(
-          new (&info->iterator_holder.sort_buffer_indirect)
-              SortBufferIndirectIterator(thd, table, &table->sort_result,
-                                         ignore_not_found_rows));
-    }
   } else {
     DBUG_PRINT("info", ("using TableScanIterator"));
     iterator.reset(new (&info->iterator_holder.table_scan)
                        TableScanIterator(thd, table));
   }
-
-  if (iterator->Init(qep_tab)) {
-    DBUG_RETURN(true);
-  }
   info->iterator = std::move(iterator);
-  DBUG_RETURN(false);
-} /* init_read_record */
+}
+
+bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
+                      QEP_TAB *qep_tab, bool disable_rr_cache,
+                      bool ignore_not_found_rows) {
+  setup_read_record(info, thd, table, qep_tab, disable_rr_cache,
+                    ignore_not_found_rows);
+  if (info->iterator->Init(qep_tab)) {
+    info->iterator.reset();
+    return true;
+  }
+  return false;
+}
 
 void end_read_record(READ_RECORD *info) {
   if (info->iterator) {
@@ -430,6 +365,9 @@ SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
 
 SortFileIndirectIterator::~SortFileIndirectIterator() {
   (void)table()->file->ha_index_or_rnd_end();
+
+  close_cached_file(m_io_cache);
+  my_free(m_io_cache);
 }
 
 bool SortFileIndirectIterator::Init(QEP_TAB *qep_tab) {
@@ -624,6 +562,12 @@ SortFileIterator<Packed_addon_fields>::SortFileIterator(THD *thd, TABLE *table,
       m_io_cache(tempfile),
       m_sort(sort) {}
 
+template <bool Packed_addon_fields>
+SortFileIterator<Packed_addon_fields>::~SortFileIterator() {
+  close_cached_file(m_io_cache);
+  my_free(m_io_cache);
+}
+
 /**
   Read a result set record from a temporary file after sorting.
 
@@ -680,6 +624,12 @@ SortBufferIterator<Packed_addon_fields>::~SortBufferIterator() {
   m_sort_result->sorted_result_in_fsbuf = false;
 }
 
+template <bool Packed_addon_fields>
+bool SortBufferIterator<Packed_addon_fields>::Init(QEP_TAB *) {
+  m_unpack_counter = 0;
+  return false;
+}
+
 /**
   Read a result set record from a buffer after sorting.
 
@@ -717,9 +667,6 @@ SortBufferIndirectIterator::SortBufferIndirectIterator(
       m_sort_result(sort_result),
       m_ref_length(table->file->ref_length),
       m_record(table->record[0]),
-      m_cache_pos(sort_result->sorted_result.get()),
-      m_cache_end(m_cache_pos +
-                  sort_result->found_records * table->file->ref_length),
       m_ignore_not_found_rows(ignore_not_found_rows) {}
 
 SortBufferIndirectIterator::~SortBufferIndirectIterator() {
@@ -737,6 +684,9 @@ bool SortBufferIndirectIterator::Init(QEP_TAB *qep_tab) {
     return true;
   }
   PushDownCondition(qep_tab);
+  m_cache_pos = m_sort_result->sorted_result.get();
+  m_cache_end =
+      m_cache_pos + m_sort_result->found_records * table()->file->ref_length;
   return false;
 }
 
@@ -758,6 +708,13 @@ int SortBufferIndirectIterator::Read() {
     return HandleError(tmp);
   }
 }
+
+// TODO: Move these iterators into the only file that uses them, so we no longer
+// need explicit template instantiations.
+template class SortFileIterator<true>;
+template class SortFileIterator<false>;
+template class SortBufferIterator<true>;
+template class SortBufferIterator<false>;
 
 /**
   The default implementation of unlock-row method of READ_RECORD,

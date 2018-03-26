@@ -29,14 +29,16 @@
 #include "sql/sql_delete.h"
 
 #include <limits.h>
+#include <algorithm>
 #include <atomic>
+#include <memory>
+#include <new>
 
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -53,9 +55,10 @@
 #include "sql/opt_explain_format.h"
 #include "sql/opt_range.h"  // prune_partitions
 #include "sql/opt_trace.h"  // Opt_trace_object
-#include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
-#include "sql/records.h"   // READ_RECORD
+#include "sql/records.h"  // READ_RECORD
+#include "sql/row_iterator.h"
+#include "sql/sorting_iterator.h"
 #include "sql/sql_base.h"  // update_non_unique_table_error
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
@@ -66,7 +69,6 @@
 #include "sql/sql_optimizer.h"  // optimize_cond, substitute_gc
 #include "sql/sql_resolver.h"   // setup_order
 #include "sql/sql_select.h"
-#include "sql/sql_sort.h"
 #include "sql/sql_view.h"  // check_key_in_view
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -134,6 +136,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     = -1: No more rows to process, or reached limit
   */
   int error = 0;
+  unique_ptr_destroy_only<Filesort> fsort;
   READ_RECORD info;
   ha_rows deleted_rows = 0;
   bool reverse = false;
@@ -403,45 +406,31 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (select_lex->active_options() & OPTION_QUICK)
       (void)table->file->extra(HA_EXTRA_QUICK);
 
+    if (usable_index == MAX_KEY || qep_tab.quick())
+      setup_read_record(&info, thd, NULL, &qep_tab, false,
+                        /*ignore_not_found_rows=*/false);
+    else
+      setup_read_record_idx(&info, thd, table, usable_index, reverse);
+
     if (need_sort) {
-      ha_rows examined_rows, found_rows, returned_rows;
-
-      Filesort fsort(&qep_tab, order, HA_POS_ERROR);
       DBUG_ASSERT(usable_index == MAX_KEY);
-      table->sort_result.io_cache =
-          (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache,
-                                sizeof(IO_CACHE), MYF(MY_FAE | MY_ZEROFILL));
 
-      if (filesort(thd, &fsort, true, &examined_rows, &found_rows,
-                   &returned_rows))
-        DBUG_RETURN(true);
+      fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
+      unique_ptr_destroy_only<RowIterator> sort(
+          new (&info.sort_holder)
+              SortingIterator(thd, table, fsort.get(), move(info.iterator)));
+      qep_tab.keep_current_rowid = true;  // Force filesort to sort by position.
+      if (sort->Init(&qep_tab)) DBUG_RETURN(true);
+      info.iterator = move(sort);
 
-      table->sort_result.found_records = returned_rows;
-      thd->inc_examined_row_count(examined_rows);
       /*
         Filesort has already found and selected the rows we want to delete,
         so we don't need the where clause
       */
-      qep_tab.set_quick(NULL);
       qep_tab.set_condition(NULL);
-      table->file->ha_index_or_rnd_end();
+    } else {
+      if (info.iterator->Init(&qep_tab)) DBUG_RETURN(true);
     }
-
-    /* If quick select is used, initialize it before retrieving rows. */
-    if (qep_tab.quick() && (error = qep_tab.quick()->reset())) {
-      if (table->file->is_fatal_error(error)) error_flags |= ME_FATALERROR;
-
-      table->file->print_error(error, error_flags);
-      DBUG_RETURN(true);
-    }
-
-    if (usable_index == MAX_KEY || qep_tab.quick())
-      error = init_read_record(&info, thd, NULL, &qep_tab, false,
-                               /*ignore_not_found_rows=*/false);
-    else
-      error = init_read_record_idx(&info, thd, table, usable_index, reverse);
-
-    if (error) DBUG_RETURN(true); /* purecov: inspected */
 
     if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
       DBUG_RETURN(true); /* purecov: inspected */
@@ -472,7 +461,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     // The loop that reads rows and delete those that qualify
 
-    while (!(error = info.read_record(&info)) && !thd->killed) {
+    while (!(error = info.iterator->Read()) && !thd->killed) {
       DBUG_ASSERT(!thd->is_error());
       thd->inc_examined_row_count(1);
 

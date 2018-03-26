@@ -35,15 +35,13 @@ struct TABLE;
 
   A RowIterator is a simple iterator; you initialize it, and then read one
   record at a time until Read() returns EOF. A RowIterator can read from
-  other Iterators if you want to (e.g. a UniqueIterator that takes in records
-  from another RowIterator and deduplicates them), but we currently have no
-  such implementations.
+  other Iterators if you want to, e.g., SortingIterator, which takes in records
+  from another RowIterator and sorts them.
 
   The abstraction is not completely tight. In particular, it still leaves some
   specifics to TABLE, such as which columns to read (the read_set). This means
   it would probably be hard as-is to e.g. sort a join of two tables.
 
-  TODO: Convert sorting and unique into RowIterator.
   TODO: Convert the join access types into RowIterator (depends on the
         previous item)
   TODO: Convert the joins themselves into RowIterator.

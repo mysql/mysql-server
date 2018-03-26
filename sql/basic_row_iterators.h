@@ -135,14 +135,14 @@ class SortBufferIterator final : public RowIterator {
   ~SortBufferIterator();
 
   // Accepts nullptr for qep_tab (obviously).
-  bool Init(QEP_TAB *) override { return false; }
+  bool Init(QEP_TAB *) override;
   int Read() override;
 
  private:
   // NOTE: No m_record -- unpacks directly into each Field's field->ptr.
   Filesort_info *const m_sort;
   Sort_result *const m_sort_result;
-  unsigned m_unpack_counter = 0;
+  unsigned m_unpack_counter;
 };
 
 /**
@@ -159,6 +159,9 @@ class SortBufferIterator final : public RowIterator {
  */
 class SortBufferIndirectIterator final : public RowIterator {
  public:
+  // Ownership here is suboptimal: Takes only partial ownership of
+  // "sort_result", so it must be alive for as long as the RowIterator is.
+  // However, it _does_ free the buffers within on destruction.
   SortBufferIndirectIterator(THD *thd, TABLE *table, Sort_result *sort_result,
                              bool ignore_not_found_rows);
   ~SortBufferIndirectIterator();
@@ -184,8 +187,10 @@ class SortBufferIndirectIterator final : public RowIterator {
 template <bool Packed_addon_fields>
 class SortFileIterator final : public RowIterator {
  public:
+  // Takes ownership of tempfile.
   SortFileIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                    Filesort_info *sort);
+  ~SortFileIterator();
 
   // Accepts nullptr for qep_tab (obviously).
   bool Init(QEP_TAB *) override { return false; }
@@ -209,6 +214,7 @@ class SortFileIterator final : public RowIterator {
  */
 class SortFileIndirectIterator final : public RowIterator {
  public:
+  // Takes ownership of tempfile.
   SortFileIndirectIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
                            bool request_cache, bool ignore_not_found_rows);
   ~SortFileIndirectIterator();

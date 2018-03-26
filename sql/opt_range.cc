@@ -10416,6 +10416,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   doing_pk_scan = false;
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(false);
+  read_record.iterator.reset();  // Clear out any previous iterator.
   if (init_read_record(&read_record, thd, head, NULL, true,
                        /*ignore_not_found_rows=*/false))
     DBUG_RETURN(1);
@@ -10439,17 +10440,12 @@ int QUICK_INDEX_MERGE_SELECT::get_next() {
 
   if ((result = read_record.read_record(&read_record)) == -1) {
     result = HA_ERR_END_OF_FILE;
+
+    // NOTE: end_read_record() also clears head->unique_result.io_cache
+    // if it is initialized, since the RowIterator owns the io_cache it is
+    // reading from.
     end_read_record(&read_record);
-    /*
-      free_io_cache(head) would free head->sort_result.io_cache, which we
-      don't use (and thus should not be clearing), but unique may have opened
-      head->unique_result.io_cache, so we need to clear that.
-    */
-    if (head->unique_result.io_cache) {
-      close_cached_file(head->unique_result.io_cache);
-      my_free(head->unique_result.io_cache);
-      head->unique_result.io_cache = nullptr;
-    }
+
     /* All rows from Unique have been retrieved, do a clustered PK scan */
     if (pk_quick_select) {
       doing_pk_scan = true;
@@ -14138,6 +14134,7 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   }
 }
 
+#ifndef DBUG_OFF
 /**
   Print the ranges in a SEL_TREE to debug log.
 
@@ -14145,7 +14142,6 @@ static void append_range_all_keyparts(Opt_trace_array *range_trace,
   @param tree        The SEL_TREE that will be printed to debug log
   @param param       PARAM from test_quick_select
 */
-#ifndef DBUG_OFF
 static inline void dbug_print_tree(const char *tree_name, SEL_TREE *tree,
                                    const RANGE_OPT_PARAM *param) {
   if (_db_enabled_()) print_tree(NULL, tree_name, tree, param, true);

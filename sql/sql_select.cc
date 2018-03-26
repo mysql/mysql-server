@@ -81,7 +81,6 @@
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_planner.h"    // calculate_condition_filter
 #include "sql/sql_show.h"       // append_identifier
-#include "sql/sql_sort.h"
 #include "sql/sql_test.h"       // misc. debug printing utilities
 #include "sql/sql_timer.h"      // thd_timer_set
 #include "sql/sql_tmp_table.h"  // tmp tables
@@ -776,8 +775,8 @@ bool types_allow_materialization(Item *outer, Item *inner)
             /*&& outer->max_length <= inner->max_length */))
         return false;
     /*case INT_RESULT:
-      if (!(outer->unsigned_flag ^ inner->unsigned_flag))
-        return false; */
+            if (!(outer->unsigned_flag ^ inner->unsigned_flag))
+              return false; */
     default:; /* suitable for materialization */
   }
   return true;
@@ -4200,16 +4199,6 @@ bool JOIN::make_tmp_tables_info() {
             (has_group_by || (primary_tables > curr_tmp_table + 1))
                 ? m_select_limit
                 : unit->select_limit_cnt;
-    }
-    if (!plan_is_const() &&
-        !qep_tab[const_tables].table()->unique_result.io_cache &&
-        !qep_tab[const_tables].table()->sort_result.io_cache) {
-      /*
-        If no IO cache exists for the first table then we are using an
-        INDEX SCAN and no filesort. Thus we should not remove the sorted
-        attribute on the INDEX SCAN.
-      */
-      skip_sort_order = true;
     }
   }
 

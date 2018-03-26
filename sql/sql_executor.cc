@@ -65,6 +65,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/basic_row_iterators.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
@@ -89,7 +90,9 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"   // Query_result
 #include "sql/record_buffer.h"  // Record_buffer
-#include "sql/sql_base.h"       // fill_record
+#include "sql/sort_param.h"
+#include "sql/sorting_iterator.h"
+#include "sql/sql_base.h"  // fill_record
 #include "sql/sql_bitmap.h"
 #include "sql/sql_error.h"
 #include "sql/sql_join_buffer.h"  // CACHE_FIELD
@@ -142,7 +145,6 @@ static int join_ft_read_first(QEP_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 static int join_read_always_key_or_null(QEP_TAB *tab);
 static int join_read_next_same_or_null(READ_RECORD *info);
-static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab);
 static bool remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
                                     ulong offset, Item *having);
 static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
@@ -2617,14 +2619,28 @@ int read_first_record_seq(QEP_TAB *tab) {
 
 int join_init_read_record(QEP_TAB *tab) {
   DBUG_ASSERT(!tab->needs_duplicate_removal);
-  if (tab->filesort && tab->sort_table())  // Sort table.
-    return 1;
 
-  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false,
-                       /*ignore_not_found_rows=*/false))
-    return 1;
+  // The same temporary table can be used multiple times (with different
+  // data, e.g. for a dependent subquery). To avoid leaks, we need to make
+  // sure we clean up any existing iterators here, as
+  // join_setup_read_record assumes the memory is unused.
+  tab->read_record.iterator.reset();
 
-  return (*tab->read_record.read_record)(&tab->read_record);
+  setup_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false,
+                    /*ignore_not_found_rows=*/false);
+
+  DBUG_ASSERT(tab->read_record.read_record == rr_iterator);
+  if (tab->filesort) {
+    // Wrap the chosen RowIterator in a SortingIterator, so that we get
+    // sorted results out.
+    unique_ptr_destroy_only<RowIterator> sort(
+        new (&tab->read_record.sort_holder)
+            SortingIterator(tab->join()->thd, tab->table(), tab->filesort,
+                            move(tab->read_record.iterator)));
+    tab->read_record.iterator = move(sort);
+  }
+  if (tab->read_record.iterator->Init(tab)) return 1;
+  return tab->read_record.iterator->Read();
 }
 
 /*
@@ -2738,19 +2754,42 @@ bool QEP_TAB::use_order() const {
   return false;
 }
 
-/*
-  Helper function for sorting table with filesort.
-*/
+SortingIterator::SortingIterator(THD *thd, TABLE *table, Filesort *filesort,
+                                 unique_ptr_destroy_only<RowIterator> source)
+    : RowIterator(thd, table),
+      m_filesort(filesort),
+      m_source_iterator(move(source)) {}
 
-bool QEP_TAB::sort_table() {
-  DBUG_ENTER("QEP_TAB::sort_table");
-  DBUG_PRINT("info", ("Sorting for index"));
-  THD_STAGE_INFO(join()->thd, stage_creating_sort_index);
-  DBUG_ASSERT(join()->m_ordered_index_usage !=
-              (filesort->order == join()->order
-                   ? JOIN::ORDERED_INDEX_ORDER_BY
-                   : JOIN::ORDERED_INDEX_GROUP_BY));
-  const bool rc = create_sort_index(join()->thd, join(), this) != 0;
+SortingIterator::~SortingIterator() { ReleaseBuffers(); }
+
+void SortingIterator::ReleaseBuffers() {
+  m_result_iterator.reset();
+  if (m_sort_result.io_cache) {
+    // NOTE: The io_cache is only owned by us if it were never used.
+    close_cached_file(m_sort_result.io_cache);
+    my_free(m_sort_result.io_cache);
+    m_sort_result.io_cache = nullptr;
+  }
+  m_sort_result.sorted_result.reset();
+  m_sort_result.sorted_result_in_fsbuf = false;
+}
+
+bool SortingIterator::Init(QEP_TAB *qep_tab) {
+  ReleaseBuffers();
+
+  THD_STAGE_INFO(thd(), stage_creating_sort_index);
+  if (qep_tab->join() != nullptr) {
+    DBUG_ASSERT(qep_tab->join()->m_ordered_index_usage !=
+                (qep_tab->filesort->order == qep_tab->join()->order
+                     ? JOIN::ORDERED_INDEX_ORDER_BY
+                     : JOIN::ORDERED_INDEX_GROUP_BY));
+  }
+
+  // Both empty result and error count as errors. (TODO: Why? This is a legacy
+  // choice that doesn't always seem right to me, although it should nearly
+  // never happen in practice.)
+  if (DoSort(qep_tab) != 0) return true;
+
   /*
     Filesort has filtered rows already (see skip_record() in
     find_all_keys()): so we can simply scan the cache, so have to set
@@ -2774,9 +2813,59 @@ bool QEP_TAB::sort_table() {
     the outer table is constant (so the inner one is first-non-const) and a
     window function requires sorting.
   */
-  set_quick(NULL);
-  if (!is_inner_table_of_outer_join()) set_condition(NULL);
-  DBUG_RETURN(rc);
+  qep_tab->set_quick(NULL);
+  if (!qep_tab->is_inner_table_of_outer_join()) qep_tab->set_condition(NULL);
+
+  // Prepare the result iterator for actually reading the data. Read()
+  // will proxy to it.
+  TABLE *table = qep_tab->table();
+  if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
+    // Test if ref-records was used
+    if (table->sort.using_addon_fields()) {
+      DBUG_PRINT("info", ("using SortFileIterator"));
+      if (table->sort.addon_fields->using_packed_addons())
+        m_result_iterator.reset(
+            new (&m_result_iterator_holder.sort_file_packed_addons)
+                SortFileIterator<true>(thd(), table, m_sort_result.io_cache,
+                                       &table->sort));
+      else
+        m_result_iterator.reset(
+            new (&m_result_iterator_holder.sort_file) SortFileIterator<false>(
+                thd(), table, m_sort_result.io_cache, &table->sort));
+    } else {
+      m_result_iterator.reset(
+          new (&m_result_iterator_holder.sort_file_indirect)
+              SortFileIndirectIterator(thd(), table, m_sort_result.io_cache,
+                                       /*request_cache=*/true,
+                                       /*ignore_not_found_rows=*/false));
+    }
+    m_sort_result.io_cache =
+        nullptr;  // The result iterator has taken ownership.
+  } else {
+    DBUG_ASSERT(m_sort_result.has_result_in_memory());
+    if (table->sort.using_addon_fields()) {
+      DBUG_PRINT("info", ("using SortBufferIterator"));
+      DBUG_ASSERT(m_sort_result.sorted_result_in_fsbuf);
+      if (table->sort.addon_fields->using_packed_addons())
+        m_result_iterator.reset(
+            new (&m_result_iterator_holder.sort_buffer_packed_addons)
+                SortBufferIterator<true>(thd(), table, &table->sort,
+                                         &m_sort_result));
+      else
+        m_result_iterator.reset(
+            new (&m_result_iterator_holder.sort_buffer)
+                SortBufferIterator<false>(thd(), table, &table->sort,
+                                          &m_sort_result));
+    } else {
+      DBUG_PRINT("info", ("using SortBufferIndirectIterator (sort)"));
+      m_result_iterator.reset(
+          new (&m_result_iterator_holder.sort_buffer_indirect)
+              SortBufferIndirectIterator(thd(), table, &m_sort_result,
+                                         /*ignore_not_found_rows=*/false));
+    }
+  }
+
+  return m_result_iterator->Init(qep_tab);
 }
 
 int join_read_first(QEP_TAB *tab) {
@@ -5383,23 +5472,9 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
 }
 
 /*
-  If not selecting by given key, create an index how records should be read
-
-  SYNOPSIS
-   create_sort_index()
-     thd		Thread handler
-     join		Join with table to sort
-     order		How table should be sorted
-     filesort_limit	Max number of rows that needs to be sorted
-     select_limit	Max number of rows in final output
-                        Used to decide if we should use index or not
-  IMPLEMENTATION
-   - If there is an index that can be used, the first non-const join_tab in
-     'join' is modified to use this index.
-   - If no index, create with filesort() an index file that can be used to
-     retrieve rows in order (should be done with 'read_record').
-     The sorted data is stored in tab->table() and will be freed when calling
-     free_io_cache(tab->table()).
+  Do the actual sort, by calling filesort. The result will be left in one of
+  several places depending on what sort strategy we chose; it is up to Init() to
+  figure out what happened and create the appropriate iterator to read from it.
 
   RETURN VALUES
     0		ok
@@ -5407,20 +5482,22 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
     1		No records
 */
 
-static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *qep_tab) {
-  DBUG_ENTER("create_sort_index");
+int SortingIterator::DoSort(QEP_TAB *qep_tab) {
+  JOIN *join = qep_tab->join();
 
-  Filesort *fsort = qep_tab->filesort;
   /*
     One row, no need to sort. make_tmp_tables_info should already handle this.
     ROLLUP generates one more row. So that is the only exception.
   */
-  DBUG_ASSERT(
-      (!join->plan_is_const() || join->rollup.state != ROLLUP::STATE_NONE) &&
-      fsort);
+  if (join != nullptr) {
+    DBUG_ASSERT(
+        (!join->plan_is_const() || join->rollup.state != ROLLUP::STATE_NONE) &&
+        m_filesort);
+  }
 
   TABLE *table = qep_tab->table();
-  table->sort_result.io_cache =
+  DBUG_ASSERT(m_sort_result.io_cache == nullptr);
+  m_sort_result.io_cache =
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));
 
@@ -5429,31 +5506,38 @@ static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *qep_tab) {
     if (qep_tab->type() != JT_REF_OR_NULL && qep_tab->type() != JT_FT) {
       DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
       // Update ref value
-      if ((cp_buffer_from_ref(thd, table, &qep_tab->ref()) &&
-           thd->is_fatal_error))
-        DBUG_RETURN(-1);  // out of memory
+      if (cp_buffer_from_ref(thd(), table, &qep_tab->ref()) &&
+          thd()->is_fatal_error)
+        return -1;  // out of memory
     }
   }
 
-  /* Fill schema tables with data before filesort if it's necessary */
-  if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
-      get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
-    DBUG_RETURN(-1);
+  if (join != nullptr) {
+    /* Fill schema tables with data before filesort if it's necessary */
+    if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
+        get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
+      return -1;
+  }
 
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);  // Get record count
   ha_rows examined_rows, found_rows, returned_rows;
-  bool error = filesort(thd, fsort, qep_tab->keep_current_rowid, &examined_rows,
+  bool error = filesort(thd(), m_filesort, qep_tab->keep_current_rowid,
+                        m_source_iterator.get(), &m_sort_result, &examined_rows,
                         &found_rows, &returned_rows);
-  table->sort_result.found_records = returned_rows;
+  m_sort_result.found_records = returned_rows;
   qep_tab->set_records(found_rows);  // For SQL_CALC_ROWS
-  qep_tab->join()->examined_rows += examined_rows;
+  if (join != nullptr) {
+    join->examined_rows += examined_rows;
+  } else {
+    thd()->inc_examined_row_count(examined_rows);
+  }
   table->set_keyread(false);  // Restore if we used indexes
   if (qep_tab->type() == JT_FT)
     table->file->ft_end();
   else
     table->file->ha_index_or_rnd_end();
-  DBUG_RETURN(error);
+  return error;
 }
 
 /*****************************************************************************

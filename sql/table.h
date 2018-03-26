@@ -1545,8 +1545,6 @@ struct TABLE {
     In particular, this is done in some forms of index merge.
   */
   Sort_result unique_result;
-  /// The result of sorting the table, if done.
-  Sort_result sort_result;
   partition_info *part_info{nullptr}; /* Partition related information */
   /* If true, all partitions have been pruned away */
   bool all_partitions_pruned_away{false};

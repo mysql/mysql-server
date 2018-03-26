@@ -33,6 +33,8 @@
 class Addon_fields;
 class Field;
 class QEP_TAB;
+class RowIterator;
+class Sort_result;
 class THD;
 struct ORDER;
 struct TABLE;
@@ -72,9 +74,7 @@ class Filesort {
         using_pq(false),
         m_force_stable_sort(
             force_stable_sort),  // keep relative order of equiv. elts
-        addon_fields(NULL) {
-    DBUG_ASSERT(order);
-  };
+        addon_fields(NULL){};
 
   /* Prepare ORDER BY list for sorting. */
   uint make_sortorder();
@@ -86,6 +86,7 @@ class Filesort {
 };
 
 bool filesort(THD *thd, Filesort *fsort, bool sort_positions,
+              RowIterator *source_iterator, Sort_result *sort_result,
               ha_rows *examined_rows, ha_rows *found_rows,
               ha_rows *returned_rows);
 void filesort_free_buffers(TABLE *table, bool full);

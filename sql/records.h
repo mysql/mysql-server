@@ -29,6 +29,7 @@
 #include "my_inttypes.h"
 #include "sql/basic_row_iterators.h"
 #include "sql/row_iterator.h"
+#include "sql/sorting_iterator.h"
 
 class QEP_TAB;
 class THD;
@@ -51,10 +52,11 @@ struct READ_RECORD {
   Read_func read_record{nullptr};
   unique_ptr_destroy_only<RowIterator> iterator;
 
-  // Holds one out of all RowIterator implementations, so that it is
-  // possible to initialize a RowIterator without heap allocations.
-  // (The iterator member typically points to this union, and is
-  // responsible for running the right destructor.)
+  // Holds one out of all RowIterator implementations (except the ones used
+  // for filesort, which are in sort_holder), so that it is possible to
+  // initialize a RowIterator without heap allocations. (The iterator
+  // member typically points to this union, and is responsible for
+  // running the right destructor.)
   union IteratorHolder {
     IteratorHolder() {}
     ~IteratorHolder() {}
@@ -63,23 +65,32 @@ struct READ_RECORD {
     IndexScanIterator<true> index_scan_reverse;
     IndexScanIterator<false> index_scan;
     IndexRangeScanIterator index_range_scan;
-    SortBufferIterator<true> sort_buffer_packed_addons;
-    SortBufferIterator<false> sort_buffer;
+
+    // Used for unique, for now.
     SortBufferIndirectIterator sort_buffer_indirect;
-    SortFileIterator<true> sort_file_packed_addons;
-    SortFileIterator<false> sort_file;
     SortFileIndirectIterator sort_file_indirect;
   } iterator_holder;
+
+  // Same, when we have sorting. If we sort, SortingIterator will be
+  // responsible for destroying the inner object, but the memory will still be
+  // held in iterator_holder, so we can't put this in the union.
+  char sort_holder[sizeof(SortingIterator)];
 
  public:
   READ_RECORD() {}
 };
 
+void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
+                       QEP_TAB *qep_tab, bool disable_rr_cache,
+                       bool ignore_not_found_rows);
+
+/** Calls setup_read_record(), then calls Init() on the resulting iterator. */
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
                       QEP_TAB *qep_tab, bool disable_rr_cache,
                       bool ignore_not_found_rows);
-bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
-                          bool reverse);
+
+void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
+                           bool reverse);
 // TODO: Should go away entirely in the future.
 void end_read_record(READ_RECORD *info);
 

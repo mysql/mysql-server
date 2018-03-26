@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
+#include <new>
 #include <string>
 #include <type_traits>
 
@@ -60,7 +61,6 @@
 #include "mysql/psi/mysql_table.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_table.h"
-#include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"  // ER_*
@@ -111,12 +111,13 @@
 #include "sql/partition_info.h"                  // partition_info
 #include "sql/partitioning/partition_handler.h"  // Partition_handler
 #include "sql/protocol.h"
-#include "sql/psi_memory_key.h"  // key_memory_gdl
 #include "sql/query_options.h"
 #include "sql/records.h"  // READ_RECORD
+#include "sql/row_iterator.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_rli.h"  // rli_slave etc
 #include "sql/session_tracker.h"
+#include "sql/sorting_iterator.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
 #include "sql/sql_base.h"         // lock_table_names
@@ -135,7 +136,6 @@
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_resolver.h"  // setup_order
 #include "sql/sql_show.h"
-#include "sql/sql_sort.h"
 #include "sql/sql_tablespace.h"  // validate_tablespace_name
 #include "sql/sql_time.h"        // make_truncated_value_warning
 #include "sql/sql_trigger.h"     // change_trigger_table_name
@@ -14668,10 +14668,10 @@ static int copy_data_between_tables(
   int error;
   Copy_field *copy, *copy_end;
   ulong found_count, delete_count;
+  unique_ptr_destroy_only<Filesort> fsort;
   READ_RECORD info;
   List<Item> fields;
   List<Item> all_fields;
-  ha_rows examined_rows, found_rows, returned_rows;
   bool auto_increment_field_copied = 0;
   sql_mode_t save_sql_mode;
   QEP_TAB_standalone qep_tab_st;
@@ -14742,49 +14742,53 @@ static int copy_data_between_tables(
   found_count = delete_count = 0;
 
   SELECT_LEX *const select_lex = thd->lex->select_lex;
-  ORDER *const order = select_lex->order_list.first;
+  ORDER *order = select_lex->order_list.first;
 
-  if (order) {
-    if (to->s->primary_key != MAX_KEY && to->file->primary_key_is_clustered()) {
-      char warn_buff[MYSQL_ERRMSG_SIZE];
-      snprintf(warn_buff, sizeof(warn_buff),
-               "ORDER BY ignored as there is a user-defined clustered index"
-               " in the table '%-.192s'",
-               from->s->table_name.str);
-      push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR, warn_buff);
-    } else {
-      from->sort_result.io_cache =
-          (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache,
-                                sizeof(IO_CACHE), MYF(MY_FAE | MY_ZEROFILL));
-      TABLE_LIST tables;
-      tables.table = from;
-      tables.alias = tables.table_name = from->s->table_name.str;
-      tables.db = from->s->db.str;
-      error = 1;
+  setup_read_record(&info, thd, from, NULL, false,
+                    /*ignore_not_found_rows=*/false);
 
-      Column_privilege_tracker column_privilege(thd, SELECT_ACL);
-
-      if (select_lex->setup_base_ref_items(thd))
-        goto err; /* purecov: inspected */
-      if (setup_order(thd, select_lex->base_ref_items, &tables, fields,
-                      all_fields, order))
-        goto err;
-      qep_tab.set_table(from);
-      Filesort fsort(&qep_tab, order, HA_POS_ERROR);
-      if (filesort(thd, &fsort, true, &examined_rows, &found_rows,
-                   &returned_rows))
-        goto err;
-
-      from->sort_result.found_records = returned_rows;
-    }
-  };
-
+  if (order && to->s->primary_key != MAX_KEY &&
+      to->file->primary_key_is_clustered()) {
+    char warn_buff[MYSQL_ERRMSG_SIZE];
+    snprintf(warn_buff, sizeof(warn_buff),
+             "ORDER BY ignored as there is a user-defined clustered index"
+             " in the table '%-.192s'",
+             from->s->table_name.str);
+    push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR, warn_buff);
+    order = nullptr;
+  }
+  qep_tab.set_table(from);
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (init_read_record(&info, thd, from, NULL, false,
-                       /*ignore_not_found_rows=*/false)) {
+  if (order) {
+    TABLE_LIST tables;
+    tables.table = from;
+    tables.alias = tables.table_name = from->s->table_name.str;
+    tables.db = from->s->db.str;
     error = 1;
-    goto err;
+
+    Column_privilege_tracker column_privilege(thd, SELECT_ACL);
+
+    if (select_lex->setup_base_ref_items(thd))
+      goto err; /* purecov: inspected */
+    if (setup_order(thd, select_lex->base_ref_items, &tables, fields,
+                    all_fields, order))
+      goto err;
+    fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, HA_POS_ERROR));
+    unique_ptr_destroy_only<RowIterator> sort(
+        new (&info.sort_holder)
+            SortingIterator(thd, from, fsort.get(), move(info.iterator)));
+    qep_tab.keep_current_rowid = true;  // Force filesort to sort by position.
+    if (sort->Init(&qep_tab)) {
+      error = 1;
+      goto err;
+    }
+    info.iterator = move(sort);
+  } else {
+    if (info.iterator->Init(&qep_tab)) {
+      error = 1;
+      goto err;
+    }
   }
   thd->get_stmt_da()->reset_current_row_for_condition();
 
