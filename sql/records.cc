@@ -109,6 +109,10 @@ bool IndexScanIterator<Reverse>::Init(QEP_TAB *qep_tab) {
       PrintError(error);
       return true;
     }
+
+    if (set_record_buffer(qep_tab)) {
+      return true;
+    }
   }
   PushDownCondition(qep_tab);
   return false;
@@ -337,6 +341,23 @@ IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
 
 bool IndexRangeScanIterator::Init(QEP_TAB *qep_tab) {
   PushDownCondition(qep_tab);
+
+  /*
+    Only attempt to allocate a record buffer the first time the handler is
+    initialized.
+  */
+  const bool first_init = !table()->file->inited;
+
+  int error = m_quick->reset();
+  if (error) {
+    // Ensures error status is propagated back to client.
+    (void)report_handler_error(table(), error);
+    return true;
+  }
+
+  if (first_init && table()->file->inited && set_record_buffer(qep_tab))
+    return 1; /* purecov: inspected */
+
   return false;
 }
 
@@ -362,11 +383,20 @@ TableScanIterator::~TableScanIterator() {
 }
 
 bool TableScanIterator::Init(QEP_TAB *qep_tab) {
+  /*
+    Only attempt to allocate a record buffer the first time the handler is
+    initialized.
+  */
+  const bool first_init = !table()->file->inited;
+
   int error = table()->file->ha_rnd_init(1);
   if (error) {
     PrintError(error);
     return true;
   }
+
+  if (first_init && set_record_buffer(qep_tab))
+    return true; /* purecov: inspected */
 
   PushDownCondition(qep_tab);
 

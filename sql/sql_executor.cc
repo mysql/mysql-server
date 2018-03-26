@@ -1010,7 +1010,9 @@ static size_t record_prefix_size(const QEP_TAB *qep_tab) {
   @retval false if a buffer was successfully allocated, or if a buffer
   was not attempted allocated
 */
-static bool set_record_buffer(const QEP_TAB *tab) {
+bool set_record_buffer(const QEP_TAB *tab) {
+  if (tab == nullptr) return false;
+
   TABLE *const table = tab->table();
 
   DBUG_ASSERT(table->file->inited);
@@ -2618,24 +2620,9 @@ int join_init_read_record(QEP_TAB *tab) {
   if (tab->filesort && tab->sort_table())  // Sort table.
     return 1;
 
-  /*
-    Only attempt to allocate a record buffer the first time the handler is
-    initialized.
-  */
-  const bool first_init = !tab->table()->file->inited;
-
-  int error;
-  if (tab->quick() && (error = tab->quick()->reset())) {
-    /* Ensures error status is propageted back to client */
-    (void)report_handler_error(tab->table(), error);
-    return 1;
-  }
   if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false,
                        /*ignore_not_found_rows=*/false))
     return 1;
-
-  if (first_init && tab->table()->file->inited && set_record_buffer(tab))
-    return 1; /* purecov: inspected */
 
   return (*tab->read_record.read_record)(&tab->read_record);
 }

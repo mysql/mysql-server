@@ -726,4 +726,6 @@ class QEP_TAB_standalone {
   QEP_TAB m_qt;
 };
 
+bool set_record_buffer(const QEP_TAB *tab);
+
 #endif /* SQL_EXECUTOR_INCLUDED */

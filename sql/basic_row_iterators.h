@@ -57,7 +57,8 @@ class TableScanIterator final : public RowIterator {
   TableScanIterator(THD *thd, TABLE *table);
   ~TableScanIterator();
 
-  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown.
+  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown
+  // and setting up record buffers.
   bool Init(QEP_TAB *qep_tab) override;
   int Read() override;
 
@@ -71,7 +72,8 @@ class IndexScanIterator final : public RowIterator {
  public:
   IndexScanIterator(THD *thd, TABLE *table, int idx);
 
-  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown.
+  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown
+  // and setting up record buffers.
   bool Init(QEP_TAB *qep_tab) override;
   int Read() override;
 
@@ -96,7 +98,8 @@ class IndexRangeScanIterator final : public RowIterator {
   // Does _not_ take ownership of "quick" (but maybe it should).
   IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick);
 
-  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown.
+  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown
+  // and setting up record buffers.
   bool Init(QEP_TAB *qep_tab) override;
   int Read() override;
 
