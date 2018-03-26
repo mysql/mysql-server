@@ -127,6 +127,6 @@ max-time: 360
 
 cmd: atrt-testBackup
 args: -n ConsistencyUnderLoadStallGCP T1
-max-time: 360
+max-time: 1200
 
 
