@@ -42,8 +42,6 @@ struct TABLE;
   specifics to TABLE, such as which columns to read (the read_set). This means
   it would probably be hard as-is to e.g. sort a join of two tables.
 
-  TODO: Convert the join access types into RowIterator (depends on the
-        previous item)
   TODO: Convert the joins themselves into RowIterator.
 
   Use by:

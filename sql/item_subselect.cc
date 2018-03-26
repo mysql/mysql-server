@@ -2936,13 +2936,13 @@ bool subselect_single_select_engine::exec() {
 
               TABLE *table = tab->table();
               /* Change the access method to full table scan */
-              tab->save_read_first_record = tab->read_first_record;
+              tab->save_using_dynamic_range = tab->using_dynamic_range;
               tab->save_read_record = tab->read_record.read_record;
               tab->save_row_iterator = move(tab->read_record.iterator);
               tab->read_record.read_record = rr_iterator;
               tab->read_record.iterator.reset(
                   new TableScanIterator(join->thd, table));
-              tab->read_first_record = read_first_record_seq;
+              tab->using_dynamic_range = false;
               tab->read_record.unlock_row = rr_unlock_row;
               *(last_changed_tab++) = tab;
               break;
@@ -2957,7 +2957,6 @@ bool subselect_single_select_engine::exec() {
     /* Enable the optimizations back */
     for (QEP_TAB **ptab = changed_tabs; ptab != last_changed_tab; ptab++) {
       QEP_TAB *const tab = *ptab;
-      tab->read_first_record = tab->save_read_first_record;
       if (tab->save_read_record != nullptr) {
         tab->read_record.read_record = tab->save_read_record;
 
@@ -2966,8 +2965,8 @@ bool subselect_single_select_engine::exec() {
         delete tab->read_record.iterator.release();
 
         tab->read_record.iterator = move(tab->save_row_iterator);
+        tab->using_dynamic_range = tab->save_using_dynamic_range;
       }
-      tab->save_read_first_record = NULL;
     }
     unit->set_executed();
 

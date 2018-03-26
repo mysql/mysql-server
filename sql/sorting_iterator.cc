@@ -365,6 +365,13 @@ SortBufferIndirectIterator::~SortBufferIndirectIterator() {
 }
 
 bool SortBufferIndirectIterator::Init(QEP_TAB *qep_tab) {
+  // The sort's source iterator could have initialized an index
+  // read, and it won't call end until it's destroyed (which we
+  // can't do before destroying SortingIterator, since we may need
+  // to scan/sort multiple times). Thus, as a small hack, we need
+  // to reset it here.
+  table()->file->ha_index_or_rnd_end();
+
   int error = table()->file->ha_rnd_init(0);
   if (error) {
     PrintError(error);

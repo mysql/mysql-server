@@ -2272,7 +2272,7 @@ check_reverse_order:
         tab->reversed_access = true;
 
         /*
-          The current implementation of join_read_prev_same() does not
+          The current implementation of the reverse RefIterator does not
           work well in combination with ICP and can lead to increased
           execution time. Setting changed_key to the current key
           (based on that we change the access order for the key) will
@@ -3634,7 +3634,7 @@ static bool build_equal_items_for_cond(THD *thd, Item *cond, Item **retcond,
          that are subject to substitution by multiple equality items and
          removing each such predicate from the conjunction after having
          found/created a multiple equality whose inference the predicate is.
-     */
+       */
       while ((item = li++)) {
         /*
           PS/SP note: we can safely remove a node from AND-OR
@@ -6562,7 +6562,7 @@ static void add_key_field(Key_field **key_fields, uint and_level,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->m_condition, if this is not an outer
     join. We also use it to shortcut reading "tbl" when othertbl.field is
-    found to be a NULL value (in join_read_always_key() and BKA).
+    found to be a NULL value (in RefIterator and BKA).
   */
   Item *const real = (*value)->real_item();
   const bool null_rejecting =
@@ -10212,7 +10212,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
           - t1.prefix_rowcount==1 (due to firstmatch)
           - subq is attached to it1, and is evaluated for each row read from
             t1, potentially way more than 1.
-       */
+         */
         const uint idx = subs->in_cond_of_tab;
         DBUG_ASSERT((int)idx >= 0 && idx < parent_join->tables);
         trace_parent.add("subq_attached_to_table", true);

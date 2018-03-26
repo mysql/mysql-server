@@ -158,7 +158,7 @@ class Window {
 
   /**
     Can be true if first window after a join: we may need to restore the input
-    record after buffered window processing if join_read_key's caching logic
+    record after buffered window processing if EQRefIterator's caching logic
     presumes the record hasn't been modified (when last qep_tab uses JT_EQ_REF).
   */
   bool m_needs_restore_input_row;

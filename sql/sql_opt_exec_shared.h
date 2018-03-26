@@ -57,8 +57,6 @@ typedef int8 plan_idx;
 
 struct TABLE_REF {
   bool key_err;
-  /** True if something was read into buffer in join_read_key.  */
-  bool has_record;
   uint key_parts;    ///< num of ...
   uint key_length;   ///< length of key_buff
   int key;           ///< key no
@@ -95,7 +93,11 @@ struct TABLE_REF {
   */
   key_part_map null_rejecting;
   table_map depend_map;  ///< Table depends on these tables.
-  /* null byte position in the key_buf. Used for REF_OR_NULL optimization */
+  /*
+    NULL byte position in the key_buf (if set, the key is taken to be NULL);
+    normally points to the first byte in the buffer. Used for REF_OR_NULL
+    lookups.
+   */
   uchar *null_ref_key;
   /*
     The number of times the record associated with this key was used
@@ -399,7 +401,7 @@ class QEP_shared {
   /**
      All keys with can be used.
      Used by add_key_field() (optimization time) and execution of dynamic
-     range (join_init_quick_record()), and EXPLAIN.
+     range (DynamicRangeIterator), and EXPLAIN.
   */
   Key_map m_keys;
 

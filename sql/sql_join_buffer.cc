@@ -35,6 +35,7 @@
 #include <limits.h>
 #include <algorithm>
 #include <atomic>
+#include <memory>
 
 #include "binary_log_types.h"
 #include "my_base.h"
@@ -1859,7 +1860,8 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last) {
   DBUG_ASSERT(!(qep_tab->dynamic_range() && qep_tab->quick()));
 
   /* Start retrieving all records of the joined table */
-  if ((error = (*qep_tab->read_first_record)(qep_tab)))
+  if (qep_tab->read_record.iterator->Init(qep_tab)) return NESTED_LOOP_ERROR;
+  if ((error = qep_tab->read_record.iterator->Read()))
     return error < 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
 
   READ_RECORD *info = &qep_tab->read_record;

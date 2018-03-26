@@ -40,6 +40,9 @@
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/opt_range.h"  // QUICK_SELECT_I
+#include "sql/psi_memory_key.h"
+#include "sql/sort_param.h"
+#include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
@@ -50,9 +53,8 @@
   Initialize READ_RECORD structure to perform full index scan in desired
   direction using read_record.read_record() interface
 
-    This function has been added at late stage and is used only by
-    UPDATE/DELETE. Other statements perform index scans using
-    join_read_first/next functions.
+  This function has been added at late stage and is used only by
+  UPDATE/DELETE. Other statements perform index scans using IndexScanIterator.
 
   @param info         READ_RECORD structure to initialize.
   @param thd          Thread handle
@@ -74,22 +76,42 @@ void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
   info->read_record = rr_iterator;
   if (reverse) {
     iterator.reset(new (&info->iterator_holder.index_scan_reverse)
-                       IndexScanIterator<true>(thd, table, idx));
+                       IndexScanIterator<true>(thd, table, idx,
+                                               /*use_order=*/true));
   } else {
     iterator.reset(new (&info->iterator_holder.index_scan)
-                       IndexScanIterator<false>(thd, table, idx));
+                       IndexScanIterator<false>(thd, table, idx,
+                                                /*use_order=*/true));
   }
   info->iterator = std::move(iterator);
 }
 
 template <bool Reverse>
-IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx)
-    : RowIterator(thd, table), m_record(table->record[0]), m_idx(idx) {}
+IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx,
+                                              bool use_order)
+    : RowIterator(thd, table),
+      m_record(table->record[0]),
+      m_idx(idx),
+      m_use_order(use_order) {}
+
+template <bool Reverse>
+IndexScanIterator<Reverse>::~IndexScanIterator() {
+  if (table() && table()->key_read) {
+    table()->set_keyread(false);
+  }
+}
+
+template class IndexScanIterator<true>;
+template class IndexScanIterator<false>;
 
 template <bool Reverse>
 bool IndexScanIterator<Reverse>::Init(QEP_TAB *qep_tab) {
   if (!table()->file->inited) {
-    int error = table()->file->ha_index_init(m_idx, 1);
+    if (table()->covering_keys.is_set(m_idx) && !table()->no_keyread) {
+      table()->set_keyread(true);
+    }
+
+    int error = table()->file->ha_index_init(m_idx, m_use_order);
     if (error) {
       PrintError(error);
       return true;
@@ -100,6 +122,7 @@ bool IndexScanIterator<Reverse>::Init(QEP_TAB *qep_tab) {
     }
   }
   PushDownCondition(qep_tab);
+  m_first = true;
   return false;
 }
 
@@ -216,9 +239,6 @@ void end_read_record(READ_RECORD *info) {
   if (info->iterator) {
     info->iterator.reset();
   }
-  if (info->table && info->table->key_read) {
-    info->table->set_keyread(false);
-  }
 }
 
 int RowIterator::HandleError(int error) {
@@ -227,7 +247,8 @@ int RowIterator::HandleError(int error) {
     return 1;
   }
 
-  if (error == HA_ERR_END_OF_FILE) {
+  if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND) {
+    m_table->set_no_row();
     return -1;
   } else {
     PrintError(error);

@@ -28,6 +28,7 @@
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "sql/basic_row_iterators.h"
+#include "sql/ref_row_iterators.h"
 #include "sql/row_iterator.h"
 #include "sql/sorting_iterator.h"
 
@@ -47,7 +48,6 @@ struct READ_RECORD {
   // that have not been converted to RowIterator yet.
   TABLE *table{nullptr}; /* Head-form */
   Unlock_row_func unlock_row{nullptr};
-  uchar *record{nullptr};
 
   Read_func read_record{nullptr};
   unique_ptr_destroy_only<RowIterator> iterator;
@@ -65,6 +65,14 @@ struct READ_RECORD {
     IndexScanIterator<true> index_scan_reverse;
     IndexScanIterator<false> index_scan;
     IndexRangeScanIterator index_range_scan;
+    RefIterator<false> ref;
+    RefIterator<true> ref_reverse;
+    RefOrNullIterator ref_or_null;
+    EQRefIterator eq_ref;
+    ConstIterator const_table;
+    FullTextSearchIterator fts;
+    DynamicRangeIterator dynamic_range_scan;
+    PushedJoinRefIterator pushed_join_ref;
 
     // Used for unique, for now.
     SortBufferIndirectIterator sort_buffer_indirect;

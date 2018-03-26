@@ -130,26 +130,13 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *qep_tab,
 static void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
 
 static int read_system(TABLE *table);
-static int join_read_const(QEP_TAB *tab);
 static int read_const(TABLE *table, TABLE_REF *ref);
-static int join_read_key(QEP_TAB *tab);
-static int join_read_always_key(QEP_TAB *tab);
-static int join_no_more_records(READ_RECORD *info);
-static int join_read_next(READ_RECORD *info);
-static int join_read_next_same(READ_RECORD *info);
-static int join_read_prev(READ_RECORD *info);
-static int join_ft_read_first(QEP_TAB *tab);
-static int join_ft_read_next(READ_RECORD *info);
-static int join_read_always_key_or_null(QEP_TAB *tab);
-static int join_read_next_same_or_null(READ_RECORD *info);
 static bool remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
                                     ulong offset, Item *having);
 static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
                                        Field **first_field,
                                        const size_t *field_lengths,
                                        size_t key_length, Item *having);
-static int join_read_linked_first(QEP_TAB *tab);
-static int join_read_linked_next(READ_RECORD *info);
 static int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 static bool alloc_group_fields(JOIN *join, ORDER *group);
 static bool has_rollup_result(Item *item);
@@ -1516,9 +1503,12 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
 
     if (in_first_read) {
       in_first_read = false;
-      error = (*qep_tab->read_first_record)(qep_tab);
-    } else
-      error = info->read_record(info);
+      if (info->iterator->Init(qep_tab)) {
+        rc = NESTED_LOOP_ERROR;
+        break;
+      }
+    }
+    error = info->read_record(info);
 
     DBUG_EXECUTE_IF("bug13822652_1", join->thd->killed = THD::KILL_QUERY;);
 
@@ -1985,7 +1975,7 @@ static enum_nested_loop_state evaluate_null_complemented_join_record(
   }
   for (QEP_TAB *tab = first_inner_tab; tab <= last_inner_tab; tab++) {
     tab->table()->reset_null_row();
-    // Restore NULL bits saved when reading row, @see join_read_key()
+    // Restore NULL bits saved when reading row, @see EQRefIterator()
     if (tab->type() == JT_EQ_REF) tab->table()->restore_null_flags();
   }
 
@@ -2180,19 +2170,30 @@ static int read_system(TABLE *table) {
   return table->has_row() ? 0 : -1;
 }
 
+ConstIterator::ConstIterator(THD *thd, TABLE *table)
+    : RowIterator(thd, table) {}
+
+bool ConstIterator::Init(QEP_TAB *qep_tab) {
+  m_ref = &qep_tab->ref();
+  m_first_record_since_init = true;
+  return false;
+}
+
 /**
   Read a constant table when there is at most one matching row, using an
   index lookup.
-
-  @param tab			Table to read
 
   @retval 0  Row was found
   @retval -1 Row was not found
   @retval 1  Got an error (other than row not found) during read
 */
 
-static int join_read_const(QEP_TAB *tab) {
-  return read_const(tab->table(), &tab->ref());
+int ConstIterator::Read() {
+  if (!m_first_record_since_init) {
+    return -1;
+  }
+  m_first_record_since_init = false;
+  return read_const(table(), m_ref);
 }
 
 static int read_const(TABLE *table, TABLE_REF *ref) {
@@ -2234,38 +2235,48 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
   DBUG_RETURN(table->has_row() ? 0 : -1);
 }
 
+EQRefIterator::EQRefIterator(THD *thd, TABLE *table)
+    : RowIterator(thd, table) {}
+
+bool EQRefIterator::Init(QEP_TAB *qep_tab) {
+  m_ref = &qep_tab->ref();
+
+  if (!table()->file->inited) {
+    DBUG_ASSERT(
+        !qep_tab->use_order());  // Don't expect sort req. for single row.
+    int error = table()->file->ha_index_init(m_ref->key, qep_tab->use_order());
+    if (error) {
+      PrintError(error);
+      return true;
+    }
+  }
+
+  m_first_record_since_init = true;
+
+  return false;
+}
+
 /**
   Read row using unique key: eq_ref access method implementation
 
   @details
-    This is the "read_first" function for the eq_ref access method.
-    The difference from ref access function is that it has a one-element
+    The difference from RefIterator is that it has a one-element
     lookup cache, maintained in record[0]. Since the eq_ref access method
     will always return the same row, it is not necessary to read the row
     more than once, regardless of how many times it is needed in execution.
     This cache element is used when a row is needed after it has been read once,
     unless a key conversion error has occurred, or the cache has been disabled.
 
-  @param tab   JOIN_TAB of the accessed table
-
   @retval  0 - Ok
   @retval -1 - Row not found
   @retval  1 - Error
 */
 
-static int join_read_key(QEP_TAB *tab) {
-  TABLE *const table = tab->table();
-  TABLE_REF *table_ref = &tab->ref();
-  int error;
-
-  if (!table->file->inited) {
-    DBUG_ASSERT(!tab->use_order());  // Don't expect sort req. for single row.
-    if ((error =
-             table->file->ha_index_init(table_ref->key, tab->use_order()))) {
-      (void)report_handler_error(table, error);
-      return 1;
-    }
+int EQRefIterator::Read() {
+  if (!m_first_record_since_init) {
+    return -1;
   }
+  m_first_record_since_init = false;
 
   /*
     We needn't do "Late NULLs Filtering" because eq_ref is restricted to
@@ -2279,21 +2290,21 @@ static int join_read_key(QEP_TAB *tab) {
     - previous lookup caused error when calculating key.
   */
   bool read_row =
-      !table->is_started() || table_ref->disable_cache || table_ref->key_err;
+      !table()->is_started() || m_ref->disable_cache || m_ref->key_err;
   if (!read_row)
     // Last lookup found a row, copy its key to secondary buffer
-    memcpy(table_ref->key_buff2, table_ref->key_buff, table_ref->key_length);
+    memcpy(m_ref->key_buff2, m_ref->key_buff, m_ref->key_length);
 
   // Create new key for lookup
-  table_ref->key_err = cp_buffer_from_ref(table->in_use, table, table_ref);
-  if (table_ref->key_err) {
-    table->set_no_row();
+  m_ref->key_err = cp_buffer_from_ref(table()->in_use, table(), m_ref);
+  if (m_ref->key_err) {
+    table()->set_no_row();
     return -1;
   }
 
   // Re-use current row if keys are equal
-  if (!read_row && memcmp(table_ref->key_buff2, table_ref->key_buff,
-                          table_ref->key_length) != 0)
+  if (!read_row &&
+      memcmp(m_ref->key_buff2, m_ref->key_buff, m_ref->key_length) != 0)
     read_row = true;
 
   if (read_row) {
@@ -2301,31 +2312,33 @@ static int join_read_key(QEP_TAB *tab) {
        Moving away from the current record. Unlock the row
        in the handler if it did not match the partial WHERE.
      */
-    if (table->has_row() && table_ref->use_count == 0)
-      table->file->unlock_row();
+    if (table()->has_row() && m_ref->use_count == 0)
+      table()->file->unlock_row();
 
-    error = table->file->ha_index_read_map(
-        table->record[0], table_ref->key_buff,
-        make_prev_keypart_map(table_ref->key_parts), HA_READ_KEY_EXACT);
-    if (error) return report_handler_error(table, error);
+    int error = table()->file->ha_index_read_map(
+        table()->record[0], m_ref->key_buff,
+        make_prev_keypart_map(m_ref->key_parts), HA_READ_KEY_EXACT);
+    if (error) {
+      return HandleError(error);
+    }
 
-    table_ref->use_count = 1;
-    table->save_null_flags();
-  } else if (table->has_row()) {
-    DBUG_ASSERT(!table->has_null_row());
-    table_ref->use_count++;
+    m_ref->use_count = 1;
+    table()->save_null_flags();
+  } else if (table()->has_row()) {
+    DBUG_ASSERT(!table()->has_null_row());
+    m_ref->use_count++;
   }
 
-  return table->has_row() ? 0 : -1;
+  return table()->has_row() ? 0 : -1;
 }
 
 /**
-  Since join_read_key may buffer a record, do not unlock
-  it if it was not used in this invocation of join_read_key().
+  Since EQRefIterator may buffer a record, do not unlock
+  it if it was not used in this invocation of EQRefIterator::Read().
   Only count locks, thus remembering if the record was left unused,
   and unlock already when pruning the current value of
   TABLE_REF buffer.
-  @sa join_read_key()
+  @sa EQRefIterator::Read()
 */
 
 static void join_read_key_unlock_row(QEP_TAB *tab) {
@@ -2333,125 +2346,104 @@ static void join_read_key_unlock_row(QEP_TAB *tab) {
   if (tab->ref().use_count) tab->ref().use_count--;
 }
 
-/**
-  Read a table *assumed* to be included in execution of a pushed join.
-  This is the counterpart of join_read_key() / join_read_always_key()
-  for child tables in a pushed join.
+PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table)
+    : RowIterator(thd, table) {}
 
-  When the table access is performed as part of the pushed join,
-  all 'linked' child colums are prefetched together with the parent row.
-  The handler will then only format the row as required by MySQL and set
-  table status accordingly.
+bool PushedJoinRefIterator::Init(QEP_TAB *qep_tab) {
+  DBUG_ASSERT(!qep_tab->use_order());  // Pushed child can't be sorted
 
-  However, there may be situations where the prepared pushed join was not
-  executed as assumed. It is the responsibility of the handler to handle
-  these situation by letting @c ha_index_read_pushed() then effectively do a
-  plain old' index_read_map(..., HA_READ_KEY_EXACT);
+  m_ref = &qep_tab->ref();
 
-  @param tab			Table to read
-
-  @retval
-    0	Row was found
-  @retval
-    -1   Row was not found
-  @retval
-    1   Got an error (other than row not found) during read
-*/
-static int join_read_linked_first(QEP_TAB *tab) {
-  int error;
-  TABLE *table = tab->table();
-  DBUG_ENTER("join_read_linked_first");
-
-  DBUG_ASSERT(!tab->use_order());  // Pushed child can't be sorted
-
-  if (!table->file->inited &&
-      (error = table->file->ha_index_init(tab->ref().key, tab->use_order()))) {
-    (void)report_handler_error(table, error);
-    DBUG_RETURN(error);
+  if (!table()->file->inited) {
+    int error = table()->file->ha_index_init(m_ref->key, qep_tab->use_order());
+    if (error) {
+      PrintError(error);
+      return true;
+    }
   }
 
-  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
-  if (tab->ref().impossible_null_ref()) {
-    table->set_no_row();
-    DBUG_PRINT("info", ("join_read_linked_first null_rejected"));
-    DBUG_RETURN(-1);
-  }
-
-  if (cp_buffer_from_ref(tab->join()->thd, table, &tab->ref())) {
-    table->set_no_row();
-    DBUG_RETURN(-1);
-  }
-
-  // 'read' itself is a NOOP:
-  //  handler::ha_index_read_pushed() only unpack the prefetched row and
-  //  set 'status'
-  error = table->file->ha_index_read_pushed(
-      table->record[0], tab->ref().key_buff,
-      make_prev_keypart_map(tab->ref().key_parts));
-  if (error) {
-    const int ret = report_handler_error(table, error);
-    DBUG_RETURN(ret);
-  }
-  DBUG_RETURN(0);
+  m_first_record_since_init = true;
+  return false;
 }
 
-static int join_read_linked_next(READ_RECORD *info) {
-  TABLE *table = info->table;
-  DBUG_ENTER("join_read_linked_next");
+int PushedJoinRefIterator::Read() {
+  if (m_first_record_since_init) {
+    m_first_record_since_init = false;
 
-  int error = table->file->ha_index_next_pushed(table->record[0]);
-  if (error) {
-    const int ret = report_handler_error(table, error);
-    DBUG_RETURN(ret);
+    /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
+    if (m_ref->impossible_null_ref()) {
+      table()->set_no_row();
+      DBUG_PRINT("info", ("PushedJoinRefIterator::Read() null_rejected"));
+      return -1;
+    }
+
+    if (cp_buffer_from_ref(thd(), table(), m_ref)) {
+      table()->set_no_row();
+      return -1;
+    }
+
+    // 'read' itself is a NOOP:
+    //  handler::ha_index_read_pushed() only unpack the prefetched row and
+    //  set 'status'
+    int error = table()->file->ha_index_read_pushed(
+        table()->record[0], m_ref->key_buff,
+        make_prev_keypart_map(m_ref->key_parts));
+    if (error) {
+      return HandleError(error);
+    }
+    return 0;
+  } else {
+    int error = table()->file->ha_index_next_pushed(table()->record[0]);
+    if (error) {
+      return HandleError(error);
+    }
+    return 0;
   }
-  DBUG_RETURN(error);
 }
 
-/*
-  ref access method implementation: "read_first" function
+template <bool Reverse>
+RefIterator<Reverse>::RefIterator(THD *thd, TABLE *table)
+    : RowIterator(thd, table) {}
 
-  SYNOPSIS
-    join_read_always_key()
-      tab  JOIN_TAB of the accessed table
+template <bool Reverse>
+bool RefIterator<Reverse>::Init(QEP_TAB *tab) {
+  m_ref = &tab->ref();
+  m_first_record_since_init = true;
+  return init_index_and_record_buffer(tab, tab->table()->file, tab->ref().key,
+                                      tab->use_order());
+}
 
-  DESCRIPTION
-    This is "read_first" function for the "ref" access method.
+// Doxygen gets confused by the explicit specializations.
 
-    The function must leave the index initialized when it returns.
-    ref_or_null access implementation depends on that.
+//! @cond
+template <>
+int RefIterator<false>::Read() {  // Forward read.
+  if (m_first_record_since_init) {
+    m_first_record_since_init = false;
 
-  RETURN
-    0  - Ok
-   -1  - Row not found
-    1  - Error
-*/
-
-static int join_read_always_key(QEP_TAB *tab) {
-  int error;
-  TABLE *table = tab->table();
-
-  /* Initialize the index first */
-  if (init_index_and_record_buffer(tab, table->file, tab->ref().key,
-                                   tab->use_order()))
-    return 1;
-
-  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
-  TABLE_REF *ref = &tab->ref();
-  if (ref->impossible_null_ref()) {
-    DBUG_PRINT("info", ("join_read_always_key null_rejected"));
-    table->set_no_row();
-    return -1;
+    /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
+    if (m_ref->impossible_null_ref()) {
+      DBUG_PRINT("info", ("RefIterator null_rejected"));
+      table()->set_no_row();
+      return -1;
+    }
+    if (cp_buffer_from_ref(thd(), table(), m_ref)) {
+      table()->set_no_row();
+      return -1;
+    }
+    int error = table()->file->ha_index_read_map(
+        table()->record[0], m_ref->key_buff,
+        make_prev_keypart_map(m_ref->key_parts), HA_READ_KEY_EXACT);
+    if (error) {
+      return HandleError(error);
+    }
+  } else {
+    int error = table()->file->ha_index_next_same(
+        table()->record[0], m_ref->key_buff, m_ref->key_length);
+    if (error) {
+      return HandleError(error);
+    }
   }
-
-  if (cp_buffer_from_ref(tab->join()->thd, table, ref)) {
-    table->set_no_row();
-    return -1;
-  }
-  if ((error = table->file->ha_index_read_map(
-           table->record[0], tab->ref().key_buff,
-           make_prev_keypart_map(tab->ref().key_parts), HA_READ_KEY_EXACT)))
-    return report_handler_error(table, error);
-
   return 0;
 }
 
@@ -2459,114 +2451,77 @@ static int join_read_always_key(QEP_TAB *tab) {
   This function is used when optimizing away ORDER BY in
   SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC.
 */
+template <>
+int RefIterator<true>::Read() {  // Reverse read.
+  if (m_first_record_since_init) {
+    m_first_record_since_init = false;
 
-int join_read_last_key(QEP_TAB *tab) {
-  int error;
-  TABLE *table = tab->table();
-
-  if (init_index_and_record_buffer(tab, table->file, tab->ref().key,
-                                   tab->use_order()))
-    return 1; /* purecov: inspected */
-  if (cp_buffer_from_ref(tab->join()->thd, table, &tab->ref())) {
-    table->set_no_row();
-    return -1;
+    if (cp_buffer_from_ref(thd(), table(), m_ref)) {
+      table()->set_no_row();
+      return -1;
+    }
+    int error = table()->file->ha_index_read_last_map(
+        table()->record[0], m_ref->key_buff,
+        make_prev_keypart_map(m_ref->key_parts));
+    if (error) {
+      return HandleError(error);
+    }
+  } else {
+    /*
+      Using ha_index_prev() for reading records from the table can cause
+      performance issues if used in combination with ICP. The ICP code
+      in the storage engine does not know when to stop reading from the
+      index and a call to ha_index_prev() might cause the storage engine
+      to read to the beginning of the index if no qualifying record is
+      found.
+     */
+    DBUG_ASSERT(table()->file->pushed_idx_cond == NULL);
+    int error = table()->file->ha_index_prev(table()->record[0]);
+    if (error) {
+      return HandleError(error);
+    }
+    if (key_cmp_if_same(table(), m_ref->key_buff, m_ref->key,
+                        m_ref->key_length)) {
+      table()->set_no_row();
+      return -1;
+    }
   }
-  if ((error = table->file->ha_index_read_last_map(
-           table->record[0], tab->ref().key_buff,
-           make_prev_keypart_map(tab->ref().key_parts))))
-    return report_handler_error(table, error);
-
   return 0;
 }
+//! @endcond
 
-/* ARGSUSED */
-static int join_no_more_records(READ_RECORD *info MY_ATTRIBUTE((unused))) {
-  return -1;
-}
+DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table)
+    : RowIterator(thd, table) {}
 
-static int join_read_next_same(READ_RECORD *info) {
-  int error;
-  TABLE *table = info->table;
-  QEP_TAB *tab = table->reginfo.qep_tab;
-
-  if ((error = table->file->ha_index_next_same(
-           table->record[0], tab->ref().key_buff, tab->ref().key_length)))
-    return report_handler_error(table, error);
-
-  return 0;
-}
-
-int join_read_prev_same(READ_RECORD *info) {
-  int error;
-  TABLE *table = info->table;
-  QEP_TAB *tab = table->reginfo.qep_tab;
-
-  /*
-    Using ha_index_prev() for reading records from the table can cause
-    performance issues if used in combination with ICP. The ICP code
-    in the storage engine does not know when to stop reading from the
-    index and a call to ha_index_prev() might cause the storage engine
-    to read to the beginning of the index if no qualifying record is
-    found.
-  */
-  DBUG_ASSERT(table->file->pushed_idx_cond == NULL);
-
-  if ((error = table->file->ha_index_prev(table->record[0])))
-    return report_handler_error(table, error);
-  if (key_cmp_if_same(table, tab->ref().key_buff, tab->ref().key,
-                      tab->ref().key_length)) {
-    table->set_no_row();
-    error = -1;
-  }
-  return error;
-}
-
-int join_init_quick_read_record(QEP_TAB *tab) {
-  /*
-    This is for QS_DYNAMIC_RANGE, i.e., "Range checked for each
-    record". The trace for the range analysis below this point will
-    be printed with different ranges for every record to the left of
-    this table in the join.
-  */
-
-  THD *const thd = tab->join()->thd;
-  Opt_trace_context *const trace = &thd->opt_trace;
+bool DynamicRangeIterator::Init(QEP_TAB *qep_tab) {
+  Opt_trace_context *const trace = &thd()->opt_trace;
   const bool disable_trace =
-      tab->quick_traced_before &&
+      qep_tab->quick_traced_before &&
       !trace->feature_enabled(Opt_trace_context::DYNAMIC_RANGE);
   Opt_trace_disable_I_S disable_trace_wrapper(trace, disable_trace);
 
-  tab->quick_traced_before = true;
+  qep_tab->quick_traced_before = true;
 
   Opt_trace_object wrapper(trace);
   Opt_trace_object trace_table(trace, "rows_estimation_per_outer_row");
-  trace_table.add_utf8_table(tab->table_ref);
-
-  /*
-    If this join tab was read through a QUICK for the last record
-    combination from earlier tables, deleting that quick will close the
-    index. Otherwise, we need to close the index before the next join
-    iteration starts because the handler object might be reused by a different
-    access strategy.
-  */
-  if (!tab->quick() && (tab->table()->file->inited != handler::NONE))
-    tab->table()->file->ha_index_or_rnd_end();
+  trace_table.add_utf8_table(qep_tab->table_ref);
 
   Key_map needed_reg_dummy;
-  QUICK_SELECT_I *old_qck = tab->quick();
+  QUICK_SELECT_I *old_qck = qep_tab->quick();
   QUICK_SELECT_I *qck;
-  DEBUG_SYNC(thd, "quick_not_created");
-  const int rc = test_quick_select(thd, tab->keys(),
-                                   0,  // empty table map
-                                   HA_POS_ERROR,
-                                   false,  // don't force quick range
-                                   ORDER_NOT_RELEVANT, tab, tab->condition(),
-                                   &needed_reg_dummy, &qck);
-  if (thd->is_error())  // @todo consolidate error reporting of
-                        // test_quick_select
-    return 1;
+  DEBUG_SYNC(thd(), "quick_not_created");
+  const int rc =
+      test_quick_select(thd(), qep_tab->keys(),
+                        0,  // empty table map
+                        HA_POS_ERROR,
+                        false,  // don't force quick range
+                        ORDER_NOT_RELEVANT, qep_tab, qep_tab->condition(),
+                        &needed_reg_dummy, &qck);
+  if (thd()->is_error())  // @todo consolidate error reporting of
+                          // test_quick_select
+    return true;
   DBUG_ASSERT(old_qck == NULL || old_qck != qck);
-  tab->set_quick(qck);
+  qep_tab->set_quick(qck);
 
   /*
     EXPLAIN CONNECTION is used to understand why a query is currently taking
@@ -2576,23 +2531,40 @@ int join_init_quick_read_record(QEP_TAB *tab) {
     that, we need to take mutex and change type and quick_optim.
   */
 
-  DEBUG_SYNC(thd, "quick_created_before_mutex");
+  DEBUG_SYNC(thd(), "quick_created_before_mutex");
 
-  thd->lock_query_plan();
-  tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
-  tab->set_quick_optim();
-  thd->unlock_query_plan();
+  thd()->lock_query_plan();
+  qep_tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
+  qep_tab->set_quick_optim();
+  thd()->unlock_query_plan();
 
   delete old_qck;
-  DEBUG_SYNC(thd, "quick_droped_after_mutex");
+  DEBUG_SYNC(thd(), "quick_droped_after_mutex");
 
-  return (rc == -1) ? -1 : /* No possible records */
-             join_init_read_record(tab);
+  // Clear out and destroy any old iterators before we start constructing
+  // new ones, since they may share the same memory in the union.
+  m_iterator.reset();
+
+  if (rc == -1) {
+    return false;
+  }
+
+  if (qck) {
+    m_iterator.reset(new (&m_iterator_holder.index_range_scan)
+                         IndexRangeScanIterator(thd(), table(), qck));
+  } else {
+    m_iterator.reset(new (&m_iterator_holder.table_scan)
+                         TableScanIterator(thd(), table()));
+  }
+  return m_iterator->Init(qep_tab);
 }
 
-int read_first_record_seq(QEP_TAB *tab) {
-  if (tab->read_record.table->file->ha_rnd_init(1)) return 1;
-  return (*tab->read_record.read_record)(&tab->read_record);
+int DynamicRangeIterator::Read() {
+  if (m_iterator == nullptr) {
+    return -1;
+  } else {
+    return m_iterator->Read();
+  }
 }
 
 /**
@@ -2614,14 +2586,8 @@ int read_first_record_seq(QEP_TAB *tab) {
     1   Error
 */
 
-int join_init_read_record(QEP_TAB *tab) {
+void join_setup_read_record(QEP_TAB *tab) {
   DBUG_ASSERT(!tab->needs_duplicate_removal);
-
-  // The same temporary table can be used multiple times (with different
-  // data, e.g. for a dependent subquery). To avoid leaks, we need to make
-  // sure we clean up any existing iterators here, as
-  // join_setup_read_record assumes the memory is unused.
-  tab->read_record.iterator.reset();
 
   setup_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false,
                     /*ignore_not_found_rows=*/false);
@@ -2636,8 +2602,6 @@ int join_init_read_record(QEP_TAB *tab) {
                             move(tab->read_record.iterator)));
     tab->read_record.iterator = move(sort);
   }
-  if (tab->read_record.iterator->Init(tab)) return 1;
-  return tab->read_record.iterator->Read();
 }
 
 /*
@@ -2751,74 +2715,31 @@ bool QEP_TAB::use_order() const {
   return false;
 }
 
-int join_read_first(QEP_TAB *tab) {
-  int error;
-  TABLE *table = tab->table();
-  if (table->covering_keys.is_set(tab->index()) && !table->no_keyread)
-    table->set_keyread(true);
-  tab->read_record.table = table;
-  tab->read_record.record = table->record[0];
-  tab->read_record.read_record = join_read_next;
+FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table)
+    : RowIterator(thd, table) {}
 
-  if (init_index_and_record_buffer(tab, table->file, tab->index(),
-                                   tab->use_order()))
-    return 1;
-  if ((error = table->file->ha_index_first(tab->table()->record[0])))
-    return report_handler_error(table, error);
-
-  return 0;
+FullTextSearchIterator::~FullTextSearchIterator() {
+  table()->file->ha_index_or_rnd_end();
 }
 
-static int join_read_next(READ_RECORD *info) {
-  int error;
-  if ((error = info->table->file->ha_index_next(info->record)))
-    return report_handler_error(info->table, error);
-  return 0;
-}
-
-int join_read_last(QEP_TAB *tab) {
-  TABLE *table = tab->table();
-  int error;
-  if (table->covering_keys.is_set(tab->index()) && !table->no_keyread)
-    table->set_keyread(true);
-  tab->read_record.read_record = join_read_prev;
-  tab->read_record.table = table;
-  tab->read_record.record = table->record[0];
-  if (init_index_and_record_buffer(tab, table->file, tab->index(),
-                                   tab->use_order()))
-    return 1; /* purecov: inspected */
-  if ((error = table->file->ha_index_last(table->record[0])))
-    return report_handler_error(table, error);
-  return 0;
-}
-
-static int join_read_prev(READ_RECORD *info) {
-  int error;
-  if ((error = info->table->file->ha_index_prev(info->record)))
-    return report_handler_error(info->table, error);
-  return 0;
-}
-
-static int join_ft_read_first(QEP_TAB *tab) {
-  int error;
-  TABLE *table = tab->table();
-
-  if (!table->file->inited &&
-      (error = table->file->ha_index_init(tab->ref().key, tab->use_order()))) {
-    (void)report_handler_error(table, error);
-    return 1;
+bool FullTextSearchIterator::Init(QEP_TAB *qep_tab) {
+  if (!table()->file->inited) {
+    int error =
+        table()->file->ha_index_init(qep_tab->ref().key, qep_tab->use_order());
+    if (error) {
+      PrintError(error);
+      return true;
+    }
   }
-  table->file->ft_init();
-
-  if ((error = table->file->ha_ft_read(table->record[0])))
-    return report_handler_error(table, error);
-  return 0;
+  table()->file->ft_init();
+  return false;
 }
 
-static int join_ft_read_next(READ_RECORD *info) {
-  int error;
-  if ((error = info->table->file->ha_ft_read(info->table->record[0])))
-    return report_handler_error(info->table, error);
+int FullTextSearchIterator::Read() {
+  int error = table()->file->ha_ft_read(table()->record[0]);
+  if (error) {
+    return HandleError(error);
+  }
   return 0;
 }
 
@@ -2826,27 +2747,55 @@ static int join_ft_read_next(READ_RECORD *info) {
   Reading of key with key reference and one part that may be NULL.
 */
 
-static int join_read_always_key_or_null(QEP_TAB *tab) {
-  int res;
+RefOrNullIterator::RefOrNullIterator(THD *thd, TABLE *table)
+    : RowIterator(thd, table) {}
 
-  /* First read according to key which is NOT NULL */
-  *tab->ref().null_ref_key = 0;  // Clear null byte
-  if ((res = join_read_always_key(tab)) >= 0) return res;
-
-  /* Then read key with null value */
-  *tab->ref().null_ref_key = 1;  // Set null byte
-  return safe_index_read(tab);
+bool RefOrNullIterator::Init(QEP_TAB *tab) {
+  m_ref = &tab->ref();
+  m_reading_first_row = true;
+  *m_ref->null_ref_key = false;
+  return init_index_and_record_buffer(tab, tab->table()->file, tab->ref().key,
+                                      tab->use_order());
 }
 
-static int join_read_next_same_or_null(READ_RECORD *info) {
-  int error;
-  if ((error = join_read_next_same(info)) >= 0) return error;
-  QEP_TAB *tab = info->table->reginfo.qep_tab;
+int RefOrNullIterator::Read() {
+  if (m_reading_first_row && !*m_ref->null_ref_key) {
+    /* Perform "Late NULLs Filtering" (see internals manual for explanations)
+     */
+    if (m_ref->impossible_null_ref() ||
+        cp_buffer_from_ref(thd(), table(), m_ref)) {
+      // Skip searching for non-NULL rows; go straight to NULL rows.
+      *m_ref->null_ref_key = true;
+    }
+  }
 
-  /* Test if we have already done a read after null key */
-  if (*tab->ref().null_ref_key) return -1;  // All keys read
-  *tab->ref().null_ref_key = 1;             // Set null byte
-  return safe_index_read(tab);              // then read null keys
+  int error;
+  if (m_reading_first_row) {
+    m_reading_first_row = false;
+    error = table()->file->ha_index_read_map(
+        table()->record[0], m_ref->key_buff,
+        make_prev_keypart_map(m_ref->key_parts), HA_READ_KEY_EXACT);
+  } else {
+    error = table()->file->ha_index_next_same(
+        table()->record[0], m_ref->key_buff, m_ref->key_length);
+  }
+
+  if (error == 0) {
+    return 0;
+  } else if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND) {
+    if (!*m_ref->null_ref_key) {
+      // No more non-NULL rows; try again with NULL rows.
+      *m_ref->null_ref_key = true;
+      m_reading_first_row = true;
+      return Read();
+    } else {
+      // Real EOF.
+      table()->set_no_row();
+      return -1;
+    }
+  } else {
+    return HandleError(error);
+  }
 }
 
 /**
@@ -2855,63 +2804,77 @@ static int join_read_next_same_or_null(READ_RECORD *info) {
   Sets the functions for the selected table access method
 
   @param      join_tab             JOIN_TAB for this QEP_TAB
-
-  @todo join_init_read_record/join_read_(last|first) set
-  tab->read_record.read_record internally. Do the same in other first record
-  reading functions.
 */
 
 void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
   ASSERT_BEST_REF_IN_JOIN_ORDER(join());
   DBUG_ASSERT(join_tab == join()->best_ref[idx()]);
   DBUG_ASSERT(table());
-  DBUG_ASSERT(read_first_record == NULL);
   // Only some access methods support reversed access:
   DBUG_ASSERT(!join_tab->reversed_access || type() == JT_REF ||
               type() == JT_INDEX_SCAN);
-  // Fall through to set default access functions:
+  using_dynamic_range = false;
+  read_record.read_record = rr_iterator;
   switch (type()) {
     case JT_REF:
       if (join_tab->reversed_access) {
-        read_first_record = join_read_last_key;
-        read_record.read_record = join_read_prev_same;
+        read_record.iterator.reset(
+            new (&read_record.iterator_holder.ref_reverse)
+                RefIterator<true>(join()->thd, table()));
       } else {
-        read_first_record = join_read_always_key;
-        read_record.read_record = join_read_next_same;
+        read_record.iterator.reset(
+            new (&read_record.iterator_holder.ref)
+                RefIterator<false>(join()->thd, table()));
       }
       break;
 
     case JT_REF_OR_NULL:
-      read_first_record = join_read_always_key_or_null;
-      read_record.read_record = join_read_next_same_or_null;
+      read_record.iterator.reset(new (&read_record.iterator_holder.ref_or_null)
+                                     RefOrNullIterator(join()->thd, table()));
       break;
 
     case JT_CONST:
-      read_first_record = join_read_const;
-      read_record.read_record = join_no_more_records;
+      read_record.iterator.reset(new (&read_record.iterator_holder.const_table)
+                                     ConstIterator(join()->thd, table()));
       break;
 
     case JT_EQ_REF:
-      read_first_record = join_read_key;
-      read_record.read_record = join_no_more_records;
+      read_record.iterator.reset(new (&read_record.iterator_holder.eq_ref)
+                                     EQRefIterator(join()->thd, table()));
       read_record.unlock_row = join_read_key_unlock_row;
       break;
 
     case JT_FT:
-      read_first_record = join_ft_read_first;
-      read_record.read_record = join_ft_read_next;
+      read_record.iterator.reset(
+          new (&read_record.iterator_holder.fts)
+              FullTextSearchIterator(join()->thd, table()));
       break;
 
     case JT_INDEX_SCAN:
-      read_first_record =
-          join_tab->reversed_access ? join_read_last : join_read_first;
+      if (join_tab->reversed_access) {
+        read_record.iterator.reset(
+            new (&read_record.iterator_holder.index_scan)
+                IndexScanIterator<true>(join()->thd, table(), index(),
+                                        use_order()));
+      } else {
+        read_record.iterator.reset(
+            new (&read_record.iterator_holder.index_scan)
+                IndexScanIterator<false>(join()->thd, table(), index(),
+                                         use_order()));
+      }
       break;
     case JT_ALL:
     case JT_RANGE:
     case JT_INDEX_MERGE:
-      read_first_record = (join_tab->use_quick == QS_DYNAMIC_RANGE)
-                              ? join_init_quick_read_record
-                              : join_init_read_record;
+      if (join_tab->use_quick == QS_DYNAMIC_RANGE) {
+        using_dynamic_range = true;
+        read_record.iterator.reset(
+            new (&read_record.iterator_holder.dynamic_range_scan)
+                DynamicRangeIterator(join()->thd, table()));
+
+      } else {
+        join_setup_read_record(this);
+      }
       break;
     default:
       DBUG_ASSERT(0);
@@ -2942,8 +2905,15 @@ void QEP_TAB::set_pushed_table_access_method(void) {
     DBUG_PRINT("info", ("Modifying table access method for '%s'",
                         table()->s->table_name.str));
     DBUG_ASSERT(type() != JT_REF_OR_NULL);
-    read_first_record = join_read_linked_first;
-    read_record.read_record = join_read_linked_next;
+    using_dynamic_range = false;
+
+    // Clear out and destroy any old iterators before we start constructing
+    // new ones, since they may share the same memory in the union.
+    read_record.iterator.reset();
+
+    read_record.iterator.reset(
+        new (&read_record.iterator_holder.pushed_join_ref)
+            PushedJoinRefIterator(join()->thd, table()));
     // Use the default unlock_row function
     read_record.unlock_row = rr_unlock_row;
   }
@@ -5123,10 +5093,10 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
       /*
         Reestablish last row read from input table in case it is needed again
         before reading a new row. May be necessary if this is the first window
-        following after a join, cf. the caching presumption in join_read_key.
-        This logic can be removed if we move to copying between out
-        tmp record and frame buffer record, instead of involving the in
-        record. FIXME.
+        following after a join, cf. the caching presumption in
+        EQRefIterator. This logic can be removed if we move to copying
+        between out tmp record and frame buffer record, instead of involving the
+        in record. FIXME.
       */
       if (bring_back_frame_row(thd, *win, nullptr /* no copy to OUT */,
                                Window::FBC_LAST_BUFFERED_ROW,
@@ -6235,16 +6205,28 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
 
   bool in_first_read = true;
   while (rc == NESTED_LOOP_OK) {
-    int error;
     if (in_first_read) {
       in_first_read = false;
-      if (qep_tab->needs_duplicate_removal && qep_tab->remove_duplicates())
-        error = 1;
-      else
-        error = join_init_read_record(qep_tab);
-    } else
-      error = qep_tab->read_record.read_record(&qep_tab->read_record);
 
+      if (qep_tab->needs_duplicate_removal && qep_tab->remove_duplicates()) {
+        rc = NESTED_LOOP_ERROR;
+        break;
+      }
+
+      // The same temporary table can be used multiple times (with different
+      // data, e.g. for a dependent subquery). To avoid leaks, we need to make
+      // sure we clean up any existing streams here, as join_setup_read_record
+      // assumes the memory is unused.
+      qep_tab->read_record.iterator.reset();
+
+      join_setup_read_record(qep_tab);
+      if (qep_tab->read_record.iterator->Init(qep_tab)) {
+        rc = NESTED_LOOP_ERROR;
+        break;
+      }
+    }
+
+    int error = qep_tab->read_record.read_record(&qep_tab->read_record);
     if (error > 0 || (join->thd->is_error()))  // Fatal error
       rc = NESTED_LOOP_ERROR;
     else if (error < 0)

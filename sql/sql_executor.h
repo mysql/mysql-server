@@ -366,16 +366,10 @@ int safe_index_read(QEP_TAB *tab);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 void join_read_key_unlock_row(st_join_table *tab);
-int join_init_quick_read_record(QEP_TAB *tab);
-int read_first_record_seq(QEP_TAB *tab);
-int join_init_read_record(QEP_TAB *tab);
-int join_read_first(QEP_TAB *tab);
-int join_read_last(QEP_TAB *tab);
-int join_read_last_key(QEP_TAB *tab);
+void join_setup_read_record(QEP_TAB *tab);
 int join_materialize_derived(QEP_TAB *tab);
 int join_materialize_table_function(QEP_TAB *tab);
 int join_materialize_semijoin(QEP_TAB *tab);
-int join_read_prev_same(READ_RECORD *info);
 
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);
 int test_if_item_cache_changed(List<Cached_item> &list);
@@ -416,10 +410,8 @@ class QEP_TAB : public QEP_shared_owner {
         first_unmatched(NO_PLAN_IDX),
         rematerialize(false),
         materialize_table(NULL),
-        read_first_record(NULL),
         next_select(NULL),
         read_record(),
-        save_read_first_record(NULL),
         save_read_record(NULL),
         used_null_fields(false),
         used_uneven_bit_fields(false),
@@ -497,7 +489,7 @@ class QEP_TAB : public QEP_shared_owner {
   /// @returns whether this is doing QS_DYNAMIC_RANGE
   bool dynamic_range() const {
     if (!position()) return false;  // tmp table
-    return read_first_record == join_init_quick_read_record;
+    return using_dynamic_range;
   }
 
   bool use_order() const;  ///< Use ordering provided by chosen index?
@@ -598,7 +590,7 @@ class QEP_TAB : public QEP_shared_owner {
      table is a materialized derived one, function must materialize it with
      prepare_scan().
   */
-  READ_RECORD::Setup_func read_first_record;
+  bool using_dynamic_range = false;
   Next_select_func next_select;
   READ_RECORD read_record;
   /*
@@ -606,11 +598,10 @@ class QEP_TAB : public QEP_shared_owner {
     executed by an alternative full table scan when the left operand of
     the subquery predicate is evaluated to NULL.
   */
-  READ_RECORD::Setup_func
-      save_read_first_record;              /* to save read_first_record */
-  READ_RECORD::Read_func save_read_record; /* to save read_first_record */
+  READ_RECORD::Read_func save_read_record; /* to save read_record */
   unique_ptr_destroy_only<RowIterator>
-      save_row_iterator; /* to save read_record.iterator */
+      save_row_iterator;         /* to save read_record.iterator */
+  bool save_using_dynamic_range; /* to save using_dynamic_range */
 
   // join-cache-related members
   bool used_null_fields;

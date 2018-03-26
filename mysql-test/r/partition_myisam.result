@@ -459,7 +459,7 @@ Handler_commit	1
 Handler_external_lock	2
 Handler_read_first	3
 Handler_read_key	3
-Handler_read_rnd_next	12
+Handler_read_next	12
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b DESC;
 a	b
@@ -481,7 +481,7 @@ Handler_commit	1
 Handler_external_lock	2
 Handler_read_first	3
 Handler_read_key	3
-Handler_read_rnd_next	12
+Handler_read_next	12
 FLUSH STATUS;
 SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a DESC, b;
 a	b
@@ -503,7 +503,7 @@ Handler_commit	1
 Handler_external_lock	2
 Handler_read_first	3
 Handler_read_key	3
-Handler_read_rnd_next	12
+Handler_read_next	12
 EXPLAIN FORMAT=JSON SELECT * FROM t1 FORCE INDEX (`PRIMARY`) ORDER BY a, b;
 EXPLAIN
 {

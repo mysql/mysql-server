@@ -1724,7 +1724,6 @@ Variable_name	Value
 Variable_name	Value
 Handler_read_key	4
 Handler_read_next	2
-Handler_read_rnd	2
 Sort_range	1
 Sort_rows	2
 # Status of testing query execution:
@@ -1755,7 +1754,6 @@ Variable_name	Value
 Variable_name	Value
 Handler_read_key	4
 Handler_read_next	2
-Handler_read_rnd	2
 Sort_range	1
 Sort_rows	2
 # Status of testing query execution:

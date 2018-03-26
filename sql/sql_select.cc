@@ -36,6 +36,8 @@
 #include <string.h>
 #include <algorithm>
 #include <atomic>
+#include <memory>
+#include <new>
 
 #include "lex_string.h"
 #include "my_alloc.h"
@@ -774,9 +776,6 @@ bool types_allow_materialization(Item *outer, Item *inner)
       if (!(outer->collation.collation == inner->collation.collation
             /*&& outer->max_length <= inner->max_length */))
         return false;
-    /*case INT_RESULT:
-            if (!(outer->unsigned_flag ^ inner->unsigned_flag))
-              return false; */
     default:; /* suitable for materialization */
   }
   return true;
@@ -1326,7 +1325,7 @@ void JOIN::reset() {
   clear_sj_tmp_tables(this);
   set_ref_item_slice(REF_SLICE_SAVED_BASE);
 
-  /* need to reset ref access state (see join_read_key) */
+  /* need to reset ref access state (see EQRefIterator) */
   if (qep_tab) {
     for (uint i = 0; i < tables; i++) {
       QEP_TAB *const tab = &qep_tab[i];
@@ -2485,8 +2484,6 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     qep_tab->read_record.table = table;
     qep_tab->next_select = sub_select; /* normal select */
     qep_tab->cache_idx_cond = NULL;
-
-    DBUG_ASSERT(!qep_tab->read_first_record);
     qep_tab->read_record.read_record = NULL;
     qep_tab->read_record.unlock_row = rr_unlock_row;
 
@@ -4441,7 +4438,15 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
       }
     }
   }
-  tab->read_first_record = join_init_read_record;
+
+  // Wrap the chosen RowIterator in a SortingIterator, so that we get
+  // sorted results out.
+  unique_ptr_destroy_only<RowIterator> sort(
+      new (&tab->read_record.sort_holder)
+          SortingIterator(tab->join()->thd, tab->table(), tab->filesort,
+                          move(tab->read_record.iterator)));
+  tab->read_record.iterator = move(sort);
+
   DBUG_RETURN(false);
 }
 

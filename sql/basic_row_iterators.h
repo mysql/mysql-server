@@ -70,7 +70,13 @@ class TableScanIterator final : public RowIterator {
 template <bool Reverse>
 class IndexScanIterator final : public RowIterator {
  public:
-  IndexScanIterator(THD *thd, TABLE *table, int idx);
+  // use_order must be set to true if you actually need to get the records
+  // back in index order. It can be set to false if you wish to scan
+  // using the index (e.g. for an index-only scan of the entire table),
+  // but do not actually care about the order. In particular, partitioned
+  // tables can use this to deliver more efficient scans.
+  IndexScanIterator(THD *thd, TABLE *table, int idx, bool use_order);
+  ~IndexScanIterator();
 
   // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown
   // and setting up record buffers.
@@ -80,6 +86,7 @@ class IndexScanIterator final : public RowIterator {
  private:
   uchar *const m_record;
   const int m_idx;
+  const bool m_use_order;
   bool m_first = true;
 };
 
