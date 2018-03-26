@@ -13,7 +13,6 @@ read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exist
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 ds_mrr-big @solaris      : Bug#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers
 
-# For more details on tags WL6378_* refer sql/dd/mtr_readme.txt
 
 # Disabled list(Due to InnoDB issues)
 main.internal_tmp_disk_storage_engine : Bug#26917416 2017-04-13 Allen Disabled it since it's failing on pb2.
