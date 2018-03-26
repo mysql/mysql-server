@@ -32,11 +32,10 @@
 #include "mysqld_error.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/field.h"        // Field
-#include "sql/log.h"
-#include "sql/mysqld.h"     // key_LOCK_cost_const
-#include "sql/records.h"    // READ_RECORD
-#include "sql/sql_base.h"   // open_and_lock_tables
-#include "sql/sql_class.h"  // THD
+#include "sql/mysqld.h"       // key_LOCK_cost_const
+#include "sql/records.h"      // READ_RECORD
+#include "sql/sql_base.h"     // open_and_lock_tables
+#include "sql/sql_class.h"    // THD
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"        // lex_start/lex_end
 #include "sql/sql_tmp_table.h"  // init_cache_tmp_engine_properties
@@ -254,7 +253,8 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   READ_RECORD read_record_info;
 
   // Prepare to read from the table
-  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false);
+  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false,
+                                    /*ignore_not_found_rows=*/false);
   if (!ret) {
     table->use_all_columns();
 
@@ -323,7 +323,8 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   READ_RECORD read_record_info;
 
   // Prepare to read from the table
-  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false);
+  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false,
+                                    /*ignore_not_found_rows=*/false);
   if (!ret) {
     table->use_all_columns();
 

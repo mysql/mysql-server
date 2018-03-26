@@ -59,6 +59,7 @@
 #include "sql/item_json_func.h"  // Item_json_func
 #include "sql/key.h"             // is_key_used
 #include "sql/key_spec.h"
+#include "sql/locked_tables_list.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"       // stage_... mysql_tmpdir
 #include "sql/opt_explain.h"  // Modification_plan
@@ -600,7 +601,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
 
         if (used_index == MAX_KEY || qep_tab.quick()
-                ? init_read_record(&info, thd, NULL, &qep_tab, false)
+                ? init_read_record(&info, thd, NULL, &qep_tab, false,
+                                   /*ignore_not_found_rows=*/false)
                 : init_read_record_idx(&info, thd, table, used_index, reverse))
           DBUG_RETURN(true); /* purecov: inspected */
 
@@ -684,7 +686,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
 
     table->file->try_semi_consistent_read(1);
-    if (init_read_record(&info, thd, NULL, &qep_tab, false))
+    if (init_read_record(&info, thd, NULL, &qep_tab, false,
+                         /*ignore_not_found_rows=*/false))
       DBUG_RETURN(true); /* purecov: inspected */
 
     /*

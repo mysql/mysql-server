@@ -30,8 +30,12 @@
 #include "sql/records.h"
 
 #include <string.h>
+#include <algorithm>
 #include <atomic>
+#include <new>
 
+#include "map_helpers.h"
+#include "my_base.h"
 #include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_pointer_arithmetic.h"
@@ -39,7 +43,6 @@
 #include "my_thread_local.h"
 #include "mysql/service_mysql_alloc.h"
 #include "sql/field.h"
-#include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/opt_range.h"  // QUICK_SELECT_I
@@ -47,28 +50,12 @@
 #include "sql/sort_param.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"  // QEP_TAB
+#include "sql/sql_executor.h"
 #include "sql/sql_sort.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "thr_lock.h"
 #include "varlen_sort.h"
-
-static int rr_quick(READ_RECORD *info);
-static int rr_from_tempfile(READ_RECORD *info);
-template <bool>
-static int rr_unpack_from_tempfile(READ_RECORD *info);
-template <bool>
-static int rr_unpack_from_buffer(READ_RECORD *info);
-static int rr_from_pointers(READ_RECORD *info);
-static int rr_from_cache(READ_RECORD *info);
-static int init_rr_cache(THD *thd, READ_RECORD *info);
-static int rr_index_first(READ_RECORD *info);
-static int rr_index_last(READ_RECORD *info);
-static int rr_index(READ_RECORD *info);
-static int rr_index_desc(READ_RECORD *info);
-static void end_read_record_unique(READ_RECORD *info);
-static void end_read_record_sort(READ_RECORD *info);
 
 /**
   Initialize READ_RECORD structure to perform full index scan in desired
@@ -90,40 +77,78 @@ static void end_read_record_sort(READ_RECORD *info);
 
 bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
                           bool reverse) {
-  int error;
   empty_record(table);
   new (info) READ_RECORD;
-  info->thd = thd;
-  info->table = table;
-  info->record = table->record[0];
-  info->unlock_row = rr_unlock_row;
 
-  if (!table->file->inited && (error = table->file->ha_index_init(idx, 1))) {
-    table->file->print_error(error, MYF(0));
+  unique_ptr_destroy_only<RowIterator> iterator;
+
+  info->read_record = rr_iterator;
+  if (reverse) {
+    iterator.reset(new (&info->iterator_holder.index_scan_reverse)
+                       IndexScanIterator<true>(thd, table, idx));
+  } else {
+    iterator.reset(new (&info->iterator_holder.index_scan)
+                       IndexScanIterator<false>(thd, table, idx));
+  }
+  if (iterator->Init(nullptr)) {
     return true;
   }
-
-  /* read_record will be changed to rr_index in rr_index_first */
-  info->read_record = reverse ? rr_index_last : rr_index_first;
+  info->iterator = std::move(iterator);
   return false;
 }
 
+template <bool Reverse>
+IndexScanIterator<Reverse>::IndexScanIterator(THD *thd, TABLE *table, int idx)
+    : RowIterator(thd, table), m_record(table->record[0]), m_idx(idx) {}
+
+template <bool Reverse>
+bool IndexScanIterator<Reverse>::Init(QEP_TAB *qep_tab) {
+  if (!table()->file->inited) {
+    int error = table()->file->ha_index_init(m_idx, 1);
+    if (error) {
+      PrintError(error);
+      return true;
+    }
+  }
+  PushDownCondition(qep_tab);
+  return false;
+}
+
+// Doxygen gets confused by the explicit specializations.
+
+//! @cond
+template <>
+int IndexScanIterator<false>::Read() {  // Forward read.
+  int error;
+  if (m_first) {
+    error = table()->file->ha_index_first(m_record);
+    m_first = false;
+  } else {
+    error = table()->file->ha_index_next(m_record);
+  }
+  if (error) return HandleError(error);
+  return 0;
+}
+
+template <>
+int IndexScanIterator<true>::Read() {  // Backward read.
+  int error;
+  if (m_first) {
+    error = table()->file->ha_index_last(m_record);
+    m_first = false;
+  } else {
+    error = table()->file->ha_index_prev(m_record);
+  }
+  if (error) return HandleError(error);
+  return 0;
+}
+//! @endcond
+
 /*
   init_read_record is used to scan by using a number of different methods.
-  Which method to use is set-up in this call so that later calls to
-  the info->read_record will call the appropriate method using a function
-  pointer.
+  Which method to use is set-up in this call so that you can fetch rows
+  through the resulting row iterator afterwards.
 
-  There are five methods that relate completely to the sort function
-  filesort. The result of a filesort is retrieved using read_record
-  calls. The other two methods are used for normal table access.
-
-  The filesort will produce references to the records sorted, these
-  references can be stored in memory or in a temporary file.
-
-  The temporary file is normally used when the references doesn't fit into
-  a properly sized memory buffer. For most small queries the references
-  are stored in the memory buffer.
   SYNOPSIS
     init_read_record()
       info              OUT read structure
@@ -135,99 +160,42 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
       disable_rr_cache  Don't use rr_from_cache (used by sort-union
                         index-merge which produces rowid sequences that
                         are already ordered)
-
-  DESCRIPTION
-    This function sets up reading data via one of the methods:
-
-  The temporary file is also used when performing an update where a key is
-  modified.
-
-  Methods used when ref's are in memory (using rr_from_pointers):
-    rr_unpack_from_buffer:
-    ----------------------
-      This method is used when table->sort.addon_field is allocated.
-      This is allocated for most SELECT queries not involving any BLOB's.
-      In this case the records are fetched from a memory buffer.
-    rr_from_pointers:
-    -----------------
-      Used when the above is not true, UPDATE, DELETE and so forth and
-      SELECT's involving BLOB's. It is also used when the addon_field
-      buffer is not allocated due to that its size was bigger than the
-      session variable max_length_for_sort_data. Finally, it is used for
-      the result of Unique, which returns row IDs in the same format as
-      filesort.
-      In this case the record data is fetched from the handler using the
-      saved reference using the rnd_pos handler call.
-
-  Methods used when ref's are in a temporary file (using rr_from_tempfile)
-    rr_unpack_from_tempfile:
-    ------------------------
-      Same as rr_unpack_from_buffer except that references are fetched from
-      temporary file. Should obviously not really happen other than in
-      strange configurations.
-
-    rr_from_tempfile:
-    -----------------
-      Same as rr_from_pointers except that references are fetched from
-      temporary file instead of from
-    rr_from_cache:
-    --------------
-      This is a special variant of rr_from_tempfile that can be used for
-      handlers that is not using the HA_FAST_KEY_READ table flag. Instead
-      of reading the references one by one from the temporary file it reads
-      a set of them, sorts them and reads all of them into a buffer which
-      is then used for a number of subsequent calls to rr_from_cache.
-      It is only used for SELECT queries and a number of other conditions
-      on table size.
-
-  All other accesses use either index access methods (rr_quick) or a full
-  table scan (rr_sequential).
-  rr_quick:
-  ---------
-    rr_quick uses one of the QUICK_SELECT classes in opt_range.cc to
-    perform an index scan. There are loads of functionality hidden
-    in these quick classes. It handles all index scans of various kinds.
-  rr_sequential:
-  --------------
-    This is the most basic access method of a table using rnd_init,
-    ha_rnd_next and rnd_end. No indexes are used.
+      ignore_not_found_rows
+                        Ignore any rows not found in reference tables,
+                        as they may already have been deleted by foreign key
+                        handling. Only relevant for methods that need to
+                        look up rows in tables (those marked “Indirect”).
 
   @retval true   error
   @retval false  success
 */
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, bool disable_rr_cache) {
-  int error = 0;
+                      QEP_TAB *qep_tab, bool disable_rr_cache,
+                      bool ignore_not_found_rows) {
   DBUG_ENTER("init_read_record");
 
   // If only 'table' is given, assume no quick, no condition.
   DBUG_ASSERT(!(table && qep_tab));
   if (!table) table = qep_tab->table();
+  empty_record(table);
 
   new (info) READ_RECORD;
-  info->thd = thd;
   info->table = table;
-  info->forms = &info->table; /* Only one table */
-
-  if (table->sort_result.has_result() && table->sort.using_addon_fields()) {
-    info->rec_buf = table->sort.addon_fields->get_addon_buf();
-    info->ref_length = table->sort.addon_fields->get_addon_buf_length();
-  } else {
-    empty_record(table);
-    info->record = table->record[0];
-    info->ref_length = table->file->ref_length;
-  }
-  info->quick = qep_tab ? qep_tab->quick() : NULL;
   info->unlock_row = rr_unlock_row;
-  info->ignore_not_found_rows = 0;
+  info->read_record = rr_iterator;
 
-  IO_CACHE *tempfile = nullptr;
-  if (info->quick && info->quick->clustered_pk_range()) {
+  unique_ptr_destroy_only<RowIterator> iterator;
+
+  QUICK_SELECT_I *quick = qep_tab ? qep_tab->quick() : NULL;
+  if (quick && quick->clustered_pk_range()) {
     /*
       In case of QUICK_INDEX_MERGE_SELECT with clustered pk range we have to
       use its own access method(i.e QUICK_INDEX_MERGE_SELECT::get_next()) as
       sort file does not contain rowids which satisfy clustered pk range.
     */
+    DBUG_PRINT("info", ("using IndexRangeScanIterator"));
+    iterator.reset(new (&info->iterator_holder.index_range_scan)
+                       IndexRangeScanIterator(thd, table, quick));
   }
   /*
     We test for a Unique result before a filesort result, because on
@@ -238,54 +206,35 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
   */
   else if (table->unique_result.io_cache &&
            my_b_inited(table->unique_result.io_cache)) {
-    tempfile = table->unique_result.io_cache;
-    info->read_record = rr_from_tempfile;
+    DBUG_PRINT("info", ("using SortFileIndirectIterator"));
+    iterator.reset(
+        new (&info->iterator_holder.sort_file_indirect)
+            SortFileIndirectIterator(thd, table, table->unique_result.io_cache,
+                                     !disable_rr_cache, ignore_not_found_rows));
   } else if (table->sort_result.io_cache &&
              my_b_inited(table->sort_result.io_cache)) {
-    tempfile = table->sort_result.io_cache;
-
     // Test if ref-records was used
     if (table->sort.using_addon_fields()) {
-      DBUG_PRINT("info", ("using rr_unpack_from_tempfile"));
+      DBUG_PRINT("info", ("using SortFileIterator"));
       if (table->sort.addon_fields->using_packed_addons())
-        info->read_record = rr_unpack_from_tempfile<true>;
+        iterator.reset(
+            new (&info->iterator_holder.sort_file_packed_addons)
+                SortFileIterator<true>(thd, table, table->sort_result.io_cache,
+                                       &table->sort));
       else
-        info->read_record = rr_unpack_from_tempfile<false>;
+        iterator.reset(
+            new (&info->iterator_holder.sort_file) SortFileIterator<false>(
+                thd, table, table->sort_result.io_cache, &table->sort));
     } else {
-      DBUG_PRINT("info", ("using rr_from_tempfile"));
-      info->read_record = rr_from_tempfile;
+      iterator.reset(new (&info->iterator_holder.sort_file_indirect)
+                         SortFileIndirectIterator(
+                             thd, table, table->sort_result.io_cache,
+                             !disable_rr_cache, ignore_not_found_rows));
     }
-  }
-
-  if (tempfile) {
-    info->io_cache = tempfile;
-    reinit_io_cache(info->io_cache, READ_CACHE, 0L, 0, 0);
-    info->ref_pos = table->file->ref;
-    if (!table->file->inited && (error = table->file->ha_rnd_init(0))) goto err;
-
-    /*
-      table->sort.addon_field is checked because if we use addon fields,
-      it doesn't make sense to use cache - we don't read from the table
-      and table->sort.io_cache is read sequentially
-    */
-    if (!disable_rr_cache && !table->sort.using_addon_fields() &&
-        thd->variables.read_rnd_buff_size &&
-        !(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
-        (table->db_stat & HA_READ_ONLY ||
-         table->reginfo.lock_type <= TL_READ_NO_INSERT) &&
-        (ulonglong)table->s->reclength *
-                (table->file->stats.records + table->file->stats.deleted) >
-            (ulonglong)MIN_FILE_LENGTH_TO_USE_ROW_CACHE &&
-        info->io_cache->end_of_file / info->ref_length * table->s->reclength >
-            (my_off_t)MIN_ROWS_TO_USE_TABLE_CACHE &&
-        !table->s->blob_fields && info->ref_length <= MAX_REFLENGTH) {
-      if (init_rr_cache(thd, info)) goto skip_caching;
-      DBUG_PRINT("info", ("using rr_from_cache"));
-      info->read_record = rr_from_cache;
-    }
-  } else if (info->quick) {
-    DBUG_PRINT("info", ("using rr_quick"));
-    info->read_record = rr_quick;
+  } else if (quick) {
+    DBUG_PRINT("info", ("using IndexRangeScanIterator"));
+    iterator.reset(new (&info->iterator_holder.index_range_scan)
+                       IndexRangeScanIterator(thd, table, quick));
   }
   /*
     See further up in the function for why we test for Unique before filesort.
@@ -296,243 +245,321 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
       Filesort_buffer.
     */
     DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
-
-    if ((error = table->file->ha_rnd_init(0))) goto err;
-
-    info->cache_pos = table->unique_result.sorted_result.get();
-    DBUG_PRINT("info", ("using rr_from_pointers (unique)"));
-    info->read_record = rr_from_pointers;
-    info->cleanup = end_read_record_unique;
-    info->cache_end =
-        info->cache_pos + table->unique_result.found_records * info->ref_length;
+    DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
+    iterator.reset(
+        new (&info->iterator_holder.sort_buffer_indirect)
+            SortBufferIndirectIterator(thd, table, &table->unique_result,
+                                       ignore_not_found_rows));
   }
   // See save_index(), which stores the filesort result set.
   else if (table->sort_result.has_result_in_memory()) {
-    if ((error = table->file->ha_rnd_init(0))) goto err;
-
-    info->cache_pos = table->sort_result.sorted_result.get();
     if (table->sort.using_addon_fields()) {
-      DBUG_PRINT("info", ("using rr_unpack_from_buffer (sort)"));
+      DBUG_PRINT("info", ("using SortBufferIterator"));
       DBUG_ASSERT(table->sort_result.sorted_result_in_fsbuf);
-      info->unpack_counter = 0;
       if (table->sort.addon_fields->using_packed_addons())
-        info->read_record = rr_unpack_from_buffer<true>;
+        iterator.reset(new (&info->iterator_holder.sort_buffer_packed_addons)
+                           SortBufferIterator<true>(thd, table, &table->sort,
+                                                    &table->sort_result));
       else
-        info->read_record = rr_unpack_from_buffer<false>;
-      info->cache_end = table->sort_result.sorted_result_end;
+        iterator.reset(new (&info->iterator_holder.sort_buffer)
+                           SortBufferIterator<false>(thd, table, &table->sort,
+                                                     &table->sort_result));
     } else {
-      DBUG_PRINT("info", ("using rr_from_pointers"));
-      info->read_record = rr_from_pointers;
-      info->cache_end =
-          info->cache_pos + table->sort_result.found_records * info->ref_length;
+      DBUG_PRINT("info", ("using SortBufferIndirectIterator (sort)"));
+      iterator.reset(
+          new (&info->iterator_holder.sort_buffer_indirect)
+              SortBufferIndirectIterator(thd, table, &table->sort_result,
+                                         ignore_not_found_rows));
     }
-    info->cleanup = end_read_record_sort;
   } else {
-    DBUG_PRINT("info", ("using rr_sequential"));
-    info->read_record = rr_sequential;
-    if ((error = table->file->ha_rnd_init(1))) goto err;
+    DBUG_PRINT("info", ("using TableScanIterator"));
+    iterator.reset(new (&info->iterator_holder.table_scan)
+                       TableScanIterator(thd, table));
   }
 
-skip_caching:
-  /*
-    Do condition pushdown for UPDATE/DELETE.
-    TODO: Remove this from here as it causes two condition pushdown calls
-    when we're running a SELECT and the condition cannot be pushed down.
-    Some temporary tables do not have a TABLE_LIST object, and it is never
-    needed to push down conditions (ECP) for such tables.
-  */
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
-      qep_tab && qep_tab->condition() && table->pos_in_table_list &&
-      (qep_tab->condition()->used_tables() & table->pos_in_table_list->map()) &&
-      !table->file->pushed_cond)
-    table->file->cond_push(qep_tab->condition());
-
+  if (iterator->Init(qep_tab)) {
+    DBUG_RETURN(true);
+  }
+  info->iterator = std::move(iterator);
   DBUG_RETURN(false);
-
-err:
-  table->file->print_error(error, MYF(0));
-  DBUG_RETURN(true);
 } /* init_read_record */
 
 void end_read_record(READ_RECORD *info) {
-  if (info->cleanup) {
-    info->cleanup(info);
-  }
-  /* free cache if used */
-  if (info->cache) {
-    my_free(info->cache);
-    info->cache = 0;
+  if (info->iterator) {
+    info->iterator.reset();
   }
   if (info->table && info->table->key_read) {
     info->table->set_keyread(false);
   }
-  if (info->table && info->table->is_created()) {
-    if (info->read_record != rr_quick)  // otherwise quick_range does it
-      (void)info->table->file->ha_index_or_rnd_end();
-    info->table = 0;
-  }
 }
 
-static int rr_handle_error(READ_RECORD *info, int error) {
-  if (info->thd->killed) {
-    info->thd->send_kill_message();
+int RowIterator::HandleError(int error) {
+  if (thd()->killed) {
+    m_thd->send_kill_message();
     return 1;
   }
 
-  if (error == HA_ERR_END_OF_FILE)
-    error = -1;
-  else {
-    info->table->file->print_error(error, MYF(0));
+  if (error == HA_ERR_END_OF_FILE) {
+    return -1;
+  } else {
+    PrintError(error);
     if (error < 0)  // Fix negative BDB errno
-      error = 1;
+      return 1;
+    return error;
   }
-  return error;
 }
 
-/** Read a record from head-database. */
+void RowIterator::PrintError(int error) {
+  m_table->file->print_error(error, MYF(0));
+}
 
-static int rr_quick(READ_RECORD *info) {
+/*
+  Do condition pushdown for UPDATE/DELETE.
+  TODO: Remove this from here as it causes two condition pushdown calls
+  when we're running a SELECT and the condition cannot be pushed down.
+  Some temporary tables do not have a TABLE_LIST object, and it is never
+  needed to push down conditions (ECP) for such tables.
+*/
+void RowIterator::PushDownCondition(QEP_TAB *qep_tab) {
+  if (m_thd->optimizer_switch_flag(
+          OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
+      qep_tab && qep_tab->condition() && m_table->pos_in_table_list &&
+      (qep_tab->condition()->used_tables() &
+       m_table->pos_in_table_list->map()) &&
+      !m_table->file->pushed_cond) {
+    m_table->file->cond_push(qep_tab->condition());
+  }
+}
+
+IndexRangeScanIterator::IndexRangeScanIterator(THD *thd, TABLE *table,
+                                               QUICK_SELECT_I *quick)
+    : RowIterator(thd, table), m_quick(quick) {}
+
+bool IndexRangeScanIterator::Init(QEP_TAB *qep_tab) {
+  PushDownCondition(qep_tab);
+  return false;
+}
+
+int IndexRangeScanIterator::Read() {
   int tmp;
-  while ((tmp = info->quick->get_next())) {
-    if (info->thd->killed || (tmp != HA_ERR_RECORD_DELETED)) {
-      tmp = rr_handle_error(info, tmp);
-      break;
+  while ((tmp = m_quick->get_next())) {
+    if (thd()->killed || (tmp != HA_ERR_RECORD_DELETED)) {
+      return HandleError(tmp);
     }
   }
 
-  return tmp;
+  return 0;
 }
 
-/**
-  Reads first row in an index scan.
+// Temporary adapter.
+int rr_iterator(READ_RECORD *info) { return info->iterator->Read(); }
 
-  @param info  	Scan info
+TableScanIterator::TableScanIterator(THD *thd, TABLE *table)
+    : RowIterator(thd, table), m_record(table->record[0]) {}
 
-  @retval
-    0   Ok
-  @retval
-    -1   End of records
-  @retval
-    1   Error
-*/
-
-static int rr_index_first(READ_RECORD *info) {
-  int tmp = info->table->file->ha_index_first(info->record);
-  info->read_record = rr_index;
-  if (tmp) tmp = rr_handle_error(info, tmp);
-  return tmp;
+TableScanIterator::~TableScanIterator() {
+  table()->file->ha_index_or_rnd_end();
 }
 
-/**
-  Reads last row in an index scan.
-
-  @param info  	Scan info
-
-  @retval
-    0   Ok
-  @retval
-    -1   End of records
-  @retval
-    1   Error
-*/
-
-static int rr_index_last(READ_RECORD *info) {
-  int tmp = info->table->file->ha_index_last(info->record);
-  info->read_record = rr_index_desc;
-  if (tmp) tmp = rr_handle_error(info, tmp);
-  return tmp;
-}
-
-static void end_read_record_sort(READ_RECORD *info) {
-  if (info->table) {
-    info->table->sort_result.sorted_result.reset();
-    info->table->sort_result.sorted_result_in_fsbuf = false;
+bool TableScanIterator::Init(QEP_TAB *qep_tab) {
+  int error = table()->file->ha_rnd_init(1);
+  if (error) {
+    PrintError(error);
+    return true;
   }
+
+  PushDownCondition(qep_tab);
+
+  return false;
 }
 
-static void end_read_record_unique(READ_RECORD *info) {
-  if (info->table) {
-    info->table->unique_result.sorted_result.reset();
-    DBUG_ASSERT(!info->table->unique_result.sorted_result_in_fsbuf);
-    info->table->unique_result.sorted_result_in_fsbuf = false;
-  }
-}
-
-/**
-  Reads index sequentially after first row.
-
-  Read the next index record (in forward direction) and translate return
-  value.
-
-  @param info  Scan info
-
-  @retval
-    0   Ok
-  @retval
-    -1   End of records
-  @retval
-    1   Error
-*/
-
-static int rr_index(READ_RECORD *info) {
-  int tmp = info->table->file->ha_index_next(info->record);
-  if (tmp) tmp = rr_handle_error(info, tmp);
-  return tmp;
-}
-
-/**
-  Reads index sequentially from the last row to the first.
-
-  Read the prev index record (in backward direction) and translate return
-  value.
-
-  @param info  Scan info
-
-  @retval
-    0   Ok
-  @retval
-    -1   End of records
-  @retval
-    1   Error
-*/
-
-static int rr_index_desc(READ_RECORD *info) {
-  int tmp = info->table->file->ha_index_prev(info->record);
-  if (tmp) tmp = rr_handle_error(info, tmp);
-  return tmp;
-}
-
-int rr_sequential(READ_RECORD *info) {
+int TableScanIterator::Read() {
   int tmp;
-  while ((tmp = info->table->file->ha_rnd_next(info->record))) {
+  while ((tmp = table()->file->ha_rnd_next(m_record))) {
     /*
       ha_rnd_next can return RECORD_DELETED for MyISAM when one thread is
       reading and another deleting without locks.
     */
-    if (info->thd->killed || (tmp != HA_ERR_RECORD_DELETED)) {
-      tmp = rr_handle_error(info, tmp);
-      break;
-    }
+    if (tmp == HA_ERR_RECORD_DELETED && !thd()->killed) continue;
+    return HandleError(tmp);
   }
-  return tmp;
+  return 0;
 }
 
-static int rr_from_tempfile(READ_RECORD *info) {
-  int tmp;
+SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
+                                                   IO_CACHE *tempfile,
+                                                   bool request_cache,
+                                                   bool ignore_not_found_rows)
+    : RowIterator(thd, table),
+      m_io_cache(tempfile),
+      m_record(table->record[0]),
+      m_ref_pos(table->file->ref),
+      m_ignore_not_found_rows(ignore_not_found_rows),
+      m_using_cache(request_cache),
+      m_ref_length(table->file->ref_length) {}
+
+SortFileIndirectIterator::~SortFileIndirectIterator() {
+  (void)table()->file->ha_index_or_rnd_end();
+}
+
+bool SortFileIndirectIterator::Init(QEP_TAB *qep_tab) {
+  if (!table()->file->inited) {
+    int error = table()->file->ha_rnd_init(0);
+    if (error) {
+      PrintError(error);
+      return true;
+    }
+  }
+
+  /*
+    table->sort.addon_field is checked because if we use addon fields,
+    it doesn't make sense to use cache - we don't read from the table
+    and table->sort.io_cache is read sequentially
+  */
+  if (m_using_cache && !table()->sort.using_addon_fields() &&
+      thd()->variables.read_rnd_buff_size &&
+      !(table()->file->ha_table_flags() & HA_FAST_KEY_READ) &&
+      (table()->db_stat & HA_READ_ONLY ||
+       table()->reginfo.lock_type <= TL_READ_NO_INSERT) &&
+      (ulonglong)table()->s->reclength *
+              (table()->file->stats.records + table()->file->stats.deleted) >
+          (ulonglong)MIN_FILE_LENGTH_TO_USE_ROW_CACHE &&
+      m_io_cache->end_of_file / m_ref_length * table()->s->reclength >
+          (my_off_t)MIN_ROWS_TO_USE_TABLE_CACHE &&
+      !table()->s->blob_fields && m_ref_length <= MAX_REFLENGTH) {
+    m_using_cache = !InitCache();
+  } else {
+    m_using_cache = false;
+  }
+
+  PushDownCondition(qep_tab);
+
+  DBUG_PRINT("info", ("using cache: %d", m_using_cache));
+  return false;
+}
+
+/**
+  Initialize caching of records from temporary file.
+
+  @retval
+    false OK, use caching.
+    true  Buffer is too small, or cannot be allocated.
+          Skip caching, and read records directly from temporary file.
+ */
+bool SortFileIndirectIterator::InitCache() {
+  m_struct_length = 3 + MAX_REFLENGTH;
+  m_reclength = ALIGN_SIZE(table()->s->reclength + 1);
+  if (m_reclength < m_struct_length) m_reclength = ALIGN_SIZE(m_struct_length);
+
+  m_error_offset = table()->s->reclength;
+  m_cache_records =
+      thd()->variables.read_rnd_buff_size / (m_reclength + m_struct_length);
+  uint rec_cache_size = m_cache_records * m_reclength;
+  m_rec_cache_size = m_cache_records * m_ref_length;
+
+  if (m_cache_records <= 2) {
+    return true;
+  }
+
+  m_cache.reset((uchar *)my_malloc(
+      key_memory_READ_RECORD_cache,
+      rec_cache_size + m_cache_records * m_struct_length, MYF(0)));
+  if (m_cache == nullptr) {
+    return true;
+  }
+  DBUG_PRINT("info", ("Allocated buffer for %d records", m_cache_records));
+  m_read_positions = m_cache.get() + rec_cache_size;
+  m_cache_pos = m_cache_end = m_cache.get();
+  return false;
+}
+
+int SortFileIndirectIterator::Read() {
+  if (m_using_cache) {
+    return CachedRead();
+  } else {
+    return UncachedRead();
+  }
+}
+
+int SortFileIndirectIterator::UncachedRead() {
   for (;;) {
-    if (my_b_read(info->io_cache, info->ref_pos, info->ref_length))
+    if (my_b_read(m_io_cache, m_ref_pos, m_ref_length))
       return -1; /* End of file */
-    if (!(tmp = info->table->file->ha_rnd_pos(info->record, info->ref_pos)))
-      break;
+    int tmp = table()->file->ha_rnd_pos(m_record, m_ref_pos);
+    if (tmp == 0) return 0;
     /* The following is extremely unlikely to happen */
     if (tmp == HA_ERR_RECORD_DELETED ||
-        (tmp == HA_ERR_KEY_NOT_FOUND && info->ignore_not_found_rows))
+        (tmp == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows))
       continue;
-    tmp = rr_handle_error(info, tmp);
-    break;
+    return HandleError(tmp);
   }
-  return tmp;
-} /* rr_from_tempfile */
+}
+
+int SortFileIndirectIterator::CachedRead() {
+  uint i;
+  ulong length;
+  my_off_t rest_of_file;
+  int16 error;
+  uchar *position, *ref_position, *record_pos;
+  ulong record;
+
+  for (;;) {
+    if (m_cache_pos != m_cache_end) {
+      if (m_cache_pos[m_error_offset]) {
+        shortget(&error, m_cache_pos);
+        PrintError(error);
+      } else {
+        error = 0;
+        memcpy(m_record, m_cache_pos, (size_t)table()->s->reclength);
+      }
+      m_cache_pos += m_reclength;
+      return ((int)error);
+    }
+    length = m_rec_cache_size;
+    rest_of_file = m_io_cache->end_of_file - my_b_tell(m_io_cache);
+    if ((my_off_t)length > rest_of_file) length = (ulong)rest_of_file;
+    if (!length || my_b_read(m_io_cache, m_cache.get(), length)) {
+      DBUG_PRINT("info", ("Found end of file"));
+      return -1; /* End of file */
+    }
+
+    length /= m_ref_length;
+    position = m_cache.get();
+    ref_position = m_read_positions;
+    for (i = 0; i < length; i++, position += m_ref_length) {
+      memcpy(ref_position, position, (size_t)m_ref_length);
+      ref_position += MAX_REFLENGTH;
+      int3store(ref_position, (long)i);
+      ref_position += 3;
+    }
+    size_t ref_length = m_ref_length;
+    DBUG_ASSERT(ref_length <= MAX_REFLENGTH);
+    varlen_sort(m_read_positions, m_read_positions + length * m_struct_length,
+                m_struct_length, [ref_length](const uchar *a, const uchar *b) {
+                  return memcmp(a, b, ref_length) < 0;
+                });
+
+    position = m_read_positions;
+    for (i = 0; i < length; i++) {
+      memcpy(m_ref_pos, position, (size_t)m_ref_length);
+      position += MAX_REFLENGTH;
+      record = uint3korr(position);
+      position += 3;
+      record_pos = m_cache.get() + record * m_reclength;
+      error = (int16)table()->file->ha_rnd_pos(record_pos, m_ref_pos);
+      if (error) {
+        // TODO: Should we respect m_ignore_not_found_rows here?
+        record_pos[m_error_offset] = 1;
+        shortstore(record_pos, error);
+        DBUG_PRINT("error", ("Got error: %d:%d when reading row", my_errno(),
+                             (int)error));
+      } else
+        record_pos[m_error_offset] = 0;
+    }
+    m_cache_pos = m_cache.get();
+    m_cache_end = m_cache_pos + length * m_reclength;
+  }
+}
 
 template <bool Packed_addon_fields>
 inline void Filesort_info::unpack_addon_fields(uchar *buff) {
@@ -554,6 +581,16 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
   }
 }
 
+template <bool Packed_addon_fields>
+SortFileIterator<Packed_addon_fields>::SortFileIterator(THD *thd, TABLE *table,
+                                                        IO_CACHE *tempfile,
+                                                        Filesort_info *sort)
+    : RowIterator(thd, table),
+      m_rec_buf(sort->addon_fields->get_addon_buf()),
+      m_ref_length(sort->addon_fields->get_addon_buf_length()),
+      m_io_cache(tempfile),
+      m_sort(sort) {}
+
 /**
   Read a result set record from a temporary file after sorting.
 
@@ -562,7 +599,6 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
   the fields values use in the result set from this buffer into their
   positions in the regular record buffer.
 
-  @param info          Reference to the context including record descriptors
   @tparam Packed_addon_fields Are the addon fields packed?
      This is a compile-time constant, to avoid if (....) tests during execution.
   @retval
@@ -571,54 +607,44 @@ inline void Filesort_info::unpack_addon_fields(uchar *buff) {
     -1   There is no record to be read anymore.
 */
 template <bool Packed_addon_fields>
-static int rr_unpack_from_tempfile(READ_RECORD *info) {
-  uchar *destination = info->rec_buf;
+int SortFileIterator<Packed_addon_fields>::Read() {
+  uchar *destination = m_rec_buf;
 #ifndef DBUG_OFF
-  my_off_t where = my_b_tell(info->io_cache);
+  my_off_t where = my_b_tell(m_io_cache);
 #endif
   if (Packed_addon_fields) {
     const uint len_sz = Addon_fields::size_of_length_field;
 
     // First read length of the record.
-    if (my_b_read(info->io_cache, destination, len_sz)) return -1;
+    if (my_b_read(m_io_cache, destination, len_sz)) return -1;
     uint res_length = Addon_fields::read_addon_length(destination);
     DBUG_PRINT("info",
                ("rr_unpack from %llu to %p sz %u",
                 static_cast<ulonglong>(where), destination, res_length));
     DBUG_ASSERT(res_length > len_sz);
-    DBUG_ASSERT(info->table->sort.using_addon_fields());
+    DBUG_ASSERT(m_sort->using_addon_fields());
 
     // Then read the rest of the record.
-    if (my_b_read(info->io_cache, destination + len_sz, res_length - len_sz))
+    if (my_b_read(m_io_cache, destination + len_sz, res_length - len_sz))
       return -1; /* purecov: inspected */
   } else {
-    if (my_b_read(info->io_cache, destination, info->ref_length)) return -1;
+    if (my_b_read(m_io_cache, destination, m_ref_length)) return -1;
   }
 
-  info->table->sort.unpack_addon_fields<Packed_addon_fields>(destination);
+  m_sort->unpack_addon_fields<Packed_addon_fields>(destination);
 
   return 0;
 }
 
-static int rr_from_pointers(READ_RECORD *info) {
-  int tmp;
-  uchar *cache_pos;
+template <bool Packed_addon_fields>
+SortBufferIterator<Packed_addon_fields>::SortBufferIterator(
+    THD *thd, TABLE *table, Filesort_info *sort, Sort_result *sort_result)
+    : RowIterator(thd, table), m_sort(sort), m_sort_result(sort_result) {}
 
-  for (;;) {
-    if (info->cache_pos == info->cache_end) return -1; /* End of file */
-    cache_pos = info->cache_pos;
-    info->cache_pos += info->ref_length;
-
-    if (!(tmp = info->table->file->ha_rnd_pos(info->record, cache_pos))) break;
-
-    /* The following is extremely unlikely to happen */
-    if (tmp == HA_ERR_RECORD_DELETED ||
-        (tmp == HA_ERR_KEY_NOT_FOUND && info->ignore_not_found_rows))
-      continue;
-    tmp = rr_handle_error(info, tmp);
-    break;
-  }
-  return tmp;
+template <bool Packed_addon_fields>
+SortBufferIterator<Packed_addon_fields>::~SortBufferIterator() {
+  m_sort_result->sorted_result.reset();
+  m_sort_result->sorted_result_in_fsbuf = false;
 }
 
 /**
@@ -627,7 +653,6 @@ static int rr_from_pointers(READ_RECORD *info) {
   Get the next record from the filesort buffer,
   then unpack the fields into their positions in the regular record buffer.
 
-  @param info          Reference to the context including record descriptors
   @tparam Packed_addon_fields Are the addon fields packed?
      This is a compile-time constant, to avoid if (....) tests during execution.
 
@@ -641,124 +666,65 @@ static int rr_from_pointers(READ_RECORD *info) {
     -1   There is no record to be read anymore.
 */
 template <bool Packed_addon_fields>
-static int rr_unpack_from_buffer(READ_RECORD *info) {
-  if (info->unpack_counter == info->table->sort_result.found_records)
-    return -1; /* End of buffer */
+int SortBufferIterator<Packed_addon_fields>::Read() {
+  if (m_unpack_counter ==
+      m_sort_result->found_records)  // XXX send in as a parameter?
+    return -1;                       /* End of buffer */
 
-  uchar *record = info->table->sort.get_sorted_record(
-      static_cast<uint>(info->unpack_counter));
-  uchar *payload = get_start_of_payload(&info->table->sort, record);
-  info->table->sort.unpack_addon_fields<Packed_addon_fields>(payload);
-  info->unpack_counter++;
+  uchar *record = m_sort->get_sorted_record(m_unpack_counter++);
+  uchar *payload = get_start_of_payload(m_sort, record);
+  m_sort->unpack_addon_fields<Packed_addon_fields>(payload);
   return 0;
 }
-/* cacheing of records from a database */
 
-/**
-  Initialize caching of records from temporary file.
+SortBufferIndirectIterator::SortBufferIndirectIterator(
+    THD *thd, TABLE *table, Sort_result *sort_result,
+    bool ignore_not_found_rows)
+    : RowIterator(thd, table),
+      m_sort_result(sort_result),
+      m_ref_length(table->file->ref_length),
+      m_record(table->record[0]),
+      m_cache_pos(sort_result->sorted_result.get()),
+      m_cache_end(m_cache_pos +
+                  sort_result->found_records * table->file->ref_length),
+      m_ignore_not_found_rows(ignore_not_found_rows) {}
 
-  @retval
-    0 OK, use caching.
-    1 Buffer is too small, or cannot be allocated.
-      Skip caching, and read records directly from temporary file.
- */
-static int init_rr_cache(THD *thd, READ_RECORD *info) {
-  uint rec_cache_size;
-  DBUG_ENTER("init_rr_cache");
+SortBufferIndirectIterator::~SortBufferIndirectIterator() {
+  m_sort_result->sorted_result.reset();
+  DBUG_ASSERT(!m_sort_result->sorted_result_in_fsbuf);
+  m_sort_result->sorted_result_in_fsbuf = false;
 
-  READ_RECORD info_copy = *info;
-  info->struct_length = 3 + MAX_REFLENGTH;
-  info->reclength = ALIGN_SIZE(info->table->s->reclength + 1);
-  if (info->reclength < info->struct_length)
-    info->reclength = ALIGN_SIZE(info->struct_length);
+  (void)table()->file->ha_index_or_rnd_end();
+}
 
-  info->error_offset = info->table->s->reclength;
-  info->cache_records = (thd->variables.read_rnd_buff_size /
-                         (info->reclength + info->struct_length));
-  rec_cache_size = info->cache_records * info->reclength;
-  info->rec_cache_size = info->cache_records * info->ref_length;
-
-  if (info->cache_records <= 2 ||
-      !(info->cache = (uchar *)my_malloc(
-            key_memory_READ_RECORD_cache,
-            rec_cache_size + info->cache_records * info->struct_length,
-            MYF(0)))) {
-    *info = info_copy;
-    DBUG_RETURN(1);
+bool SortBufferIndirectIterator::Init(QEP_TAB *qep_tab) {
+  int error = table()->file->ha_rnd_init(0);
+  if (error) {
+    PrintError(error);
+    return true;
   }
-  DBUG_PRINT("info", ("Allocated buffert for %d records", info->cache_records));
-  info->read_positions = info->cache + rec_cache_size;
-  info->cache_pos = info->cache_end = info->cache;
-  DBUG_RETURN(0);
-} /* init_rr_cache */
+  PushDownCondition(qep_tab);
+  return false;
+}
 
-static int rr_from_cache(READ_RECORD *info) {
-  uint i;
-  ulong length;
-  my_off_t rest_of_file;
-  int16 error;
-  uchar *position, *ref_position, *record_pos;
-  ulong record;
-
+int SortBufferIndirectIterator::Read() {
   for (;;) {
-    if (info->cache_pos != info->cache_end) {
-      if (info->cache_pos[info->error_offset]) {
-        shortget(&error, info->cache_pos);
-        info->table->file->print_error(error, MYF(0));
-      } else {
-        error = 0;
-        memcpy(info->record, info->cache_pos,
-               (size_t)info->table->s->reclength);
-      }
-      info->cache_pos += info->reclength;
-      return ((int)error);
-    }
-    length = info->rec_cache_size;
-    rest_of_file = info->io_cache->end_of_file - my_b_tell(info->io_cache);
-    if ((my_off_t)length > rest_of_file) length = (ulong)rest_of_file;
-    if (!length || my_b_read(info->io_cache, info->cache, length)) {
-      DBUG_PRINT("info", ("Found end of file"));
-      return -1; /* End of file */
+    if (m_cache_pos == m_cache_end) return -1; /* End of file */
+    uchar *cache_pos = m_cache_pos;
+    m_cache_pos += m_ref_length;
+
+    int tmp = table()->file->ha_rnd_pos(m_record, cache_pos);
+    if (tmp == 0) {
+      return 0;
     }
 
-    length /= info->ref_length;
-    position = info->cache;
-    ref_position = info->read_positions;
-    for (i = 0; i < length; i++, position += info->ref_length) {
-      memcpy(ref_position, position, (size_t)info->ref_length);
-      ref_position += MAX_REFLENGTH;
-      int3store(ref_position, (long)i);
-      ref_position += 3;
-    }
-    size_t ref_length = info->ref_length;
-    DBUG_ASSERT(ref_length <= MAX_REFLENGTH);
-    varlen_sort(info->read_positions,
-                info->read_positions + length * info->struct_length,
-                info->struct_length,
-                [ref_length](const uchar *a, const uchar *b) {
-                  return memcmp(a, b, ref_length) < 0;
-                });
-
-    position = info->read_positions;
-    for (i = 0; i < length; i++) {
-      memcpy(info->ref_pos, position, (size_t)info->ref_length);
-      position += MAX_REFLENGTH;
-      record = uint3korr(position);
-      position += 3;
-      record_pos = info->cache + record * info->reclength;
-      error = (int16)info->table->file->ha_rnd_pos(record_pos, info->ref_pos);
-      if (error) {
-        record_pos[info->error_offset] = 1;
-        shortstore(record_pos, error);
-        DBUG_PRINT("error", ("Got error: %d:%d when reading row", my_errno(),
-                             (int)error));
-      } else
-        record_pos[info->error_offset] = 0;
-    }
-    info->cache_end =
-        (info->cache_pos = info->cache) + length * info->reclength;
+    /* The following is extremely unlikely to happen */
+    if (tmp == HA_ERR_RECORD_DELETED ||
+        (tmp == HA_ERR_KEY_NOT_FOUND && m_ignore_not_found_rows))
+      continue;
+    return HandleError(tmp);
   }
-} /* rr_from_cache */
+}
 
 /**
   The default implementation of unlock-row method of READ_RECORD,

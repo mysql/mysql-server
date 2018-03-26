@@ -33,6 +33,7 @@
 #include <functional>
 
 #include "binary_log_types.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -43,7 +44,6 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Item_cond_and
 #include "sql/opt_costmodel.h"
-#include "sql/set_var.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_cmd_dml.h"  // Sql_cmd_dml

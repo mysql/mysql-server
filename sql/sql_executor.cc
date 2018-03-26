@@ -33,8 +33,7 @@
 
 #include "sql/sql_executor.h"
 
-#include "my_config.h"
-
+#include <stdint.h>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -77,7 +76,6 @@
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key.h"       // key_cmp
 #include "sql/key_spec.h"
-#include "sql/log.h"
 #include "sql/mem_root_array.h"
 #include "sql/mysqld.h"  // stage_executing
 #include "sql/nested_join.h"
@@ -2633,7 +2631,8 @@ int join_init_read_record(QEP_TAB *tab) {
     (void)report_handler_error(tab->table(), error);
     return 1;
   }
-  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false))
+  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false,
+                       /*ignore_not_found_rows=*/false))
     return 1;
 
   if (first_init && tab->table()->file->inited && set_record_buffer(tab))

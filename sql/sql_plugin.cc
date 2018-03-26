@@ -1663,7 +1663,8 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     DBUG_VOID_RETURN;
   }
   table = tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, false)) {
+  if (init_read_record(&read_record_info, new_thd, table, NULL, false,
+                       /*ignore_not_found_rows=*/false)) {
     close_trans_system_tables(new_thd);
     DBUG_VOID_RETURN;
   }

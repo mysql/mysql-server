@@ -23,8 +23,6 @@
 #include "sql/auth/role_tables.h"
 
 #include <string.h>
-#include <type_traits>
-#include <utility>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -226,8 +224,8 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
   {
     roles_edges_table->use_all_columns();
-    if (init_read_record(&read_record_info, thd, roles_edges_table, NULL,
-                         false)) {
+    if (init_read_record(&read_record_info, thd, roles_edges_table, NULL, false,
+                         /*ignore_not_found_rows=*/false)) {
       my_error(ER_TABLE_CORRUPT, MYF(0), roles_edges_table->s->db.str,
                roles_edges_table->s->table_name.str);
       goto error;
@@ -271,8 +269,9 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
     default_role_table->use_all_columns();
 
-    bool ret = init_read_record(&read_record_info, thd, default_role_table,
-                                NULL, false);
+    bool ret =
+        init_read_record(&read_record_info, thd, default_role_table, NULL,
+                         false, /*ignore_not_found_records=*/false);
     DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit",
                     end_read_record(&read_record_info);
                     ret = true;);

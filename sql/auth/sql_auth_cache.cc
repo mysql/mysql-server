@@ -48,7 +48,6 @@
 #include "sql/auth/auth_common.h"    // ACL_internal_schema_access
 #include "sql/auth/auth_internal.h"  // auth_plugin_is_built_in
 #include "sql/auth/dynamic_privilege_table.h"
-#include "sql/auth/role_tables.h"
 #include "sql/auth/sql_authentication.h"  // g_cached_authentication_plugins
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
@@ -63,7 +62,6 @@
 #include "sql/mysqld.h"          // my_localhost
 #include "sql/psi_memory_key.h"  // key_memory_acl_mem
 #include "sql/records.h"         // READ_RECORD
-#include "sql/set_var.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_base.h"   // open_and_lock_tables
 #include "sql/sql_class.h"  // THD
@@ -1480,7 +1478,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     Prepare reading from the mysql.user table
   */
   if (init_read_record(&read_record_info, thd, table = tables[0].table, NULL,
-                       false))
+                       false, /*ignore_not_found_rows=*/false))
     goto end;
   table->use_all_columns();
   acl_users->clear();
@@ -1861,7 +1859,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     Prepare reading from the mysql.db table
   */
   if (init_read_record(&read_record_info, thd, table = tables[1].table, NULL,
-                       false))
+                       false, /*ignore_not_found_rows=*/false))
     goto end;
   table->use_all_columns();
   acl_dbs->clear();
@@ -1917,7 +1915,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
 
   if (tables[2].table) {
     if (init_read_record(&read_record_info, thd, table = tables[2].table, NULL,
-                         false))
+                         false, /*ignore_not_found_rows=*/false))
       goto end;
     table->use_all_columns();
     while (

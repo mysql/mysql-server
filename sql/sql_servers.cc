@@ -73,7 +73,6 @@
 #include "sql/auth/auth_common.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/log.h"
 #include "sql/psi_memory_key.h"   // key_memory_servers
 #include "sql/records.h"          // init_read_record, end_read_record
 #include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
@@ -81,6 +80,7 @@
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
+#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql/thr_malloc.h"
@@ -222,7 +222,8 @@ static bool servers_load(THD *thd, TABLE *table) {
   free_root(&mem, MYF(0));
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  if (init_read_record(&read_record_info, thd, table, NULL, false))
+  if (init_read_record(&read_record_info, thd, table, NULL, false,
+                       /*ignore_not_found_rows=*/false))
     DBUG_RETURN(true);
 
   while (!(read_record_info.read_record(&read_record_info))) {

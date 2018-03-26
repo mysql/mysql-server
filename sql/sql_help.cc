@@ -29,6 +29,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
@@ -57,8 +58,6 @@
 #include "sql_string.h"
 #include "thr_lock.h"
 #include "typelib.h"
-
-struct MEM_ROOT;
 
 struct st_find_field {
   const char *table_name, *field_name;
@@ -218,7 +217,8 @@ static int search_topics(THD *thd, QEP_TAB *topics,
   READ_RECORD read_record_info;
   DBUG_ENTER("search_topics");
 
-  if (init_read_record(&read_record_info, thd, NULL, topics, false))
+  if (init_read_record(&read_record_info, thd, NULL, topics, false,
+                       /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info)) {
@@ -258,7 +258,8 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
   READ_RECORD read_record_info;
   DBUG_ENTER("search_keyword");
 
-  if (init_read_record(&read_record_info, thd, NULL, keywords, false))
+  if (init_read_record(&read_record_info, thd, NULL, keywords, false,
+                       /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info) && count < 2) {
@@ -383,7 +384,8 @@ static int search_categories(THD *thd, QEP_TAB *categories,
 
   DBUG_ENTER("search_categories");
 
-  if (init_read_record(&read_record_info, thd, NULL, categories, false))
+  if (init_read_record(&read_record_info, thd, NULL, categories, false,
+                       /*ignore_not_found_rows=*/false))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info)) {
@@ -416,7 +418,8 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
   READ_RECORD read_record_info;
   DBUG_ENTER("get_all_items_for_category");
 
-  if (init_read_record(&read_record_info, thd, NULL, items, false))
+  if (init_read_record(&read_record_info, thd, NULL, items, false,
+                       /*ignore_not_found_rows=*/false))
     DBUG_VOID_RETURN;
   while (!read_record_info.read_record(&read_record_info)) {
     if (!items->condition()->val_int()) continue;

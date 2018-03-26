@@ -227,8 +227,8 @@ bool mysql_persistent_dynamic_loader_imp::init(void *thdp) {
     auto guard =
         create_scope_guard([&thd]() { commit_and_close_mysql_tables(thd); });
 
-    if (init_read_record(&read_record_info, thd, component_table, NULL,
-                         false)) {
+    if (init_read_record(&read_record_info, thd, component_table, NULL, false,
+                         /*ignore_not_found_rows=*/false)) {
       push_warning(thd, Sql_condition::SL_WARNING, ER_COMPONENT_TABLE_INCORRECT,
                    ER_THD(thd, ER_COMPONENT_TABLE_INCORRECT));
       return false;

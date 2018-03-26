@@ -29,7 +29,6 @@
 #include "sql/sql_delete.h"
 
 #include <limits.h>
-#include <string.h>
 #include <atomic>
 
 #include "lex_string.h"
@@ -437,7 +436,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     }
 
     if (usable_index == MAX_KEY || qep_tab.quick())
-      error = init_read_record(&info, thd, NULL, &qep_tab, false);
+      error = init_read_record(&info, thd, NULL, &qep_tab, false,
+                               /*ignore_not_found_rows=*/false);
     else
       error = init_read_record_idx(&info, thd, table, usable_index, reverse);
 
@@ -1112,12 +1112,13 @@ int Query_result_delete::do_table_deletes(TABLE *table) {
   READ_RECORD info;
   ha_rows last_deleted = deleted_rows;
   DBUG_ENTER("Query_result_delete::do_table_deletes");
-  if (init_read_record(&info, thd, table, NULL, false)) DBUG_RETURN(1);
   /*
     Ignore any rows not found in reference tables as they may already have
     been deleted by foreign key handling
   */
-  info.ignore_not_found_rows = 1;
+  if (init_read_record(&info, thd, table, NULL, false,
+                       /*ignore_not_found_rows=*/true))
+    DBUG_RETURN(1);
   bool will_batch = !table->file->start_bulk_delete();
   while (!(local_error = info.read_record(&info)) && !thd->killed) {
     if (table->triggers &&

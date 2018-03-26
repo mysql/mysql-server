@@ -31,7 +31,6 @@
 #include <vector>
 
 #include "dd/string_type.h"
-#include "m_ctype.h"
 #include "mdl.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
@@ -45,6 +44,7 @@ class FOREIGN_KEY;
 class KEY;
 class THD;
 class handler;
+struct CHARSET_INFO;
 struct TABLE;
 struct TABLE_LIST;
 struct handlerton;

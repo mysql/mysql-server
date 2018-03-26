@@ -23,76 +23,68 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <sys/types.h>
+#include <memory>
 
-#include "my_base.h"
+#include "my_alloc.h"
 #include "my_inttypes.h"
+#include "sql/basic_row_iterators.h"
+#include "sql/row_iterator.h"
 
-struct IO_CACHE;
 class QEP_TAB;
 class THD;
 struct TABLE;
 
-/**
-  A context for reading through a single table using a chosen access method:
-  index read, scan, etc, use of cache, etc.
-
-  Use by:
-@code
-  READ_RECORD read_record;
-  if (init_read_record(&read_record, ...))
-    return true;
-  while (read_record.read_record())
-  {
-    ...
-  }
-  end_read_record();
-@endcode
-*/
-
-class QUICK_SELECT_I;
-
+// TODO: Replace this entire structure with something that holds only a
+// RowIterator.
 struct READ_RECORD {
   typedef int (*Read_func)(READ_RECORD *);
   typedef void (*Unlock_row_func)(QEP_TAB *);
   typedef int (*Setup_func)(QEP_TAB *);
   typedef void (*Cleanup_func)(READ_RECORD *);
 
-  TABLE *table{nullptr};  /* Head-form */
-  TABLE **forms{nullptr}; /* head and ref forms */
+  // These are only used for the remaining access methods in sql_executor.cc
+  // that have not been converted to RowIterator yet.
+  TABLE *table{nullptr}; /* Head-form */
   Unlock_row_func unlock_row{nullptr};
-  Read_func read_record{nullptr};
-  Cleanup_func cleanup{nullptr};
-  THD *thd{nullptr};
-  QUICK_SELECT_I *quick{nullptr};
-  uint cache_records{0};
-  uint ref_length{0}, struct_length{0}, reclength{0}, rec_cache_size{0},
-      error_offset{0};
-
-  /**
-    Counting records when reading result from filesort().
-    Used when filesort leaves the result in the filesort buffer.
-   */
-  ha_rows unpack_counter{0};
-
-  uchar *ref_pos{nullptr}; /* pointer to form->refpos */
   uchar *record{nullptr};
-  uchar *rec_buf{nullptr}; /* to read field values  after filesort */
-  uchar *cache{nullptr}, *cache_pos{nullptr}, *cache_end{nullptr},
-      *read_positions{nullptr};
-  IO_CACHE *io_cache{nullptr};
-  bool ignore_not_found_rows{false};
+
+  Read_func read_record{nullptr};
+  unique_ptr_destroy_only<RowIterator> iterator;
+
+  // Holds one out of all RowIterator implementations, so that it is
+  // possible to initialize a RowIterator without heap allocations.
+  // (The iterator member typically points to this union, and is
+  // responsible for running the right destructor.)
+  union IteratorHolder {
+    IteratorHolder() {}
+    ~IteratorHolder() {}
+
+    TableScanIterator table_scan;
+    IndexScanIterator<true> index_scan_reverse;
+    IndexScanIterator<false> index_scan;
+    IndexRangeScanIterator index_range_scan;
+    SortBufferIterator<true> sort_buffer_packed_addons;
+    SortBufferIterator<false> sort_buffer;
+    SortBufferIndirectIterator sort_buffer_indirect;
+    SortFileIterator<true> sort_file_packed_addons;
+    SortFileIterator<false> sort_file;
+    SortFileIndirectIterator sort_file_indirect;
+  } iterator_holder;
 
  public:
   READ_RECORD() {}
 };
 
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, bool disable_rr_cache);
+                      QEP_TAB *qep_tab, bool disable_rr_cache,
+                      bool ignore_not_found_rows);
 bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
                           bool reverse);
+// TODO: Should go away entirely in the future.
 void end_read_record(READ_RECORD *info);
 
 void rr_unlock_row(QEP_TAB *tab);
-int rr_sequential(READ_RECORD *info);
+
+int rr_iterator(READ_RECORD *info);
 
 #endif /* SQL_RECORDS_H */

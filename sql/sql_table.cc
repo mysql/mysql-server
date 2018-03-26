@@ -101,6 +101,7 @@
 #include "sql/key.h"            // KEY
 #include "sql/key_spec.h"       // Key_part_spec
 #include "sql/lock.h"           // mysql_lock_remove, lock_tablespace_names
+#include "sql/locked_tables_list.h"
 #include "sql/log.h"
 #include "sql/log_event.h"  // Query_log_event
 #include "sql/mdl.h"
@@ -14780,7 +14781,8 @@ static int copy_data_between_tables(
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (init_read_record(&info, thd, from, NULL, false)) {
+  if (init_read_record(&info, thd, from, NULL, false,
+                       /*ignore_not_found_rows=*/false)) {
     error = 1;
     goto err;
   }

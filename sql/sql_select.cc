@@ -38,7 +38,6 @@
 #include <atomic>
 
 #include "lex_string.h"
-#include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
@@ -73,6 +72,7 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/records.h"  // init_read_record, end_read_record
+#include "sql/set_var.h"
 #include "sql/sql_base.h"
 #include "sql/sql_do.h"
 #include "sql/sql_executor.h"
@@ -2678,8 +2678,6 @@ void JOIN_TAB::cleanup() {
     // deletion will be done by QEP_TAB
   } else
     qs_cleanup();
-
-  TRASH(this, sizeof(*this));
 }
 
 void QEP_TAB::cleanup() {
@@ -2706,8 +2704,6 @@ void QEP_TAB::cleanup() {
     }
     op->mem_free();
   }
-
-  TRASH(this, sizeof(*this));
 }
 
 void QEP_shared_owner::qs_cleanup() {
@@ -2725,7 +2721,6 @@ void QEP_shared_owner::qs_cleanup() {
     }
   }
   delete quick();
-  TRASH(this, sizeof(*this));
 }
 
 uint QEP_TAB::sjm_query_block_id() const {

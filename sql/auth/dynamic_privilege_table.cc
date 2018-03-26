@@ -23,7 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <string.h>
 #include <string>
-#include <unordered_map>
 
 #include "lex_string.h"
 #include "m_ctype.h"
@@ -109,7 +108,8 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
 
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
-  if (init_read_record(&read_record_info, thd, table, NULL, false)) {
+  if (init_read_record(&read_record_info, thd, table, NULL, false,
+                       /*ignore_not_found_rows=*/false)) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);
     DBUG_RETURN(true);

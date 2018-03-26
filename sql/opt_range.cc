@@ -120,6 +120,7 @@
 
 #include <fcntl.h>
 #include <float.h>
+#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <atomic>
@@ -10415,7 +10416,9 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge() {
   doing_pk_scan = false;
   /* index_merge currently doesn't support "using index" at all */
   head->set_keyread(false);
-  if (init_read_record(&read_record, thd, head, NULL, true)) DBUG_RETURN(1);
+  if (init_read_record(&read_record, thd, head, NULL, true,
+                       /*ignore_not_found_rows=*/false))
+    DBUG_RETURN(1);
   DBUG_RETURN(result);
 }
 

@@ -30,12 +30,15 @@
 
 #include <string.h>
 #include <sys/types.h>
+#include <memory>
 
+#include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "sql/item.h"
-#include "sql/records.h"    // READ_RECORD
+#include "sql/records.h"  // READ_RECORD
+#include "sql/row_iterator.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_opt_exec_shared.h"  // QEP_shared_owner
@@ -605,7 +608,9 @@ class QEP_TAB : public QEP_shared_owner {
   */
   READ_RECORD::Setup_func
       save_read_first_record;              /* to save read_first_record */
-  READ_RECORD::Read_func save_read_record; /* to save read_record.read_record */
+  READ_RECORD::Read_func save_read_record; /* to save read_first_record */
+  unique_ptr_destroy_only<RowIterator>
+      save_row_iterator; /* to save read_record.iterator */
 
   // join-cache-related members
   bool used_null_fields;

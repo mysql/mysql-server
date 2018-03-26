@@ -73,10 +73,8 @@
 #include "mysqld_error.h"  // ER_*
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/log.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"  // opt_allow_suspicious_udfs
-#include "sql/psi_memory_key.h"
+#include "sql/mysqld.h"     // opt_allow_suspicious_udfs
 #include "sql/records.h"    // READ_RECORD
 #include "sql/sql_base.h"   // close_mysql_tables
 #include "sql/sql_class.h"  // THD
@@ -246,7 +244,8 @@ void udf_read_functions_table() {
   }
 
   table = tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, false))
+  if (init_read_record(&read_record_info, new_thd, table, NULL, false,
+                       /*ignore_not_found_rows=*/false))
     goto end;
   while (!(error = read_record_info.read_record(&read_record_info))) {
     DBUG_PRINT("info", ("init udf record"));

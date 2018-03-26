@@ -30,12 +30,11 @@
 
 #include "sql/item_subselect.h"
 
-#include "my_config.h"
-
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
 #include <atomic>
+#include <memory>
 #include <utility>
 
 #include "decimal.h"
@@ -50,6 +49,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "sql/basic_row_iterators.h"
 #include "sql/check_stack.h"
 #include "sql/current_thd.h"  // current_thd
 #include "sql/debug_sync.h"   // DEBUG_SYNC
@@ -70,6 +70,7 @@
 #include "sql/query_options.h"
 #include "sql/query_result.h"
 #include "sql/records.h"
+#include "sql/row_iterator.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
@@ -2937,11 +2938,11 @@ bool subselect_single_select_engine::exec() {
               /* Change the access method to full table scan */
               tab->save_read_first_record = tab->read_first_record;
               tab->save_read_record = tab->read_record.read_record;
-              tab->read_record.read_record = rr_sequential;
+              tab->save_row_iterator = move(tab->read_record.iterator);
+              tab->read_record.read_record = rr_iterator;
+              tab->read_record.iterator.reset(
+                  new TableScanIterator(join->thd, table));
               tab->read_first_record = read_first_record_seq;
-              tab->read_record.record = table->record[0];
-              tab->read_record.thd = join->thd;
-              tab->read_record.ref_length = table->file->ref_length;
               tab->read_record.unlock_row = rr_unlock_row;
               *(last_changed_tab++) = tab;
               break;
@@ -2956,10 +2957,16 @@ bool subselect_single_select_engine::exec() {
     /* Enable the optimizations back */
     for (QEP_TAB **ptab = changed_tabs; ptab != last_changed_tab; ptab++) {
       QEP_TAB *const tab = *ptab;
-      tab->read_record.record = 0;
-      tab->read_record.ref_length = 0;
       tab->read_first_record = tab->save_read_first_record;
-      tab->read_record.read_record = tab->save_read_record;
+      if (tab->save_read_record != nullptr) {
+        tab->read_record.read_record = tab->save_read_record;
+
+        // This was created with a heap allocation above, and "iterator" is a
+        // unique_ptr_destroy_only, so we need to delete it explicitly here.
+        delete tab->read_record.iterator.release();
+
+        tab->read_record.iterator = move(tab->save_row_iterator);
+      }
       tab->save_read_first_record = NULL;
     }
     unit->set_executed();
