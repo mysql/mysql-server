@@ -2843,6 +2843,7 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
   ut_ad(trx->rsegs.m_redo.rseg == 0);
   ut_ad(!trx->in_rw_trx_list);
   ut_ad(!trx_is_autocommit_non_locking(trx));
+  ut_ad(!trx->read_only);
 
   if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
     return;
@@ -2879,11 +2880,9 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
   }
 #endif /* UNIV_DEBUG */
 
-  if (!trx->read_only) {
-    UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
+  UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 
-    ut_d(trx->in_rw_trx_list = true);
-  }
+  ut_d(trx->in_rw_trx_list = true);
 
   mutex_exit(&trx_sys->mutex);
 }
