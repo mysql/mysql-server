@@ -38,6 +38,7 @@
 #include "sql/row_iterator.h"
 
 class Filesort_info;
+class Item;
 class QEP_TAB;
 class QUICK_SELECT_I;
 class Sort_result;
@@ -54,16 +55,21 @@ struct TABLE;
  */
 class TableScanIterator final : public RowIterator {
  public:
-  TableScanIterator(THD *thd, TABLE *table);
+  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
+  // buffers.
+  //
+  // The pushed condition can be nullptr.
+  TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+                    Item *pushed_condition);
   ~TableScanIterator();
 
-  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown
-  // and setting up record buffers.
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
   uchar *const m_record;
+  QEP_TAB *const m_qep_tab;
+  Item *const m_pushed_condition;
 };
 
 /** Perform a full index scan along an index. */
@@ -75,18 +81,25 @@ class IndexScanIterator final : public RowIterator {
   // using the index (e.g. for an index-only scan of the entire table),
   // but do not actually care about the order. In particular, partitioned
   // tables can use this to deliver more efficient scans.
-  IndexScanIterator(THD *thd, TABLE *table, int idx, bool use_order);
+  //
+  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
+  // buffers.
+  //
+  // The pushed condition can be nullptr.
+  //
+  IndexScanIterator(THD *thd, TABLE *table, int idx, bool use_order,
+                    QEP_TAB *qep_tab, Item *pushed_condition);
   ~IndexScanIterator();
 
-  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown
-  // and setting up record buffers.
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
   uchar *const m_record;
   const int m_idx;
   const bool m_use_order;
+  QEP_TAB *const m_qep_tab;
+  Item *const m_pushed_condition;
   bool m_first = true;
 };
 
@@ -103,16 +116,23 @@ class IndexScanIterator final : public RowIterator {
 class IndexRangeScanIterator final : public RowIterator {
  public:
   // Does _not_ take ownership of "quick" (but maybe it should).
-  IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick);
+  //
+  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
+  // buffers.
+  //
+  // The pushed condition can be nullptr.
+  //
+  IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick,
+                         QEP_TAB *qep_tab, Item *pushed_condition);
 
-  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown
-  // and setting up record buffers.
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
   // NOTE: No destructor; quick_range will call ha_index_or_rnd_end() for us.
   QUICK_SELECT_I *const m_quick;
+  QEP_TAB *const m_qep_tab;
+  Item *const m_pushed_condition;
 };
 
 // Readers relating to reading sorted data (from filesort).
@@ -141,8 +161,7 @@ class SortBufferIterator final : public RowIterator {
                      Sort_result *sort_result);
   ~SortBufferIterator();
 
-  // Accepts nullptr for qep_tab (obviously).
-  bool Init(QEP_TAB *) override;
+  bool Init() override;
   int Read() override;
 
  private:
@@ -169,15 +188,19 @@ class SortBufferIndirectIterator final : public RowIterator {
   // Ownership here is suboptimal: Takes only partial ownership of
   // "sort_result", so it must be alive for as long as the RowIterator is.
   // However, it _does_ free the buffers within on destruction.
+  //
+  // The pushed condition can be nullptr.
   SortBufferIndirectIterator(THD *thd, TABLE *table, Sort_result *sort_result,
-                             bool ignore_not_found_rows);
+                             bool ignore_not_found_rows,
+                             Item *pushed_condition);
   ~SortBufferIndirectIterator();
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
   Sort_result *const m_sort_result;
   const uint m_ref_length;
+  Item *const m_pushed_condition;
   uchar *m_record = nullptr;
   uchar *m_cache_pos = nullptr, *m_cache_end = nullptr;
   bool m_ignore_not_found_rows;
@@ -199,8 +222,7 @@ class SortFileIterator final : public RowIterator {
                    Filesort_info *sort);
   ~SortFileIterator();
 
-  // Accepts nullptr for qep_tab (obviously).
-  bool Init(QEP_TAB *) override { return false; }
+  bool Init() override { return false; }
   int Read() override;
 
  private:
@@ -222,12 +244,15 @@ class SortFileIterator final : public RowIterator {
 class SortFileIndirectIterator final : public RowIterator {
  public:
   // Takes ownership of tempfile.
+  //
+  // The pushed condition can be nullptr.
+  //
   SortFileIndirectIterator(THD *thd, TABLE *table, IO_CACHE *tempfile,
-                           bool request_cache, bool ignore_not_found_rows);
+                           bool request_cache, bool ignore_not_found_rows,
+                           Item *pushed_condition);
   ~SortFileIndirectIterator();
 
-  // Accepts nullptr for qep_tab; qep_tab is used only for condition pushdown.
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
@@ -236,6 +261,7 @@ class SortFileIndirectIterator final : public RowIterator {
   int UncachedRead();
 
   IO_CACHE *m_io_cache = nullptr;
+  Item *const m_pushed_condition;
   uchar *m_record = nullptr;
   uchar *m_ref_pos = nullptr; /* pointer to form->refpos */
   bool m_ignore_not_found_rows;

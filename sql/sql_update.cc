@@ -560,13 +560,13 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         setup_read_record(&info, thd, NULL, &qep_tab, false,
                           /*ignore_not_found_rows=*/false);
 
+        // Force filesort to sort by position.
+        qep_tab.keep_current_rowid = true;
         fsort.reset(new (thd->mem_root) Filesort(&qep_tab, order, limit));
         unique_ptr_destroy_only<RowIterator> sort(
             new (&info.sort_holder)
                 SortingIterator(thd, table, fsort.get(), move(info.iterator)));
-        // Force filesort to sort by position.
-        qep_tab.keep_current_rowid = true;
-        if (sort->Init(&qep_tab)) DBUG_RETURN(true);
+        if (sort->Init()) DBUG_RETURN(true);
         info.iterator = move(sort);
 
         /*
@@ -616,10 +616,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           setup_read_record(&info, thd, NULL, &qep_tab, false,
                             /*ignore_not_found_rows=*/false);
         } else {
-          setup_read_record_idx(&info, thd, table, used_index, reverse);
+          setup_read_record_idx(&info, thd, table, used_index, reverse,
+                                &qep_tab);
         }
 
-        if (info.iterator->Init(&qep_tab)) {
+        if (info.iterator->Init()) {
           DBUG_RETURN(true);
         }
 
@@ -690,8 +691,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             new (&info.iterator_holder.sort_file_indirect)
                 SortFileIndirectIterator(thd, table, tempfile,
                                          /*request_cache=*/false,
-                                         /*ignore_not_found_rows=*/false));
-        if (info.iterator->Init(&qep_tab)) DBUG_RETURN(true);
+                                         /*ignore_not_found_rows=*/false,
+                                         qep_tab.condition()));
+        if (info.iterator->Init()) DBUG_RETURN(true);
 
         qep_tab.set_quick(NULL);
         qep_tab.set_condition(NULL);

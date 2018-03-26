@@ -410,7 +410,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       setup_read_record(&info, thd, NULL, &qep_tab, false,
                         /*ignore_not_found_rows=*/false);
     else
-      setup_read_record_idx(&info, thd, table, usable_index, reverse);
+      setup_read_record_idx(&info, thd, table, usable_index, reverse, &qep_tab);
 
     if (need_sort) {
       DBUG_ASSERT(usable_index == MAX_KEY);
@@ -420,7 +420,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
           new (&info.sort_holder)
               SortingIterator(thd, table, fsort.get(), move(info.iterator)));
       qep_tab.keep_current_rowid = true;  // Force filesort to sort by position.
-      if (sort->Init(&qep_tab)) DBUG_RETURN(true);
+      if (sort->Init()) DBUG_RETURN(true);
       info.iterator = move(sort);
 
       /*
@@ -429,7 +429,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       */
       qep_tab.set_condition(NULL);
     } else {
-      if (info.iterator->Init(&qep_tab)) DBUG_RETURN(true);
+      if (info.iterator->Init()) DBUG_RETURN(true);
     }
 
     if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))

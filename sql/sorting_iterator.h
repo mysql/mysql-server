@@ -74,7 +74,7 @@ class SortingIterator final : public RowIterator {
   // that needs ORDER BY with LIMIT, so for correctness, we really need
   // the re-sort. Longer-term we should test whether the TABLE_REF is
   // unchanged, and if so, just re-init the result iterator.
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
 
   int Read() override { return m_result_iterator->Read(); }
 

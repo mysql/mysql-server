@@ -1506,7 +1506,7 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
 
     if (in_first_read) {
       in_first_read = false;
-      if (iterator->Init(qep_tab)) {
+      if (iterator->Init()) {
         rc = NESTED_LOOP_ERROR;
         break;
       }
@@ -2173,11 +2173,10 @@ static int read_system(TABLE *table) {
   return table->has_row() ? 0 : -1;
 }
 
-ConstIterator::ConstIterator(THD *thd, TABLE *table)
-    : RowIterator(thd, table) {}
+ConstIterator::ConstIterator(THD *thd, TABLE *table, TABLE_REF *table_ref)
+    : RowIterator(thd, table), m_ref(table_ref) {}
 
-bool ConstIterator::Init(QEP_TAB *qep_tab) {
-  m_ref = &qep_tab->ref();
+bool ConstIterator::Init() {
   m_first_record_since_init = true;
   return false;
 }
@@ -2238,16 +2237,33 @@ static int read_const(TABLE *table, TABLE_REF *ref) {
   DBUG_RETURN(table->has_row() ? 0 : -1);
 }
 
-EQRefIterator::EQRefIterator(THD *thd, TABLE *table)
-    : RowIterator(thd, table) {}
+EQRefIterator::EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
+                             bool use_order)
+    : RowIterator(thd, table), m_ref(ref), m_use_order(use_order) {}
 
-bool EQRefIterator::Init(QEP_TAB *qep_tab) {
-  m_ref = &qep_tab->ref();
+/**
+  Read row using unique key: eq_ref access method implementation
 
+  @details
+    This is the "read_first" function for the eq_ref access method.
+    The difference from ref access function is that it has a one-element
+    lookup cache, maintained in record[0]. Since the eq_ref access method
+    will always return the same row, it is not necessary to read the row
+    more than once, regardless of how many times it is needed in execution.
+    This cache element is used when a row is needed after it has been read once,
+    unless a key conversion error has occurred, or the cache has been disabled.
+
+  @param qep_tab   JOIN_TAB of the accessed table
+
+  @retval  0 - Ok
+  @retval -1 - Row not found
+  @retval  1 - Error
+*/
+
+bool EQRefIterator::Init() {
   if (!table()->file->inited) {
-    DBUG_ASSERT(
-        !qep_tab->use_order());  // Don't expect sort req. for single row.
-    int error = table()->file->ha_index_init(m_ref->key, qep_tab->use_order());
+    DBUG_ASSERT(!m_use_order);  // Don't expect sort req. for single row.
+    int error = table()->file->ha_index_init(m_ref->key, m_use_order);
     if (error) {
       PrintError(error);
       return true;
@@ -2349,16 +2365,15 @@ void EQRefIterator::UnlockRow() {
   if (m_ref->use_count) m_ref->use_count--;
 }
 
-PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table)
-    : RowIterator(thd, table) {}
+PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table,
+                                             TABLE_REF *ref, bool use_order)
+    : RowIterator(thd, table), m_ref(ref), m_use_order(use_order) {}
 
-bool PushedJoinRefIterator::Init(QEP_TAB *qep_tab) {
-  DBUG_ASSERT(!qep_tab->use_order());  // Pushed child can't be sorted
-
-  m_ref = &qep_tab->ref();
+bool PushedJoinRefIterator::Init() {
+  DBUG_ASSERT(!m_use_order);  // Pushed child can't be sorted
 
   if (!table()->file->inited) {
-    int error = table()->file->ha_index_init(m_ref->key, qep_tab->use_order());
+    int error = table()->file->ha_index_init(m_ref->key, m_use_order);
     if (error) {
       PrintError(error);
       return true;
@@ -2405,15 +2420,18 @@ int PushedJoinRefIterator::Read() {
 }
 
 template <bool Reverse>
-RefIterator<Reverse>::RefIterator(THD *thd, TABLE *table)
-    : RowIterator(thd, table) {}
+RefIterator<Reverse>::RefIterator(THD *thd, TABLE *table, TABLE_REF *ref,
+                                  bool use_order, QEP_TAB *qep_tab)
+    : RowIterator(thd, table),
+      m_ref(ref),
+      m_use_order(use_order),
+      m_qep_tab(qep_tab) {}
 
 template <bool Reverse>
-bool RefIterator<Reverse>::Init(QEP_TAB *tab) {
-  m_ref = &tab->ref();
+bool RefIterator<Reverse>::Init() {
   m_first_record_since_init = true;
-  return init_index_and_record_buffer(tab, tab->table()->file, tab->ref().key,
-                                      tab->use_order());
+  return init_index_and_record_buffer(m_qep_tab, m_qep_tab->table()->file,
+                                      m_ref->key, m_use_order);
 }
 
 // Doxygen gets confused by the explicit specializations.
@@ -2493,38 +2511,39 @@ int RefIterator<true>::Read() {  // Reverse read.
 }
 //! @endcond
 
-DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table)
-    : RowIterator(thd, table) {}
+DynamicRangeIterator::DynamicRangeIterator(THD *thd, TABLE *table,
+                                           QEP_TAB *qep_tab)
+    : RowIterator(thd, table), m_qep_tab(qep_tab) {}
 
-bool DynamicRangeIterator::Init(QEP_TAB *qep_tab) {
+bool DynamicRangeIterator::Init() {
   Opt_trace_context *const trace = &thd()->opt_trace;
   const bool disable_trace =
-      qep_tab->quick_traced_before &&
+      m_quick_traced_before &&
       !trace->feature_enabled(Opt_trace_context::DYNAMIC_RANGE);
   Opt_trace_disable_I_S disable_trace_wrapper(trace, disable_trace);
 
-  qep_tab->quick_traced_before = true;
+  m_quick_traced_before = true;
 
   Opt_trace_object wrapper(trace);
   Opt_trace_object trace_table(trace, "rows_estimation_per_outer_row");
-  trace_table.add_utf8_table(qep_tab->table_ref);
+  trace_table.add_utf8_table(m_qep_tab->table_ref);
 
   Key_map needed_reg_dummy;
-  QUICK_SELECT_I *old_qck = qep_tab->quick();
+  QUICK_SELECT_I *old_qck = m_qep_tab->quick();
   QUICK_SELECT_I *qck;
   DEBUG_SYNC(thd(), "quick_not_created");
   const int rc =
-      test_quick_select(thd(), qep_tab->keys(),
+      test_quick_select(thd(), m_qep_tab->keys(),
                         0,  // empty table map
                         HA_POS_ERROR,
                         false,  // don't force quick range
-                        ORDER_NOT_RELEVANT, qep_tab, qep_tab->condition(),
+                        ORDER_NOT_RELEVANT, m_qep_tab, m_qep_tab->condition(),
                         &needed_reg_dummy, &qck);
   if (thd()->is_error())  // @todo consolidate error reporting of
                           // test_quick_select
     return true;
   DBUG_ASSERT(old_qck == NULL || old_qck != qck);
-  qep_tab->set_quick(qck);
+  m_qep_tab->set_quick(qck);
 
   /*
     EXPLAIN CONNECTION is used to understand why a query is currently taking
@@ -2537,8 +2556,8 @@ bool DynamicRangeIterator::Init(QEP_TAB *qep_tab) {
   DEBUG_SYNC(thd(), "quick_created_before_mutex");
 
   thd()->lock_query_plan();
-  qep_tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
-  qep_tab->set_quick_optim();
+  m_qep_tab->set_type(qck ? calc_join_type(qck->get_type()) : JT_ALL);
+  m_qep_tab->set_quick_optim();
   thd()->unlock_query_plan();
 
   delete old_qck;
@@ -2554,12 +2573,13 @@ bool DynamicRangeIterator::Init(QEP_TAB *qep_tab) {
 
   if (qck) {
     m_iterator.reset(new (&m_iterator_holder.index_range_scan)
-                         IndexRangeScanIterator(thd(), table(), qck));
+                         IndexRangeScanIterator(thd(), table(), qck, m_qep_tab,
+                                                m_qep_tab->condition()));
   } else {
-    m_iterator.reset(new (&m_iterator_holder.table_scan)
-                         TableScanIterator(thd(), table()));
+    m_iterator.reset(new (&m_iterator_holder.table_scan) TableScanIterator(
+        thd(), table(), m_qep_tab, m_qep_tab->condition()));
   }
-  return m_iterator->Init(qep_tab);
+  return m_iterator->Init();
 }
 
 int DynamicRangeIterator::Read() {
@@ -2717,17 +2737,17 @@ bool QEP_TAB::use_order() const {
   return false;
 }
 
-FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table)
-    : RowIterator(thd, table) {}
+FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
+                                               TABLE_REF *ref, bool use_order)
+    : RowIterator(thd, table), m_ref(ref), m_use_order(use_order) {}
 
 FullTextSearchIterator::~FullTextSearchIterator() {
   table()->file->ha_index_or_rnd_end();
 }
 
-bool FullTextSearchIterator::Init(QEP_TAB *qep_tab) {
+bool FullTextSearchIterator::Init() {
   if (!table()->file->inited) {
-    int error =
-        table()->file->ha_index_init(qep_tab->ref().key, qep_tab->use_order());
+    int error = table()->file->ha_index_init(m_ref->key, m_use_order);
     if (error) {
       PrintError(error);
       return true;
@@ -2749,15 +2769,18 @@ int FullTextSearchIterator::Read() {
   Reading of key with key reference and one part that may be NULL.
 */
 
-RefOrNullIterator::RefOrNullIterator(THD *thd, TABLE *table)
-    : RowIterator(thd, table) {}
+RefOrNullIterator::RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref,
+                                     bool use_order, QEP_TAB *qep_tab)
+    : RowIterator(thd, table),
+      m_ref(ref),
+      m_use_order(use_order),
+      m_qep_tab(qep_tab) {}
 
-bool RefOrNullIterator::Init(QEP_TAB *tab) {
-  m_ref = &tab->ref();
+bool RefOrNullIterator::Init() {
   m_reading_first_row = true;
   *m_ref->null_ref_key = false;
-  return init_index_and_record_buffer(tab, tab->table()->file, tab->ref().key,
-                                      tab->use_order());
+  return init_index_and_record_buffer(m_qep_tab, m_qep_tab->table()->file,
+                                      m_ref->key, m_use_order);
 }
 
 int RefOrNullIterator::Read() {
@@ -2820,34 +2843,37 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
     case JT_REF:
       if (join_tab->reversed_access) {
         read_record.iterator.reset(
-            new (&read_record.iterator_holder.ref_reverse)
-                RefIterator<true>(join()->thd, table()));
+            new (&read_record.iterator_holder.ref_reverse) RefIterator<true>(
+                join()->thd, table(), &ref(), use_order(), this));
       } else {
         read_record.iterator.reset(
-            new (&read_record.iterator_holder.ref)
-                RefIterator<false>(join()->thd, table()));
+            new (&read_record.iterator_holder.ref) RefIterator<false>(
+                join()->thd, table(), &ref(), use_order(), this));
       }
       break;
 
     case JT_REF_OR_NULL:
-      read_record.iterator.reset(new (&read_record.iterator_holder.ref_or_null)
-                                     RefOrNullIterator(join()->thd, table()));
+      read_record.iterator.reset(
+          new (&read_record.iterator_holder.ref_or_null) RefOrNullIterator(
+              join()->thd, table(), &ref(), use_order(), this));
       break;
 
     case JT_CONST:
-      read_record.iterator.reset(new (&read_record.iterator_holder.const_table)
-                                     ConstIterator(join()->thd, table()));
+      read_record.iterator.reset(
+          new (&read_record.iterator_holder.const_table)
+              ConstIterator(join()->thd, table(), &ref()));
       break;
 
     case JT_EQ_REF:
-      read_record.iterator.reset(new (&read_record.iterator_holder.eq_ref)
-                                     EQRefIterator(join()->thd, table()));
+      read_record.iterator.reset(
+          new (&read_record.iterator_holder.eq_ref)
+              EQRefIterator(join()->thd, table(), &ref(), use_order()));
       break;
 
     case JT_FT:
       read_record.iterator.reset(
-          new (&read_record.iterator_holder.fts)
-              FullTextSearchIterator(join()->thd, table()));
+          new (&read_record.iterator_holder.fts) FullTextSearchIterator(
+              join()->thd, table(), &ref(), use_order()));
       break;
 
     case JT_INDEX_SCAN:
@@ -2855,12 +2881,12 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
         read_record.iterator.reset(
             new (&read_record.iterator_holder.index_scan)
                 IndexScanIterator<true>(join()->thd, table(), index(),
-                                        use_order()));
+                                        use_order(), this, condition()));
       } else {
         read_record.iterator.reset(
             new (&read_record.iterator_holder.index_scan)
                 IndexScanIterator<false>(join()->thd, table(), index(),
-                                         use_order()));
+                                         use_order(), this, condition()));
       }
       break;
     case JT_ALL:
@@ -2870,7 +2896,7 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
         using_dynamic_range = true;
         read_record.iterator.reset(
             new (&read_record.iterator_holder.dynamic_range_scan)
-                DynamicRangeIterator(join()->thd, table()));
+                DynamicRangeIterator(join()->thd, table(), this));
 
       } else {
         join_setup_read_record(this);
@@ -2913,7 +2939,7 @@ void QEP_TAB::set_pushed_table_access_method(void) {
 
     read_record.iterator.reset(
         new (&read_record.iterator_holder.pushed_join_ref)
-            PushedJoinRefIterator(join()->thd, table()));
+            PushedJoinRefIterator(join()->thd, table(), &ref(), use_order()));
   }
   DBUG_VOID_RETURN;
 }
@@ -6218,7 +6244,7 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
       qep_tab->read_record.iterator.reset();
 
       join_setup_read_record(qep_tab);
-      if (qep_tab->read_record.iterator->Init(qep_tab)) {
+      if (qep_tab->read_record.iterator->Init()) {
         rc = NESTED_LOOP_ERROR;
         break;
       }

@@ -61,9 +61,11 @@
 SortFileIndirectIterator::SortFileIndirectIterator(THD *thd, TABLE *table,
                                                    IO_CACHE *tempfile,
                                                    bool request_cache,
-                                                   bool ignore_not_found_rows)
+                                                   bool ignore_not_found_rows,
+                                                   Item *pushed_condition)
     : RowIterator(thd, table),
       m_io_cache(tempfile),
+      m_pushed_condition(pushed_condition),
       m_record(table->record[0]),
       m_ref_pos(table->file->ref),
       m_ignore_not_found_rows(ignore_not_found_rows),
@@ -77,7 +79,7 @@ SortFileIndirectIterator::~SortFileIndirectIterator() {
   my_free(m_io_cache);
 }
 
-bool SortFileIndirectIterator::Init(QEP_TAB *qep_tab) {
+bool SortFileIndirectIterator::Init() {
   if (!table()->file->inited) {
     int error = table()->file->ha_rnd_init(0);
     if (error) {
@@ -107,7 +109,7 @@ bool SortFileIndirectIterator::Init(QEP_TAB *qep_tab) {
     m_using_cache = false;
   }
 
-  PushDownCondition(qep_tab);
+  PushDownCondition(m_pushed_condition);
 
   DBUG_PRINT("info", ("using cache: %d", m_using_cache));
   return false;
@@ -306,7 +308,7 @@ SortBufferIterator<Packed_addon_fields>::~SortBufferIterator() {
 }
 
 template <bool Packed_addon_fields>
-bool SortBufferIterator<Packed_addon_fields>::Init(QEP_TAB *) {
+bool SortBufferIterator<Packed_addon_fields>::Init() {
   m_unpack_counter = 0;
   return false;
 }
@@ -343,10 +345,11 @@ int SortBufferIterator<Packed_addon_fields>::Read() {
 
 SortBufferIndirectIterator::SortBufferIndirectIterator(
     THD *thd, TABLE *table, Sort_result *sort_result,
-    bool ignore_not_found_rows)
+    bool ignore_not_found_rows, Item *pushed_condition)
     : RowIterator(thd, table),
       m_sort_result(sort_result),
       m_ref_length(table->file->ref_length),
+      m_pushed_condition(pushed_condition),
       m_record(table->record[0]),
       m_ignore_not_found_rows(ignore_not_found_rows) {}
 
@@ -358,7 +361,7 @@ SortBufferIndirectIterator::~SortBufferIndirectIterator() {
   (void)table()->file->ha_index_or_rnd_end();
 }
 
-bool SortBufferIndirectIterator::Init(QEP_TAB *qep_tab) {
+bool SortBufferIndirectIterator::Init() {
   // The sort's source iterator could have initialized an index
   // read, and it won't call end until it's destroyed (which we
   // can't do before destroying SortingIterator, since we may need
@@ -371,7 +374,7 @@ bool SortBufferIndirectIterator::Init(QEP_TAB *qep_tab) {
     PrintError(error);
     return true;
   }
-  PushDownCondition(qep_tab);
+  PushDownCondition(m_pushed_condition);
   m_cache_pos = m_sort_result->sorted_result.get();
   m_cache_end =
       m_cache_pos + m_sort_result->found_records * table()->file->ref_length;
@@ -416,7 +419,8 @@ void SortingIterator::ReleaseBuffers() {
   m_sort_result.sorted_result_in_fsbuf = false;
 }
 
-bool SortingIterator::Init(QEP_TAB *qep_tab) {
+bool SortingIterator::Init() {
+  QEP_TAB *qep_tab = m_filesort->qep_tab;
   ReleaseBuffers();
 
   THD_STAGE_INFO(thd(), stage_creating_sort_index);
@@ -479,7 +483,8 @@ bool SortingIterator::Init(QEP_TAB *qep_tab) {
           new (&m_result_iterator_holder.sort_file_indirect)
               SortFileIndirectIterator(thd(), table, m_sort_result.io_cache,
                                        /*request_cache=*/true,
-                                       /*ignore_not_found_rows=*/false));
+                                       /*ignore_not_found_rows=*/false,
+                                       qep_tab->condition()));
     }
     m_sort_result.io_cache =
         nullptr;  // The result iterator has taken ownership.
@@ -503,11 +508,12 @@ bool SortingIterator::Init(QEP_TAB *qep_tab) {
       m_result_iterator.reset(
           new (&m_result_iterator_holder.sort_buffer_indirect)
               SortBufferIndirectIterator(thd(), table, &m_sort_result,
-                                         /*ignore_not_found_rows=*/false));
+                                         /*ignore_not_found_rows=*/false,
+                                         qep_tab->condition()));
     }
   }
 
-  return m_result_iterator->Init(qep_tab);
+  return m_result_iterator->Init();
 }
 
 /*

@@ -44,13 +44,16 @@ struct TABLE_REF;
 template <bool Reverse>
 class RefIterator final : public RowIterator {
  public:
-  RefIterator(THD *thd, TABLE *table);
+  RefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
+              QEP_TAB *qep_tab);
 
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
-  TABLE_REF *m_ref = nullptr;
+  TABLE_REF *const m_ref;
+  const bool m_use_order;
+  QEP_TAB *const m_qep_tab;
   bool m_first_record_since_init;
 };
 
@@ -60,14 +63,17 @@ class RefIterator final : public RowIterator {
  */
 class RefOrNullIterator final : public RowIterator {
  public:
-  RefOrNullIterator(THD *thd, TABLE *table);
+  RefOrNullIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
+                    QEP_TAB *qep_tab);
 
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
-  TABLE_REF *m_ref = nullptr;
+  TABLE_REF *const m_ref;
+  const bool m_use_order;
   bool m_reading_first_row;
+  QEP_TAB *const m_qep_tab;
 };
 
 /**
@@ -78,14 +84,15 @@ class RefOrNullIterator final : public RowIterator {
  */
 class EQRefIterator final : public RowIterator {
  public:
-  EQRefIterator(THD *thd, TABLE *table);
+  EQRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order);
 
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
   void UnlockRow() override;
 
  private:
-  TABLE_REF *m_ref = nullptr;
+  TABLE_REF *const m_ref;
+  const bool m_use_order;
   bool m_first_record_since_init;
 };
 
@@ -95,27 +102,29 @@ class EQRefIterator final : public RowIterator {
  */
 class ConstIterator final : public RowIterator {
  public:
-  ConstIterator(THD *thd, TABLE *table);
+  ConstIterator(THD *thd, TABLE *table, TABLE_REF *table_ref);
 
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
-  TABLE_REF *m_ref = nullptr;
+  TABLE_REF *const m_ref;
   bool m_first_record_since_init;
 };
 
 /** An iterator that does a search through a full-text index. */
 class FullTextSearchIterator final : public RowIterator {
  public:
-  FullTextSearchIterator(THD *thd, TABLE *table);
+  FullTextSearchIterator(THD *thd, TABLE *table, TABLE_REF *ref,
+                         bool use_order);
   ~FullTextSearchIterator();
 
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
-  TABLE_REF *m_ref = nullptr;
+  TABLE_REF *const m_ref;
+  const bool m_use_order;
 };
 
 /*
@@ -133,12 +142,14 @@ class FullTextSearchIterator final : public RowIterator {
  */
 class DynamicRangeIterator final : public RowIterator {
  public:
-  DynamicRangeIterator(THD *thd, TABLE *table);
+  DynamicRangeIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab);
 
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
+  QEP_TAB *m_qep_tab;
+
   // See IteratorHolder in records.h; this is the same pattern,
   // just with fewer candidates.
   unique_ptr_destroy_only<RowIterator> m_iterator;
@@ -149,6 +160,16 @@ class DynamicRangeIterator final : public RowIterator {
     TableScanIterator table_scan;
     IndexRangeScanIterator index_range_scan;
   } m_iterator_holder;
+
+  /**
+    Used by optimizer tracing to decide whether or not dynamic range
+    analysis of this select has been traced already. If optimizer
+    trace option DYNAMIC_RANGE is enabled, range analysis will be
+    traced with different ranges for every record to the left of this
+    table in the join. If disabled, range analysis will only be traced
+    for the first range.
+  */
+  bool m_quick_traced_before = false;
 };
 
 /**
@@ -168,13 +189,14 @@ class DynamicRangeIterator final : public RowIterator {
  */
 class PushedJoinRefIterator final : public RowIterator {
  public:
-  PushedJoinRefIterator(THD *thd, TABLE *table);
+  PushedJoinRefIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order);
 
-  bool Init(QEP_TAB *qep_tab) override;
+  bool Init() override;
   int Read() override;
 
  private:
-  TABLE_REF *m_ref = nullptr;
+  TABLE_REF *const m_ref;
+  const bool m_use_order;
   bool m_first_record_since_init;
 };
 

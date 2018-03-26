@@ -936,7 +936,7 @@ static ha_rows read_all_rows(
   uchar *ref_pos = &file->ref[0];
 
   DBUG_EXECUTE_IF("bug14365043_1", DBUG_SET("+d,ha_rnd_init_fail"););
-  if (source_iterator->Init(qep_tab)) {
+  if (source_iterator->Init()) {
     DBUG_RETURN(HA_POS_ERROR);
   }
 

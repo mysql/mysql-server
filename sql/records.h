@@ -83,6 +83,6 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
                       bool ignore_not_found_rows);
 
 void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
-                           bool reverse);
+                           bool reverse, QEP_TAB *qep_tab);
 
 #endif /* SQL_RECORDS_H */

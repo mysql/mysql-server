@@ -23,7 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-class QEP_TAB;
+class Item;
 class THD;
 struct TABLE;
 
@@ -47,7 +47,7 @@ struct TABLE;
   Use by:
 @code
   unique_ptr<RowIterator> iterator(new ...);
-  if (iterator->Init(qep_tab))
+  if (iterator->Init())
     return true;
   while (iterator->Read() == 0) {
     ...
@@ -61,18 +61,13 @@ class RowIterator {
 
   /**
     Initialize or reinitialize the iterator. You must always call Init()
-    before trying a Read() (but Init() does not imply Read()). The attached
-    QEP_TAB can contain information that will help the RowIterator to
-    optimize the read (e.g. push conditions down to NDB, or, for join access
-    types such as eq_ref, know which row to read), but it can also choose to
-    ignore the parameter entirely. Some Iterators will accept nullptr;
-    see the documentation for each.
+    before trying a Read() (but Init() does not imply Read()).
 
     You can call Init() multiple times; subsequent calls will rewind the
-    iterator (or reposition it, depending on the QEP_TAB) and allow you to
-    read the records anew.
+    iterator (or reposition it, depending on whether the iterator takes in
+    e.g. a TABLE_REF) and allow you to read the records anew.
    */
-  virtual bool Init(QEP_TAB *qep_tab) = 0;
+  virtual bool Init() = 0;
 
   /**
     Read a single row. The row data is not actually returned from the function;
@@ -105,7 +100,7 @@ class RowIterator {
  protected:
   int HandleError(int error);
   void PrintError(int error);
-  void PushDownCondition(QEP_TAB *qep_tab);
+  void PushDownCondition(Item *condition);
   THD *thd() const { return m_thd; }
   TABLE *table() const { return m_table; }
 

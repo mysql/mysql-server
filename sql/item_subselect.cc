@@ -2938,8 +2938,8 @@ bool subselect_single_select_engine::exec() {
               /* Change the access method to full table scan */
               tab->save_using_dynamic_range = tab->using_dynamic_range;
               tab->save_row_iterator = move(tab->read_record.iterator);
-              tab->read_record.iterator.reset(
-                  new TableScanIterator(join->thd, table));
+              tab->read_record.iterator.reset(new TableScanIterator(
+                  join->thd, table, tab, tab->condition()));
               tab->using_dynamic_range = false;
               *(last_changed_tab++) = tab;
               break;

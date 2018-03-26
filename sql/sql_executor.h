@@ -423,7 +423,6 @@ class QEP_TAB : public QEP_shared_owner {
         filesort(NULL),
         ref_item_slice(REF_SLICE_SAVED_BASE),
         send_records(0),
-        quick_traced_before(false),
         m_condition_optim(NULL),
         m_quick_optim(NULL),
         m_keyread_optim(false),
@@ -635,17 +634,6 @@ class QEP_TAB : public QEP_shared_owner {
 
   /** Number of records saved in tmp table */
   ha_rows send_records;
-
-  /**
-    Used for QS_DYNAMIC_RANGE, i.e., "Range checked for each record".
-    Used by optimizer tracing to decide whether or not dynamic range
-    analysis of this select has been traced already. If optimizer
-    trace option DYNAMIC_RANGE is enabled, range analysis will be
-    traced with different ranges for every record to the left of this
-    table in the join. If disabled, range analysis will only be traced
-    for the first range.
-  */
-  bool quick_traced_before;
 
   /// @see m_quick_optim
   Item *m_condition_optim;
