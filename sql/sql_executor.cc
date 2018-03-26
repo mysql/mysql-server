@@ -1567,8 +1567,8 @@ enum_nested_loop_state sub_select(JOIN *join, QEP_TAB *const qep_tab,
 
   @details This function is the place to do any work on the table that
   needs to be done before table can be scanned. Currently it
-  only materialized derived tables and semi-joined subqueries and binds
-  buffer for current rowid.
+  materializes derived tables and semi-joined subqueries,
+  binds buffer for current rowid and removes duplicates if needed.
 
   @returns false - Ok, true  - error
 */
@@ -1585,6 +1585,8 @@ bool QEP_TAB::prepare_scan() {
   if (copy_current_rowid) copy_current_rowid->bind_buffer(table()->file->ref);
 
   table()->set_not_started();
+
+  if (needs_duplicate_removal && remove_duplicates()) return true;
 
   return false;
 }
@@ -2612,11 +2614,7 @@ int read_first_record_seq(QEP_TAB *tab) {
 */
 
 int join_init_read_record(QEP_TAB *tab) {
-  int error;
-
-  if (tab->needs_duplicate_removal &&
-      tab->remove_duplicates())  // Remove duplicates.
-    return 1;
+  DBUG_ASSERT(!tab->needs_duplicate_removal);
   if (tab->filesort && tab->sort_table())  // Sort table.
     return 1;
 
@@ -2626,6 +2624,7 @@ int join_init_read_record(QEP_TAB *tab) {
   */
   const bool first_init = !tab->table()->file->inited;
 
+  int error;
   if (tab->quick() && (error = tab->quick()->reset())) {
     /* Ensures error status is propageted back to client */
     (void)report_handler_error(tab->table(), error);
@@ -5581,6 +5580,7 @@ bool QEP_TAB::remove_duplicates() {
   if (!field_count && !join()->calc_found_rows &&
       !having) {  // only const items with no OPTION_FOUND_ROWS
     join()->unit->select_limit_cnt = 1;  // Only send first row
+    needs_duplicate_removal = false;
     DBUG_RETURN(false);
   }
   Field **first_field = tbl->field + tbl->s->fields - field_count;
@@ -5612,6 +5612,7 @@ bool QEP_TAB::remove_duplicates() {
   my_free(field_lengths);
 
   free_blobs(first_field);
+  needs_duplicate_removal = false;
   DBUG_RETURN(error);
 }
 
@@ -6374,7 +6375,10 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
     int error;
     if (in_first_read) {
       in_first_read = false;
-      error = join_init_read_record(qep_tab);
+      if (qep_tab->needs_duplicate_removal && qep_tab->remove_duplicates())
+        error = 1;
+      else
+        error = join_init_read_record(qep_tab);
     } else
       error = qep_tab->read_record.read_record(&qep_tab->read_record);
 
