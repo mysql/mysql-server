@@ -164,7 +164,7 @@ typedef void lf_hash_init_func(uchar *dst, const uchar *src);
 #define MY_LF_ERRPTR ((void *)(intptr)1)
 
 /* lf_hash overhead per element (that is, sizeof(LF_SLIST) */
-extern const int LF_HASH_OVERHEAD;
+extern MYSQL_PLUGIN_IMPORT const int LF_HASH_OVERHEAD;
 
 /**
   Callback for extracting key and key length from user data in a LF_HASH.
