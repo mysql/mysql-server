@@ -784,17 +784,6 @@ static int ndbcluster_binlog_func(handlerton*, THD *thd,
   switch(fn)
   {
   case BFN_RESET_LOGS:
-    if (thd->lex->sql_command == SQLCOM_RESET &&
-        thd->lex->type & REFRESH_MASTER)
-    {
-      // This is ha_reset_logs() called from RESET MASTER before removing
-      // binlog and resetting index -> wait for outstanding transactions
-      // to reach binlog of this MySQL Server
-      ndbcluster_binlog_wait(thd);
-      // NOTE! The reset of ndb_binlog_index is handled later by
-      // 'Ndb_binlog_thread::do_after_reset_master'
-      DBUG_RETURN(0);
-    }
     break;
   case BFN_RESET_SLAVE:
     ndbcluster_reset_slave(thd);
