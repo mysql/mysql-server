@@ -82,6 +82,7 @@ class EQRefIterator final : public RowIterator {
 
   bool Init(QEP_TAB *qep_tab) override;
   int Read() override;
+  void UnlockRow() override;
 
  private:
   TABLE_REF *m_ref = nullptr;

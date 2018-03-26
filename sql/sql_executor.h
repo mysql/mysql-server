@@ -365,7 +365,6 @@ int report_handler_error(TABLE *table, int error);
 int safe_index_read(QEP_TAB *tab);
 
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
-void join_read_key_unlock_row(st_join_table *tab);
 void join_setup_read_record(QEP_TAB *tab);
 int join_materialize_derived(QEP_TAB *tab);
 int join_materialize_table_function(QEP_TAB *tab);

@@ -1889,7 +1889,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
     } else {
       if (qep_tab->not_null_compl) {
         /* a NULL-complemented row is not in a table so cannot be locked */
-        qep_tab->read_record.unlock_row(qep_tab);
+        qep_tab->read_record.iterator->UnlockRow();
       }
     }
   } else {
@@ -1898,7 +1898,7 @@ static enum_nested_loop_state evaluate_join_record(JOIN *join,
       with the beginning coinciding with the current partial join.
     */
     join->examined_rows++;
-    if (qep_tab->not_null_compl) qep_tab->read_record.unlock_row(qep_tab);
+    if (qep_tab->not_null_compl) qep_tab->read_record.iterator->UnlockRow();
   }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
@@ -2344,9 +2344,9 @@ int EQRefIterator::Read() {
   @sa EQRefIterator::Read()
 */
 
-static void join_read_key_unlock_row(QEP_TAB *tab) {
-  DBUG_ASSERT(tab->ref().use_count);
-  if (tab->ref().use_count) tab->ref().use_count--;
+void EQRefIterator::UnlockRow() {
+  DBUG_ASSERT(m_ref->use_count);
+  if (m_ref->use_count) m_ref->use_count--;
 }
 
 PushedJoinRefIterator::PushedJoinRefIterator(THD *thd, TABLE *table)
@@ -2842,7 +2842,6 @@ void QEP_TAB::pick_table_access_method(const JOIN_TAB *join_tab) {
     case JT_EQ_REF:
       read_record.iterator.reset(new (&read_record.iterator_holder.eq_ref)
                                      EQRefIterator(join()->thd, table()));
-      read_record.unlock_row = join_read_key_unlock_row;
       break;
 
     case JT_FT:
@@ -2915,8 +2914,6 @@ void QEP_TAB::set_pushed_table_access_method(void) {
     read_record.iterator.reset(
         new (&read_record.iterator_holder.pushed_join_ref)
             PushedJoinRefIterator(join()->thd, table()));
-    // Use the default unlock_row function
-    read_record.unlock_row = rr_unlock_row;
   }
   DBUG_VOID_RETURN;
 }

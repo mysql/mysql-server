@@ -183,8 +183,6 @@ void setup_read_record(READ_RECORD *info, THD *thd, TABLE *table,
   empty_record(table);
 
   new (info) READ_RECORD;
-  info->table = table;
-  info->unlock_row = rr_unlock_row;
 
   unique_ptr_destroy_only<RowIterator> iterator;
 
@@ -232,6 +230,12 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
   }
   return false;
 }
+
+/**
+  The default implementation of unlock-row method of READ_RECORD,
+  used in all access methods except EQRefIterator.
+*/
+void RowIterator::UnlockRow() { m_table->file->unlock_row(); }
 
 int RowIterator::HandleError(int error) {
   if (thd()->killed) {
@@ -348,14 +352,4 @@ int TableScanIterator::Read() {
     return HandleError(tmp);
   }
   return 0;
-}
-
-/**
-  The default implementation of unlock-row method of READ_RECORD,
-  used in all access methods.
-*/
-
-void rr_unlock_row(QEP_TAB *tab) {
-  READ_RECORD *info = &tab->read_record;
-  info->table->file->unlock_row();
 }

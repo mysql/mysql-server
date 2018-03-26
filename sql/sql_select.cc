@@ -2483,10 +2483,8 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
     */
     if (prep_for_pos) table->prepare_for_position();
 
-    qep_tab->read_record.table = table;
     qep_tab->next_select = sub_select; /* normal select */
     qep_tab->cache_idx_cond = NULL;
-    qep_tab->read_record.unlock_row = rr_unlock_row;
 
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(qep_tab->table_ref);

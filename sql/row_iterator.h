@@ -88,9 +88,6 @@ class RowIterator {
    */
   virtual int Read() = 0;
 
-  // TODO: This member function will be exposed in the future; for now, use
-  // rr_unlock_row.
-  //
   // In certain queries, such as SELECT FOR UPDATE, UPDATE or DELETE queries,
   // reading rows will automatically take locks on them. (This means that the
   // set of locks taken will depend on whether e.g. the optimizer chose a table
@@ -103,8 +100,7 @@ class RowIterator {
   // not _which_ rows are returned. Thus, if Read() returned a row that you did
   // not actually use, you should call UnlockRow() afterwards, which allows the
   // storage engine to release the row lock in such situations.
-  //
-  // virtual void UnlockRow() = 0;
+  virtual void UnlockRow();
 
  protected:
   int HandleError(int error);

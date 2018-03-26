@@ -2941,7 +2941,6 @@ bool subselect_single_select_engine::exec() {
               tab->read_record.iterator.reset(
                   new TableScanIterator(join->thd, table));
               tab->using_dynamic_range = false;
-              tab->read_record.unlock_row = rr_unlock_row;
               *(last_changed_tab++) = tab;
               break;
             }

@@ -35,17 +35,8 @@ class QEP_TAB;
 class THD;
 struct TABLE;
 
-// TODO: Replace this entire structure with something that holds only a
-// RowIterator.
 struct READ_RECORD {
-  typedef void (*Unlock_row_func)(QEP_TAB *);
-
   RowIterator *operator->() { return iterator.get(); }
-
-  // These are only used for the remaining access methods in sql_executor.cc
-  // that have not been converted to RowIterator yet.
-  TABLE *table{nullptr}; /* Head-form */
-  Unlock_row_func unlock_row{nullptr};
 
   unique_ptr_destroy_only<RowIterator> iterator;
 
@@ -93,7 +84,5 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
 
 void setup_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
                            bool reverse);
-
-void rr_unlock_row(QEP_TAB *tab);
 
 #endif /* SQL_RECORDS_H */
