@@ -821,6 +821,12 @@ select inet_aton("255.255.255.2551");
 SELECT IS_IPV4_MAPPED(MIN(AES_ENCRYPT(1,2)));
 SELECT IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)));
 
+--echo #
+--echo # Bug#27744557 UBSAN: COMPARE_BINARY_STRING NULL POINTER PASSED
+--echo #
+
+select format('f','')<=replace(1,1,mid(0xd9,2,1));
+
 --echo
 --echo # -- Done.
 --echo

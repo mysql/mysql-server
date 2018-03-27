@@ -1103,6 +1103,15 @@ IS_IPV4_MAPPED(MIN(AES_ENCRYPT(1,2)))
 SELECT IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)));
 IS_IPV4_COMPAT(MIN(AES_ENCRYPT(1,2)))
 0
+#
+# Bug#27744557 UBSAN: COMPARE_BINARY_STRING NULL POINTER PASSED
+#
+select format('f','')<=replace(1,1,mid(0xd9,2,1));
+format('f','')<=replace(1,1,mid(0xd9,2,1))
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
 
 # -- Done.
 

@@ -1498,7 +1498,9 @@ int Arg_comparator::compare_binary_string() {
       if (set_null) owner->null_value = 0;
       size_t res1_length = res1->length();
       size_t res2_length = res2->length();
-      int cmp = memcmp(res1->ptr(), res2->ptr(), min(res1_length, res2_length));
+      size_t min_length = min(res1_length, res2_length);
+      int cmp =
+          min_length == 0 ? 0 : memcmp(res1->ptr(), res2->ptr(), min_length);
       return cmp ? cmp : (int)(res1_length - res2_length);
     }
   }

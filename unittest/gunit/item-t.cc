@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -814,6 +814,19 @@ TEST_F(ItemTest, NormalizedPrint) {
     item_null->print(&s, QT_NORMALIZED_FORMAT);
     EXPECT_STREQ("?", s.c_ptr());
   }
+}
+
+TEST_F(ItemTest, CompareEmptyStrings) {
+  Item *item1 = new Item_string(nullptr, 0, &my_charset_bin);
+  Item *item2 = new Item_string(nullptr, 0, &my_charset_bin);
+  Item_result_field *owner = new Item_func_le(item1, item2);
+  EXPECT_FALSE(item1->fix_fields(thd(), nullptr));
+  EXPECT_FALSE(item2->fix_fields(thd(), nullptr));
+
+  Arg_comparator comparator(&item1, &item2);
+  comparator.set_cmp_func(owner, &item1, &item2, false);
+
+  EXPECT_EQ(0, comparator.compare_binary_string());
 }
 
 }  // namespace item_unittest
