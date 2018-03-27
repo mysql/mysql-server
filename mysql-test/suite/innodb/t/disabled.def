@@ -15,3 +15,5 @@ portability_tablespace_linux: Sivert The maintainability of the zip files requir
 portability_tablespace_windows: Sivert The maintainability of the zip files required by this test is not acceptable.
 innodb_collation_test   @darwin : Bug#27753003 2018-03-26 Anitha test fails consistently on Mac and Windows ever since it was added
 innodb_collation_test   @windows : Bug#27753003 2018-03-26 Anitha test fails consistently on Mac and Windows ever since it was added
+log_corruption   @darwin : Bug#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009
+log_corruption   @freebsd : Bug#27760219 2018-03-27 Anitha Test fails consistently on freebsd and Mac after WL#11009
