@@ -402,7 +402,7 @@ int my_strnncoll_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                         const uchar *s, size_t slen, const uchar *t,
                         size_t tlen, bool t_is_prefix) {
   size_t len = MY_MIN(slen, tlen);
-  int cmp = memcmp(s, t, len);
+  int cmp = len == 0 ? 0 : memcmp(s, t, len);
   return cmp ? cmp : (int)((t_is_prefix ? len : slen) - tlen);
 }
 

@@ -254,3 +254,10 @@ SELECT 1 IN (SELECT MAKE_SET(-1, 1, (SELECT 1 FROM t)) FROM t);
 1 IN (SELECT MAKE_SET(-1, 1, (SELECT 1 FROM t)) FROM t)
 0
 DROP TABLE t;
+#
+# Bug#27751699 UBSAN: MY_STRNNCOLL_MB_BIN ,
+#              NULL POINTER PASSED AS ARGUMENT
+#
+select find_in_set(json_unquote(json_set('{}','$','')),1);
+find_in_set(json_unquote(json_set('{}','$','')),1)
+0

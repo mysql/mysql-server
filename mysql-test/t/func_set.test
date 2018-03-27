@@ -168,3 +168,10 @@ trim( both(-8388607)
 CREATE TABLE t(a INTEGER) engine=innodb;
 SELECT 1 IN (SELECT MAKE_SET(-1, 1, (SELECT 1 FROM t)) FROM t);
 DROP TABLE t;
+
+--echo #
+--echo # Bug#27751699 UBSAN: MY_STRNNCOLL_MB_BIN ,
+--echo #              NULL POINTER PASSED AS ARGUMENT
+--echo #
+
+select find_in_set(json_unquote(json_set('{}','$','')),1);
