@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2017 Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2018 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -90,13 +90,12 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
 
   CHARSET_INFO* charset_info= this->get_charset();
 
-  std::vector<bool> is_blob_to_hex;
+  std::vector<bool> is_blob;
   for (std::vector<Mysql_field>::const_iterator it=
     row_group->m_fields.begin(); it != row_group->m_fields.end(); ++it)
   {
-    is_blob_to_hex.push_back(
-      m_options->m_hex_blob
-      && it->get_character_set_nr() == my_charset_bin.number
+    is_blob.push_back(
+      it->get_character_set_nr() == my_charset_bin.number
       && (it->get_type() == MYSQL_TYPE_BIT
       || it->get_type() == MYSQL_TYPE_STRING
       || it->get_type() == MYSQL_TYPE_VAR_STRING
@@ -150,7 +149,7 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
         else
           row_string.append(column_data, column_length);
       }
-      else if (is_blob_to_hex[column])
+      else if (m_options->m_hex_blob && is_blob[column])
       {
         row_string+= "0x";
         m_escaping_runner->append_hex_string(
@@ -158,6 +157,8 @@ void Sql_formatter::format_row_group(Row_group_dump_task* row_group)
       }
       else
       {
+        if (is_blob[column])
+          row_string += "_binary ";
         row_string+= '\"';
         m_escaping_runner->append_escape_string(
           &row_string, column_data, column_length);
