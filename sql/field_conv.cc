@@ -842,7 +842,7 @@ type_conversion_status field_conv(Field *to, Field *from) {
 
   if (to->real_type() == from->real_type() &&
       !((is_blob_type(to)) && to->table->copy_blobs) &&
-      to->charset() == from->charset()) {
+      to->charset() == from->charset() && to_type != MYSQL_TYPE_GEOMETRY) {
     if (to->real_type() == MYSQL_TYPE_VARCHAR &&
         from->real_type() == MYSQL_TYPE_VARCHAR) {
       Field_varstring *to_vc = static_cast<Field_varstring *>(to);

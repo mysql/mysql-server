@@ -4495,3 +4495,187 @@ ST_GEOMFROMGEOJSON(col1->>'$.geojson')
 ) VIRTUAL NOT NULL;
 DROP TABLE t1;
 SET SESSION sql_mode=@saved_sql_mode;
+#
+# Bug#27756083 "INSERT INTO SELECT" QUERY INSERTS GEOMETRY OF DIFFERENT
+#              TYPE
+#
+CREATE TABLE t1(c1 POINT);
+INSERT INTO t1 VALUES (POINT(0,0));
+CREATE TABLE t2(c1 LINESTRING);
+INSERT INTO t2 VALUES (LINESTRING(POINT(0,0),POINT(1,1)));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` point DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` linestring DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t3 SELECT * FROM t1;
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `c1` point DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t3 SELECT * FROM t2;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+SELECT ST_AsText(c1) FROM t3;
+ST_AsText(c1)
+POINT(0 0)
+DROP TABLE t1, t2, t3;
+CREATE TABLE t1 (
+point_col POINT SRID 4326
+, multipoint_col MULTIPOINT SRID 4326
+, linestring_col LINESTRING SRID 4326
+, multilinestring_col MULTILINESTRING SRID 4326
+, polygon_col POLYGON SRID 4326
+, multipolygon_col MULTIPOLYGON SRID 4326
+, geometrycollection_col GEOMETRYCOLLECTION SRID 4326
+, geometry_col GEOMETRY SRID 4326) ENGINE = InnoDB;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (
+ST_GeomFromText('POINT(1 1)', 4326)
+, ST_GeomFromText('MULTIPOINT((1 1))', 4326)
+, ST_GeomFromText('LINESTRING(1 1, 2 2)', 4326)
+, ST_GeomFromText('MULTILINESTRING((1 1, 2 2))', 4326)
+, ST_GeomFromText('POLYGON((1 1, 1 2, 2 2, 2 1, 1 1))', 4326)
+, ST_GeomFromText('MULTIPOLYGON(((1 1, 1 2, 2 2, 2 1, 1 1)))', 4326)
+, ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(3 3, 4 4))', 4326)
+, ST_GeomFromText('POINT(1 1)', 4326));
+# POINT should only be allowed in POINT and GEOMETRY column
+INSERT INTO t2 (point_col) SELECT point_col FROM t1;
+INSERT INTO t2 (multipoint_col) SELECT point_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (linestring_col) SELECT point_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multilinestring_col) SELECT point_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (polygon_col) SELECT point_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipolygon_col) SELECT point_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometrycollection_col) SELECT point_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometry_col) SELECT point_col FROM t1;
+# MULTIPOINT should only be allowed in MULTIPOINT, GEOMETRY and
+# GEOMETRYCOLLECTION column
+INSERT INTO t2 (point_col) SELECT multipoint_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipoint_col) SELECT multipoint_col FROM t1;
+INSERT INTO t2 (linestring_col) SELECT multipoint_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multilinestring_col) SELECT multipoint_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (polygon_col) SELECT multipoint_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipolygon_col) SELECT multipoint_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometrycollection_col) SELECT multipoint_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT multipoint_col FROM t1;
+# LINESTRING should only be allowed in LINESTRING and GEOMETRY column
+INSERT INTO t2 (point_col) SELECT linestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipoint_col) SELECT linestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (linestring_col) SELECT linestring_col FROM t1;
+INSERT INTO t2 (multilinestring_col) SELECT linestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (polygon_col) SELECT linestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipolygon_col) SELECT linestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometrycollection_col) SELECT linestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometry_col) SELECT linestring_col FROM t1;
+# MULTILINESTRING should only be allowed in MULTILINESTRING, GEOMETRY and
+# GEOMETRYCOLLECTION column
+INSERT INTO t2 (point_col) SELECT multilinestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipoint_col) SELECT multilinestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (linestring_col) SELECT multilinestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multilinestring_col) SELECT multilinestring_col FROM t1;
+INSERT INTO t2 (polygon_col) SELECT multilinestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipolygon_col) SELECT multilinestring_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometrycollection_col) SELECT multilinestring_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT multilinestring_col FROM t1;
+# POLYGON should only be allowed in POLYGON and GEOMETRY column
+INSERT INTO t2 (point_col) SELECT polygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipoint_col) SELECT polygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (linestring_col) SELECT polygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multilinestring_col) SELECT polygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (polygon_col) SELECT polygon_col FROM t1;
+INSERT INTO t2 (multipolygon_col) SELECT polygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometrycollection_col) SELECT polygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometry_col) SELECT polygon_col FROM t1;
+# MULTIPOLYGON should only be allowed in MULTIPOLYGON, GEOMETRY and
+# GEOMETRYCOLLECTION column
+INSERT INTO t2 (point_col) SELECT multipolygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipoint_col) SELECT multipolygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (linestring_col) SELECT multipolygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multilinestring_col) SELECT multipolygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (polygon_col) SELECT multipolygon_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipolygon_col) SELECT multipolygon_col FROM t1;
+INSERT INTO t2 (geometrycollection_col) SELECT multipolygon_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT multipolygon_col FROM t1;
+# GEOMETRYCOLLECTION should only be allowed in GEOMETRYCOLLECTION and
+# GEOMETRY column
+INSERT INTO t2 (point_col) SELECT geometrycollection_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipoint_col) SELECT geometrycollection_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (linestring_col) SELECT geometrycollection_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multilinestring_col) SELECT geometrycollection_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (polygon_col) SELECT geometrycollection_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (multipolygon_col) SELECT geometrycollection_col FROM t1;
+ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
+INSERT INTO t2 (geometrycollection_col) SELECT geometrycollection_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT geometrycollection_col FROM t1;
+SELECT
+ST_AsText(point_col) AS point_col
+, ST_AsText(multipoint_col) AS multipoint_col
+, ST_AsText(linestring_col) AS linestring_col
+, ST_AsText(multilinestring_col) AS multilinestring_col
+, ST_AsText(polygon_col) AS polygon_col
+, ST_AsText(multipolygon_col) AS multipolygon_col
+, ST_AsText(geometrycollection_col) AS geometrycollection_col
+, ST_AsText(geometry_col) AS geometry_col
+FROM t2;
+point_col	multipoint_col	linestring_col	multilinestring_col	polygon_col	multipolygon_col	geometrycollection_col	geometry_col
+POINT(1 1)	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	POINT(1 1)
+NULL	MULTIPOINT((1 1))	NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	MULTIPOINT((1 1))	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	MULTIPOINT((1 1))
+NULL	NULL	LINESTRING(1 1,2 2)	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	LINESTRING(1 1,2 2)
+NULL	NULL	NULL	MULTILINESTRING((1 1,2 2))	NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	MULTILINESTRING((1 1,2 2))	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	MULTILINESTRING((1 1,2 2))
+NULL	NULL	NULL	NULL	POLYGON((1 1,1 2,2 2,2 1,1 1))	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	POLYGON((1 1,1 2,2 2,2 1,1 1))
+NULL	NULL	NULL	NULL	NULL	MULTIPOLYGON(((1 1,1 2,2 2,2 1,1 1)))	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	MULTIPOLYGON(((1 1,1 2,2 2,2 1,1 1)))	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	MULTIPOLYGON(((1 1,1 2,2 2,2 1,1 1)))
+NULL	NULL	NULL	NULL	NULL	NULL	GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(3 3,4 4))	NULL
+NULL	NULL	NULL	NULL	NULL	NULL	NULL	GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(3 3,4 4))
+DROP TABLE t1, t2;

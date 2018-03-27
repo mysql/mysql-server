@@ -4009,3 +4009,169 @@ SET @saved_sql_mode=@@sql_mode;
 SET SESSION sql_mode='';
 --source include/bug27252609.inc
 SET SESSION sql_mode=@saved_sql_mode;
+
+--echo #
+--echo # Bug#27756083 "INSERT INTO SELECT" QUERY INSERTS GEOMETRY OF DIFFERENT
+--echo #              TYPE
+--echo #
+
+CREATE TABLE t1(c1 POINT);
+INSERT INTO t1 VALUES (POINT(0,0));
+CREATE TABLE t2(c1 LINESTRING);
+INSERT INTO t2 VALUES (LINESTRING(POINT(0,0),POINT(1,1)));
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+CREATE TABLE t3 SELECT * FROM t1;
+SHOW CREATE TABLE t3;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t3 SELECT * FROM t2;
+SELECT ST_AsText(c1) FROM t3;
+DROP TABLE t1, t2, t3;
+
+CREATE TABLE t1 (
+  point_col POINT SRID 4326
+, multipoint_col MULTIPOINT SRID 4326
+, linestring_col LINESTRING SRID 4326
+, multilinestring_col MULTILINESTRING SRID 4326
+, polygon_col POLYGON SRID 4326
+, multipolygon_col MULTIPOLYGON SRID 4326
+, geometrycollection_col GEOMETRYCOLLECTION SRID 4326
+, geometry_col GEOMETRY SRID 4326) ENGINE = InnoDB;
+
+CREATE TABLE t2 LIKE t1;
+
+INSERT INTO t1 VALUES (
+  ST_GeomFromText('POINT(1 1)', 4326)
+, ST_GeomFromText('MULTIPOINT((1 1))', 4326)
+, ST_GeomFromText('LINESTRING(1 1, 2 2)', 4326)
+, ST_GeomFromText('MULTILINESTRING((1 1, 2 2))', 4326)
+, ST_GeomFromText('POLYGON((1 1, 1 2, 2 2, 2 1, 1 1))', 4326)
+, ST_GeomFromText('MULTIPOLYGON(((1 1, 1 2, 2 2, 2 1, 1 1)))', 4326)
+, ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(3 3, 4 4))', 4326)
+, ST_GeomFromText('POINT(1 1)', 4326));
+
+--echo # POINT should only be allowed in POINT and GEOMETRY column
+INSERT INTO t2 (point_col) SELECT point_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipoint_col) SELECT point_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (linestring_col) SELECT point_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multilinestring_col) SELECT point_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (polygon_col) SELECT point_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipolygon_col) SELECT point_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (geometrycollection_col) SELECT point_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT point_col FROM t1;
+
+--echo # MULTIPOINT should only be allowed in MULTIPOINT, GEOMETRY and
+--echo # GEOMETRYCOLLECTION column
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (point_col) SELECT multipoint_col FROM t1;
+INSERT INTO t2 (multipoint_col) SELECT multipoint_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (linestring_col) SELECT multipoint_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multilinestring_col) SELECT multipoint_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (polygon_col) SELECT multipoint_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipolygon_col) SELECT multipoint_col FROM t1;
+INSERT INTO t2 (geometrycollection_col) SELECT multipoint_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT multipoint_col FROM t1;
+
+--echo # LINESTRING should only be allowed in LINESTRING and GEOMETRY column
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (point_col) SELECT linestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipoint_col) SELECT linestring_col FROM t1;
+INSERT INTO t2 (linestring_col) SELECT linestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multilinestring_col) SELECT linestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (polygon_col) SELECT linestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipolygon_col) SELECT linestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (geometrycollection_col) SELECT linestring_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT linestring_col FROM t1;
+
+--echo # MULTILINESTRING should only be allowed in MULTILINESTRING, GEOMETRY and
+--echo # GEOMETRYCOLLECTION column
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (point_col) SELECT multilinestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipoint_col) SELECT multilinestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (linestring_col) SELECT multilinestring_col FROM t1;
+INSERT INTO t2 (multilinestring_col) SELECT multilinestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (polygon_col) SELECT multilinestring_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipolygon_col) SELECT multilinestring_col FROM t1;
+INSERT INTO t2 (geometrycollection_col) SELECT multilinestring_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT multilinestring_col FROM t1;
+
+--echo # POLYGON should only be allowed in POLYGON and GEOMETRY column
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (point_col) SELECT polygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipoint_col) SELECT polygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (linestring_col) SELECT polygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multilinestring_col) SELECT polygon_col FROM t1;
+INSERT INTO t2 (polygon_col) SELECT polygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipolygon_col) SELECT polygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (geometrycollection_col) SELECT polygon_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT polygon_col FROM t1;
+
+--echo # MULTIPOLYGON should only be allowed in MULTIPOLYGON, GEOMETRY and
+--echo # GEOMETRYCOLLECTION column
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (point_col) SELECT multipolygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipoint_col) SELECT multipolygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (linestring_col) SELECT multipolygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multilinestring_col) SELECT multipolygon_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (polygon_col) SELECT multipolygon_col FROM t1;
+INSERT INTO t2 (multipolygon_col) SELECT multipolygon_col FROM t1;
+INSERT INTO t2 (geometrycollection_col) SELECT multipolygon_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT multipolygon_col FROM t1;
+
+--echo # GEOMETRYCOLLECTION should only be allowed in GEOMETRYCOLLECTION and
+--echo # GEOMETRY column
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (point_col) SELECT geometrycollection_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipoint_col) SELECT geometrycollection_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (linestring_col) SELECT geometrycollection_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multilinestring_col) SELECT geometrycollection_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (polygon_col) SELECT geometrycollection_col FROM t1;
+--error ER_CANT_CREATE_GEOMETRY_OBJECT
+INSERT INTO t2 (multipolygon_col) SELECT geometrycollection_col FROM t1;
+INSERT INTO t2 (geometrycollection_col) SELECT geometrycollection_col FROM t1;
+INSERT INTO t2 (geometry_col) SELECT geometrycollection_col FROM t1;
+
+SELECT
+  ST_AsText(point_col) AS point_col
+, ST_AsText(multipoint_col) AS multipoint_col
+, ST_AsText(linestring_col) AS linestring_col
+, ST_AsText(multilinestring_col) AS multilinestring_col
+, ST_AsText(polygon_col) AS polygon_col
+, ST_AsText(multipolygon_col) AS multipolygon_col
+, ST_AsText(geometrycollection_col) AS geometrycollection_col
+, ST_AsText(geometry_col) AS geometry_col
+FROM t2;
+
+DROP TABLE t1, t2;
