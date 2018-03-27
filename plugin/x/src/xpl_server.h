@@ -67,37 +67,6 @@ class Server : public ngs::Server_delegate {
   static int exit(MYSQL_PLUGIN p);
   static bool reset();
 
-  template <void (Client::*method)(SHOW_VAR *)>
-  static void session_status_variable(THD *thd, SHOW_VAR *var, char *buff);
-
-  template <typename ReturnType,
-            ReturnType (ngs::Ssl_session_options_interface::*method)() const>
-  static void session_status_variable(THD *thd, SHOW_VAR *var, char *buff);
-
-  template <typename ReturnType, ReturnType (Server::*method)()>
-  static void global_status_variable_server_with_return(THD *thd, SHOW_VAR *var,
-                                                        char *buff);
-
-  template <void (Server::*method)(SHOW_VAR *)>
-  static void global_status_variable(THD *thd, SHOW_VAR *var, char *buff);
-
-  template <typename ReturnType, xpl::Global_status_variables::Variable
-                                     xpl::Global_status_variables::*variable>
-  static void global_status_variable_server(THD *thd, SHOW_VAR *var,
-                                            char *buff);
-
-  template <typename ReturnType, ngs::Common_status_variables::Variable
-                                     ngs::Common_status_variables::*variable>
-  static void common_status_variable(THD *thd, SHOW_VAR *var, char *buff);
-
-  template <typename ReturnType,
-            ReturnType (ngs::Ssl_context_options_interface::*method)()>
-  static void global_status_variable(THD *thd, SHOW_VAR *var, char *buff);
-
-  template <typename Copy_type,
-            void (ngs::Client_interface::*method)(const Copy_type value)>
-  static void thd_variable(THD *thd, SYS_VAR *, void *tgt, const void *save);
-
   ngs::Server &server() { return m_server; }
 
   ngs::Error_code kill_client(uint64_t client_id, Session &requester);
@@ -124,7 +93,6 @@ class Server : public ngs::Server_delegate {
   void reset_globals();
 
  private:
-  static Client_ptr get_client_by_thd(Server_ptr &server, THD *thd);
   static void verify_mysqlx_user_grants(Sql_data_context &context);
   static void initialize_xmessages();
 
@@ -175,149 +143,6 @@ class Server : public ngs::Server_delegate {
 
   SHA256_password_cache m_sha256_password_cache;
 };
-
-template <void (Client::*method)(SHOW_VAR *)>
-void Server::session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_UNDEF;
-  var->value = buff;
-
-  Server_ptr server(get_instance());
-  if (server) {
-    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    Client_ptr client = get_client_by_thd(server, thd);
-
-    if (client) ((*client).*method)(var);
-  }
-}
-
-template <typename ReturnType,
-          ReturnType (ngs::Ssl_session_options_interface::*method)() const>
-void Server::session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_UNDEF;
-  var->value = buff;
-
-  Server_ptr server(get_instance());
-  if (server) {
-    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    Client_ptr client = get_client_by_thd(server, thd);
-
-    if (client) {
-      ReturnType result =
-          (ngs::Ssl_session_options(&client->connection()).*method)();
-      mysqld::xpl_show_var(var).assign(result);
-    }
-  }
-}
-
-template <void (Server::*method)(SHOW_VAR *)>
-void Server::global_status_variable(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_UNDEF;
-  var->value = buff;
-
-  Server_ptr server = get_instance();
-  if (server) {
-    Server *server_ptr = server->container();
-    (server_ptr->*method)(var);
-  }
-}
-
-template <typename ReturnType, ReturnType (Server::*method)()>
-void Server::global_status_variable_server_with_return(THD *, SHOW_VAR *var,
-                                                       char *buff) {
-  var->type = SHOW_UNDEF;
-  var->value = buff;
-
-  Server_ptr server = get_instance();
-  if (server) {
-    Server *server_ptr = server->container();
-    ReturnType result = (server_ptr->*method)();
-
-    mysqld::xpl_show_var(var).assign(result);
-  }
-}
-
-template <typename ReturnType, xpl::Global_status_variables::Variable
-                                   xpl::Global_status_variables::*variable>
-void Server::global_status_variable_server(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_UNDEF;
-  var->value = buff;
-
-  ReturnType result = (Global_status_variables::instance().*variable).load();
-  mysqld::xpl_show_var(var).assign(result);
-}
-
-template <typename ReturnType, ngs::Common_status_variables::Variable
-                                   ngs::Common_status_variables::*variable>
-void Server::common_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_UNDEF;
-  var->value = buff;
-
-  Server_ptr server(get_instance());
-  if (server) {
-    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-    Client_ptr client = get_client_by_thd(server, thd);
-
-    if (client) {
-      // Status can be queried from different thread than client is bound to.
-      // User can reset the session by sending SessionReset, to be secure for
-      // released session pointer, the code needs to hold current session by
-      // shared_ptr.
-      auto client_session(client->session_smart_ptr());
-
-      if (client_session) {
-        auto &common_status = client_session->get_status_variables();
-        ReturnType result = (common_status.*variable).load();
-        mysqld::xpl_show_var(var).assign(result);
-      }
-      return;
-    }
-  }
-
-  ngs::Common_status_variables &common_status =
-      Global_status_variables::instance();
-  ReturnType result = (common_status.*variable).load();
-  mysqld::xpl_show_var(var).assign(result);
-}
-
-template <typename ReturnType,
-          ReturnType (ngs::Ssl_context_options_interface::*method)()>
-void Server::global_status_variable(THD *, SHOW_VAR *var, char *buff) {
-  var->type = SHOW_UNDEF;
-  var->value = buff;
-
-  Server_ptr server = get_instance();
-  if (!server || !(*server)->server().ssl_context()) return;
-
-  auto &context = (*server)->server().ssl_context()->options();
-
-  ReturnType result = ((context).*method)();
-
-  mysqld::xpl_show_var(var).assign(result);
-}
-
-template <typename Copy_type,
-          void (ngs::Client_interface::*method)(const Copy_type value)>
-void Server::thd_variable(THD *thd, SYS_VAR *sys_var, void *tgt,
-                          const void *save) {
-  // Lets copy the data to mysqld storage
-  // this is going to allow following to return correct value:
-  // SHOW SESSION VARIABLE LIKE '**var-name**';
-  *static_cast<Copy_type *>(tgt) = *static_cast<const Copy_type *>(save);
-
-  // Lets make our own copy of it
-  Server_ptr server(get_instance());
-  if (server) {
-    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
-
-    Client_ptr client = get_client_by_thd(server, thd);
-    if (client) ((*client).*method)(*static_cast<Copy_type *>(tgt));
-
-    // We should store the variables values so that they can be set when new
-    // client is connecting. This is done through a registered
-    // update_global_timeout_values callback.
-    Plugin_system_variables::update_func<Copy_type>(thd, sys_var, tgt, save);
-  }
-}
 
 }  // namespace xpl
 

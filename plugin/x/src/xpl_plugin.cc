@@ -50,17 +50,8 @@
 
 namespace {
 
-typedef void (*Xpl_status_variable_get)(THD *, SHOW_VAR *, char *);
-
-char *xpl_func_ptr(Xpl_status_variable_get callback) {
-  union {
-    char *ptr;
-    Xpl_status_variable_get callback;
-  } ptr_cast;
-
-  ptr_cast.callback = callback;
-
-  return ptr_cast.ptr;
+inline char *xpl_func_ptr(mysql_show_var_func callback) {
+  return reinterpret_cast<char *>(callback);
 }
 
 void exit_hook() { google::protobuf::ShutdownProtobufLibrary(); }
@@ -71,6 +62,180 @@ void check_exit_hook() {
   if (!atexit_installed) {
     atexit_installed = true;
     atexit(exit_hook);
+  }
+}
+
+xpl::Client_ptr get_client_by_thd(xpl::Server::Server_ptr &server, THD *thd) {
+  struct Client_check_handler_thd {
+    Client_check_handler_thd(THD *thd) : m_thd(thd) {}
+
+    bool operator()(ngs::Client_ptr &client) {
+      xpl::Client *xpl_client = (xpl::Client *)client.get();
+
+      return xpl_client->is_handler_thd(m_thd);
+    }
+
+    THD *m_thd;
+  } client_check_thd(thd);
+
+  std::vector<ngs::Client_ptr> clients;
+  (*server)->server().get_client_list().get_all_clients(clients);
+
+  std::vector<ngs::Client_ptr>::iterator i =
+      std::find_if(clients.begin(), clients.end(), client_check_thd);
+  if (clients.end() != i) return ngs::dynamic_pointer_cast<xpl::Client>(*i);
+
+  return xpl::Client_ptr();
+}
+
+template <void (xpl::Client::*method)(SHOW_VAR *)>
+int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_UNDEF;
+  var->value = buff;
+
+  auto server(xpl::Server::get_instance());
+  if (server) {
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
+    xpl::Client_ptr client = get_client_by_thd(server, thd);
+
+    if (client) ((*client).*method)(var);
+  }
+  return 0;
+}
+
+template <typename ReturnType,
+          ReturnType (ngs::Ssl_session_options_interface::*method)() const>
+int session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_UNDEF;
+  var->value = buff;
+
+  auto server(xpl::Server::get_instance());
+  if (server) {
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
+    xpl::Client_ptr client = get_client_by_thd(server, thd);
+
+    if (client) {
+      ReturnType result =
+          (ngs::Ssl_session_options(&client->connection()).*method)();
+      mysqld::xpl_show_var(var).assign(result);
+    }
+  }
+  return 0;
+}
+
+template <void (xpl::Server::*method)(SHOW_VAR *)>
+int global_status_variable(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_UNDEF;
+  var->value = buff;
+
+  auto server(xpl::Server::get_instance());
+  if (server) {
+    xpl::Server *server_ptr = server->container();
+    (server_ptr->*method)(var);
+  }
+  return 0;
+}
+
+template <typename ReturnType, ReturnType (xpl::Server::*method)()>
+int global_status_variable_server_with_return(THD *, SHOW_VAR *var,
+                                              char *buff) {
+  var->type = SHOW_UNDEF;
+  var->value = buff;
+
+  auto server(xpl::Server::get_instance());
+  if (server) {
+    xpl::Server *server_ptr = server->container();
+    ReturnType result = (server_ptr->*method)();
+
+    mysqld::xpl_show_var(var).assign(result);
+  }
+  return 0;
+}
+
+template <typename ReturnType, xpl::Global_status_variables::Variable
+                                   xpl::Global_status_variables::*variable>
+int global_status_variable_server(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_UNDEF;
+  var->value = buff;
+
+  ReturnType result =
+      (xpl::Global_status_variables::instance().*variable).load();
+  mysqld::xpl_show_var(var).assign(result);
+  return 0;
+}
+
+template <typename ReturnType, ngs::Common_status_variables::Variable
+                                   ngs::Common_status_variables::*variable>
+int common_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_UNDEF;
+  var->value = buff;
+
+  auto server(xpl::Server::get_instance());
+  if (server) {
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
+    xpl::Client_ptr client = get_client_by_thd(server, thd);
+
+    if (client) {
+      // Status can be queried from different thread than client is bound to.
+      // User can reset the session by sending SessionReset, to be secure for
+      // released session pointer, the code needs to hold current session by
+      // shared_ptr.
+      auto client_session(client->session_smart_ptr());
+
+      if (client_session) {
+        auto &common_status = client_session->get_status_variables();
+        ReturnType result = (common_status.*variable).load();
+        mysqld::xpl_show_var(var).assign(result);
+      }
+      return 0;
+    }
+  }
+
+  ngs::Common_status_variables &common_status =
+      xpl::Global_status_variables::instance();
+  ReturnType result = (common_status.*variable).load();
+  mysqld::xpl_show_var(var).assign(result);
+  return 0;
+}
+
+template <typename ReturnType,
+          ReturnType (ngs::Ssl_context_options_interface::*method)()>
+int global_status_variable(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_UNDEF;
+  var->value = buff;
+
+  auto server(xpl::Server::get_instance());
+  if (!server || !(*server)->server().ssl_context()) return 0;
+
+  auto &context = (*server)->server().ssl_context()->options();
+  auto context_method = method;  // workaround on VC compiler internal error
+  ReturnType result = (context.*context_method)();
+
+  mysqld::xpl_show_var(var).assign(result);
+  return 0;
+}
+
+template <typename Copy_type,
+          void (ngs::Client_interface::*method)(const Copy_type value)>
+void thd_variable(THD *thd, SYS_VAR *sys_var, void *tgt, const void *save) {
+  // Lets copy the data to mysqld storage
+  // this is going to allow following to return correct value:
+  // SHOW SESSION VARIABLE LIKE '**var-name**';
+  *static_cast<Copy_type *>(tgt) = *static_cast<const Copy_type *>(save);
+
+  // Lets make our own copy of it
+  auto server(xpl::Server::get_instance());
+  if (server) {
+    MUTEX_LOCK(lock, (*server)->server().get_client_exit_mutex());
+
+    xpl::Client_ptr client = get_client_by_thd(server, thd);
+    if (client) ((*client).*method)(*static_cast<Copy_type *>(tgt));
+
+    // We should store the variables values so that they can be set when new
+    // client is connecting. This is done through a registered
+    // update_global_timeout_values callback.
+    xpl::Plugin_system_variables::update_func<Copy_type>(thd, sys_var, tgt,
+                                                         save);
   }
 }
 
@@ -219,17 +384,15 @@ static MYSQL_THDVAR_UINT(
     wait_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for activity on noninteractive "
     "connection",
-    NULL,
-    (&xpl::Server::thd_variable<uint32_t,
-                                &ngs::Client_interface::set_wait_timeout>),
+    NULL, (&thd_variable<uint32_t, &ngs::Client_interface::set_wait_timeout>),
     Global_timeouts::Default::k_wait_timeout, 1, 2147483, 0);
 
 static MYSQL_SYSVAR_UINT(
     interactive_timeout, xpl::Plugin_system_variables::m_interactive_timeout,
     PLUGIN_VAR_OPCMDARG,
-    "Default value for \"mysqlx_wait_timeout\", when the connection is \
-interactive. The value defines number or seconds that X Plugin must wait for \
-activity on interactive connection",
+    "Default value for \"mysqlx_wait_timeout\", when the connection is "
+    "interactive. The value defines number or seconds that X Plugin must "
+    "wait for activity on interactive connection",
     NULL, &xpl::Plugin_system_variables::update_func<uint32_t>,
     Global_timeouts::Default::k_interactive_timeout, 1, 2147483, 0);
 
@@ -237,18 +400,14 @@ static MYSQL_THDVAR_UINT(
     read_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for blocking read operation to "
     "complete",
-    NULL,
-    (&xpl::Server::thd_variable<uint32_t,
-                                &ngs::Client_interface::set_read_timeout>),
+    NULL, (&thd_variable<uint32_t, &ngs::Client_interface::set_read_timeout>),
     Global_timeouts::Default::k_read_timeout, 1, 2147483, 0);
 
 static MYSQL_THDVAR_UINT(
     write_timeout, PLUGIN_VAR_OPCMDARG,
     "Number or seconds that X Plugin must wait for blocking write operation to "
     "complete",
-    NULL,
-    (&xpl::Server::thd_variable<uint32_t,
-                                &ngs::Client_interface::set_write_timeout>),
+    NULL, (&thd_variable<uint32_t, &ngs::Client_interface::set_write_timeout>),
     Global_timeouts::Default::k_write_timeout, 1, 2147483, 0);
 
 static MYSQL_SYSVAR_UINT(
@@ -285,49 +444,47 @@ static struct SYS_VAR *xpl_plugin_system_variables[] = {
     MYSQL_SYSVAR(document_id_unique_prefix),
     NULL};
 
-#define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                   \
-  {                                                                            \
-    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                       \
-        xpl_func_ptr(xpl::Server::common_status_variable<long long, &METHOD>), \
-        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                           \
-  }
-
-#define GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                  \
+#define SESSION_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)                 \
   {                                                                          \
     MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                     \
-        xpl_func_ptr(                                                        \
-            xpl::Server::global_status_variable_server<long long, &METHOD>), \
-        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                         \
+        xpl_func_ptr(common_status_variable<long long, &METHOD>), SHOW_FUNC, \
+        SHOW_SCOPE_GLOBAL                                                    \
   }
 
-#define GLOBAL_SSL_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)              \
-  {                                                                       \
-    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                  \
-        xpl_func_ptr(xpl::Server::global_status_variable<TYPE, &METHOD>), \
-        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                      \
+#define GLOBAL_STATUS_VARIABLE_ENTRY_LONGLONG(NAME, METHOD)              \
+  {                                                                      \
+    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                 \
+        xpl_func_ptr(global_status_variable_server<long long, &METHOD>), \
+        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                     \
   }
 
-#define SESSION_SSL_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)              \
-  {                                                                        \
-    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                   \
-        xpl_func_ptr(xpl::Server::session_status_variable<TYPE, &METHOD>), \
-        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                       \
+#define GLOBAL_SSL_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)            \
+  {                                                                     \
+    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                \
+        xpl_func_ptr(global_status_variable<TYPE, &METHOD>), SHOW_FUNC, \
+        SHOW_SCOPE_GLOBAL                                               \
   }
 
-#define SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY(NAME, METHOD)        \
-  {                                                                  \
-    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                             \
-        xpl_func_ptr(xpl::Server::session_status_variable<&METHOD>), \
-        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                 \
+#define SESSION_SSL_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)            \
+  {                                                                      \
+    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                 \
+        xpl_func_ptr(session_status_variable<TYPE, &METHOD>), SHOW_FUNC, \
+        SHOW_SCOPE_GLOBAL                                                \
   }
 
-#define GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)               \
-  {                                                                           \
-    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                                      \
-        xpl_func_ptr(                                                         \
-            xpl::Server::global_status_variable_server_with_return<TYPE,      \
-                                                                   &METHOD>), \
-        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                          \
+#define SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY(NAME, METHOD)      \
+  {                                                                \
+    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                           \
+        xpl_func_ptr(session_status_variable<&METHOD>), SHOW_FUNC, \
+        SHOW_SCOPE_GLOBAL                                          \
+  }
+
+#define GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY(NAME, TYPE, METHOD)        \
+  {                                                                    \
+    MYSQLX_STATUS_VARIABLE_PREFIX(NAME),                               \
+        xpl_func_ptr(                                                  \
+            global_status_variable_server_with_return<TYPE, &METHOD>), \
+        SHOW_FUNC, SHOW_SCOPE_GLOBAL                                   \
   }
 
 static SHOW_VAR xpl_plugin_status[] = {
