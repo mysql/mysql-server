@@ -1,6 +1,6 @@
 #ifndef MYSQL_SERVICE_PARSER_INCLUDED
 #define MYSQL_SERVICE_PARSER_INCLUDED
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,11 @@ typedef Item *MYSQL_ITEM;
 #define PARSER_SERVICE_DIGEST_LENGTH 32
 
 #define STATEMENT_TYPE_SELECT 1
-#define STATEMENT_TYPE_OTHER 2
+#define STATEMENT_TYPE_UPDATE 2
+#define STATEMENT_TYPE_INSERT 3
+#define STATEMENT_TYPE_DELETE 4
+#define STATEMENT_TYPE_REPLACE 5
+#define STATEMENT_TYPE_OTHER 6
 
 typedef int (*parse_node_visit_function)(MYSQL_ITEM item, unsigned char *arg);
 

@@ -2988,3 +2988,33 @@ void Query_result_create::abort_result_set() {
 
   DBUG_VOID_RETURN;
 }
+
+bool Sql_cmd_insert_base::accept(THD *thd, Select_lex_visitor *visitor) {
+  // Columns
+  if (insert_field_list.elements) {
+    List_iterator<Item> it_field(insert_field_list);
+    while (Item *field = it_field++)
+      if (walk_item(field, visitor)) return true;
+  }
+
+  if (insert_many_values.elements > 0) {
+    // INSERT...VALUES statement
+    List_iterator<List_item> it_row(insert_many_values);
+    while (List_item *row = it_row++) {
+      List_iterator<Item> it_col(*row);
+      while (Item *item = it_col++)
+        if (walk_item(item, visitor)) return true;
+    }
+  } else {
+    // INSERT...SELECT statement
+    if (thd->lex->select_lex->accept(visitor)) return true;
+  }
+
+  // Update list (on duplicate update)
+  List_iterator<Item> it_value(update_value_list), it_column(update_field_list);
+  Item *value, *column;
+  while ((column = it_column++) && (value = it_value++))
+    if (walk_item(column, visitor) || walk_item(value, visitor)) return true;
+
+  return visitor->visit(thd->lex->select_lex);
+}

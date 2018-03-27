@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ class SelectLexVisitorTest : public ParserTest {
 class Remembering_visitor : public Select_lex_visitor {
  public:
   vector<int> seen_items;
+  vector<const char *> field_names;
 
   Remembering_visitor()
       : m_saw_select_lex(false), m_saw_select_lex_unit(false) {}
@@ -63,7 +64,11 @@ class Remembering_visitor : public Select_lex_visitor {
   }
 
   virtual bool visit_item(Item *item) {
-    seen_items.push_back(item->val_int());
+    // Not possible to call val_XXX on item_field. So just store the name.
+    if (item->type() == Item::FIELD_ITEM)
+      field_names.push_back(item->full_name());
+    else
+      seen_items.push_back(item->val_int());
     return false;
   }
 
@@ -120,6 +125,8 @@ TEST_F(SelectLexVisitorTest, SelectLex) {
   join.having_for_explain = &having;
 
   query_block.join = &join;
+  query_block.parent_lex = &lex;
+
   Remembering_visitor visitor;
   unit.accept(&visitor);
   EXPECT_TRUE(visitor.saw_select_lex());
@@ -161,6 +168,60 @@ TEST_F(SelectLexVisitorTest, InsertSet) {
   EXPECT_EQ(1, visitor.seen_items[0]);
   EXPECT_EQ(2, visitor.seen_items[1]);
   EXPECT_EQ(3, visitor.seen_items[2]);
+
+  ASSERT_EQ(3U, visitor.field_names.size());
+  EXPECT_STREQ("a", visitor.field_names[0]);
+  EXPECT_STREQ("b", visitor.field_names[1]);
+  EXPECT_STREQ("c", visitor.field_names[2]);
 }
 
+TEST_F(SelectLexVisitorTest, ReplaceList) {
+  SELECT_LEX *select_lex =
+      parse("REPLACE INTO t(a, b, c) VALUES (1,2,3), (4,5,6)", 0);
+  ASSERT_FALSE(select_lex == NULL);
+
+  Remembering_visitor visitor;
+  thd()->lex->accept(&visitor);
+  ASSERT_EQ(6U, visitor.seen_items.size());
+  EXPECT_EQ(1, visitor.seen_items[0]);
+  EXPECT_EQ(4, visitor.seen_items[3]);
+  EXPECT_EQ(6, visitor.seen_items[5]);
+
+  ASSERT_EQ(3U, visitor.field_names.size());
+  EXPECT_STREQ("a", visitor.field_names[0]);
+  EXPECT_STREQ("b", visitor.field_names[1]);
+  EXPECT_STREQ("c", visitor.field_names[2]);
+}
+
+TEST_F(SelectLexVisitorTest, InsertOnDuplicateKey) {
+  SELECT_LEX *select_lex = parse(
+      "INSERT INTO t VALUES (1,2) ON DUPLICATE KEY UPDATE c= 44, a= 55", 0);
+  ASSERT_FALSE(select_lex == NULL);
+
+  Remembering_visitor visitor;
+  thd()->lex->accept(&visitor);
+  ASSERT_EQ(4U, visitor.seen_items.size());
+  EXPECT_EQ(1, visitor.seen_items[0]);
+  EXPECT_EQ(44, visitor.seen_items[2]);
+  EXPECT_EQ(55, visitor.seen_items[3]);
+
+  ASSERT_EQ(2U, visitor.field_names.size());
+  EXPECT_STREQ("c", visitor.field_names[0]);
+  EXPECT_STREQ("a", visitor.field_names[1]);
+}
+
+TEST_F(SelectLexVisitorTest, Update) {
+  SELECT_LEX *select_lex = parse("UPDATE t SET a= 0, c= 25", 0);
+  ASSERT_FALSE(select_lex == NULL);
+
+  Remembering_visitor visitor;
+  thd()->lex->accept(&visitor);
+  ASSERT_EQ(2U, visitor.seen_items.size());
+  EXPECT_EQ(0, visitor.seen_items[0]);
+  EXPECT_EQ(25, visitor.seen_items[1]);
+
+  ASSERT_EQ(2U, visitor.field_names.size());
+  EXPECT_STREQ("a", visitor.field_names[0]);
+  EXPECT_STREQ("c", visitor.field_names[1]);
+}
 }  // namespace select_lex_visitor_unittest

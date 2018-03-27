@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,8 +89,11 @@ bool parse(MYSQL_THD thd, const string &query, bool is_prepared) {
   return mysql_parser_parse(thd, query_str, is_prepared, NULL, NULL);
 }
 
-bool is_select_statement(MYSQL_THD thd) {
-  return mysql_parser_get_statement_type(thd) == STATEMENT_TYPE_SELECT;
+bool is_supported_statement(MYSQL_THD thd) {
+  int type = mysql_parser_get_statement_type(thd);
+  return (type == STATEMENT_TYPE_SELECT || type == STATEMENT_TYPE_UPDATE ||
+          type == STATEMENT_TYPE_DELETE || type == STATEMENT_TYPE_INSERT ||
+          type == STATEMENT_TYPE_REPLACE);
 }
 
 int get_number_params(MYSQL_THD thd) {

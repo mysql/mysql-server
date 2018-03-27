@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -281,8 +281,24 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
 
 int mysql_parser_get_statement_type(MYSQL_THD thd) {
   LEX *lex = thd->lex;
-  if (lex->sql_command == SQLCOM_SELECT) return STATEMENT_TYPE_SELECT;
-  return STATEMENT_TYPE_OTHER;
+  switch (lex->sql_command) {
+    case SQLCOM_SELECT:
+      return STATEMENT_TYPE_SELECT;
+    case SQLCOM_UPDATE:  // Fall through
+    case SQLCOM_UPDATE_MULTI:
+      return STATEMENT_TYPE_UPDATE;
+    case SQLCOM_INSERT:  // Fall through
+    case SQLCOM_INSERT_SELECT:
+      return STATEMENT_TYPE_INSERT;
+    case SQLCOM_REPLACE:  // Fall through
+    case SQLCOM_REPLACE_SELECT:
+      return STATEMENT_TYPE_REPLACE;
+    case SQLCOM_DELETE:  // Fall through
+    case SQLCOM_DELETE_MULTI:
+      return STATEMENT_TYPE_DELETE;
+    default:
+      return STATEMENT_TYPE_OTHER;
+  }
 }
 
 int mysql_parser_get_statement_digest(MYSQL_THD thd, uchar *digest) {

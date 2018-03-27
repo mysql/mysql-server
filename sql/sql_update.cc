@@ -2463,3 +2463,31 @@ bool Query_result_update::send_eof() {
           id, buff);
   DBUG_RETURN(false);
 }
+
+bool Sql_cmd_update::accept(THD *thd, Select_lex_visitor *visitor) {
+  SELECT_LEX *const select = thd->lex->select_lex;
+  // Update tables
+  if (select->table_list.elements != 0 &&
+      accept_for_join(select->join_list, visitor))
+    return true;
+
+  // Update list
+  List_iterator<Item> it_value(*update_value_list),
+      it_column(select->item_list);
+  Item *column, *value;
+  while ((column = it_column++) && (value = it_value++))
+    if (walk_item(column, visitor) || walk_item(value, visitor)) return true;
+
+  // Where clause
+  if (select->where_cond() != NULL && walk_item(select->where_cond(), visitor))
+    return true;
+
+  // Order clause
+  if (accept_for_order(select->order_list, visitor)) return true;
+
+  // Limit clause
+  if (select->explicit_limit)
+    if (walk_item(select->select_limit, visitor)) return true;
+
+  return visitor->visit(select);
+}

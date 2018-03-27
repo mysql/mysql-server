@@ -2,27 +2,63 @@
 --echo # Test of rewrites of insert statements.
 --echo #
 
---echo # This test is indeed rather pointless unless the plugin accepts insert
---echo # statements as pattern, which it currently does not.
-
-call mtr.add_suppression("Plugin rewriter reported: 'Some rules failed to load.'");
-
 --source suite/query_rewrite_plugins/include/have_plugin_rewriter.inc
+use test;
+CREATE TABLE t1 ( a INT, b INT , c INT, PRIMARY KEY(a));
+CREATE TABLE t2 ( c INT, d INT );
+INSERT INTO t1 (a, b) VALUES (1, 2), (3, 4), (4, 5);
+INSERT INTO t2 VALUES (10, 20);
+
 --source suite/query_rewrite_plugins/include/install_rewriter.inc
+
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
-VALUES ( 'INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )',
-         'INSERT INTO test.t1 ( b, a ) VALUES ( ?, ? )' );
+VALUES ( 'INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )
+          ON DUPLICATE KEY UPDATE c = ?, a = ?',
+         'INSERT INTO test.t1 ( b, a ) VALUES ( ?, ? )
+          ON DUPLICATE KEY UPDATE c = ?, a = 25' ),
+       ( 'INSERT INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (?, ?)',
+         'INSERT INTO test.t1 ( a, b ) VALUES ( ?, ? )' ),
+       ( 'REPLACE INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (?, ?)',
+         'REPLACE INTO test.t1 ( a, b ) VALUES ( ?, ? )' ),
+        ('INSERT INTO test.t1 ( a, b ) SELECT c + 2222, 2 FROM test.t2',
+         'INSERT /*+ QB_NAME(hi) */ INTO test.t1 ( a, b )
+          SELECT c + 2222, 2 FROM test.t2'),
+        ('INSERT INTO test.t1(a, c) VALUES(?, ?), (?, ?)',
+        'INSERT INTO test.t1(a, b) VALUES(?, ?), (?, ?)'),
+        ('REPLACE INTO test.t1(a, c) VALUES(?, ?)',
+        'REPLACE INTO test.t1(a, c) VALUES(?, 2)'),
+        ('INSERT INTO test.t1 ( a, b ) SELECT ?, ? FROM test.t2',
+        'INSERT INTO test.t1 ( a, c ) SELECT ?, ? FROM test.t2');
 
---error ER_SIGNAL_EXCEPTION
 CALL query_rewrite.flush_rewrite_rules();
-
 SELECT * FROM query_rewrite.rewrite_rules;
 
-CREATE TABLE t1 ( a INT, b INT );
+INSERT INTO test.t1 ( a, b ) VALUES ( 2, 1 )
+ON DUPLICATE KEY UPDATE c = 5, a = 5;
+SELECT * FROM t1;
 
-INSERT INTO test.t1 ( a, b ) VALUES ( 1, 2 );
+INSERT INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (11, 31);
+SELECT * FROM t1;
+
+INSERT INTO test.t1( a, b ) SELECT c + 2222, 2 FROM test.t2;
+SELECT * FROM t1;
+
+REPLACE INTO test.t1 ( a, b ) SELECT c, d FROM test.t2 WHERE c IN (100, 300);
+SELECT * FROM t1;
+
+#tests the values part of accept_insert
+INSERT INTO test.t1(a, c) VALUES(1001, 200), (1000, 2000);
+REPLACE INTO test.t1(a, c) VALUES(1002, 200);
+SELECT * FROM t1;
+
+#This is re-written
+INSERT INTO test.t1 ( a, b ) SELECT 22, 3 FROM test.t2;
+
+#This is not re-written
+INSERT INTO test.t1 ( a, b ) SELECT c, d FROM test.t2;
 
 SELECT * FROM t1;
-DROP TABLE t1;
 
+
+DROP TABLE t1, t2;
 --source suite/query_rewrite_plugins/include/uninstall_rewriter.inc

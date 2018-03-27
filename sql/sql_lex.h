@@ -1618,6 +1618,11 @@ class SELECT_LEX {
   void print_limit(String *str, enum_query_type query_type);
   void fix_prepare_information(THD *thd);
 
+  /**
+    Accept function for SELECT and DELETE.
+
+    @param    visitor  Select_lex_visitor Object
+  */
   bool accept(Select_lex_visitor *visitor);
 
   /**
@@ -4267,4 +4272,8 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
   return false;
 }
 
+bool walk_item(Item *item, Select_lex_visitor *visitor);
+bool accept_for_order(SQL_I_List<ORDER> orders, Select_lex_visitor *visitor);
+bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor);
+bool accept_for_join(List<TABLE_LIST> *tables, Select_lex_visitor *visitor);
 #endif /* SQL_LEX_INCLUDED */

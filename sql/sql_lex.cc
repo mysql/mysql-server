@@ -3251,14 +3251,13 @@ static Item::enum_walk get_walk_flags(const Select_lex_visitor *visitor) {
     return Item::WALK_SUBQUERY_POSTFIX;
 }
 
-static bool walk_item(Item *item, Select_lex_visitor *visitor) {
+bool walk_item(Item *item, Select_lex_visitor *visitor) {
   if (item == NULL) return false;
   return item->walk(&Item::visitor_processor, get_walk_flags(visitor),
                     pointer_cast<uchar *>(visitor));
 }
 
-static bool accept_for_order(SQL_I_List<ORDER> orders,
-                             Select_lex_visitor *visitor) {
+bool accept_for_order(SQL_I_List<ORDER> orders, Select_lex_visitor *visitor) {
   if (orders.elements == 0) return false;
 
   for (ORDER *order = orders.first; order != NULL; order = order->next)
@@ -3277,17 +3276,21 @@ bool SELECT_LEX_UNIT::accept(Select_lex_visitor *visitor) {
   return visitor->visit(this);
 }
 
-static bool accept_for_join(List<TABLE_LIST> *tables,
-                            Select_lex_visitor *visitor) {
+bool accept_for_join(List<TABLE_LIST> *tables, Select_lex_visitor *visitor) {
   List_iterator<TABLE_LIST> ti(*tables);
-  TABLE_LIST *end = NULL;
-  for (TABLE_LIST *t = ti++; t != end; t = ti++) {
-    if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
-      return true;
-    else if (t->is_derived())
-      t->derived_unit()->accept(visitor);
-    if (walk_item(t->join_cond(), visitor)) return true;
+  TABLE_LIST *t;
+  while ((t = ti++)) {
+    if (accept_table(t, visitor)) return true;
   }
+  return false;
+}
+
+bool accept_table(TABLE_LIST *t, Select_lex_visitor *visitor) {
+  if (t->nested_join && accept_for_join(&t->nested_join->join_list, visitor))
+    return true;
+  else if (t->is_derived())
+    t->derived_unit()->accept(visitor);
+  if (walk_item(t->join_cond(), visitor)) return true;
   return false;
 }
 
@@ -4496,25 +4499,8 @@ bool Query_options::save_to(Parse_context *pc) {
   return false;
 }
 
-/**
-  @todo This function is obviously incomplete. It does not walk update lists,
-  for instance. At the time of writing, however, this function has only a
-  single use, to walk all parts of select statements. If more functionality is
-  needed, it should be added here, in the same fashion as for SQLCOM_INSERT
-  below.
-*/
 bool LEX::accept(Select_lex_visitor *visitor) {
-  if (unit->accept(visitor)) return true;
-  if (sql_command == SQLCOM_INSERT) {
-    List_iterator<List_item> row_it(
-        static_cast<Sql_cmd_insert_base *>(m_sql_cmd)->insert_many_values);
-    for (List_item *row = row_it++; row != NULL; row = row_it++) {
-      List_iterator<Item> col_it(*row);
-      for (Item *item = col_it++; item != NULL; item = col_it++)
-        if (walk_item(item, visitor)) return true;
-    }
-  }
-  return false;
+  return m_sql_cmd->accept(thd, visitor);
 }
 
 bool LEX::set_wild(LEX_STRING w) {

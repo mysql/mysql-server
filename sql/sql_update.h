@@ -169,6 +169,8 @@ class Sql_cmd_update final : public Sql_cmd_dml {
 
   bool multitable;
 
+  bool accept(THD *thd, Select_lex_visitor *visitor) override;
+
  public:
   List<Item> *update_value_list;
 };

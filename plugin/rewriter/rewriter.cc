@@ -87,8 +87,8 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
                             ">>" +
                             memrule->pattern_parse_error_message() + "<<");
       break;
-    case Rule::PATTERN_NOT_A_SELECT_STATEMENT:
-      diskrule->set_message(messages::PATTERN_NOT_A_SELECT_STATEMENT);
+    case Rule::PATTERN_NOT_SUPPORTED_STATEMENT:
+      diskrule->set_message(messages::PATTERN_NOT_SUPPORTED_STATEMENT);
       break;
     case Rule::REPLACEMENT_PARSE_ERROR:
       diskrule->set_message(string(messages::REPLACEMENT_PARSE_ERROR) +

@@ -1221,3 +1221,7 @@ bool Query_result_delete::send_eof() {
   }
   return 0;
 }
+
+bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {
+  return thd->lex->unit->accept(visitor);
+}
