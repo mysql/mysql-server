@@ -26,6 +26,21 @@ create table t5 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
 
+create table t6 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_2";
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t6' order by node_id, fragment_num, block_instance;
+
+create table t7 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_3";
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t7' order by node_id, fragment_num, block_instance;
+
+create table t8 (id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb
+  comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_4";
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t8' order by node_id, fragment_num, block_instance;
+
 select count(*) into @cnt_t1_0
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -46,6 +61,18 @@ select count(*) into @cnt_t5_0
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't5';
 
+select count(*) into @cnt_t6_0
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't6';
+
+select count(*) into @cnt_t7_0
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't7';
+
+select count(*) into @cnt_t8_0
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't8';
+
 ##
 ## skip showing exact counts
 ##
@@ -53,6 +80,9 @@ select @cnt_t1_0 = @cnt_t2_0;
 select @cnt_t2_0 > @cnt_t3_0;
 select @cnt_t3_0 > @cnt_t4_0;
 select @cnt_t4_0 > @cnt_t5_0;
+select @cnt_t6_0 = 2 * @cnt_t3_0;
+select @cnt_t7_0 = 3 * @cnt_t3_0;
+select @cnt_t8_0 = 4 * @cnt_t3_0;
 
 ## Create nodegroup for "new" nodes
 --echo Creating nodegroup
@@ -78,6 +108,18 @@ alter table t5 algorithm=inplace, reorganize partition;
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t5' order by node_id, fragment_num, block_instance;
 
+alter table t6 algorithm=inplace, reorganize partition;
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t6' order by node_id, fragment_num, block_instance;
+
+alter table t7 algorithm=inplace, reorganize partition;
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t7' order by node_id, fragment_num, block_instance;
+
+alter table t8 algorithm=inplace, reorganize partition;
+select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
+where fq_name = 'test/def/t8' order by node_id, fragment_num, block_instance;
+
 select count(*) into @cnt_t1_1
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't1';
@@ -98,6 +140,18 @@ select count(*) into @cnt_t5_1
 from information_schema.partitions
 where table_schema = 'test' and table_name = 't5';
 
+select count(*) into @cnt_t6_0
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't6';
+
+select count(*) into @cnt_t7_0
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't7';
+
+select count(*) into @cnt_t8_0
+from information_schema.partitions
+where table_schema = 'test' and table_name = 't8';
+
 ##
 ## skip showing exact counts
 ##
@@ -105,12 +159,18 @@ select @cnt_t1_1 = @cnt_t2_1;
 select @cnt_t2_1 > @cnt_t3_1;
 select @cnt_t3_1 > @cnt_t4_1;
 select @cnt_t4_1 > @cnt_t5_1;
+select @cnt_t6_1 = 2 * @cnt_t3_1;
+select @cnt_t7_1 = 3 * @cnt_t3_1;
+select @cnt_t8_1 = 4 * @cnt_t3_1;
 
 select @cnt_t1_1 > @cnt_t1_0;
 select @cnt_t2_1 > @cnt_t2_0;
 select @cnt_t3_1 > @cnt_t3_0;
 select @cnt_t4_1 > @cnt_t4_0;
 select @cnt_t5_1 > @cnt_t5_0;
+select @cnt_t6_1 > @cnt_t6_0;
+select @cnt_t7_1 > @cnt_t7_0;
+select @cnt_t8_1 > @cnt_t8_0;
 
 let $i = 200;
 --disable_query_log
@@ -122,6 +182,6 @@ while ($i) {
 --let ndb_desc_opts= -p -d test t1
 --source suite/ndb/include/ndb_desc_print.inc
 
-drop table t1,t2,t3,t4,t5;
+drop table t1,t2,t3,t4,t5,t6,t7,t8;
 
 --source suite/ndb/include/restore_ndb_read_backup.inc

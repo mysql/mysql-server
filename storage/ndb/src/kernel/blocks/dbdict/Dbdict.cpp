@@ -6081,6 +6081,9 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
         case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
         case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
         case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+        case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+        case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+        case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
         {
           jam();
           if (!restart)
@@ -33739,6 +33742,9 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
       /* Fall through */
     case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
     case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+    case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
     case NDB_PARTITION_BALANCE_FOR_RP_BY_NODE:
     case NDB_PARTITION_BALANCE_FOR_RA_BY_NODE:
       jam();
