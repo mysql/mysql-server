@@ -176,3 +176,94 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
   DBUG_PRINT("error", ("NDB: %u - %s", ndb_error.code, ndb_error.message));
   return true;  // Error
 }
+
+bool ndb_get_table_commit_count(Ndb *ndb, const NdbDictionary::Table *ndbtab,
+                                Uint64 *commit_count) {
+  DBUG_TRACE;
+
+  NdbError ndb_error;
+
+  Uint64 fragment_commit_count;
+  NdbOperation::GetValueSpec extraGets[1];
+  extraGets[0].column = NdbDictionary::Column::COMMIT_COUNT;
+  extraGets[0].appStorage = &fragment_commit_count;
+
+  const Uint32 codeWords = 1;
+  Uint32 codeSpace[codeWords];
+  NdbInterpretedCode code(nullptr,  // Table is irrelevant
+                          &codeSpace[0], codeWords);
+  if (code.interpret_exit_last_row() != 0 || code.finalise() != 0) {
+    ndb_error = code.getNdbError();
+    DBUG_PRINT("error", ("NDB: %u - %s", ndb_error.code, ndb_error.message));
+    return true;  // Error
+  }
+
+  int retries = 100;
+  NdbTransaction *trans;
+  do {
+    Uint64 total_commit_count = 0;
+    NdbScanOperation *op;
+    int check;
+
+    if ((trans = ndb->startTransaction(ndbtab)) == nullptr) {
+      ndb_error = ndb->getNdbError();
+      goto retry;
+    }
+
+    NdbScanOperation::ScanOptions options;
+    options.optionsPresent = NdbScanOperation::ScanOptions::SO_BATCH |
+                             NdbScanOperation::ScanOptions::SO_GETVALUE |
+                             NdbScanOperation::ScanOptions::SO_INTERPRETED;
+    /* Set batch_size=1, as we need only one row per fragment. */
+    options.batch = 1;
+    options.extraGetValues = &extraGets[0];
+    options.numExtraGetValues = sizeof(extraGets) / sizeof(extraGets[0]);
+    options.interpretedCode = &code;
+
+    // Read only pseudo columns by scanning with an empty mask and one
+    // extra gets
+    if ((op = trans->scanTable(
+             ndbtab->getDefaultRecord(),  // Record not used since there are no
+                                          // real columns in the scan
+             NdbOperation::LM_CommittedRead, empty_mask, &options,
+             sizeof(NdbScanOperation::ScanOptions))) == nullptr) {
+      ndb_error = trans->getNdbError();
+      goto retry;
+    }
+
+    if (trans->execute(NdbTransaction::NoCommit, NdbOperation::AbortOnError,
+                       1 /* force send */) == -1) {
+      ndb_error = trans->getNdbError();
+      goto retry;
+    }
+
+    const char *dummyRowPtr;
+    while ((check = op->nextResult(&dummyRowPtr, true, true)) == 0) {
+      DBUG_PRINT("info",
+                 ("fragment_commit_count: %llu", fragment_commit_count));
+      total_commit_count += fragment_commit_count;
+    }
+    if (check == -1) {
+      ndb_error = op->getNdbError();
+      goto retry;
+    }
+    op->close(true);
+    ndb->closeTransaction(trans);
+    *commit_count = total_commit_count;
+    return false;  // Success
+
+  retry:
+    if (trans != nullptr) {
+      ndb->closeTransaction(trans);
+      trans = nullptr;
+    }
+    if (ndb_error.status == NdbError::TemporaryError && retries--) {
+      ndb_retry_sleep(30);  // milliseconds
+      continue;
+    }
+    break;
+  } while (true);
+
+  DBUG_PRINT("error", ("NDB: %u - %s", ndb_error.code, ndb_error.message));
+  return true;  // Error
+}

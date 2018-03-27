@@ -40,8 +40,9 @@
 #include "mysql/psi/mysql_thread.h"
 #include "sql/abstract_query_plan.h"
 #include "sql/current_thd.h"
-#include "sql/derror.h"  // ER_THD
-#include "sql/mysqld.h"  // global_system_variables table_alias_charset ...
+#include "sql/debug_sync.h"  // DEBUG_SYNC
+#include "sql/derror.h"      // ER_THD
+#include "sql/mysqld.h"      // global_system_variables table_alias_charset ...
 #include "sql/partition_info.h"
 #include "sql/sql_alter.h"
 #include "sql/sql_class.h"
@@ -3365,6 +3366,24 @@ inline int ha_ndbcluster::next_result(uchar *buf) {
     if (res == 1) {
       // No more records
       DBUG_PRINT("info", ("No more records"));
+
+      if (m_thd_ndb->sql_command() == SQLCOM_ALTER_TABLE) {
+        // Detected end of scan for copying ALTER TABLE. Check commit_count of
+        // the scanned (source) table in order to detect that no concurrent
+        // changes has occurred.
+        DEBUG_SYNC(table->in_use, "ndb.before_commit_count_check");
+
+        if (copying_alter.check_saved_commit_count(m_thd_ndb->ndb, m_table)) {
+          my_printf_error(
+              ER_TABLE_DEF_CHANGED,
+              "Detected change to data in source table during copying ALTER "
+              "TABLE. Alter aborted to avoid inconsistency.",
+              MYF(0));
+          return HA_ERR_GENERIC;  // Does not set a new error
+        }
+        DEBUG_SYNC(table->in_use, "ndb.after_commit_count_check");
+      }
+
       return HA_ERR_END_OF_FILE;
     }
     return ndb_err(m_thd_ndb->trans);
@@ -6413,12 +6432,49 @@ int ha_ndbcluster::read_range_next() {
   return next_result(table->record[0]);
 }
 
+bool ha_ndbcluster::Copying_alter::save_commit_count(
+    Ndb *ndb, const NdbDictionary::Table *ndbtab) {
+  Uint64 commit_count;
+  if (ndb_get_table_commit_count(ndb, ndbtab, &commit_count)) {
+    return true;
+  }
+
+  DBUG_PRINT("info", ("Saving commit count: %llu", commit_count));
+  m_saved_commit_count = commit_count;
+  return false;
+}
+
+// Check that commit count have not changed since it was saved
+bool ha_ndbcluster::Copying_alter::check_saved_commit_count(
+    Ndb *ndb, const NdbDictionary::Table *ndbtab) const {
+  Uint64 commit_count;
+  if (ndb_get_table_commit_count(ndb, ndbtab, &commit_count)) {
+    return true;
+  }
+
+  DBUG_PRINT("info", ("Comparing commit count: %llu with saved value: %llu",
+                      commit_count, m_saved_commit_count));
+  return (commit_count != m_saved_commit_count);
+}
+
 int ha_ndbcluster::rnd_init(bool) {
   int error;
   DBUG_TRACE;
 
   if ((error = close_scan())) return error;
   index_init(table_share->primary_key, 0);
+
+  if (m_thd_ndb->sql_command() == SQLCOM_ALTER_TABLE) {
+    // Detected start of scan for copying ALTER TABLE. Save commit count of the
+    // scanned (source) table.
+    if (copying_alter.save_commit_count(m_thd_ndb->ndb, m_table)) {
+      my_printf_error(ER_UNKNOWN_ERROR,
+                      "Failed to save commit count for copying ALTER TABLE",
+                      MYF(0));
+      return HA_ERR_GENERIC;  // Does not set a new error
+    }
+  }
+
   return 0;
 }
 

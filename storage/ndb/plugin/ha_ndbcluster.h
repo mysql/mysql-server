@@ -721,6 +721,17 @@ class ha_ndbcluster : public handler, public Partition_handler {
   bool m_skip_auto_increment;
   bool m_is_bulk_delete;
 
+  class Copying_alter {
+    Uint64 m_saved_commit_count;
+
+   public:
+    // Save the commit count for source table during copying ALTER
+    bool save_commit_count(Ndb *ndb, const NdbDictionary::Table *ndbtab);
+    // Check commit count for source table during copying ALTER
+    bool check_saved_commit_count(Ndb *ndb,
+                                  const NdbDictionary::Table *ndbtab) const;
+  } copying_alter;
+
   /* State for setActiveHook() callback for reading blob data. */
   uint m_blob_counter;
   uint m_blob_expected_count_per_row;

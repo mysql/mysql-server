@@ -28,6 +28,7 @@
 #include "map_helpers.h"
 #include "my_base.h"  // ha_rows
 #include "storage/ndb/plugin/ndb_share.h"
+#include "storage/ndb/plugin/ndb_thd.h"
 
 class THD;
 
@@ -274,6 +275,8 @@ class Thd_ndb {
   bool is_slave_thread(void) const { return m_slave_thread; }
 
   const THD *get_thd() const { return m_thd; }
+
+  int sql_command() const { return thd_sql_command(m_thd); }
 
   /*
     @brief Push a warning message onto THD's condition stack.
