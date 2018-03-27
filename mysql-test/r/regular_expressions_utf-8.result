@@ -844,3 +844,12 @@ ERROR HY000: A capture group has an invalid name.
 #
 SELECT regexp_instr( 'abc', '(?-' );
 ERROR HY000: Invalid match mode flag in regular expression.
+#
+# Bug#27743722 REGEXP::EVALEXPRTOCHARSET:
+#              REFERENCE BINDING TO MISALIGNED ADDRESS
+#
+select regexp_instr(char('313:50:35.199734'using utf16le),uuid());
+regexp_instr(char('313:50:35.199734'using utf16le),uuid())
+0
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: '313:50:35.199734'

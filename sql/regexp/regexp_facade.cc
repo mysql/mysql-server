@@ -32,8 +32,9 @@
 namespace regexp {
 
 bool EvalExprToCharset(Item *expr, std::u16string *out) {
-  StringBuffer<MAX_FIELD_WIDTH> pre_conversion_buffer;
-  String *s = expr->val_str(&pre_conversion_buffer);
+  alignas(sizeof(UChar)) char aligned_buff[MAX_FIELD_WIDTH];
+  String aligned_str(aligned_buff, sizeof(aligned_buff), &my_charset_bin);
+  String *s = expr->val_str(&aligned_str);
   if (s == nullptr) return true;
 
   if (s->length() == 0) {
