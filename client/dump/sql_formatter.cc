@@ -102,22 +102,20 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
 
   CHARSET_INFO *charset_info = this->get_charset();
 
-  std::vector<bool> is_blob_to_hex;
+  std::vector<bool> is_blob;
   for (std::vector<Mysql_field>::const_iterator it =
            row_group->m_fields.begin();
        it != row_group->m_fields.end(); ++it) {
-    is_blob_to_hex.push_back(m_options->m_hex_blob &&
-                             it->get_character_set_nr() ==
-                                 my_charset_bin.number &&
-                             (it->get_type() == MYSQL_TYPE_BIT ||
-                              it->get_type() == MYSQL_TYPE_STRING ||
-                              it->get_type() == MYSQL_TYPE_VAR_STRING ||
-                              it->get_type() == MYSQL_TYPE_VARCHAR ||
-                              it->get_type() == MYSQL_TYPE_BLOB ||
-                              it->get_type() == MYSQL_TYPE_LONG_BLOB ||
-                              it->get_type() == MYSQL_TYPE_MEDIUM_BLOB ||
-                              it->get_type() == MYSQL_TYPE_TINY_BLOB ||
-                              it->get_type() == MYSQL_TYPE_GEOMETRY));
+    is_blob.push_back(it->get_character_set_nr() == my_charset_bin.number &&
+                      (it->get_type() == MYSQL_TYPE_BIT ||
+                       it->get_type() == MYSQL_TYPE_STRING ||
+                       it->get_type() == MYSQL_TYPE_VAR_STRING ||
+                       it->get_type() == MYSQL_TYPE_VARCHAR ||
+                       it->get_type() == MYSQL_TYPE_BLOB ||
+                       it->get_type() == MYSQL_TYPE_LONG_BLOB ||
+                       it->get_type() == MYSQL_TYPE_MEDIUM_BLOB ||
+                       it->get_type() == MYSQL_TYPE_TINY_BLOB ||
+                       it->get_type() == MYSQL_TYPE_GEOMETRY));
   }
 
   for (std::vector<Row *>::const_iterator row_iterator =
@@ -153,11 +151,12 @@ void Sql_formatter::format_row_group(Row_group_dump_task *row_group) {
           row_string += '\'';
         } else
           row_string.append(column_data, column_length);
-      } else if (is_blob_to_hex[column]) {
+      } else if (m_options->m_hex_blob && is_blob[column]) {
         row_string += "0x";
         Mysql::Tools::Base::Mysql_query_runner::append_hex_string(
             &row_string, column_data, column_length);
       } else {
+        if (is_blob[column]) row_string += "_binary ";
         row_string += '\"';
         if (m_escaping_runner)
           m_escaping_runner->append_escape_string(&row_string, column_data,
