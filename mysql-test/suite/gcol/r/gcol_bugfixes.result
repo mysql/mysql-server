@@ -868,3 +868,15 @@ LOAD DATA INFILE '../../std_data/loaddata5.dat'
  INTO TABLE t1 FIELDS TERMINATED BY '' ENCLOSED BY '' (c1) ;
 ERROR 42000: Trigger 'trg1' has an error in its body: 'You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1 VALUES (1)' at line 1'
 DROP TABLE t1;
+#
+# Bug#27452082 ASSERTION FAILED: !TABLE->IN_USE->IS_ERROR() IN UPDATE_GENERATED_READ_FIELDS
+#
+CREATE TABLE t (
+a INT,
+b INT GENERATED ALWAYS AS (MAKETIME(1,1,1)) STORED,
+KEY (a)
+);
+INSERT INTO t (a) VALUES (32767),(-1);
+SELECT * FROM t WHERE a>-19106 AND a-0x4d;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(`test`.`t`.`a` - 0x4d)'
+DROP TABLE t;

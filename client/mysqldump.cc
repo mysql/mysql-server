@@ -3686,20 +3686,19 @@ static void dump_table(char *table, char *db) {
         /*
            63 is my_charset_bin. If charsetnr is not 63,
            we have not a BLOB but a TEXT column.
-           we'll dump in hex only BLOB columns.
         */
-        is_blob = (opt_hex_blob && field->charsetnr == 63 &&
-                   (field->type == MYSQL_TYPE_BIT ||
-                    field->type == MYSQL_TYPE_STRING ||
-                    field->type == MYSQL_TYPE_VAR_STRING ||
-                    field->type == MYSQL_TYPE_VARCHAR ||
-                    field->type == MYSQL_TYPE_BLOB ||
-                    field->type == MYSQL_TYPE_LONG_BLOB ||
-                    field->type == MYSQL_TYPE_MEDIUM_BLOB ||
-                    field->type == MYSQL_TYPE_TINY_BLOB ||
-                    field->type == MYSQL_TYPE_GEOMETRY))
-                      ? 1
-                      : 0;
+        is_blob =
+            (field->charsetnr == 63 && (field->type == MYSQL_TYPE_BIT ||
+                                        field->type == MYSQL_TYPE_STRING ||
+                                        field->type == MYSQL_TYPE_VAR_STRING ||
+                                        field->type == MYSQL_TYPE_VARCHAR ||
+                                        field->type == MYSQL_TYPE_BLOB ||
+                                        field->type == MYSQL_TYPE_LONG_BLOB ||
+                                        field->type == MYSQL_TYPE_MEDIUM_BLOB ||
+                                        field->type == MYSQL_TYPE_TINY_BLOB ||
+                                        field->type == MYSQL_TYPE_GEOMETRY))
+                ? 1
+                : 0;
         if (extended_insert && !opt_xml) {
           if (i == 0)
             dynstr_set_checked(&extended_row, "(");
@@ -3727,6 +3726,13 @@ static void dump_table(char *table, char *db) {
                   /* mysql_hex_string() already terminated string by '\0' */
                   DBUG_ASSERT(extended_row.str[extended_row.length] == '\0');
                 } else {
+                  if (is_blob) {
+                    /*
+                      inform SQL parser that this string isn't in
+                      character_set_connection, so it doesn't emit a warning.
+                    */
+                    dynstr_append_checked(&extended_row, "_binary ");
+                  }
                   dynstr_append_checked(&extended_row, "'");
                   extended_row.length += mysql_real_escape_string_quote(
                       &mysql_connection, &extended_row.str[extended_row.length],
@@ -3777,8 +3783,13 @@ static void dump_table(char *table, char *db) {
               } else if (opt_hex_blob && is_blob && length) {
                 fputs("0x", md_result_file);
                 print_blob_as_hex(md_result_file, row[i], length);
-              } else
+              } else {
+                if (is_blob) {
+                  fputs("_binary ", md_result_file);
+                  check_io(md_result_file);
+                }
                 unescape(md_result_file, row[i], length);
+              }
             } else {
               /* change any strings ("inf", "-inf", "nan") into NULL */
               char *ptr = row[i];

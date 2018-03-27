@@ -6738,7 +6738,7 @@ void repoint_field_to_record(TABLE *table, uchar *old_rec, uchar *new_rec) {
 bool update_generated_read_fields(uchar *buf, TABLE *table, uint active_index) {
   DBUG_ENTER("update_generated_read_fields");
   DBUG_ASSERT(table && table->vfield);
-  DBUG_ASSERT(!table->in_use->is_error());
+  if (table->in_use->is_error()) DBUG_RETURN(true);
   if (active_index != MAX_KEY && table->key_read) {
     /*
       The covering index is providing all necessary columns, including
@@ -6833,7 +6833,8 @@ bool update_generated_write_fields(const MY_BITMAP *bitmap, TABLE *table) {
   int error = 0;
 
   DBUG_ASSERT(table->vfield);
-  DBUG_ASSERT(!table->in_use->is_error());
+  if (table->in_use->is_error()) DBUG_RETURN(true);
+
   /* Iterate over generated fields in the table */
   for (vfield_ptr = table->vfield; *vfield_ptr; vfield_ptr++) {
     Field *vfield;
