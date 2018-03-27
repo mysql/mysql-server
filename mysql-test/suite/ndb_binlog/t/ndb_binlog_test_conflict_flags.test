@@ -50,6 +50,14 @@ drop table raw_binlog_rows;
 
 set global debug='';
 delete from test.t1;
+
+# Wait for delete to be written to binlog before RESET MASTER
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
 reset master;
 
 --echo Specific flag settings test : Reflect
@@ -95,6 +103,14 @@ drop table raw_binlog_rows;
 
 set global debug='';
 delete from test.t1;
+
+# Wait for delete to be written to binlog before RESET MASTER
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
 reset master;
 
 --echo Specific flag settings test : Refresh
