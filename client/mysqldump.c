@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3874,9 +3874,8 @@ static void dump_table(char *table, char *db)
         /*
            63 is my_charset_bin. If charsetnr is not 63,
            we have not a BLOB but a TEXT column.
-           we'll dump in hex only BLOB columns.
         */
-        is_blob= (opt_hex_blob && field->charsetnr == 63 &&
+        is_blob= (field->charsetnr == 63 &&
                   (field->type == MYSQL_TYPE_BIT ||
                    field->type == MYSQL_TYPE_STRING ||
                    field->type == MYSQL_TYPE_VAR_STRING ||
@@ -3920,6 +3919,14 @@ static void dump_table(char *table, char *db)
                 }
                 else
                 {
+                  if (is_blob)
+                  {
+                    /*
+                      inform SQL parser that this string isn't in
+                      character_set_connection, so it doesn't emit a warning.
+                    */
+                    dynstr_append_checked(&extended_row, "_binary ");
+                  }
                   dynstr_append_checked(&extended_row,"'");
                   extended_row.length +=
                   mysql_real_escape_string_quote(&mysql_connection,
@@ -3991,7 +3998,14 @@ static void dump_table(char *table, char *db)
                 print_blob_as_hex(md_result_file, row[i], length);
               }
               else
+              {
+                if (is_blob)
+                {
+                  fputs("_binary ", md_result_file);
+                  check_io(md_result_file);
+                }
                 unescape(md_result_file, row[i], length);
+              }
             }
             else
             {
