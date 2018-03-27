@@ -989,10 +989,10 @@ sub collect_one_test_case {
 
   tags_from_test_file($tinfo, "$testdir/${tname}.test");
 
-  # Check that test wth "ndb" in their suite or test name
+  # Check that test wth "ndb" in their suite name
   # have been tagged as 'ndb_test', this is normally fixed
   # by adding a "source include/have_ndb.inc" to the file
-  if ($tinfo->{name} =~ /ndb/) {
+  if ($suitename =~ /ndb/) {
     mtr_error("The test '$tinfo->{name}' is not tagged as 'ndb_test'")
       unless ($tinfo->{'ndb_test'});
   }
