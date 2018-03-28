@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/07/2018
+.\"      Date: 03/27/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "02/07/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "03/27/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -277,7 +277,7 @@ shell> \fBmysqldump [options] > dump\&.sql\fR
 .\}
 .PP
 However, UTF\-16 is not permitted as a connection character set (see
-Section\ \&10.1.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
+Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq), so the dump file will not load correctly\&. To work around this issue, use the
 \fB\-\-result\-file\fR
 option, which creates the output in ASCII format:
 .sp
@@ -1259,7 +1259,7 @@ command represents character data with national language settings\&.
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1275,7 +1275,7 @@ Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
 Use
 \fIcharset_name\fR
 as the default character set\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&. If no character set is specified,
 \fBmysqldump\fR
 uses
 utf8\&.
@@ -1535,19 +1535,19 @@ l l.
 T{
 OFF
 T}:T{
-Add no SET statement to the output\&.
+Add no SET statement to the output.
 T}
 T{
 ON
 T}:T{
-Add a SET statement to the output\&. An error occurs if
-                    GTIDs are not enabled on the server\&.
+Add a SET statement to the output. An error occurs if
+                  GTIDs are not enabled on the server.
 T}
 T{
 AUTO
 T}:T{
 Add a SET statement to the output if GTIDs are
-                    enabled on the server\&.
+                  enabled on the server.
 T}
 .TE
 .sp 1
@@ -1657,27 +1657,9 @@ options\&.
 .\}
 \fB\-\-compatible=\fR\fB\fIname\fR\fR
 .sp
-Produce output that is more compatible with other database systems or with older MySQL servers\&. The value of
-\fIname\fR
-can be
-ansi,
-mysql323,
-mysql40,
-postgresql,
-oracle,
-mssql,
-db2,
-maxdb,
-no_key_options,
-no_table_options, or
-no_field_options\&. To use several values, separate them by commas\&. These values have the same meaning as the corresponding options for setting the server SQL mode\&. See
+Produce output that is more compatible with other database systems or with older MySQL servers\&. As of MySQL 8\&.0\&.11, the only permitted value for this option is
+ansi, which has the same meaning as the corresponding option for setting the server SQL mode\&. See
 Section\ \&5.1.8, \(lqServer SQL Modes\(rq\&.
-.sp
-This option does not guarantee compatibility with other servers\&. It only enables those SQL mode values that are currently available for making dump output more compatible\&. For example,
-\fB\-\-compatible=oracle\fR
-does not map data types to Oracle types or use Oracle comment syntax\&.
-.sp
-\fIThis option requires a server version of 4\&.1\&.0 or higher\fR\&. With older servers, it does nothing\&.
 .RE
 .sp
 .RS 4
@@ -1937,16 +1919,19 @@ l l.
 T{
 NULL (\fIunknown value\fR)
 T}:T{
+.PP
 <field name="\fIcolumn_name\fR" xsi:nil="true" />
 T}
 T{
-\*(Aq\*(Aq (\fIempty string\fR)
+'' (\fIempty string\fR)
 T}:T{
+.PP
 <field name="\fIcolumn_name\fR"></field>
 T}
 T{
-\*(AqNULL\*(Aq (\fIstring value\fR)
+'NULL' (\fIstring value\fR)
 T}:T{
+.PP
 <field name="\fIcolumn_name\fR">NULL</field>
 T}
 .TE
