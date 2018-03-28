@@ -1,3 +1,6 @@
+# Embedded server doesn't support external clients
+--source include/not_embedded.inc
+
 --echo # Bug#22601255 Restoring a dump of binary column, made with mysqldump, warns of invalid string
 
 CREATE TABLE t1(
