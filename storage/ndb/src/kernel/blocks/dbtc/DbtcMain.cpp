@@ -1614,8 +1614,10 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
        */
       ApiConnectRecordPtr apiConnectPtr;
       apiConnectPtr.i = iter.curr.p->apiConnectPtr;
-      c_apiConnectRecordPool.getPtr(apiConnectPtr);
-      if(apiConnectPtr.p->commitAckMarker == iter.curr.i){
+      if (c_apiConnectRecordPool.getValidPtr(apiConnectPtr) &&
+          !apiConnectPtr.isNull() &&
+          apiConnectPtr.p->commitAckMarker == iter.curr.i)
+      {
 	jam();
         /**
          * The record is still active, this means that the transaction is
