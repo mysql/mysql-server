@@ -162,7 +162,6 @@ RESET PERSIST;
 SELECT @@global.binlog_cache_size;
 SELECT @@global.disabled_storage_engines;
 SELECT @@global.collation_database;
-SELECT @@global.innodb_flush_method;
 SELECT @@global.innodb_open_files;
 # test SIGNED long value
 SELECT @@global.optimizer_trace_offset;
@@ -179,7 +178,6 @@ SET @@global.binlog_cache_size= 4096;
 SET @@persist_only.binlog_cache_size= default,
     @@persist_only.collation_database= default,
     @@persist_only.disabled_storage_engines= default,
-    @@persist_only.innodb_flush_method= default,
     @@persist_only.innodb_open_files= default,
     @@persist_only.optimizer_trace_offset= default,
     @@persist_only.optimizer_switch= default,
@@ -195,7 +193,6 @@ SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 SELECT @@global.binlog_cache_size;
 SELECT @@global.disabled_storage_engines;
 SELECT @@global.collation_database;
-SELECT @@global.innodb_flush_method;
 SELECT @@global.innodb_open_files;
 SELECT @@global.optimizer_trace_offset;
 SELECT @@global.optimizer_switch;
