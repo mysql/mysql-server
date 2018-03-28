@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,7 +61,7 @@ namespace sdi_tablespace {
   @param table
   @param schema
  */
-bool store_tbl_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
+bool store_tbl_sdi(THD *thd, handlerton *hton, const Sdi_type &sdi,
                    const Table &table, const dd::Schema &schema);
 
 /**
@@ -71,7 +71,7 @@ bool store_tbl_sdi(THD *thd, const handlerton &hton, const Sdi_type &sdi,
   @param sdi
   @param tablespace
  */
-bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
+bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
                    const Tablespace &tablespace);
 
 /**

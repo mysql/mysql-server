@@ -1364,6 +1364,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
 
 /**
   Insert/Update SDI for a given SDI key.
+  @param[in]  hton        handlerton object
   @param[in]  tablespace  tablespace object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @param[in]  sdi         SDI to write into the tablespace
@@ -1372,7 +1373,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
   @retval     true        failure, my_error() should be called
                           by SE
 */
-typedef bool (*sdi_set_t)(const dd::Tablespace &tablespace,
+typedef bool (*sdi_set_t)(handlerton *hton, const dd::Tablespace &tablespace,
                           const dd::Table *table, const dd::sdi_key_t *sdi_key,
                           const void *sdi, uint64 sdi_len);
 

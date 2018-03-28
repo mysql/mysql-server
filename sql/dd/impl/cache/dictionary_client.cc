@@ -1877,6 +1877,80 @@ bool Dictionary_client::check_foreign_key_exists(
   return false;
 }
 
+template <typename T>
+bool fetch_raw_record(THD *thd,
+                      std::function<bool(Raw_record *)> const &processor) {
+  Transaction_ro trx(thd, ISO_READ_COMMITTED);
+
+  trx.otx.register_tables<T>();
+  Raw_table *table = trx.otx.get_table<T>();
+  DBUG_ASSERT(table);
+
+  if (trx.otx.open_tables()) {
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    return true;
+  }
+
+  std::unique_ptr<Raw_record_set> rs;
+  if (table->open_record_set(nullptr, rs)) {
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+    return true;
+  }
+
+  Raw_record *r = rs->current_record();
+  String_type s;
+  while (r) {
+    if (processor(r) || rs->next(r)) {
+      DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Fetch the ids of all the components.
+template <typename T>
+bool Dictionary_client::fetch_global_component_ids(
+    std::vector<Object_id> *ids) const {
+  DBUG_ASSERT(ids);
+
+  auto processor = [&](Raw_record *r) -> bool {
+    ids->push_back(r->read_int(0));
+    return false;
+  };
+
+  if (fetch_raw_record<T>(m_thd, processor)) {
+    ids->clear();
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  return false;
+}
+
+// Fetch the names of all the components.
+template <typename T>
+bool Dictionary_client::fetch_global_component_names(
+    std::vector<String_type> *names) const {
+  DBUG_ASSERT(names);
+
+  auto processor = [&](Raw_record *r) -> bool {
+    names->push_back(r->read_str(T::DD_table::FIELD_NAME));
+    return false;
+  };
+
+  if (fetch_raw_record<T>(m_thd, processor)) {
+    names->clear();
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
+    return true;
+  }
+
+  return false;
+}
+
 // Fetch the names of all the components in the schema.
 template <typename T>
 bool Dictionary_client::fetch_schema_component_names(
@@ -2756,6 +2830,12 @@ template bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
 
 template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema *, std::vector<String_type> *) const;
+
+template bool Dictionary_client::fetch_global_component_ids<Table>(
+    std::vector<Object_id> *) const;
+
+template bool Dictionary_client::fetch_global_component_names<Tablespace>(
+    std::vector<String_type> *) const;
 
 template bool Dictionary_client::fetch_referencing_views_object_id<View_table>(
     const char *schema, const char *tbl_or_sf_name,

@@ -54,6 +54,7 @@
 #include "sql/dd/info_schema/metadata.h"     // dd::info_schema::install_IS...
 #include "sql/dd/sdi_file.h"                 // dd::sdi_file::EXT
 #include "sql/dd/types/object_table.h"
+#include "sql/dd/types/table.h"  // dd::Table
 #include "sql/dd/types/tablespace.h"
 #include "sql/dd/upgrade/event.h"
 #include "sql/dd/upgrade/global.h"
@@ -469,26 +470,28 @@ bool add_sdi_info(THD *thd) {
   // Fetch list of tablespaces. We will ignore error in storing SDI info
   // as upgrade can only roll forward in this stage. Use Error handler to avoid
   // any error calls in dd::sdi::store()
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  std::vector<const dd::Tablespace *> tablespaces;
+  std::vector<dd::String_type> tablespace_names;
   Dummy_error_handler error_handler;
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, MEM_ROOT_BLOCK_SIZE);
+  Thd_mem_root_guard root_guard(thd, &mem_root);
 
-  if (thd->dd_client()->fetch_global_components(&tablespaces)) {
+  if (thd->dd_client()->fetch_global_component_names<dd::Tablespace>(
+          &tablespace_names)) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_TO_FETCH_TABLESPACES);
     return (true);
   }
 
   // Add sdi info
   thd->push_internal_handler(&error_handler);
-  for (const dd::Tablespace *tsc : tablespaces) {
+  for (dd::String_type &tsc : tablespace_names) {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     Disable_autocommit_guard autocommit_guard(thd);
     dd::Tablespace *ts = nullptr;
 
-    if (thd->dd_client()->acquire_for_modification<dd::Tablespace>(tsc->name(),
-                                                                   &ts)) {
+    if (thd->dd_client()->acquire_for_modification<dd::Tablespace>(tsc, &ts)) {
       // In case of error, we will continue with upgrade.
       LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_TO_ACQUIRE_TABLESPACE,
-             ts->name().c_str());
+             tsc.c_str());
       continue;
     }
 
@@ -522,20 +525,34 @@ bool add_sdi_info(THD *thd) {
       trans_commit_stmt(thd);
       trans_commit(thd);
     }
+    mem_root.ClearForReuse();
   }
   thd->pop_internal_handler();
 
   // Fetch list of tables from dictionary
-  std::vector<const dd::Table *> tables;
-  if (thd->dd_client()->fetch_global_components(&tables)) {
+  std::vector<dd::Object_id> table_ids;
+  if (thd->dd_client()->fetch_global_component_ids<dd::Table>(&table_ids)) {
     LogErr(ERROR_LEVEL, ER_DD_UPGRADE_FAILED_TO_FETCH_TABLES);
     return (true);
   }
 
   // Add sdi info
   thd->push_internal_handler(&error_handler);
-  for (const dd::Table *tab : tables) {
-    (void)dd::sdi::store(thd, tab);
+  for (dd::Object_id &table_id : table_ids) {
+    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+    const dd::Table *table = nullptr;
+    if (thd->dd_client()->acquire(table_id, &table) || !table) {
+      mem_root.ClearForReuse();
+      continue;
+    }
+
+    if (dd::sdi::store(thd, table)) {
+      LogErr(ERROR_LEVEL, ER_BAD_TABLE_ERROR, table->name().c_str());
+      trans_rollback_stmt(thd);
+    }
+    trans_commit_stmt(thd);
+    trans_commit(thd);
+    mem_root.ClearForReuse();
   }
   thd->pop_internal_handler();
 
@@ -1099,7 +1116,6 @@ bool fill_dd_and_finalize(THD *thd) {
 
   // Upgrade schema and tables, create view without resolving dependency
   for (it = db_name.begin(); it != db_name.end(); it++) {
-    dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     bool exists = false;
     dd::schema_exists(thd, it->c_str(), &exists);
 

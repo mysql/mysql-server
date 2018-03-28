@@ -55,13 +55,25 @@ const String_type table_stats = "innodb_table_stats";
 const String_type table_stats_backup = "innodb_table_stats_backup57";
 
 /**
+  THD::mem_root is only switched with the given mem_root and switched back
+  on destruction. This does not free any mem_root.
+ */
+class Thd_mem_root_guard {
+  THD *m_thd;
+  MEM_ROOT *m_thd_prev_mem_root;
+
+ public:
+  Thd_mem_root_guard(THD *thd, MEM_ROOT *mem_root);
+  ~Thd_mem_root_guard();
+};
+
+/**
    RAII for handling open and close of event and proc tables.
 */
 
 class System_table_close_guard {
   THD *m_thd;
   TABLE *m_table;
-  MEM_ROOT *m_mem_root;
 
  public:
   System_table_close_guard(THD *thd, TABLE *table);
