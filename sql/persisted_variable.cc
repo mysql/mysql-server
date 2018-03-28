@@ -292,17 +292,25 @@ void Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
   const char *var_name =
       Persisted_variables_cache::get_variable_name(system_var);
   const char *var_value = val_buf;
-  if (setvar->type == OPT_PERSIST_ONLY && setvar->value) {
-    res = setvar->value->val_str(&str);
-    if (res && res->length()) {
-      /*
-        value held by Item class can be of different charset,
-        so convert to utf8mb4
-      */
-      const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
-      uint dummy_err;
-      utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
-                    &dummy_err);
+  if (setvar->type == OPT_PERSIST_ONLY) {
+    const CHARSET_INFO *tocs = &my_charset_utf8mb4_bin;
+    uint dummy_err;
+    if (setvar->value) {
+      res = setvar->value->val_str(&str);
+      if (res && res->length()) {
+        /*
+          value held by Item class can be of different charset,
+          so convert to utf8mb4
+        */
+        utf8_str.copy(res->ptr(), res->length(), res->charset(), tocs,
+                      &dummy_err);
+        var_value = utf8_str.c_ptr_quick();
+      }
+    } else {
+      /* persist default value */
+      setvar->var->save_default(thd, setvar);
+      setvar->var->saved_value_to_string(thd, setvar, (char *)str.ptr());
+      utf8_str.copy(str.ptr(), str.length(), str.charset(), tocs, &dummy_err);
       var_value = utf8_str.c_ptr_quick();
     }
   } else {

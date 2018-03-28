@@ -153,4 +153,97 @@ COUNT(DISTINCT MICROSECOND(set_time))
 # Cleanup
 SET GLOBAL max_join_size=DEFAULT, init_connect=DEFAULT;
 RESET PERSIST;
+#
+# Bug #27489026: PERSIST_ONLY DOESN'T RESPECT DEFAULT INSTEAD COPIES GLOBAL VALUE
+#
+SELECT @@global.binlog_cache_size;
+@@global.binlog_cache_size
+32768
+SELECT @@global.disabled_storage_engines;
+@@global.disabled_storage_engines
+
+SELECT @@global.collation_database;
+@@global.collation_database
+utf8mb4_0900_ai_ci
+SELECT @@global.innodb_flush_method;
+@@global.innodb_flush_method
+fsync
+SELECT @@global.innodb_open_files;
+@@global.innodb_open_files
+4000
+SELECT @@global.optimizer_trace_offset;
+@@global.optimizer_trace_offset
+-1
+SELECT @@global.optimizer_switch;
+@@global.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+SELECT @@global.enforce_gtid_consistency;
+@@global.enforce_gtid_consistency
+OFF
+SELECT @@global.sql_mode;
+@@global.sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+SET @@global.binlog_cache_size= 4096;
+SET @@persist_only.binlog_cache_size= default,
+@@persist_only.collation_database= default,
+@@persist_only.disabled_storage_engines= default,
+@@persist_only.innodb_flush_method= default,
+@@persist_only.innodb_open_files= default,
+@@persist_only.optimizer_trace_offset= default,
+@@persist_only.optimizer_switch= default,
+@@persist_only.enforce_gtid_consistency= default,
+@@persist_only.sql_mode= default;
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+binlog_cache_size	32768
+collation_database	utf8mb4_0900_ai_ci
+disabled_storage_engines	
+enforce_gtid_consistency	0
+innodb_flush_method	0
+innodb_open_files	0
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+optimizer_trace_offset	-1
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+# Restart server
+# restart
+SELECT @@global.binlog_cache_size;
+@@global.binlog_cache_size
+32768
+SELECT @@global.disabled_storage_engines;
+@@global.disabled_storage_engines
+
+SELECT @@global.collation_database;
+@@global.collation_database
+utf8mb4_0900_ai_ci
+SELECT @@global.innodb_flush_method;
+@@global.innodb_flush_method
+fsync
+SELECT @@global.innodb_open_files;
+@@global.innodb_open_files
+4000
+SELECT @@global.optimizer_trace_offset;
+@@global.optimizer_trace_offset
+-1
+SELECT @@global.optimizer_switch;
+@@global.optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+SELECT @@global.enforce_gtid_consistency;
+@@global.enforce_gtid_consistency
+OFF
+SELECT @@global.sql_mode;
+@@global.sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+binlog_cache_size	32768
+collation_database	utf8mb4_0900_ai_ci
+disabled_storage_engines	
+enforce_gtid_consistency	0
+innodb_flush_method	0
+innodb_open_files	0
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,duplicateweedout=on,subquery_materialization_cost_based=on,use_index_extensions=on,condition_fanout_filter=on,derived_merge=on,use_invisible_indexes=off
+optimizer_trace_offset	-1
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+# Cleanup
+RESET PERSIST;
 # End of the 8.0 tests
