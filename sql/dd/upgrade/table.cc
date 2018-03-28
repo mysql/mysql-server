@@ -781,7 +781,6 @@ static void create_alter_view_stmt(THD *thd, TABLE_LIST *view_ref, String *str,
   @param[in] view_ref                TABLE_LIST with view data.
   @param[in] db_name                 database name.
   @param[in] view_name               view name.
-  @param[in] mem_root                MEM_ROOT to handle memory allocations.
 
   @retval false  ON SUCCESS
   @retval true   ON FAILURE
