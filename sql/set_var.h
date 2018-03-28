@@ -222,6 +222,13 @@ class sys_var {
   bool set_default(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
 
+  /**
+    This function converts value stored in save_result to string. This
+    function must ba called after calling save_default() as save_default() will
+    store default value to save_result.
+  */
+  virtual void saved_value_to_string(THD *thd, set_var *var, char *def_val) = 0;
+
   SHOW_TYPE show_type() { return show_val_type; }
   int scope() const { return flags & SCOPE_MASK; }
   const CHARSET_INFO *charset(THD *thd);
@@ -283,6 +290,8 @@ class sys_var {
             impossible to obtain the value.
   */
   Item *copy_value(THD *thd);
+
+  void save_default(THD *thd, set_var *var) { global_save_default(thd, var); }
 
  private:
   virtual bool do_check(THD *thd, set_var *var) = 0;

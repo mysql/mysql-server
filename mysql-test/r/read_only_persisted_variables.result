@@ -243,9 +243,9 @@ SET PERSIST_ONLY ft_query_expansion_limit= DEFAULT;
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 auto_increment_increment	10
-ft_query_expansion_limit	200
+ft_query_expansion_limit	20
 innodb_checksum_algorithm	strict_crc32
-innodb_log_file_size	4194304
+innodb_log_file_size	50331648
 slave_type_conversions	ALL_UNSIGNED
 # reset slave_type_conversions
 RESET PERSIST slave_type_conversions;
