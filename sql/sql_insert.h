@@ -211,9 +211,9 @@ class Query_result_create final : public Query_result_insert {
 
 class Sql_cmd_insert_base : public Sql_cmd_dml {
  protected:
-  virtual bool precheck(THD *thd);
+  virtual bool precheck(THD *thd) override;
 
-  virtual bool prepare_inner(THD *thd);
+  virtual bool prepare_inner(THD *thd) override;
 
  private:
   bool resolve_update_expressions(THD *thd);
@@ -269,7 +269,7 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
         value_count(0),
         duplicates(duplicates_arg) {}
 
-  virtual void cleanup(THD *) {
+  virtual void cleanup(THD *) override {
     if (empty_field_list_on_rset) {
       empty_field_list_on_rset = false;
       insert_field_list.empty();
