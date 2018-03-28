@@ -1,0 +1,28 @@
+#
+# Bug#27769521 CREATE TABLE WITH MORE THAN 128 BYTES NAME IN NDB
+#
+# Preconditions:
+# 1) Max length of a table name in NDB is currently 128 bytes.
+# 2) The MySQL Server creates tables in NDB using name on the form
+#     <db_name>/<catalog_name>/<table_name> where <catalog_name> is
+#     always hardcoded to "def".
+# 3) The current limit of identifier names in MySQL is 64 characters,
+#    but for NDB tables the limit is currently only 63 bytes
+#    due to a legacy bug.
+#
+#
+# Using two maximum length identifiers(i.e 63 bytes) it's possible to
+# hit the 128 bytes limit in NDB. Unfortunately the ndbcluster plugin
+# does not detect this error correctly and returns the error:
+#   "Table '<long identifier>' doesn't exist"
+#
+select LENGTH('abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm');
+LENGTH('abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm')
+63
+CREATE DATABASE abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm;
+use abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm;
+CREATE TABLE abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm (
+a int primary key
+) engine = NDB;
+ERROR 42S02: Table 'abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm.abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm' doesn't exist
+DROP DATABASE abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm;
