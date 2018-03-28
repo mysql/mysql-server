@@ -1,5 +1,5 @@
 /* -*- c-basic-offset: 4; -*- */
-/* Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 #include <ndb_global.h>
 
 #include "getarg.h"
-#include <basestring_vsnprintf.h>
 
 #ifndef HAVE_STRLCPY
 static size_t
@@ -283,7 +282,7 @@ arg_printusage (struct getargs *args,
 	    col += fprintf(stderr, " %s", buf);
 	}
 	if (args[i].short_name) {
-	    basestring_snprintf(buf, sizeof(buf), "[-%c", args[i].short_name);
+            snprintf(buf, sizeof(buf), "[-%c", args[i].short_name);
 	    len += 2;
 	    len += print_arg(buf + strlen(buf), sizeof(buf) - strlen(buf), 
 			     0, 0, &args[i]);
