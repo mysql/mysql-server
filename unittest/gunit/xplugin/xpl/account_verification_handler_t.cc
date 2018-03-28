@@ -63,6 +63,9 @@ class User_verification_test : public Test {
   StrictMock<ngs::test::Mock_sql_data_context> mock_sql_data_context;
   ngs::test::Mock_account_verification *mock_account_verification{
       ngs::allocate_object<StrictMock<ngs::test::Mock_account_verification>>()};
+
+  ngs::Authentication_info m_auth_info;
+
   xpl::Account_verification_handler handler{
       &mock_session, ngs::Account_verification_interface::Account_native,
       mock_account_verification};
@@ -97,8 +100,10 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
               verify_authentication_string(_, _, _, _))
       .WillOnce(Return(true));
 
-  EXPECT_EQ(ER_SUCCESS,
-            handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH).error);
+  EXPECT_EQ(
+      ER_SUCCESS,
+      handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
+          .error);
 }
 
 TEST_F(User_verification_test, forwards_error_from_query_execution) {
@@ -107,8 +112,10 @@ TEST_F(User_verification_test, forwards_error_from_query_execution) {
   EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
       .WillOnce(Return(expected_error));
 
-  EXPECT_EQ(expected_error.error,
-            handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH).error);
+  EXPECT_EQ(
+      expected_error.error,
+      handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
+          .error);
 }
 
 TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
@@ -131,8 +138,10 @@ TEST_F(User_verification_test, dont_match_anything_when_hash_isnt_right) {
               verify_authentication_string(_, _, _, _))
       .WillOnce(Return(false));
 
-  EXPECT_EQ(ER_NO_SUCH_USER,
-            handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH).error);
+  EXPECT_EQ(
+      ER_ACCESS_DENIED_ERROR,
+      handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
+          .error);
 }
 
 struct Test_param {
@@ -161,6 +170,9 @@ TEST_P(User_verification_param_test, User_verification_on_given_account_param) {
                          EMPTY,
                          EMPTY};
 
+  EXPECT_CALL(mock_client, client_hostname_or_address())
+      .WillRepeatedly(Return(""));
+
   EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
@@ -169,8 +181,10 @@ TEST_P(User_verification_param_test, User_verification_on_given_account_param) {
                 verify_authentication_string(_, _, _, _))
         .WillOnce(Return(true));
 
-  EXPECT_EQ(param.expected_error,
-            handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH).error);
+  EXPECT_EQ(
+      param.expected_error,
+      handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
+          .error);
 }
 
 Test_param combinations[] = {
@@ -181,7 +195,7 @@ Test_param combinations[] = {
     {NOT ACCOUNT_LOCKED, OFFLINE_MODE, NOT PASSWORD_EXPIRED, AUTH_PLUGIN_NAME,
      ER_SERVER_OFFLINE_MODE},
     {NOT ACCOUNT_LOCKED, NOT OFFLINE_MODE, NOT PASSWORD_EXPIRED,
-     WRONG_AUTH_PLUGIN_NAME, ER_NO_SUCH_USER}};
+     WRONG_AUTH_PLUGIN_NAME, ER_ACCESS_DENIED_ERROR}};
 
 INSTANTIATE_TEST_CASE_P(User_verification, User_verification_param_test,
                         ValuesIn(combinations));
@@ -225,8 +239,10 @@ TEST_P(User_verification_param_test_with_connection_type_combinations,
   EXPECT_CALL(mock_sql_data_context, execute(_, _, _))
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
-  EXPECT_EQ(param.expected_error,
-            handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH).error);
+  EXPECT_EQ(
+      param.expected_error,
+      handler.verify_account(USER_NAME, USER_IP, EXPECTED_HASH, &m_auth_info)
+          .error);
 }
 
 Test_param_connection_type connection_combinations[] = {
@@ -261,6 +277,7 @@ class Split_sasl_message_test
       public WithParamInterface<Test_param_sasl_message> {
  public:
   StrictMock<ngs::test::Mock_authentication_interface> mock_authentication;
+  ngs::Authentication_info m_auth_info;
 };
 
 TEST_P(Split_sasl_message_test, Split_sasl_message_on_given_param) {
@@ -281,17 +298,19 @@ TEST_P(Split_sasl_message_test, Split_sasl_message_on_given_param) {
 
   EXPECT_EQ(
       param.expected_error,
-      handler.authenticate(mock_authentication, param.get_message()).error);
+      handler
+          .authenticate(mock_authentication, &m_auth_info, param.get_message())
+          .error);
 }
 
 Test_param_sasl_message sasl_message[] = {
-    {EMPTY, EMPTY, EMPTY, ER_NO_SUCH_USER},
-    {USER_DB, EMPTY, EMPTY, ER_NO_SUCH_USER},
+    {EMPTY, EMPTY, EMPTY, ER_ACCESS_DENIED_ERROR},
+    {USER_DB, EMPTY, EMPTY, ER_ACCESS_DENIED_ERROR},
     {EMPTY, USER_NAME, EMPTY, ER_SUCCESS},
-    {EMPTY, EMPTY, EXPECTED_HASH, ER_NO_SUCH_USER},
+    {EMPTY, EMPTY, EXPECTED_HASH, ER_ACCESS_DENIED_ERROR},
     {USER_DB, USER_NAME, EMPTY, ER_SUCCESS},
     {EMPTY, USER_NAME, EXPECTED_HASH, ER_SUCCESS},
-    {USER_DB, EMPTY, EXPECTED_HASH, ER_NO_SUCH_USER},
+    {USER_DB, EMPTY, EXPECTED_HASH, ER_ACCESS_DENIED_ERROR},
     {USER_DB, USER_NAME, EXPECTED_HASH, ER_SUCCESS}};
 
 INSTANTIATE_TEST_CASE_P(User_verification, Split_sasl_message_test,

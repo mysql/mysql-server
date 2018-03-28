@@ -67,6 +67,7 @@ class Client_interface {
  public:
   virtual const char *client_address() const = 0;
   virtual const char *client_hostname() const = 0;
+  virtual const char *client_hostname_or_address() const = 0;
   virtual const char *client_id() const = 0;
   virtual Client_id client_id_num() const = 0;
   virtual int client_port() const = 0;

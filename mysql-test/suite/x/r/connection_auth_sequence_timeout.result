@@ -41,7 +41,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
 closing session seq
 switched to session default
 
@@ -50,7 +50,7 @@ switched to session default
 ## failure
 connecting...
 active session is now 'seq'
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
 closing session seq
 switched to session default
 Mysqlx.Ok {

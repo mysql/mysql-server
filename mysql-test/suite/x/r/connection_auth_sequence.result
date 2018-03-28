@@ -28,7 +28,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
 Login OK
 closing session seq
 Mysqlx.Ok {
@@ -63,8 +63,8 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
 Login OK
 closing session seq
 Mysqlx.Ok {
@@ -99,9 +99,9 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
 closing session seq
 switched to session default
 
@@ -144,7 +144,7 @@ send Mysqlx.Session.Reset {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
 Login OK
 closing session seq
 Mysqlx.Ok {
@@ -181,9 +181,9 @@ send Mysqlx.Session.Reset {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
 closing session seq
 switched to session default
 Mysqlx.Ok {

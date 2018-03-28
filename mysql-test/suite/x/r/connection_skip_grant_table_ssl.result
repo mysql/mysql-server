@@ -56,8 +56,8 @@ ok
 # Enable back the "grant-tables", mysqlx client
 # that uses invalid passord must be disconnected
 FLUSH PRIVILEGES;
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'nonblank'@'localhost' (using password: YES) (code 1045)
+ok
 DROP USER nonblank@localhost;
 CREATE USER nonblank@localhost
 IDENTIFIED WITH 'sha256_password' BY 'valid_password';
@@ -114,6 +114,6 @@ ok
 # Enable back the "grant-tables", mysqlx client
 # that uses invalid passord must be disconnected
 FLUSH PRIVILEGES;
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
+Application terminated with expected error: Access denied for user 'nonblank'@'localhost' (using password: YES) (code 1045)
+ok
 DROP USER nonblank@localhost;

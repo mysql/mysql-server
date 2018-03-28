@@ -52,11 +52,13 @@ class Account_verification_handler {
 
   virtual ngs::Error_code authenticate(
       const ngs::Authentication_interface &account_verificator,
+      ngs::Authentication_info *authenication_info,
       const std::string &sasl_message) const;
 
-  ngs::Error_code verify_account(const std::string &user,
-                                 const std::string &host,
-                                 const std::string &passwd) const;
+  ngs::Error_code verify_account(
+      const std::string &user, const std::string &host,
+      const std::string &passwd,
+      const ngs::Authentication_info *authenication_info) const;
 
   void add_account_verificator(
       const ngs::Account_verification_interface::Account_type account_type,

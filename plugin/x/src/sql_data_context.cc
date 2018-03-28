@@ -184,7 +184,7 @@ ngs::Error_code Sql_data_context::authenticate(
     bool allow_expired_passwords) {
   ngs::Error_code error = switch_to_user(user, host, ip, db);
 
-  if (error) return ngs::Error(ER_NO_SUCH_USER, "Invalid user or password");
+  if (error) return ngs::SQLError_access_denied();
 
   std::string authenticated_user_name = get_authenticated_user_name();
   std::string authenticated_user_host = get_authenticated_user_host();

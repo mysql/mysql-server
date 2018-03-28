@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -141,7 +141,7 @@ TEST_P(Sasl_challenge_response_auth_test, handle_continue_succeeded) {
       Response(ngs::Authentication_interface::Ongoing, ER_SUCCESS, SALT),
       auth->handle_start(GetParam().m_name, AUTH_DATA, EMPTY));
 
-  EXPECT_CALL(*mock_handler, authenticate(_, AUTH_DATA))
+  EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(::testing::Return(ngs::Success()));
 
   ASSERT_RESPONSE(
@@ -162,7 +162,7 @@ TEST_P(Sasl_challenge_response_auth_test, handle_continue_failed) {
       auth->handle_start(GetParam().m_name, AUTH_DATA, EMPTY));
 
   ngs::Error_code expect_error(ER_NO_SUCH_USER, "Invalid user or password");
-  EXPECT_CALL(*mock_handler, authenticate(_, AUTH_DATA))
+  EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(::testing::Return(expect_error));
 
   ASSERT_RESPONSE(Response(ngs::Authentication_interface::Failed,

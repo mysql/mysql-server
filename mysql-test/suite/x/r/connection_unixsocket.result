@@ -29,56 +29,9 @@ INSERT INTO `city` VALUES (5,'Amsterdam','NLD','Noord-Holland',731);
 INSERT INTO `city` VALUES (6,'Rotterdam','NLD','Zuid-Holland',593);
 call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attempt: Invalid user or password'");
 call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Invalid user or password'");
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
-Application terminated with expected error: Invalid user or password (code 1045)
-not ok
-send Mysqlx.Sql.StmtExecute {
-  stmt: "ping"
-  namespace: "mysqlx"
-}
-
-
-command ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
-CONNECTION_TYPE
-Socket
-0 rows affected
-send Mysqlx.Crud.Find {
-  collection {
-    name: "city"
-    schema: "test"
-  }
-  data_model: TABLE
-  criteria {
-    type: OPERATOR
-    operator {
-      name: "<"
-      param {
-        type: IDENT
-        identifier {
-          name: "Population"
-        }
-      }
-      param {
-        type: LITERAL
-        literal {
-          type: V_SINT
-          v_signed_int: 250
-        }
-      }
-    }
-  }
-}
-
-ID	Name	CountryCode	District	Population
-2	Qandahar	AFG	Qandahar	237
-3	Herat	AFG	Herat	186
-4	Mazar-e-Sharif	AFG	Balkh	127
-command ok
-Mysqlx.Ok {
-  msg: "bye!"
-}
+Application terminated with expected error: Access denied for user 'user_127_0_0_1'@'localhost' (using password: NO) (code 1045)
+ok
+Application terminated with expected error: Access denied for user 'user_8_8_8_8'@'localhost' (using password: NO) (code 1045)
 ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
@@ -174,8 +127,55 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: Current account requires TLS to be activate. (code 1045)
-not ok
+send Mysqlx.Sql.StmtExecute {
+  stmt: "ping"
+  namespace: "mysqlx"
+}
+
+
+command ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+CONNECTION_TYPE
+Socket
+0 rows affected
+send Mysqlx.Crud.Find {
+  collection {
+    name: "city"
+    schema: "test"
+  }
+  data_model: TABLE
+  criteria {
+    type: OPERATOR
+    operator {
+      name: "<"
+      param {
+        type: IDENT
+        identifier {
+          name: "Population"
+        }
+      }
+      param {
+        type: LITERAL
+        literal {
+          type: V_SINT
+          v_signed_int: 250
+        }
+      }
+    }
+  }
+}
+
+ID	Name	CountryCode	District	Population
+2	Qandahar	AFG	Qandahar	237
+3	Herat	AFG	Herat	186
+4	Mazar-e-Sharif	AFG	Balkh	127
+command ok
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
+Application terminated with expected error: Access denied for user 'user_requires_ssl'@'localhost' (using password: NO) (code 1045)
+ok
 send Mysqlx.Sql.StmtExecute {
   stmt: "ping"
   namespace: "mysqlx"

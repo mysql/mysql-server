@@ -51,10 +51,14 @@ class Sasl_plain_auth : public ngs::Authentication_interface {
       const std::string &user, const std::string &host,
       const std::string &passwd) const override;
 
-  std::string get_auth_name() { return "PLAIN"; }
+  std::string get_auth_name() const { return "PLAIN"; }
+  ngs::Authentication_info get_authentication_info() const override {
+    return m_auth_info;
+  };
 
  private:
   Account_verification_handler_ptr m_verification_handler;
+  ngs::Authentication_info m_auth_info;
 };
 
 }  // namespace xpl

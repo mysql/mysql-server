@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class Sasl_plain_auth_test : public Test {
 };
 
 TEST_F(Sasl_plain_auth_test, handle_start_authenticate_succeeded) {
-  EXPECT_CALL(*mock_handler, authenticate(_, AUTH_DATA))
+  EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(Return(ngs::Success()));
 
   ASSERT_RESPONCE(Response(ngs::Authentication_interface::Succeeded),
@@ -77,7 +77,7 @@ TEST_F(Sasl_plain_auth_test, handle_start_authenticate_succeeded) {
 
 TEST_F(Sasl_plain_auth_test, handle_start_authenticate_failed) {
   ngs::Error_code expect_error(ER_NO_SUCH_USER, "Invalid user or password");
-  EXPECT_CALL(*mock_handler, authenticate(_, AUTH_DATA))
+  EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(Return(expect_error));
 
   ASSERT_RESPONCE(Response(ngs::Authentication_interface::Failed,
@@ -92,7 +92,7 @@ TEST_F(Sasl_plain_auth_test, handle_continue_without_previous_start) {
 }
 
 TEST_F(Sasl_plain_auth_test, handle_continue_allways_failed) {
-  EXPECT_CALL(*mock_handler, authenticate(_, AUTH_DATA))
+  EXPECT_CALL(*mock_handler, authenticate(_, _, AUTH_DATA))
       .WillOnce(Return(ngs::Success()));
 
   ASSERT_RESPONCE(Response(ngs::Authentication_interface::Succeeded),

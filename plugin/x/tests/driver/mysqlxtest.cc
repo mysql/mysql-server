@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -110,9 +110,7 @@ int client_connect_and_process(const Driver_command_line_options &options,
                                std::istream &input) {
   Variable_container variables(options.m_variables);
   Console console(options.m_console_options);
-
   Connection_manager cm{options.m_connection_options, &variables, console};
-
   Execution_context context(options.m_context_options, &cm, &variables,
                             console);
 
@@ -131,7 +129,14 @@ int client_connect_and_process(const Driver_command_line_options &options,
 
     return result_code;
   } catch (const xcl::XError &e) {
+    if (options.is_expected_error_set() &&
+        options.m_expected_error_code == e.error()) {
+      console.print("Application terminated with expected error: ", e.what(),
+                    " (code ", e.error(), ")\n");
+      return 0;
+    }
     console.print_error_red(context.m_script_stack, e, '\n');
+
     return 1;
   }
 }
@@ -216,22 +221,21 @@ int main(int argc, char **argv) {
 
   ssl_start();
 
-  bool result = 0;
+  bool return_code = 0;
   try {
-    result = client_connect_and_process(options, input);
-    if (result == 0)
+    return_code = client_connect_and_process(options, input);
+    const bool is_ok = 0 == return_code;
+
+    if (is_ok)
       std::cerr << "ok\n";
     else
       std::cerr << "not ok\n";
-  } catch (xcl::XError &e) {
-    std::cerr << "ERROR: " << e.what() << "\n";
-    result = 1;
   } catch (std::exception &e) {
     std::cerr << "ERROR: " << e.what() << "\n";
-    result = 1;
+    return_code = 1;
   }
 
   vio_end();
   my_end(0);
-  DBUG_RETURN(result);
+  DBUG_RETURN(return_code);
 }

@@ -6,7 +6,7 @@ grant all on *.* to xplugin@localhost;
 alter user xplugin@localhost password expire;
 
 Test: Expired password with no support for sandbox mode (should fail)
-Got expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+Got expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1862)
 ok
 
 Test: Expired password with support for sandbox mode (should succeed)
@@ -33,8 +33,8 @@ Login OK
 ok
 Test: try connecting with non-x_root user when its password expird and x_root user password expired,expect password expired notice
 alter user x_root@localhost password expire;
-Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
-not ok
+Application terminated with expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1862)
+ok
 Test: try connecting with Expired password using x_root user and expect password expire notice
 send Mysqlx.Connection.CapabilitiesSet {
   capabilities {
@@ -98,7 +98,7 @@ send Mysqlx.Connection.CapabilitiesSet {
 Mysqlx.Ok {
 }
 
-Got expected error: Invalid user or password (code 1045)
+Got expected error: Access denied for user 'x_root'@'localhost' (using password: YES) (code 1045)
 ok
 set password for x_root@localhost = '';
 # restart: --disconnect_on_expired_password=off
@@ -174,7 +174,7 @@ Mysqlx.Ok {
 }
 ok
 connecting...
-Got expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1045)
+Got expected error: Your password has expired. To log in you must change it using a client that supports expired passwords. (code 1862)
 ok
 NOTICE: Account password expired
 send Mysqlx.Sql.StmtExecute {

@@ -231,6 +231,12 @@ void Client::disconnect_and_trigger_close() {
   shutdown_connection();
 }
 
+const char *Client::client_hostname_or_address() const {
+  if (!m_client_host.empty()) return m_client_host.c_str();
+
+  return m_client_addr.c_str();
+}
+
 void Client::on_read_timeout() {
   Mysqlx::Notice::Warning warning;
   const bool force_flush = true;

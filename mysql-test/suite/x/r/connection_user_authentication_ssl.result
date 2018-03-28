@@ -30,17 +30,17 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 Login with 'user1:pass_localhost@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 Login with 'user1:pass_all_hosts@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 DROP USER user1@'127.0.0.1';
 ##
 ## X Plugin should only authenticate 'user1'@'127.0.0.%' account on TCP
 ##
 Login with 'user1:pass_127.0.0.1@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 RUN select current_user();
 current_user()
@@ -56,17 +56,17 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 Login with 'user1:pass_all_hosts@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 DROP USER user1@'localhost';
 ##
 ## X Plugin should only authenticate 'user1'@'%' account on TCP
 ##
 Login with 'user1:pass_127.0.0.1@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 Login with 'user1:pass_localhost@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 RUN select current_user();
 current_user()
@@ -115,17 +115,17 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 Login with 'user1:pass_localhost@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 Login with 'user1:pass_all_hosts@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 DROP USER user1@'127.0.0.1';
 ##
 ## X Plugin should only authenticate 'user1'@'127.0.0.%' account on TCP
 ##
 Login with 'user1:pass_127.0.0.1@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 RUN select current_user();
 current_user()
@@ -141,17 +141,17 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 Login with 'user1:pass_all_hosts@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 DROP USER user1@'localhost';
 ##
 ## X Plugin should only authenticate 'user1'@'%' account on TCP
 ##
 Login with 'user1:pass_127.0.0.1@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 Login with 'user1:pass_localhost@localhost/xtest' should fail
-error (as expected): Invalid user or password (code 1045)
+error (as expected): Access denied for user 'user1'@'localhost' (using password: YES) (code 1045)
 ok
 RUN select current_user();
 current_user()

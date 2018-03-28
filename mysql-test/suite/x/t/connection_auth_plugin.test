@@ -43,19 +43,13 @@ GRANT ALL ON *.* TO xuser_sha256@localhost;
 --exec $MYSQLXTEST -uxuser_sha256 -psha256 $XSSLPARAM
 
 --echo Plain connection by sha256 plugin  -> fail (ssl is obligatory)
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uxuser_sha256 -psha256 $XBASIC
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_sha256 -psha256 $XBASIC
 
 --echo Ssl connection by native plugin  -> fail (wrong password)
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uxuser_native -psha256 $XSSLPARAM
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_native -psha256 $XSSLPARAM
 
 --echo Ssl connection by sha256 plugin  -> fail (wrong password)
---let $expected_error_msg= Invalid user or password \(code 1045\)
---source ../include/mysqlxtest_expected_error.inc
---exec $MYSQLXTEST -uxuser_sha256 -pnative $XSSLPARAM
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_sha256 -pnative $XSSLPARAM
 
 ## Cleanup
 DROP USER xuser_native@localhost, xuser_sha256@localhost;

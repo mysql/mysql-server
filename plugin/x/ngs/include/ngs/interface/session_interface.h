@@ -69,6 +69,7 @@ class Session_interface {
   virtual State state_before_close() const = 0;
 
   virtual Client_interface &client() = 0;
+  virtual const Client_interface &client() const = 0;
 
   virtual Session_status_variables &get_status_variables() = 0;
   virtual void mark_as_tls_session() = 0;

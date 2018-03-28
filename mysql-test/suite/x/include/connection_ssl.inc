@@ -10,9 +10,9 @@
 #                 MYSQLXTEST argument setting unix socket or must be empty)
 #   $USER_AUTH_PLUGIN - defines MySQL Servers account types that is going to
 #                 be tested
-#   $ERROR_IF_CHANNEL_UNSECURE - defined expected error message for MYSQLXTEST
-#                 connection when verifying the "require_secure_transport"
-#                 system variable.
+#   $ERROR_IF_CHANNEL_UNSECURE - defined expected error code for MYSQLXTEST
+#                 default connection when test verifies X Plugin logic that
+#                 handles "require_secure_transport" system variable.
 #
 # Usage:
 #
@@ -20,7 +20,7 @@
 # --let $USER_AUTH_PLUGIN=mysql_native_password|sha256_password|caching_sha2_password
 # --let $ERROR_IF_CHANNEL_UNSECURE=EXPECTED_ERROR_MESSAGE
 # --let $USE_SOCKET=UNIX_SOCKET_CONFIGURATION
-# --source connection_ssl.inc
+# --source ../include/connection_ssl.inc
 #
 
 --echo
@@ -174,6 +174,7 @@ callmacro Assert_status_variable
 	%VAR_SSL_ACCEPTS%;
 EOF
 
+
 --write_file $MYSQL_TMP_DIR/verify-non-ssl-connection-info.tmp
 -->import assert_select.macro
 -->import assert_status_variable.macro
@@ -206,7 +207,6 @@ callmacro Assert_status_variable
 EOF
 
 
-
 # Using "connect-expired-password" Option to allow expired password.
 
 --write_file $MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp
@@ -214,6 +214,7 @@ EOF
 ALTER USER USER() IDENTIFIED BY 'alter-new-auth';
 -->endsql
 EOF
+
 
 --write_file $MYSQL_TMP_DIR/mysqlx-set-pwd.tmp
 -->sql
@@ -331,14 +332,12 @@ exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1
 --echo #
 --echo # III.1
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Your password has expired. To log in you must change it using a client that supports expired passwords. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user2_mysqlx --password='auth_string2' --plain-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_MUST_CHANGE_PASSWORD_LOGIN -u user2_mysqlx --password='auth_string2' --plain-auth 2>&1;
 
 --echo # III.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
 exec $MYSQLXTEST -u user2_mysqlx --password='auth_string2'
-	--connect-expired-password --ssl-mode=REQUIRED 
+	--connect-expired-password --ssl-mode=REQUIRED
 	--file=$MYSQL_TMP_DIR/mysqlx-alter-pwd.tmp 2>&1;
 
 --echo # III.3
@@ -378,28 +377,20 @@ exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3'
 
 --echo # IV.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current user certificate subject is not valid. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' --cached-auth
 	--ssl-cipher='AES256-SHA' --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem 2>&1;
 
 --echo # IV.3
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' --cached-auth 2>&1;
 
 --echo # IV.4
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' 2>&1;
 
 --echo # IV.5
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' --cached-auth
 	--ssl-cipher='AES256-SHA' 2>&1;
 
 
@@ -412,9 +403,7 @@ exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3' --cached-a
 --echo #
 --echo # V.1
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Account is locked. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user4_mysqlx --password=''
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCOUNT_HAS_BEEN_LOCKED -u user4_mysqlx --password=''
 	$CLIENT_SSL_KEY $CLIENT_SSL_CERT 2>&1;
 
 --echo # V.2
@@ -468,22 +457,16 @@ exec $MYSQLXTEST_VERIFY_SSL -u user6_mysqlx --password='dwh@#ghd' --plain-auth
 	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
 --echo # VII.2
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_NON_SSL -u user6_mysqlx --password='dwh@#ghd' 2>&1 --cached-auth;
+exec $MYSQLXTEST_VERIFY_NON_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' 2>&1 --cached-auth;
 
 --echo # VII.3
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user6_mysqlx --password='dwh@#ghd' --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' --cached-auth
 	$CLIENT_SSL_CA 2>&1;
 
 --echo # VII.4
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user6_mysqlx --password='dwh@#ghd' --plain-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' --plain-auth 2>&1;
 
 --echo
 --echo
@@ -504,29 +487,20 @@ exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx
 
 --echo # VIII.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx --cached-auth
   --ssl-cipher="AES256-SHA" 2>&1;
 
 --echo # VIII.3
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
-let $expected_error_extra= /in main, line 0:ERROR: (Invalid user or password \(code 1045\))/Application terminated with expected error: \1/;
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_NON_SSL -u user7_mysqlx --cached-auth 2>&1;
+let $expected_error_msg= Access denied for user 'user7_mysqlx'@'localhost' \(using password: YES\) \(code 1045\);
+exec $MYSQLXTEST_VERIFY_NON_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx --cached-auth 2>&1;
 
 --echo # VIII.4
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current account requires TLS to be activate. \(code 1045\);
-let $expected_error_extra= /in main, line 0:ERROR: (Invalid user or password \(code 1045\))/Application terminated with expected error: \1/;
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx --plain-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx --cached-auth 2>&1;
 
 --echo # VIII.5
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-let $expected_error_msg= Current user cipher isn.t allowed. \(code 1045\);
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx --cached-auth
 	--ssl-cipher='DHE-RSA-AES256-SHA' $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT 2>&1;
 
 --echo
@@ -558,9 +532,7 @@ exec $MYSQLXTEST -u x_root
 --echo #
 --echo # X.1
 SET GLOBAL require_secure_transport:=1;
-let $expected_error_msg= $ERROR_IF_CHANNEL_UNSECURE;
---source ../include/mysqlxtest_expected_error.inc
-exec $MYSQLXTEST_VERIFY_NON_SSL -ux_root --password=''
+exec $MYSQLXTEST_VERIFY_NON_SSL --expect-error $ERROR_IF_CHANNEL_UNSECURE -ux_root --password=''
 	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
 --echo # X.2
