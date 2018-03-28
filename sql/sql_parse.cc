@@ -2027,6 +2027,10 @@ bool shutdown(THD *thd, enum mysql_enum_shutdown_level level) {
 
   my_ok(thd);
 
+  LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_INFO,
+         thd->security_context()->user().str, server_version,
+         MYSQL_COMPILATION_COMMENT);
+
   DBUG_PRINT("quit", ("Got shutdown command for level %u", level));
   query_logger.general_log_print(thd, COM_QUERY, NullS);
   kill_mysql();
