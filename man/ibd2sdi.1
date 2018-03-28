@@ -2,12 +2,12 @@
 .\"     Title: \fBibd2sdi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/07/2018
+.\"      Date: 03/27/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBIBD2SDI\FR" "1" "02/07/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBIBD2SDI\FR" "1" "03/27/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -124,7 +124,7 @@ Displays command\-line help\&.
 .\}
 .nf
 shell> \fBibd2sdi \-\-help\fR
-Usage: ibd2sdi [\-v] [\-c <strict\-check>] [\-d <dump file name>] [\-n] filename1 [filenames]
+Usage: \&./ibd2sdi [\-v] [\-c <strict\-check>] [\-d <dump file name>] [\-n] filename1 [filenames]
 See http://dev\&.mysql\&.com/doc/refman/8\&.0/en/ibd2sdi\&.html for usage hints\&.
   \-h, \-\-help          Display this help and exit\&.
   \-v, \-\-version       Display version information and exit\&.
@@ -142,6 +142,9 @@ See http://dev\&.mysql\&.com/doc/refman/8\&.0/en/ibd2sdi\&.html for usage hints\
                       Specify the strict checksum algorithm by the user\&.
                       Allowed values are innodb, crc32, none\&.
   \-n, \-\-no\-check      Ignore the checksum verification\&.
+  \-p, \-\-pretty        Pretty format the SDI output\&.If false, SDI would be not
+                      human readable but it will be of less size
+                      (Defaults to on; use \-\-skip\-pretty to disable\&.)
 Variables (\-\-variable\-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\- \-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-
@@ -152,6 +155,7 @@ id                                0
 type                              0
 strict\-check                      crc32
 no\-check                          FALSE
+pretty                            TRUE
 .fi
 .if n \{\
 .RE
@@ -458,6 +462,32 @@ Skips checksum validation for pages that are read\&.
 .\}
 .nf
 shell> \fBibd2sdi \-\-no\-check \&.\&./data/test/t1\&.ibd\fR
+.fi
+.if n \{\
+.RE
+.\}
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-pretty\fR,
+\fB\-p\fR
+.sp
+Outputs SDI data in JSON pretty print format\&. Enabled by default\&. If disabled, SDI is not human readable but is smaller in size\&. Use
+\-\-skip\-pretty
+to disable\&. Added in MySQL 8\&.0\&.11\&.
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd\fR
 .fi
 .if n \{\
 .RE
