@@ -53,7 +53,7 @@ void Vio_input_stream::mark_vio_as_active() {
   m_idle = false;
 
   MYSQL_SOCKET_WAIT_VARIABLES(locker, state) /* no ';' */
-  MYSQL_START_SOCKET_WAIT(locker, &state, m_connection->get_vio()->mysql_socket,
+  MYSQL_START_SOCKET_WAIT(locker, &state, m_connection->get_mysql_socket(),
                           PSI_SOCKET_RECV, 0);
   MYSQL_END_SOCKET_WAIT(locker, m_idle_data);
 }

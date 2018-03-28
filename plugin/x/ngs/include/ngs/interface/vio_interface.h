@@ -56,6 +56,7 @@ class Vio_interface {
   virtual int shutdown() = 0;
 
   virtual Vio *get_vio() = 0;
+  virtual MYSQL_SOCKET &get_mysql_socket() = 0;
 
   virtual ~Vio_interface() = default;
 };
