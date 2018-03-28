@@ -112,7 +112,7 @@ namespace ndb_dummy_ts {
     @retval		true		failure
   */
   static
-  bool sdi_set(handlerton *hton, const dd::Tablespace&, const dd::Table*,
+  bool sdi_set(handlerton *, const dd::Tablespace&, const dd::Table*,
                const dd::sdi_key_t*, const void*, uint64)
   {
     return false; // Success
