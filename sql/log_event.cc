@@ -332,6 +332,9 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            TABLE *table, const char *type,
                                            const char *log_name, ulong pos) {
   const char *handler_error = (ha_error ? HA_ERR(ha_error) : NULL);
+  bool is_group_replication_applier_channel =
+      channel_map.is_group_replication_channel_name(
+          (const_cast<Relay_log_info *>(rli))->get_channel(), true);
   char buff[MAX_SLAVE_ERRMSG], *slider;
   const char *buff_end = buff + sizeof(buff);
   size_t len;
@@ -345,23 +348,44 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
     len = snprintf(slider, buff_end - slider, " %s, Error_code: %d;",
                    err->message_text(), err->mysql_errno());
   }
-
-  if (ha_error != 0)
-    rli->report(
-        level,
-        thd->is_error() ? thd->get_stmt_da()->mysql_errno() : ER_UNKNOWN_ERROR,
-        "Could not execute %s event on table %s.%s;"
-        "%s handler error %s; "
-        "the event's master log %s, end_log_pos %lu",
-        type, table->s->db.str, table->s->table_name.str, buff,
-        handler_error == NULL ? "<unknown>" : handler_error, log_name, pos);
-  else
-    rli->report(
-        level,
-        thd->is_error() ? thd->get_stmt_da()->mysql_errno() : ER_UNKNOWN_ERROR,
-        "Could not execute %s event on table %s.%s;"
-        "%s the event's master log %s, end_log_pos %lu",
-        type, table->s->db.str, table->s->table_name.str, buff, log_name, pos);
+  if (is_group_replication_applier_channel) {
+    if (ha_error != 0) {
+      rli->report(level,
+                  thd->is_error() ? thd->get_stmt_da()->mysql_errno()
+                                  : ER_UNKNOWN_ERROR,
+                  "Could not execute %s event on table %s.%s;"
+                  "%s handler error %s",
+                  type, table->s->db.str, table->s->table_name.str, buff,
+                  handler_error == NULL ? "<unknown>" : handler_error);
+    } else {
+      rli->report(level,
+                  thd->is_error() ? thd->get_stmt_da()->mysql_errno()
+                                  : ER_UNKNOWN_ERROR,
+                  "Could not execute %s event on table %s.%s;"
+                  "%s",
+                  type, table->s->db.str, table->s->table_name.str, buff);
+    }
+  } else {
+    if (ha_error != 0) {
+      rli->report(level,
+                  thd->is_error() ? thd->get_stmt_da()->mysql_errno()
+                                  : ER_UNKNOWN_ERROR,
+                  "Could not execute %s event on table %s.%s;"
+                  "%s handler error %s; "
+                  "the event's master log %s, end_log_pos %lu",
+                  type, table->s->db.str, table->s->table_name.str, buff,
+                  handler_error == NULL ? "<unknown>" : handler_error, log_name,
+                  pos);
+    } else {
+      rli->report(level,
+                  thd->is_error() ? thd->get_stmt_da()->mysql_errno()
+                                  : ER_UNKNOWN_ERROR,
+                  "Could not execute %s event on table %s.%s;"
+                  "%s the event's master log %s, end_log_pos %lu",
+                  type, table->s->db.str, table->s->table_name.str, buff,
+                  log_name, pos);
+    }
+  }
 }
 
 /**
