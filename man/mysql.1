@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 02/07/2018
+.\"      Date: 03/27/2018
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "02/07/2018" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/27/2018" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -297,7 +297,7 @@ On a computer having multiple network interfaces, use this option to select whic
 \fB\-\-character\-sets\-dir=\fR\fB\fIdir_name\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -490,8 +490,8 @@ This option can be useful if the operating system uses one character set and the
 client by default uses another\&. In this case, output may be formatted incorrectly\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
 .sp
 For more information, see
-Section\ \&10.1.4, \(lqConnection Character Sets and Collations\(rq, and
-Section\ \&10.5, \(lqCharacter Set Configuration\(rq\&.
+Section\ \&10.4, \(lqConnection Character Sets and Collations\(rq, and
+Section\ \&10.14, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2470,92 +2470,92 @@ l l
 l l
 l l.
 T{
-\eC
+\C
 T}:T{
 The current connection identifier
 T}
 T{
-\ec
+\c
 T}:T{
 A counter that increments for each statement you issue
 T}
 T{
-\eD
+\D
 T}:T{
 The full current date
 T}
 T{
-\ed
+\d
 T}:T{
 The default database
 T}
 T{
-\eh
+\h
 T}:T{
 The server host
 T}
 T{
-\el
+\l
 T}:T{
 The current delimiter
 T}
 T{
-\em
+\m
 T}:T{
 Minutes of the current time
 T}
 T{
-\en
+\n
 T}:T{
 A newline character
 T}
 T{
-\eO
+\O
 T}:T{
-The current month in three\-letter format (Jan, Feb, \&...)
+The current month in three-letter format (Jan, Feb, \&...)
 T}
 T{
-\eo
+\o
 T}:T{
 The current month in numeric format
 T}
 T{
-\eP
+\P
 T}:T{
 am/pm
 T}
 T{
-\ep
+\p
 T}:T{
 The current TCP/IP port or socket file
 T}
 T{
-\eR
+\R
 T}:T{
-The current time, in 24\-hour military time (0\(en23)
+The current time, in 24-hour military time (0\(en23)
 T}
 T{
-\er
+\r
 T}:T{
-The current time, standard 12\-hour time (1\(en12)
+The current time, standard 12-hour time (1\(en12)
 T}
 T{
-\eS
+\S
 T}:T{
 Semicolon
 T}
 T{
-\es
+\s
 T}:T{
 Seconds of the current time
 T}
 T{
-\et
+\t
 T}:T{
 A tab character
 T}
 T{
-\eU
+\U
 T}:T{
 .PP
 Your full
@@ -2563,57 +2563,57 @@ Your full
 account name
 T}
 T{
-\eu
+\u
 T}:T{
 Your user name
 T}
 T{
-\ev
+\v
 T}:T{
 The server version
 T}
 T{
-\ew
+\w
 T}:T{
-The current day of the week in three\-letter format (Mon, Tue, \&...)
+The current day of the week in three-letter format (Mon, Tue, \&...)
 T}
 T{
-\eY
+\Y
 T}:T{
 The current year, four digits
 T}
 T{
-\ey
+\y
 T}:T{
 The current year, two digits
 T}
 T{
-\e_
+\_
 T}:T{
 A space
 T}
 T{
-\e\ \&
+\\ \&
 T}:T{
 A space (a space follows the backslash)
 T}
 T{
-\e\*(Aq
+\'
 T}:T{
 Single quote
 T}
 T{
-\e"
+\"
 T}:T{
 Double quote
 T}
 T{
-\e\e
+\\
 T}:T{
-A literal \e backslash character
+A literal \ backslash character
 T}
 T{
-\e\fIx\fR
+\\fIx\fR
 T}:T{
 .PP
 \fIx\fR, for any
@@ -3149,7 +3149,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.10, \(lqServer-Side Help\(rq)\&.
+Section\ \&5.1.11, \(lqServer-Side Help\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
