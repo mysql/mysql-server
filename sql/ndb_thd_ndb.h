@@ -217,7 +217,6 @@ public:
     @brief Push a warning message onto THD's condition stack.
            Using default error code.
 
-    @thd               Thread handle
     @param[in]  fmt    printf-like format string
     @param[in]  ...    Variable arguments matching format string
   */
@@ -228,13 +227,19 @@ public:
     @brief Push a warning message onto THD's condition stack.
            Using specified error code.
 
-    @param      thd    Thread handle
     @param      code   Error code to use for the warning
     @param[in]  fmt    printf-like format string
     @param[in]  ...    Variable arguments matching format string
   */
   void push_warning(uint code, const char* fmt, ...) const
     MY_ATTRIBUTE((format(printf, 3, 4)));
+
+  /*
+    @brief Push an error from NDB as warning message onto THD's condition stack.
+
+    @param      ndberr The NDB error to push as warning
+  */
+  void push_ndb_error_warning(const NdbError &ndberr) const;
 };
 
 #endif

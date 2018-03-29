@@ -282,4 +282,6 @@ ERROR HY000: Table storage engine for 'bigbits' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 791 'Too many total bits in bitfields' from NDB
+Warning	1296	Failed to commit NDB schema transaction
+Warning	1296	Got error 791 'Too many total bits in bitfields' from NDB
 Error	1031	Table storage engine for 'bigbits' doesn't have this option

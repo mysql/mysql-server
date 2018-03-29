@@ -67,6 +67,7 @@
 #include "sql/ndb_modifiers.h"
 #include "sql/ndb_require.h"
 #include "sql/ndb_schema_dist.h"
+#include "sql/ndb_schema_trans_guard.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_metadata.h"
@@ -10698,13 +10699,12 @@ int ha_ndbcluster::create(const char *name,
     }
   }
 
-  if ((dict->beginSchemaTrans() == -1))
+  Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
+  if (!schema_trans.begin_trans())
   {
-    DBUG_PRINT("info", ("Failed to start schema transaction"));
-    m_table= 0;
+    m_table = nullptr;
     ERR_RETURN(dict->getNdbError());
   }
-  DBUG_PRINT("info", ("Started schema transaction"));
 
   int abort_error = 0;
   int create_result;
@@ -11200,12 +11200,10 @@ int ha_ndbcluster::create(const char *name,
   if (create_result == 0)
   {
 
-    /*
-     * All steps have succeeded, try and commit schema transaction
-     */
-    if (dict->endSchemaTrans() == -1)
+    // All schema objects created, commit NDB schema transaction
+    if (!schema_trans.commit_trans())
     {
-      m_table= 0;
+      m_table = nullptr;
       ERR_RETURN(dict->getNdbError());
     }
 
@@ -11226,6 +11224,7 @@ abort:
 
     // Require that 'abort_error' was set before "goto abort"
     DBUG_ASSERT(abort_error);
+    DBUG_PRINT("info", ("Aborting schema trans due to error: %d", abort_error));
 
     {
       // Flush out the indexes(if any) from ndbapi dictionary's cache first
@@ -11242,13 +11241,7 @@ abort:
       }
     }
 
-    // Now abort schema transaction
-    DBUG_PRINT("info", ("Aborting schema transaction due to error %i",
-                        abort_error));
-    if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
-        == -1)
-      DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
-                          dict->getNdbError().code));
+    schema_trans.abort_trans();
     m_table= 0;
 
     {
@@ -11266,12 +11259,7 @@ abort_return:
 
     // Require that "result" was set before "goto abort_return"
     DBUG_ASSERT(result);
-
-    DBUG_PRINT("info", ("Aborting schema transaction"));
-    if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
-        == -1)
-      DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
-                          dict->getNdbError().code));
+    schema_trans.abort_trans();
     DBUG_RETURN(result);
   }
 
