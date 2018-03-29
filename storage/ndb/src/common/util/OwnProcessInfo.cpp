@@ -97,7 +97,7 @@ static Uint32 getParentPidAsAngel()
   const char * monitor_pid = getenv("MYSQLD_PARENT_PID");
   if(monitor_pid)
   {
-    return atoi(monitor_pid)
+    return atoi(monitor_pid);
   }
 #else
   pid_t parent_process_id = getppid();
