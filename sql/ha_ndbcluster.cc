@@ -10315,7 +10315,6 @@ int ha_ndbcluster::create(const char *name,
   uint i, pk_length= 0;
   bool use_disk= false;
   bool ndb_sys_table= false;
-  int result= 0;
   Ndb_fk_list fk_list_for_truncate;
 
   // Verify default value for "single user mode" of the table
@@ -10779,8 +10778,7 @@ int ha_ndbcluster::create(const char *name,
         my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                  ndbcluster_hton_name,
           "READ_BACKUP=0 cannot be used for fully replicated tables");
-        result = HA_WRONG_CREATE_OPTION;
-        goto abort_return;
+        DBUG_RETURN(HA_WRONG_CREATE_OPTION);
       }
       tab.setReadBackupFlag(true);
       tab.setFullyReplicated(true);
@@ -10809,15 +10807,14 @@ int ha_ndbcluster::create(const char *name,
     dd::sdi_t sdi;
     if (!ndb_sdi_serialize(thd, table_def, m_dbname, sdi))
     {
-      result= 1;
-      goto abort_return;
+      DBUG_RETURN(1);
     }
 
-    result = tab.setExtraMetadata(2, // version 2 for sdi
-                                  sdi.c_str(), (Uint32)sdi.length());
+    const int result = tab.setExtraMetadata(2,  // version 2 for sdi
+                                            sdi.c_str(), (Uint32)sdi.length());
     if (result != 0)
     {
-      goto abort_return;
+      DBUG_RETURN(result);
     }
   }
 
@@ -10911,8 +10908,7 @@ int ha_ndbcluster::create(const char *name,
                           ndbcluster_hton_name,
                           "NOLOGGING=1 on table with fields "
                           "using STORAGE DISK");
-      result= HA_ERR_UNSUPPORTED;
-      goto abort_return;
+      DBUG_RETURN(HA_ERR_UNSUPPORTED);
     }
     tab.setLogging(true);
     tab.setTemporary(false);
@@ -10927,8 +10923,7 @@ int ha_ndbcluster::create(const char *name,
       // also specifying a tablespace name
       my_error(ER_MISSING_HA_CREATE_OPTION, MYF(0),
                ndbcluster_hton_name);
-      result = HA_MISSING_CREATE_OPTION;
-      goto abort_return;
+      DBUG_RETURN(HA_MISSING_CREATE_OPTION);
     }
   }
 
@@ -10965,8 +10960,7 @@ int ha_ndbcluster::create(const char *name,
                         "in a way to use STORAGE MEMORY.",
                         MYF(0),
                         key_part->field->field_name);
-        result= HA_ERR_UNSUPPORTED;
-        goto abort_return;
+        DBUG_RETURN(HA_ERR_UNSUPPORTED);
       }
       table_map.getColumn(tab, key_part->fieldnr-1)->setStorageType(
         NdbDictionary::Column::StorageTypeMemory);
@@ -11254,13 +11248,6 @@ abort:
     }
 
     DBUG_RETURN(abort_error);
-
-abort_return:
-
-    // Require that "result" was set before "goto abort_return"
-    DBUG_ASSERT(result);
-    schema_trans.abort_trans();
-    DBUG_RETURN(result);
   }
 
   // All objects have been created sucessfully and
