@@ -151,6 +151,10 @@ void Group_partition_handling::kill_transactions_and_leave() {
 
   if (set_read_mode) enable_server_read_mode(PSESSION_INIT_THREAD);
 
+  if (exit_state_action_var == EXIT_STATE_ACTION_ABORT_SERVER) {
+    abort_plugin_process("Fatal error during execution of Group Replication");
+  }
+
   DBUG_VOID_RETURN;
 }
 

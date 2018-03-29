@@ -69,6 +69,13 @@ bool Plugin_gcs_view_modification_notifier::is_injected_view_modification() {
   return result;
 }
 
+bool Plugin_gcs_view_modification_notifier::is_view_modification_ongoing() {
+  mysql_mutex_lock(&wait_for_view_mutex);
+  bool result = view_changing;
+  mysql_mutex_unlock(&wait_for_view_mutex);
+  return result;
+}
+
 void Plugin_gcs_view_modification_notifier::end_view_modification() {
   mysql_mutex_lock(&wait_for_view_mutex);
   view_changing = false;

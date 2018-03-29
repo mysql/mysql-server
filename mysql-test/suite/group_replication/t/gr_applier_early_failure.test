@@ -24,6 +24,10 @@
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+SET SESSION sql_log_bin = 1;
+
 --echo #
 --echo # 1. Create a table on server 1 and replicate
 --echo #
@@ -41,6 +45,10 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("On shutdown there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+SET SESSION sql_log_bin = 1;
 
 SET SESSION sql_log_bin= 0;
 INSERT INTO t1 VALUES (1);

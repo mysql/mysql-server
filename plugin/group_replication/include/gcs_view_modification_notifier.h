@@ -58,6 +58,15 @@ class Plugin_gcs_view_modification_notifier {
   bool is_injected_view_modification();
 
   /**
+    Checks if there is a view modification ongoing.
+
+    @return
+      @retval true  there is a view modification ongoing
+      @retval false otherwise
+   */
+  bool is_view_modification_ongoing();
+
+  /**
     Signals that a view modification has ended
   */
   void end_view_modification();

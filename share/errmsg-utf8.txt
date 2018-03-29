@@ -18050,6 +18050,9 @@ ER_IB_MSG_1272
 ER_SERVER_SHUTDOWN_INFO
   eng "Received SHUTDOWN from user %s. Shutting down mysqld (Version: %s)."
 
+ER_GRP_RPL_PLUGIN_ABORT
+  eng "The plugin encountered a critical error and will abort: %s"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

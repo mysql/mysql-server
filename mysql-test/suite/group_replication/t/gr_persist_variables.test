@@ -52,8 +52,8 @@ while ( $varid <= $countvars )
 }
 
 --echo
---let $assert_text= 'Expect 44 persisted variables.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 44
+--let $assert_text= 'Expect 45 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 45
 --source include/assert.inc
 
 
@@ -71,16 +71,16 @@ while ( $varid <= $countvars )
 --source include/gr_wait_for_member_state.inc
 
 --echo
---let $assert_text= 'Expect 44 persisted variables in persisted_variables table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 44
+--let $assert_text= 'Expect 45 persisted variables in persisted_variables table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 45
 --source include/assert.inc
 
---let $assert_text= 'Expect 44 persisted variables shown as PERSISTED in variables_info table.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = 44
+--let $assert_text= 'Expect 45 persisted variables shown as PERSISTED in variables_info table.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = 45
 --source include/assert.inc
 
---let $assert_text= 'Expect 44 persisted variables with matching persisted and global values.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = 44
+--let $assert_text= 'Expect 45 persisted variables with matching persisted and global values.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = 45
 --source include/assert.inc
 
 
