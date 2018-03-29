@@ -1394,10 +1394,42 @@ flush_parent_table_for_fk(THD* thd,
 }
 
 
+/*
+  @brief Guard class for references to indexes in the global
+  NdbApi dictionary cache which need to be released(and sometimes
+  invalidated) when guard goes out of scope
+*/
+template<bool invalidate_index> class Ndb_index_release_guard {
+  NdbDictionary::Dictionary* const m_dict;
+  std::vector<const NdbDictionary::Index*> m_indexes;
+ public:
+  Ndb_index_release_guard(NdbDictionary::Dictionary* dict) : m_dict(dict) {}
+  Ndb_index_release_guard(const Ndb_index_release_guard&) = delete;
+  ~Ndb_index_release_guard() {
+    for (const NdbDictionary::Index* index : m_indexes) {
+      DBUG_PRINT("info", ("Releasing index: '%s'", index->getName()));
+      m_dict->removeIndexGlobal(*index, invalidate_index);
+    }
+  }
+  // Register index to be released
+  void add_index_to_release(const NdbDictionary::Index* index) {
+    DBUG_PRINT("info", ("Adding index '%s' to release", index->getName()));
+    m_indexes.push_back(index);
+  }
+};
+
 int
 ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 {
   DBUG_ENTER("ha_ndbcluster::create_fks");
+
+  NdbDictionary::Dictionary *dict= ndb->getDictionary();
+  // Releaser for child(i.e the table being created/altered) which
+  // need to be invalidated when released
+  Ndb_index_release_guard<true> child_index_releaser(dict);
+  // Releaser for parent(i.e the _other_ table) which is not modified
+  // and thus need not be invalidated
+  Ndb_index_release_guard<false> parent_index_releaser(dict);
 
   // return real mysql error to avoid total randomness..
   const int err_default= HA_ERR_CANNOT_ADD_FOREIGN;
@@ -1409,7 +1441,6 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     if (key->type != KEYTYPE_FOREIGN)
       continue;
 
-    NDBDICT *dict= ndb->getDictionary();
     const Foreign_key_spec * fk= down_cast<const Foreign_key_spec*>(key);
 
     /**
@@ -1462,6 +1493,10 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
                                                      child_tab.get_table(),
                                                      childcols,
                                                      child_primary_key);
+    if (child_index)
+    {
+      child_index_releaser.add_index_to_release(child_index);
+    }
 
     if (!child_primary_key && child_index == 0)
     {
@@ -1595,6 +1630,10 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
                                                       parent_tab.get_table(),
                                                       parentcols,
                                                       parent_primary_key);
+    if (parent_index)
+    {
+      parent_index_releaser.add_index_to_release(parent_index);
+    }
 
     db_guard.restore(); // restore db
 
@@ -1701,18 +1740,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
       flags |= NdbDictionary::Dictionary::CreateFK_NoVerify;
     }
     NdbDictionary::ObjectId objid;
-    int err= dict->createForeignKey(ndbfk, &objid, flags);
-
-    if (child_index)
-    {
-      dict->removeIndexGlobal(* child_index, 0);
-    }
-
-    if (parent_index)
-    {
-      dict->removeIndexGlobal(* parent_index, 0);
-    }
-
+    const int err = dict->createForeignKey(ndbfk, &objid, flags);
     if (err)
     {
       const NdbError err = dict->getNdbError();
