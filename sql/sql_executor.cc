@@ -4638,7 +4638,18 @@ static bool process_buffered_windowing_record(THD *thd, Temp_table_param *param,
                                    prev_first_rowno_in_frame + 1 - ++inverted)
                 .set_is_last_row_in_frame(true);  // pessimistic assumption
 
-            if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+            /*
+              It may be that rowno is not in previous frame; for example if
+              column id contains 1, 3, 4 and 5 and frame is RANGE BETWEEN 2
+              FOLLOWING AND 2 FOLLOWING: we process id=1, frame of id=1 is
+              id=3; then we process id=3: id=3 is before frame (and was in
+              previous frame), id=4 is before frame too (and was not in
+              previous frame); so id=3 only should be inverted:
+            */
+            if (rowno >= prev_first_rowno_in_frame &&
+                rowno <= prev_last_rowno_in_frame) {
+              if (copy_funcs(param, thd, CFT_WF_FRAMING)) DBUG_RETURN(true);
+            }
 
             w.set_inverse(false).set_is_last_row_in_frame(false);
             found_first = false;

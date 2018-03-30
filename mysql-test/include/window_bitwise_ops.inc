@@ -1,0 +1,240 @@
+CREATE TABLE t(i INT, li BIGINT, b VARBINARY(8), lb VARBINARY(24), d DOUBLE GENERATED ALWAYS AS (i*1.0));
+
+INSERT INTO t(i, li, b, lb) VALUES
+  (NULL, NULL, NULL, NULL),
+  (0, 0, X'0000000000000000',
+   X'000000000000000000000000000000000000000000000000'),
+
+  (0, 0, X'0000000000000000',
+   X'000000000000000000000000000000000000000000000000'),
+
+  (1, 1, X'0000000000000001',
+   X'000000000000000000000000000000000000000000000001'),
+
+  (1, 1, X'0000000000000001',
+   X'000000000000000000000000000000000000000000000001'),
+
+  (2, 2, X'0000000000000002',
+   X'000000000000000000000000000000000000000000000002'),
+
+  (2, 2, X'0000000000000002',
+   X'000000000000000000000000000000000000000000000002'),
+
+  (3, 3, X'0000000000000003',
+   X'000000000000000000000000000000000000000000000003'),
+
+  (3, 3, X'0000000000000003',
+   X'000000000000000000000000000000000000000000000003'),
+
+  (4, 4, X'0000000000000004',
+   X'000000000000000000000000000000000000000000000004'),
+
+  (4, 4, X'0000000000000004',
+   X'000000000000000000000000000000000000000000000004'),
+
+  (5, 5, X'0000000000000005',
+   X'000000000000000000000000000000000000000000000005'),
+
+  (6, 6, X'0000000000000006',
+   X'000000000000000000000000000000000000000000000006'),
+
+  (X'01234567', X'0123456789ABCDEF', X'0123456789ABCDEF',
+   X'000000000000000000000000000000000123456789ABCDEF'),
+
+  (X'01200567', X'0120056789ABCDEF', X'0120056789ABCDEF',
+   X'0120056789ABCDEF0120056789ABCDEF0120056789ABCDEF'),
+
+  (X'01200567', X'0120056789ABCDEF', X'0120056789ABCDEF',
+   X'0120056789ABCDEF0120056789ABCDEF0120056789ABCDEF'),
+
+  (X'01200117', X'0120011789ABCDEF', X'0120011789ABCDEF',
+   X'0120011789ABCDEF0120011789ABCDEF0120011789ABCDEF');
+
+--echo Ascending
+SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
+       HEX(BIT_OR(i) OVER w), HEX(BIT_OR(li) OVER w),
+       HEX(BIT_OR(b) OVER w), HEX(BIT_OR(lb) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i ROWS 2 PRECEDING);
+
+--echo Show whether we run in optimized or non-optimized mode, cf.
+--echo our dummy double d SUM which forces non-optimized mode
+--echo iff windowing_use_high_precision==TRUE
+ANALYZE TABLE t;
+EXPLAIN FORMAT=JSON
+SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
+       HEX(BIT_OR(i) OVER w), HEX(BIT_OR(li) OVER w),
+       HEX(BIT_OR(b) OVER w), HEX(BIT_OR(lb) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i ROWS 2 PRECEDING);
+
+
+SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
+       HEX(BIT_XOR(i) OVER w), HEX(BIT_XOR(li) OVER w),
+       HEX(BIT_XOR(b) OVER w), HEX(BIT_XOR(lb) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i ROWS 2 PRECEDING);
+
+SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
+       HEX(BIT_AND(i) OVER w), HEX(BIT_AND(li) OVER w),
+       HEX(BIT_AND(b) OVER w), HEX(BIT_AND(lb) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i ROWS 2 PRECEDING);
+
+--echo Descending: NULLS last
+SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
+       HEX(BIT_OR(i) OVER w), HEX(BIT_OR(li) OVER w),
+       HEX(BIT_OR(b) OVER w), HEX(BIT_OR(lb) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i DESC ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING);
+
+SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
+       HEX(BIT_XOR(i) OVER w), HEX(BIT_XOR(li) OVER w),
+       HEX(BIT_XOR(b) OVER w), HEX(BIT_XOR(lb) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i DESC ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING);
+
+SELECT HEX(i), HEX(li), HEX(b), HEX(lb),
+       HEX(BIT_AND(i) OVER w), HEX(BIT_AND(li) OVER w),
+       HEX(BIT_AND(b) OVER w), HEX(BIT_AND(lb) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i DESC ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING);
+
+--echo
+--echo Test that varying length string give an error if in same partition
+--echo
+
+--echo Insert a short b at end of partition
+INSERT INTO t(i, li, b, lb) VALUES
+   (10, 10, x'0A', x'00000000000000000000000000000000000000000000000A');
+
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT HEX(BIT_AND(b) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i ROWS 2 PRECEDING);
+
+DELETE FROM t WHERE i = 10;
+
+--echo Insert a short b at start of partition
+INSERT INTO t(i, li, b, lb) VALUES
+   (-1, -1, x'0A', x'00000000000000000000000000000000000000000000000A');
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT HEX(BIT_AND(b) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i ROWS 2 PRECEDING);
+
+DELETE FROM t WHERE i = -1;
+--echo Insert a short b in middle of partition
+INSERT INTO t(i, li, b, lb) VALUES
+   (4, 4, x'04', x'000000000000000000000000000000000000000000000004');
+--error ER_INVALID_BITWISE_OPERANDS_SIZE
+SELECT HEX(BIT_AND(b) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY i ROWS 2 PRECEDING);
+
+--echo Partitioning on bit string length should make it work again
+SELECT HEX(BIT_AND(b) OVER w),
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (PARTITION BY LENGTH(b) ORDER BY i ROWS 2 PRECEDING);
+
+DROP TABLE t;
+
+--echo Test with empty frame at beginning and end: bitops don't get
+--echo NULL then but a "neutral" value
+CREATE TABLE t(
+   c0004 LONGTEXT CHARACTER SET latin1 COLLATE latin1_bin
+       GENERATED ALWAYS AS (_utf8mb4'1') VIRTUAL NOT NULL,
+   d DOUBLE GENERATED ALWAYS AS (1.0))
+   ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO t VALUES (), (), (), (), ();
+
+SELECT c0004,
+       BIT_AND(c0004) OVER w,
+       BIT_OR(c0004)  OVER w,
+       BIT_XOR(c0004) OVER w,
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY c0004 ROWS BETWEEN 5 PRECEDING AND 3 PRECEDING);
+
+SELECT c0004,
+       BIT_AND(c0004) OVER w,
+       BIT_OR(c0004)  OVER w,
+       BIT_XOR(c0004) OVER w,
+       SUM(d) OVER w AS dsum
+   FROM t
+   WINDOW w AS (ORDER BY c0004 ROWS BETWEEN 3 FOLLOWING AND 5 FOLLOWING);
+
+DROP TABLE t;
+
+CREATE TABLE t(i int, b VARBINARY(511), d DOUBLE GENERATED ALWAYS AS (i*1.0));
+INSERT INTO t(i,b) VALUES (1, REPEAT(x'00', 511)),
+                          (1, REPEAT(x'FF', 511)),
+                          (1, REPEAT(x'77', 511)),
+                          (1, REPEAT(x'11', 511));
+
+--vertical_results
+SELECT '---',
+       HEX(BIT_OR(b) OVER w) AS `OR`,
+       HEX(BIT_AND(b) OVER w) AS `AND`,
+       HEX(BIT_XOR(b) OVER w) AS `XOR`,
+       SUM(d) OVER w AS dsum
+  FROM t
+  WINDOW w AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND CURRENT ROW);
+
+DROP TABLE t;
+
+CREATE TABLE t(i int, b VARBINARY(512), d DOUBLE GENERATED ALWAYS AS (i*1.0));
+INSERT INTO t(i,b) VALUES (1, REPEAT(x'00', 512)),
+                          (1, REPEAT(x'FF', 512)),
+                          (1, REPEAT(x'77', 512)),
+                          (1, REPEAT(x'11', 512));
+
+--error ER_INVALID_BITWISE_AGGREGATE_OPERANDS_SIZE
+SELECT '---',
+       HEX(BIT_OR(b) OVER w) AS `OR`,
+       HEX(BIT_AND(b) OVER w) AS `AND`,
+       HEX(BIT_XOR(b) OVER w) AS `XOR`,
+       SUM(d) OVER w AS dsum
+  FROM t
+  WINDOW w AS (ORDER BY i ROWS BETWEEN 1 PRECEDING AND CURRENT ROW);
+
+DROP TABLE t;
+
+--horizontal_results
+
+--echo # When switching from a partition to another, Item_sum_bit::clear()
+--echo # is called; it must reset Item_sum::m_digit_cnt if inversion is used
+--echo # inside the new frame.
+
+CREATE TABLE t (id DECIMAL(3,1), b BINARY(9), d DOUBLE GENERATED ALWAYS AS (id*1.0));
+
+INSERT INTO t(id, b)
+  VALUES (5.0,0x000000000000000000), (7.0,0x070000000000000007),
+         (6.0,0xFFFFFFFFFFFFFFFFFF), (5.5,0xFFFFFFFFFFFFFFFFFF);
+SELECT id, id<=6 AS part, HEX(b), HEX(BIT_AND(b) OVER w),
+       SUM(d) OVER w AS dsum
+  FROM t
+  WINDOW w AS (PARTITION BY id<=6 ORDER BY id
+               ROWS BETWEEN 1 PRECEDING AND CURRENT ROW);
+
+DROP TABLE t;
+
+# Local Variables:
+# mode: sql
+# sql-product: mysql
+# comment-column: 48
+# comment-start: "# "
+# fill-column: 80
+# End:
