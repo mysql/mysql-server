@@ -80,7 +80,7 @@ create table t1(k1 int auto_increment primary key,
 k2 char(200),k3 char(200))engine=innodb;
 SET DEBUG_SYNC= 'row_merge_after_scan
 SIGNAL opened WAIT_FOR flushed';
-ALTER TABLE t1 ADD COLUMN k4 int;
+ALTER TABLE t1 ADD COLUMN k4 int, ALGORITHM=INPLACE;
 connection default
 SET DEBUG_SYNC= 'now WAIT_FOR opened';
 SET debug = '+d,row_log_tmpfile_fail';
@@ -88,7 +88,7 @@ INSERT INTO t1 select NULL,'aaa','bbb' from t480;
 INSERT INTO t1 select NULL,'aaaa','bbbb' from t480;
 SET DEBUG_SYNC= 'now SIGNAL flushed';
 SET debug = '-d,row_log_tmpfile_fail';
-/*con1 reap*/ ALTER TABLE t1 ADD COLUMN k4 int;
+/*con1 reap*/ ALTER TABLE t1 ADD COLUMN k4 int, ALGORITHM=INPLACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
 SELECT COUNT(k1),k2,k3 FROM t1 GROUP BY k2,k3;
 COUNT(k1)	k2	k3

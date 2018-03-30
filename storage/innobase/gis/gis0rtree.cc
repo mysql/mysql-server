@@ -74,7 +74,7 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
   page_t *page;
   ulint n_uniq;
   ulint len;
-  byte *source_cur;
+  const byte *source_cur;
 
   block = btr_cur_get_block(cursor);
   page = buf_block_get_frame(block);
@@ -97,7 +97,7 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
   rec = page_rec_get_next(page_get_infimum_rec(page));
   *offsets = rec_get_offsets(rec, cursor->index, *offsets, n_uniq, &heap);
 
-  source_cur = rec_get_nth_field(rec, *offsets, 0, &len);
+  source_cur = rec_get_nth_field(rec, *offsets, 0, nullptr, &len);
 
   for (cur = task; cur < stop - 1; ++cur) {
     cur->coords = reserve_coords(buf_pos, SPDIMS);
@@ -107,7 +107,7 @@ static rtr_split_node_t *rtr_page_split_initialize_nodes(
 
     rec = page_rec_get_next(rec);
     *offsets = rec_get_offsets(rec, cursor->index, *offsets, n_uniq, &heap);
-    source_cur = rec_get_nth_field(rec, *offsets, 0, &len);
+    source_cur = rec_get_nth_field(rec, *offsets, 0, nullptr, &len);
   }
 
   /* Put the insert key to node list */
@@ -1530,12 +1530,12 @@ bool rtr_merge_mbr_changed(btr_cur_t *cursor,  /*!< in/out: cursor */
 
   rec = btr_cur_get_rec(cursor);
 
-  rtr_read_mbr(rec_get_nth_field(rec, offsets, 0, &len),
+  rtr_read_mbr(rec_get_nth_field(rec, offsets, 0, nullptr, &len),
                reinterpret_cast<rtr_mbr_t *>(mbr1));
 
   rec = btr_cur_get_rec(cursor2);
 
-  rtr_read_mbr(rec_get_nth_field(rec, offsets2, 0, &len),
+  rtr_read_mbr(rec_get_nth_field(rec, offsets2, 0, nullptr, &len),
                reinterpret_cast<rtr_mbr_t *>(mbr2));
 
   mbr = reinterpret_cast<double *>(new_mbr);
@@ -1662,7 +1662,7 @@ double rtr_rec_cal_increase(
   dtuple_field = dtuple_get_nth_field(dtuple, 0);
   dtuple_f_len = dfield_get_len(dtuple_field);
 
-  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
+  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, nullptr, &rec_f_len);
   ret = rtree_area_increase(
       srs, rec_b_ptr, static_cast<const byte *>(dfield_get_data(dtuple_field)),
       static_cast<int>(dtuple_f_len), area);
@@ -1733,7 +1733,7 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
   }
 
   rec_t *rec;
-  byte *field;
+  const byte *field;
   ulint len;
   ulint *offsets = NULL;
   mem_heap_t *heap;
@@ -1748,7 +1748,7 @@ int64_t rtr_estimate_n_rows_in_range(dict_index_t *index, const dtuple_t *tuple,
     rtr_mbr_t mbr;
     double rec_area;
 
-    field = rec_get_nth_field(rec, offsets, 0, &len);
+    field = rec_get_nth_field(rec, offsets, 0, nullptr, &len);
     ut_ad(len == DATA_MBR_LEN);
 
     rtr_read_mbr(field, &mbr);

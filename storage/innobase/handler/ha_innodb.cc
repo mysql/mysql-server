@@ -13181,8 +13181,14 @@ int ha_innobase::truncate_impl(const char *name, TABLE *form,
 
   error = truncator.exec();
 
-  if (error == 0 && has_autoinc) {
-    dd_set_autoinc(table_def->se_private_data(), 0);
+  if (error == 0) {
+    if (has_autoinc) {
+      dd_set_autoinc(table_def->se_private_data(), 0);
+    }
+
+    if (dd_table_has_instant_cols(*table_def)) {
+      dd_clear_instant_table(*table_def);
+    }
   }
 
   DBUG_RETURN(error);

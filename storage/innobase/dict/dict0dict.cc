@@ -2511,6 +2511,13 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
     }
   }
 
+  if (new_index->has_instant_cols()) {
+    new_index->n_instant_nullable =
+        new_index->get_n_nullable_before(new_index->get_instant_fields());
+  } else {
+    new_index->n_instant_nullable = new_index->n_nullable;
+  }
+
   dict_mem_index_free(index);
 
   return (DB_SUCCESS);
@@ -4799,7 +4806,7 @@ dtuple_t *dict_index_build_node_ptr(
     contains the page number of the child page */
 
     ut_a(!dict_table_is_comp(index->table));
-    n_unique = rec_get_n_fields_old(rec);
+    n_unique = rec_get_n_fields_old_raw(rec);
 
     if (level > 0) {
       ut_a(n_unique > 1);
@@ -4857,7 +4864,7 @@ rec_t *dict_index_copy_rec_order_prefix(
 
   if (dict_index_is_ibuf(index)) {
     ut_a(!dict_table_is_comp(index->table));
-    n = rec_get_n_fields_old(rec);
+    n = rec_get_n_fields_old_raw(rec);
   } else {
     if (page_is_leaf(page_align(rec))) {
       n = dict_index_get_n_unique_in_tree(index);
@@ -4887,7 +4894,7 @@ dtuple_t *dict_index_build_data_tuple(
   dtuple_t *tuple;
 
   ut_ad(dict_table_is_comp(index->table) ||
-        n_fields <= rec_get_n_fields_old(rec));
+        n_fields <= rec_get_n_fields_old(rec, index));
 
   tuple = dtuple_create(heap, n_fields);
 
@@ -6504,11 +6511,11 @@ upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
   rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
   ut_ad(!rec_get_deleted_flag(rec, 1));
 
-  version = rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, &len);
+  version = rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, nullptr, &len);
   ut_ad(len == 8);
   version_field = dtuple_get_nth_field(entry, VERSION_FIELD_NO);
 
-  metadata = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
+  metadata = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, nullptr, &len);
   metadata_dfield = dtuple_get_nth_field(entry, METADATA_FIELD_NO);
 
   if (dfield_data_is_binary_equal(version_field, 8, version) &&
@@ -6660,7 +6667,7 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
   btr_cur_t cursor;
   mtr_t mtr;
   ulint len;
-  byte *field = NULL;
+  const byte *field = NULL;
 
   ut_ad(mutex_own(&dict_persist->mutex));
 
@@ -6681,11 +6688,11 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
     ut_ad(!rec_get_deleted_flag(rec, true));
 
     const byte *rec_version =
-        rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, &len);
+        rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, nullptr, &len);
     ut_ad(len == 8);
     *version = mach_read_from_8(rec_version);
 
-    field = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
+    field = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, nullptr, &len);
 
     ut_ad(len != UNIV_SQL_NULL);
   } else {

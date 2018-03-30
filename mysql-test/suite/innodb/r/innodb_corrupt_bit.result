@@ -374,7 +374,7 @@ Table	Op	Msg_type	Msg_text
 corrupted.t5	check	Warning	InnoDB: Index idx_b is marked as corrupted
 corrupted.t5	check	error	Corrupt
 # An 'ALTER TABLE' requiring rebuild would recover the table
-ALTER TABLE t5 ADD COLUMN d INT NOT NULL;
+ALTER TABLE t5 ADD COLUMN d INT NOT NULL, ALGORITHM=INPLACE;
 CHECK TABLE t5;
 Table	Op	Msg_type	Msg_text
 corrupted.t5	check	status	OK

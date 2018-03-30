@@ -225,7 +225,8 @@ page_no_t btr_node_ptr_get_child_page_no(
   ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
 
   /* The child address is in the last field */
-  field = rec_get_nth_field(rec, offsets, rec_offs_n_fields(offsets) - 1, &len);
+  field = rec_get_nth_field(rec, offsets, rec_offs_n_fields(offsets) - 1,
+                            nullptr, &len);
 
   ut_ad(len == 4);
 

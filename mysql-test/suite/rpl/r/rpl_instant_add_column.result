@@ -1,0 +1,294 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Scenario 1:
+# Create a small table, add some columns instantly
+#
+[connection master]
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+include/sync_slave_sql_with_master.inc
+[connection master]
+ALTER TABLE t1 ADD COLUMN c1 INT, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT name, default_value FROM information_schema.innodb_columns WHERE name = 'c1' AND has_default = 1;
+name	default_value
+c1	NULL
+INSERT INTO t1(a, c1) VALUES(6, 1);
+SELECT count(*) = max(a) FROM t1 WHERE c1 IS NULL;
+count(*) = max(a)
+1
+SELECT c1 FROM t1 WHERE c1 = 1;
+c1
+1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/sync_slave_sql_with_master.inc
+SELECT name, default_value FROM information_schema.innodb_columns WHERE name = 'c1' AND has_default = 1;
+name	default_value
+c1	NULL
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection master]
+include/diff_tables.inc [master:test.t1,slave:test.t1]
+# Table id not changed on slave
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Scenario 2:
+# Create a small table, add some virtual columns instantly
+#
+[connection master]
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT);
+INSERT INTO t1 VALUES(1, 1), (2, 2), (3, 3), (4, 4), (5, 5);
+include/sync_slave_sql_with_master.inc
+[connection master]
+ALTER TABLE t1 ADD COLUMN c1 INT, ADD COLUMN c2 FLOAT GENERATED ALWAYS AS ((1.4 * 2.8)) VIRTUAL, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1(a, c1) VALUES(6, 1);
+SELECT * FROM t1;
+a	b	c1	c2
+1	1	NULL	3.92
+2	2	NULL	3.92
+3	3	NULL	3.92
+4	4	NULL	3.92
+5	5	NULL	3.92
+6	NULL	1	3.92
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT NULL,
+  `c2` float GENERATED ALWAYS AS ((1.4 * 2.8)) VIRTUAL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/sync_slave_sql_with_master.inc
+SELECT name, default_value FROM information_schema.innodb_columns WHERE name = 'c1' AND has_default = 1;
+name	default_value
+c1	NULL
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) DEFAULT NULL,
+  `c1` int(11) DEFAULT NULL,
+  `c2` float GENERATED ALWAYS AS ((1.4 * 2.8)) VIRTUAL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection master]
+include/diff_tables.inc [master:test.t1,slave:test.t1]
+# Table id not changed on slave
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Scenario 3:
+# Create a small table with RANGE and HASH partition,
+# and add INSTANT column
+#
+[connection master]
+CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b INT)
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+SUBPARTITIONS 3 (
+PARTITION p1 values less than (10),
+PARTITION p2 values less than (20),
+PARTITION p3 values less than maxvalue);
+INSERT INTO t1 VALUES(1, 1), (2, 2), (11, 11), (12, 12), (21, 21), (22, 22), (26, 26), (27, 27);
+include/sync_slave_sql_with_master.inc
+[connection master]
+INSERT INTO t1(a, b) VALUES(5, 5), (6, 6), (28, 28);
+SELECT * FROM t1;
+a	b
+6	6
+1	1
+2	2
+5	5
+12	12
+11	11
+21	21
+27	27
+22	22
+28	28
+26	26
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+SUBPARTITIONS 3
+(PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	b
+6	6
+1	1
+2	2
+5	5
+12	12
+11	11
+21	21
+27	27
+22	22
+28	28
+26	26
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+SUBPARTITION BY HASH (`a`)
+SUBPARTITIONS 3
+(PARTITION p1 VALUES LESS THAN (10) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+[connection master]
+include/diff_tables.inc [master:test.t1,slave:test.t1]
+# Table id not changed on slave
+# Table id not changed on master
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+# Scenario 4:
+# Create a small table and add TIMESTAMP columns instantly
+#
+[connection master]
+SET @start_session_value = @@session.explicit_defaults_for_timestamp;
+SET @@session.explicit_defaults_for_timestamp=OFF;
+Warnings:
+Warning	1287	'explicit_defaults_for_timestamp' is deprecated and will be removed in a future release.
+SELECT @@session.explicit_defaults_for_timestamp;
+@@session.explicit_defaults_for_timestamp
+0
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+[connection master]
+ALTER TABLE t1 ADD COLUMN c1 TIMESTAMP, ADD COLUMN c2 TIMESTAMP NULL, ADD COLUMN c3 TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 3
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES(2,NULL,NULL,NULL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c2` timestamp NULL DEFAULT NULL,
+  `c3` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	c1	c2	c3
+1	#	NULL	#
+2	#	NULL	#
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	c1	c2	c3
+1	#	NULL	#
+2	#	NULL	#
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c2` timestamp NULL DEFAULT NULL,
+  `c3` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection master]
+include/diff_tables.inc [master:test.t1,slave:test.t1]
+# Table id not changed on slave
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@session.explicit_defaults_for_timestamp=ON;
+SELECT @@session.explicit_defaults_for_timestamp;
+@@session.explicit_defaults_for_timestamp
+1
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
+include/sync_slave_sql_with_master.inc
+[connection master]
+ALTER TABLE t1 ADD COLUMN c1 TIMESTAMP, ADD COLUMN c2 TIMESTAMP NOT NULL, ADD COLUMN c3 TIMESTAMP DEFAULT CURRENT_TIMESTAMP, ALGORITHM=INSTANT;
+Table id did not change
+count(*) = 3
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES(2,NULL,'2001-01-01 00:00:00',NULL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` timestamp NULL DEFAULT NULL,
+  `c2` timestamp NOT NULL,
+  `c3` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	c1	c2	c3
+1	#	0000-00-00 00:00:00	#
+2	#	2001-01-01 00:00:00	#
+include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+a	c1	c2	c3
+1	#	0000-00-00 00:00:00	#
+2	#	2001-01-01 00:00:00	#
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `c1` timestamp NULL DEFAULT NULL,
+  `c2` timestamp NOT NULL,
+  `c3` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection master]
+include/diff_tables.inc [master:test.t1,slave:test.t1]
+# Table id not changed on slave
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+[connection master]
+SET @@session.explicit_defaults_for_timestamp = @start_session_value;
+SELECT @@session.explicit_defaults_for_timestamp;
+@@session.explicit_defaults_for_timestamp
+1
+include/rpl_end.inc

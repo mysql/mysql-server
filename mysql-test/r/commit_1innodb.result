@@ -845,7 +845,7 @@ call p_verify_status_increment(X, 4, 2, 0);
 SUCCESS
 
 alter table t3 rename t4;
-call p_verify_status_increment(20, 4, 3, 0);
+call p_verify_status_increment(19, 4, 3, 0);
 SUCCESS
 
 rename table t4 to t3;

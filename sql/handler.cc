@@ -4570,8 +4570,8 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
 }
 
 /*
-   Default implementation to support in-place alter table
-   and old online add/drop index API
+   Default implementation to support in-place/instant alter table
+   for operations which do not affect table data.
 */
 
 enum_alter_inplace_result handler::check_if_supported_inplace_alter(
@@ -4615,7 +4615,7 @@ enum_alter_inplace_result handler::check_if_supported_inplace_alter(
                            : IS_EQUAL_YES;
   if (table->file->check_if_incompatible_data(create_info, table_changes) ==
       COMPATIBLE_DATA_YES)
-    DBUG_RETURN(HA_ALTER_INPLACE_EXCLUSIVE_LOCK);
+    DBUG_RETURN(HA_ALTER_INPLACE_INSTANT);
 
   DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 }

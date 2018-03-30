@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -96,9 +96,30 @@ enum dd_table_keys {
   DD_TABLE_VERSION,
   /** Discard flag */
   DD_TABLE_DISCARD,
+  /** Columns before first instant ADD COLUMN */
+  DD_TABLE_INSTANT_COLS,
   /** Sentinel */
   DD_TABLE__LAST
 };
+
+/** InnoDB private keys for dd::Column */
+/** About the DD_INSTANT_COLUMN_DEFAULT*, please note that if it's a
+partitioned table, not every default value is needed for every partition.
+For example, after ALTER TABLE ... PARTITION, maybe some partitions only
+need part or even none of the default values. Let's say there are two
+partitions, p1 and p2. p1 needs 10 default values while p2 needs 2.
+If another ALTER ... PARTITION makes p1 a fresh new partition which
+doesn't need the default values any more, currently, the extra 8(10 - 2)
+default values are not removed form dd::Column::se_private_data. */
+enum dd_column_keys {
+  /** Default value when it was added instantly */
+  DD_INSTANT_COLUMN_DEFAULT,
+  /** Default value is null or not */
+  DD_INSTANT_COLUMN_DEFAULT_NULL,
+  /** Sentinel */
+  DD_COLUMN__LAST
+};
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Server version that the tablespace created */
@@ -112,6 +133,12 @@ const uint32 DD_SPACE_CURRENT_SPACE_VERSION = 1;
 enum dd_partition_keys {
   /** Row format for this partition */
   DD_PARTITION_ROW_FORMAT,
+  /** Columns before first instant ADD COLUMN.
+  This is necessary for each partition because differnet partition
+  may have different instant column numbers, especially, for a
+  newly truncated partition, it can have no instant columns.
+  So partition level one should be always >= table level one. */
+  DD_PARTITION_INSTANT_COLS,
   /** Sentinel */
   DD_PARTITION__LAST
 };
@@ -143,10 +170,15 @@ const char *const dd_space_key_strings[DD_SPACE__LAST] = {
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
 const char *const dd_table_key_strings[DD_TABLE__LAST] = {
-    "autoinc", "data_directory", "version", "discard"};
+    "autoinc", "data_directory", "version", "discard", "instant_col"};
+
+/** InnoDB private key strings for dd::Column, @see dd_column_keys */
+const char *const dd_column_key_strings[DD_COLUMN__LAST] = {"default",
+                                                            "default_null"};
 
 /** InnoDB private key strings for dd::Partition. @see dd_partition_keys */
-const char *const dd_partition_key_strings[DD_PARTITION__LAST] = {"format"};
+const char *const dd_partition_key_strings[DD_PARTITION__LAST] = {
+    "format", "instant_col"};
 
 /** InnoDB private keys for dd::Index or dd::Partition_index */
 enum dd_index_keys {
@@ -241,12 +273,116 @@ uint32_t dd_get_total_indexes_num();
 
 #endif /* UNIV_DEBUG */
 
+#endif /* !UNIV_HOTBACKUP */
+
+/** Class to decode or encode a stream of default value for instant table.
+The decode/encode are necessary because that the default values would b
+kept as InnoDB format stream, which is in fact byte stream. However,
+to store them in the DD se_private_data, it requires text(char).
+So basically, the encode will change the byte stream into char stream,
+by spliting every byte into two chars, for example, 0xFF, would be splitted
+into 0x0F and 0x0F. So the final storage space would be double. For the
+decode, it's the converse process, combining two chars into one byte. */
+class DD_instant_col_val_coder {
+ public:
+  /** Constructor */
+  DD_instant_col_val_coder() : m_result(nullptr) {}
+
+  /** Destructor */
+  ~DD_instant_col_val_coder() { cleanup(); }
+
+  /** Encode the specified stream in format of bytes into chars
+  @param[in]	stream	stream to encode in bytes
+  @param[in]	in_len	length of the stream
+  @param[out]	out_len	length of the encoded stream
+  @return	the encoded stream, which would be destroyed if the class
+  itself is destroyed */
+  const char *encode(const byte *stream, size_t in_len, size_t *out_len);
+
+  /** Decode the specified stream, which is encoded by encode()
+  @param[in]	stream	stream to decode in chars
+  @param[in]	in_len	length of the stream
+  @param[out]	out_len	length of the decoded stream
+  @return	the decoded stream, which would be destroyed if the class
+  itself is destroyed */
+  const byte *decode(const char *stream, size_t in_len, size_t *out_len);
+
+ private:
+  /** Clean-up last result */
+  void cleanup() { UT_DELETE_ARRAY(m_result); }
+
+ private:
+  /** The encoded or decoded stream */
+  byte *m_result;
+};
+
+#ifndef UNIV_HOTBACKUP
+/** Determine if a dd::Partition is the first leaf partition in the table
+@param[in]	dd_part	dd::Partition
+@return	True	If it's the first partition
+@retval	False	Not the first one */
+inline bool dd_part_is_first(const dd::Partition *dd_part) {
+  return (dd_part == *(dd_part->table().leaf_partitions().begin()));
+}
+
 /** Determine if a dd::Table is partitioned table
 @param[in]	table	dd::Table
 @return	True	If partitioned table
 @retval	False	non-partitioned table */
 inline bool dd_table_is_partitioned(const dd::Table &table) {
   return (table.partition_type() != dd::Table::PT_NONE);
+}
+
+#ifdef UNIV_DEBUG
+/** Check if the instant columns are consistent with the se_private_data
+in dd::Table
+@param[in]	dd_table	dd::Table
+@return true if consistent, otherwise false */
+bool dd_instant_columns_exist(const dd::Table &dd_table);
+#endif /* UNIV_DEBUG */
+
+/** Determine if a dd::Table has any instant column
+@param[in]	table	dd::Table
+@return	true	If it's a table with instant columns
+@retval	false	Not a table with instant columns */
+inline bool dd_table_has_instant_cols(const dd::Table &table) {
+  bool instant = table.se_private_data().exists(
+      dd_table_key_strings[DD_TABLE_INSTANT_COLS]);
+
+  ut_ad(!instant || dd_instant_columns_exist(table));
+
+  return (instant);
+}
+
+/** Determine if a dd::Partition has any instant column
+@param[in]	part	dd::Partition
+@return	true	If it's a partitioned table with instant columns
+@return	false	Not a partitioned table with instant columns */
+inline bool dd_part_has_instant_cols(const dd::Partition &part) {
+  bool instant = part.se_private_data().exists(
+      dd_partition_key_strings[DD_PARTITION_INSTANT_COLS]);
+  ut_ad(!instant || dd_table_has_instant_cols(part.table()));
+
+  return (instant);
+}
+
+/** Determine if any partition of the table still has instant columns
+@param[in]	table	dd::Table of the partitioned table
+@return	true	If any partition still has instant columns
+@return	false	No one has instant columns */
+inline bool dd_table_part_has_instant_cols(const dd::Table &table) {
+  ut_ad(dd_table_is_partitioned(table));
+
+  if (!dd_table_has_instant_cols(table)) {
+    return (false);
+  }
+
+  for (auto part : table.leaf_partitions()) {
+    if (dd_part_has_instant_cols(*part)) {
+      return (true);
+    }
+  }
+  return (false);
 }
 
 /** Get the first index of a table or partition.
@@ -317,14 +453,79 @@ inline uint64_t dd_get_version(const dd::Table *dd_table);
 @param[out]	dest	dd::Table::se_private_data to copy to */
 void dd_copy_autoinc(const dd::Properties &src, dd::Properties &dest);
 
-/** Copy the engine-private parts of a table definition
-when the change does not affect InnoDB. Keep the already set
-AUTOINC counter related information if exist
+/** Copy the metadata of a table definition if there was an instant
+ADD COLUMN happened. This should be done when it's not an ALTER TABLE
+with rebuild.
+@param[in,out]	new_table	New table definition
+@param[in]	old_table	Old table definition */
+void dd_copy_instant_n_cols(dd::Table &new_table, const dd::Table &old_table);
+
+/** Copy the engine-private parts of a table or partition definition
+when the change does not affect InnoDB. This mainly copies the common
+private data between dd::Table and dd::Partition
 @tparam		Table		dd::Table or dd::Partition
 @param[in,out]	new_table	Copy of old table or partition definition
 @param[in]	old_table	Old table or partition definition */
 template <typename Table>
 void dd_copy_private(Table &new_table, const Table &old_table);
+
+/** Copy the engine-private parts of column definitions of a table
+@param[in,out]	new_table	Copy of old table
+@param[in]	old_table	Old table */
+void dd_copy_table_columns(dd::Table &new_table, const dd::Table &old_table);
+
+/** Copy the metadata of a table definition, including the INSTANT
+ADD COLUMN information. This should be done when it's not an ALTER TABLE
+with rebuild. Basically, check dd::Table::se_private_data and
+dd::Column::se_private_data.
+@param[in,out]	new_table	Copy of old table definition
+@param[in]	old_table	Old table definition */
+inline void dd_copy_table(dd::Table &new_table, const dd::Table &old_table) {
+  /* Copy columns first, to make checking in dd_copy_instant_n_cols pass */
+  dd_copy_table_columns(new_table, old_table);
+  if (dd_table_has_instant_cols(old_table)) {
+    dd_copy_instant_n_cols(new_table, old_table);
+  }
+}
+
+/** Add column default values for new instantly added columns
+@param[in]	old_table	MySQL table as it is before the ALTER operation
+@param[in]	altered_table	MySQL table that is being altered
+@param[in,out]	new_dd_table	New dd::Table
+@param[in]	new_table	New InnoDB table object */
+void dd_add_instant_columns(const TABLE *old_table, const TABLE *altered_table,
+                            dd::Table *new_dd_table,
+                            const dict_table_t *new_table);
+
+/** Clear the instant ADD COLUMN information of a table
+@param[in,out]	dd_table	dd::Table */
+void dd_clear_instant_table(dd::Table &dd_table);
+
+/** Clear the instant ADD COLUMN information of a partition, to make it
+as a normal partition
+@param[in,out]	dd_part		dd::Partition */
+void dd_clear_instant_part(dd::Partition &dd_part);
+
+/** Compare the default values between imported column and column defined
+in the server. Note that it's absolutely OK if there is no default value
+in the column defined in server, since it can be filled in later.
+@param[in]	dd_col	dd::Column
+@param[in]	col	InnoDB column object
+@return	true	The default values match
+@retval	false	Not match */
+bool dd_match_default_value(const dd::Column *dd_col, const dict_col_t *col);
+
+/** Write default value of a column to dd::Column
+@param[in]	col	default value of this column to write
+@param[in,out]	dd_col	where to store the default value */
+void dd_write_default_value(const dict_col_t *col, dd::Column *dd_col);
+
+/** Import all metadata which is related to instant ADD COLUMN of a table
+to dd::Table. This is used for IMPORT.
+@param[in]	table		InnoDB table object
+@param[in,out]	dd_table	dd::Table */
+void dd_import_instant_add_columns(const dict_table_t *table,
+                                   dd::Table *dd_table);
 
 /** Write metadata of a table to dd::Table
 @tparam		Table		dd::Table or dd::Partition
@@ -341,6 +542,12 @@ void dd_write_table(dd::Object_id dd_space_id, Table *dd_table,
 @param[in]	table		InnoDB table object */
 template <typename Table>
 void dd_set_table_options(Table *dd_table, const dict_table_t *table);
+
+/** Update virtual columns with new se_private_data, currently, only
+table_id is set
+@param[in,out]	dd_table	dd::Table
+@param[in]	id		InnoDB table ID to set */
+void dd_update_v_cols(dd::Table *dd_table, table_id_t id);
 
 /** Write metadata of a tablespace to dd::Tablespace
 @param[in,out]	dd_space	dd::Tablespace

@@ -446,6 +446,10 @@ ALTER TABLE tab add COLUMN c7 POINT NOT NULL;
 ERROR 22004: Invalid use of NULL value
 ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=NONE;
 ERROR 0A000: LOCK=NONE is not supported. Reason: Do not support online operation on table with GIS index. Try LOCK=SHARED.
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INPLACE, LOCK=SHARED;
+ERROR 22004: Invalid use of NULL value
+ALTER TABLE tab add COLUMN c8 POINT NOT NULL, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported. Reason: Do not support online operation on table with GIS index. Try ALGORITHM=COPY/INPLACE.
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (

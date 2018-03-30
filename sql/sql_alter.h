@@ -268,6 +268,9 @@ class Alter_info {
     // In-place if supported, error otherwise.
     ALTER_TABLE_ALGORITHM_INPLACE,
 
+    // Instant if supported, error otherwise.
+    ALTER_TABLE_ALGORITHM_INSTANT,
+
     // Copy if supported, error otherwise.
     ALTER_TABLE_ALGORITHM_COPY
   };

@@ -40,7 +40,7 @@ void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
 {
   page_t *page;
   rec_t *rec;
-  byte *field;
+  const byte *field;
   ulint len;
   ulint *offsets = NULL;
   double bmin, bmax;
@@ -63,7 +63,7 @@ void rtr_page_cal_mbr(const dict_index_t *index, /*!< in: index */
 
   do {
     /* The mbr address is in the first field. */
-    field = rec_get_nth_field(rec, offsets, 0, &len);
+    field = rec_get_nth_field(rec, offsets, 0, nullptr, &len);
 
     ut_ad(len == DATA_MBR_LEN);
     inc = 0;

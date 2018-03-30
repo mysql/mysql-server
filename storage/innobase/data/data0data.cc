@@ -874,4 +874,33 @@ trx_id_t dtuple_t::get_trx_id() const {
   return (0);
 }
 
+/** Ignore trailing default fields if this is a tuple from instant index
+@param[in]	index		clustered index object for this tuple */
+void dtuple_t::ignore_trailing_default(const dict_index_t *index) {
+  if (!index->has_instant_cols()) {
+    return;
+  }
+
+  /* It's necessary to check all the fields that could be default.
+  If it's from normal update, it should be OK to keep original
+  default values in the physical record as is, however,
+  if it's from rollback, it may rollback an update from default
+  value to non-default. To make the rolled back record as is,
+  it has to check all possible default values. */
+  for (; n_fields > index->get_instant_fields(); --n_fields) {
+    const dict_col_t *col = index->get_field(n_fields - 1)->col;
+    const dfield_t *dfield = dtuple_get_nth_field(this, n_fields - 1);
+    ulint len = dfield_get_len(dfield);
+
+    ut_ad(col->instant_default != nullptr);
+
+    if (len != col->instant_default->len ||
+        (len != UNIV_SQL_NULL &&
+         memcmp(dfield_get_data(dfield), col->instant_default->value, len) !=
+             0)) {
+      break;
+    }
+  }
+}
+
 #endif /* !UNIV_HOTBACKUP */

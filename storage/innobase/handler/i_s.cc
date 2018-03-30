@@ -5127,6 +5127,13 @@ static ST_FIELD_INFO innodb_tables_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
 
+#define INNODB_TABLES_INSTANT_COLS 8
+    {STRUCT_FLD(field_name, "INSTANT_COLS"),
+     STRUCT_FLD(field_length, MY_INT32_NUM_DECIMAL_DIGITS),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
     END_OF_ST_FIELD_INFO};
 
 /** Populate information_schema.innodb_tables table with information
@@ -5182,6 +5189,9 @@ static int i_s_dict_fill_innodb_tables(THD *thd, dict_table_t *table,
       page_size.is_compressed() ? page_size.physical() : 0, true));
 
   OK(field_store_string(fields[INNODB_TABLES_SPACE_TYPE], space_type));
+
+  OK(fields[INNODB_TABLES_INSTANT_COLS]->store(
+      table->has_instant_cols() ? table->get_instant_cols() : 0));
 
   OK(schema_table_store_record(thd, table_to_fill));
 
@@ -5925,7 +5935,43 @@ static ST_FIELD_INFO innodb_columns_fields_info[] = {
      STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
 
+#define SYS_COLUMN_HAS_DEFAULT 6
+    {STRUCT_FLD(field_name, "HAS_DEFAULT"), STRUCT_FLD(field_length, 1),
+     STRUCT_FLD(field_type, MYSQL_TYPE_LONG), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, 0), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
+#define SYS_COLUMN_DEFAULT_VALUE 7
+    {STRUCT_FLD(field_name, "DEFAULT_VALUE"),
+     /* The length should cover max length of varchar in utf8mb4 */
+     STRUCT_FLD(field_length, 65536 * 4),
+     STRUCT_FLD(field_type, MYSQL_TYPE_BLOB), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, SKIP_OPEN_TABLE)},
+
     END_OF_ST_FIELD_INFO};
+
+/** Function to fill the BLOB value for column default value
+@param[in,out]	field		field to store default value
+@param[in]	default_val	default value to fill
+@return	0 on success */
+static int field_blob_store(Field *field, dict_col_default_t *default_val) {
+  int ret = 0;
+
+  if (default_val->len == UNIV_SQL_NULL) {
+    field->set_null();
+  } else {
+    size_t len = 0;
+    DD_instant_col_val_coder coder;
+    const char *value =
+        coder.encode(default_val->value, default_val->len, &len);
+
+    field->set_notnull();
+    ret = field->store(value, len, field->charset());
+  }
+
+  return (ret);
+}
 
 /** Function to populate the information_schema.innodb_columns with
 related column information
@@ -5962,6 +6008,14 @@ static int i_s_dict_fill_innodb_columns(THD *thd, table_id_t table_id,
   OK(fields[SYS_COLUMN__PRTYPE]->store(column->prtype));
 
   OK(fields[SYS_COLUMN_COLUMN_LEN]->store(column->len));
+
+  if (column->instant_default != nullptr) {
+    OK(fields[SYS_COLUMN_HAS_DEFAULT]->store(1));
+    OK(field_blob_store(fields[SYS_COLUMN_DEFAULT_VALUE],
+                        column->instant_default));
+  } else {
+    OK(fields[SYS_COLUMN_HAS_DEFAULT]->store(0));
+  }
 
   OK(schema_table_store_record(thd, table_to_fill));
 
@@ -6003,6 +6057,7 @@ static int i_s_innodb_columns_fill_table(THD *thd, TABLE_LIST *tables, Item *) {
     table_id_t table_id;
     ulint nth_v_col;
 
+    column_rec.instant_default = nullptr;
     /* populate a dict_col_t structure with information from
     a row */
     ret = dd_process_dd_columns_rec(heap, rec, &column_rec, &table_id,

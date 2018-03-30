@@ -42,6 +42,11 @@
 
 --let $ibd2sdi_pattern=$p1 $p2 $p3 $p4 $p5 $p6 $p7 $p8 $p9 $p10 $p11 $p12 $p13 $p15
 
+# Remove se_private_data: null and table_id in dd::Column::se_private_data
+--let $p16=/("se_private_data":) "default_null=[0-1];table_id=[0-9]+;"/\1 "default_null=X;table_id=Y"/
+
+--let $ibd2sdi_pattern=$p1 $p2 $p3 $p4 $p5 $p6 $p7 $p8 $p9 $p10 $p11 $p12 $p13 $p15 $p16
+
 # Remove root also for tables in System tablespace
 --let $p3_1=/("se_private_data":) "id=[0-9]+;root=[0-9]+;space_id=[0-9]+;table_id=[0-9]+;trx_id=[0-9]+;"/\1 "id=A;root=B;space_id=C;table_id=D;trx_id=E"/
 
@@ -54,9 +59,9 @@
 # Remove se_private_data: table_id.
 --let $p3_4=/("se_private_data":) "table_id=[0-9]+;"/\1 "table_id=X"/
 
---let $ibd2sdi_pattern_system=$p1 $p2 $p3_1 $p3_2 $p3_3 $p3_4 $p4 $p5 $p6 $p7 $p8 $p9 $p10 $p11 $p12 $p13 $p15
+--let $ibd2sdi_pattern_system=$p1 $p2 $p3_1 $p3_2 $p3_3 $p3_4 $p4 $p5 $p6 $p7 $p8 $p9 $p10 $p11 $p12 $p13 $p15 $p16
 
 # Remove collation_id only for dictionary tables
---let $p14=/("collation_id": )[0-9]+/\1X/
+--let $p15=/("collation_id": )[0-9]+/\1X/
 
---let $ibd2sdi_pattern_mysql= $ibd2sdi_pattern $p14
+--let $ibd2sdi_pattern_mysql= $ibd2sdi_pattern $p15

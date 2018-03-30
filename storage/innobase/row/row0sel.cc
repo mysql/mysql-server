@@ -256,11 +256,11 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
     } else {
       clust_pos = dict_col_get_clust_pos(col, clust_index);
 
-      clust_field =
-          rec_get_nth_field(clust_rec, clust_offs, clust_pos, &clust_len);
+      clust_field = rec_get_nth_field(clust_rec, clust_offs, clust_pos,
+                                      clust_index, &clust_len);
     }
 
-    sec_field = rec_get_nth_field(sec_rec, sec_offs, i, &sec_len);
+    sec_field = rec_get_nth_field(sec_rec, sec_offs, i, nullptr, &sec_len);
 
     len = clust_len;
 
@@ -506,7 +506,7 @@ static void row_sel_fetch_columns(
 
         needs_copy = TRUE;
       } else {
-        data = rec_get_nth_field(rec, offsets, field_no, &len);
+        data = rec_get_nth_field(rec, offsets, field_no, index, &len);
 
         needs_copy = column->copy_val;
       }
@@ -2502,7 +2502,7 @@ static void row_sel_store_row_id_to_prebuilt(
   ut_ad(rec_offs_validate(index_rec, index, offsets));
 
   data = rec_get_nth_field(index_rec, offsets,
-                           index->get_sys_col_pos(DATA_ROW_ID), &len);
+                           index->get_sys_col_pos(DATA_ROW_ID), nullptr, &len);
 
   if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
     ib::error(ER_IB_MSG_1029)
@@ -2573,7 +2573,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
   bool clust_templ_for_sec = (sec_field != ULINT_UNDEFINED);
 #endif /* UNIV_DEBUG */
 
-  ut_ad(len != UNIV_SQL_NULL);
+  ut_ad(rec_field_not_null_not_add_col_def(len));
   UNIV_MEM_ASSERT_RW(data, len);
   UNIV_MEM_ASSERT_W(dest, templ->mysql_col_len);
   UNIV_MEM_INVALID(dest, templ->mysql_col_len);
@@ -2731,15 +2731,9 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
   }
 }
 
-#ifdef UNIV_DEBUG
 /** Convert a field from Innobase format to MySQL format. */
 #define row_sel_store_mysql_field(m, p, r, i, o, f, t, s) \
   row_sel_store_mysql_field_func(m, p, r, i, o, f, t, s)
-#else /* UNIV_DEBUG */
-/** Convert a field from Innobase format to MySQL format. */
-#define row_sel_store_mysql_field(m, p, r, i, o, f, t, s) \
-  row_sel_store_mysql_field_func(m, p, r, o, f, t, s)
-#endif /* UNIV_DEBUG */
 /** Convert a field in the Innobase format to a field in the MySQL format.
 @param[out]	mysql_rec		record in the MySQL format
 @param[in,out]	prebuilt		prebuilt struct
@@ -2760,10 +2754,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
                                         range comparison. */
 static MY_ATTRIBUTE((warn_unused_result)) ibool
     row_sel_store_mysql_field_func(byte *mysql_rec, row_prebuilt_t *prebuilt,
-                                   const rec_t *rec,
-#ifdef UNIV_DEBUG
-                                   const dict_index_t *index,
-#endif /* UNIV_DEBUG */
+                                   const rec_t *rec, const dict_index_t *index,
                                    const ulint *offsets, ulint field_no,
                                    const mysql_row_templ_t *templ,
                                    ulint sec_field_no) {
@@ -2842,7 +2833,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
       DBUG_RETURN(FALSE);
     }
 
-    ut_a(len != UNIV_SQL_NULL);
+    ut_a(rec_field_not_null_not_add_col_def(len));
 
     row_sel_field_store_in_mysql_format(mysql_rec + templ->mysql_col_offset,
                                         templ, index, field_no, data, len,
@@ -2854,7 +2845,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
   } else {
     /* Field is stored in the row. */
 
-    data = rec_get_nth_field(rec, offsets, field_no, &len);
+    data = rec_get_nth_field(rec, offsets, field_no, index, &len);
 
     if (len == UNIV_SQL_NULL) {
       /* MySQL assumes that the field for an SQL
@@ -2902,7 +2893,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
                                         sec_field_no);
   }
 
-  ut_ad(len != UNIV_SQL_NULL);
+  ut_ad(rec_field_not_null_not_add_col_def(len));
 
   if (templ->mysql_null_bit_mask) {
     /* It is a nullable column with a non-NULL
@@ -4179,7 +4170,7 @@ static void row_sel_fill_vrow(const rec_t *rec, dict_index_t *index,
       const byte *data;
       ulint len;
 
-      data = rec_get_nth_field(rec, offsets, i, &len);
+      data = rec_get_nth_field(rec, offsets, i, nullptr, &len);
 
       const dict_v_col_t *vcol = reinterpret_cast<const dict_v_col_t *>(col);
 
@@ -5944,7 +5935,7 @@ static ib_uint64_t row_search_autoinc_read_column(
     goto func_exit;
   }
 
-  data = rec_get_nth_field(rec, offsets, col_no, &len);
+  data = rec_get_nth_field(rec, offsets, col_no, nullptr, &len);
 
   value = row_parse_int(data, len, mtype, unsigned_type);
 
@@ -6038,7 +6029,7 @@ static void convert_to_table_stats_record(rec_t *clust_rec,
   for (ulint i = 0; i < rec_offs_n_fields(clust_offsets); i++) {
     const byte *data;
     ulint len;
-    data = rec_get_nth_field(clust_rec, clust_offsets, i, &len);
+    data = rec_get_nth_field(clust_rec, clust_offsets, i, nullptr, &len);
 
     if (len == UNIV_SQL_NULL) {
       continue;
@@ -6180,7 +6171,8 @@ bool row_search_index_stats(const char *db_name, const char *tbl_name,
     if (n_recs == col_offset) {
       const byte *data;
       ulint len;
-      data = rec_get_nth_field(rec, offsets, cardinality_index_offset, &len);
+      data = rec_get_nth_field(rec, offsets, cardinality_index_offset, nullptr,
+                               &len);
 
       *cardinality = static_cast<ulonglong>(round(mach_read_from_8(data)));
       mtr_commit(&mtr);

@@ -224,6 +224,44 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   return (err);
 }
 
+/** Write the metadata (table columns) config file. Serialise the contents
+of dict_col_t default value part if exists.
+@param[in]	col	column to which the default value belongs
+@param[in]	file	file to write to
+@return DB_SUCCESS or DB_IO_ERROR. */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_quiesce_write_default_value(const dict_col_t *col, FILE *file) {
+  byte row[6];
+
+  if (col->instant_default != nullptr) {
+    bool null = (col->instant_default->len == UNIV_SQL_NULL);
+    uint8_t to_write = 2;
+
+    mach_write_to_1(&row[0], 1);
+    mach_write_to_1(&row[1], null);
+
+    if (!null) {
+      mach_write_to_4(&row[2], col->instant_default->len);
+      to_write += 4;
+    }
+
+    if (fwrite(row, 1, to_write, file) != to_write ||
+        (!null &&
+         fwrite(col->instant_default->value, 1, col->instant_default->len,
+                file) != col->instant_default->len)) {
+      return (DB_IO_ERROR);
+    }
+  } else {
+    row[0] = 0;
+
+    if (fwrite(row, 1, 1, file) != 1) {
+      return (DB_IO_ERROR);
+    }
+  }
+
+  return (DB_SUCCESS);
+}
+
 /** Write the meta data (table columns) config file. Serialise the contents of
  dict_col_t structure, along with the column name. All fields are serialized
  as ib_uint32_t.
@@ -293,6 +331,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_table(
 
       return (DB_IO_ERROR);
     }
+
+    if (row_quiesce_write_default_value(col, file) != DB_SUCCESS) {
+      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
+                  strerror(errno), "while writing table column default.");
+      return (DB_IO_ERROR);
+    }
   }
 
   return (DB_SUCCESS);
@@ -309,7 +353,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_quiesce_write_header(
   byte value[sizeof(ib_uint32_t)];
 
   /* Write the meta-data version number. */
-  mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V2);
+  mach_write_to_4(value, IB_EXPORT_CFG_VERSION_V3);
 
   DBUG_EXECUTE_IF("ib_export_io_write_failure_4", close(fileno(file)););
 

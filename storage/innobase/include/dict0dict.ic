@@ -1425,6 +1425,13 @@ inline bool dict_table_t::skip_gap_locks() const {
   return (is_dd_table || dict_table_is_sdi(id));
 }
 
+/** Determine if the table can support instant ADD COLUMN */
+inline bool dict_table_t::support_instant_add() const {
+  return (!DICT_TF_GET_ZIP_SSIZE(flags) && space != dict_sys_t::s_space_id &&
+          !DICT_TF2_FLAG_IS_SET(this, DICT_TF2_FTS_HAS_DOC_ID) &&
+          !is_temporary());
+}
+
 /** Check whether the dict_table_t is a partition.
 A partitioned table on the SQL level is composed of InnoDB tables,
 where each InnoDB table is a [sub]partition including its secondary indexes

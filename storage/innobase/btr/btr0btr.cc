@@ -610,7 +610,8 @@ void btr_node_ptr_set_child_page_no(
   ut_ad(!rec_offs_comp(offsets) || rec_get_node_ptr_flag(rec));
 
   /* The child address is in the last field */
-  field = rec_get_nth_field(rec, offsets, rec_offs_n_fields(offsets) - 1, &len);
+  field = const_cast<byte *>(rec_get_nth_field(
+      rec, offsets, rec_offs_n_fields(offsets) - 1, nullptr, &len));
 
   ut_ad(len == REC_NODE_PTR_SIZE);
 
@@ -3913,15 +3914,16 @@ ibool btr_index_rec_validate(
 
   n = dict_index_get_n_fields(index);
 
-  if (!page_is_comp(page) && (rec_get_n_fields_old(rec) != n
-                              /* a record for older SYS_INDEXES table
-                              (missing merge_threshold column) is acceptable. */
-                              && !(index->id == DICT_INDEXES_ID &&
-                                   rec_get_n_fields_old(rec) == n - 1))) {
+  if (!page_is_comp(page) &&
+      (rec_get_n_fields_old(rec, index) != n
+       /* a record for older SYS_INDEXES table
+       (missing merge_threshold column) is acceptable. */
+       && !(index->id == DICT_INDEXES_ID &&
+            rec_get_n_fields_old(rec, index) == n - 1))) {
     btr_index_rec_validate_report(page, rec, index);
 
-    ib::error(ER_IB_MSG_37)
-        << "Has " << rec_get_n_fields_old(rec) << " fields, should have " << n;
+    ib::error(ER_IB_MSG_37) << "Has " << rec_get_n_fields_old(rec, index)
+                            << " fields, should have " << n;
 
     if (dump_on_error) {
       fputs("InnoDB: corrupt record ", stderr);
@@ -3962,9 +3964,9 @@ ibool btr_index_rec_validate(
       }
     }
 
-    if ((field->prefix_len == 0 && len != UNIV_SQL_NULL && fixed_size &&
-         len != fixed_size) ||
-        (field->prefix_len > 0 && len != UNIV_SQL_NULL &&
+    if ((field->prefix_len == 0 && rec_field_not_null_not_add_col_def(len) &&
+         fixed_size && len != fixed_size) ||
+        (field->prefix_len > 0 && rec_field_not_null_not_add_col_def(len) &&
          len > field->prefix_len)) {
       btr_index_rec_validate_report(page, rec, index);
 

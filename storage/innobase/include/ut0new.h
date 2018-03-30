@@ -232,6 +232,7 @@ static constexpr const char *auto_event_names[] = {
     "dict",
     "dict0boot",
     "dict0crea",
+    "dict0dd",
     "dict0dict",
     "dict0load",
     "dict0mem",

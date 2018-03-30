@@ -32,7 +32,7 @@ ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-ALTER TABLE t1 ADD COLUMN content TEXT;
+ALTER TABLE t1 ADD COLUMN content TEXT, ALGORITHM=INPLACE;
 ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text

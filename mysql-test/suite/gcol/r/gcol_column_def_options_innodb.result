@@ -35,11 +35,11 @@ drop table t1;
 create table t1 (a int);
 insert into t1 values(1);
 alter table t1 add column (b int generated always as (a+1) virtual, c int);
-affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 alter table t1 add column (d int, e int generated always as (a+1) virtual);
-affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 alter table t1 add column (f int generated always as (a+1) virtual, g int as(5) stored);
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
@@ -549,8 +549,8 @@ ALTER TABLE t DROP d, ADD e varchar(10);
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
 ALTER TABLE t ADD d int, ADD f char(10) AS ('aaa');
-affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t CHANGE d dd int, CHANGE f ff varchar(10) AS ('bbb');
 affected rows: 1
 info: Records: 1  Duplicates: 0  Warnings: 0
@@ -794,10 +794,6 @@ CREATE TABLE t1(a INT PRIMARY KEY DEFAULT 5);
 INSERT INTO t1 VALUES();
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
 ADD COLUMN b INT AS (1 + DEFAULT(a)) STORED,
-ALGORITHM = INPLACE;
-Got one of the listed errors
-ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,
-ADD COLUMN c INT AS (1 + DEFAULT(a)) VIRTUAL,
 ALGORITHM = INPLACE;
 Got one of the listed errors
 ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 7,

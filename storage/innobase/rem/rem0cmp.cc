@@ -565,7 +565,7 @@ int cmp_dtuple_rec_with_gis(
   dtuple_field = dtuple_get_nth_field(dtuple, 0);
   dtuple_f_len = dfield_get_len(dtuple_field);
 
-  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
+  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, nullptr, &rec_f_len);
   ret = cmp_gis_field(
       mode, static_cast<const byte *>(dfield_get_data(dtuple_field)),
       (unsigned)dtuple_f_len, rec_b_ptr, (unsigned)rec_f_len, srs);
@@ -595,7 +595,7 @@ int cmp_dtuple_rec_with_gis_internal(const dtuple_t *dtuple, const rec_t *rec,
   dtuple_field = dtuple_get_nth_field(dtuple, 0);
   dtuple_f_len = dfield_get_len(dtuple_field);
 
-  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
+  rec_b_ptr = rec_get_nth_field(rec, offsets, 0, nullptr, &rec_f_len);
   ret = cmp_gis_field(
       PAGE_CUR_WITHIN, static_cast<const byte *>(dfield_get_data(dtuple_field)),
       (unsigned)dtuple_f_len, rec_b_ptr, (unsigned)rec_f_len, srs);
@@ -605,7 +605,7 @@ int cmp_dtuple_rec_with_gis_internal(const dtuple_t *dtuple, const rec_t *rec,
 
   dtuple_field = dtuple_get_nth_field(dtuple, 1);
   dtuple_f_len = dfield_get_len(dtuple_field);
-  rec_b_ptr = rec_get_nth_field(rec, offsets, 1, &rec_f_len);
+  rec_b_ptr = rec_get_nth_field(rec, offsets, 1, nullptr, &rec_f_len);
 
   return (cmp_data(dtuple_field->type.mtype, dtuple_field->type.prtype, true,
                    static_cast<const byte *>(dtuple_field->data), dtuple_f_len,
@@ -689,8 +689,10 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
     contain externally stored fields, and the first fields
     (primary key fields) should already differ. */
     ut_ad(!rec_offs_nth_extern(offsets, cur_field));
+    /* So does the field with default value */
+    ut_ad(!rec_offs_nth_default(offsets, cur_field));
 
-    rec_b_ptr = rec_get_nth_field(rec, offsets, cur_field, &rec_f_len);
+    rec_b_ptr = rec_get_nth_field(rec, offsets, cur_field, nullptr, &rec_f_len);
 
     ut_ad(!dfield_is_ext(dtuple_field));
 
@@ -794,13 +796,16 @@ int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
     const byte *dtuple_b_ptr;
     const byte *rec_b_ptr;
     ulint rec_f_len;
+
+    ut_ad(!rec_offs_nth_default(offsets, cur_field));
+
     /* For now, change buffering is only supported on
     indexes with ascending order on the columns. */
     const bool is_ascending =
         dict_index_is_ibuf(index) || index->fields[cur_field].is_ascending;
 
     dtuple_b_ptr = static_cast<const byte *>(dfield_get_data(dfield));
-    rec_b_ptr = rec_get_nth_field(rec, offsets, cur_field, &rec_f_len);
+    rec_b_ptr = rec_get_nth_field(rec, offsets, cur_field, nullptr, &rec_f_len);
     ut_ad(!rec_offs_nth_extern(offsets, cur_field));
 
     /* If we have matched yet 0 bytes, it may be that one or
@@ -971,8 +976,8 @@ static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
   ut_ad(!rec_offs_nth_extern(offsets1, n));
   ut_ad(!rec_offs_nth_extern(offsets2, n));
 
-  rec1_b_ptr = rec_get_nth_field(rec1, offsets1, n, &rec1_f_len);
-  rec2_b_ptr = rec_get_nth_field(rec2, offsets2, n, &rec2_f_len);
+  rec1_b_ptr = rec_get_nth_field(rec1, offsets1, n, index, &rec1_f_len);
+  rec2_b_ptr = rec_get_nth_field(rec2, offsets2, n, index, &rec2_f_len);
 
   return (cmp_data(col->mtype, col->prtype, field->is_ascending, rec1_b_ptr,
                    rec1_f_len, rec2_b_ptr, rec2_f_len));
@@ -1150,8 +1155,10 @@ int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,
     ut_ad(!rec_offs_nth_extern(offsets1, cur_field));
     ut_ad(!rec_offs_nth_extern(offsets2, cur_field));
 
-    rec1_b_ptr = rec_get_nth_field(rec1, offsets1, cur_field, &rec1_f_len);
-    rec2_b_ptr = rec_get_nth_field(rec2, offsets2, cur_field, &rec2_f_len);
+    rec1_b_ptr =
+        rec_get_nth_field(rec1, offsets1, cur_field, index, &rec1_f_len);
+    rec2_b_ptr =
+        rec_get_nth_field(rec2, offsets2, cur_field, index, &rec2_f_len);
 
     if (nulls_unequal && rec1_f_len == UNIV_SQL_NULL &&
         rec2_f_len == UNIV_SQL_NULL) {

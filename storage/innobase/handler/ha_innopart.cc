@@ -2653,13 +2653,12 @@ int ha_innopart::set_dd_discard_attribute(dd::Table *table_def, bool discard) {
       ut_a(false);
     }
 
-    const dict_index_t *index = table->first_index();
     for (auto dd_index : *dd_part->indexes()) {
-      ut_ad(index != NULL);
+      const dict_index_t *index = dd_find_index(table, dd_index);
+      ut_ad(index != nullptr);
 
       dd::Properties &p = dd_index->se_private_data();
       p.set_uint32(dd_index_key_strings[DD_INDEX_ROOT], index->page);
-      index = index->next();
     }
   }
 
@@ -2704,6 +2703,14 @@ int ha_innopart::discard_or_import_tablespace(bool discard,
       break;
     }
   }
+
+#ifdef UNIV_DEBUG
+  if (!discard && table_def->se_private_data().exists(
+                      dd_table_key_strings[DD_TABLE_INSTANT_COLS])) {
+    ut_ad(dd_table_has_instant_cols(*table_def));
+  }
+#endif /* UNIV_DEBUG */
+
   m_prebuilt->table = m_part_share->get_table_part(0);
 
   /* IMPORT/DISCARD also means resetting auto_increment. Make sure
@@ -2850,8 +2857,20 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
     }
   }
 
-  if (error == 0 && has_autoinc) {
-    dd_set_autoinc(table_def->se_private_data(), 0);
+  if (error == 0) {
+    if (has_autoinc) {
+      dd_set_autoinc(table_def->se_private_data(), 0);
+    }
+
+    if (dd_table_has_instant_cols(*table_def)) {
+      for (dd::Partition *dd_part : *table_def->leaf_partitions()) {
+        if (dd_part_has_instant_cols(*dd_part)) {
+          dd_clear_instant_part(*dd_part);
+        }
+      }
+
+      dd_clear_instant_table(*table_def);
+    }
   }
 
   DBUG_RETURN(error);
@@ -3036,6 +3055,28 @@ int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
 
   if (error == 0 && table->found_next_number_field) {
     dd_set_autoinc(dd_table->se_private_data(), autoinc);
+  }
+
+  if (error == 0 && dd_table_has_instant_cols(*dd_table)) {
+    i = 0;
+    for (dd::Partition *dd_part : *dd_table->leaf_partitions()) {
+      if (!m_part_info->is_partition_used(i)) {
+        ++i;
+        continue;
+      }
+
+      if (dd_part_has_instant_cols(*dd_part)) {
+        dd_clear_instant_part(*dd_part);
+      }
+
+      dict_table_t *table_part = m_part_share->get_table_part(i);
+      table_part->discard_after_ddl = true;
+      ++i;
+    }
+
+    if (!dd_table_part_has_instant_cols(*dd_table)) {
+      dd_clear_instant_table(*dd_table);
+    }
   }
 
   DBUG_RETURN(error);

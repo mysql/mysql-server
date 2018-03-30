@@ -39,7 +39,7 @@ connection con1;
 
 SET DEBUG_SYNC='delete_metadata_before SIGNAL delete WAIT_FOR insert';
 --send
-ALTER TABLE t2 ADD COLUMN b INT;
+ALTER TABLE t2 ADD COLUMN b INT, ALGORITHM=INPLACE;
 
 connection default;
 SET DEBUG_SYNC='now WAIT_FOR delete';

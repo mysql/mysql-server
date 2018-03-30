@@ -911,7 +911,7 @@ static ulint trx_undo_page_report_modify(
 
   /* Store the values of the system columns */
   field = rec_get_nth_field(rec, offsets, index->get_sys_col_pos(DATA_TRX_ID),
-                            &flen);
+                            nullptr, &flen);
   ut_ad(flen == DATA_TRX_ID_LEN);
 
   trx_id = trx_read_trx_id(field);
@@ -926,7 +926,7 @@ static ulint trx_undo_page_report_modify(
   ptr += mach_u64_write_compressed(ptr, trx_id);
 
   field = rec_get_nth_field(rec, offsets, index->get_sys_col_pos(DATA_ROLL_PTR),
-                            &flen);
+                            nullptr, &flen);
   ut_ad(flen == DATA_ROLL_PTR_LEN);
 
   ptr += mach_u64_write_compressed(ptr, trx_read_roll_ptr(field));
@@ -936,10 +936,11 @@ static ulint trx_undo_page_report_modify(
   record which will be modified in the clustered index */
 
   for (i = 0; i < dict_index_get_n_unique(index); i++) {
-    field = rec_get_nth_field(rec, offsets, i, &flen);
+    field = rec_get_nth_field(rec, offsets, i, nullptr, &flen);
 
     /* The ordering columns must not be stored externally. */
     ut_ad(!rec_offs_nth_extern(offsets, i));
+    ut_ad(!rec_offs_nth_default(offsets, i));
     ut_ad(index->get_col(i)->ord_part);
 
     if (trx_undo_left(undo_page, ptr) < 5) {
@@ -1039,7 +1040,7 @@ static ulint trx_undo_page_report_modify(
           flen = ut_min(flen, max_v_log_len);
         }
       } else {
-        field = rec_get_nth_field(rec, offsets, pos, &flen);
+        field = rec_get_nth_field(rec, offsets, pos, index, &flen);
       }
 
       if (trx_undo_left(undo_page, ptr) < 15) {
@@ -1158,7 +1159,7 @@ static ulint trx_undo_page_report_modify(
         ptr += mach_write_compressed(ptr, pos);
 
         /* Save the old value of field */
-        field = rec_get_nth_field(rec, offsets, pos, &flen);
+        field = rec_get_nth_field(rec, offsets, pos, index, &flen);
 
         if (rec_offs_nth_extern(offsets, pos)) {
           const dict_col_t *col = index->get_col(pos);

@@ -7905,6 +7905,8 @@ alter_algorithm_option_value:
           {
             if (is_identifier($1, "INPLACE"))
               $$= Alter_info::ALTER_TABLE_ALGORITHM_INPLACE;
+            else if (is_identifier($1, "INSTANT"))
+              $$= Alter_info::ALTER_TABLE_ALGORITHM_INSTANT;
             else if (is_identifier($1, "COPY"))
               $$= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
             else

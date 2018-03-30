@@ -499,7 +499,7 @@ void DDL_Log_Table::convert_to_ddl_record(bool is_clustered, rec_t *rec,
         continue;
       }
 
-      data = rec_get_nth_field(rec, offsets, i, &len);
+      data = rec_get_nth_field(rec, offsets, i, nullptr, &len);
 
       if (len != UNIV_SQL_NULL) {
         set_field(data, i, len, record);
@@ -516,7 +516,8 @@ ulint DDL_Log_Table::parse_id(const dict_index_t *index, rec_t *rec,
   ulint len;
   ulint index_offset = index->get_col_pos(s_id_col_no);
 
-  byte *data = rec_get_nth_field(rec, offsets, index_offset, &len);
+  const byte *data =
+      rec_get_nth_field(rec, offsets, index_offset, nullptr, &len);
   ut_ad(len == s_id_col_len);
 
   return (mach_read_from_8(data));

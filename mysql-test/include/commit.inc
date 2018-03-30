@@ -894,18 +894,18 @@ alter table t3 add column (b int);
 
 if (!$have_debug)
 {
-  --replace_regex /17/X/
-  call p_verify_status_increment(17, 4, 2, 0);
-}
-
-if ($have_debug)
-{
   --replace_regex /19/X/
   call p_verify_status_increment(19, 4, 2, 0);
 }
 
+if ($have_debug)
+{
+  --replace_regex /20/X/
+  call p_verify_status_increment(20, 4, 2, 0);
+}
+
 alter table t3 rename t4;
-call p_verify_status_increment(20, 4, 3, 0);
+call p_verify_status_increment(19, 4, 3, 0);
 rename table t4 to t3;
 call p_verify_status_increment(23, 4, 5, 0);
 truncate table t3;

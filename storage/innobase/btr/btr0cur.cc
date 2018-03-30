@@ -3598,6 +3598,9 @@ dberr_t btr_cur_optimistic_update(
   Thus the following call is safe. */
   row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update, FALSE,
                                                *heap);
+
+  new_entry->ignore_trailing_default(index);
+
   old_rec_size = rec_offs_size(*offsets);
   new_rec_size = rec_get_converted_size(index, new_entry, 0);
 
@@ -3895,6 +3898,8 @@ dberr_t btr_cur_pessimistic_update(
   itself.  Thus the following call is safe. */
   row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update, FALSE,
                                                entry_heap);
+
+  new_entry->ignore_trailing_default(index);
 
   /* We have to set appropriate extern storage bits in the new
   record to be inserted: we have to remember which fields were such */
@@ -4780,7 +4785,7 @@ ibool btr_cur_pessimistic_delete(
                                 ULINT_UNDEFINED, &heap);
 
       father_rec = btr_cur_get_rec(&father_cursor);
-      rtr_read_mbr(rec_get_nth_field(father_rec, offsets, 0, &len),
+      rtr_read_mbr(rec_get_nth_field(father_rec, offsets, 0, nullptr, &len),
                    &father_mbr);
 
       upd_ret = rtr_update_mbr_field(&father_cursor, offsets, NULL, page,

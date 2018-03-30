@@ -430,9 +430,10 @@ byte *mlog_open_and_write_index(
     log_ptr = mlog_write_initial_log_record_fast(rec, type, log_ptr, mtr);
     log_end = log_ptr + 11 + size;
   } else {
+    bool instant = index->has_instant_cols();
     ulint i;
     ulint n = dict_index_get_n_fields(index);
-    ulint total = 11 + size + (n + 2) * 2;
+    ulint total = 11 + (instant ? 2 : 0) + size + (n + 2) * 2;
     ulint alloc = total;
 
     if (alloc > mtr_buf_t::MAX_DATA_SIZE) {
@@ -455,6 +456,14 @@ byte *mlog_open_and_write_index(
 
     log_ptr = mlog_write_initial_log_record_fast(rec, type, log_ptr, mtr);
 
+    if (instant) {
+      /* Since the max columns could only be 1017,
+      The leading bit is leveraged to indicate if the
+      index is instant one and number of columns when
+      first instant ADD COLUMN stored */
+      mach_write_to_2(log_ptr, index->get_instant_fields() | 0x8000);
+      log_ptr += 2;
+    }
     mach_write_to_2(log_ptr, n);
     log_ptr += 2;
 
@@ -527,6 +536,8 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
   ulint i, n, n_uniq;
   dict_table_t *table;
   dict_index_t *ind;
+  bool instant = false;
+  uint16_t instant_cols = 0;
 
   ut_ad(comp == FALSE || comp == TRUE);
 
@@ -536,6 +547,20 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
     }
     n = mach_read_from_2(ptr);
     ptr += 2;
+    if ((n & 0x8000) != 0) {
+      /* This is instant fields,
+      see also mlog_open_and_write_index() */
+      instant = true;
+      instant_cols = n & ~0x8000;
+      n = mach_read_from_2(ptr);
+      ptr += 2;
+      ut_ad((n & 0x8000) == 0);
+      ut_ad(instant_cols <= n);
+
+      if (end_ptr < ptr + 2) {
+        return (nullptr);
+      }
+    }
     n_uniq = mach_read_from_2(ptr);
     ptr += 2;
     ut_ad(n_uniq <= n);
@@ -547,6 +572,10 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
   }
   table = dict_mem_table_create("LOG_DUMMY", DICT_HDR_SPACE, n, 0,
                                 comp ? DICT_TF_COMPACT : 0, 0);
+  if (instant) {
+    table->set_instant_cols(instant_cols);
+  }
+
   ind = dict_mem_index_create("LOG_DUMMY", "LOG_DUMMY", DICT_HDR_SPACE, 0, n);
   ind->table = table;
   ind->n_uniq = (unsigned int)n_uniq;
@@ -579,6 +608,13 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
       ind->fields[DATA_TRX_ID - 1 + n_uniq].col = &table->cols[n + DATA_TRX_ID];
       ind->fields[DATA_ROLL_PTR - 1 + n_uniq].col =
           &table->cols[n + DATA_ROLL_PTR];
+    }
+
+    if (ind->has_instant_cols()) {
+      ind->n_instant_nullable =
+          ind->get_n_nullable_before(ind->get_instant_fields());
+    } else {
+      ind->n_instant_nullable = ind->n_nullable;
     }
   }
   /* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */

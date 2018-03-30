@@ -486,6 +486,11 @@ struct dtuple_t {
   /* Read the trx id from the tuple (DB_TRX_ID)
   @return transaction id of the tuple. */
   trx_id_t get_trx_id() const;
+
+  /** Ignore at most n trailing default fields if this is a tuple
+  from instant index
+  @param[in]	index	clustered index object for this tuple */
+  void ignore_trailing_default(const dict_index_t *index);
 };
 
 /** A slot for a field in a big rec vector */

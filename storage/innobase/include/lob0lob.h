@@ -603,7 +603,8 @@ class BtrContext {
     byte *data;
     ulint local_len;
 
-    data = rec_get_nth_field(m_rec, m_offsets, i, &local_len);
+    data = const_cast<byte *>(
+        rec_get_nth_field(m_rec, m_offsets, i, nullptr, &local_len));
     ut_ad(rec_offs_nth_extern(m_offsets, i));
     ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 

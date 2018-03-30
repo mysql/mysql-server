@@ -7,7 +7,7 @@ connect  con1, localhost, root,,;
 # object is stored persistently.
 CREATE TABLE t1 (pk INTEGER PRIMARY KEY);
 SET DEBUG_SYNC= 'before_storing_dd_object SIGNAL before_store WAIT_FOR cont';
-ALTER TABLE t1 ADD fld1 INT;;
+ALTER TABLE t1 ADD fld1 INT, ALGORITHM=INPLACE;
 connection default;
 # From the default connection, get the thread id of the rename, and
 # kill the query.

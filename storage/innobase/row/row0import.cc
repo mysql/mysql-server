@@ -124,14 +124,17 @@ struct row_index_t {
 
 /** Meta data required by IMPORT. */
 struct row_import {
+ public:
   row_import() UNIV_NOTHROW : m_table(),
                               m_version(),
                               m_hostname(),
                               m_table_name(),
+                              m_heap(nullptr),
                               m_autoinc(),
                               m_page_size(0, 0, false),
                               m_flags(),
                               m_n_cols(),
+                              m_n_instant_cols(0),
                               m_cols(),
                               m_col_names(),
                               m_n_indexes(),
@@ -184,6 +187,14 @@ struct row_import {
   @return DB_SUCCESS or error code. */
   dberr_t match_index_columns(THD *thd, const dict_index_t *index) UNIV_NOTHROW;
 
+  /** Check if the column default values of table schema that was
+  read from the .cfg file matches the in memory column definition.
+  @param[in]	thd		MySQL session variable
+  @param[in]	dd_table	dd::Table
+  @return	DB_SUCCESS or error code. */
+  dberr_t match_col_default_values(THD *thd,
+                                   const dd::Table *dd_table) UNIV_NOTHROW;
+
   /** Check if the table schema that was read from the .cfg file
   matches the in memory table definition.
   @param thd MySQL session variable
@@ -192,10 +203,16 @@ struct row_import {
 
   /** Check if the table (and index) schema that was read from the
   .cfg file matches the in memory table definition.
-  @param thd MySQL session variable
+  @param[in]	thd		MySQL session variable
+  @param[in]	dd_table	dd::Table
   @return DB_SUCCESS or error code. */
-  dberr_t match_schema(THD *thd) UNIV_NOTHROW;
+  dberr_t match_schema(THD *thd, const dd::Table *dd_table) UNIV_NOTHROW;
 
+ private:
+  /** Set the instant ADD COLUMN information to the table */
+  dberr_t set_instant_info(THD *thd) UNIV_NOTHROW;
+
+ public:
   dict_table_t *m_table; /*!< Table instance */
 
   ulint m_version; /*!< Version of config file */
@@ -205,6 +222,9 @@ struct row_import {
   byte *m_table_name; /*!< Exporting instance table
                       name */
 
+  mem_heap_t *m_heap; /*!< Memory heap for default
+                      value of instant columns */
+
   ib_uint64_t m_autoinc; /*!< Next autoinc value */
 
   page_size_t m_page_size; /*!< Tablespace page size */
@@ -213,6 +233,10 @@ struct row_import {
 
   ulint m_n_cols; /*!< Number of columns in the
                   meta-data file */
+
+  uint16_t m_n_instant_cols; /*!< Number of columns before
+                             first instant ADD COLUMN in
+                             the meta-data file */
 
   dict_col_t *m_cols; /*!< Column data */
 
@@ -946,6 +970,10 @@ row_import::~row_import() UNIV_NOTHROW {
   UT_DELETE_ARRAY(m_col_names);
   UT_DELETE_ARRAY(m_table_name);
   UT_DELETE_ARRAY(m_hostname);
+
+  if (m_heap != nullptr) {
+    mem_heap_free(m_heap);
+  }
 }
 
 /** Find the index entry in in the indexes array.
@@ -1074,6 +1102,56 @@ dberr_t row_import::match_index_columns(THD *thd, const dict_index_t *index)
   return (err);
 }
 
+/** Check if the column default values of table schema that was
+read from the .cfg file matches the in memory column definition.
+@param[in]	thd		MySQL session variable
+@param[in]	dd_table	dd::Table
+@return DB_SUCCESS or error code. */
+dberr_t row_import::match_col_default_values(
+    THD *thd, const dd::Table *dd_table) UNIV_NOTHROW {
+  dberr_t err = DB_SUCCESS;
+
+  ut_ad(dd_table_is_partitioned(*dd_table) == dict_table_is_partition(m_table));
+
+  err = set_instant_info(thd);
+
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
+
+  /* Only check instant partitioned table. Because different partitions
+  may have different number of default values, make sure the default
+  values of this imported table match the default values which are
+  already remembered in server.
+  Also if the table in server is not instant, then all fine, just
+  store the new default values */
+  if (!m_table->has_instant_cols() || !dict_table_is_partition(m_table) ||
+      !dd_table_has_instant_cols(*dd_table)) {
+    return (err);
+  }
+
+  for (uint16_t i = 0; i < m_table->get_n_user_cols(); ++i) {
+    dict_col_t *col = m_table->get_col(i);
+    if (col->instant_default == nullptr) {
+      continue;
+    }
+
+    const dd::Column *dd_col =
+        dd_find_column(dd_table, m_table->get_col_name(i));
+
+    if (!dd_match_default_value(dd_col, col)) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Default values of instant column %s mismatch",
+              dd_col->name().c_str());
+
+      err = DB_ERROR;
+      break;
+    }
+  }
+
+  return (err);
+}
+
 /** Check if the table schema that was read from the .cfg file matches the
 in memory table definition.
 @param thd MySQL session variable
@@ -1156,9 +1234,11 @@ dberr_t row_import::match_table_columns(THD *thd) UNIV_NOTHROW {
 
 /** Check if the table (and index) schema that was read from the .cfg file
 matches the in memory table definition.
-@param thd MySQL session variable
+@param[in]	thd		MySQL session variable
+@param[in]	dd_table	dd::Table
 @return DB_SUCCESS or error code. */
-dberr_t row_import::match_schema(THD *thd) UNIV_NOTHROW {
+dberr_t row_import::match_schema(THD *thd,
+                                 const dd::Table *dd_table) UNIV_NOTHROW {
   /* Do some simple checks. */
 
   if (m_flags != m_table->flags) {
@@ -1192,6 +1272,12 @@ dberr_t row_import::match_schema(THD *thd) UNIV_NOTHROW {
   }
 
   dberr_t err = match_table_columns(thd);
+
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
+
+  err = match_col_default_values(thd, dd_table);
 
   if (err != DB_SUCCESS) {
     return (err);
@@ -1367,6 +1453,97 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
   return (err);
 }
 
+/** Set the instant ADD COLUMN information to the table.
+@return DB_SUCCESS if all instant columns are trailing columns, or error code */
+dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
+  dberr_t error = DB_SUCCESS;
+  dict_col_t *col = m_table->cols;
+  uint16_t instants = 0;
+  uint64_t old_size;
+  uint64_t new_size;
+
+  if (m_n_instant_cols == 0) {
+    m_table->set_instant_cols(m_table->get_n_user_cols());
+    ut_ad(!m_table->has_instant_cols());
+    return (error);
+  }
+
+  old_size = mem_heap_get_size(m_table->heap);
+
+  for (ulint i = 0; i < m_table->get_n_user_cols(); ++i, ++col) {
+    const char *col_name;
+    ulint cfg_col_index;
+
+    col_name = m_table->get_col_name(dict_col_get_no(col));
+
+    cfg_col_index = find_col(col_name);
+    ut_ad(cfg_col_index != ULINT_UNDEFINED);
+
+    const dict_col_t *cfg_col = &m_cols[cfg_col_index];
+
+    if (cfg_col->instant_default == nullptr) {
+      if (instants > 0) {
+        ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+                "Instant columns read from meta-data"
+                " file mismatch, because there are"
+                " some columns which were not instantly"
+                " added after columns which were"
+                " instantly added");
+
+        error = DB_ERROR;
+        break;
+      }
+
+      continue;
+    }
+
+    ++instants;
+
+    if (col->instant_default != nullptr) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Instant columns read from meta-data file"
+              " mismatch, the column %s in server table"
+              " has already been an instant column with"
+              " default value",
+              col_name);
+
+      error = DB_ERROR;
+      break;
+    }
+
+    col->set_default(cfg_col->instant_default->value,
+                     cfg_col->instant_default->len, m_table->heap);
+  }
+
+  new_size = mem_heap_get_size(m_table->heap);
+  if (new_size > old_size) {
+    mutex_enter(&dict_sys->mutex);
+    dict_sys->size += new_size - old_size;
+    mutex_exit(&dict_sys->mutex);
+  }
+
+  if (error == DB_SUCCESS && instants != m_n_instant_cols) {
+    ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+            "Number of instant columns don't match, table has"
+            " %lu instant columns record in meta-data file but"
+            " there are %lu columns with default value",
+            static_cast<ulong>(m_n_instant_cols), static_cast<ulong>(instants));
+
+    error = DB_ERROR;
+  }
+
+  if (error != DB_SUCCESS) {
+    return (error);
+  }
+
+  m_table->set_instant_cols(m_table->get_n_user_cols() - m_n_instant_cols);
+  ut_ad(m_table->has_instant_cols());
+  /* FIXME: Force to discard the table, in case of any rollback later. */
+  //	m_table->discard_after_ddl = true;
+
+  return (DB_SUCCESS);
+}
+
 /**
 Purge delete marked records.
 @return DB_SUCCESS or error code. */
@@ -1511,7 +1688,7 @@ dberr_t PageConverter::adjust_cluster_index_blob_column(rec_t *rec,
   ulint len;
   byte *field;
 
-  field = rec_get_nth_field(rec, offsets, i, &len);
+  field = const_cast<byte *>(rec_get_nth_field(rec, offsets, i, nullptr, &len));
 
   DBUG_EXECUTE_IF("ib_import_trigger_corruption_2",
                   len = BTR_EXTERN_FIELD_REF_SIZE - 1;);
@@ -2232,7 +2409,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_set_sys_max_row_id(
     offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
 
     field = rec_get_nth_field(rec, offsets, index->get_sys_col_pos(DATA_ROW_ID),
-                              &len);
+                              nullptr, &len);
 
     if (len == DATA_ROW_ID_LEN) {
       row_id = mach_read_from_6(field);
@@ -2570,6 +2747,104 @@ static dberr_t row_import_read_indexes(
   return (row_import_read_index_data(file, thd, cfg));
 }
 
+/** Read specified bytes from the meta data file.
+@param[in]	file	file to read from
+@param[in]	length	length of bytes to read
+@return	the bytes stream, caller has to free the memory if not nullptr */
+static MY_ATTRIBUTE((warn_unused_result)) byte *row_import_read_bytes(
+    FILE *file, size_t length) {
+  size_t read = 0;
+  byte *r = UT_NEW_ARRAY_NOKEY(byte, length);
+
+  if (length == 0) {
+    return (r);
+  }
+
+  while (!feof(file)) {
+    int ch = fgetc(file);
+
+    if (ch == EOF) {
+      break;
+    }
+
+    r[read++] = ch;
+    if (read == length) {
+      return (r);
+    }
+  }
+
+  errno = EINVAL;
+
+  UT_DELETE_ARRAY(r);
+
+  return (nullptr);
+}
+
+/** Read the metadata config file. Deserialise the contents of
+dict_col_t::instant_default if exists.
+Refer to row_quiesce_write_default_value() for the format details.
+@param[in]	file	file to read from
+@param[in,out]	col	column whose default value to read
+@param[in,out]  heap    memory heap to store default value
+@param[in,out]	read	true if default value read */
+static MY_ATTRIBUTE((warn_unused_result)) dberr_t
+    row_import_read_default_values(FILE *file, dict_col_t *col,
+                                   mem_heap_t **heap, bool *read) {
+  byte *str;
+
+  /* Instant or not byte */
+  if ((str = row_import_read_bytes(file, 1)) == nullptr) {
+    return (DB_IO_ERROR);
+  }
+
+  if (str[0] == 0) {
+    UT_DELETE_ARRAY(str);
+    *read = false;
+    return (DB_SUCCESS);
+  }
+
+  *read = true;
+
+  UT_DELETE_ARRAY(str);
+
+  /* Null byte */
+  if ((str = row_import_read_bytes(file, 1)) == nullptr) {
+    return (DB_IO_ERROR);
+  }
+
+  if (*heap == nullptr) {
+    *heap = mem_heap_create(100);
+  }
+
+  if (str[0] == 1) {
+    UT_DELETE_ARRAY(str);
+    col->set_default(nullptr, UNIV_SQL_NULL, *heap);
+    return (DB_SUCCESS);
+  } else {
+    UT_DELETE_ARRAY(str);
+
+    /* Legnth bytes */
+    if ((str = row_import_read_bytes(file, 4)) == nullptr) {
+      return (DB_IO_ERROR);
+    }
+
+    size_t length = mach_read_from_4(str);
+
+    UT_DELETE_ARRAY(str);
+
+    /* Value bytes */
+    if ((str = row_import_read_bytes(file, length)) == nullptr) {
+      return (DB_IO_ERROR);
+    }
+
+    col->set_default(str, length, *heap);
+
+    UT_DELETE_ARRAY(str);
+
+    return (DB_SUCCESS);
+  }
+}
+
 /** Read the meta data (table columns) config file. Deserialise the contents of
  dict_col_t structure, along with the column name. */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
@@ -2594,6 +2869,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (DB_OUT_OF_MEMORY);
   }
 
+  memset(cfg->m_cols, 0x0, sizeof(*cfg->m_cols) * cfg->m_n_cols);
+
   cfg->m_col_names = UT_NEW_ARRAY_NOKEY(byte *, cfg->m_n_cols);
 
   /* Trigger OOM */
@@ -2604,7 +2881,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     return (DB_OUT_OF_MEMORY);
   }
 
-  memset(cfg->m_cols, 0x0, sizeof(cfg->m_cols) * cfg->m_n_cols);
   memset(cfg->m_col_names, 0x0, sizeof(cfg->m_col_names) * cfg->m_n_cols);
 
   col = cfg->m_cols;
@@ -2676,6 +2952,24 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                   strerror(errno), "while parsing table column name.");
 
       return (err);
+    }
+
+    if (cfg->m_version >= IB_EXPORT_CFG_VERSION_V3) {
+      bool read = false;
+      dberr_t err;
+
+      err = row_import_read_default_values(file, col, &cfg->m_heap, &read);
+
+      if (err != DB_SUCCESS) {
+        ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
+                "while reading table column"
+                " default value.");
+        return (err);
+      }
+
+      if (read) {
+        ++cfg->m_n_instant_cols;
+      }
     }
   }
 
@@ -2903,6 +3197,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_read_meta_data(
       return (err);
 
     case IB_EXPORT_CFG_VERSION_V2:
+    case IB_EXPORT_CFG_VERSION_V3:
       err = row_import_read_v1(file, thd, &cfg);
 
       if (err == DB_SUCCESS) {
@@ -3095,6 +3390,34 @@ static dberr_t row_import_read_cfp(dict_table_t *table, THD *thd,
   return (err);
 }
 
+/** Check the correctness of clustered index of imported table.
+Once there is corruption found, the IMPORT would be refused. This can
+help to detect the missing .cfg file for a table with instant added columns.
+@param[in,out]	table		InnoDB table object
+@param[in,out]	thd		MySQL session variable
+@param[in]	missing		true if .cfg file is missing
+@return DB_SUCCESS or error code. */
+dberr_t row_import_check_corruption(dict_table_t *table, THD *thd,
+                                    bool missing) {
+  dberr_t err = DB_SUCCESS;
+  if (!btr_validate_index(table->first_index(), nullptr, false)) {
+    err = DB_CORRUPTION;
+    if (missing) {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
+              "Clustered index validation failed. Because"
+              " the .cfg file is missing, table definition"
+              " of the IBD file could be different. Or"
+              " the data file itself is already corrupted.");
+    } else {
+      ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_INNODB_INDEX_CORRUPT,
+              "Clustered index validation failed, due to"
+              " data file corruption.");
+    }
+  }
+
+  return (err);
+}
+
 /** Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary.
 @param[in]	table		table
@@ -3171,7 +3494,9 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
     /* We have a schema file, try and match it with our
     data dictionary. */
 
-    err = cfg.match_schema(trx->mysql_thd);
+    if (err == DB_SUCCESS) {
+      err = cfg.match_schema(trx->mysql_thd, table_def);
+    }
 
     /* Update index->page and SYS_INDEXES.PAGE_NO to match the
     B-tree root page numbers in the tablespace. Use the index
@@ -3297,6 +3622,10 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   }
 
   row_mysql_lock_data_dictionary(trx);
+
+  if (table->has_instant_cols()) {
+    dd_import_instant_add_columns(table, table_def);
+  }
 
   /* If the table is stored in a remote tablespace, we need to
   determine that filepath from the link file and system tables.
@@ -3553,6 +3882,12 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
   dict_table_t *sdi_table = dict_sdi_get_table(space->id, true, false);
   sdi_table->ibd_file_missing = false;
   dict_sdi_close_table(sdi_table);
+
+  row_mysql_unlock_data_dictionary(trx);
+
+  err = row_import_check_corruption(table, trx->mysql_thd, cfg.m_missing);
+
+  row_mysql_lock_data_dictionary(trx);
 
   return (row_import_cleanup(prebuilt, trx, err));
 }

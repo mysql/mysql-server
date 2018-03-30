@@ -467,7 +467,9 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
 
     dfield_t *dfield = dtuple_get_nth_field(row, col_no);
 
-    const byte *field = rec_get_nth_field(copy, offsets, i, &len);
+    const byte *field;
+
+    field = rec_get_nth_field(copy, offsets, i, index, &len);
 
     dfield_set_data(dfield, field, len);
 
@@ -636,7 +638,8 @@ dtuple_t *row_rec_to_index_entry_low(
 
   for (i = 0; i < rec_len; i++) {
     dfield = dtuple_get_nth_field(entry, i);
-    field = rec_get_nth_field(rec, offsets, i, &len);
+
+    field = rec_get_nth_field(rec, offsets, i, index, &len);
 
     dfield_set_data(dfield, field, len);
 
@@ -758,7 +761,7 @@ dtuple_t *row_build_row_ref(
 
     ut_a(pos != ULINT_UNDEFINED);
 
-    field = rec_get_nth_field(rec, offsets, pos, &len);
+    field = rec_get_nth_field(rec, offsets, pos, nullptr, &len);
 
     dfield_set_data(dfield, field, len);
 
@@ -848,7 +851,7 @@ void row_build_row_ref_in_tuple(
 
     ut_a(pos != ULINT_UNDEFINED);
 
-    field = rec_get_nth_field(rec, offsets, pos, &len);
+    field = rec_get_nth_field(rec, offsets, pos, nullptr, &len);
 
     dfield_set_data(dfield, field, len);
 
@@ -1149,6 +1152,8 @@ ulint row_raw_format(const char *data,               /*!< in: raw data */
   if (buf_size == 0) {
     return (0);
   }
+
+  ut_ad(data_len != UNIV_SQL_ADD_COL_DEFAULT);
 
   if (data_len == UNIV_SQL_NULL) {
     ret = snprintf((char *)buf, buf_size, "NULL") + 1;

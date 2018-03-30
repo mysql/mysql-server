@@ -363,7 +363,7 @@ static ib_err_t ib_read_tuple(
       dfield = dtuple_get_nth_field(dtuple, i);
     }
 
-    data = rec_get_nth_field(copy, offsets, i, &len);
+    data = rec_get_nth_field(copy, offsets, i, index, &len);
 
     /* Fetch and copy any externally stored column. */
     if (rec_offs_nth_extern(offsets, i)) {

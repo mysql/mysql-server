@@ -1,0 +1,801 @@
+##############################################
+# Test instant ADD COLUMN for REDUNDANT format
+##############################################
+#
+# Scenario 1:
+# Create normal table and partitioned table, DML on them, restart
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+UPDATE t1 SET b = 10;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+UPDATE t1 SET c1 = 15;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DELETE FROM t1 WHERE a > 0;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
+Table id did not change
+SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+UPDATE t1 SET c2 = 'Hello MySQL!';
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1	c2
+8	1	10	Hello MySQL!
+9	2	10	Hello MySQL!
+10	3	10	Hello MySQL!
+11	4	10	Hello MySQL!
+12	5	10	Hello MySQL!
+DROP TABLE t1;
+#
+# Scenario 2:
+# Create normal table and partitioned table, DML on them, crash
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+START TRANSACTION;
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+START TRANSACTION;
+UPDATE t1 SET b = 10;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+8	10	20
+9	10	20
+UPDATE t1 SET b = 10;
+START TRANSACTION;
+UPDATE t1 SET c1 = 11;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	11
+2	10	11
+3	10	11
+4	10	11
+5	10	11
+6	10	11
+7	10	11
+8	10	11
+9	10	11
+UPDATE t1 SET c1 = 11;
+START TRANSACTION;
+DELETE FROM t1 WHERE a > 0;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+DELETE FROM t1 WHERE a > 0;
+SELECT * FROM t1;
+a	b	c1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=REDUNDANT;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+START TRANSACTION;
+INSERT INTO t1 VALUES(6, 6, 20), (7, 7, 20);
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+INSERT INTO t1 VALUES(6, 6, 20), (7, 7, 20);
+START TRANSACTION;
+UPDATE t1 SET b = 10;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+UPDATE t1 SET b = 10;
+START TRANSACTION;
+UPDATE t1 SET c1 = 11;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+UPDATE t1 SET c1 = 11;
+START TRANSACTION;
+DELETE FROM t1 WHERE a > 0;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	11
+2	10	11
+3	10	11
+4	10	11
+5	10	11
+6	10	11
+7	10	11
+DELETE FROM t1 WHERE a > 0;
+SELECT * FROM t1;
+a	b	c1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+############################################
+# Test instant ADD COLUMN for DYNAMIC format
+############################################
+#
+# Scenario 1:
+# Create normal table and partitioned table, DML on them, restart
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+UPDATE t1 SET b = 10;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+UPDATE t1 SET c1 = 15;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DELETE FROM t1 WHERE a > 0;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
+Table id did not change
+SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+UPDATE t1 SET c2 = 'Hello MySQL!';
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1	c2
+8	1	10	Hello MySQL!
+9	2	10	Hello MySQL!
+10	3	10	Hello MySQL!
+11	4	10	Hello MySQL!
+12	5	10	Hello MySQL!
+DROP TABLE t1;
+#
+# Scenario 2:
+# Create normal table and partitioned table, DML on them, crash
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+START TRANSACTION;
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+START TRANSACTION;
+UPDATE t1 SET b = 10;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+8	10	20
+9	10	20
+UPDATE t1 SET b = 10;
+START TRANSACTION;
+UPDATE t1 SET c1 = 11;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	11
+2	10	11
+3	10	11
+4	10	11
+5	10	11
+6	10	11
+7	10	11
+8	10	11
+9	10	11
+UPDATE t1 SET c1 = 11;
+START TRANSACTION;
+DELETE FROM t1 WHERE a > 0;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+DELETE FROM t1 WHERE a > 0;
+SELECT * FROM t1;
+a	b	c1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+START TRANSACTION;
+INSERT INTO t1 VALUES(6, 6, 20), (7, 7, 20);
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+INSERT INTO t1 VALUES(6, 6, 20), (7, 7, 20);
+START TRANSACTION;
+UPDATE t1 SET b = 10;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+UPDATE t1 SET b = 10;
+START TRANSACTION;
+UPDATE t1 SET c1 = 11;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+UPDATE t1 SET c1 = 11;
+START TRANSACTION;
+DELETE FROM t1 WHERE a > 0;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	11
+2	10	11
+3	10	11
+4	10	11
+5	10	11
+6	10	11
+7	10	11
+DELETE FROM t1 WHERE a > 0;
+SELECT * FROM t1;
+a	b	c1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+############################################
+# Test instant ADD COLUMN for COMPACT format
+############################################
+#
+# Scenario 1:
+# Create normal table and partitioned table, DML on them, restart
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+UPDATE t1 SET b = 10;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+UPDATE t1 SET c1 = 15;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DELETE FROM t1 WHERE a > 0;
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+INSERT INTO t1(a, b) VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c2 VARCHAR(100) DEFAULT 'Hello World!';
+Table id did not change
+SELECT 2 = instant_cols AS `Instant columns equal` FROM information_schema.innodb_tables WHERE name like '%t1%';
+Instant columns equal
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+UPDATE t1 SET c2 = 'Hello MySQL!';
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1	c2
+8	1	10	Hello MySQL!
+9	2	10	Hello MySQL!
+10	3	10	Hello MySQL!
+11	4	10	Hello MySQL!
+12	5	10	Hello MySQL!
+DROP TABLE t1;
+#
+# Scenario 2:
+# Create normal table and partitioned table, DML on them, crash
+#
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+START TRANSACTION;
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+INSERT INTO t1 VALUES(0, 6, 20), (0, 7, 20);
+START TRANSACTION;
+UPDATE t1 SET b = 10;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+8	10	20
+9	10	20
+UPDATE t1 SET b = 10;
+START TRANSACTION;
+UPDATE t1 SET c1 = 11;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	11
+2	10	11
+3	10	11
+4	10	11
+5	10	11
+6	10	11
+7	10	11
+8	10	11
+9	10	11
+UPDATE t1 SET c1 = 11;
+START TRANSACTION;
+DELETE FROM t1 WHERE a > 0;
+SET SESSION DEBUG="+d,crash_commit_after";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+DELETE FROM t1 WHERE a > 0;
+SELECT * FROM t1;
+a	b	c1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT) ROW_FORMAT=COMPACT;
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5);
+ALTER TABLE t1 ADD COLUMN c1 INT DEFAULT 10;
+Table id did not change
+count(*) = 1
+1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+START TRANSACTION;
+INSERT INTO t1 VALUES(6, 6, 20), (7, 7, 20);
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+INSERT INTO t1 VALUES(6, 6, 20), (7, 7, 20);
+START TRANSACTION;
+UPDATE t1 SET b = 10;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	1	10
+2	2	10
+3	3	10
+4	4	10
+5	5	10
+6	6	20
+7	7	20
+UPDATE t1 SET b = 10;
+START TRANSACTION;
+UPDATE t1 SET c1 = 11;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	10
+2	10	10
+3	10	10
+4	10	10
+5	10	10
+6	10	20
+7	10	20
+UPDATE t1 SET c1 = 11;
+START TRANSACTION;
+DELETE FROM t1 WHERE a > 0;
+SET SESSION DEBUG="+d,crash_commit_before";
+CR_SERVER_LOST
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SELECT * FROM t1;
+a	b	c1
+1	10	11
+2	10	11
+3	10	11
+4	10	11
+5	10	11
+6	10	11
+7	10	11
+DELETE FROM t1 WHERE a > 0;
+SELECT * FROM t1;
+a	b	c1
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;

@@ -7693,8 +7693,8 @@ bool Sql_cmd_discard_import_tablespace::mysql_discard_or_import_tablespace(
     DBUG_RETURN(true);
   } else if (m_alter_info->requested_algorithm !=
              Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT) {
-    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0), "ALGORITHM=COPY/INPLACE",
-             "ALGORITHM=DEFAULT");
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             "ALGORITHM=COPY/INPLACE/INSTANT", "ALGORITHM=DEFAULT");
     DBUG_RETURN(true);
   }
 
@@ -9436,8 +9436,26 @@ static bool mysql_inplace_alter_table(
   if (lock_tables(thd, table_list, alter_ctx->tables_opened, 0)) goto cleanup;
 
   if (alter_ctx->error_if_not_empty) {
-    DBUG_ASSERT(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
+    /*
+      Storage engines should not suggest/support INSTANT algorithm if
+      error_if_not_empty flag is set.
+      The problem is that the below check if table is empty is not "instant",
+      as it might have to traverse through deleted versions of rows on SQL-layer
+      (e.g. MyISAM) or in SE (e.g. InnoDB).
 
+      OTOH for cases when table is empty difference between INSTANT and INPLACE
+      or COPY algorithms should be negligible.
+
+      This limitation might be raised in the future if we will implement support
+      for quick (i.e. non-traversing) check for table emptiness.
+    */
+    DBUG_ASSERT(inplace_supported != HA_ALTER_INPLACE_INSTANT);
+    /*
+      Operations which set error_if_not_empty flag typically request exclusive
+      lock during prepare phase, so we don't have to upgrade lock to prevent
+      concurrent table modifications here.
+    */
+    DBUG_ASSERT(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
     bool empty_table = false;
     if (table_is_empty(table_list->table, &empty_table)) goto cleanup;
     if (!empty_table) {
@@ -9488,6 +9506,7 @@ static bool mysql_inplace_alter_table(
     case HA_ALTER_INPLACE_EXCLUSIVE_LOCK:
     case HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE:
     case HA_ALTER_INPLACE_SHARED_LOCK:
+    case HA_ALTER_INPLACE_INSTANT:
       break;
   }
 
@@ -11630,6 +11649,15 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     DBUG_RETURN(true);
   }
 
+  // LOCK clause doesn't make any sense for ALGORITHM=INSTANT.
+  if (alter_info->requested_algorithm ==
+          Alter_info::ALTER_TABLE_ALGORITHM_INSTANT &&
+      alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_DEFAULT) {
+    my_error(ER_WRONG_USAGE, MYF(0), "ALGORITHM=INSTANT",
+             "LOCK=NONE/SHARED/EXCLUSIVE");
+    DBUG_RETURN(true);
+  }
+
   THD_STAGE_INFO(thd, stage_init);
 
   // Reject invalid usage of the 'mysql' tablespace.
@@ -12134,7 +12162,9 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   */
   if ((thd->variables.old_alter_table &&
        alter_info->requested_algorithm !=
-           Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) ||
+           Alter_info::ALTER_TABLE_ALGORITHM_INPLACE &&
+       alter_info->requested_algorithm !=
+           Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) ||
       is_inplace_alter_impossible(table, create_info, alter_info) ||
       (partition_changed &&
        !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
@@ -12142,6 +12172,12 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     if (alter_info->requested_algorithm ==
         Alter_info::ALTER_TABLE_ALGORITHM_INPLACE) {
       my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0), "ALGORITHM=INPLACE",
+               "ALGORITHM=COPY");
+      DBUG_RETURN(true);
+    }
+    if (alter_info->requested_algorithm ==
+        Alter_info::ALTER_TABLE_ALGORITHM_INSTANT) {
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0), "ALGORITHM=INSTANT",
                "ALGORITHM=COPY");
       DBUG_RETURN(true);
     }
@@ -12356,7 +12392,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   if (alter_info->requested_algorithm !=
       Alter_info::ALTER_TABLE_ALGORITHM_COPY) {
-    Alter_inplace_info ha_alter_info(create_info, alter_info, key_info,
+    Alter_inplace_info ha_alter_info(create_info, alter_info,
+                                     alter_ctx.error_if_not_empty, key_info,
                                      key_count, thd->work_part_info);
     TABLE *altered_table = NULL;
     bool use_inplace = true;
@@ -12432,6 +12469,17 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         table->file->check_if_supported_inplace_alter(altered_table,
                                                       &ha_alter_info);
 
+    // If INSTANT was requested but it is not supported, report error.
+    if (alter_info->requested_algorithm ==
+            Alter_info::ALTER_TABLE_ALGORITHM_INSTANT &&
+        inplace_supported != HA_ALTER_INPLACE_INSTANT &&
+        inplace_supported != HA_ALTER_ERROR) {
+      ha_alter_info.report_unsupported_error("ALGORITHM=INSTANT",
+                                             "ALGORITHM=COPY/INPLACE");
+      close_temporary_table(thd, altered_table, true, false);
+      goto err_new_table_cleanup;
+    }
+
     switch (inplace_supported) {
       case HA_ALTER_INPLACE_EXCLUSIVE_LOCK:
         // If SHARED lock and no particular algorithm was requested, use COPY.
@@ -12462,6 +12510,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
         break;
       case HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE:
       case HA_ALTER_INPLACE_NO_LOCK:
+      case HA_ALTER_INPLACE_INSTANT:
+        /*
+          Note that any instant operation is also in fact in-place operation.
+
+          It is totally safe to execute operation using instant algorithm if it
+          has no drawbacks as compared to in-place algorithm even if user
+          explicitly asked for ALGORITHM=INPLACE. Doing so, also allows to
+          keep code in engines which support only limited subset of in-place
+          ALTER TABLE operations as instant metadata only changes simple.
+
+          If instant algorithm has some downsides to in-place algorithm and user
+          explicitly asks for ALGORITHM=INPLACE it is responsibility of storage
+          engine to fallback to in-place algorithm execution by returning
+          HA_ALTER_INPLACE_NO_LOCK or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE.
+        */
         break;
       case HA_ALTER_INPLACE_NOT_SUPPORTED:
         // If INPLACE was requested, report error.
