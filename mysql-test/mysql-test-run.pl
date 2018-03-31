@@ -727,7 +727,9 @@ sub run_test_server ($$$) {
               my $logfilepath = dirname($worker_savedir) . "/" . $logfile;
               move($logfilepath, $savedir);
 
-              if ($opt_check_testcases && !defined $result->{'result_file'}) {
+              if ($opt_check_testcases &&
+                  !defined $result->{'result_file'} &&
+                  !$result->{timeout}) {
                 mtr_report("Mysqltest client output from logfile");
                 mtr_report("----------- MYSQLTEST OUTPUT START -----------\n");
                 mtr_printfile($savedir . "/" . $logfile);
@@ -4625,12 +4627,6 @@ sub run_testcase ($) {
         }
       }
     } else {
-      if (-f $path_current_testlog and $proc->{timeout}) {
-        mtr_tofile($path_current_testlog,
-                   "Test case timeout, safe_process " .
-                     "and child process are aborted.");
-      }
-
       # kill mysqltest process
       $test->kill();
 
@@ -4653,17 +4649,32 @@ sub run_testcase ($) {
 
     # Check if testcase timer expired
     if ($proc->{timeout}) {
-      my $log_file_name = $opt_vardir . "/log/" . $tinfo->{shortname} . ".log";
       $tinfo->{comment} =
         "Test case timeout after " . testcase_timeout($tinfo) . " seconds\n\n";
+
+      # Fetch mysqltest client callstack information
+      if (-e $path_current_testlog) {
+        $tinfo->{comment} .= mtr_callstack_info($path_current_testlog) . "\n";
+      }
+
       # Add 20 last executed commands from test case log file
+      my $log_file_name = $opt_vardir . "/log/" . $tinfo->{shortname} . ".log";
       if (-e $log_file_name) {
         $tinfo->{comment} .=
           "== $log_file_name == \n" .
           mtr_lastlinesfromfile($log_file_name, 20) . "\n";
       }
-      $tinfo->{'timeout'} = testcase_timeout($tinfo);    # Mark as timeout
+
+      # Mark as timeout
+      $tinfo->{'timeout'} = testcase_timeout($tinfo);
       run_on_all($tinfo, 'analyze-timeout');
+
+      # Save timeout information for this testcase to mysqltest.log
+      if (-f $path_current_testlog) {
+        mtr_appendfile_to_file($path_current_testlog, $path_testlog);
+        unlink($path_current_testlog) or
+          die "Can't unlink file $path_current_testlog : $!";
+      }
 
       report_failure_and_restart($tinfo);
       return 1;

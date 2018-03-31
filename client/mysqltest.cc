@@ -46,8 +46,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <cmath>  // std::isinf
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
+#include <cmath>  // std::isinf
+#ifdef _WIN32
+#include <thread>  // std::thread
+#endif
+
+#include "caching_sha2_passwordopt-vars.h"
 #include "client/client_priv.h"
 #include "extra/regex/my_regex.h" /* Our own version of regex */
 #include "m_ctype.h"
@@ -162,6 +170,9 @@ enum {
   OPT_TRACE_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
+#ifdef _WIN32
+  OPT_SAFEPROCESS_PID,
+#endif
   OPT_TRACE_EXEC
 };
 
@@ -203,7 +214,14 @@ static MEM_ROOT argv_alloc{PSI_NOT_INSTRUMENTED, 512};
 static const char *load_default_groups[] = {"mysqltest", "client", 0};
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos = line_buffer;
 static bool can_handle_expired_passwords = true;
-#include "caching_sha2_passwordopt-vars.h"
+
+#ifdef _WIN32
+static DWORD opt_safe_process_pid;
+static HANDLE mysqltest_thread;
+// Event handle for stacktrace request event
+static HANDLE stacktrace_request_event = NULL;
+static std::thread wait_for_stacktrace_request_event_thread;
+#endif
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
@@ -1221,9 +1239,21 @@ static void cleanup_and_exit(int exit_code) {
     }
   }
 
-    /* exit() appears to be not 100% reliable on Windows under some conditions
-     */
+// exit() appears to be not 100% reliable on Windows under some conditions.
 #ifdef _WIN32
+  if (opt_safe_process_pid) {
+    // Close the stack trace request event handle
+    if (stacktrace_request_event != NULL) CloseHandle(stacktrace_request_event);
+
+    // Detach or stop the thread waiting for stack trace event to occur.
+    if (wait_for_stacktrace_request_event_thread.joinable())
+      wait_for_stacktrace_request_event_thread.detach();
+
+    // Close the thread handle
+    if (!CloseHandle(mysqltest_thread))
+      die("CloseHandle failed, err = %d.\n", GetLastError());
+  }
+
   fflush(stdout);
   fflush(stderr);
   _exit(exit_code);
@@ -1233,11 +1263,11 @@ static void cleanup_and_exit(int exit_code) {
 }
 
 static void print_file_stack() {
-  fprintf(stderr, "file %s at line %d:\n", cur_file->file_name,
-          cur_file->lineno);
-  for (struct st_test_file *err_file = cur_file - 1; err_file >= file_stack;
-       err_file--) {
-    fprintf(stderr, "included from %s at line %d:\n", err_file->file_name,
+  fprintf(stderr, "file %s: %d\n", cur_file->file_name, cur_file->lineno);
+
+  struct st_test_file *err_file;
+  for (err_file = cur_file - 1; err_file >= file_stack; err_file--) {
+    fprintf(stderr, "included from %s: %d\n", err_file->file_name,
             err_file->lineno);
   }
 }
@@ -1247,37 +1277,36 @@ void die(const char *fmt, ...) {
   va_list args;
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
-  /*
-    Protect against dying twice
-    first time 'die' is called, try to write log files
-    second time, just exit
-  */
+  // Protect against dying twice first time 'die' is called, try to
+  // write log files second time, just exit.
   if (dying) cleanup_and_exit(1);
   dying = 1;
 
-  /* Print the error message */
+  // Print the error message
   fprintf(stderr, "mysqltest: ");
+
+  if (start_lineno > 0) fprintf(stderr, "At line %u: ", start_lineno);
+
+  if (fmt) {
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+  } else
+    fprintf(stderr, "Unknown error");
+
+  // Print the file stack
   if (cur_file && cur_file != file_stack) {
     fprintf(stderr, "In included ");
     print_file_stack();
   }
 
-  if (start_lineno > 0) fprintf(stderr, "At line %u: ", start_lineno);
-  if (fmt) {
-    va_start(args, fmt);
-    vfprintf(stderr, fmt, args);
-    va_end(args);
-  } else
-    fprintf(stderr, "unknown error");
-  fprintf(stderr, "\n");
   fflush(stderr);
 
   log_file.show_tail(opt_tail_lines);
 
-  /*
-    Help debugging by displaying any warnings that might have
-    been produced prior to the error
-  */
+  // Help debugging by displaying any warnings that might have
+  // been produced prior to the error.
   if (cur_con && !cur_con->pending) show_warnings_before_error(&cur_con->mysql);
 
   cleanup_and_exit(1);
@@ -6858,6 +6887,11 @@ static struct my_option my_long_options[] = {
     {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
      &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
      0},
+#ifdef _WIN32
+    {"safe-process-pid", OPT_SAFEPROCESS_PID, "PID of safeprocess.",
+     &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
+     0, 0, 0, 0, 0},
+#endif
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage() {
@@ -8499,26 +8533,30 @@ static void mark_progress(struct st_command *command MY_ATTRIBUTE((unused)),
 }
 
 #ifdef HAVE_STACKTRACE
-
-static void dump_backtrace(void) {
+static void dump_backtrace() {
   struct st_connection *conn = cur_con;
 
-  fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
-  my_safe_puts_stderr(read_command_buf, sizeof(read_command_buf));
+  fprintf(stderr, "mysqltest: ");
 
-  if (conn) {
-    fprintf(stderr, "conn->name (%p): ", conn->name);
-    my_safe_puts_stderr(conn->name, conn->name_len);
+  // Print the query and the line number
+  if (start_lineno > 0) fprintf(stderr, "At line %u: ", start_lineno);
+  fprintf(stderr, "%s\n", curr_command->query);
+
+  // Print the file stack
+  if (cur_file && cur_file != file_stack) {
+    fprintf(stderr, "In included ");
+    print_file_stack();
   }
-  fputs("Attempting backtrace...\n", stderr);
+
+  if (conn) fprintf(stderr, "conn->name: %s\n", conn->name);
+
+  fprintf(stderr, "Attempting backtrace.\n");
+  fflush(stderr);
   my_print_stacktrace(NULL, my_thread_stack_size);
 }
 
 #else
-
-static void dump_backtrace(void) {
-  fputs("Backtrace not available.\n", stderr);
-}
+static void dump_backtrace() { fputs("Backtrace not available.\n", stderr); }
 
 #endif
 
@@ -8526,11 +8564,12 @@ static void signal_handler(int sig) {
   fprintf(stderr, "mysqltest got " SIGNAL_FMT "\n", sig);
   dump_backtrace();
 
-  fprintf(stderr, "Writing a core file...\n");
+  fprintf(stderr, "Writing a core file.\n");
   fflush(stderr);
   my_write_core(sig);
 #ifndef _WIN32
-  exit(1);  // Shouldn't get here but just in case
+  // Shouldn't get here but just in case
+  exit(1);
 #endif
 }
 
@@ -8550,6 +8589,10 @@ LONG WINAPI exception_filter(EXCEPTION_POINTERS *exp) {
 static void init_signal_handling(void) {
   UINT mode;
 
+  mysqltest_thread = OpenThread(THREAD_ALL_ACCESS, FALSE, GetCurrentThreadId());
+  if (mysqltest_thread == NULL)
+    die("OpenThread failed, err = %d.", GetLastError());
+
   /* Set output destination of messages to the standard error stream. */
   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
   _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
@@ -8563,6 +8606,90 @@ static void init_signal_handling(void) {
   SetErrorMode(mode);
 
   SetUnhandledExceptionFilter(exception_filter);
+}
+
+/// Function to handle the stacktrace request event.
+///
+/// - Suspend the thread running the test
+/// - Fetch CONTEXT record from the thread handle
+/// - Initialize EXCEPTION_RECORD structure
+/// - Use EXCEPTION_POINTERS and EXCEPTION_RECORD to set EXCEPTION_POINTERS
+///   structure
+/// - Call exception_filter() method to generate to stack trace
+/// - Resume the suspended test thread
+static void handle_wait_stacktrace_request_event() {
+  fprintf(stderr, "Test case timeout failure.\n");
+
+  // Suspend the thread running the test
+  if (SuspendThread(mysqltest_thread) == -1) {
+    DWORD error = GetLastError();
+    CloseHandle(mysqltest_thread);
+    die("Error suspending thread, err = %d.\n", error);
+  }
+
+  // Fetch the thread context
+  CONTEXT test_thread_ctx = {0};
+  test_thread_ctx.ContextFlags = CONTEXT_FULL;
+
+  if (GetThreadContext(mysqltest_thread, &test_thread_ctx) == FALSE) {
+    DWORD error = GetLastError();
+    CloseHandle(mysqltest_thread);
+    die("Error while fetching thread conext information, err = %d.\n", error);
+  }
+
+  EXCEPTION_POINTERS exp = {0};
+  exp.ContextRecord = &test_thread_ctx;
+
+  // Set up an Exception record with EXCEPTION_BREAKPOINT code
+  EXCEPTION_RECORD exc_rec = {0};
+  exc_rec.ExceptionCode = EXCEPTION_BREAKPOINT;
+  exp.ExceptionRecord = &exc_rec;
+
+  exception_filter(&exp);
+
+  // Resume the suspended test thread
+  if (ResumeThread(mysqltest_thread) == -1) {
+    DWORD error = GetLastError();
+    CloseHandle(mysqltest_thread);
+    die("Error resuming thread, err = %d.\n", error);
+  }
+
+  my_set_exception_pointers(nullptr);
+}
+
+/// Thread waiting for timeout event to occur. If the event occurs,
+/// this method will trigger signal_handler() function.
+static void wait_stacktrace_request_event() {
+  DWORD wait_res = WaitForSingleObject(stacktrace_request_event, INFINITE);
+  switch (wait_res) {
+    case WAIT_OBJECT_0:
+      handle_wait_stacktrace_request_event();
+      break;
+    default:
+      die("Unexpected result %d from WaitForSingleObject.", wait_res);
+      break;
+  }
+  CloseHandle(stacktrace_request_event);
+}
+
+/// Create an event name from the safeprocess PID value of the form
+/// mysqltest[%d]stacktrace and spawn thread waiting for that event
+/// to occur.
+///
+/// When this event occurs, signal_handler() method is called and
+/// stacktrace for the mysqltest client process is printed in the
+/// log file.
+static void create_stacktrace_request_event() {
+  char event_name[64];
+  std::sprintf(event_name, "mysqltest[%d]stacktrace", opt_safe_process_pid);
+
+  // Create an event for the signal handler
+  if ((stacktrace_request_event = CreateEvent(NULL, TRUE, FALSE, event_name)) ==
+      NULL)
+    die("Failed to create timeout_event.");
+
+  wait_for_stacktrace_request_event_thread =
+      std::thread(wait_stacktrace_request_event);
 }
 
 #else /* _WIN32 */
@@ -8656,6 +8783,11 @@ int main(int argc, char **argv) {
   init_dynamic_string(&ds_result, "", 1024, 1024);
 
   parse_args(argc, argv);
+
+#ifdef _WIN32
+  // Create an event to request stack trace when timeout occurs
+  if (opt_safe_process_pid) create_stacktrace_request_event();
+#endif
 
   /* Init connections, allocate 1 extra as buffer + 1 for default */
   connections = (struct st_connection *)my_malloc(

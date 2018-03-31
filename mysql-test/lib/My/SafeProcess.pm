@@ -148,6 +148,9 @@ sub new {
   push(@safe_args, "--verbose") if $verbose;
   push(@safe_args, "--nocore")  if $nocore;
 
+  # Safeprocess name
+  push(@safe_args, "--safe-process-name=$opts{'name'}") if IS_WINDOWS;
+
   # Point the safe_process at the right parent if running on cygwin
   push(@safe_args, "--parent-pid=" . Cygwin::pid_to_winpid($$)) if IS_CYGWIN;
 
@@ -288,7 +291,7 @@ sub start_kill {
     die "INTERNAL ERROR: no safe_kill" unless defined $safe_kill;
 
     my $winpid = _winpid($pid);
-    $ret = system($safe_kill, $winpid) >> 8;
+    $ret = system($safe_kill, $winpid, $self->{SAFE_NAME}) >> 8;
 
     if ($ret == 3) {
       print "Couldn't open the winpid: $winpid  for pid: $pid, " .

@@ -108,4 +108,28 @@ sub mtr_lastlinesfromfile ($$) {
   return join("", reverse(splice(@lines, 0, $num_lines)));
 }
 
+# Return a string containing callstack information
+sub mtr_callstack_info ($) {
+  my $path_current_testlog = shift;
+  open(TESTLOG, "<", $path_current_testlog) or
+    die "Can't open file $path_current_testlog";
+
+  my $append_string  = 0;
+  my $callstack_info = "";
+
+OUTER:
+  while (<TESTLOG>) {
+    if ($_ =~ /mysqltest: At line/) {
+      $callstack_info = $callstack_info . $_;
+      while (<TESTLOG>) {
+        last OUTER if ($_ =~ /conn->name/ or $_ =~ /Attempting backtrace/);
+        $callstack_info = $callstack_info . $_;
+      }
+    }
+  }
+
+  close(TESTLOG);
+  return $callstack_info;
+}
+
 1;
