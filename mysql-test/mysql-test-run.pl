@@ -1692,8 +1692,8 @@ sub command_line_setup {
 
   # Check if "parallel" options is set
   if (not defined $opt_parallel) {
-    # Set parallel value to 1
-    $opt_parallel = 1;
+    # Set parallel value to "auto"
+    $opt_parallel = "auto";
   } else {
     my $flag = 0;
     # Check if parallel value is a positive number or "auto".
@@ -6737,284 +6737,289 @@ $0 [ OPTIONS ] [ TESTCASE ]
 
 Options to control what engine/variation to run
 
-  ps-protocol           Use the binary protocol between client and server
+  combination=<opt>     Use at least twice to run tests with specified
+                        options to mysqld.
+  compress              Use the compressed protocol between client and server.
   cursor-protocol       Use the cursor protocol between client and server
-                        (implies --ps-protocol)
-  view-protocol         Create a view to execute all non updating queries
-  opt-trace-protocol    Print optimizer trace
+                        (implies --ps-protocol).
+  defaults-extra-file=<config template>
+                        Extra config template to add to all generated configs.
+  defaults-file=<config template>
+                        Use fixed config template for all tests.
   explain-protocol      Run 'EXPLAIN EXTENDED' on all SELECT, INSERT,
                         REPLACE, UPDATE and DELETE queries.
   json-explain-protocol Run 'EXPLAIN FORMAT=JSON' on all SELECT, INSERT,
                         REPLACE, UPDATE and DELETE queries.
-  sp-protocol           Create a stored procedure to execute all queries
-  compress              Use the compressed protocol between client and server
-  ssl                   Use ssl protocol between client and server
-  skip-ssl              Dont start server with support for ssl connections
+  opt-trace-protocol    Print optimizer trace.
+  ps-protocol           Use the binary protocol between client and server.
+  skip-combinations     Ignore combination file (or options).
+  skip-ssl              Dont start server with support for ssl connections.
+  sp-protocol           Create a stored procedure to execute all queries.
+  ssl                   Use ssl protocol between client and server.
+  view-protocol         Create a view to execute all non updating queries.
   vs-config             Visual Studio configuration used to create executables
-                        (default: MTR_VS_CONFIG environment variable)
-
-  defaults-file=<config template> Use fixed config template for all
-                        tests
-  defaults-extra-file=<config template> Extra config template to add to
-                        all generated configs
-  combination=<opt>     Use at least twice to run tests with specified 
-                        options to mysqld
-  skip-combinations     Ignore combination file (or options)
+                        (default: MTR_VS_CONFIG environment variable).
 
 Options to control directories to use
+
+  clean-vardir          Clean vardir if tests were successful and if running in
+                        "memory". Otherwise this option is ignored.
+  client-bindir=PATH    Path to the directory where client binaries are located.
+  client-libdir=PATH    Path to the directory where client libraries are
+                        located.
+  mem                   Run testsuite in "memory" using tmpfs or ramdisk.
+                        Attempts to find a suitable location using a builtin
+                        list of standard locations for tmpfs (/dev/shm,
+                        /run/shm, /tmp). The option can also be set using
+                        an environment variable MTR_MEM=[DIR].
   tmpdir=DIR            The directory where temporary files are stored
                         (default: ./var/tmp).
   vardir=DIR            The directory where files generated from the test run
                         is stored (default: ./var). Specifying a ramdisk or
                         tmpfs will speed up tests.
-  mem                   Run testsuite in "memory" using tmpfs or ramdisk
-                        Attempts to find a suitable location
-                        using a builtin list of standard locations
-                        for tmpfs (/dev/shm, /run/shm, /tmp)
-                        The option can also be set using environment
-                        variable MTR_MEM=[DIR]
-  clean-vardir          Clean vardir if tests were successful and if
-                        running in "memory". Otherwise this option is ignored
-  client-bindir=PATH    Path to the directory where client binaries are located
-  client-libdir=PATH    Path to the directory where client libraries are located
-
 
 Options to control what test suites or cases to run
 
-  force                 Continue to run the suite after failure
-  with-ndbcluster-only  Run only tests that include "ndb" in the filename
-  skip-ndb[cluster]     Skip all tests that need cluster. Default.
-  include-ndb[cluster]  Enable all tests that need cluster
-  do-test=PREFIX or REGEX
-                        Run test cases which name are prefixed with PREFIX
-                        or fulfills REGEX
+  big-test              Also run tests marked as "big".
   do-suite=PREFIX or REGEX
                         Run tests from suites whose name is prefixed with
-                        PREFIX or fulfills REGEX
-  skip-test=PREFIX or REGEX
-                        Skip test cases which name are prefixed with PREFIX
-                        or fulfills REGEX
-  start-from=PREFIX     Run test cases starting test prefixed with PREFIX where
-                        prefix may be suite.testname or just testname
-  suite[s]=NAME1,..,NAMEN
-                        Collect tests in suites from the comma separated
-                        list of suite names.
-                        The default is: "$DEFAULT_SUITES"
-  skip-rpl              Skip the replication test cases.
-  big-test              Also run tests marked as "big"
-  only-big-test         Run only big tests and skip the normal(non-big)
-                        tests.
-  enable-disabled       Run also tests marked as disabled
-  print-testcases       Don't run the tests but print details about all the
-                        selected tests, in the order they would be run.
+                        PREFIX or fulfills REGEX.
   do-test-list=FILE     Run the tests listed in FILE. The tests should be
                         listed one per line in the file. "#" as first
                         character marks a comment and is ignored. Similary
                         an empty line in the file is also ignored.
+  do-test=PREFIX or REGEX
+                        Run test cases which name are prefixed with PREFIX
+                        or fulfills REGEX.
+  enable-disabled       Run also tests marked as disabled.
+  force                 Continue to run the suite after failure.
+  include-ndb[cluster]  Enable all tests that need cluster.
+  only-big-test         Run only big tests and skip the normal(non-big) tests.
+  print-testcases       Don't run the tests but print details about all the
+                        selected tests, in the order they would be run.
+  skip-ndb[cluster]     Skip all tests that need cluster. This setting is
+                        enabled by default.
+  skip-rpl              Skip the replication test cases.
+  skip-sys-schema       Skip loading of the sys schema, and running the
+                        sysschema test suite. An empty sys database is
+                        still created.
   skip-test-list=FILE   Skip the tests listed in FILE. Each line in the file
                         is an entry and should be formatted as: 
                         <TESTNAME> : <COMMENT>
-  skip-sys-schema       Skip loading of the sys schema, and running the
-                        sysschema test suite. An empty sys database is
-                        still created
+  skip-test=PREFIX or REGEX
+                        Skip test cases which name are prefixed with PREFIX
+                        or fulfills REGEX.
+  start-from=PREFIX     Run test cases starting test prefixed with PREFIX where
+                        prefix may be suite.testname or just testname.
+  suite[s]=NAME1,..,NAMEN
+                        Collect tests in suites from the comma separated
+                        list of suite names. The default is "$DEFAULT_SUITES".
+  with-ndbcluster-only  Run only tests that include "ndb" in the filename.
 
 Options that specify ports
 
-  mtr-port-base=#       Base for port numbers, ports from this number to
-  port-base=#           number+9 are reserved. Should be divisible by 10;
-                        if not it will be rounded down. May be set with
-                        environment variable MTR_PORT_BASE. If this value is
-                        set and is not "auto", it overrides build-thread.
-  mtr-build-thread=#    Specify unique number to calculate port number(s) from.
   build-thread=#        Can be set in environment variable MTR_BUILD_THREAD.
-                        Set  MTR_BUILD_THREAD="auto" to automatically aquire
-                        a build thread id that is unique to current host
+                        Set MTR_BUILD_THREAD="auto" to automatically aquire
+                        a build thread id that is unique to current host.
+  mtr-build-thread=#    Specify unique number to calculate port number(s) from.
+  mtr-port-base=#       Base for port numbers.
   mysqlx-port           Specify the port number to be used for mysqlxplugin.
                         Can be set in environment variable MYSQLXPLUGIN_PORT.
-                        If not specified will create its own ports.
-                        [NOTE]-- will not work for parallel servers.
+                        If not specified will create its own ports. This option
+                        will not work for parallel servers.
+  port-base=#           number+9 are reserved. Should be divisible by 10, if not
+                        it will be rounded down. Value can be set with
+                        environment variable MTR_PORT_BASE. If this value is set
+                        and is not "auto", it overrides build-thread.
 
 Options for test case authoring
 
-  record TESTNAME       (Re)genereate the result file for TESTNAME
   check-testcases       Check testcases for side effects. If there is any
                         difference in system state before and after the test
-                        run, the test case is marked as failed.
+                        run, the test case is marked as failed. When this option
+                        is enabled, MTR does additional check for missing
+                        '.result' file and a test case not having its
+                        corresponding '.result' file is marked as failed.
+                        To disable this check, use '--nocheck-testcases' option.
   mark-progress         Log line number and elapsed time to <testname>.progress
-  test-progress         Print the percentage of tests completed
+                        file.
+  record TESTNAME       (Re)genereate the result file for TESTNAME.
+  test-progress         Print the percentage of tests completed.
 
 Options that pass on options (these may be repeated)
 
-  mysqld=ARGS           Specify additional arguments to "mysqld"
-  mysqld-env=VAR=VAL    Specify additional environment settings for "mysqld"
+  mysqld=ARGS           Specify additional arguments to "mysqld".
+  mysqld-env=VAR=VAL    Specify additional environment settings for "mysqld".
 
 Options for mysqltest
-  mysqltest=ARGS        Extra options used when running test clients
+  mysqltest=ARGS        Extra options used when running test clients.
 
 Options to run test on running server
 
   extern option=value   Run only the tests against an already started server
                         the options to use for connection to the extern server
-                        must be specified using name-value pair notation
+                        must be specified using name-value pair notation.
                         For example:
                          ./$0 --extern socket=/tmp/mysqld.sock
 
 Options for debugging the product
 
-  boot-dbx              Start bootstrap server in dbx
-  boot-ddd              Start bootstrap server in ddd
-  boot-gdb              Start bootstrap server in gdb
-  manual-boot-gdb       Let user manually start mysqld in gdb, during
-                        initialize process
-  client-dbx            Start mysqltest client in dbx
-  client-ddd            Start mysqltest client in ddd
-  client-debugger=NAME  Start mysqltest in the selected debugger
-  client-gdb            Start mysqltest client in gdb
-  client-lldb           Start mysqltest client in lldb
-  dbx                   Start the mysqld(s) in dbx
-  ddd                   Start the mysqld(s) in ddd
-  debug                 Dump trace output for all servers and client programs
+  boot-dbx              Start bootstrap server in dbx.
+  boot-ddd              Start bootstrap server in ddd.
+  boot-gdb              Start bootstrap server in gdb.
+  client-dbx            Start mysqltest client in dbx.
+  client-ddd            Start mysqltest client in ddd.
+  client-debugger=NAME  Start mysqltest in the selected debugger.
+  client-gdb            Start mysqltest client in gdb.
+  client-lldb           Start mysqltest client in lldb.
+  dbx                   Start the mysqld(s) in dbx.
+  ddd                   Start the mysqld(s) in ddd.
+  debug                 Dump trace output for all servers and client programs.
   debug-common          Same as debug, but sets 'd' debug flags to
                         "query,info,error,enter,exit"; you need this if you
                         want both to see debug printouts and to use
                         DBUG_EXECUTE_IF.
   debug-server          Use debug version of server, but without turning on
-                        tracing
-  debugger=NAME         Start mysqld in the selected debugger
-  gdb                   Start the mysqld(s) in gdb
-  lldb                  Start the mysqld(s) in lldb
-  manual-debug          Let user manually start mysqld in debugger, before
-                        running test(s)
-  manual-gdb            Let user manually start mysqld in gdb, before running
-                        test(s)
-  manual-ddd            Let user manually start mysqld in ddd, before running
-                        test(s)
+                        tracing.
+  debugger=NAME         Start mysqld in the selected debugger.
+  gdb                   Start the mysqld(s) in gdb.
+  lldb                  Start the mysqld(s) in lldb.
+  manual-boot-gdb       Let user manually start mysqld in gdb, during initialize
+                        process.
   manual-dbx            Let user manually start mysqld in dbx, before running
-                        test(s)
-  manual-lldb           Let user manually start mysqld in lldb, before running 
-                        test(s)
-  strace-client         Create strace output for mysqltest client, 
-  strace-server         Create strace output for mysqltest server, 
+                        test(s).
+  manual-ddd            Let user manually start mysqld in ddd, before running
+                        test(s).
+  manual-debug          Let user manually start mysqld in debugger, before
+                        running test(s).
+  manual-gdb            Let user manually start mysqld in gdb, before running
+                        test(s).
+  manual-lldb           Let user manually start mysqld in lldb, before running
+                        test(s).
   max-save-core         Limit the number of core files saved (to avoid filling
                         up disks for heavily crashing server). Defaults to
-                        $opt_max_save_core, set to 0 for no limit. Set
-                        it's default with MTR_MAX_SAVE_CORE
-  max-save-datadir      Limit the number of datadir saved (to avoid filling
-                        up disks for heavily crashing server). Defaults to
-                        $opt_max_save_datadir, set to 0 for no limit. Set
-                        it's default with MTR_MAX_SAVE_DATDIR
-  max-test-fail         Limit the number of test failurs before aborting
-                        the current test run. Defaults to
-                        $opt_max_test_fail, set to 0 for no limit. Set
-                        it's default with MTR_MAX_TEST_FAIL
+                        $opt_max_save_core, set to 0 for no limit. Set it's
+                        default with MTR_MAX_SAVE_CORE.
+  max-save-datadir      Limit the number of datadir saved (to avoid filling up
+                        disks for heavily crashing server). Defaults to
+                        $opt_max_save_datadir, set to 0 for no limit. Set it's
+                        default with MTR_MAX_SAVE_DATDIR.
+  max-test-fail         Limit the number of test failurs before aborting the
+                        current test run. Defaults to $opt_max_test_fail, set to
+                        0 for no limit. Set it's default with MTR_MAX_TEST_FAIL.
+  strace-client         Create strace output for mysqltest client.
+  strace-server         Create strace output for mysqltest server.
 
 Options for valgrind
 
+  callgrind             Instruct valgrind to use callgrind.
+  helgrind              Instruct valgrind to use helgrind.
   valgrind              Run the "mysqltest" and "mysqld" executables using
-                        valgrind with default options
-  valgrind-all          Synonym for --valgrind
-  valgrind-clients      Run clients started by .test files with valgrind
+                        valgrind with default options.
+  valgrind-all          Synonym for --valgrind.
+  valgrind-clients      Run clients started by .test files with valgrind.
+  valgrind-mysqld       Run the "mysqld" executable with valgrind.
   valgrind-mysqltest    Run the "mysqltest" and "mysql_client_test" executable
-                        with valgrind
-  valgrind-mysqld       Run the "mysqld" executable with valgrind
-  valgrind-options=ARGS Deprecated, use --valgrind-option
-  valgrind-option=ARGS  Option to give valgrind, replaces default option(s),
-                        can be specified more then once
-  valgrind-path=<EXE>   Path to the valgrind executable
-  callgrind             Instruct valgrind to use callgrind
-  helgrind              Instruct valgrind to use helgrind
+                        with valgrind.
+  valgrind-option=ARGS  Option to give valgrind, replaces default option(s), can
+                        be specified more then once.
+  valgrind-options=ARGS Deprecated, use --valgrind-option.
+  valgrind-path=<EXE>   Path to the valgrind executable.
 
 Misc options
-  user=USER             User for connecting to mysqld(default: $opt_user)
-  comment=STR           Write STR to the output
-  timer                 Show test case execution time.
-  disk-usage            Show disk usage of vardir after each test.
-  verbose               More verbose output.
-  verbose-restart       Write when and why servers are restarted
-  start                 Only initialize and start the servers. If a testcase is
-                        mentioned server is started with startup settings of the testcase.
-                        If a --suite option is specified the configurations of the
-                        my.cnf of the specified suite is used. If no suite or testcase
-                        is mentioned, settings from include/default_my.cnf is used
-                        Example:
-                         $0 --start alias &
-  start-and-exit        Same as --start, but mysql-test-run terminates and
-                        leaves just the server running
-  start-dirty           Only start the servers (without initialization) for
-                        the first specified test case
-  user-args             In combination with start* and no test name, drops
-                        arguments to mysqld except those specified with
-                        --mysqld (if any)
-  wait-all              If --start or --start-dirty option is used, wait for all
-                        servers to exit before finishing the process
-  fast                  Run as fast as possible, dont't wait for servers
-                        to shutdown etc.
-  force-restart         Always restart servers between tests
-  parallel=N            Run tests in N parallel threads (default=1)
-                        Use parallel=auto for auto-setting of N
-  non-parallel-test     Also run tests marked as 'non-parallel'. Tests sourcing
-                        'not_parallel.inc' are marked as 'non-parallel' tests.
-  repeat=N              Run each test N number of times, in parallel if
-                        --parallel option value is > 1.
-  retry=N               Retry tests that fail N times, limit number of failures
-                        to $opt_retry_failure
-  retry-failure=N       Limit number of retries for a failed test
-  reorder               Reorder tests to get fewer server restarts
-  report-unstable-tests Mark tests which fail initially but pass on at least
-                        one retry attempt as unstable tests and report them
-                        separately in the end summary. If all failures
-                        encountered are due to unstable tests, MTR will print
-                        a warning and exit with a zero status code.
-  help                  Get this help text
 
-  testcase-timeout=MINUTES Max test case run time (default $opt_testcase_timeout)
-  suite-timeout=MINUTES Max test suite run time (default $opt_suite_timeout)
-  shutdown-timeout=SECONDS Max number of seconds to wait for server shutdown
-                        before killing servers (default $opt_shutdown_timeout)
-  warnings              Scan the log files for warnings. Use --nowarnings
-                        to turn off.
-
-  discover              Preload libdiscoverADI.so when starting mysqld.
-                        Reports from discover in <vardir>/log/mysqld.%p.txt
-                        Only supported on SPARC-M7 machines
-  sanitize              Scan server log files for warnings from various
-                        sanitizers. Assumes that you have built with
-                        -DWITH_ASAN or -DWITH_UBSAN
-  sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
-  debug-sync-timeout=NUM Set default timeout for WAIT_FOR debug sync
-                        actions. Disable facility with NUM=0.
-  gcov                  Collect coverage information after the test.
-                        The result is a gcov file per source and header file.
-  gprof                 Collect profiling information using gprof.
-  experimental=<file>   Refer to list of tests considered experimental;
-                        failures will be marked exp-fail instead of fail.
   charset-for-testdb    CREATE DATABASE test CHARACTER SET <option value>.
-                        Default value is latin1.
-  report-features       First run a "test" that reports mysql features
-  timestamp             Print timestamp before each test report line
-  timediff              With --timestamp, also print time passed since
-                        *previous* test started
-  max-connections=N     Max number of open connection to server in mysqltest
+  comment=STR           Write STR to the output.
+  debug-sync-timeout=NUM
+                        Set default timeout for WAIT_FOR debug sync
+                        actions. Disable facility with NUM=0.
   default-myisam        Set default storage engine to MyISAM for non-innodb
                         tests. This is needed after switching default storage
                         engine to InnoDB.
-  report-times          Report how much time has been spent on different
-                        phases of test execution.
-  nounit-tests          Do not run unit tests. Normally run if configured
-                        and if not running named tests/suites
+  discover              Preload libdiscoverADI.so when starting mysqld.
+                        Reports from discover in <vardir>/log/mysqld.%p.txt
+                        Only supported on SPARC-M7 machines.
+  disk-usage            Show disk usage of vardir after each test.
+  experimental=<file>   Refer to list of tests considered experimental.
+                        Failures will be marked exp-fail instead of fail.
+  fast                  Run as fast as possible, dont't wait for servers
+                        to shutdown etc.
+  force-restart         Always restart servers between tests.
+  gcov                  Collect coverage information after the test.
+                        The result is a gcov file per source and header file.
+  gprof                 Collect profiling information using gprof.
+  help                  Get this help text.
+  max-connections=N     Max number of open connection to server in mysqltest.
   no-skip               This option is used to run all MTR tests even if the
                         condition required for running the test as specified
                         by inc files are not satisfied. The option mandatorily
                         requires an excluded list at include/excludenoskip.list
                         which contains inc files which should continue to skip.
-  unit-tests            Run unit tests even if they would otherwise not be run
-  unit-tests-report     Include report of every test included in unit tests.
+  non-parallel-test     Also run tests marked as 'non-parallel'. Tests sourcing
+                        'not_parallel.inc' are marked as 'non-parallel' tests.
+  nounit-tests          Do not run unit tests. Normally run if configured
+                        and if not running named tests/suites.
+  parallel=N            Run tests in N parallel threads. The default value is
+                        "auto", which is equal to the number of CPUs in the
+                        machine.
+                        Use parallel=auto for auto-setting of N.
+  reorder               Reorder tests to get fewer server restarts.
+  repeat=N              Run each test N number of times, in parallel if
+                        --parallel option value is > 1.
+  report-features       First run a "test" that reports mysql features.
+  report-times          Report how much time has been spent on different.
+  report-unstable-tests Mark tests which fail initially but pass on at least
+                        one retry attempt as unstable tests and report them
+                        separately in the end summary. If all failures
+                        encountered are due to unstable tests, MTR will print
+                        a warning and exit with a zero status code.
+  retry-failure=N       Limit number of retries for a failed test.
+  retry=N               Retry tests that fail N times, limit number of failures
+                        to $opt_retry_failure.
+  sanitize              Scan server log files for warnings from various
+                        sanitizers. Assumes that you have built with
+                        -DWITH_ASAN or -DWITH_UBSAN.
+  shutdown-timeout=SECONDS
+                        Max number of seconds to wait for server shutdown
+                        before killing servers (default $opt_shutdown_timeout).
+  sleep=SECONDS         Passed to mysqltest, will be used as fixed sleep time
+  start                 Only initialize and start the servers. If a testcase is
+                        mentioned server is started with startup settings of the
+                        testcase. If a --suite option is specified the
+                        configurations of the my.cnf of the specified suite is
+                        used. If no suite or testcase is mentioned, settings
+                        from include/default_my.cnf is used.
+                        Example:
+                          $0 --start alias &
+  start-and-exit        Same as --start, but mysql-test-run terminates and
+                        leaves just the server running.
+  start-dirty           Only start the servers (without initialization) for
+                        the first specified test case.
   stress=ARGS           Run stress test, providing options to
                         mysql-stress-test.pl. Options are separated by comma.
   suite-opt             Run the particular file in the suite as the suite.opt.
-  xml-report=FILE       Generate a XML report file compatible with JUnit.
+  suite-timeout=MINUTES Max test suite run time (default $opt_suite_timeout).
   summary-report=FILE   Generate a plain text file of the test summary only,
                         suitable for sending by email.
+  testcase-timeout=MINUTES
+                        Max test case run time (default $opt_testcase_timeout).
+  timediff              With --timestamp, also print time passed since
+                        *previous* test started.
+  timer                 Show test case execution time.
+  timestamp             Print timestamp before each test report line.
+  unit-tests            Run unit tests even if they would otherwise not be run.
+  unit-tests-report     Include report of every test included in unit tests.
+  user-args             In combination with start* and no test name, drops
+                        arguments to mysqld except those specified with
+                        --mysqld (if any).
+  user=USER             User for connecting to mysqld(default: $opt_user).
+  verbose               More verbose output.
+  verbose-restart       Write when and why servers are restarted.
+  wait-all              If --start or --start-dirty option is used, wait for all
+                        servers to exit before finishing the process.
+  warnings              Scan the log files for warnings. Use --nowarnings
+                        to turn off.
+  xml-report=FILE       Generate a XML report file compatible with JUnit.
 
 Some options that control enabling a feature for normal test runs,
 can be turned off by prepending 'no' to the option, e.g. --notimer.

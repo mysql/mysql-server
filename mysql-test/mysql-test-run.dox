@@ -4650,9 +4650,9 @@
     <li>
       <tt>`--parallel`={<b>N</b>|auto}</tt>
 
-      Run tests using <b><em>N</em></b> parallel threads. By default,
-      1 thread is used. Use <b>`--parallel`=auto</b> to set
-      <b><em>N</em></b> automatically.
+      Run tests using <b><em>N</em></b> parallel threads. The default
+      value is set to <b>auto</b>, which is equal to the number of
+      CPUs available in the machine.
 
       Setting the <b>MTR_PARALLEL</b> environment variable to
       <b><em>N</em></b> has the same effect as specifying
