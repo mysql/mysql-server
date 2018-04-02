@@ -114,5 +114,6 @@ GRANT EXECUTE ON noauthdb.* TO noauth@localhost;
  DROP USER otheruser@localhost;
 
  #UNINSTALL PLUGIN mysql_no_auth;
+ uninstall plugin mysql_no_login;
  --enable_query_log
 --exit
