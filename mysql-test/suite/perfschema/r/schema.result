@@ -60,7 +60,7 @@ global_status
 global_variables
 host_cache
 hosts
-instance_log_status
+log_status
 memory_summary_by_account_by_event_name
 memory_summary_by_host_by_event_name
 memory_summary_by_thread_by_event_name

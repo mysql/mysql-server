@@ -8489,7 +8489,7 @@ ER_DEPRECATED_NATIONAL
 ER_INVALID_DEFAULT_UTF8MB4_COLLATION
   eng "Invalid default collation %s: utf8mb4_0900_ai_ci or utf8mb4_general_ci expected"
 
-ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS
+ER_UNABLE_TO_COLLECT_LOG_STATUS
   eng "Unable to collect information for column '%-.192s': %-.192s."
 
 ER_RESERVED_TABLESPACE_NAME
@@ -12319,7 +12319,7 @@ ER_STOP_SLAVE_IO_THREAD_DISK_SPACE
 ER_LOG_FILE_CANNOT_OPEN
   eng "Could not use %s for logging (error %d - %s). Turning logging off for the server process. To turn it on again: fix the cause, then%s restart the MySQL server."
 
-OBSOLETE_ER_UNABLE_TO_COLLECT_INSTANCE_LOG_STATUS
+OBSOLETE_ER_UNABLE_TO_COLLECT_LOG_STATUS
   eng "Unable to collect information for column '%-.192s': %-.192s."
 
 OBSOLETE_ER_DEPRECATED_UTF8_ALIAS

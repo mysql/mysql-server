@@ -1919,7 +1919,7 @@ struct handlerton {
   void *data;
 
   /*
-    Instance_log_resource functions that must be supported by storage engines
+    Log_resource functions that must be supported by storage engines
     with relevant log information to be collected.
   */
   lock_hton_log_t lock_hton_log;

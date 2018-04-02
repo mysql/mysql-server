@@ -465,7 +465,6 @@
 #include "sql/handler.h"
 #include "sql/hostname.h"  // hostname_cache_init
 #include "sql/init.h"      // unireg_init
-#include "sql/instance_log_resource.h"
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"  // Arg_comparator
 #include "sql/item_create.h"
@@ -474,6 +473,7 @@
 #include "sql/keycaches.h"     // get_or_create_key_cache
 #include "sql/log.h"
 #include "sql/log_event.h"  // Rows_log_event
+#include "sql/log_resource.h"
 #include "sql/mdl.h"
 #include "sql/my_decimal.h"
 #include "sql/mysqld_daemon.h"
@@ -4961,14 +4961,13 @@ static int init_server_components() {
 
   {
   /*
-    We have to call a function in instance_log_resource.cc, or its references
+    We have to call a function in log_resource.cc, or its references
     won't be visible to plugins.
   */
 #ifndef DBUG_OFF
     int dummy =
 #endif
-        Instance_log_resource::
-            dummy_function_to_ensure_we_are_linked_into_the_server();
+        Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server();
     DBUG_ASSERT(dummy == 1);
   }
 

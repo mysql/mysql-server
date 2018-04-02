@@ -1328,17 +1328,17 @@ InnoDB Monitor to the client.
 static int innodb_show_status(handlerton *hton, THD *thd,
                               stat_print_fn *stat_print);
 
-/** Implements Instance_log_resource lock.
+/** Implements Log_resource lock.
 @param[in]	hton		the innodb handlerton
 @return false on success */
 static bool innobase_lock_hton_log(handlerton *hton);
 
-/** Implements Instance_log_resource unlock.
+/** Implements Log_resource unlock.
 @param[in]	hton		the innodb handlerton
 @return false on success */
 static bool innobase_unlock_hton_log(handlerton *hton);
 
-/** Implements Instance_log_resource collect_info.
+/** Implements Log_resource collect_info.
 @param[in]	hton		the innodb handlerton
 @param[in]	json		the JSON dom to receive the log info
 @return false on success */
@@ -16367,7 +16367,7 @@ static int innodb_show_status(handlerton *hton, THD *thd,
   DBUG_RETURN(ret_val);
 }
 
-/** Implements Instance_log_resource lock.
+/** Implements Log_resource lock.
 @param[in]	hton		the innodb handlerton
 @return false on success */
 static bool innobase_lock_hton_log(handlerton *hton) {
@@ -16381,7 +16381,7 @@ static bool innobase_lock_hton_log(handlerton *hton) {
   DBUG_RETURN(ret_val);
 }
 
-/** Implements Instance_log_resource unlock.
+/** Implements Log_resource unlock.
 @param[in]	hton		the innodb handlerton
 @return false on success */
 static bool innobase_unlock_hton_log(handlerton *hton) {
@@ -16395,7 +16395,7 @@ static bool innobase_unlock_hton_log(handlerton *hton) {
   DBUG_RETURN(ret_val);
 }
 
-/** Implements Instance_log_resource collect_info.
+/** Implements Log_resource collect_info.
 @param[in]	hton		the innodb handlerton
 @param[in]	json		the JSON dom to receive the log info
 @return false on success */

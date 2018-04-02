@@ -66,7 +66,7 @@ while ($c <= $num_channels)
   if ($c == 0)
   {
     --eval CREATE EVENT e_reset_master ON SCHEDULE EVERY 1 SECOND DO RESET MASTER
-    --eval CREATE EVENT e_ils          ON SCHEDULE EVERY 1 SECOND DO SELECT * FROM performance_schema.instance_log_status
+    --eval CREATE EVENT e_ils          ON SCHEDULE EVERY 1 SECOND DO SELECT * FROM performance_schema.log_status
   }
   --inc $c
 }
