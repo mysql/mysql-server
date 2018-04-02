@@ -18,7 +18,7 @@ include/save_master_pos.inc
 [connection slave1]
 FLUSH TABLES test.t2_myisam, performance_schema.threads WITH READ LOCK;
 [connection slave]
-SELECT * FROM performance_schema.instance_log_status INTO OUTFILE 'ILS_DUMP';
+SELECT * FROM performance_schema.log_status INTO OUTFILE 'ILS_DUMP';
 [connection slave1]
 SET DEBUG_SYNC='now WAIT_FOR reached_collecting_instance_logs_info';
 [connection server_2_1]

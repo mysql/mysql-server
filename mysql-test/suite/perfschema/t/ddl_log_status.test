@@ -3,7 +3,7 @@
 # Tests for PERFORMANCE_SCHEMA
 #
 # This test verifies the correct behaviour in case of invalid
-# usage of DDLs on the table instance_log_status
+# usage of DDLs on the table log_status
 #
 # ==== References ====
 #
@@ -11,16 +11,16 @@
 #
 
 -- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.instance_log_status
+ALTER TABLE performance_schema.log_status
   ADD COLUMN foo integer;
 
 -- error ER_TABLEACCESS_DENIED_ERROR
-TRUNCATE TABLE performance_schema.instance_log_status;
+TRUNCATE TABLE performance_schema.log_status;
 
 -- error ER_DBACCESS_DENIED_ERROR
-ALTER TABLE performance_schema.instance_log_status
+ALTER TABLE performance_schema.log_status
    ADD INDEX test_index(server_uuid);
 
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON
-  performance_schema.instance_log_status(server_uuid);
+  performance_schema.log_status(server_uuid);

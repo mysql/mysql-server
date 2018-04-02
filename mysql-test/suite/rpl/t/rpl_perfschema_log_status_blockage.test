@@ -1,52 +1,56 @@
 # ==== Purpose ====
 #
-# This test case validates the contents of
-# performance_schema.instance_log_status table and the privileges
-# required to query the table. It also validates that the table can be
-# accessed even when MySQL instance is locked for backup and FLUSH TABLES
-# <table list> WITH READ LOCK is in place.
+# This test case will test expected blockages when querying
+# performance_schema.log_status table.
 #
-# In a first step, it generates some workload on the master and then collects
-# the instance log resources status on the slave by querying
-# performance_schema.instance_log_status inserting its contents
-# into a new table.
+# It will use 6 additional connections to the slave server to
+# send a statement that is expected to be blocked. Then, it will
+# proceed with the blockage by using debug instrumentation to
+# pause the thread generating the result before actually collecting
+# the log information.
 #
-# The test case then validates some of the contents inserted into
-# the new table.
+# The test case will send all 6 statements expected to block, and will
+# wait until all report as doing something in performance_schema.threads.
 #
-# In a second step, the test case creates an unprivileged user asserting
-# that the server will throw an error when the user tries to query
-# performance_schema.instance_log_status table.
+# Finally, the test case will release the blockage and will wait until all
+# 6 statements to finish.
 #
-# A third step queries performance_schema.instance_log_status while other
-# client session locked MySQL instance for backup and did
-# FLUSH TABLE <table list> WITH READ LOCK.
+# The collected information will be verified.
 #
 # ==== Related Bugs and Worklogs ====
 #
 # WL#9452: Log Position Lock
 #
 
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
+--let $rpl_extra_connections_per_server= 6
 --source include/master-slave.inc
 
 
---echo # First step
-
-# Table to collect instance_log_info
+# Create a table to store the data to be validated
 CREATE TABLE ils_copy (
   uuid VARCHAR(36) PRIMARY KEY,
   master JSON NOT NULL,
   channels JSON NOT NULL,
   storage_engines JSON NOT NULL);
 
-# Table to be listed at FLUSH TABLES <table list> WITH READ LOCK
-CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
+CREATE TABLE t1_innodb (c1 INT);
+
+CREATE TABLE t2_myisam (c1 INT) ENGINE=MyISAM;
 
 --source include/sync_slave_sql_with_master.inc
+# Make server to pause when fully blocked
+--let $debug_point= pause_collecting_instance_logs_info
+--source include/add_debug_point.inc
+
 # Create a new channel, so we can test a non-empty channel name on results
 CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
+
+# Suppression of error messages
+CALL mtr.add_suppression('Unsafe statement written to the binary log');
 
 # Save current master binary log coordinates and gtid_executed
 --let $_saved_gtids=
@@ -64,6 +68,10 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 # test case purposes. That is fine as the objective is to test a non-empty
 # channel name.
 
+--source include/rpl_connection_slave1.inc
+FLUSH TABLES test.t2_myisam, performance_schema.threads WITH READ LOCK;
+
+--source include/rpl_connection_slave.inc
 # Save current InnoDB LSN and LSN_checkpoint before the collection
 --replace_regex /.*Last checkpoint at[[:space:]]*([0-9]+).*/\1/gso
 --let $innodb_seis=`SHOW ENGINE INNODB STATUS`
@@ -77,7 +85,120 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 # Collect the instance log status into ils_copy table
 --let $ils_dump= $MYSQLTEST_VARDIR/tmp/ils_$server_2_uuid
 --replace_result $ils_dump ILS_DUMP
---eval SELECT * FROM performance_schema.instance_log_status INTO OUTFILE '$ils_dump'
+--send_eval SELECT * FROM performance_schema.log_status INTO OUTFILE '$ils_dump'
+
+--source include/rpl_connection_slave1.inc
+SET DEBUG_SYNC='now WAIT_FOR reached_collecting_instance_logs_info';
+
+
+# No actions below show progress until
+# signaling "continue_collecting_instance_logs_info" in DEBUG_SYNC
+
+# No changes into binary log
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+--let $tid1=`SELECT CONNECTION_ID()`
+--send FLUSH LOCAL BINARY LOGS;
+
+# No changes into Gtid_state (GTID_EXECUTED)
+--let $rpl_connection_name= server_2_2
+--source include/rpl_connection.inc
+--let $tid2=`SELECT CONNECTION_ID()`
+--send SET @@GLOBAL.gtid_purged = '+00000000-0000-0000-0000-000000000000:1-999'
+
+# No new channels can be created
+--let $rpl_connection_name= server_2_3
+--source include/rpl_connection.inc
+--let $tid3=`SELECT CONNECTION_ID()`
+--send CHANGE MASTER TO MASTER_HOST='127.0.0.1' FOR CHANNEL 'ch2'
+
+# No existing channels can be removed
+--let $rpl_connection_name= server_2_4
+--source include/rpl_connection.inc
+--let $tid4=`SELECT CONNECTION_ID()`
+--send RESET SLAVE ALL FOR CHANNEL 'ch1'
+
+# No changes into blocked storage engines (InnoDB)
+--let $rpl_connection_name= server_2_5
+--source include/rpl_connection.inc
+--let $tid5=`SELECT CONNECTION_ID()`
+SET @sql_log_bin = 0;
+--send INSERT INTO t1_innodb VALUE (9)
+
+# No changes into blocked tables (MyISAM)
+--let $rpl_connection_name= server_2_6
+--source include/rpl_connection.inc
+--let $tid6=`SELECT CONNECTION_ID()`
+SET @sql_log_bin = 0;
+--send INSERT INTO t2_myisam VALUE (9)
+
+# No changes into I/O thread relay log positions
+--source include/rpl_connection_master.inc
+FLUSH BINARY LOGS;
+INSERT INTO t1_innodb VALUES (1);
+INSERT INTO t2_myisam VALUES (1);
+FLUSH BINARY LOGS;
+INSERT INTO t1_innodb VALUES (2);
+INSERT INTO t2_myisam VALUES (2);
+
+# Give some time to all "--send" above
+--sleep 1
+
+
+--source include/rpl_connection_slave1.inc
+--echo Wait until all threads expecting to be block be doing something
+--source include/rpl_connection_slave1.inc
+let $wait_condition=
+  SELECT COUNT(*) = 6 FROM performance_schema.threads
+  WHERE PROCESSLIST_ID IN ($tid1, $tid2, $tid3, $tid4, $tid5, $tid6)
+  AND PROCESSLIST_STATE IS NOT NULL;
+--source include/wait_condition_or_abort.inc
+
+SET DEBUG_SYNC='now SIGNAL continue_collecting_instance_logs_info';
+UNLOCK TABLES;
+
+--source include/rpl_connection_slave.inc
+--reap
+
+--replace_result $ils_dump ILS_DUMP
+--eval LOAD DATA INFILE '$ils_dump' INTO TABLE ils_copy
+
+--let $rpl_connection_name= server_2_1
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_2_2
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_2_3
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_2_4
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_2_5
+--source include/rpl_connection.inc
+--reap
+
+--let $rpl_connection_name= server_2_6
+--source include/rpl_connection.inc
+--reap
+
+--source include/rpl_connection_slave1.inc
+--echo Wait until all blocked threads are released and finish
+let $wait_condition=
+  SELECT COUNT(*) = 6 FROM performance_schema.threads
+  WHERE PROCESSLIST_ID IN ($tid1, $tid2, $tid3, $tid4, $tid5, $tid6)
+  AND PROCESSLIST_STATE IS NULL;
+--source include/wait_condition_or_abort.inc
+
+#
+# Validate what was collected from performance_schema.log_status table
+#
+--source include/rpl_connection_slave.inc
 if ($rpl_debug)
 {
   --query_vertical SELECT * FROM ils_copy
@@ -92,12 +213,6 @@ if ($rpl_debug)
 --let $innodb_seis=`SHOW ENGINE INNODB STATUS`
 # Remove the "InnoDB" from the collected LSN info
 --let $innodb_lsn_after=`SELECT LTRIM(RIGHT('$innodb_seis', LENGTH('$innodb_seis') - 6))`
-
-#
-# Validate what was collected from performance_schema.instance_log_status table
-#
---replace_result $ils_dump ILS_DUMP
---eval LOAD DATA INFILE '$ils_dump' INTO TABLE ils_copy
 
 --let $assert_text= Collected server UUID is correct
 --let $ils_uuid= `SELECT uuid FROM ils_copy`
@@ -144,6 +259,11 @@ if ($rpl_debug)
 --let $assert_cond= $ils_ch1_relay_log_file = "$ch1_relay_log_file"
 --source include/assert.inc
 
+--let $assert_text= There is no other channel information collected (no ch2)
+--let $ils_ch2= `SELECT JSON_EXTRACT(channels, "$.channels[2].channel_name") IS NULL FROM ils_copy`
+--let $assert_cond= $ils_ch2 = 1
+--source include/assert.inc
+
 --let $assert_text= Collected InnoDB LSN is in correct boundaries
 --let $ils_innodb_lsn= `SELECT JSON_EXTRACT(storage_engines, "$.InnoDB.LSN") FROM ils_copy`
 --let $assert_cond= $innodb_lsn_after >= $ils_innodb_lsn AND $ils_innodb_lsn >= $innodb_lsn_before
@@ -155,59 +275,13 @@ if ($rpl_debug)
 --source include/assert.inc
 
 
---echo # Second step
-
-#
-# Check that unprivileged access to
-# performance_schema.instance_log_status table fails
-#
-
-# Create a new user and allow it to query any table
-CREATE USER user1@'%';
-GRANT SELECT ON *.* TO user1@'%';
-
-# Connect the slave as the new user
---connect (user1,127.0.0.1,user1,,test,$SLAVE_MYPORT,)
---connection user1
-# Ensure user1 has access to performance_schema tables.
-# Disabling result log as it is not deterministic.
---disable_result_log
-SELECT COUNT(*) FROM performance_schema.global_variables;
---enable_result_log
-# Querying performance_schema.instance_log_status should fail
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
---query_vertical SELECT * FROM performance_schema.instance_log_status
-
---source include/rpl_connection_slave.inc
---disconnect user1
-DROP USER user1@'%';
-RESET SLAVE ALL FOR CHANNEL 'ch1';
-
-
---echo # Third step
-
-#
-# Check that performance_schema.instance_log_status can be accessed
-# even when MySQL instance is locked for backup and
-# FLUSH TABLES <table list> WITH READ LOCK is in place.
-#
---source include/rpl_connection_slave1.inc
-LOCK INSTANCE FOR BACKUP;
-FLUSH TABLES test.t1 WITH READ LOCK;
---source include/rpl_connection_slave.inc
-# The content of the result is not important in this step
---disable_result_log
-SELECT * FROM performance_schema.instance_log_status;
---enable_result_log
---source include/rpl_connection_slave1.inc
-UNLOCK TABLES;
-UNLOCK INSTANCE;
-
-
 # Cleanup
 --source include/rpl_connection_slave.inc
+--source include/remove_debug_point.inc
+RESET SLAVE ALL FOR CHANNEL 'ch2';
 --remove_file $ils_dump
+
 --source include/rpl_connection_master.inc
-DROP TABLE ils_copy, t1;
+DROP TABLE ils_copy, t1_innodb, t2_myisam;
 
 --source include/rpl_end.inc

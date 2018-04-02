@@ -13,7 +13,7 @@ CREATE TABLE t1 (c1 INT) ENGINE=MyISAM;
 include/sync_slave_sql_with_master.inc
 CHANGE MASTER TO MASTER_HOST = '127.0.0.1' FOR CHANNEL 'ch1';
 include/save_master_pos.inc
-SELECT * FROM performance_schema.instance_log_status INTO OUTFILE 'ILS_DUMP';
+SELECT * FROM performance_schema.log_status INTO OUTFILE 'ILS_DUMP';
 LOAD DATA INFILE 'ILS_DUMP' INTO TABLE ils_copy;
 include/assert.inc [Collected server UUID is correct]
 include/assert.inc [Collected master binary log file name is correct]
@@ -30,7 +30,7 @@ include/assert.inc [Collected InnoDB LSN_checkpoint is in correct boundaries]
 CREATE USER user1@'%';
 GRANT SELECT ON *.* TO user1@'%';
 SELECT COUNT(*) FROM performance_schema.global_variables;
-SELECT * FROM performance_schema.instance_log_status;
+SELECT * FROM performance_schema.log_status;
 ERROR 42000: Access denied; you need (at least one of) the BACKUP_ADMIN privilege(s) for this operation
 [connection slave]
 DROP USER user1@'%';
@@ -40,7 +40,7 @@ RESET SLAVE ALL FOR CHANNEL 'ch1';
 LOCK INSTANCE FOR BACKUP;
 FLUSH TABLES test.t1 WITH READ LOCK;
 [connection slave]
-SELECT * FROM performance_schema.instance_log_status;
+SELECT * FROM performance_schema.log_status;
 [connection slave1]
 UNLOCK TABLES;
 UNLOCK INSTANCE;

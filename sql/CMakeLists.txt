@@ -314,7 +314,7 @@ SET(SQL_SHARED_SOURCES
   histograms/value_map.cc
   hostname.cc
   init.cc
-  instance_log_resource.cc
+  log_resource.cc
   item.cc
   item_buff.cc
   item_cmpfunc.cc 

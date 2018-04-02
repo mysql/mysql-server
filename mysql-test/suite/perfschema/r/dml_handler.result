@@ -154,8 +154,8 @@ SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=55;
 HANDLER performance_schema.memory_summary_by_account_by_event_name OPEN;
 ERROR HY000: Table storage engine for 'memory_summary_by_account_by_event_name' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=54;
-HANDLER performance_schema.instance_log_status OPEN;
-ERROR HY000: Table storage engine for 'instance_log_status' doesn't have this option
+HANDLER performance_schema.log_status OPEN;
+ERROR HY000: Table storage engine for 'log_status' doesn't have this option
 SELECT TABLE_NAME INTO @table_name FROM table_list WHERE id=53;
 HANDLER performance_schema.hosts OPEN;
 ERROR HY000: Table storage engine for 'hosts' doesn't have this option

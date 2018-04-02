@@ -20,12 +20,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef TABLE_INSTANCE_LOG_STATUS_H
-#define TABLE_INSTANCE_LOG_STATUS_H
+#ifndef TABLE_LOG_STATUS_H
+#define TABLE_LOG_STATUS_H
 
 /**
-  @file storage/perfschema/table_instance_log_status.h
-  Table instance_log_status (declarations).
+  @file storage/perfschema/table_log_status.h
+  Table log_status (declarations).
 */
 
 #include "sql/json_dom.h"
@@ -37,19 +37,19 @@
   A row in the table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
-struct st_row_instance_log_status {
+struct st_row_log_status {
   char server_uuid[UUID_LENGTH];
-  Json_wrapper w_master;
-  Json_wrapper w_channels;
+  Json_wrapper w_local;
+  Json_wrapper w_replication;
   Json_wrapper w_storage_engines;
 
-  st_row_instance_log_status() {}
+  st_row_log_status() {}
 
   void cleanup() {}
 };
 
-/** Table PERFORMANCE_SCHEMA.INSTANCE_LOG_STATUS. */
-class table_instance_log_status : public PFS_engine_table {
+/** Table PERFORMANCE_SCHEMA.LOG_STATUS. */
+class table_log_status : public PFS_engine_table {
  private:
   int make_row();
 
@@ -59,7 +59,7 @@ class table_instance_log_status : public PFS_engine_table {
   static Plugin_table m_table_def;
 
   /** Current row */
-  st_row_instance_log_status m_row;
+  st_row_log_status m_row;
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
@@ -77,10 +77,10 @@ class table_instance_log_status : public PFS_engine_table {
   virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  table_instance_log_status();
+  table_log_status();
 
  public:
-  ~table_instance_log_status();
+  ~table_log_status();
 
   /** Table share. */
   static PFS_engine_table_share m_share;
