@@ -1,6 +1,8 @@
 # WL#11250 Support Instant Add Column
 # test some error conditions
 
+# InnoDB does not support compressed tables for page sizes=32k,64k
+--source include/have_innodb_max_16k.inc
 
 --echo #
 --echo # Scenario 1:
