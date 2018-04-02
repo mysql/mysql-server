@@ -129,7 +129,7 @@ REVOKE PROXY ON qa_test_6_dest FROM root;
 
 DROP USER qa_test_6_user;
 DROP USER qa_test_6_dest;
-DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
+DROP USER 'root'@'%';
 --source include/plugin_auth_check_non_default_users.inc
 
 

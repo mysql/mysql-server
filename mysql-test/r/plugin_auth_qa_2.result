@@ -132,7 +132,7 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: YES)
 DROP USER qa_test_6_user;
 DROP USER qa_test_6_dest;
-DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
+DROP USER 'root'@'%';
 SELECT user,plugin FROM mysql.user WHERE user NOT IN ('root', 'mysql.sys', 'mysql.session', 'mysql.infoschema');
 user	plugin
 === Test of the --default_auth option for clients ====
