@@ -60,8 +60,9 @@ Warnings:
 Note	###	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	###	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 ==== IO thread should start without issues because password is still cached ====
-[connection slave]
 include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 c1
 1
