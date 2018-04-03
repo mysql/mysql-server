@@ -4515,7 +4515,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
     
     // disk part start after dynamic part.
     src_ptr+= src_len;
-  } 
+  }
   
   if(disk && dd_tot)
   {
