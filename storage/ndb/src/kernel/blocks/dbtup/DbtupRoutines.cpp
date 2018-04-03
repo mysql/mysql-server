@@ -390,7 +390,7 @@ int Dbtup::readAttributes(KeyReqStruct *req_struct,
     req_struct->out_buf_index= tmpAttrBufIndex + 4;
     req_struct->out_buf_bits = 0;
     attr_descr= req_struct->attr_descr;
-    if (attributeId < numAttributes)
+    if (likely(attributeId < numAttributes))
     {
       Uint32 attrDescriptor = attr_descr[descr_index].tabDescr;
       Uint32 attrDes2 = attr_descr[descr_index + 1].tabDescr;
@@ -411,8 +411,8 @@ int Dbtup::readAttributes(KeyReqStruct *req_struct,
         thrjam(req_struct->jamBuffer);
         return -(int)req_struct->errorCode;
       }
-    } 
-    else if(attributeId & AttributeHeader::PSEUDO) 
+    }
+    else if (likely(attributeId & AttributeHeader::PSEUDO))
     {
       thrjamDebug(req_struct->jamBuffer);
       int sz = read_pseudo(inBuffer, inBufIndex,
@@ -464,7 +464,9 @@ Dbtup::readFixedSizeTHOneWordNotNULL(Uint8* outBuffer,
              newIndexBuf <= maxRead))
   {
     return true;
-  } else {
+  }
+  else
+  {
     require(readOffset < checkOffset);
     thrjam(req_struct->jamBuffer);
     req_struct->errorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
@@ -493,14 +495,17 @@ Dbtup::readFixedSizeTHTwoWordNotNULL(Uint8* outBuffer,
   Uint32* dst = (Uint32*)(outBuffer + indexBuf);
 
   require(readOffset + 1 < req_struct->check_offset[MM]);
-  if (newIndexBuf <= maxRead) {
+  if (likely(newIndexBuf <= maxRead))
+  {
     thrjamDebug(req_struct->jamBuffer);
     ahOut->setDataSize(2);
     dst[0] = wordReadFirst;
     dst[1] = wordReadSecond;
     req_struct->out_buf_index= newIndexBuf;
     return true;
-  } else {
+  }
+  else
+  {
     thrjam(req_struct->jamBuffer);
     req_struct->errorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
     return false;
@@ -551,15 +556,19 @@ Dbtup::readFixedSizeTHManyWordNotNULL(Uint8* outBuffer,
   const Uint8* src = (Uint8*)(tuple_header + readOffset);
 
   require((readOffset + attrNoOfWords - 1) < req_struct->check_offset[MM]);
-  if (! charsetFlag || ! req_struct->xfrm_flag) {
-    if (newIndexBuf <= maxRead) {
+  if (! charsetFlag || ! req_struct->xfrm_flag)
+  {
+    if (likely(newIndexBuf <= maxRead))
+    {
       thrjamDebug(req_struct->jamBuffer);
       ahOut->setByteSize(srcBytes);
       memcpy(dst, src, srcBytes);
       zero32(dst, srcBytes);
       req_struct->out_buf_index = newIndexBuf;
       return true;
-    } else {
+    }
+    else
+    {
       thrjam(req_struct->jamBuffer);
       req_struct->errorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
       return false;
@@ -628,7 +637,9 @@ Dbtup::readFixedSizeTHManyWordNULLable(Uint8* outBuffer,
                                           req_struct,
                                           ahOut,
                                           attrDes);
-  } else {
+  }
+  else
+  {
     thrjam(req_struct->jamBuffer);
     ahOut->setNULL();
     return true;
@@ -642,7 +653,8 @@ Dbtup::readFixedSizeTHZeroWordNULLable(Uint8* outBuffer,
                                        Uint64 attrDes)
 {
   thrjam(req_struct->jamBuffer);
-  if (nullFlagCheck(req_struct, attrDes)) {
+  if (nullFlagCheck(req_struct, attrDes))
+  {
     thrjamDebug(req_struct->jamBuffer);
     ahOut->setNULL();
   }
@@ -699,7 +711,7 @@ Dbtup::varsize_reader(Uint8* outBuffer,
   require(srcBytes <= max_var_size);
   if (! charsetFlag || ! req_struct->xfrm_flag)
   {
-    if (newIndexBuf <= max_read)
+    if (likely(newIndexBuf <= max_read))
     {
       ah_out->setByteSize(srcBytes);
       memcpy(dst, srcPtr, srcBytes);
@@ -767,7 +779,7 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
     xmul = 1;
   Uint32 dstLen = xmul * (maxBytes - lb);
   Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
-  if (maxIndexBuf <= maxRead && ok) 
+  if (likely(maxIndexBuf <= maxRead && ok))
   {
     thrjamDebug(req_struct->jamBuffer);
     int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, 
@@ -779,7 +791,9 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
     require(newIndexBuf <= maxRead);
     req_struct->out_buf_index = newIndexBuf;
     return true;
-  } else {
+  }
+  else
+  {
     thrjam(req_struct->jamBuffer);
     req_struct->errorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
   }
@@ -804,7 +818,7 @@ Dbtup::bits_reader(Uint8* outBuffer,
   Uint32 newIndexBits = (indexBits + bitCount) & 31;
 
   Uint32* dst = (Uint32*)(outBuffer + indexBuf);
-  if (newIndexBuf <= maxRead)
+  if (likely(newIndexBuf <= maxRead))
   {
     ahOut->setDataSize(sz32);
     req_struct->out_buf_index = newIndexBuf;
@@ -861,13 +875,16 @@ Dbtup::readVarSizeNULLable(Uint8* outBuffer,
                            AttributeHeader* ahOut,
                            Uint64  attrDes)
 {
-  if (!nullFlagCheck(req_struct, attrDes)) {
+  if (!nullFlagCheck(req_struct, attrDes))
+  {
     thrjamDebug(req_struct->jamBuffer);
     return readVarSizeNotNULL(outBuffer,
                               req_struct,
                               ahOut,
                               attrDes);
-  } else {
+  }
+  else
+  {
     thrjam(req_struct->jamBuffer);
     ahOut->setNULL();
     return true;
@@ -880,7 +897,7 @@ Dbtup::readDynFixedSizeNotNULL(Uint8* outBuffer,
                                AttributeHeader* ahOut,
                                Uint64  attrDes)
 {
-  if(req_struct->is_expanded)
+  if (req_struct->is_expanded)
   {
     return readDynFixedSizeExpandedNotNULL(outBuffer, req_struct,
                                            ahOut, attrDes);
@@ -898,7 +915,7 @@ Dbtup::readDynFixedSizeNULLable(Uint8* outBuffer,
                                 AttributeHeader* ahOut,
                                 Uint64  attrDes)
 {
-  if(req_struct->is_expanded)
+  if (req_struct->is_expanded)
   {
     return readDynFixedSizeExpandedNULLable(outBuffer, req_struct,
                                             ahOut, attrDes);
@@ -1532,7 +1549,7 @@ Dbtup::readDiskFixedSizeNotNULL(Uint8* outBuffer,
   require((readOffset + attrNoOfWords - 1) < req_struct->check_offset[DD]);
   if (! charsetFlag || ! req_struct->xfrm_flag) 
   {
-    if (newIndexBuf <= maxRead) 
+    if (likely(newIndexBuf <= maxRead))
     {
       thrjamDebug(req_struct->jamBuffer);
       ahOut->setByteSize(srcBytes);
@@ -1600,16 +1617,17 @@ Dbtup::readDiskVarAsFixedSizeNotNULL(Uint8* outBuffer,
   Uint32 lb, len;
 
   if (typeId != NDB_ARRAYTYPE_FIXED &&
-      NdbSqlUtil::get_var_length(typeId, src, srcBytes, lb, len)) {   
+      NdbSqlUtil::get_var_length(typeId, src, srcBytes, lb, len))
+  {
     srcBytes = len + lb;
     newIndexBuf = indexBuf + srcBytes;
     attrNoOfWords= (srcBytes + 3) >> 2;
-   }
+  }
 
   require((readOffset + attrNoOfWords - 1) < req_struct->check_offset[DD]);
   if (! charsetFlag || ! req_struct->xfrm_flag) 
   {
-    if (newIndexBuf <= maxRead) 
+    if (likely(newIndexBuf <= maxRead))
     {
       thrjamDebug(req_struct->jamBuffer);
       ahOut->setByteSize(srcBytes);
@@ -1770,9 +1788,10 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
                         Uint64(attrDescriptor);
       if ((AttributeDescriptor::getPrimaryKey(attrDescriptor)) &&
           (regOperPtr->op_type != ZINSERT)) {
-        if (checkUpdateOfPrimaryKey(req_struct,
+        if (unlikely(checkUpdateOfPrimaryKey(req_struct,
                                     &inBuffer[inBufIndex],
-                                    regTabPtr)) {
+                                    regTabPtr)))
+        {
           thrjam(req_struct->jamBuffer);
           return -ZTRY_UPDATE_PRIMARY_KEY;
         }
@@ -1780,9 +1799,9 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       UpdateFunction f= regTabPtr->updateFunctionArray[attributeId];
       thrjamLineDebug(req_struct->jamBuffer, attributeId);
       req_struct->changeMask.set(attributeId);
-      if ((*f)(inBuffer,
-               req_struct,
-               attrDes))
+      if (likely((*f)(inBuffer,
+                      req_struct,
+                      attrDes)))
       {
         inBufIndex= req_struct->in_buf_index;
         continue;
@@ -1793,7 +1812,7 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
         return -(int)req_struct->errorCode;
       }
     }
-    else if(attributeId == AttributeHeader::READ_LCP)
+    else if (attributeId == AttributeHeader::READ_LCP)
     {
       thrjam(req_struct->jamBuffer);
       Uint32 sz= ahIn.getDataSize();
@@ -1936,7 +1955,8 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
 
   Uint32 xfrmBuffer[1 + MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attrDes2);
-  if (charsetFlag) {
+  if (charsetFlag)
+  {
     Uint32 csIndex = AttributeOffset::getCharsetPos(attrDes2);
     CHARSET_INFO* cs = regTabPtr->charsetArray[csIndex];
     Uint32 srcPos = 0;
@@ -1964,14 +1984,14 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   req_struct->xfrm_flag = tmp;
   
   ndbrequire(req_struct->out_buf_index == attributeHeader.getByteSize());
-  if (ahIn.getDataSize() != attributeHeader.getDataSize())
+  if (unlikely(ahIn.getDataSize() != attributeHeader.getDataSize()))
   {
     thrjam(req_struct->jamBuffer);
     return true;
   }
-  if (memcmp(&keyReadBuffer[0], 
-             &updateBuffer[1],
-             req_struct->out_buf_index) != 0)
+  if (unlikely(memcmp(&keyReadBuffer[0],
+                      &updateBuffer[1],
+                      req_struct->out_buf_index) != 0))
   {
     thrjam(req_struct->jamBuffer);
     return true;
@@ -1994,9 +2014,10 @@ Dbtup::updateFixedSizeTHOneWordNotNULL(Uint32* inBuffer,
   Uint32 *tuple_header= req_struct->m_tuple_ptr->m_data;
   require(updateOffset < req_struct->check_offset[MM]);
 
-  if (newIndex <= inBufLen) {
+  if (likely(newIndex <= inBufLen))
+  {
     Uint32 updateWord= inBuffer[indexBuf + 1];
-    if (!nullIndicator)
+    if (likely(!nullIndicator))
     {
       thrjamDebug(req_struct->jamBuffer);
       req_struct->in_buf_index= newIndex;
@@ -2035,10 +2056,11 @@ Dbtup::updateFixedSizeTHTwoWordNotNULL(Uint32* inBuffer,
   Uint32 *tuple_header= req_struct->m_tuple_ptr->m_data;
   require((updateOffset + 1) < req_struct->check_offset[MM]);
 
-  if (newIndex <= inBufLen) {
+  if (likely(newIndex <= inBufLen))
+  {
     Uint32 updateWord1= inBuffer[indexBuf + 1];
     Uint32 updateWord2= inBuffer[indexBuf + 2];
-    if (!nullIndicator)
+    if (likely(!nullIndicator))
     {
       thrjamDebug(req_struct->jamBuffer);
       req_struct->in_buf_index= newIndex;
@@ -2082,8 +2104,9 @@ Dbtup::fixsize_updater(Uint32* inBuffer,
   Uint32 newIndex= indexBuf + noOfWords + 1;
   require((updateOffset + noOfWords - 1) < checkOffset);
 
-  if (newIndex <= inBufLen) {
-    if (!nullIndicator)
+  if (likely(newIndex <= inBufLen))
+  {
+    if (likely(!nullIndicator))
     {
       if (charsetFlag)
       {
@@ -2098,19 +2121,23 @@ Dbtup::fixsize_updater(Uint32* inBuffer,
         int not_used;
         const char* ssrc = (const char*)&inBuffer[indexBuf + 1];
         Uint32 lb, len;
-        if (! NdbSqlUtil::get_var_length(typeId, ssrc, bytes, lb, len))
+        if (unlikely(! NdbSqlUtil::get_var_length(typeId,
+                                                  ssrc,
+                                                  bytes,
+                                                  lb,
+                                                  len)))
         {
           thrjam(req_struct->jamBuffer);
           req_struct->errorCode = ZINVALID_CHAR_FORMAT;
           return false;
         }
 	// fast fix bug#7340
-        if (typeId != NDB_TYPE_TEXT &&
+        if (likely(typeId != NDB_TYPE_TEXT &&
 	    (*cs->cset->well_formed_len)(cs,
                                          ssrc + lb,
                                          ssrc + lb + len,
                                          ZNIL,
-                                         &not_used) != len)
+                                         &not_used) != len))
         {
           thrjam(req_struct->jamBuffer);
           req_struct->errorCode = ZINVALID_CHAR_FORMAT;
@@ -2253,7 +2280,7 @@ Dbtup::varsize_updater(Uint32* in_buffer,
         dataLen = 2 + src[0] + 256 * Uint32(src[1]);
       }
             
-      if (dataLen == size_in_bytes) 
+      if (likely(dataLen == size_in_bytes))
       {
         *len_offset_ptr= var_attr_pos+size_in_bytes;
         req_struct->in_buf_index= new_index;
@@ -2305,7 +2332,7 @@ Dbtup::updateVarSizeNULLable(Uint32* inBuffer,
     Uint32 newIndex= req_struct->in_buf_index + 1;
     Uint32 var_index= AttributeOffset::getOffset(attrDes2);
     Uint32 var_pos= req_struct->var_pos_array[var_index];
-    if (newIndex <= req_struct->in_buf_len)
+    if (likely(newIndex <= req_struct->in_buf_len))
     {
       thrjamDebug(req_struct->jamBuffer);
       BitmaskImpl::set(regTabPtr->m_offsets[MM].m_null_words, bits, pos);
@@ -2412,7 +2439,7 @@ Dbtup::updateDynFixedSizeNULLable(Uint32* inBuffer,
   Uint32 bm_mask2 = (Uint32)(bm_mask >> 32);
   
   Uint32 newIndex= req_struct->in_buf_index + 1;
-  if (newIndex <= req_struct->in_buf_len)
+  if (likely(newIndex <= req_struct->in_buf_len))
   {
     thrjamDebug(req_struct->jamBuffer);
     /* Clear the bits in the NULL bitmap. */
@@ -2484,7 +2511,7 @@ Dbtup::updateDynBigFixedSizeNULLable(Uint32* inBuffer,
     return updateDynBigFixedSizeNotNULL(inBuffer, req_struct, attrDes);
 
   Uint32 newIndex= req_struct->in_buf_index + 1;
-  if (newIndex <= req_struct->in_buf_len)
+  if (likely(newIndex <= req_struct->in_buf_len))
   {
     thrjamDebug(req_struct->jamBuffer);
     BitmaskImpl::clear((* bm_ptr) & DYN_BM_LEN_MASK, bm_ptr, pos);
@@ -2523,9 +2550,9 @@ Dbtup::updateDynBitsNotNULL(Uint32* inBuffer,
   Uint32 nullIndicator = ahIn.isNULL();
   Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
 
-  if (newIndex <= inBufLen)
+  if (likely(newIndex <= inBufLen))
   {
-    if (!nullIndicator)
+    if (likely(!nullIndicator))
     {
       assert(pos>=bitCount);
       BitmaskImpl::setField(bm_len, bm_ptr, pos-bitCount, bitCount, 
@@ -2570,7 +2597,7 @@ Dbtup::updateDynBitsNULLable(Uint32* inBuffer,
   Uint32 *bm_ptr= (Uint32*)req_struct->m_var_data[ind].m_dyn_data_ptr;
 
   Uint32 newIndex= req_struct->in_buf_index + 1;
-  if (newIndex <= req_struct->in_buf_len)
+  if (likely(newIndex <= req_struct->in_buf_len))
   {
     thrjamDebug(req_struct->jamBuffer);
     BitmaskImpl::clear((* bm_ptr) & DYN_BM_LEN_MASK, bm_ptr, pos);
@@ -2636,7 +2663,7 @@ Dbtup::updateDynVarSizeNULLable(Uint32* inBuffer,
     return updateDynVarSizeNotNULL(inBuffer, req_struct, attrDes);
 
   Uint32 newIndex= req_struct->in_buf_index + 1;
-  if (newIndex <= req_struct->in_buf_len)
+  if (likely(newIndex <= req_struct->in_buf_len))
   {
     thrjamDebug(req_struct->jamBuffer);
     BitmaskImpl::clear((* bm_ptr) & DYN_BM_LEN_MASK, bm_ptr, pos);
@@ -3040,7 +3067,7 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
         
         req_struct->out_buf_index = outPos;
         req_struct->out_buf_bits = outBits;
-        if ((*f)(outBuf, req_struct, &ahOut, attrDes))
+        if (likely((*f)(outBuf, req_struct, &ahOut, attrDes)))
         {
           BitmaskImpl::set(masksz, dstmask, maskpos);
 
@@ -3241,9 +3268,9 @@ Dbtup::updateBitsNotNULL(Uint32* inBuffer,
   Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
   Uint32 *bits= req_struct->m_tuple_ptr->get_null_bits(regTabPtr);
   
-  if (newIndex <= inBufLen)
+  if (likely(newIndex <= inBufLen))
   {
-    if (!nullIndicator)
+    if (likely(!nullIndicator))
     {
       BitmaskImpl::setField(regTabPtr->m_offsets[MM].m_null_words, bits, pos, 
 			    bitCount, inBuffer+indexBuf+1);
@@ -3282,7 +3309,8 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
   Uint32 bitCount = AttributeDescriptor::getArraySize(attrDescriptor);
   Uint32 *bits= req_struct->m_tuple_ptr->get_null_bits(regTabPtr);
   
-  if (!nullIndicator) {
+  if (!nullIndicator)
+  {
     BitmaskImpl::clear(regTabPtr->m_offsets[MM].m_null_words, bits, pos);
     BitmaskImpl::setField(regTabPtr->m_offsets[MM].m_null_words, bits, pos+1, 
 			  bitCount, inBuffer+indexBuf+1);
@@ -3290,9 +3318,11 @@ Dbtup::updateBitsNULLable(Uint32* inBuffer,
     Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
     req_struct->in_buf_index = newIndex;
     return true;
-  } else {
+  }
+  else
+  {
     Uint32 newIndex = indexBuf + 1;
-    if (newIndex <= req_struct->in_buf_len)
+    if (likely(newIndex <= req_struct->in_buf_len))
     {
       thrjam(req_struct->jamBuffer);
       BitmaskImpl::set(regTabPtr->m_offsets[MM].m_null_words, bits, pos);
@@ -3329,9 +3359,9 @@ Dbtup::updateDiskFixedSizeNotNULL(Uint32* inBuffer,
   Uint32 *tuple_header= req_struct->m_disk_ptr->m_data;
   require((updateOffset + noOfWords - 1) < req_struct->check_offset[DD]);
 
-  if (newIndex <= inBufLen)
+  if (likely(newIndex <= inBufLen))
   {
-    if (!nullIndicator)
+    if (likely(!nullIndicator))
     {
       thrjam(req_struct->jamBuffer);
       if (charsetFlag)
@@ -3347,19 +3377,24 @@ Dbtup::updateDiskFixedSizeNotNULL(Uint32* inBuffer,
 	int not_used;
         const char* ssrc = (const char*)&inBuffer[indexBuf + 1];
         Uint32 lb, len;
-        if (! NdbSqlUtil::get_var_length(typeId, ssrc, bytes, lb, len))
+        if (unlikely(! NdbSqlUtil::get_var_length(typeId,
+                                                  ssrc,
+                                                  bytes,
+                                                  lb,
+                                                  len)))
         {
           thrjam(req_struct->jamBuffer);
           req_struct->errorCode = ZINVALID_CHAR_FORMAT;
           return false;
         }
 	// fast fix bug#7340
-        if (typeId != NDB_TYPE_TEXT &&
+        if (unlikely(typeId != NDB_TYPE_TEXT &&
 	    (*cs->cset->well_formed_len)(cs,
                                          ssrc + lb,
                                          ssrc + lb + len,
                                          ZNIL,
-                                         &not_used) != len) {
+                                         &not_used) != len))
+        {
           thrjam(req_struct->jamBuffer);
           req_struct->errorCode = ZINVALID_CHAR_FORMAT;
           return false;
@@ -3410,7 +3445,7 @@ Dbtup::updateDiskFixedSizeNULLable(Uint32* inBuffer,
   else
   {
     Uint32 newIndex= req_struct->in_buf_index + 1;
-    if (newIndex <= req_struct->in_buf_len)
+    if (likely(newIndex <= req_struct->in_buf_len))
     {
       thrjamDebug(req_struct->jamBuffer);
       BitmaskImpl::set(regTabPtr->m_offsets[DD].m_null_words, bits, pos);
@@ -3448,9 +3483,9 @@ Dbtup::updateDiskVarAsFixedSizeNotNULL(Uint32* inBuffer,
   Uint32 *tuple_header= req_struct->m_disk_ptr->m_data;
   require((updateOffset + noOfWords - 1) < req_struct->check_offset[DD]);
 
-  if (size_in_words <= noOfWords)
+  if (likely(size_in_words <= noOfWords))
   {
-    if (!nullIndicator)
+    if (likely(!nullIndicator))
     {
       thrjam(req_struct->jamBuffer);
       if (charsetFlag)
@@ -3466,19 +3501,23 @@ Dbtup::updateDiskVarAsFixedSizeNotNULL(Uint32* inBuffer,
 	int not_used;
         const char* ssrc = (const char*)&inBuffer[indexBuf + 1];
         Uint32 lb, len;
-        if (! NdbSqlUtil::get_var_length(typeId, ssrc, bytes, lb, len))
+        if (unlikely(! NdbSqlUtil::get_var_length(typeId,
+                                                  ssrc,
+                                                  bytes,
+                                                  lb,
+                                                  len)))
         {
           thrjam(req_struct->jamBuffer);
           req_struct->errorCode = ZINVALID_CHAR_FORMAT;
           return false;
         }
 	// fast fix bug#7340
-        if (typeId != NDB_TYPE_TEXT &&
+        if (unlikely(typeId != NDB_TYPE_TEXT &&
 	    (*cs->cset->well_formed_len)(cs,
                                          ssrc + lb,
                                          ssrc + lb + len,
                                          ZNIL,
-                                         &not_used) != len)
+                                         &not_used) != len))
         {
           thrjam(req_struct->jamBuffer);
           req_struct->errorCode = ZINVALID_CHAR_FORMAT;
@@ -3531,7 +3570,7 @@ Dbtup::updateDiskVarAsFixedSizeNULLable(Uint32* inBuffer,
   else
   {
     Uint32 newIndex= req_struct->in_buf_index + 1;
-    if (newIndex <= req_struct->in_buf_len)
+    if (likely(newIndex <= req_struct->in_buf_len))
     {
       BitmaskImpl::set(regTabPtr->m_offsets[DD].m_null_words, bits, pos);
       thrjamDebug(req_struct->jamBuffer);
@@ -3574,9 +3613,9 @@ Dbtup::updateDiskVarSizeNotNULL(Uint32* in_buffer,
   Uint32 idx= req_struct->m_var_data[DD].m_var_len_offset;
   Uint32 check_offset= req_struct->m_var_data[DD].m_max_var_offset;
   
-  if (new_index <= in_buf_len && vsize_in_words <= max_var_size)
+  if (likely(new_index <= in_buf_len && vsize_in_words <= max_var_size))
   {
-    if (!null_ind)
+    if (likely(!null_ind))
     {
       thrjam(req_struct->jamBuffer);
       var_attr_pos= vpos_array[var_index];
@@ -3632,7 +3671,7 @@ Dbtup::updateDiskVarSizeNULLable(Uint32* inBuffer,
     Uint32 newIndex= req_struct->in_buf_index + 1;
     Uint32 var_index= AttributeOffset::getOffset(attrDes2);
     Uint32 var_pos= req_struct->var_pos_array[var_index];
-    if (newIndex <= req_struct->in_buf_len)
+    if (likely(newIndex <= req_struct->in_buf_len))
     {
       thrjamDebug(req_struct->jamBuffer);
       BitmaskImpl::set(regTabPtr->m_offsets[DD].m_null_words, bits, pos);
@@ -3667,9 +3706,9 @@ Dbtup::updateDiskBitsNotNULL(Uint32* inBuffer,
   Uint32 newIndex = indexBuf + 1 + ((bitCount + 31) >> 5);
   Uint32 *bits= req_struct->m_disk_ptr->get_null_bits(regTabPtr, DD);
   
-  if (newIndex <= inBufLen)
+  if (likely(newIndex <= inBufLen))
   {
-    if (!nullIndicator)
+    if (likely(!nullIndicator))
     {
       BitmaskImpl::setField(regTabPtr->m_offsets[DD].m_null_words, bits, pos, 
 			    bitCount, inBuffer+indexBuf+1);
@@ -3722,7 +3761,7 @@ Dbtup::updateDiskBitsNULLable(Uint32* inBuffer,
   else
   {
     Uint32 newIndex = indexBuf + 1;
-    if (newIndex <= req_struct->in_buf_len)
+    if (likely(newIndex <= req_struct->in_buf_len))
     {
       thrjam(req_struct->jamBuffer);
       BitmaskImpl::set(regTabPtr->m_offsets[DD].m_null_words, bits, pos);
