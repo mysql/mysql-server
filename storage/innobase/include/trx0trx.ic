@@ -70,8 +70,9 @@ bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
       return (true);
   }
   ut_error;
-#endif /* UNIV_DEBUG */
+#else  /* UNIV_DEBUG */
   return (trx->state == state);
+#endif /* UNIV_DEBUG */
 }
 
 /** Retrieves the error_info field from a trx.

@@ -40,15 +40,6 @@
 
   --source include/have_debug_sync.inc
 
-  USE test;
-
-  # Cleanup after previous tests
-
-    --disable_warnings
-    DROP TABLE IF EXISTS t1;
-    --enable_warnings
-
-
   # Prepare the table
 
     CREATE TABLE t1 (
@@ -228,5 +219,235 @@
 --echo #####################
 --echo #                   #
 --echo # End of Bug #89829 #
+--echo #                   #
+--echo #####################
+
+--echo #################################################################
+--echo #                                                               #
+--echo # Bug #89932: RecLock::add_to_waitq calls lock_update_age on    #
+--echo #             DB_DEADLOCK inflating trx->age transactions being #
+--echo #             rolled back                                       #
+--echo #                                                               #
+--echo #################################################################
+
+--echo ##############
+--echo #            #
+--echo # Scenario 1 #
+--echo #            #
+--echo ##############
+
+  # This test exposes the problem of double-counting trx->age in case of a
+  # deadlock. The test requires DEBUG_EXECUTE_IF and DBUG_SYNC and CATS to be
+  # enabled.
+  # The timeline is as follows:
+  # 0. Create table t1 with $N records with id=0,...,$N-1
+  # 1. too_big_to_fail becomes heavy, by creating a few rows
+  # 2. now in the loop for $i=0,...,$N-1
+  # 2.1. victim obtains X lock on row $i
+  # 2.2. too_big_to_fail waits for the X lock on row $i
+  # 2.3. victim waits for too_big_to_fail because it tries to read one of rows
+  #      inserted by too_big_to_fail
+  # 2.4. this causes a deadlock, and victim is chosen as a victim
+  # 2.5. too_big_to_fail->age doubles, and victim rollbacks
+
+  --source include/have_debug_sync.inc
+
+  # 0. Create table t1 with $N records with id=0,...,$N-1
+
+    CREATE TABLE t1 (
+      id INT PRIMARY KEY
+    ) ENGINE=InnoDB;
+
+    --let $N = 10
+    --let $i = 0
+    while($i < $N) {
+      --eval INSERT INTO t1 (id) VALUES ($i)
+      --inc $i
+    }
+
+  # Save the original settings, to be restored at the end of test
+    SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+  # Make sure that transactions will not finish prematurely
+    SET @@global.innodb_lock_wait_timeout = 100000;
+
+  # Enable assertion which checks if trx->age < 100
+    SET GLOBAL DEBUG = '+d,lock_update_trx_age_check_age_limit';
+
+  # Generate a transaction which is "too big to fail"
+    --connect (too_big_to_fail, localhost, root,,)
+      --echo # too_big_to_fail:
+      SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+      BEGIN;
+      # 1. too_big_to_fail becomes heavy, by creating a few rows
+      INSERT INTO t1 (id) VALUES (-100), (-200), (-300), (-400), (-500);
+
+
+  # Turn on CATS:
+    --source suite/innodb/include/force_cats.inc
+
+  --connect (victim, localhost, root,,)
+
+  # 2. now in the loop for $i=0,...,$N-1
+  --let $i = 0
+  while($i < $N) {
+    --connection victim
+      --echo #connection victim
+      BEGIN;
+      # 2.1. victim obtains X lock on row $i
+      --eval SELECT * FROM t1 WHERE id = $i FOR UPDATE
+
+    --connection too_big_to_fail
+      --echo #connection too_big_to_fail
+      SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL too_big_to_fail_waits';
+      # 2.2. too_big_to_fail waits for the X lock on row $i
+      --send_eval SELECT * FROM t1 WHERE id = $i FOR UPDATE
+
+    --connection victim
+      --echo #connection victim
+      SET DEBUG_SYNC = 'now WAIT_FOR too_big_to_fail_waits';
+      --error ER_LOCK_DEADLOCK
+      # 2.3. victim waits for too_big_to_fail because it tries to read one of rows
+      #      inserted by too_big_to_fail
+      SELECT * FROM t1 WHERE id = -100 FOR UPDATE;
+      # 2.4. this causes a deadlock, and victim is chosen as a victim
+      # 2.5. too_big_to_fail->age doubles, and victim rollbacks
+
+    --connection too_big_to_fail
+      --echo #connection too_big_to_fail
+      --reap
+
+    --inc $i
+  }
+
+  # Clean up
+  --connection too_big_to_fail
+    ROLLBACK;
+  --source suite/innodb/include/discourage_cats.inc
+  --connection default
+    SET GLOBAL DEBUG = '-d,lock_update_trx_age_check_age_limit';
+    DROP TABLE t1;
+    SET DEBUG_SYNC = 'RESET';
+    SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+  --disconnect victim
+  --disconnect too_big_to_fail
+
+--echo ##############
+--echo #            #
+--echo # Scenario 2 #
+--echo #            #
+--echo ##############
+
+  # This test exposes the problem of inflating trx->age in case of a
+  # deadlock. The test requires DEBUG_EXECUTE_IF and DBUG_SYNC and CATS to be
+  # enabled.
+  # The timeline is as follows:
+  # 0. Create table t1 with two records with id=0,1
+  # 1. beneficient obtains an S lock on row with id 0
+  # 2. now in the loop for $i=0,...,$N-1
+  # 2.1. too_big_to_fail becomes heavy, by creating a few rows
+  # 2.2. too_big_to_fail obtains an S lock on row with id 0
+  # 2.3. victim obtains X lock on row with id 1
+  # 2.4. too_big_to_fail waits for the X lock on row 1
+  # 2.5. victim waits for both beneficient and too_big_to_fail because it tries
+  #      to exclusively read row with id 0
+  # 2.6. this causes a deadlock, and victim is chosen as a victim
+  # 2.7. beneficient->age increases, and victim rollbacks
+  # 2.8. too_big_to_fail rollbacks
+  --source include/have_debug_sync.inc
+
+  # 0. Create table t1 with two records with id=0,1
+
+    CREATE TABLE t1 (
+      id INT PRIMARY KEY
+    ) ENGINE=InnoDB;
+
+    INSERT INTO t1 (id) VALUES (0),(1);
+
+  # Save the original settings, to be restored at the end of test
+    SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+  # Make sure that transactions will not finish prematurely
+    SET @@global.innodb_lock_wait_timeout = 100000;
+
+  # Enable assertion which checks if trx->age < 100
+    SET GLOBAL DEBUG = '+d,lock_update_trx_age_check_age_limit';
+
+  # Beneficient just sits on row 0
+    --connect (beneficient, localhost, root,,)
+      --echo # beneficient:
+      BEGIN;
+      # 1. beneficient obtains an S lock on row with id 0
+      SELECT * FROM t1 WHERE id = 0 FOR SHARE;
+
+  # Generate a transaction which is "too big to fail"
+    --connect (too_big_to_fail, localhost, root,,)
+  # Generate a victim which will always be sacraficed
+    --connect (victim, localhost, root,,)
+
+
+  # Turn on CATS:
+    --source suite/innodb/include/force_cats.inc
+
+  # 2. now in the loop for $i=0,...,$N-1
+  --let $N = 100
+  --let $i = 0
+  while($i < $N) {
+  # Generate a transaction which is "too big to fail"
+    --connection too_big_to_fail
+      --echo # too_big_to_fail:
+      BEGIN;
+      # 2.1. too_big_to_fail becomes heavy, by creating a few rows
+      INSERT INTO t1 (id) VALUES (-100), (-200), (-300), (-400), (-500);
+      # 2.2. too_big_to_fail obtains an S lock on row with id 0
+      SELECT * FROM t1 WHERE id = 0 FOR SHARE;
+
+    --connection victim
+      --echo #connection victim
+      BEGIN;
+      # 2.3. victim obtains X lock on row with id 1
+      SELECT * FROM t1 WHERE id = 1 FOR UPDATE;
+
+    --connection too_big_to_fail
+      --echo #connection too_big_to_fail
+      SET DEBUG_SYNC = 'lock_wait_will_wait SIGNAL too_big_to_fail_waits';
+      # 2.4. too_big_to_fail waits for the X lock on row 1
+      --send SELECT * FROM t1 WHERE id = 1 FOR UPDATE
+
+    --connection victim
+      --echo #connection victim
+      SET DEBUG_SYNC = 'now WAIT_FOR too_big_to_fail_waits';
+      --error ER_LOCK_DEADLOCK
+      # 2.5. victim waits for both beneficient and too_big_to_fail because it
+      #      tries to exclusively read row with id 0
+      SELECT * FROM t1 WHERE id = 0 FOR UPDATE;
+      # 2.6. this causes a deadlock, and victim is chosen as a victim
+      # 2.7. beneficient->age increases, and victim rollbacks
+
+    --connection too_big_to_fail
+      --echo #connection too_big_to_fail
+      --reap
+      # 2.8. too_big_to_fail rollbacks
+      ROLLBACK;
+
+    --inc $i
+  }
+
+  # Clean up
+  --connection beneficient
+    ROLLBACK;
+  --source suite/innodb/include/discourage_cats.inc
+  --connection default
+    SET GLOBAL DEBUG = '-d,lock_update_trx_age_check_age_limit';
+    DROP TABLE t1;
+    SET DEBUG_SYNC = 'RESET';
+    SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+  --disconnect beneficient
+  --disconnect victim
+  --disconnect too_big_to_fail
+
+--echo #####################
+--echo #                   #
+--echo # End of Bug #89932 #
 --echo #                   #
 --echo #####################

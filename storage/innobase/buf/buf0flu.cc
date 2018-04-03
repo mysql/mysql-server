@@ -641,7 +641,6 @@ bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
   }
 
   ut_error;
-  return (false);
 }
 
 /** Remove a block from the flush list of modified blocks.

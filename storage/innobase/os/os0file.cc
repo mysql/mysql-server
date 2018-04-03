@@ -3813,8 +3813,6 @@ bool os_file_flush_func(os_file_t file) {
   /* It is a fatal error if a file flush does not succeed, because then
   the database can get corrupt on disk */
   ut_error;
-
-  return (false);
 }
 
 /** Retrieves the last error number if an error occurs in a file io function.
@@ -6727,7 +6725,6 @@ AIO *AIO::select_slot_array(IORequest &type, bool read_only,
 
     default:
       ut_error;
-      array = NULL; /* Eliminate compiler warning */
   }
 
   return (array);

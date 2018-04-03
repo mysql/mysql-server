@@ -2635,9 +2635,6 @@ static buf_page_t *buf_pool_watch_set(const page_id_t &page_id,
   should be modified to return a special non-NULL value and the
   caller should purge the record directly. */
   ut_error;
-
-  /* Fix compiler warning */
-  return (NULL);
 }
 
 /** Remove the sentinel block for the watch before replacing it with a

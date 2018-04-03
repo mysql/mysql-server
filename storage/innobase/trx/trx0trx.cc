@@ -2439,7 +2439,6 @@ ibool trx_assert_started(const trx_t *trx) /*!< in: transaction */
   }
 
   ut_error;
-  return (FALSE);
 }
 #endif /* UNIV_DEBUG */
 

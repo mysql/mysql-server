@@ -382,7 +382,6 @@ ulint rec_get_n_fields(const rec_t *rec,          /*!< in: physical record */
       return (1);
     default:
       ut_error;
-      return (ULINT_UNDEFINED);
   }
 }
 

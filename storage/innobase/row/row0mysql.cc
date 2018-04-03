@@ -3577,28 +3577,9 @@ run_again:
   } else {
     que_thr_stop_for_mysql(thr);
 
-    if (err != DB_QUE_THR_SUSPENDED) {
-      ibool was_lock_wait;
+    auto was_lock_wait = row_mysql_handle_errors(&err, trx, thr, NULL);
 
-      was_lock_wait = row_mysql_handle_errors(&err, trx, thr, NULL);
-
-      if (was_lock_wait) {
-        goto run_again;
-      }
-    } else {
-      que_thr_t *run_thr;
-      que_node_t *parent;
-
-      parent = que_node_get_parent(thr);
-
-      run_thr = que_fork_start_command(static_cast<que_fork_t *>(parent));
-
-      ut_a(run_thr == thr);
-
-      /* There was a lock wait but the thread was not
-      in a ready to run or running state. */
-      trx->error_state = DB_LOCK_WAIT;
-
+    if (was_lock_wait) {
       goto run_again;
     }
   }

@@ -519,7 +519,6 @@ ulint rec_get_converted_size_comp(
       return (REC_N_NEW_EXTRA_BYTES + 8);
     default:
       ut_error;
-      return (ULINT_UNDEFINED);
   }
 
   return (size + rec_get_converted_size_comp_prefix_low(

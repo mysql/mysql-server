@@ -38,11 +38,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "os0thread.h"
 
 /** Report a failed assertion. */
-void ut_dbg_assertion_failed(
+[[noreturn]] void ut_dbg_assertion_failed(
     const char *expr, /*!< in: the failed assertion */
     const char *file, /*!< in: source file containing the assertion */
-    ulint line)       /*!< in: line number of the assertion */
-    UNIV_COLD MY_ATTRIBUTE((noreturn));
+    ulint line);      /*!< in: line number of the assertion */
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR assertion expression that should hold */

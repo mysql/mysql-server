@@ -250,7 +250,6 @@ static dberr_t trx_rollback_low(trx_t *trx) {
   }
 
   ut_error;
-  return (DB_CORRUPTION);
 }
 
 /** Rollback a transaction used in MySQL.
@@ -314,7 +313,6 @@ dberr_t trx_rollback_last_sql_stat_for_mysql(
   }
 
   ut_error;
-  return (DB_CORRUPTION);
 }
 
 /** Search for a savepoint using name.

@@ -72,8 +72,6 @@ static int opt_invert_cmp_op(int op) /*!< in: operator */
     /* TODO: LIKE operator */
     ut_error;
   }
-
-  return (0);
 }
 
 /** Checks if the value of an expression can be calculated BEFORE the nth table
@@ -410,8 +408,6 @@ page_cur_mode_t opt_op_to_search_mode(
   } else {
     ut_error;
   }
-
-  return (PAGE_CUR_UNSUPP);
 }
 
 /** Determines if a node is an argument node of a function node.

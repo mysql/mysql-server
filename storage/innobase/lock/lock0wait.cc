@@ -171,7 +171,6 @@ static srv_slot_t *lock_wait_table_reserve_slot(
   lock_wait_table_print();
 
   ut_error;
-  return (NULL);
 }
 
 /** Puts a user OS thread to wait for a lock to be released. If an error

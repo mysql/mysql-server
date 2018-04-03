@@ -6264,7 +6264,6 @@ const char *dict_tf_to_row_format_string(
   }
 
   ut_error;
-  return (0);
 }
 
 /** Determine the extent size (in pages) for the given table

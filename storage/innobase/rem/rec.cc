@@ -268,7 +268,6 @@ ulint *rec_get_offsets_func(
         break;
       default:
         ut_error;
-        return (NULL);
     }
   } else {
     n = rec_get_n_fields_old(rec, index);

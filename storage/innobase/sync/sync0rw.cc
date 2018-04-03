@@ -869,7 +869,6 @@ bool rw_lock_is_locked(rw_lock_t *lock, /*!< in: rw-lock */
     default:
       ut_error;
   }
-  return (false); /* avoid compiler warnings */
 }
 
 /** Inserts the debug information for an rw-lock. */

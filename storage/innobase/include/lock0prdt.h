@@ -42,7 +42,7 @@ typedef struct lock_prdt {
 } lock_prdt_t;
 
 /** Acquire a predicate lock on a block
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+ @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
                        lock_prdt_t *prdt,   /*!< in: Predicate for the lock */
                        dict_index_t *index, /*!< in: secondary index */
@@ -58,7 +58,7 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
                        mtr_t *mtr);    /*!< in/out: mini-transaction */
 
 /** Acquire a "Page" lock on a block
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+ @return DB_SUCCESS */
 dberr_t lock_place_prdt_page_lock(
     space_id_t space,    /*!< in: space for the page to lock */
     page_no_t pageno,    /*!< in: page number */
@@ -100,7 +100,7 @@ void lock_prdt_update_split(
     space_id_t space,       /*!< in: space id */
     page_no_t page_no);     /*!< in: page number */
 
-/** Ajust locks from an ancester page of Rtree on the appropriate level . */
+/** Adjust locks from an ancestor page of Rtree on the appropriate level . */
 void lock_prdt_update_parent(
     buf_block_t *left_block,  /*!< in/out: page to be split */
     buf_block_t *right_block, /*!< in/out: the new half page */
@@ -112,7 +112,7 @@ void lock_prdt_update_parent(
 
 /** Checks if locks of other transactions prevent an immediate insert of
  a predicate record.
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+ @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_prdt_insert_check_and_lock(
     ulint flags,         /*!< in: if BTR_NO_LOCKING_FLAG bit is
                          set, does nothing */

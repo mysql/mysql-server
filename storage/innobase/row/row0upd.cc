@@ -3000,10 +3000,6 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
       to update */
 
       ut_error;
-
-      err = DB_ERROR;
-
-      goto error_handling;
     }
 
     ut_ad(sel_node->state == SEL_NODE_NO_MORE_ROWS);

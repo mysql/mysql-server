@@ -2202,7 +2202,6 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
   }
 
   ut_error;
-  return (false);
 }
 
 /** Puts a file page whose has no hash index to the free list. */

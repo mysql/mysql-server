@@ -1177,7 +1177,6 @@ dict_index_t *dict_table_get_index_on_first_col(
     }
   }
   ut_error;
-  return (0);
 }
 
 /** Get table session row-id and increment the row-id counter for next use.

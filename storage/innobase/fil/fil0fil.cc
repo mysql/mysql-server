@@ -6754,8 +6754,6 @@ static void fil_report_invalid_page_access_low(page_no_t block_offset,
                            << ".";
 
   ut_error;
-
-  _exit(1);
 }
 
 #define fil_report_invalid_page_access(b, s, n, o, l, t) \

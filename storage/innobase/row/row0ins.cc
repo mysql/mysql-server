@@ -2745,7 +2745,6 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_ins_sec_mtr_start_and_check_i
   }
 
   ut_error;
-  return (true);
 }
 
 /** Tries to insert an entry into a secondary index. If a record with exactly

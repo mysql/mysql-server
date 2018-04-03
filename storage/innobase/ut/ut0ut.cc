@@ -451,8 +451,6 @@ const char *ut_strerr(dberr_t num) {
       return ("Rollback");
     case DB_DUPLICATE_KEY:
       return ("Duplicate key");
-    case DB_QUE_THR_SUSPENDED:
-      return ("The queue thread has been suspended");
     case DB_MISSING_HISTORY:
       return ("Required history data has been deleted");
     case DB_CLUSTER_NOT_FOUND:
@@ -595,9 +593,6 @@ const char *ut_strerr(dberr_t num) {
   mean that memory corruption has happened and someone's error-code
   variable has been overwritten with bogus data */
   ut_error;
-
-  /* NOT REACHED */
-  return ("Unknown error");
 }
 
 #ifdef UNIV_PFS_MEMORY

@@ -801,5 +801,4 @@ uint32_t mach_read_ulint(const byte *ptr, mlog_id_t type) {
   }
 
   ut_error;
-  return (0);
 }

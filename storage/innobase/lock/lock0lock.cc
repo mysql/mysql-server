@@ -1252,6 +1252,19 @@ static void lock_update_trx_age(trx_t *trx, int32_t age) {
 
   trx->age += age;
 
+  /* In an incorrect implementation the `trx->age` could grow exponentially due
+  to double-counting trx's own weight when a cycle is formed in the
+  wait-for graph. A correct implementation should keep the `trx->age` value
+  close to its theoretical meaning of "number of other trxs waiting for me"
+  which is no more than N in the test scenario. The threshold in the assertion
+  below (`trx->age<100`) was chosen as a number which satisfies N < 100 < 2^N,
+  where N is the number of transactions involved in this test case (N=10).
+  There is also another test case which creates N=100 transactions each of which
+  in a correct implementation should not affect the trx->age, yet in an
+  incorrect implementation each caused a constant increment (~4) - to detect
+  that the assertion threshold needs to be between 0 and 100*constant. */
+  DBUG_EXECUTE_IF("lock_update_trx_age_check_age_limit", ut_a(trx->age < 100););
+
   if (trx->age < 0) {
     trx->age = 0;
   }
@@ -1288,9 +1301,8 @@ static void lock_update_trx_age(trx_t *trx, int32_t age) {
 /** Update the age of the transactions in the queue, when a new
 record lock is created.
 @param[in,out]	new_lock	The lock that was just created
-@param[in]	heap_no		The heap number of the lock in the page
-@param[in]	wait		true if the lock has the wait bit state. */
-static void lock_update_age(lock_t *new_lock, ulint heap_no, bool wait) {
+@param[in]	heap_no		The heap number of the lock in the page */
+static void lock_update_age(lock_t *new_lock, ulint heap_no) {
   ut_ad(lock_mutex_own());
 
   if (lock_use_fcfs(new_lock->trx) ||
@@ -1306,6 +1318,7 @@ static void lock_update_age(lock_t *new_lock, ulint heap_no, bool wait) {
   auto page_no = new_lock->rec_lock.page_no;
 
   RecID rec_id{space, page_no, heap_no};
+  const auto wait = lock_get_wait(new_lock);
 
   Lock_iter::for_each(rec_id, [&](const lock_t *lock) {
     const auto trx = lock->trx;
@@ -1376,7 +1389,7 @@ void RecLock::lock_add(lock_t *lock, bool add_to_hash) {
   if (wait) {
     lock_set_lock_and_trx_wait(lock, lock->trx);
   } else {
-    lock_update_age(lock, lock_rec_find_set_bit(lock), false);
+    lock_update_age(lock, lock_rec_find_set_bit(lock));
   }
 }
 
@@ -1461,7 +1474,7 @@ dberr_t RecLock::check_deadlock_result(const trx_t *victim_trx, lock_t *lock) {
 
 /** Check and resolve any deadlocks
 @param[in, out] lock		The lock being acquired
-@return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
+@return DB_LOCK_WAIT, DB_DEADLOCK, or
         DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
         there was a deadlock, but another transaction was chosen
         as a victim, and we got the lock immediately: no need to
@@ -1554,7 +1567,7 @@ queue is itself waiting roll it back, also do a deadlock check and resolve.
 @param[in, out] wait_for	The lock that the joining transaction is
                                 waiting for
 @param[in] prdt			Predicate [optional]
-@return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
+@return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or
         DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
         there was a deadlock, but another transaction was chosen
         as a victim, and we got the lock immediately: no need to
@@ -1586,12 +1599,29 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
   ut_ad(lock_get_wait(lock));
 
   dberr_t err = deadlock_check(lock);
+  ut_ad(err == DB_LOCK_WAIT || err == DB_SUCCESS_LOCKED_REC ||
+        err == DB_DEADLOCK);
+  /* DB_LOCK_WAIT - there was no deadlock, and we need to wait for the lock
+     DB_SUCCESS_LOCKED_REC - the deadlock was resolved in our favor and the
+                            lock is granted
+     DB_DEADLOCK - our trx was chosen as a victim and the lock was "removed" by
+                 setting heap_no-th bit to 0, and clearing LOCK_WAIT
+     In the following, please read ut_ad( !p || q ) as an implication p => q */
+  ut_ad(
+      !(err == DB_LOCK_WAIT) ||
+      (lock_get_wait(lock) && lock_rec_get_nth_bit(lock, m_rec_id.m_heap_no)));
+  ut_ad(
+      !(err == DB_SUCCESS_LOCKED_REC) ||
+      (!lock_get_wait(lock) && lock_rec_get_nth_bit(lock, m_rec_id.m_heap_no)));
+  ut_ad(!(err == DB_DEADLOCK) ||
+        (!lock_get_wait(lock) &&
+         !lock_rec_get_nth_bit(lock, m_rec_id.m_heap_no)));
 
   ut_ad(trx_mutex_own(m_trx));
 
-  lock_update_age(lock, m_rec_id.m_heap_no,
-                  err == DB_LOCK_WAIT || err == DB_DEADLOCK);
-
+  if (err != DB_DEADLOCK) {
+    lock_update_age(lock, m_rec_id.m_heap_no);
+  }
   /* m_trx->mysql_thd is NULL if it's an internal trx. So current_thd
    is used */
 
@@ -1656,31 +1686,33 @@ static void lock_rec_add_to_queue(
     type_mode &= ~(LOCK_GAP | LOCK_REC_NOT_GAP);
   }
 
-  lock_t *lock;
-  lock_t *first_lock;
-  hash_table_t *hash = lock_hash_get(type_mode);
+  if (!(type_mode & LOCK_WAIT)) {
+    lock_t *lock;
+    lock_t *first_lock;
+    hash_table_t *hash = lock_hash_get(type_mode);
 
-  /* Look for a waiting lock request on the same record or on a gap */
+    /* Look for a waiting lock request on the same record or on a gap */
 
-  for (first_lock = lock = lock_rec_get_first_on_page(hash, block);
-       lock != NULL; lock = lock_rec_get_next_on_page(lock)) {
-    if (lock_get_wait(lock) && lock_rec_get_nth_bit(lock, heap_no)) {
-      break;
+    for (first_lock = lock = lock_rec_get_first_on_page(hash, block);
+         lock != NULL; lock = lock_rec_get_next_on_page(lock)) {
+      if (lock_get_wait(lock) && lock_rec_get_nth_bit(lock, heap_no)) {
+        break;
+      }
     }
-  }
 
-  if (lock == NULL && !(type_mode & LOCK_WAIT)) {
-    /* Look for a similar record lock on the same page:
-    if one is found and there are no waiting lock requests,
-    we can just set the bit */
+    if (lock == NULL) {
+      /* Look for a similar record lock on the same page:
+      if one is found and there are no waiting lock requests,
+      we can just set the bit */
 
-    lock = lock_rec_find_similar_on_page(type_mode, heap_no, first_lock, trx);
+      lock = lock_rec_find_similar_on_page(type_mode, heap_no, first_lock, trx);
 
-    if (lock != NULL) {
-      lock_rec_set_nth_bit(lock, heap_no);
-      lock_update_age(lock, heap_no, false);
+      if (lock != NULL) {
+        lock_rec_set_nth_bit(lock, heap_no);
+        lock_update_age(lock, heap_no);
 
-      return;
+        return;
+      }
     }
   }
 
@@ -1695,7 +1727,8 @@ static void lock_rec_add_to_queue(
  which does NOT look at implicit locks! Checks lock compatibility within
  explicit locks. This function sets a normal next-key lock, or in the case of
  a page supremum record, a gap type lock.
- @return whether the locking succeeded */
+ @return whether the locking succeeded LOCK_REC_SUCCESS,
+ LOCK_REC_SUCCESS_CREATED, LOCK_REC_FAIL */
 UNIV_INLINE
 lock_rec_req_status lock_rec_lock_fast(
     bool impl,                /*!< in: if true, no lock is set
@@ -1754,13 +1787,14 @@ lock_rec_req_status lock_rec_lock_fast(
       if (!lock_rec_get_nth_bit(lock, heap_no)) {
         lock_rec_set_nth_bit(lock, heap_no);
         status = LOCK_REC_SUCCESS_CREATED;
-        lock_update_age(lock, heap_no, false);
+        lock_update_age(lock, heap_no);
       }
     }
 
     trx_mutex_exit(trx);
   }
-
+  ut_ad(status == LOCK_REC_SUCCESS || status == LOCK_REC_SUCCESS_CREATED ||
+        status == LOCK_REC_FAIL);
   return (status);
 }
 
@@ -1780,7 +1814,7 @@ lock, or in the case of a page supremum record, a gap type lock.
 @param[in]	index		index of record
 @param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
+DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 static dberr_t lock_rec_lock_slow(ibool impl, select_mode sel_mode, ulint mode,
                                   const buf_block_t *block, ulint heap_no,
                                   dict_index_t *index, que_thr_t *thr) {
@@ -1858,6 +1892,9 @@ static dberr_t lock_rec_lock_slow(ibool impl, select_mode sel_mode, ulint mode,
 
   trx_mutex_exit(trx);
 
+  ut_ad(err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC ||
+        err == DB_LOCK_WAIT || err == DB_DEADLOCK || err == DB_SKIP_LOCKED ||
+        err == DB_LOCK_NOWAIT);
   return (err);
 }
 
@@ -1878,7 +1915,7 @@ of a page supremum record, a gap type lock.
 @param[in]	index		index of record
 @param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
+DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 static dberr_t lock_rec_lock(bool impl, select_mode sel_mode, ulint mode,
                              const buf_block_t *block, ulint heap_no,
                              dict_index_t *index, que_thr_t *thr) {
@@ -1904,10 +1941,9 @@ static dberr_t lock_rec_lock(bool impl, select_mode sel_mode, ulint mode,
     case LOCK_REC_FAIL:
       return (
           lock_rec_lock_slow(impl, sel_mode, mode, block, heap_no, index, thr));
+    default:
+      ut_error;
   }
-
-  ut_error;
-  return (DB_ERROR);
 }
 
 /** Checks if a waiting record lock request still has to wait in a queue.
@@ -3773,7 +3809,7 @@ void lock_table_remove_low(lock_t *lock) /*!< in/out: table lock */
 
 /** Enqueues a waiting request for a table lock which cannot be granted
  immediately. Checks for deadlocks.
- @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
+ @return DB_LOCK_WAIT, DB_DEADLOCK, or
  DB_SUCCESS; DB_SUCCESS means that there was a deadlock, but another
  transaction was chosen as a victim, and we got the lock immediately:
  no need to wait then */
@@ -3798,8 +3834,6 @@ static dberr_t lock_table_enqueue_waiting(
 
   if (que_thr_stop(thr)) {
     ut_error;
-
-    return (DB_QUE_THR_SUSPENDED);
   }
 
   switch (trx_get_dict_operation(trx)) {
@@ -3878,7 +3912,7 @@ const lock_t *lock_table_other_has_incompatible(
 
 /** Locks the specified database table in the mode given. If the lock cannot
  be granted immediately, the query thread is put to wait.
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+ @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
                                 does nothing */
                    dict_table_t *table, /*!< in/out: database table
@@ -3947,7 +3981,7 @@ dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
   lock_mutex_exit();
 
   trx_mutex_exit(trx);
-
+  ut_ad(err == DB_SUCCESS || err == DB_LOCK_WAIT || err == DB_DEADLOCK);
   return (err);
 }
 
@@ -4063,28 +4097,9 @@ run_again:
   } else {
     que_thr_stop_for_mysql(thr);
 
-    if (err != DB_QUE_THR_SUSPENDED) {
-      bool was_lock_wait;
+    auto was_lock_wait = row_mysql_handle_errors(&err, trx, thr, NULL);
 
-      was_lock_wait = row_mysql_handle_errors(&err, trx, thr, NULL);
-
-      if (was_lock_wait) {
-        goto run_again;
-      }
-    } else {
-      que_thr_t *run_thr;
-      que_node_t *parent;
-
-      parent = que_node_get_parent(thr);
-
-      run_thr = que_fork_start_command(static_cast<que_fork_t *>(parent));
-
-      ut_a(run_thr == thr);
-
-      /* There was a lock wait but the thread was not
-      in a ready to run or running state. */
-      trx->error_state = DB_LOCK_WAIT;
-
+    if (was_lock_wait) {
       goto run_again;
     }
   }
@@ -5509,7 +5524,7 @@ static bool lock_validate() {
  be suspended for some reason; if not, then puts the transaction and
  the query thread to the lock wait state and inserts a waiting request
  for a gap x-lock to the lock queue.
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+ @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_rec_insert_check_and_lock(
     ulint flags,         /*!< in: if BTR_NO_LOCKING_FLAG bit is
                          set, does nothing */
@@ -5643,6 +5658,7 @@ dberr_t lock_rec_insert_check_and_lock(
       mem_heap_free(heap);
     }
   }
+  ut_ad(err == DB_SUCCESS || err == DB_LOCK_WAIT || err == DB_DEADLOCK);
 #endif /* UNIV_DEBUG */
 
   return (err);
@@ -5737,7 +5753,7 @@ static void lock_rec_convert_impl_to_expl(const buf_block_t *block,
  reason; if not, then puts the transaction and the query thread to the
  lock wait state and inserts a waiting request for a record x-lock to the
  lock queue.
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+ @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_clust_rec_modify_check_and_lock(
     ulint flags,              /*!< in: if BTR_NO_LOCKING_FLAG
                               bit is set, does nothing */
@@ -5784,13 +5800,13 @@ dberr_t lock_clust_rec_modify_check_and_lock(
   if (err == DB_SUCCESS_LOCKED_REC) {
     err = DB_SUCCESS;
   }
-
+  ut_ad(err == DB_SUCCESS || err == DB_LOCK_WAIT || err == DB_DEADLOCK);
   return (err);
 }
 
 /** Checks if locks of other transactions prevent an immediate modify (delete
  mark or delete unmark) of a secondary index record.
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+ @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_sec_rec_modify_check_and_lock(
     ulint flags,         /*!< in: if BTR_NO_LOCKING_FLAG
                          bit is set, does nothing */
@@ -5861,7 +5877,7 @@ dberr_t lock_sec_rec_modify_check_and_lock(
                            thr_get_trx(thr)->id, mtr);
     err = DB_SUCCESS;
   }
-
+  ut_ad(err == DB_SUCCESS || err == DB_LOCK_WAIT || err == DB_DEADLOCK);
   return (err);
 }
 
@@ -5881,7 +5897,7 @@ secondary index record.
 @param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
 @param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
+DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t lock_sec_rec_read_check_and_lock(ulint flags, const buf_block_t *block,
                                          const rec_t *rec, dict_index_t *index,
                                          const ulint *offsets,
@@ -5929,7 +5945,9 @@ dberr_t lock_sec_rec_read_check_and_lock(ulint flags, const buf_block_t *block,
   lock_mutex_exit();
 
   ut_ad(lock_rec_queue_validate(false, block, rec, index, offsets));
-
+  ut_ad(err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC ||
+        err == DB_LOCK_WAIT || err == DB_DEADLOCK || err == DB_SKIP_LOCKED ||
+        err == DB_LOCK_NOWAIT);
   return (err);
 }
 
@@ -5953,7 +5971,7 @@ lock on the record.
 @param[in]	gap_mode	LOCK_ORDINARY, LOCK_GAP, or LOCK_REC_NOT_GAP
 @param[in,out]	thr		query thread
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, DB_LOCK_WAIT, DB_DEADLOCK,
-DB_QUE_THR_SUSPENDED, DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
+DB_SKIP_LOCKED, or DB_LOCK_NOWAIT */
 dberr_t lock_clust_rec_read_check_and_lock(
     ulint flags, const buf_block_t *block, const rec_t *rec,
     dict_index_t *index, const ulint *offsets, select_mode sel_mode,
@@ -5996,7 +6014,9 @@ dberr_t lock_clust_rec_read_check_and_lock(
   ut_ad(lock_rec_queue_validate(false, block, rec, index, offsets));
 
   DEBUG_SYNC_C("after_lock_clust_rec_read_check_and_lock");
-
+  ut_ad(err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC ||
+        err == DB_LOCK_WAIT || err == DB_DEADLOCK || err == DB_SKIP_LOCKED ||
+        err == DB_LOCK_NOWAIT);
   return (err);
 }
 /** Checks if locks of other transactions prevent an immediate read, or passing
@@ -6007,7 +6027,7 @@ dberr_t lock_clust_rec_read_check_and_lock(
  lock on the record. This is an alternative version of
  lock_clust_rec_read_check_and_lock() that does not require the parameter
  "offsets".
- @return DB_SUCCESS, DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED */
+ @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
 dberr_t lock_clust_rec_read_check_and_lock_alt(
     ulint flags,              /*!< in: if BTR_NO_LOCKING_FLAG
                               bit is set, does nothing */
@@ -6042,7 +6062,7 @@ dberr_t lock_clust_rec_read_check_and_lock_alt(
   if (err == DB_SUCCESS_LOCKED_REC) {
     err = DB_SUCCESS;
   }
-
+  ut_ad(err == DB_SUCCESS || err == DB_LOCK_WAIT || err == DB_DEADLOCK);
   return (err);
 }
 
@@ -6227,7 +6247,6 @@ dict_table_t *lock_get_table(const lock_t *lock) /*!< in: lock */
       return (lock->tab_lock.table);
     default:
       ut_error;
-      return (NULL);
   }
 }
 

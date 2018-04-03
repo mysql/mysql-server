@@ -42,7 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0dbg.h"
 
 /** Report a failed assertion. */
-void ut_dbg_assertion_failed(
+[[noreturn]] void ut_dbg_assertion_failed(
     const char *expr, /*!< in: the failed assertion (optional) */
     const char *file, /*!< in: source file containing the assertion */
     ulint line)       /*!< in: line number of the assertion */

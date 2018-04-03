@@ -627,7 +627,6 @@ frag_id_t z_frag_page_t::alloc_fragment(ulint size, z_frag_entry_t &entry) {
 
   ut_ad(visited_big_frag);
   ut_error;
-  return (FRAG_ID_NULL);
 }
 
 /** Grow the frag directory by one entry.

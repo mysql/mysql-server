@@ -153,7 +153,6 @@ const char *buf_checksum_algorithm_name(
   }
 
   ut_error;
-  return (NULL);
 }
 
 /** Do lsn checks on a page during innodb recovery.
@@ -546,7 +545,6 @@ uint32_t BlockReporter::calc_zip_checksum(
   }
 
   ut_error;
-  return (0);
 }
 
 /** Verify a compressed page's checksum.

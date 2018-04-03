@@ -1129,7 +1129,6 @@ dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
       break;
     default:
       ut_error;
-      err = DB_ERROR;
   }
 
   if (err == DB_SUCCESS) {

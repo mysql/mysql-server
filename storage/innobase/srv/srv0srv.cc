@@ -824,7 +824,6 @@ static ibool srv_thread_type_validate(
       return (TRUE);
   }
   ut_error;
-  return (FALSE);
 }
 #endif /* UNIV_DEBUG */
 

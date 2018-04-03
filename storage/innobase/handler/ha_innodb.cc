@@ -14084,8 +14084,6 @@ static int innobase_get_mysql_key_number_for_index(
   }
 
   ut_error;
-
-  return (-1);
 }
 
 /** Calculate Record Per Key value. Excludes the NULL value if

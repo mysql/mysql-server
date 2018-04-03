@@ -836,8 +836,6 @@ byte *btr_copy_externally_stored_field_func(const dict_index_t *index,
     *len = local_len + fetch_len;
     return (buf);
   }
-
-  ut_error;
 }
 
 /** Frees the externally stored fields for a record, if the field
