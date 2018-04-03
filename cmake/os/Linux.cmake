@@ -31,13 +31,13 @@ IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
 ENDIF()
 
-# We require at least GCC 4.8 or Clang 3.4.
+# We require at least GCC 4.8.3 or Clang 3.4.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_COMPILER_IS_GNUCC)
     EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GCC_VERSION)
-    IF(GCC_VERSION VERSION_LESS 4.8)
-      MESSAGE(FATAL_ERROR "GCC 4.8 or newer is required!")
+    IF(GCC_VERSION VERSION_LESS 4.8.3)
+      MESSAGE(FATAL_ERROR "GCC 4.8.3 or newer is required!")
     ENDIF()
   ELSEIF(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CHECK_C_SOURCE_RUNS("

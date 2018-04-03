@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,13 +40,13 @@ ENDIF()
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
 
-# We require at least GCC 4.8 or SunStudio 12.4 (CC 5.13)
+# We require at least GCC 4.8.3 or SunStudio 12.4 (CC 5.13)
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_COMPILER_IS_GNUCC)
     EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GCC_VERSION)
-    IF(GCC_VERSION VERSION_LESS 4.8)
-      MESSAGE(FATAL_ERROR "GCC 4.8 or newer is required!")
+    IF(GCC_VERSION VERSION_LESS 4.8.3)
+      MESSAGE(FATAL_ERROR "GCC 4.8.3 or newer is required!")
     ENDIF()
   ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
     IF(SIZEOF_VOIDP MATCHES 4)
