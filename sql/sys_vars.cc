@@ -5424,7 +5424,7 @@ static Sys_var_ulonglong Sys_mts_pending_jobs_size_max(
     "The least possible value must be not less than the master side "
     "max_allowed_packet.",
     GLOBAL_VAR(opt_mts_pending_jobs_size_max), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, (ulonglong) ~(intptr)0), DEFAULT(16 * 1024 * 1024),
+    VALID_RANGE(1024, (ulonglong) ~(intptr)0), DEFAULT(128 * 1024 * 1024),
     BLOCK_SIZE(1024), ON_CHECK(0));
 
 static bool check_locale(sys_var *self, THD *thd, set_var *var) {

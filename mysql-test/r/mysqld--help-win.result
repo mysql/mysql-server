@@ -1630,7 +1630,7 @@ slave-max-allowed-packet 1073741824
 slave-net-timeout 60
 slave-parallel-type DATABASE
 slave-parallel-workers 0
-slave-pending-jobs-size-max 16777216
+slave-pending-jobs-size-max 134217728
 slave-preserve-commit-order FALSE
 slave-rows-search-algorithms INDEX_SCAN,HASH_SCAN
 slave-skip-errors (No default value)
