@@ -1393,6 +1393,7 @@ runUpdatesWithHistory(NDBT_Context* ctx, NDBT_Step* step)
   const Uint32 workerId = g_workers.getNextWorkerId();
   Uint32 maxTransactionSize = ctx->getProperty("MaxTransactionSize");
   const bool AdjustRangeOverTime = ctx->getProperty("AdjustRangeOverTime");
+  const Uint32 delayUpdates = ctx->getProperty("DelayUpdates");
 
   if (totalRecords < g_workers.getTotalWorkers())
   {
@@ -1508,6 +1509,11 @@ runUpdatesWithHistory(NDBT_Context* ctx, NDBT_Step* step)
     /* Update history with the committed version */
     history->commitVersion(&transaction,
                           commitGci);
+
+    if (delayUpdates)
+    {
+      NdbSleep_MilliSleep(delayUpdates);
+    }
 
 
     if (AdjustRangeOverTime &&
@@ -2031,6 +2037,7 @@ TESTCASE("ConsistencyUnderLoadStallGCP",
   TC_PROPERTY("AdjustRangeOverTime", Uint32(1));    // Written subparts of ranges change as updates run
   TC_PROPERTY("NumWorkers", Uint32(NumUpdateThreads));
   TC_PROPERTY("MaxTransactionSize", Uint32(2)); // Reduce test runtime
+  TC_PROPERTY("DelayUpdates", Uint32(5)); // Millis to sleep between updates, reducing runtime
   INITIALIZER(clearOldBackups);
   INITIALIZER(runLoadTable);
   INITIALIZER(initWorkerIds);
