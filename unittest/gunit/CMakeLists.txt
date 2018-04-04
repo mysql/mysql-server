@@ -27,16 +27,6 @@
 # Either way: we will unpack the zip, compile gmock-all.cc and gtest-all.cc
 # and link them into the executables.
 
-# Disable googletest for Solaris Studio < 12.4 since it doesn't compile.
-IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  IF(${CC_MINOR_VERSION} LESS 13)
-    MESSAGE(WARNING "Googletest requires Solaris Studio 12.4 or newer.")
-    UNSET(GMOCK_FOUND)
-    UNSET(GMOCK_FOUND CACHE)
-    RETURN()
-  ENDIF()
-ENDIF()
-
 # Default location for where to download and build gmock/gtest.
 IF(NOT DOWNLOAD_ROOT)
   SET(DOWNLOAD_ROOT ${CMAKE_SOURCE_DIR}/source_downloads)
