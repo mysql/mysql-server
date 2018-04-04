@@ -1,0 +1,99 @@
+# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 2.0,
+# as published by the Free Software Foundation.
+#
+# This program is also distributed with certain software (including
+# but not limited to OpenSSL) that is licensed under separate terms,
+# as designated in a particular file or component or in included license
+# documentation.  The authors of MySQL hereby grant you an additional
+# permission to link the program and your derivative works with the
+# separately licensed software that they have included with MySQL.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License, version 2.0, for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+usage() {
+  echo "usage: import-git-commit [-f] rev"
+  echo
+  echo "        [rev] must name a commit in the mysql-js tree."
+  echo
+  echo "        If automatic merge fails, use -f option to stage files"
+  echo "        from mysql-js revision in current index."
+  exit 1
+}
+
+fail() {
+  echo $1
+  exit 1
+}
+
+test -d "$GIT_WORK_TREES" || fail "Environment GIT_WORK_TREES must be set"
+CUR_DIR=`pwd`
+test `basename $CUR_DIR` = "nodejs" || fail "Must be run from storage/ndb/nodejs"
+SOURCE_DIR=$GIT_WORK_TREES/mysql-js
+test -d "$SOURCE_DIR" || fail "$SOURCE_DIR must exist"
+
+if test "$1" = "-f"
+  then
+    copy_mode=1 ; REV=$2
+  else
+    copy_mode=0 ; REV=$1
+fi
+
+test -n "$REV" || usage
+
+if ! git -C $SOURCE_DIR rev-parse --verify "$REV^{commit}"
+ then
+   fail "$REV must name a commit"
+fi
+
+stage_commit_message() {
+  MSG=__staged-commit-message
+  git -C $SOURCE_DIR show --no-patch --format=%B $REV > $MSG
+  echo "Imported from mysql-js commit $REV" >> $MSG
+  echo "To use staged commit message from $REV:"
+  echo "    git commit -e -F $MSG"
+}
+
+run_copy_mode() {
+  changed_files=`git -C $SOURCE_DIR diff --name-only --diff-filter=d $REV~1 $REV`
+  deleted_files=`git -C $SOURCE_DIR diff --name-only --diff-filter=D $REV~1 $REV`
+  # Apply changes to index
+  for f in $changed_files
+   do
+    git -C $SOURCE_DIR show $REV:$f > $f
+    echo $f ; git add $f
+  done
+  for f in $deleted_files
+   do
+    git rm $f
+  done
+  stage_commit_message
+}
+
+run_patch_mode() {
+  PATCH_FILE=__import-git-commit.patch
+  git -C $SOURCE_DIR diff --diff-algorithm=patience $REV~1..$REV > $PATCH_FILE
+  if git apply --index --directory=storage/ndb/nodejs $PATCH_FILE
+    then
+      stage_commit_message
+    else
+      echo "Try again with -f option"
+  fi
+  rm $PATCH_FILE
+}
+
+if test $copy_mode -eq 1
+  then
+    run_copy_mode
+  else
+    run_patch_mode
+fi
