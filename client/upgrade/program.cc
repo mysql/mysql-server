@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -158,7 +158,7 @@ class Program : public Base::Abstract_connection_program {
   int check_session_user_configuration() {
     int is_user_configured = 0;
     is_user_configured = execute_conditional_query(
-        "SELECT SUM(count)=3 FROM ( "
+        "SELECT SUM(count)=5 FROM ( "
         "SELECT COUNT(*) as count FROM mysql.tables_priv WHERE "
         "Table_priv='Select' and User='mysql.session' and Db='mysql' and "
         "Table_name='user' "
@@ -167,7 +167,14 @@ class Program : public Base::Abstract_connection_program {
         "Select_priv='Y' and User='mysql.session' and Db='performance_schema' "
         "UNION ALL "
         "SELECT COUNT(*) as count FROM mysql.user WHERE "
-        "Super_priv='Y' and User='mysql.session') as user_priv;",
+        "Super_priv='Y' and User='mysql.session' "
+        "UNION ALL "
+        "SELECT COUNT(*) as count FROM mysql.global_grants WHERE "
+        "Priv='PERSIST_RO_VARIABLES_ADMIN' and User='mysql.session' "
+        "UNION ALL "
+        "SELECT COUNT(*) as count FROM mysql.global_grants WHERE "
+        "Priv='SYSTEM_VARIABLES_ADMIN' and User='mysql.session') "
+        "as user_priv;",
         "1");
     return is_user_configured;
   }
@@ -246,7 +253,8 @@ class Program : public Base::Abstract_connection_program {
           "The mysql.session exists but is not correctly configured."
           " The mysql.session needs SELECT privileges in the"
           " performance_schema database and the mysql.db table and also"
-          " SUPER privileges.");
+          " SUPER, SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN"
+          " privileges.");
     }
 
     if (user_is_not_there < 0 || is_user_correctly_configured < 0) {
