@@ -107,8 +107,13 @@ Source7:        %{compatsrc}
 Source10:       https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
+%ifarch aarch64
+BuildRequires:  gcc7
+BuildRequires:  gcc7-c++
+%else
 BuildRequires:  devtoolset-7-gcc
 BuildRequires:  devtoolset-7-gcc-c++
+%endif
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Env)}
@@ -685,6 +690,10 @@ mkdir debug
   optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
+%ifarch aarch64
+           -DCMAKE_C_COMPILER=/usr/bin/gcc7  \
+           -DCMAKE_CXX_COMPILER=/usr/bin/g++7 \
+%endif
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DWITH_BOOST=.. \
@@ -727,6 +736,10 @@ mkdir release
   cd release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
+%ifarch aarch64
+           -DCMAKE_C_COMPILER=/usr/bin/gcc7  \
+           -DCMAKE_CXX_COMPILER=/usr/bin/g++7 \
+%endif
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DWITH_BOOST=.. \
