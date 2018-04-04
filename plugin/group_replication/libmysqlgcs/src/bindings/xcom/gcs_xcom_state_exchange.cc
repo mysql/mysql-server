@@ -560,6 +560,12 @@ bool Gcs_xcom_state_exchange::process_member_state(
             configuration_id.node, m_configuration_id.group_id,
             static_cast<long long unsigned>(m_configuration_id.msgno),
             m_configuration_id.node));
+    /*
+     * ms_info will leak if we don't delete it here.
+     * If this branch is not taken, m_member_states takes ownership of the
+     * pointer below.
+     */
+    delete ms_info;
     return false;
   }
 
