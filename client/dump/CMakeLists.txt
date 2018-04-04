@@ -13,23 +13,11 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# If we are building client-only (-DWITHOUT_SERVER=ON) with Solaris Studio,
-# we skip building the mysqlpump tool. The server, and mysqlpump, will be built
-# using gcc.
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/dump
 )
 
-IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
-  IF (WITHOUT_SERVER)
-    MESSAGE(STATUS "Not building mysqlpump")
-    RETURN()
-  ENDIF()
-ENDIF()
-
-# Prevent Boost from including external precompiled Boost libraries, use
-# threading (not implemented for older Solaris Studio compilers)
+# Prevent Boost from including external precompiled Boost libraries,
 # and turn off unused functionality.
 IF(USING_LOCAL_BOOST)
   ADD_DEFINITIONS(
@@ -143,30 +131,6 @@ ADD_CONVENIENCE_LIBRARY(mysqlpump_lib ${MYSQLPUMP_LIB_SOURCES})
 TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})
 
-# Files that use Boost sources that trigger compilation warnings
-SET(MYSQLPUMP_BOOST_SOURCES
-  abstract_crawler.cc
-  abstract_mysql_chain_element_extension.cc
-  abstract_progress_watcher.cc
-  mysql_chain_element_options.cc
-  mysql_object_reader.cc
-  mysqldump_tool_chain_maker.cc
-  mysqldump_tool_chain_maker_options.cc
-  object_filter.cc
-  object_queue.cc
-  program.cc
-  standard_progress_watcher.cc
-  sql_formatter.cc
-  table.cc
-)
-
-# Boost source has unused local typedefs.
-MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
-IF(HAVE_UNUSED_TYPEDEFS)
-  ADD_COMPILE_FLAGS(${MYSQLPUMP_BOOST_SOURCES}
-    COMPILE_FLAGS "-Wno-unused-local-typedefs")
-ENDIF()
-
 ADD_COMPILE_FLAGS(
   compression_writer.cc
   mysqldump_tool_chain_maker.cc
@@ -181,12 +145,3 @@ IF(USING_SYSTEM_BOOST)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqlpump PROPERTIES HAS_CXX TRUE)
-
-# Store the executable in our parent directory.
-# Why? In pushbuild we do 'touch client/mysql*' to prevent rebuild,
-#      in the case where we have a separate build of libmysqlclient.so
-IF (NOT WIN32)
-  SET_TARGET_PROPERTIES(mysqlpump
-    PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/client)
-ENDIF()
-
