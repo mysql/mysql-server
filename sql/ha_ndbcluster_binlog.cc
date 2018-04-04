@@ -1004,7 +1004,7 @@ ndb_create_table_from_engine(THD *thd,
   if (!dd_client.install_table(schema_name, table_name,
                                sdi,
                                tab->getObjectId(), tab->getObjectVersion(),
-                               force_overwrite))
+                               tab->getPartitionCount(), force_overwrite))
   {
     DBUG_RETURN(13);
   }
@@ -1435,6 +1435,7 @@ class Ndb_binlog_setup {
                                  sdi,
                                  ndbtab->getObjectId(),
                                  ndbtab->getObjectVersion(),
+                                 ndbtab->getPartitionCount(),
                                  force_overwrite))
     {
       // Failed to install table

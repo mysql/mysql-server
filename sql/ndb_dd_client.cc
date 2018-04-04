@@ -462,6 +462,7 @@ bool
 Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
                              const dd::sdi_t& sdi,
                              int ndb_table_id, int ndb_table_version,
+                             size_t ndb_num_partitions,
                              bool force_overwrite)
 {
   const dd::Schema *schema= nullptr;
@@ -500,9 +501,21 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
   // Assign the id of the schema to the table_object
   install_table->set_schema_id(schema->id());
 
-  // Asign NDB id and version of the table
+  // Assign NDB id and version of the table
   ndb_dd_table_set_object_id_and_version(install_table.get(),
                                          ndb_table_id, ndb_table_version);
+
+  // Check if the DD table object has the correct number of partitions.
+  // Correct the number of partitions in the DD table object in case of
+  // a mismatch
+  const bool check_partition_count_result =
+      ndb_dd_table_check_partition_count(install_table.get(),
+                                         ndb_num_partitions);
+  if (!check_partition_count_result)
+  {
+    ndb_dd_table_fix_partition_count(install_table.get(),
+                                     ndb_num_partitions);
+  }
 
   const dd::Table *existing= nullptr;
   if (m_client->acquire(schema_name, table_name, &existing))
@@ -576,7 +589,7 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
 bool
 Ndb_dd_client::migrate_table(const char* schema_name, const char* table_name,
                              const unsigned char* frm_data,
-                             const unsigned int unpacked_len,
+                             unsigned int unpacked_len,
                              bool force_overwrite)
 {
   if (force_overwrite)

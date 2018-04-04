@@ -102,10 +102,11 @@ public:
   bool install_table(const char* schema_name, const char* table_name,
                      const dd::sdi_t &sdi,
                      int ndb_table_id, int ndb_table_version,
+                     size_t ndb_num_partitions,
                      bool force_overwrite);
   bool migrate_table(const char* schema_name, const char* table_name,
                      const unsigned char* frm_data,
-                     const unsigned int unpacked_len,
+                     unsigned int unpacked_len,
                      bool force_overwrite);
   bool get_table(const char* schema_name, const char* table_name,
                  const dd::Table **table_def);

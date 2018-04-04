@@ -96,13 +96,6 @@ ndb_dd_sql_features: Bug #26484275 FAILURE OF NDB_DD_SQL_FEATURES TEST ON WINDOW
 ndb_bushy_joins: Bug #26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
 ndb_many_fragments: Bug #26484136 FAILURE OF NDB_BUSHY_JOINS AND NDB_MANY_FRAGMENTS TESTS ON WINDOWS
 
-# Problem with incorrect information about partitions in information_schema
-ndb_add_partition: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-ndb_fragment_count_addnode: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-ndb_fully_replicated: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-ndb_no_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-ndb_rb_fragment_count: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS
-
 # mysqldump fails to dump logfilegroups and partitions, thus the dump
 # is incomplete and tables in tablespaces cant be restored by running
 # the dumped sql file. This problem probably need both bug#26794727 as

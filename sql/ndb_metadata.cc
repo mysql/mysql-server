@@ -26,6 +26,7 @@
 #include "sql/dd/object_id.h"
 #include "sql/dd/properties.h"
 #include "sql/dd/impl/properties_impl.h"
+#include "sql/dd/types/partition.h"
 #include "sql/dd/types/table.h"
 #include "sql/ndb_dd_client.h"
 #include "sql/ndb_dd_table.h"
@@ -395,6 +396,55 @@ bool Ndb_metadata::compare_table_def(const dd::Table* t1, const dd::Table* t2)
 }
 
 
+bool Ndb_metadata::check_partition_info(const dd::Table* table_def)
+{
+  DBUG_ENTER("Ndb_metadata::check_partition_info");
+
+  // Compare the partition count of the NDB table with the partition
+  // count of the table definition used by the caller
+  const size_t dd_num_partitions = table_def->partitions().size();
+  const size_t ndb_num_partitions = m_ndbtab->getPartitionCount();
+  if (ndb_num_partitions != dd_num_partitions)
+  {
+    std::cout << "Diff in 'partition count' detected, '"
+              <<  std::to_string(ndb_num_partitions)
+              << "' != '" << std::to_string(dd_num_partitions)
+              << "'" << std::endl;
+    DBUG_RETURN(false);
+  }
+
+  // Check if the engine of the partitions are as expected
+  std::vector<std::string> diffs;
+  for (size_t i = 0; i < dd_num_partitions; i++)
+  {
+    auto partition = table_def->partitions().at(i);
+    // engine
+    if (table_def->engine() != partition->engine())
+    {
+      std::string diff;
+      diff.append("Diff in 'engine' for partition '")
+          .append(partition->name().c_str()).append("' detected, '")
+          .append(table_def->engine().c_str()).append("' != '")
+          .append(partition->engine().c_str()).append("'");
+      diffs.push_back(diff);
+    }
+  }
+
+  if (diffs.size() != 0)
+  {
+    // Print the list of diffs
+    for (std::string diff : diffs)
+    {
+      std::cout << diff << std::endl;
+    }
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
+
+}
+
+
 bool Ndb_metadata::compare(THD* thd,
                            const NdbDictionary::Table* m_ndbtab,
                            const dd::Table* table_def)
@@ -423,6 +473,14 @@ bool Ndb_metadata::compare(THD* thd,
     DBUG_ASSERT(false);
     return false;
   }
+
+  // Check the partition information of the table definition used by caller
+  if (!ndb_metadata.check_partition_info(table_def))
+  {
+    DBUG_ASSERT(false);
+    return false;
+  }
+
   return true;
 }
 

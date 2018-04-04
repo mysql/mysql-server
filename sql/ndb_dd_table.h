@@ -80,4 +80,24 @@ bool ndb_dd_table_is_using_fixed_row_format(const dd::Table* table_def);
 void ndb_dd_table_set_row_format(dd::Table* table_def,
                                  const bool force_var_part);
 
+/*
+  Check if the number of partitions in DD match the number of
+  partitions in NDB Dictionary. Return true if they are equal,
+  false if not
+*/
+bool ndb_dd_table_check_partition_count(const dd::Table* table_def,
+                                        size_t ndb_num_partitions);
+
+/*
+  If the upstream assumption about number of partitions is wrong,
+  correct the number of partitions in DD to match the number
+  of partitions in NDB. This mismatch occurs when NDB specific
+  partitioning schemes are specified
+
+  NOTE: Whether the number of partitions should be decided upstream
+        at all is another question
+*/
+void ndb_dd_table_fix_partition_count(dd::Table* table_def,
+                                      size_t ndb_num_partitions);
+
 #endif
