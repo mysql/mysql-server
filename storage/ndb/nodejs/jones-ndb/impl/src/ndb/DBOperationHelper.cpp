@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
 
   v = spec->Get(HELPER_COLUMN_MASK);
   if(! v->IsNull()) {
-    Array *maskArray = Array::Cast(*v);
+    v8::Array *maskArray = v8::Array::Cast(*v);
     for(unsigned int m = 0 ; m < maskArray->Length() ; m++) {
       Local<Value> colId = maskArray->Get(m);
       op.useColumn(colId->Int32Value());

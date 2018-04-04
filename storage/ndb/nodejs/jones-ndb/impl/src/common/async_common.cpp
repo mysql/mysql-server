@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -52,11 +52,16 @@ void work_thd_run(uv_work_t *req) {
   m->handleErrors();
 }
 
+#if NODE_MAJOR_VERSION > 3
+#define CONSTRUCT_TRYCATCH(x, i) v8::TryCatch x(i)
+#else
+#define CONSTRUCT_TRYCATCH(x, i) v8::TryCatch x
+#endif
 
 void main_thd_complete_async_call(AsyncCall *m) {
   v8::Isolate * isolate = Isolate::GetCurrent();
   HandleScope scope(isolate);
-  v8::TryCatch try_catch;
+  CONSTRUCT_TRYCATCH(try_catch, isolate);
   try_catch.SetVerbose(true);
 
   m->doAsyncCallback(isolate->GetCurrentContext()->Global());

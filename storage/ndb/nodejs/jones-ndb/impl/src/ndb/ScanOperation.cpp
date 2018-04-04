@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2014, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -37,9 +37,9 @@
 using namespace v8;
 
 void debug_print_flags_and_options(const NdbScanOperation::ScanOptions & opts) {
-  char flags[80];
-  char optsring[80];
-  snprintf(flags, 80, "%s%s%s%s%s%s%s%s%s",
+  char flags[128];
+  char optstring[80];
+  snprintf(flags, sizeof(flags), "%s%s%s%s%s%s%s%s%s",
     opts.scan_flags & NdbScanOperation::SF_TupScan     ? " TupScan"       : "",
     opts.scan_flags & NdbScanOperation::SF_DiskScan    ? " DiskScan"      : "",
     opts.scan_flags & NdbScanOperation::SF_OrderBy     ? " OrderBy"       : "",
@@ -49,13 +49,13 @@ void debug_print_flags_and_options(const NdbScanOperation::ScanOptions & opts) {
     opts.scan_flags & NdbScanOperation::SF_MultiRange  ? " MultiRange"    : "",
     opts.scan_flags & NdbScanOperation::SF_KeyInfo     ? " KeyInfo"       : "",
     opts.scan_flags ? "" : " [None]");
-  snprintf(optsring, 80, "%s%s%s%s",
+  snprintf(optstring, sizeof(optstring), "%s%s%s%s",
     opts.optionsPresent & NdbScanOperation::ScanOptions::SO_SCANFLAGS   ? " HasScanFlags": "",
     opts.optionsPresent & NdbScanOperation::ScanOptions::SO_BATCH       ? " Batch"       : "",
     opts.optionsPresent & NdbScanOperation::ScanOptions::SO_INTERPRETED ? " Interpreted" : "",
     opts.optionsPresent & NdbScanOperation::ScanOptions::SO_PARALLEL    ? " Parallel"    : "");
 
-  DEBUG_PRINT("Scan flags:%s  options:%s", flags, optsring);
+  DEBUG_PRINT("Scan flags:%s  options:%s", flags, optstring);
 }
 
 ScanOperation::ScanOperation(const Arguments &args) : 
