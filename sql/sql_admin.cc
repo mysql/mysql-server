@@ -1053,9 +1053,9 @@ static bool mysql_admin_table(
                   .subsys(LOG_SUBSYSTEM_TAG)
                   .prio(ERROR_LEVEL)
                   .source_file(MY_BASENAME)
-                  .errcode(da->mysql_errno())
-                  .sqlstate(da->returned_sqlstate())
-                  .verbatim(da->message_text());
+                  .lookup(ER_ERROR_INFO_FROM_DA, da->mysql_errno(),
+                          da->message_text())
+                  .sqlstate(da->returned_sqlstate());
             } else {
               /* Hijack the row already in-progress. */
               protocol->store(STRING_WITH_LEN("error"), system_charset_info);
