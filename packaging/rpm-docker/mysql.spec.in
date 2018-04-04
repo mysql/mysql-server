@@ -60,6 +60,13 @@ Vendor:         %{mysql_vendor}
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
 BuildRequires:  cmake >= 2.8.2
+%ifarch aarch64
+BuildRequires:  gcc7
+BuildRequires:  gcc7-c++
+%else
+BuildRequires:  devtoolset-7-gcc
+BuildRequires:  devtoolset-7-gcc-c++
+%endif
 BuildRequires:  perl
 BuildRequires:  perl(Time::HiRes)
 BuildRequires:  perl(Env)
@@ -143,6 +150,10 @@ mkdir release
   cd release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
+%ifarch aarch64
+           -DCMAKE_C_COMPILER=/usr/bin/gcc7  \
+           -DCMAKE_CXX_COMPILER=/usr/bin/g++7 \
+%endif
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DWITH_BOOST=.. \
