@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -89,16 +89,19 @@
 
 /* Some compatibility */
 #if NODE_MAJOR_VERSION > 3
-#define DEFINE_JS_INT(TARGET, name, value) \
-  (TARGET)->CreateDataProperty((TARGET)->CreationContext(), \
-                NEW_SYMBOL(name), \
-                Integer::New(v8::Isolate::GetCurrent(), value))
+#define SET_RO_PROPERTY(target, symbol, value) \
+  (target)->DefineOwnProperty((target)->CreationContext(), \
+                               symbol, value, static_cast<v8::PropertyAttribute>\
+                               (v8::ReadOnly|v8::DontDelete)).IsJust()
 #else
-#define DEFINE_JS_INT(TARGET, name, value) \
-  (TARGET)->ForceSet(NEW_SYMBOL(name), \
-                Integer::New(v8::Isolate::GetCurrent(), value), \
-                static_cast<PropertyAttribute>(ReadOnly|DontDelete))
+#define SET_RO_PROPERTY(target, symbol, value) \
+  (target)->ForceSet(symbol, value, static_cast<v8::PropertyAttribute>\
+                     (v8::ReadOnly|v8::DontDelete))
 #endif
+
+#define DEFINE_JS_INT(TARGET, name, value) \
+  SET_RO_PROPERTY(TARGET, NEW_SYMBOL(name), \
+                  v8::Integer::New(v8::Isolate::GetCurrent(), value))
 
 #define DEFINE_JS_CONSTANT(TARGET, constant) \
    DEFINE_JS_INT(TARGET, #constant, constant)

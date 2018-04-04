@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
- 
+ Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -27,10 +27,6 @@
 #include "JsConverter.h"
 
 /* Template Specializations that are specific to NDBAPI */
-
-
-using namespace v8;
-typedef Local<Value> jsvalue;
 
 
 /*****************************************************************
@@ -92,6 +88,6 @@ template <>
 inline Local<Value> toJS<NdbTransaction::CommitStatusType>
                         (Isolate * isolate,
                          NdbTransaction::CommitStatusType cval) {
-  return Number::New(isolate, static_cast<int>(cval));
+  return v8::Number::New(isolate, static_cast<int>(cval));
 };
 

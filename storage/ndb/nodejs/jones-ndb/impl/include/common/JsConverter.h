@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,8 @@
 #include "JsWrapper.h"
 #include "node_buffer.h"
 
-using namespace v8;
-typedef Local<Value> jsvalue;
-typedef Handle<Object> jsobject;
+typedef Local<v8::Value> jsvalue;
+typedef Handle<v8::Object> jsobject;
  
 
 /*****************************************************************
@@ -157,13 +156,13 @@ public:
 
 /* Pass through of JavaScript value */
 template <>
-class JsValueConverter <Handle<Function> > {
+class JsValueConverter <Handle<v8::Function> > {
 public:
-  Local<Function> jsval;
+  Local<v8::Function> jsval;
   JsValueConverter(Local<Value> v) {
-    jsval = Local<Function>::New(v8::Isolate::GetCurrent(), Local<Function>::Cast(v));
+    jsval = Local<v8::Function>::New(v8::Isolate::GetCurrent(), Local<v8::Function>::Cast(v));
   };
-  Handle<Function> toC()  { return jsval;  };
+  Handle<v8::Function> toC()  { return jsval;  };
 };
 
 /*****************************************************************

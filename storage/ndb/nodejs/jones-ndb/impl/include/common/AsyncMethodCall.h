@@ -1,6 +1,5 @@
-
 /*
- Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +29,10 @@
 #include "JsConverter.h"
 #include "async_common.h"
 
-using namespace v8;
+using v8::Function;
+using v8::Value;
+using v8::Handle;
+using v8::Isolate;
 
 
 /** These classes wrap various sorts of C and C++ functions for use as either
