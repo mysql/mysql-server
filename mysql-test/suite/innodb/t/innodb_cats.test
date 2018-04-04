@@ -1,3 +1,5 @@
+--source include/have_debug_sync.inc
+
 --echo ################################################################
 --echo #                                                              #
 --echo # Bug #89829: lock_rec_has_to_wait_vats ignores locks held by  #
@@ -37,8 +39,6 @@
   #    which was enqueued by the victim for the insert into gap before row 3
   # 9. the CATS algorithm grants lock for row 3 to seer
   # 10. seer finishes the update, with value 210
-
-  --source include/have_debug_sync.inc
 
   # Prepare the table
 
@@ -250,7 +250,6 @@
   # 2.4. this causes a deadlock, and victim is chosen as a victim
   # 2.5. too_big_to_fail->age doubles, and victim rollbacks
 
-  --source include/have_debug_sync.inc
 
   # 0. Create table t1 with $N records with id=0,...,$N-1
 
@@ -354,7 +353,6 @@
   # 2.6. this causes a deadlock, and victim is chosen as a victim
   # 2.7. beneficient->age increases, and victim rollbacks
   # 2.8. too_big_to_fail rollbacks
-  --source include/have_debug_sync.inc
 
   # 0. Create table t1 with two records with id=0,1
 
@@ -449,5 +447,142 @@
 --echo #####################
 --echo #                   #
 --echo # End of Bug #89932 #
+--echo #                   #
+--echo #####################
+
+--echo #####################################################################
+--echo #                                                                   #
+--echo # Bug #89737: Using VATS with spatial index can lead to transaction #
+--echo # never being woken up                                              #
+--echo #                                                                   #
+--echo #####################################################################
+
+  # This test tries to expose a bug in the way we handle predicate locks held by
+  # a transaction which commits or rollbacks. In theory it should release such
+  # locks, and this is what happens in FCFS mode. However a bug in CATS mode,
+  # causes the LOCK_PREDICATE to be not released at all. This may cause other
+  # transaction waiting for the lock to be released to starve.
+  # The scenario of this test is:
+  # 1. selecting_thread SELECTs points from a rectangle (2,2)-(4,4) FOR UPDATE
+  # 2. inserting_thread starts INSERT of point (3,3) and must wait
+  # 3. selecting_thread COMMITs
+  # 4. inserting_thread either waits forever of succeeds with the INSERT
+
+
+  # Prepare the table
+
+    CREATE TABLE t1 (
+      id INT PRIMARY KEY,
+      p GEOMETRY NOT NULL SRID 0,
+      SPATIAL KEY p_idx(p)
+    ) ENGINE=InnoDB;
+
+    INSERT INTO t1 (id, p) VALUES
+      (1,POINT(1,1)),
+      (2,POINT(2,2)),
+      (3,POINT(3,3)),
+      (4,POINT(4,4));
+
+  # Save the original settings, to be restored at the end of test
+    SET @innodb_lock_wait_timeout_saved = @@global.innodb_lock_wait_timeout;
+
+  # Make sure that transactions will not finish prematurely
+    SET @@global.innodb_lock_wait_timeout = 10;
+
+
+  # Prepare two connections
+    --connect (selecting_thread, localhost, root,,)
+    --connect (inserting_thread, localhost, root,,)
+
+  # We run the following scenario twice:
+  #   once without forcing CATS, so hopefully FCFS is used,
+  #   once with forcing CATS.
+  # To reuse the code for the two cases it is wrapped in a loop,
+  # which first considers $use_cats = 0, and then $use_cats = 1
+  # If you change something in the body of the loop, you can temporarily
+  # change the while's condition to < 3, to see if the setup/cleanup
+  # for each iteration works correctly.
+
+  --let $use_cats = 0
+  while($use_cats < 2)
+  {
+    # Setup of the specific scenario (CATS or FSCS)
+
+      if($use_cats)
+      {
+          --echo # Using CATS
+
+          --source suite/innodb/include/force_cats.inc
+      }
+      if(!$use_cats)
+      {
+          --echo # Using FCFS
+      }
+
+    # selecting_thread selects a rectangle for update
+
+      --connection selecting_thread
+        --echo # in selecting_thread
+
+        USE test;
+        BEGIN;
+        SELECT id
+          FROM t1
+          WHERE MBRContains(
+            ST_GeomFromText('Polygon((2 2, 2 4, 4 4, 4 2, 2 2))'),
+            p
+          )
+          FOR UPDATE;
+
+    # inserting_thread tries to insert a point into the same rectangle and thus
+    # must wait
+
+      --connection inserting_thread
+        --echo # in inserting_thread
+        USE test;
+        BEGIN;
+        SET DEBUG_SYNC =
+          'lock_wait_will_wait SIGNAL inserting_thread_waits';
+
+        --send INSERT INTO t1 (id, p) VALUES (0, POINT (3, 3));
+
+    # selecting_thread commits
+
+      --connection selecting_thread
+        --echo # in selecting_thread
+        SET DEBUG_SYNC = 'now WAIT_FOR inserting_thread_waits';
+        COMMIT;
+
+    # inserting_thread should become unlocked and continue
+
+      --connection inserting_thread
+        --echo # in inserting_thread
+        # The next --reap will block forever, unless the LOCK_PREDICATE held by
+        # the selecting_thread is correctly released, and the LOCK_PREDICATE
+        # insert intetion that inserting_thread waits for is correctly granted.
+        --reap
+        ROLLBACK;
+
+    # Tear down of a specific scenario (CATS or FCFS)
+      if($use_cats)
+      {
+          --source suite/innodb/include/discourage_cats.inc
+      }
+
+    --inc $use_cats
+  }
+
+  # Restore original state
+    --connection default
+    --disconnect selecting_thread
+    --disconnect inserting_thread
+
+    DROP TABLE t1;
+    SET DEBUG_SYNC = 'RESET';
+    SET @@global.innodb_lock_wait_timeout = @innodb_lock_wait_timeout_saved;
+
+--echo #####################
+--echo #                   #
+--echo # End of Bug #89737 #
 --echo #                   #
 --echo #####################

@@ -174,11 +174,6 @@ bool lock_prdt_has_to_wait(
       return (true);
     }
 
-    /* Predicate lock does not conflicts with non-predicate lock */
-    if (!(lock2->type_mode & LOCK_PREDICATE)) {
-      return (FALSE);
-    }
-
     ut_ad(lock2->type_mode & LOCK_PREDICATE);
 
     if (!(type_mode & LOCK_INSERT_INTENTION)) {

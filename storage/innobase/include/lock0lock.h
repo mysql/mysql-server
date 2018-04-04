@@ -221,27 +221,6 @@ dberr_t lock_rec_insert_check_and_lock(
                          record */
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Enqueues a waiting request for a lock which cannot be granted immediately.
-Checks for deadlocks.
-@param[in]	type_mode	lock mode this transaction is requesting:
-                                LOCK_S or LOCK_X, possibly ORed with LOCK_GAP
-                                or LOCK_REC_NOT_GAP, ORed with
-                                LOCK_INSERT_INTENTION if this waiting lock
-                                request is set when performing an insert of an
-                                index record
-@param[in]	block		buffer block containing the record
-@param[in]	heap_no		heap number of the record
-@param[in]	index		index of record
-@param[in]	thr		query thread
-@param[in]	prdt		Minimum Bounding Box
-@return DB_LOCK_WAIT, DB_DEADLOCK, or
-DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that there was a deadlock,
-but another transaction was chosen as a victim, and we got the lock
-immediately: no need to wait then */
-dberr_t lock_rec_enqueue_waiting(ulint type_mode, const buf_block_t *block,
-                                 ulint heap_no, dict_index_t *index,
-                                 que_thr_t *thr, lock_prdt_t *prdt);
-
 /** Checks if locks of other transactions prevent an immediate modify (update,
  delete mark, or delete unmark) of a clustered index record. If they do,
  first tests if the query thread should anyway be suspended for some
@@ -610,9 +589,6 @@ void lock_unlock_table_autoinc(trx_t *trx); /*!< in/out: transaction */
  the wait lock.
  @return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
 dberr_t lock_trx_handle_wait(trx_t *trx); /*!< in/out: trx lock state */
-/** Get the number of locks on a table.
- @return number of locks */
-ulint lock_table_get_n_locks(const dict_table_t *table); /*!< in: table */
 /** Initialise the trx lock list. */
 void lock_trx_lock_list_init(
     trx_lock_list_t *lock_list); /*!< List to initialise */
