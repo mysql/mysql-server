@@ -230,18 +230,12 @@ class Table_upgrade_guard
 {
   THD *m_thd;
   TABLE *m_table;
-  MEM_ROOT *m_mem_root;
   sql_mode_t m_sql_mode;
   handler *m_handler;
   bool m_is_table_open;
   LEX *m_lex_saved;
   Item *m_free_list_saved;
 public:
-
-  void update_mem_root(MEM_ROOT *mem_root)
-  {
-    m_mem_root= mem_root;
-  }
 
   void update_handler(handler *handler)
   {
@@ -253,14 +247,12 @@ public:
     m_lex_saved= lex;
   }
 
-  void set_is_table_open(bool param)
-  {
-    m_is_table_open= param;
-  }
-
-  Table_upgrade_guard(THD *thd, TABLE *table, MEM_ROOT *mem_root)
-    :  m_thd(thd), m_table(table), m_mem_root(mem_root), m_handler(nullptr),
-       m_is_table_open(false), m_lex_saved(nullptr)
+  Table_upgrade_guard(THD *thd, TABLE *table)
+    :  m_thd(thd),
+       m_table(table),
+       m_handler(nullptr),
+       m_is_table_open(false),
+       m_lex_saved(nullptr)
   {
     m_sql_mode= m_thd->variables.sql_mode;
     m_thd->variables.sql_mode= m_sql_mode;
@@ -319,12 +311,6 @@ public:
     free_table_share(m_table->s);
 
     destroy(m_handler);
-    /*
-      Make a copy of mem_root as TABLE object is allocated within its
-      own mem_root and free_root() updates its argument.
-    */
-    MEM_ROOT m_root= std::move(*m_mem_root);
-    free_root(&m_root, MYF(0));
   }
 };
 
@@ -631,6 +617,25 @@ static bool fix_fk_parent_key_names(THD *thd,
 
 
 /**
+  THD::mem_root is only switched with the given mem_root and switched back
+  on destruction. This does not free any mem_root.
+ */
+class Thd_mem_root_guard {
+  THD *m_thd;
+  MEM_ROOT *m_thd_prev_mem_root;
+
+ public:
+  Thd_mem_root_guard(THD *thd, MEM_ROOT *mem_root) {
+    m_thd = thd;
+    m_thd_prev_mem_root = m_thd->mem_root;
+    m_thd->mem_root = mem_root;
+  }
+  ~Thd_mem_root_guard() {
+    m_thd->mem_root = m_thd_prev_mem_root;
+  }
+};
+
+/**
   Read .frm files and enter metadata for tables
 */
 
@@ -645,9 +650,11 @@ bool migrate_table_to_dd(THD *thd,
 
   FRM_context frm_context;
   TABLE_SHARE share;
-  TABLE *table= nullptr;
+  TABLE table;
   Field **ptr,*field;
   handler *file= nullptr;
+  MEM_ROOT root(PSI_NOT_INSTRUMENTED, 65536);
+  Thd_mem_root_guard root_guard(thd, &root);
 
   // Write .frm file to data directory
   File frm_file;
@@ -699,45 +706,28 @@ bool migrate_table_to_dd(THD *thd,
   // Delete frm file
   mysql_file_delete(key_file_frm, index_file, MYF(0));
 
-  {
-    // Initialize TABLE mem_root
-    MEM_ROOT mem_root;
-    init_sql_alloc(key_memory_TABLE,
-                   &mem_root, TABLE_ALLOC_BLOCK_SIZE, 0);
-
-    // Make a new TABLE object
-    if (!(table= new (&mem_root) TABLE()))
-    {
-      free_table_share(&share);
-      ndb_log_error("Error in allocation memory for TABLE object");
-      DBUG_RETURN(false);
-    }
-
-    // Fix pointers in TABLE, TABLE_SHARE
-    memset(table, 0, sizeof(*table));
-    table->s= &share;
-    table->in_use= thd;
-    table->mem_root= std::move(mem_root);
-  }
+  // Fix pointers in TABLE, TABLE_SHARE
+  table.s= &share;
+  table.in_use= thd;
 
   // Object to handle cleanup.
   LEX lex;
-  Table_upgrade_guard table_guard(thd, table, &table->mem_root);
+  Table_upgrade_guard table_guard(thd, &table);
 
   // Get the handler
   if (!(file= get_new_handler(&share,
                               share.partition_info_str_len != 0,
-                              &table->mem_root,
+                              thd->mem_root,
                               share.db_type())))
   {
     ndb_log_error("Error in creating handler object for table %s.%s",
                   schema_name.c_str(), table_name.c_str());
     DBUG_RETURN(false);
   }
-  table->file= file;
+  table.file= file;
   table_guard.update_handler(file);
 
-  if (table->file->set_ha_share_ref(&share.ha_share))
+  if (table.file->set_ha_share_ref(&share.ha_share))
   {
     ndb_log_error("Error in setting handler reference for table %s.%s",
                   table_name.c_str(), schema_name.c_str());
@@ -749,12 +739,12 @@ bool migrate_table_to_dd(THD *thd,
     These steps are necessary for correct handling of
     default values by Create_field constructor.
   */
-  table->s->db_low_byte_first= table->file->low_byte_first();
-  table->use_all_columns();
-  table->record[0]= table->record[1]= share.default_values;
-  table->null_row= 0;
-  table->field= share.field;
-  table->key_info= share.key_info;
+  table.s->db_low_byte_first= table.file->low_byte_first();
+  table.use_all_columns();
+  table.record[0]= table.record[1]= share.default_values;
+  table.null_row= 0;
+  table.field= share.field;
+  table.key_info= share.key_info;
 
   /*
     Storage engine finds the auto_increment column
@@ -764,21 +754,21 @@ bool migrate_table_to_dd(THD *thd,
     not set auto_increment value for the table.
   */
   if (share.found_next_number_field)
-    table->found_next_number_field=
-      table->field[(uint) (share.found_next_number_field - share.field)];
+    table.found_next_number_field=
+      table.field[(uint) (share.found_next_number_field - share.field)];
 
   //Set table_name variable and table in fields
   const char *alias= "";
   for (ptr= share.field ; (field= *ptr); ptr++)
   {
-    field->table= table;
+    field->table= &table;
     field->table_name= &alias;
   }
 
   // Check presence of old data types
   bool avoid_temporal_upgrade_saved= avoid_temporal_upgrade;
   avoid_temporal_upgrade= false;
-  int error= check_table_for_old_types(table);
+  int error= check_table_for_old_types(&table);
   avoid_temporal_upgrade= avoid_temporal_upgrade_saved;
 
   if (error)
@@ -811,7 +801,7 @@ bool migrate_table_to_dd(THD *thd,
     if (key_info->algorithm != HA_KEY_ALG_SE_SPECIFIC &&
         !(key_info->flags & HA_FULLTEXT) &&
         !(key_info->flags & HA_SPATIAL) &&
-        table->file->is_index_algorithm_supported(key_info->algorithm))
+        table.file->is_index_algorithm_supported(key_info->algorithm))
           key_info->is_algorithm_explicit= true;
   }
 
@@ -820,20 +810,12 @@ bool migrate_table_to_dd(THD *thd,
   Alter_info alter_info(thd->mem_root);
   Alter_table_ctx alter_ctx;
 
-  /*
-    Replace thd->mem_root as prepare_fields_and_keys() and
-    mysql_prepare_create_table() allocates memory in thd->mem_root.
-  */
-  MEM_ROOT *mem_root_backup= thd->mem_root;
-  thd->mem_root= &table->mem_root;
+  fill_create_info_for_upgrade(&create_info, &table);
 
-  fill_create_info_for_upgrade(&create_info, table);
-
-  if (prepare_fields_and_keys(thd, nullptr, table, &create_info,
+  if (prepare_fields_and_keys(thd, nullptr, &table, &create_info,
                               &alter_info, &alter_ctx,
                               create_info.used_fields))
   {
-    thd->mem_root= mem_root_backup;
     DBUG_RETURN(false);
   }
 
@@ -853,12 +835,8 @@ bool migrate_table_to_dd(THD *thd,
                                  alter_ctx.fk_max_generated_name_number,
                                  0, false /* No FKs here. */))
   {
-    thd->mem_root= mem_root_backup;
     DBUG_RETURN(false);
   }
-
-  // Restore thd mem_root
-  thd->mem_root= mem_root_backup;
 
   int select_field_pos= alter_info.create_list.elements;
   create_info.null_bits= 0;
@@ -868,7 +846,7 @@ bool migrate_table_to_dd(THD *thd,
   for (int field_no= 0; (sql_field=it_create++) ; field_no++)
   {
     if (prepare_create_field(thd, &create_info, &alter_info.create_list,
-                             &select_field_pos, table->file, sql_field, field_no))
+                             &select_field_pos, table.file, sql_field, field_no))
       DBUG_RETURN(false);
   }
 
@@ -879,7 +857,7 @@ bool migrate_table_to_dd(THD *thd,
   lex_start(thd);
   table_guard.update_lex(lex_saved);
 
-  if (!fill_partition_info_for_upgrade(thd, &share, &frm_context, table))
+  if (!fill_partition_info_for_upgrade(thd, &share, &frm_context, &table))
     DBUG_RETURN(false);
 
   // Add name of all tablespaces used by partitions to the hash set.
@@ -946,7 +924,7 @@ bool migrate_table_to_dd(THD *thd,
   */
   Bootstrap_error_handler bootstrap_error_handler;
   bootstrap_error_handler.set_log_error(false);
-  if (!fix_generated_columns_for_upgrade(thd, table, alter_info.create_list))
+  if (!fix_generated_columns_for_upgrade(thd, &table, alter_info.create_list))
   {
     ndb_log_error("Error in processing generated columns");
     DBUG_RETURN(false);
@@ -982,7 +960,7 @@ bool migrate_table_to_dd(THD *thd,
   std::unique_ptr<dd::Table> table_def = dd::create_dd_user_table(
       thd, *sch_obj, to_table_name, &create_info, alter_info.create_list,
       key_info_buffer, key_count, Alter_info::ENABLE, fk_key_info_buffer,
-      fk_number, table->file);
+      fk_number, table.file);
 
   if (!table_def || thd->dd_client()->store(table_def.get())) {
     ndb_log_error("Error in Creating DD entry for %s.%s",
@@ -1001,7 +979,7 @@ bool migrate_table_to_dd(THD *thd,
   }
 
   if (!set_se_data_for_user_tables(thd, schema_name, to_table_name,
-                                   table))
+                                   &table))
   {
     ndb_log_error("Error in fixing SE data for %s.%s",
                   schema_name.c_str(), table_name.c_str());
