@@ -467,7 +467,7 @@ insert IGNORE into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 alter table t1 add spatial index(a);
 drop table t1;
-create table t1(a geometry not null, index(a(5)));
+create table t1(a geometry not null);
 insert into t1 values
 (ST_GeomFromText('POINT(1 1)')), (ST_GeomFromText('POINT(3 3)')), 
 (ST_GeomFromText('POINT(4 4)')), (ST_GeomFromText('POINT(6 6)'));
@@ -486,7 +486,7 @@ MBRContains(ST_GeomFromText('Polygon((0 0, 0 7, 7 7, 7 0, 0 0))'), a);
 ST_AsText(a)
 POINT(1 1)
 drop table t1;
-CREATE TABLE t1 (Coordinates POINT NOT NULL, INDEX(Coordinates(10)));
+CREATE TABLE t1 (Coordinates POINT NOT NULL);
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(383293632 1754448)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(564952612 157516260)'));
 INSERT INTO t1 VALUES(ST_GeomFromText('POINT(903994614 180726515)'));
@@ -684,7 +684,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					ST_asbinary(g)	252	4294967295	0	Y	128	31	63
 ST_asbinary(g)
 drop table t1;
-create table t1 (a TEXT, b GEOMETRY NOT NULL, INDEX(b(5)));
+create table t1 (a TEXT, b GEOMETRY NOT NULL);
 alter table t1 disable keys;
 Warnings:
 Note	1031	Table storage engine for 't1' doesn't have this option
@@ -740,14 +740,12 @@ select ST_geomfromtext(col9,col89) as a from t1;
 ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 DROP TABLE t1;
 CREATE TABLE t1 (
-geomdata polygon NOT NULL,
-KEY index_geom (geomdata(10))
+geomdata polygon NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 Warnings:
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
 CREATE TABLE t2 (
-geomdata polygon NOT NULL,
-KEY index_geom (geomdata(10))
+geomdata polygon NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin2 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED;
 Warnings:
 Warning	1478	InnoDB: assuming ROW_FORMAT=DYNAMIC.
@@ -768,7 +766,7 @@ drop table t1;
 drop table t2;
 drop table t3;
 create table t1(col1 geometry default null,col15 geometrycollection not
-null, index(col15(5)),index(col1(15)))engine=InnoDB;
+null)engine=InnoDB;
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
@@ -796,11 +794,13 @@ POINT(1 1)
 drop function fn3;
 create table t1(pt POINT);
 alter table t1 add primary key pti(pt);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
 drop table t1;
 create table t1(pt GEOMETRY);
 alter table t1 add primary key pti(pt);
-ERROR 42000: BLOB/TEXT column 'pt' used in key specification without a key length
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
 alter table t1 add primary key pti(pt(20));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 drop table t1;
 create table t1 select ST_GeomFromText('point(1 1)');
 desc t1;
@@ -936,7 +936,7 @@ SELECT 1;
 1
 1
 CREATE TABLE t1 (p POINT);
-CREATE TABLE t2 (p POINT, INDEX(p));
+CREATE TABLE t2 (p POINT);
 INSERT INTO t1 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
 INSERT INTO t2 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
 SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
@@ -945,7 +945,7 @@ COUNT(*)
 EXPLAIN 
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	p	p	28	const	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
@@ -965,19 +965,19 @@ COUNT(*)
 EXPLAIN 
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	p	p	28	const	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 EXPLAIN 
-SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
-SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 DROP TABLE t1, t2;
@@ -988,10 +988,10 @@ End of 5.0 tests
 #
 drop table if exists t1;
 # The minimal test case.
-create table t1 (a int not null, b linestring not null, unique key b (b(12)), unique key a (a));
+create table t1 (a int not null, b linestring not null, unique key a (a));
 drop table t1;
 # The original test case.
-create table t1 (a int not null, b linestring not null, unique key b (b(12)));
+create table t1 (a int not null, b linestring not null);
 create unique index a on t1(a);
 drop table t1;
 create table `t1` (`col002` point)engine=InnoDB;
@@ -1093,7 +1093,10 @@ col1 POINT,
 col2 LINESTRING,
 INDEX i1 (col1(5), col2(5))
 );
+ERROR 42000: Too many key parts specified; max 1 parts allowed
 DROP TABLE IF EXISTS t0, t1, t2, t3,t4;
+Warnings:
+Note	1051	Unknown table 'test.t4'
 #
 # BUG#12414917 - ST_ISCLOSED() CRASHES ON 64-BIT BUILDS
 #
@@ -1110,13 +1113,11 @@ End of 5.1 tests
 # Bug#11908153: CRASH AND/OR VALGRIND ERRORS IN FIELD_BLOB::GET_KEY_IMAGE
 #
 CREATE TABLE g1
-(a geometry NOT NULL, UNIQUE KEY i (a(151))) engine=InnoDB;
+(a geometry NOT NULL) engine=InnoDB;
 INSERT INTO g1 VALUES (ST_geomfromtext('point(1 1)'));
 INSERT INTO g1 VALUES (ST_geomfromtext('point(1 2)'));
 FLUSH TABLES;
-SELECT 1 FROM g1 
-FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
-;
+SELECT 1 FROM g1 WHERE a = date_sub(now(), interval 2808.4 year_month);
 1
 Warnings:
 Warning	1292	Truncated incorrect datetime value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?'

@@ -967,13 +967,13 @@ t1	CREATE TABLE `t1` (
   SPATIAL KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD KEY(b(50));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL /*!80003 SRID 0 */,
-  SPATIAL KEY `b` (`b`),
-  KEY `b_2` (`b`(50))
+  SPATIAL KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD c POINT;
 SHOW CREATE TABLE t1;
@@ -982,8 +982,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(500) DEFAULT NULL,
   `b` geometry NOT NULL /*!80003 SRID 0 */,
   `c` point DEFAULT NULL,
-  SPATIAL KEY `b` (`b`),
-  KEY `b_2` (`b`(50))
+  SPATIAL KEY `b` (`b`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE t2 (a INT, KEY (a(20)));
 ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
@@ -2644,6 +2643,7 @@ t1	CREATE TABLE `t1` (
   `b` point NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD UNIQUE INDEX (b);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
 # Note that SHOW CREATE TABLE does not list b as a primary key,
 # even though it was promoted. This appears to be the case also
 # for other column types.
@@ -2651,8 +2651,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
-  `b` point NOT NULL,
-  UNIQUE KEY `b` (`b`(25))
+  `b` point NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD UNIQUE INDEX (a);
 SHOW CREATE TABLE t1;
@@ -2660,7 +2659,6 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` point NOT NULL,
-  UNIQUE KEY `b` (`b`(25)),
   UNIQUE KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Verify that the expected indices have been created by Innodb
@@ -2681,8 +2679,7 @@ INFORMATION_SCHEMA.INNODB_FIELDS AS F
 ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
 WHERE T.NAME = 'test/t1' ORDER BY I.NAME, F.NAME;
 TABLE_NAME	INDEX_NAME	INDEX_TYPE	FIELD_NAME	FIELD_POS
-test/t1	a	Unique	a	0
-test/t1	b	Primary	b	0
+test/t1	a	Primary	a	0
 DROP TABLE t1;
 #
 # BUG#16886196 - ALTER TABLE FAILS TO CONVERT TO PREFIX INDEX IN
@@ -2957,16 +2954,16 @@ CREATE TABLE t0(a INT NOT NULL) ENGINE=INNODB;
 ALTER TABLE t0 ADD UNIQUE INDEX (a);
 # Case a: Create table with virtual unique not null column
 CREATE TABLE t1(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL UNIQUE NOT NULL) ENGINE=INNODB;
-SELECT * FROM t1;
-a
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
 # Case b: Create table with index on virtual point column
 CREATE TABLE t2(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL NOT NULL, UNIQUE INDEX no_pk(a(1))) ENGINE=INNODB;
-SELECT * FROM t2;
-a
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
 # Case c: Add unique index on virtual point column
 CREATE TABLE t3(a POINT GENERATED ALWAYS AS (POINT(1,1)) VIRTUAL NOT NULL)
 ENGINE=INNODB;
+# Case c: Add unique index on virtual point column
 ALTER TABLE t3 ADD UNIQUE INDEX (a(1));
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
 SELECT * FROM t3;
 a
 # Case d: Add unique index on virtual blob column
@@ -2988,13 +2985,8 @@ ON I.INDEX_ID = F.INDEX_ID AND I.TABLE_ID = T.TABLE_ID
 WHERE T.NAME LIKE 'test/%' ORDER BY T.NAME, I.NAME, F.POS;
 TABLE_NAME	INDEX_NAME	IS_PRIMARY_KEY	FIELD_NAME	FIELD_POS
 test/t0	a	yes	a	0
-test/t1	a	no	a	0
-test/t2	no_pk	no	a	0
-test/t3	a	no	a	0
 test/t4	b	no	b	0
 DROP TABLE t0;
-DROP TABLE t1;
-DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE t4;
 #

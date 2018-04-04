@@ -146,8 +146,11 @@ SET @c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))
 INSERT INTO tab VALUES(@c1,@c2,@c3,@c4,@c5,@c6,@c7,@c8);
 
 --echo #check index on GIS datatypes
+--error ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
 CREATE INDEX idx1 on tab(c2(5) DESC) USING BTREE;
+--error ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
 CREATE INDEX idx3 on tab(c3(5) ASC) USING BTREE;
+--error ER_WRONG_SUB_KEY
 CREATE UNIQUE INDEX idx2 on tab(c8(5) ASC) ;
 
 --echo #check equality predicate on the index columns
@@ -275,13 +278,11 @@ ALTER TABLE tab CHANGE COLUMN c1 c0 GEOMETRY ;
 SHOW FIELDS FROM tab;
 
 --echo #add primary key
+--error ER_WRONG_SUB_KEY
 ALTER TABLE tab ADD PRIMARY KEY pk2(c8(5));
 
 --echo #check columns
 SHOW FIELDS FROM tab;
-
---echo #drop key
-ALTER TABLE tab DROP PRIMARY KEY;
 
 --echo #check columns
 SHOW FIELDS FROM tab;
@@ -501,8 +502,11 @@ SET @c8=ST_GeomCollFromText('GeometryCollection(Point(1 1),LineString(2 2, 3 3))
 INSERT INTO tab3 VALUES(@c1,@c2,@c3,@c4,@c5,@c6,@c7,@c8);
 
 --echo #check index on GIS datatypes
+--error ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
 CREATE INDEX idx1 on tab3(c2(5) DESC) USING BTREE;
+--error ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
 CREATE INDEX idx3 on tab3(c3(5) ASC) USING BTREE;
+--error ER_WRONG_SUB_KEY
 CREATE UNIQUE INDEX idx2 on tab3(c8(5) ASC) ;
 
 --enable_warnings
@@ -657,9 +661,10 @@ MBRIntersects(g1.g, g2.g) as i, ST_Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 
 --echo # check support of Foreign Key constraint
+--error ER_WRONG_SUB_KEY
 CREATE TABLE parent (id GEOMETRY NOT NULL,PRIMARY KEY (id(10))) ENGINE=INNODB;
 
---error 1215
+--error ER_WRONG_SUB_KEY
 CREATE TABLE child (id GEOMETRY, parent_id GEOMETRY,
                     INDEX par_ind (parent_id(10)),
                     FOREIGN KEY (parent_id(10)) REFERENCES parent(id)

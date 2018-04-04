@@ -4243,7 +4243,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     const char *errmsg = NULL;
     if (key->type == KEYTYPE_FULLTEXT)
       errmsg = "Fulltext index on virtual generated column";
-    else if (key->type == KEYTYPE_SPATIAL)
+    else if (key->type == KEYTYPE_SPATIAL ||
+             sql_field->sql_type == MYSQL_TYPE_GEOMETRY)
       errmsg = "Spatial index on virtual generated column";
     else if (key->type == KEYTYPE_PRIMARY)
       errmsg = "Defining a virtual generated column as primary key";
@@ -4306,11 +4307,28 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     column_length = is_blob(sql_field->sql_type);
   } else {
     switch (sql_field->sql_type) {
+      case MYSQL_TYPE_GEOMETRY:
+        /* All indexes on geometry columns are R-tree indexes. */
+        if (key->columns.size() > 1) {
+          my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
+          DBUG_RETURN(true);
+        }
+        key_info->flags |= HA_SPATIAL;
+        if (key->key_create_info.is_algorithm_explicit &&
+            key_info->algorithm != HA_KEY_ALG_RTREE) {
+          DBUG_ASSERT(key->key_create_info.algorithm == HA_KEY_ALG_HASH ||
+                      key->key_create_info.algorithm == HA_KEY_ALG_BTREE);
+          my_error(ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX, MYF(0),
+                   key->key_create_info.algorithm == HA_KEY_ALG_HASH ? "HASH"
+                                                                     : "BTREE");
+          DBUG_RETURN(true);
+        }
+        key_info->algorithm = HA_KEY_ALG_RTREE;
+        /* fall through */
       case MYSQL_TYPE_TINY_BLOB:
       case MYSQL_TYPE_MEDIUM_BLOB:
       case MYSQL_TYPE_LONG_BLOB:
       case MYSQL_TYPE_BLOB:
-      case MYSQL_TYPE_GEOMETRY:
       case MYSQL_TYPE_JSON:
       case MYSQL_TYPE_VAR_STRING:
       case MYSQL_TYPE_STRING:
@@ -4323,13 +4341,23 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
         column_length = column->length;
     }
 
-    if (key->type == KEYTYPE_SPATIAL) {
+    if (key->type == KEYTYPE_SPATIAL ||
+        sql_field->sql_type == MYSQL_TYPE_GEOMETRY) {
       if (column_length) {
         my_error(ER_WRONG_SUB_KEY, MYF(0));
         DBUG_RETURN(true);
       }
       if (sql_field->sql_type != MYSQL_TYPE_GEOMETRY) {
         my_error(ER_SPATIAL_MUST_HAVE_GEOM_COL, MYF(0));
+        DBUG_RETURN(true);
+      }
+      if (key_info->flags & HA_NOSAME) {
+        my_error(ER_SPATIAL_UNIQUE_INDEX, MYF(0));
+        DBUG_RETURN(true);
+      }
+      if (column->is_explicit) {
+        my_error(ER_WRONG_USAGE, MYF(0), "spatial/fulltext/hash index",
+                 "explicit index order");
         DBUG_RETURN(true);
       }
 
@@ -4360,16 +4388,11 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
       column_length = 4 * sizeof(double);
     }
 
-    if (is_blob(sql_field->sql_type) ||
-        (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
-         key->type != KEYTYPE_SPATIAL)) {
+    if (is_blob(sql_field->sql_type)) {
       if (!(file->ha_table_flags() & HA_CAN_INDEX_BLOBS)) {
         my_error(ER_BLOB_USED_AS_KEY, MYF(0), column->field_name.str);
         DBUG_RETURN(true);
       }
-      if (sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
-          sql_field->geom_type == Field::GEOM_POINT)
-        column_length = MAX_LEN_GEOM_POINT_FIELD;
       if (!column_length) {
         my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
         DBUG_RETURN(true);
@@ -4430,7 +4453,8 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
           my_error(ER_NULL_COLUMN_IN_INDEX, MYF(0), column->field_name.str);
           DBUG_RETURN(true);
         }
-        if (key->type == KEYTYPE_SPATIAL) {
+        if (key->type == KEYTYPE_SPATIAL ||
+            sql_field->sql_type == MYSQL_TYPE_GEOMETRY) {
           my_error(ER_SPATIAL_CANT_HAVE_NULL, MYF(0));
           DBUG_RETURN(true);
         }
@@ -4547,15 +4571,10 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
 
   /*
     Check if the key segment is partial, set the key flag
-    accordingly. The key segment for a POINT column is NOT considered
-    partial if key_length==MAX_LEN_GEOM_POINT_FIELD.
-    Note that fulltext indexes ignores prefixes.
+    accordingly. Note that fulltext indexes ignores prefixes.
   */
   if (key->type != KEYTYPE_FULLTEXT &&
-      key_part_length != sql_field->key_length &&
-      !(sql_field->sql_type == MYSQL_TYPE_GEOMETRY &&
-        sql_field->geom_type == Field::GEOM_POINT &&
-        key_part_length == MAX_LEN_GEOM_POINT_FIELD)) {
+      key_part_length != sql_field->key_length) {
     key_info->flags |= HA_KEY_HAS_PART_KEY_SEG;
     key_part_info->key_part_flag |= HA_PART_KEY_SEG;
   }
@@ -10644,9 +10663,19 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           key_part_length = 0;  // Use whole field
       }
       key_part_length /= key_part->field->charset()->mbmaxlen;
+      // The Key_part_spec constructor differentiates between explicit ascending
+      // (ORDER_ASC) and implicit ascending order (ORDER_NOT_RELEVANT). However,
+      // here we only have HA_REVERSE_SORT to base our ordering decision on. The
+      // only known case where the difference matters is in case of indexes on
+      // geometry columns, which can't have explicit ordering. Therefore, in the
+      // case of a geometry column, we pass ORDER_NOT_RELEVANT.
       key_parts.push_back(new (*THR_MALLOC) Key_part_spec(
           to_lex_cstring(cfield->field_name), key_part_length,
-          key_part->key_part_flag & HA_REVERSE_SORT ? ORDER_DESC : ORDER_ASC));
+          key_part->key_part_flag & HA_REVERSE_SORT
+              ? ORDER_DESC
+              : (key_part->field->type() == MYSQL_TYPE_GEOMETRY
+                     ? ORDER_NOT_RELEVANT
+                     : ORDER_ASC)));
     }
     if (key_parts.elements) {
       KEY_CREATE_INFO key_create_info(key_info->is_visible);

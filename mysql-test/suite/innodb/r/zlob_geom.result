@@ -33,7 +33,7 @@ PRIMARY KEY (`pkey`),
 KEY `leader` (`leader`),
 SPATIAL KEY `leaderpoint` (`leaderpoint`),
 SPATIAL KEY `linestr` (`linestr`),
-KEY `pkeypoint` (`pkeypoint`(25)),
+KEY `pkeypoint` (`pkeypoint`),
 SPATIAL KEY `fils` (`fils`),
 SPATIAL KEY `fipoint` (`fipoint`),
 SPATIAL KEY `fipoly` (`fipoly`),
@@ -47,6 +47,7 @@ KEY `vbidxcol_2` (`vbidxcol`,`d`)
 Warnings:
 Warning	3674	The spatial index on column 'leaderpoint' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 Warning	3674	The spatial index on column 'linestr' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
+Warning	3674	The spatial index on column 'pkeypoint' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 Warning	3674	The spatial index on column 'fils' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 Warning	3674	The spatial index on column 'fipoint' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 Warning	3674	The spatial index on column 'fipoly' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.

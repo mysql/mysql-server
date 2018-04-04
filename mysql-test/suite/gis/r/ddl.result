@@ -270,6 +270,7 @@ POINT(0 0)	POINT(0 0)	POINT(0 0)	POINT(0 0)	4326	0	2000	4326
 POINT(0 0)	POINT(0 0)	POINT(0 0)	POINT(0 0)	4326	0	2000	4326
 # Add a spatial index on the generated column
 CREATE INDEX idx_4326_generated ON t1 (col_srid_4326_generated);
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
 INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
 ST_GeomFromText('POINT(1 1)', 4326),
 ST_GeomFromText('POINT(1 1)', 0),
@@ -296,7 +297,6 @@ INSERT INTO t1 (col_no_srid, col_srid_0, col_srid_2000) VALUES (
 ST_GeomFromText('POINT(1 1)'),
 ST_GeomFromText('POINT(1 1)', 0),
 ST_GeomFromText('POINT(1 1)', 4326));
-DROP INDEX idx_4326_generated ON t1;
 ALTER TABLE t1 CHANGE COLUMN col_srid_2000 col_srid_2000 POINT NOT NULL;
 # This should work just fine, since we have removed the SRID specification
 # for col_srid_2000

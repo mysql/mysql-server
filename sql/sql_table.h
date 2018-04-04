@@ -68,9 +68,6 @@ enum enum_explain_filename_mode {
   EXPLAIN_PARTITIONS_AS_COMMENT
 };
 
-/* Maximum length of GEOM_POINT Field */
-#define MAX_LEN_GEOM_POINT_FIELD 25
-
 /* Flags for conversion functions. */
 static const uint FN_FROM_IS_TMP = 1 << 0;
 static const uint FN_TO_IS_TMP = 1 << 1;

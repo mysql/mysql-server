@@ -553,7 +553,7 @@ NULL
 DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE t1 (p POINT);
-CREATE TABLE t2 (p POINT, INDEX(p));
+CREATE TABLE t2 (p POINT);
 INSERT INTO t1 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
 INSERT INTO t2 VALUES (ST_POINTFROMTEXT('POINT(1 2)'));
 SELECT COUNT(*) FROM t1 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
@@ -562,7 +562,7 @@ COUNT(*)
 EXPLAIN 
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	p	p	28	const	1	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
@@ -582,19 +582,19 @@ COUNT(*)
 EXPLAIN 
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ref	p	p	28	const	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 EXPLAIN 
-SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
-SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` where (`test`.`t2`.`p` = <cache>(st_pointfromtext('POINT(1 2)')))
+SELECT COUNT(*) FROM t2 WHERE p=ST_POINTFROMTEXT('POINT(1 2)');
 COUNT(*)
 2
 DROP TABLE t1, t2;
@@ -605,10 +605,10 @@ End of 5.0 tests
 #
 drop table if exists t1;
 # The minimal test case.
-create table t1 (a int not null, b linestring not null, unique key b (b(12)), unique key a (a));
+create table t1 (a int not null, b linestring not null, unique key a (a));
 drop table t1;
 # The original test case.
-create table t1 (a int not null, b linestring not null, unique key b (b(12)));
+create table t1 (a int not null, b linestring not null);
 create unique index a on t1(a);
 drop table t1;
 create table t1 (g geometry not null SRID 0, spatial gk(g)) engine=innodb;

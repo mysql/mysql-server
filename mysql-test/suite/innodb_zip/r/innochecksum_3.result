@@ -10,7 +10,9 @@ ENGINE=InnoDB ;
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
 VALUES (1, ST_GeomFromText('POINT(10 10) '), ST_GeomFromText('POINT(10 10) '));
 CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 ALTER TABLE tab1 ADD  KEY (linestring_key(5));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 # create a compressed table
 CREATE TABLE tab2(col_1 CHAR (255) ,
 col_2 VARCHAR (255), col_3 longtext,
@@ -153,11 +155,9 @@ Filename::MYSQLD_DATADIR/test/tab#.ibd
 ==============================================================================
 #::0|		File Space Header		|	-
 #::#|		Insert Buffer Bitmap		|	-
-#::#|		SDI Index page			|	index id=#, page level=0, No. of records=#, garbage=#, -
+#::#|		SDI Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
 #::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
-#::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
-#::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
-#::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
+#::#|		Freshly allocated page		|	-
 #::#|		Freshly allocated page		|	-
 [5]: Page type dump for with shortform for tab1.ibd
 
@@ -168,11 +168,9 @@ Filename::MYSQLD_DATADIR/test/tab#.ibd
 ==============================================================================
 #::0|		File Space Header		|	-
 #::#|		Insert Buffer Bitmap		|	-
-#::#|		SDI Index page			|	index id=#, page level=0, No. of records=#, garbage=#, -
+#::#|		SDI Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
 #::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
-#::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
-#::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
-#::#|		Index page			|	index id=#, page level=0, No. of records=#, garbage=0, -
+#::#|		Freshly allocated page		|	-
 #::#|		Freshly allocated page		|	-
 [6]: check the valid lower bound values for option
 # allow-mismatches,page,start-page,end-page

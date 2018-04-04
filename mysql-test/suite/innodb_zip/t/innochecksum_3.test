@@ -30,7 +30,9 @@ ENGINE=InnoDB ;
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
 VALUES (1, ST_GeomFromText('POINT(10 10) '), ST_GeomFromText('POINT(10 10) '));
 
+--error ER_WRONG_SUB_KEY
 CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
+--error ER_WRONG_SUB_KEY
 ALTER TABLE tab1 ADD  KEY (linestring_key(5));
 
 --echo # create a compressed table

@@ -488,7 +488,7 @@ drop table t3;
 #
 
 create table t1(col1 geometry default null,col15 geometrycollection not
-null SRID 0,spatial index(col15),index(col1(15)))engine=myisam;
+null SRID 0,spatial index(col15))engine=myisam;
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
 insert into t1 set col15 = ST_GeomFromText('POINT(6 5)');
 --error ER_CANT_CREATE_GEOMETRY_OBJECT
@@ -523,11 +523,13 @@ drop function fn3;
 # Bug #12267 (primary key over GIS)
 #
 create table t1(pt POINT);
+--error ER_SPATIAL_UNIQUE_INDEX
 alter table t1 add primary key pti(pt);
 drop table t1;
 create table t1(pt GEOMETRY);
---error 1170
+--error ER_SPATIAL_UNIQUE_INDEX
 alter table t1 add primary key pti(pt);
+--error ER_WRONG_SUB_KEY
 alter table t1 add primary key pti(pt(20));
 drop table t1;
 
@@ -860,16 +862,14 @@ SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
 --echo #
 
 CREATE TABLE g1
-(a geometry NOT NULL, UNIQUE KEY i (a(151))) engine=myisam;
+(a geometry NOT NULL) engine=myisam;
 
 INSERT INTO g1 VALUES (ST_geomfromtext('point(1 1)'));
 INSERT INTO g1 VALUES (ST_geomfromtext('point(1 2)'));
 
 FLUSH TABLES;
 
-SELECT 1 FROM g1 
-FORCE INDEX(i) WHERE a = date_sub(now(), interval 2808.4 year_month)
-;
+SELECT 1 FROM g1 WHERE a = date_sub(now(), interval 2808.4 year_month);
 
 DROP TABLE g1;
 
@@ -2181,7 +2181,6 @@ CREATE TABLE t1 (
                    p POINT NOT NULL SRID 0,
                    l LINESTRING NOT NULL SRID 0,
                    g GEOMETRY NOT NULL SRID 0,
-                   PRIMARY KEY(p),
                    SPATIAL KEY idx2 (p),
                    SPATIAL KEY idx3 (l),
                    SPATIAL KEY idx4 (g)
@@ -2208,7 +2207,6 @@ CREATE TABLE t1 (
                    p POINT NOT NULL SRID 0,
                    l LINESTRING NOT NULL SRID 0,
                    g GEOMETRY NOT NULL SRID 0,
-                   PRIMARY KEY(p),
                    SPATIAL KEY idx2 (p),
                    SPATIAL KEY idx3 (l),
                    SPATIAL KEY idx4 (g)
@@ -2235,7 +2233,7 @@ DROP TABLE t1;
 --echo # Bug #21067378 GEOMETRIC OPERATION RETURNS ERROR INSTEAD OF RESULT
 --echo #
 
-CREATE TABLE t1 (p POINT NOT NULL UNIQUE) ENGINE=InnoDB;
+CREATE TABLE t1 (p POINT NOT NULL) ENGINE=InnoDB;
 
 INSERT INTO t1 VALUES (ST_GEOMFROMTEXT('POINT(1 1)'));
 
@@ -2248,7 +2246,7 @@ WHERE MBRCOVEREDBY
 
 DROP TABLE t1;
 
-CREATE TABLE t1 (p POINT NOT NULL UNIQUE) ENGINE=MyISAM;
+CREATE TABLE t1 (p POINT NOT NULL) ENGINE=MyISAM;
 
 INSERT INTO t1 VALUES (ST_GEOMFROMTEXT('POINT(1 1)'));
 

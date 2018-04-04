@@ -8507,6 +8507,12 @@ ER_SRS_NOT_GEOGRAPHIC 22S00
 ER_POLYGON_TOO_LARGE 22023
   eng "Function %s encountered a polygon that was too large. Polygons must cover less than half the planet."
 
+ER_SPATIAL_UNIQUE_INDEX
+  eng "Spatial indexes can't be primary or unique indexes."
+
+ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
+  eng "The index type %.20s is not supported for spatial indexes."
+
 #
 #  End of 8.0 error messages.
 #

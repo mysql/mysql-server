@@ -41,10 +41,13 @@ INSERT INTO linestring (pk, linestring_key, linestring_nokey) VALUES (7,
 ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))'),
 ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))'));
 
+--error ER_WRONG_SUB_KEY
 CREATE INDEX linestring_index ON linestring(linestring_nokey(5));
+--error ER_WRONG_SUB_KEY
 ALTER TABLE linestring ADD  KEY (linestring_key(5));
 
 --echo # Invalid polygon.
+--error ER_KEY_DOES_NOT_EXITS
 SELECT ST_AsText(linestring_nokey) FROM linestring FORCE KEY (
 linestring_key ) WHERE ST_CONTAINS( ST_GeomFromText('POLYGON( ( 3923 2815 , 4246
 2122 , 4028 2971 , 4017 3019 , 3923 2815 ) )') , linestring_key ) AND

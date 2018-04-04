@@ -99,6 +99,7 @@ ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Pol
 
 ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 
+--error ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 
 
@@ -245,6 +246,7 @@ SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBREquals(tab.c4, @g1);
 
 ALTER TABLE tab  DROP PRIMARY KEY;
 
+--error ER_SPATIAL_UNIQUE_INDEX
 ALTER TABLE tab ADD PRIMARY KEY(c2) ;
 
 SET @g1 = ST_GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
@@ -291,7 +293,6 @@ SET @g1 = ST_GeomFromText('LINESTRING( 3010 3010,4010 4010,5010 5010)');
 
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBRIntersects(tab.c4, @g1) order by c1;
 
---error ER_DUP_ENTRY
 UPDATE tab SET c2 = ST_GeomFromText('POINT(4000 4000)')
 WHERE MBRIntersects(tab.c4, @g1);
 
@@ -306,8 +307,6 @@ DELETE FROM tab WHERE MBRIntersects(tab.c4, @g1);
 SELECT c1,ST_Astext(c2),ST_Astext(c4) FROM tab WHERE MBROverlaps(tab.c4, @g1) ORDER BY c1;
 
 INSERT INTO tab SELECT * FROM tab1;
-
-ALTER TABLE tab DROP PRIMARY KEY;
 
 ALTER TABLE tab DROP INDEX idx2;
 
@@ -351,10 +350,12 @@ SHOW INDEX FROM tab;
 
 DELETE FROM tab;
 
+--error ER_SPATIAL_UNIQUE_INDEX
 ALTER TABLE tab ADD PRIMARY KEY(c2);
 
 CREATE SPATIAL INDEX idx2 ON tab(c2);
 
+--error ER_SPATIAL_UNIQUE_INDEX
 ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c2);
 
 SHOW CREATE TABLE tab;
@@ -371,12 +372,10 @@ ST_GeomFromText('POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))'));
 
 DELETE FROM tab;
 
-ALTER TABLE tab DROP PRIMARY KEY ;
-
-ALTER TABLE tab DROP KEY  const_1;
-
+--error ER_WRONG_SUB_KEY
 ALTER TABLE tab ADD PRIMARY KEY(c5(10));
 
+--error ER_WRONG_SUB_KEY
 ALTER TABLE tab ADD CONSTRAINT const_1 UNIQUE(c5(10));
 
 SHOW CREATE TABLE tab;
@@ -462,6 +461,7 @@ ALTER TABLE tab ADD SPATIAL INDEX idx4(c4) COMMENT 'testing spatial index on Pol
 
 ALTER TABLE tab ADD SPATIAL KEY idx5(c5) COMMENT 'testing spatial index on Geometry';
 
+--error ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
 ALTER TABLE tab ADD INDEX idx6(c4(10)) USING BTREE;
 
 
@@ -624,7 +624,7 @@ SELECT c1,ST_AsText(c2),ST_AsText(c3),ST_Astext(c4) FROM tab WHERE MBRWithin(tab
 DROP TABLE tab;
 
 # Check Foreign Key constraint on Point column
-CREATE TABLE parent (id POINT SRID 0, PRIMARY KEY(id)) ENGINE=InnoDB;
+CREATE TABLE parent (id POINT SRID 0 NOT NULL) ENGINE=InnoDB;
 
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id POINT NOT NULL SRID 0) ENGINE=InnoDB;
 
@@ -654,7 +654,7 @@ ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ON DELETE CAS
 DROP table child,parent;
 
 # Check Foreign Key constraint on Geometry column
-CREATE TABLE parent (id GEOMETRY SRID 0, PRIMARY KEY(id(10))) ENGINE=InnoDB;
+CREATE TABLE parent (id GEOMETRY SRID 0 NOT NULL) ENGINE=InnoDB;
 
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL SRID 0) ENGINE=InnoDB;
 
@@ -673,7 +673,7 @@ SHOW INDEX FROM parent;
 
 SHOW INDEX FROM child;
 
---error ER_BLOB_KEY_WITHOUT_LENGTH
+--error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
 
 #cleanup

@@ -36,7 +36,7 @@ CREATE TABLE `ibstd_10_g` (
   KEY `leader` (`leader`),
   SPATIAL KEY `leaderpoint` (`leaderpoint`),
   SPATIAL KEY `linestr` (`linestr`),
-  KEY `pkeypoint` (`pkeypoint`(25)),
+  KEY `pkeypoint` (`pkeypoint`),
   SPATIAL KEY `fils` (`fils`),
   SPATIAL KEY `fipoint` (`fipoint`),
   SPATIAL KEY `fipoly` (`fipoly`),

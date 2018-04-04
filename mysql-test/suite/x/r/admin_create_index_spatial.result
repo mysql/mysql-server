@@ -262,7 +262,7 @@ Got expected error: GEOJSON index requires 'constraint.required: TRUE (code 5117
 
 Try to create "regular" index on geometry member
 ================================================
-Got expected error: BLOB/TEXT column '$ix_gj_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B' used in key specification without a key length (code 1170)
+Got expected error: GEOJSON index requires 'constraint.required: TRUE (code 5117)
 
 Try to create spatial index with negative options
 =================================================

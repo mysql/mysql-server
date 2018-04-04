@@ -1139,7 +1139,7 @@ DROP table tab;
 # repro case for bug#20451454 - FAILING ASSERTION: LOW_MATCH
 # < DTUPLE_GET_N_FIELDS_CMP(TUPLE)
 create table `t1`(`a` geometry not null SRID 0,`b` linestring not null SRID 0,
-primary key (`b`(192),`a`(141)),spatial key (`b`)) engine=innodb;
+spatial key (`b`)) engine=innodb;
 insert into `t1` values(
  point(1,1),
  linestring(point(1,1),point(1,1))

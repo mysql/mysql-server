@@ -109,7 +109,7 @@ SELECT ST_AsText(p), ST_AsText(p1) FROM t1 WHERE p = p2;
 ST_AsText(p)	ST_AsText(p1)
 ALTER TABLE t1 DROP COLUMN p2;
 # NULLABLE POINT will use NULL
-ALTER TABLE t1 ADD COLUMN p2 POINT, ADD KEY(p2);
+ALTER TABLE t1 ADD COLUMN p2 POINT;
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE name = 'p' OR name = 'g' OR name = 'p1' OR name = 'p2';
 name	mtype	prtype	len
 p	14	1535	12
@@ -261,7 +261,9 @@ DROP TABLE t1;
 #
 # Test when the POINT is on B-TREE
 #
-CREATE TABLE gis_point(fid INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, p POINT, KEY(p)) ENGINE=InnoDB;
+CREATE TABLE gis_point(fid INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT, p POINT NOT NULL, KEY(p)) ENGINE=InnoDB;
+Warnings:
+Warning	3674	The spatial index on column 'p' will not be used by the query optimizer since the column does not have an SRID attribute. Consider adding an SRID attribute to the column.
 INSERT INTO gis_point VALUES
 (101, ST_PointFromText('POINT(10 10)')),
 (102, ST_PointFromText('POINT(20 10)')),
@@ -317,8 +319,7 @@ INSERT INTO gis_point VALUES
 (102, ST_PointFromText('POINT(20 10)')),
 (103, ST_PointFromText('POINT(20 20)')),
 (104, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(10 20)'))));
-# Check if we can create prefix index on POINT
-ALTER TABLE gis_point ADD COLUMN g POINT, ADD KEY(g(8));
+ALTER TABLE gis_point ADD COLUMN g POINT;
 INSERT INTO gis_point VALUES
 (105, ST_PointFromText('POINT(25 15)'), ST_PointFromText('POINT(100 100)')),
 (106, ST_PointFromText('POINT(25 25)'), ST_PointFromText('POINT(110 110)'));
@@ -354,7 +355,7 @@ gis_point	g	point	point
 gis_point	p	point	point
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE name = 'p' OR name = 'g';
 name	mtype	prtype	len
-p	14	1279	12
+p	14	1535	12
 g	14	1279	12
 SELECT length(p) FROM gis_point;
 length(p)
@@ -371,8 +372,7 @@ INSERT INTO gis_point VALUES
 (102, ST_PointFromText('POINT(20 10)')),
 (103, ST_PointFromText('POINT(20 20)')),
 (104, ST_PointFromWKB(ST_AsWKB(ST_PointFromText('POINT(10 20)'))));
-# Check if we can create prefix index on POINT
-ALTER TABLE gis_point ADD COLUMN g POINT, ADD KEY(g(8));
+ALTER TABLE gis_point ADD COLUMN g POINT;
 INSERT INTO gis_point VALUES
 (105, ST_PointFromText('POINT(25 15)'), ST_PointFromText('POINT(100 100)')),
 (106, ST_PointFromText('POINT(25 25)'), ST_PointFromText('POINT(110 110)'));
@@ -403,7 +403,7 @@ Table	Op	Msg_type	Msg_text
 test.gis_point	check	status	OK
 SELECT name, mtype, prtype, len FROM INFORMATION_SCHEMA.INNODB_COLUMNS WHERE name = 'p' OR name = 'g';
 name	mtype	prtype	len
-p	14	1279	12
+p	14	1535	12
 g	14	1279	12
 DROP TABLE gis_point;
 #
@@ -1430,7 +1430,6 @@ a INT NOT NULL,
 p POINT NOT NULL SRID 0,
 l LINESTRING NOT NULL SRID 0,
 g GEOMETRY NOT NULL SRID 0,
-PRIMARY KEY(p),
 SPATIAL KEY `idx2` (p),
 SPATIAL KEY `idx3` (l),
 SPATIAL KEY `idx4` (g)
@@ -1449,7 +1448,7 @@ a	ST_AsText(p)	ST_AsText(l)	ST_AsText(g)
 2	POINT(20 20)	LINESTRING(2 3,7 8,9 10,15 16)	POLYGON((10 30,30 40,40 50,40 30,30 20,10 30))
 EXPLAIN UPDATE t1 SET p = ST_GeomFromText('POINT(30 30)') WHERE p = ST_GeomFromText('POINT(20 20)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	range	PRIMARY	PRIMARY	27	const	#	100.00	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using where
 Warnings:
 Note	1003	update `test`.`t1` set `test`.`t1`.`p` = st_geomfromtext('POINT(30 30)') where (`test`.`t1`.`p` = st_geomfromtext('POINT(20 20)'))
 UPDATE t1 SET p = ST_GeomFromText('POINT(30 30)') WHERE p = ST_GeomFromText('POINT(20 20)');
@@ -1457,7 +1456,6 @@ SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 a	ST_AsText(p)	ST_AsText(l)	ST_AsText(g)
 1	POINT(10 10)	LINESTRING(1 1,5 5,10 10)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 2	POINT(30 30)	LINESTRING(2 3,7 8,9 10,15 16)	POLYGON((10 30,30 40,40 50,40 30,30 20,10 30))
-ALTER TABLE t1 DROP PRIMARY KEY;
 ALTER TABLE t1 ADD PRIMARY KEY(a);
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 a	ST_AsText(p)	ST_AsText(l)	ST_AsText(g)
@@ -1465,6 +1463,7 @@ a	ST_AsText(p)	ST_AsText(l)	ST_AsText(g)
 2	POINT(30 30)	LINESTRING(2 3,7 8,9 10,15 16)	POLYGON((10 30,30 40,40 50,40 30,30 20,10 30))
 ALTER TABLE t1 DROP PRIMARY KEY;
 ALTER TABLE t1 ADD PRIMARY KEY(p);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
 SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 a	ST_AsText(p)	ST_AsText(l)	ST_AsText(g)
 1	POINT(10 10)	LINESTRING(1 1,5 5,10 10)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
@@ -1476,7 +1475,6 @@ t1	CREATE TABLE `t1` (
   `p` point NOT NULL /*!80003 SRID 0 */,
   `l` linestring NOT NULL /*!80003 SRID 0 */,
   `g` geometry NOT NULL /*!80003 SRID 0 */,
-  PRIMARY KEY (`p`(25)),
   SPATIAL KEY `idx2` (`p`),
   SPATIAL KEY `idx3` (`l`),
   SPATIAL KEY `idx4` (`g`)
@@ -1485,13 +1483,11 @@ SELECT a, ST_AsText(p), ST_AsText(l), ST_AsText(g) FROM t1;
 a	ST_AsText(p)	ST_AsText(l)	ST_AsText(g)
 1	POINT(10 10)	LINESTRING(1 1,5 5,10 10)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 2	POINT(30 30)	LINESTRING(2 3,7 8,9 10,15 16)	POLYGON((10 30,30 40,40 50,40 30,30 20,10 30))
-ALTER TABLE t1 DROP PRIMARY KEY;
-ALTER TABLE t1 ADD PRIMARY KEY(p);
 EXPLAIN SELECT a, ST_AsText(p) FROM t1 WHERE a = 2 AND p = ST_GeomFromText('POINT(30 30)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	const	PRIMARY,idx2	PRIMARY	27	const	#	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	idx2	NULL	NULL	NULL	#	50.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '2' AS `a`,st_astext('
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,st_astext(`test`.`t1`.`p`) AS `ST_AsText(p)` from `test`.`t1` where ((`test`.`t1`.`p` = <cache>(st_geomfromtext('POINT(30 30)'))) and (`test`.`t1`.`a` = 2))
 SELECT a, ST_AsText(p) FROM t1 WHERE a = 2 AND p = ST_GeomFromText('POINT(30 30)');
 a	ST_AsText(p)
 2	POINT(30 30)
@@ -1506,16 +1502,15 @@ DROP TABLE t1;
 #
 # Test for foreign keys.
 #
-CREATE TABLE parent(p POINT SRID 0, PRIMARY KEY(p)) ENGINE=InnoDB;
+CREATE TABLE parent(p POINT SRID 0) ENGINE=InnoDB;
 CREATE TABLE child(p POINT NOT NULL SRID 0) ENGINE=InnoDB;
 ALTER TABLE parent ADD SPATIAL INDEX idx1(p);
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 ALTER TABLE child ADD SPATIAL INDEX idx2(p);
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `p` point NOT NULL /*!80003 SRID 0 */,
-  PRIMARY KEY (`p`(25)),
-  SPATIAL KEY `idx1` (`p`)
+  `p` point /*!80003 SRID 0 */ DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE child;
 Table	Create Table
@@ -1525,7 +1520,6 @@ child	CREATE TABLE `child` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
 ERROR HY000: Cannot add foreign key constraint
-ALTER TABLE parent DROP INDEX idx1;
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
 ERROR HY000: Cannot add foreign key constraint
 ALTER TABLE child DROP INDEX idx2;

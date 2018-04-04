@@ -599,12 +599,7 @@ class PT_spacial_type : public PT_type {
 
   virtual const CHARSET_INFO *get_charset() const { return &my_charset_bin; }
   virtual uint get_uint_geom_type() const { return geo_type; }
-  virtual const char *get_length() const {
-    if (geo_type == Field::GEOM_POINT)
-      return STRINGIFY_ARG(MAX_LEN_GEOM_POINT_FIELD);
-    else
-      return NULL;
-  }
+  virtual const char *get_length() const { return NULL; }
 };
 
 enum class Enum_type { ENUM = MYSQL_TYPE_ENUM, SET = MYSQL_TYPE_SET };

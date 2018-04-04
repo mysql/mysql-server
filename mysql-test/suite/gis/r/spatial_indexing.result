@@ -241,9 +241,9 @@ COUNT(g)
 4
 DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON PRIMARY KEY, a int) engine=myisam;
-ERROR 42000: BLOB/TEXT column 'g' used in key specification without a key length
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON, a int,  unique index (g) ) engine=myisam;
-ERROR 42000: BLOB/TEXT column 'g' used in key specification without a key length
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON, a int,  spatial index (g) ) engine=myisam;
 ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 CREATE TABLE gis_multipolygon_and_int_with_spatial_index  (fid INTEGER NOT NULL, g MULTIPOLYGON, a int,  spatial index (fid) ) engine=myisam;
@@ -269,7 +269,7 @@ COUNT(g)
 4
 ALTER TABLE gis_multipolygon_and_int_with_spatial_index DROP INDEX a;
 CREATE INDEX g ON gis_multipolygon_and_int_with_spatial_index (g) ;
-ERROR 42000: BLOB/TEXT column 'g' used in key specification without a key length
+DROP INDEX g ON gis_multipolygon_and_int_with_spatial_index;
 CREATE SPATIAL INDEX a ON gis_multipolygon_and_int_with_spatial_index (a) ;
 ERROR 42000: A SPATIAL index may only contain a geometrical type column
 CREATE SPATIAL INDEX g ON gis_multipolygon_and_int_with_spatial_index (g) ;
@@ -277,3 +277,320 @@ SELECT COUNT(g) FROM gis_multipolygon_and_int_with_spatial_index  WHERE ST_AsTex
 COUNT(g)
 4
 DROP TABLE IF EXISTS gis_multipolygon_and_int_with_spatial_index ;
+#
+# Bug #21087676 FORBID BUILDING NON-SPATIAL INDEX ON GEOMETRY COLUMNS
+#
+# Primary key on geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0 PRIMARY KEY);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL PRIMARY KEY);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+ALTER TABLE t1 ADD PRIMARY KEY (g);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+DROP TABLE t1;
+# Unique index on geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0 UNIQUE);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL UNIQUE);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE UNIQUE INDEX g_idx ON t1(g);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+ALTER TABLE t1 ADD UNIQUE INDEX (g);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE UNIQUE INDEX g_idx ON t1(g);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+ALTER TABLE t1 ADD UNIQUE INDEX (g);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+DROP TABLE t1;
+# Prefix index on geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0, INDEX (g(10)));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, INDEX (g(10)));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE INDEX g_idx ON t1(g(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+ALTER TABLE t1 ADD INDEX (g(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE INDEX g_idx ON t1(g(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+ALTER TABLE t1 ADD INDEX (g(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+DROP TABLE t1;
+# Multi-column index on geometry column is not allowed.
+CREATE TABLE t1 (
+g1 GEOMETRY SRID 0 NOT NULL,
+g2 GEOMETRY SRID 0 NOT NULL,
+INDEX (g1, g2)
+);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+CREATE TABLE t1 (
+g1 GEOMETRY SRID 0,
+g2 GEOMETRY SRID 0,
+INDEX (g1, g2)
+);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+CREATE TABLE t1 (g GEOMETRY SRID 0, a INT, INDEX (g, a));
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, a INT, INDEX (g, a));
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+CREATE TABLE t1 (g1 GEOMETRY SRID 0, g2 GEOMETRY SRID 0, a INT);
+CREATE INDEX g_idx ON t1(g1, g2);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+CREATE INDEX g_idx ON t1(g1, a);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+ALTER TABLE t1 ADD INDEX (g1, g2);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+ALTER TABLE t1 ADD INDEX (g1, a);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+DROP TABLE t1;
+CREATE TABLE t1 (
+g1 GEOMETRY SRID 0 NOT NULL,
+g2 GEOMETRY SRID 0 NOT NULL,
+a INT
+);
+CREATE INDEX g_idx ON t1(g1, g2);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+CREATE INDEX g_idx ON t1(g1, a);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+ALTER TABLE t1 ADD INDEX (g1, g2);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+ALTER TABLE t1 ADD INDEX (g1, a);
+ERROR 42000: Too many key parts specified; max 1 parts allowed
+DROP TABLE t1;
+# Explicit B-tree index on geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0, INDEX (g) USING BTREE);
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, INDEX (g) USING BTREE);
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE INDEX g_idx ON t1(g) USING BTREE;
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+ALTER TABLE t1 ADD INDEX (g) USING BTREE;
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE INDEX g_idx ON t1(g) USING BTREE;
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+ALTER TABLE t1 ADD INDEX (g) USING BTREE;
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+DROP TABLE t1;
+# Explicit hash index on geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0, INDEX (g) USING HASH);
+ERROR HY000: The index type HASH is not supported for spatial indexes.
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, INDEX (g) USING HASH);
+ERROR HY000: The index type HASH is not supported for spatial indexes.
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE INDEX g_idx ON t1(g) USING HASH;
+ERROR HY000: The index type HASH is not supported for spatial indexes.
+ALTER TABLE t1 ADD INDEX (g) USING HASH;
+ERROR HY000: The index type HASH is not supported for spatial indexes.
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE INDEX g_idx ON t1(g) USING HASH;
+ERROR HY000: The index type HASH is not supported for spatial indexes.
+ALTER TABLE t1 ADD INDEX (g) USING HASH;
+ERROR HY000: The index type HASH is not supported for spatial indexes.
+DROP TABLE t1;
+# Explicit ASC index on geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0, INDEX (g ASC));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, INDEX (g ASC));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE INDEX g_idx ON t1(g ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE t1 ADD INDEX (g ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE INDEX g_idx ON t1(g ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE t1 ADD INDEX (g ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0, SPATIAL INDEX (g ASC));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, SPATIAL INDEX (g ASC));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE SPATIAL INDEX g_idx ON t1(g ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE t1 ADD SPATIAL INDEX (g ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE SPATIAL INDEX g_idx ON t1(g ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE t1 ADD SPATIAL INDEX (g ASC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+DROP TABLE t1;
+# Explicit DESC index on geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0, INDEX (g DESC));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, INDEX (g DESC));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE INDEX g_idx ON t1(g DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE t1 ADD INDEX (g DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE INDEX g_idx ON t1(g DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE t1 ADD INDEX (g DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0, SPATIAL INDEX (g DESC));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, SPATIAL INDEX (g DESC));
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE SPATIAL INDEX g_idx ON t1(g DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE t1 ADD SPATIAL INDEX (g DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE SPATIAL INDEX g_idx ON t1(g DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+ALTER TABLE t1 ADD SPATIAL INDEX (g DESC);
+ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
+DROP TABLE t1;
+# Fulltext index on geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0, FULLTEXT INDEX (g));
+ERROR HY000: Column 'g' cannot be part of FULLTEXT index
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, FULLTEXT INDEX (g));
+ERROR HY000: Column 'g' cannot be part of FULLTEXT index
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE FULLTEXT INDEX g_idx ON t1(g);
+ERROR HY000: Column 'g' cannot be part of FULLTEXT index
+ALTER TABLE t1 ADD FULLTEXT INDEX (g);
+ERROR HY000: Column 'g' cannot be part of FULLTEXT index
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE FULLTEXT INDEX g_idx ON t1(g);
+ERROR HY000: Column 'g' cannot be part of FULLTEXT index
+ALTER TABLE t1 ADD FULLTEXT INDEX (g);
+ERROR HY000: Column 'g' cannot be part of FULLTEXT index
+DROP TABLE t1;
+# Index on nullable geometry column is not allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0, INDEX (g));
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE INDEX g_idx ON t1(g);
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE t1 ADD INDEX (g);
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0, SPATIAL INDEX (g));
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+CREATE TABLE t1 (g GEOMETRY SRID 0);
+CREATE SPATIAL INDEX g_idx ON t1(g);
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+ALTER TABLE t1 ADD SPATIAL INDEX (g);
+ERROR 42000: All parts of a SPATIAL index must be NOT NULL
+DROP TABLE t1;
+# Index on non-nullable geometry column is allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, INDEX (g));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `g` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE INDEX g_idx ON t1(g);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `g_idx` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+ALTER TABLE t1 ADD INDEX (g), ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `g` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP INDEX g ON t1;
+ALTER TABLE t1 ADD INDEX (g), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `g` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, SPATIAL INDEX (g));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `g` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE SPATIAL INDEX g_idx ON t1(g);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `g_idx` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+ALTER TABLE t1 ADD SPATIAL INDEX (g), ALGORITHM=COPY;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `g` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP INDEX g ON t1;
+ALTER TABLE t1 ADD SPATIAL INDEX (g), ALGORITHM=INPLACE;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `g` geometry NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `g` (`g`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+# Virtual generated geometry columns don't support spatial indexes.
+CREATE TABLE t1 (x INTEGER,
+y INTEGER,
+g POINT AS (POINT(x, y)) VIRTUAL SRID 0 NOT NULL);
+ALTER TABLE t1 ADD PRIMARY KEY (g);
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
+CREATE INDEX g_idx ON t1(g);
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
+CREATE INDEX g_idx ON t1(g(25));
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
+CREATE INDEX g_idx ON t1(g) USING BTREE;
+ERROR HY000: 'Spatial index on virtual generated column' is not supported for generated columns.
+DROP TABLE t1;
+# Stored generated geometry columns follow the same rules as
+# non-generated columns.
+CREATE TABLE t1 (x INTEGER,
+y INTEGER,
+g POINT AS (POINT(x, y)) STORED SRID 0 NOT NULL);
+ALTER TABLE t1 ADD PRIMARY KEY (g);
+ERROR HY000: Spatial indexes can't be primary or unique indexes.
+CREATE INDEX g_idx ON t1(g);
+DROP INDEX g_idx ON t1;
+CREATE INDEX g_idx ON t1(g(25));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
+CREATE INDEX g_idx ON t1(g) USING BTREE;
+ERROR HY000: The index type BTREE is not supported for spatial indexes.
+DROP TABLE t1;

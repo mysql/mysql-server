@@ -89,7 +89,7 @@ set @@foreign_key_checks=0;
 CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL SRID 0) ENGINE InnoDB;
 # Creating a foreign key on a GEOMETRY column is not supported
 ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
-ERROR 42000: BLOB/TEXT column 'b' used in key specification without a key length
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fi_b' in the foreign table 't1'
 # Adds FULLTEXT and SPATAL indices which cannot be used as foreign keys
 ALTER TABLE t1 ADD FULLTEXT INDEX(a), ADD SPATIAL INDEX(b);
 Warnings:
@@ -109,7 +109,7 @@ t1	1	a	1	a	NULL	0	NULL	NULL	YES	FULLTEXT			YES
 # The SPATIAL index cannot be used so this becomes an attempt at
 # creating a foreign key on a GEOMETRY column which is not supported
 ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
-ERROR 42000: BLOB/TEXT column 'b' used in key specification without a key length
+ERROR HY000: Cannot drop index 'fi_a': needed in a foreign key constraint
 DROP TABLE t1;
 set @@foreign_key_checks= 1;
 # bug#25126722 FOREIGN KEY CONSTRAINT NAME IS NULL AFTER RESTART

@@ -32,9 +32,10 @@ POLYGON((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))
 MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))
 GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 CREATE INDEX i_p ON t_wl6455 (g(10));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 EXPLAIN SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t_wl6455	NULL	ref	i_p	i_p	12	const	#	100.00	Using where
+1	SIMPLE	t_wl6455	NULL	ALL	NULL	NULL	NULL	NULL	#	11.11	Using where
 Warnings:
 Note	1003	/* select#1 */ select st_astext(`test`.`t_wl6455`.`g`) AS `ST_AsText(g)` from `test`.`t_wl6455` where (`test`.`t_wl6455`.`g` = <cache>(point(2,2)))
 SELECT ST_AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);

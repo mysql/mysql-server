@@ -25,7 +25,9 @@ INSERT INTO linestring (pk, linestring_key, linestring_nokey) VALUES (7,
 ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))'),
 ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))'));
 CREATE INDEX linestring_index ON linestring(linestring_nokey(5));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 ALTER TABLE linestring ADD  KEY (linestring_key(5));
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 # Invalid polygon.
 SELECT ST_AsText(linestring_nokey) FROM linestring FORCE KEY (
 linestring_key ) WHERE ST_CONTAINS( ST_GeomFromText('POLYGON( ( 3923 2815 , 4246
@@ -40,5 +42,5 @@ ST_WITHIN( ST_GeomFromText('POLYGON( ( 4135 3009 , 4914 3087 , 4236 3194 , 4091
 ST_GeomFromText('MULTILINESTRING( ( 4147 2871 , 4072 3042 , 4081 3099 , 3796
 3021 , 4007 3463 ) , ( 4042 2808 , 4109 2816 , 3730 3673 ) )') ,
 linestring_key ) AND ST_Length( linestring_nokey ) > 1;
-ST_AsText(linestring_nokey)
+ERROR 42000: Key 'linestring_key' doesn't exist in table 'linestring'
 DROP TABLE linestring;
