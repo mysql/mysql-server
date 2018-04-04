@@ -308,6 +308,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   /* Do some cleanup */
   btr_pcur_close(&(node->pcur));
 
+  if (node->update != nullptr) {
+    node->update->destroy();
+  }
   mem_heap_empty(node->heap);
 
   thr->run_node = node;

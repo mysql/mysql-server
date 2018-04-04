@@ -164,9 +164,10 @@ trx_t *row_vers_impl_x_locked_low(
 
     heap = mem_heap_create(1024);
 
-    trx_undo_prev_version_build(
-        clust_rec, mtr, version, clust_index, clust_offsets, heap,
-        &prev_version, NULL, dict_index_has_virtual(index) ? &vrow : NULL, 0);
+    trx_undo_prev_version_build(clust_rec, mtr, version, clust_index,
+                                clust_offsets, heap, &prev_version, NULL,
+                                dict_index_has_virtual(index) ? &vrow : NULL, 0,
+                                nullptr);
 
     /* The oldest visible clustered index version must not be
     delete-marked, because we never start a transaction by
@@ -514,7 +515,8 @@ static void row_vers_build_cur_vrow_low(
         row_get_rec_roll_ptr(version, clust_index, clust_offsets);
 
     trx_undo_prev_version_build(rec, mtr, version, clust_index, clust_offsets,
-                                heap, &prev_version, NULL, vrow, status);
+                                heap, &prev_version, NULL, vrow, status,
+                                nullptr);
 
     if (heap2) {
       mem_heap_free(heap2);
@@ -633,7 +635,8 @@ static bool row_vers_vc_matches_cluster(
     ut_ad(in_purge == (roll_ptr != 0));
 
     trx_undo_prev_version_build(rec, mtr, version, clust_index, clust_offsets,
-                                heap, &prev_version, NULL, vrow, status);
+                                heap, &prev_version, NULL, vrow, status,
+                                nullptr);
 
     if (heap2) {
       mem_heap_free(heap2);
@@ -950,7 +953,7 @@ ibool row_vers_old_has_index_entry(
 
     trx_undo_prev_version_build(
         rec, mtr, version, clust_index, clust_offsets, heap, &prev_version,
-        NULL, dict_index_has_virtual(index) ? &vrow : NULL, 0);
+        NULL, dict_index_has_virtual(index) ? &vrow : NULL, 0, nullptr);
     mem_heap_free(heap2); /* free version and clust_offsets */
 
     if (!prev_version) {
@@ -1031,29 +1034,30 @@ ibool row_vers_old_has_index_entry(
 /** Constructs the version of a clustered index record which a consistent
  read should see. We assume that the trx id stored in rec is such that
  the consistent read should not see rec in its present version.
+ @param[in]   rec   record in a clustered index; the caller must have a latch
+                    on the page; this latch locks the top of the stack of
+                    versions of this records
+ @param[in]   mtr   mtr holding the latch on rec; it will also hold the latch
+                    on purge_view
+ @param[in]   index   the clustered index
+ @param[in]   offsets   offsets returned by rec_get_offsets(rec, index)
+ @param[in]   view   the consistent read view
+ @param[in,out]   offset_heap   memory heap from which the offsets are
+                                allocated
+ @param[in]   in_heap   memory heap from which the memory for *old_vers is
+                        allocated; memory for possible intermediate versions
+                        is allocated and freed locally within the function
+ @param[out]   old_vers   old version, or NULL if the history is missing or
+                          the record does not exist in the view, that is, it
+                          was freshly inserted afterwards.
+ @param[out]   vrow   reports virtual column info if any
+ @param[in]   lob_undo   undo log to be applied to blobs.
  @return DB_SUCCESS or DB_MISSING_HISTORY */
 dberr_t row_vers_build_for_consistent_read(
-    const rec_t *rec,         /*!< in: record in a clustered index; the
-                              caller must have a latch on the page; this
-                              latch locks the top of the stack of versions
-                              of this records */
-    mtr_t *mtr,               /*!< in: mtr holding the latch on rec */
-    dict_index_t *index,      /*!< in: the clustered index */
-    ulint **offsets,          /*!< in/out: offsets returned by
-                              rec_get_offsets(rec, index) */
-    ReadView *view,           /*!< in: the consistent read view */
-    mem_heap_t **offset_heap, /*!< in/out: memory heap from which
-                          the offsets are allocated */
-    mem_heap_t *in_heap,      /*!< in: memory heap from which the memory for
-                              *old_vers is allocated; memory for possible
-                              intermediate versions is allocated and freed
-                              locally within the function */
-    rec_t **old_vers,         /*!< out, own: old version, or NULL
-                             if the history is missing or the record
-                             does not exist in the view, that is,
-                             it was freshly inserted afterwards */
-    const dtuple_t **vrow)    /*!< out: virtual row */
-{
+    const rec_t *rec, mtr_t *mtr, dict_index_t *index, ulint **offsets,
+    ReadView *view, mem_heap_t **offset_heap, mem_heap_t *in_heap,
+    rec_t **old_vers, const dtuple_t **vrow, lob::undo_vers_t *lob_undo) {
+  DBUG_ENTER("row_vers_build_for_consistent_read");
   const rec_t *version;
   rec_t *prev_version;
   trx_id_t trx_id;
@@ -1069,6 +1073,11 @@ dberr_t row_vers_build_for_consistent_read(
   ut_ad(rec_offs_validate(rec, index, *offsets));
 
   trx_id = row_get_rec_trx_id(rec, index, *offsets);
+
+  /* Reset the collected LOB undo information. */
+  if (lob_undo != nullptr) {
+    lob_undo->reset();
+  }
 
   ut_ad(!view->changes_visible(trx_id, index->table->name));
 
@@ -1088,8 +1097,9 @@ dberr_t row_vers_build_for_consistent_read(
     /* If purge can't see the record then we can't rely on
     the UNDO log record. */
 
-    bool purge_sees = trx_undo_prev_version_build(
-        rec, mtr, version, index, *offsets, heap, &prev_version, NULL, vrow, 0);
+    bool purge_sees =
+        trx_undo_prev_version_build(rec, mtr, version, index, *offsets, heap,
+                                    &prev_version, NULL, vrow, 0, lob_undo);
 
     err = (purge_sees) ? DB_SUCCESS : DB_MISSING_HISTORY;
 
@@ -1135,7 +1145,7 @@ dberr_t row_vers_build_for_consistent_read(
 
   mem_heap_free(heap);
 
-  return (err);
+  DBUG_RETURN(err);
 }
 
 /** Constructs the last committed version of a clustered index record,
@@ -1250,7 +1260,8 @@ void row_vers_build_for_semi_consistent_read(
     heap = mem_heap_create(1024);
 
     if (!trx_undo_prev_version_build(rec, mtr, version, index, *offsets, heap,
-                                     &prev_version, in_heap, vrow, 0)) {
+                                     &prev_version, in_heap, vrow, 0,
+                                     nullptr)) {
       mem_heap_free(heap);
       heap = heap2;
       heap2 = NULL;

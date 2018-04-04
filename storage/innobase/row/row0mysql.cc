@@ -975,6 +975,8 @@ void row_prebuilt_free(
     dd_table_close(prebuilt->table, NULL, NULL, dict_locked);
   }
 
+  prebuilt->m_lob_undo.destroy();
+
   mem_heap_free(prebuilt->heap);
 
   DBUG_VOID_RETURN;
@@ -1729,6 +1731,8 @@ upd_node_t *row_create_update_node_for_mysql(
 
   node->update =
       upd_create(table->get_n_cols() + dict_table_get_n_v_cols(table), heap);
+
+  node->update->table = table;
 
   node->update_n_fields = table->get_n_cols();
 

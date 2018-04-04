@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -366,7 +366,6 @@ void z_first_page_t::load_entry_x(fil_addr_t &addr, z_index_entry_t &entry) {
 /** Deallocate the first page of a compressed LOB. */
 void z_first_page_t::dealloc() {
   ut_ad(m_mtr != nullptr);
-
   btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
   m_block = nullptr;
 }

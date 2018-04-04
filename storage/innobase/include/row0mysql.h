@@ -42,6 +42,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "data0data.h"
 #include "dict0dd.h"
 #include "dict0types.h"
+#include "lob0undo.h"
 #include "que0types.h"
 #include "row0types.h"
 #include "sess0sess.h"
@@ -774,6 +775,13 @@ struct row_prebuilt_t {
 
   /** True if exceeded the end_range while filling the prefetch cache. */
   bool m_end_range;
+
+  /** Undo information for LOB mvcc */
+  lob::undo_vers_t m_lob_undo;
+
+  lob::undo_vers_t *get_lob_undo() { return (&m_lob_undo); }
+
+  void lob_undo_reset() { m_lob_undo.reset(); }
 
   /** Can a record buffer or a prefetch cache be utilized for prefetching
   records in this scan?

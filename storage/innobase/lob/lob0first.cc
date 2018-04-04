@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -31,6 +31,19 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 
 namespace lob {
+
+void first_page_t::replace_inline(trx_t *trx, ulint offset, const byte *&ptr,
+                                  ulint &want, mtr_t *mtr) {
+  byte *old_ptr = data_begin();
+  old_ptr += offset;
+
+  ulint data_avail = get_data_len() - offset;
+  ulint data_to_copy = (want > data_avail) ? data_avail : want;
+  mlog_write_string(old_ptr, ptr, data_to_copy, mtr);
+
+  ptr += data_to_copy;
+  want -= data_to_copy;
+}
 
 /** Replace data in the page by making a copy-on-write.
 @param[in]	trx	the current transaction.
@@ -380,6 +393,14 @@ void first_page_t::import(trx_id_t trx_id) {
 
     cur += index_entry_t::SIZE;
   }
+}
+
+void first_page_t::dealloc() {
+  ut_ad(m_mtr != nullptr);
+  ut_ad(get_next_page() == FIL_NULL);
+
+  btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
+  m_block = nullptr;
 }
 
 };  // namespace lob

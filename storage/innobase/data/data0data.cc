@@ -756,6 +756,14 @@ byte *dfield_t::blobref() const {
   return (static_cast<byte *>(data) + len - BTR_EXTERN_FIELD_REF_SIZE);
 }
 
+ulint dfield_t::lob_version() const {
+  ut_ad(ext);
+  byte *field_ref = blobref();
+
+  lob::ref_t ref(field_ref);
+  return (ref.version());
+}
+
 /** Adjust and(or) set virtual column value which is read from undo
 or online DDL log
 @param[in]	vcol		virtual column definition
@@ -839,7 +847,7 @@ std::ostream &dfield_t::print(std::ostream &out) const {
 @return	the ouput stream. */
 std::ostream &big_rec_field_t::print(std::ostream &out) const {
   out << "[big_rec_field_t: field_no=" << field_no << ", len=" << len
-      << ", data=" << data << ", ext_in_old=" << ext_in_old
+      << ", data=" << PrintBuffer(data, len) << ", ext_in_old=" << ext_in_old
       << ", ext_in_new=" << ext_in_new << "]";
   return (out);
 }

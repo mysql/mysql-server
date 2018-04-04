@@ -528,15 +528,13 @@ dberr_t btr_store_big_rec_extern_fields(trx_t *trx, btr_pcur_t *pcur,
 @param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the field copied to heap, or NULL if the field is incomplete */
-byte *btr_rec_copy_externally_stored_field_func(const dict_index_t *index,
-                                                const rec_t *rec,
-                                                const ulint *offsets,
-                                                const page_size_t &page_size,
-                                                ulint no, ulint *len,
+byte *btr_rec_copy_externally_stored_field_func(
+    const dict_index_t *index, const rec_t *rec, const ulint *offsets,
+    const page_size_t &page_size, ulint no, ulint *len, size_t *lob_version,
 #ifdef UNIV_DEBUG
-                                                bool is_sdi,
+    bool is_sdi,
 #endif /* UNIV_DEBUG */
-                                                mem_heap_t *heap) {
+    mem_heap_t *heap) {
   ulint local_len;
   const byte *data;
 
@@ -569,8 +567,8 @@ byte *btr_rec_copy_externally_stored_field_func(const dict_index_t *index,
     return (NULL);
   }
 
-  return (btr_copy_externally_stored_field(index, len, data, page_size,
-                                           local_len, is_sdi, heap));
+  return (btr_copy_externally_stored_field(index, len, lob_version, data,
+                                           page_size, local_len, is_sdi, heap));
 }
 
 /** Returns the page number where the next BLOB part is stored.
@@ -786,7 +784,8 @@ The clustered index record must be protected by a lock or a page latch.
 @param[in,out]	heap		mem heap
 @return the whole field copied to heap */
 byte *btr_copy_externally_stored_field_func(const dict_index_t *index,
-                                            ulint *len, const byte *data,
+                                            ulint *len, size_t *lob_version,
+                                            const byte *data,
                                             const page_size_t &page_size,
                                             ulint local_len,
 #ifdef UNIV_DEBUG
@@ -834,6 +833,10 @@ byte *btr_copy_externally_stored_field_func(const dict_index_t *index,
     }
 
     *len = local_len + fetch_len;
+
+    if (lob_version != nullptr) {
+      *lob_version = rctx.m_lob_version;
+    }
     return (buf);
   }
 }
@@ -873,7 +876,7 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
       DeleteContext ctx(*this, field_ref, ufield->field_no, rollback);
 
       ref_t lobref(field_ref);
-      lob::purge(&ctx, m_index, trx_id, undo_no, lobref, 0);
+      lob::purge(&ctx, m_index, trx_id, undo_no, lobref, 0, ufield);
     }
   }
 }
@@ -1049,7 +1052,9 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
 
       DeleteContext ctx(*this, field_ref, i, rollback);
       ref_t lobref(field_ref);
-      lob::purge(&ctx, m_index, trx_id, undo_no, lobref, rec_type);
+
+      upd_field_t *uf = nullptr;
+      lob::purge(&ctx, m_index, trx_id, undo_no, lobref, rec_type, uf);
     }
   }
 }

@@ -744,7 +744,8 @@ skip_secondaries:
       lob::ref_t lobref(field_ref);
 
       lob::purge(&ctx, index, node->modifier_trx_id,
-                 trx_undo_rec_get_undo_no(undo_rec), lobref, node->rec_type);
+                 trx_undo_rec_get_undo_no(undo_rec), lobref, node->rec_type,
+                 ufield);
 
       mtr_commit(&mtr);
     }
@@ -780,12 +781,13 @@ static bool row_purge_parse_undo_rec(purge_node_t *node,
   roll_ptr_t roll_ptr;
   ulint info_bits;
   ulint type;
+  type_cmpl_t type_cmpl;
 
   ut_ad(node != NULL);
   ut_ad(thr != NULL);
 
   ptr = trx_undo_rec_get_pars(undo_rec, &type, &node->cmpl_info, updated_extern,
-                              &undo_no, &table_id);
+                              &undo_no, &table_id, type_cmpl);
 
   node->rec_type = type;
 
@@ -984,7 +986,7 @@ try_again:
 
   ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id, roll_ptr,
                                        info_bits, trx, node->heap,
-                                       &(node->update));
+                                       &(node->update), nullptr, type_cmpl);
 
   /* Read to the partial row the fields that occur in indexes */
 
@@ -1037,6 +1039,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_record_func(
       row_purge_upd_exist_or_extern(thr, node, undo_rec);
       MONITOR_INC(MONITOR_N_UPD_EXIST_EXTERN);
       break;
+  }
+
+  if (node->update != nullptr) {
+    node->update->destroy();
   }
 
   if (node->found_clust) {
@@ -1218,6 +1224,45 @@ bool purge_node_t::validate_pcur() {
     ib::error(ER_IB_MSG_1011) << rec_printer(ref).str();
     ib::error(ER_IB_MSG_1012) << rec_printer(pcur.old_rec, offsets).str();
     return (false);
+  }
+
+  return (true);
+}
+#endif /* UNIV_DEBUG */
+
+bool purge_node_t::is_table_id_exists(table_id_t table_id) const {
+  if (recs == nullptr) {
+    return (false);
+  }
+
+  for (auto iter = recs->begin(); iter != recs->end(); ++iter) {
+    table_id_t table_id2 = trx_undo_rec_get_table_id(iter->undo_rec);
+    if (table_id == table_id2) {
+      return (true);
+    }
+  }
+  return (false);
+}
+
+#ifdef UNIV_DEBUG
+/** Check if there are more than one undo record with same (trx_id, undo_no)
+combination.
+@return true when no duplicates are found, false otherwise. */
+bool purge_node_t::check_duplicate_undo_no() const {
+  using Two = std::pair<trx_id_t, undo_no_t>;
+  std::set<Two> trx_info;
+  using Iter = std::set<Two>::iterator;
+
+  if (recs == nullptr) {
+    return (true);
+  }
+
+  for (auto iter = recs->begin(); iter != recs->end(); ++iter) {
+    trx_id_t trxid = iter->modifier_trx_id;
+    undo_no_t undo_no = trx_undo_rec_get_undo_no(iter->undo_rec);
+
+    std::pair<Iter, bool> ret = trx_info.insert(std::make_pair(trxid, undo_no));
+    ut_ad(ret.second == true);
   }
 
   return (true);

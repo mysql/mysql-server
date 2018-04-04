@@ -29,6 +29,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0index.h"
 #include "lob0inf.h"
 #include "lob0lob.h"
+#include "row0upd.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
 #include "zlob0first.h"
@@ -37,6 +38,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob {
 
+/** Rollback from undo log information.
+@param[in]	ctx	the delete operation context.
+@param[in]	index	the clustered index to which LOB belongs.
+@param[in]	ref	the LOB reference object.
+@param[in]	uf	the update vector of concerned field. */
+static void rollback_from_undolog(DeleteContext *ctx, dict_index_t *index,
+                                  ref_t &ref, const upd_field_t *uf) {
+  DBUG_ENTER("rollback_from_undolog");
+
+  trx_t *trx = nullptr;
+
+  dberr_t err = apply_undolog(ctx->get_mtr(), trx, index, ref, uf);
+  ut_a(err == DB_SUCCESS);
+
+  DBUG_VOID_RETURN;
+}
+
 /** Rollback modification of a uncompressed LOB.
 @param[in]	ctx		the delete operation context information.
 @param[in]	index		clustered index in which LOB is present
@@ -44,10 +62,23 @@ namespace lob {
 @param[in]	undo_no		during rollback to savepoint, rollback only
                                 upto this undo number.
 @param[in]	ref		reference to LOB that is being rolled back.
-@param[in]	rec_type	undo record type. */
+@param[in]	rec_type	undo record type.
+@param[in]	uf		update vector of the concerned field. */
 static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-                     undo_no_t undo_no, ref_t &ref, ulint rec_type) {
+                     undo_no_t undo_no, ref_t &ref, ulint rec_type,
+                     const upd_field_t *uf) {
+  DBUG_ENTER("lob::rollback");
+
   ut_ad(ctx->m_rollback);
+
+  if (uf != nullptr && uf->lob_diffs.size() > 0) {
+    /* Undo log contains changes done to the LOB.  This must have
+    been a small change done to LOB.  Apply the undo log on the
+    LOB.*/
+    rollback_from_undolog(ctx, index, ref, uf);
+    DBUG_VOID_RETURN;
+  }
+
   mtr_t *mtr = ctx->get_mtr();
 
   page_no_t first_page_no = ref.page_no();
@@ -79,12 +110,20 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
     first.free_all_index_pages();
     first.dealloc();
+
+  } else {
+#ifdef UNIV_DEBUG
+    const ulint lob_size = ref.length();
+    fil_addr_t first_node_loc = flst_get_first(flst, mtr);
+    ut_ad(validate_size(lob_size, index, first_node_loc, mtr));
+#endif /* UNIV_DEBUG */
   }
 
   ref.set_page_no(FIL_NULL, mtr);
   ref.set_length(0, mtr);
 
   DBUG_EXECUTE_IF("crash_endof_lob_rollback", DBUG_SUICIDE(););
+  DBUG_VOID_RETURN;
 }
 
 /** Rollback modification of a compressed LOB.
@@ -179,8 +218,6 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
   page_no_t first_page_no = ref.page_no();
   page_id_t page_id(ref.space_id(), first_page_no);
-  page_size_t page_size MY_ATTRIBUTE((unused))(
-      dict_table_page_size(index->table));
 
   z_first_page_t first(mtr, index);
   first.load_x(first_page_no);
@@ -257,9 +294,11 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 @param[in]	undo_no		during rollback to savepoint, purge only upto
                                 this undo number.
 @param[in]	ref		reference to LOB that is purged.
-@param[in]	rec_type	undo record type. */
+@param[in]	rec_type	undo record type.
+@param[in]	uf		the update vector for the field. */
 void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, ref_t ref, ulint rec_type) {
+           undo_no_t undo_no, ref_t ref, ulint rec_type,
+           const upd_field_t *uf) {
   DBUG_ENTER("lob::purge");
 
   mtr_t *mtr = ctx->get_mtr();
@@ -275,6 +314,12 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
   if (!ref.is_owner() || ref.page_no() == FIL_NULL || ref.length() == 0 ||
       (ctx->m_rollback && ref.is_inherited())) {
+    DBUG_VOID_RETURN;
+  }
+
+  if (!is_rollback && uf != nullptr && uf->lob_diffs.size() > 0) {
+    /* Undo record contains LOB diffs.  So purge shouldn't look
+    at the LOB. */
     DBUG_VOID_RETURN;
   }
 
@@ -307,7 +352,7 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   ut_a(page_type == FIL_PAGE_TYPE_LOB_FIRST);
 
   if (is_rollback) {
-    rollback(ctx, index, trxid, undo_no, ref, rec_type);
+    rollback(ctx, index, trxid, undo_no, ref, rec_type, uf);
     DBUG_VOID_RETURN;
   }
 

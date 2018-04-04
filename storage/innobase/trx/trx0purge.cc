@@ -1517,6 +1517,10 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
   que_thr_t *thr;
   ulint n_pages_handled = 0;
 
+#ifdef UNIV_DEBUG
+  std::set<table_id_t> all_table_ids;
+#endif /* UNIV_DEBUG */
+
   ut_a(n_purge_threads > 0);
   ut_a(n_purge_threads <= MAX_PURGE_THREADS);
 
@@ -1587,6 +1591,10 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
 
     table_id = trx_undo_rec_get_table_id(rec.undo_rec);
 
+#ifdef UNIV_DEBUG
+    all_table_ids.insert(table_id);
+#endif /* UNIV_DEBUG */
+
     GroupBy::iterator lb = group_by.lower_bound(table_id);
 
     if (lb != group_by.end() && !(group_by.key_comp()(table_id, lb->first))) {
@@ -1634,6 +1642,28 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
       }
     }
   }
+
+#ifdef UNIV_DEBUG
+  {
+    /* Add validation routine to check whether undo records of same table id
+    is being processed by different purge threads concurrently. */
+
+    for (auto xter = all_table_ids.begin(); xter != all_table_ids.end();
+         ++xter) {
+      table_id_t tid = *xter;
+      std::vector<bool> table_exists;
+
+      for (ulint i = 0; i < n_purge_threads; ++i) {
+        purge_node_t *node = static_cast<purge_node_t *>(run_thrs[i]->child);
+        ut_ad(node->check_duplicate_undo_no());
+        table_exists.push_back(node->is_table_id_exists(tid));
+      }
+
+      int N = std::count(table_exists.begin(), table_exists.end(), true);
+      ut_ad(N == 0 || N == 1);
+    }
+  }
+#endif /* UNIV_DEBUG */
 
   ut_ad(trx_purge_check_limit());
 

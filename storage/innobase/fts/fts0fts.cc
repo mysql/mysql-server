@@ -3395,7 +3395,7 @@ static void fts_fetch_doc_from_rec(
     if (rec_offs_nth_extern(offsets, clust_pos)) {
       doc->text.f_str = lob::btr_rec_copy_externally_stored_field(
           clust_index, clust_rec, offsets, dict_table_page_size(table),
-          clust_pos, &doc->text.f_len, false,
+          clust_pos, &doc->text.f_len, nullptr, false,
           static_cast<mem_heap_t *>(doc->self_heap->arg));
     } else {
       doc->text.f_str = const_cast<byte *>(rec_get_nth_field(
@@ -6098,7 +6098,7 @@ static ibool fts_init_recover_doc(void *row,      /*!< in: sel_node_t* */
       /** When a nullptr is passed for trx, it means we will
       fetch the latest LOB (and no MVCC will be done). */
       doc.text.f_str = lob::btr_copy_externally_stored_field(
-          get_doc->index_cache->index, &doc.text.f_len,
+          get_doc->index_cache->index, &doc.text.f_len, nullptr,
           static_cast<byte *>(dfield_get_data(dfield)),
           dict_table_page_size(table), len, false,
           static_cast<mem_heap_t *>(doc.self_heap->arg));

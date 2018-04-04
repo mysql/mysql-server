@@ -1361,7 +1361,7 @@ static MY_ATTRIBUTE((warn_unused_result))
       of passing current trx, a nullptr is passed for trx.*/
       data = lob::btr_rec_copy_externally_stored_field(
           index, mrec, offsets, dict_table_page_size(index->table), i, &len,
-          false, heap);
+          nullptr, false, heap);
 
       ut_a(data);
       dfield_set_data(dfield, data, len);

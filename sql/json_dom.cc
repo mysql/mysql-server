@@ -1690,6 +1690,7 @@ static bool wrapper_to_string(const Json_wrapper &wr, String *buffer,
       /* purecov: begin inspected */
       DBUG_PRINT("info", ("JSON wrapper: unexpected type %d",
                           static_cast<int>(wr.type())));
+
       DBUG_ASSERT(false);
       my_error(ER_INTERNAL_ERROR, MYF(0), "JSON wrapper: unexpected type");
       return true;

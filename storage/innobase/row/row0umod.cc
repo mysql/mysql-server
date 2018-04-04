@@ -1027,9 +1027,10 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
   ulint type;
   ulint cmpl_info;
   bool dummy_extern;
+  type_cmpl_t type_cmpl;
 
   ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info, &dummy_extern,
-                              &undo_no, &table_id);
+                              &undo_no, &table_id, type_cmpl);
   node->rec_type = type;
 
   /* Although table IX lock is held now, DROP TABLE could still be
@@ -1063,7 +1064,8 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, MDL_ticket **mdl) {
 
   ptr = trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id, roll_ptr,
                                        info_bits, node->trx, node->heap,
-                                       &(node->update));
+                                       &(node->update), nullptr, type_cmpl);
+
   node->new_trx_id = trx_id;
   node->cmpl_info = cmpl_info;
 

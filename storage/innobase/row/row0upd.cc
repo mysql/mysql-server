@@ -1535,8 +1535,9 @@ ibool row_upd_changes_ord_field_binary_func(
 
         const dict_index_t *clust_index =
             (ext == nullptr ? index->table->first_index() : ext->index);
-        dptr = lob::btr_copy_externally_stored_field(
-            clust_index, &dlen, dptr, page_size, flen, false, temp_heap);
+        dptr = lob::btr_copy_externally_stored_field(clust_index, &dlen,
+                                                     nullptr, dptr, page_size,
+                                                     flen, false, temp_heap);
       } else {
         dptr = static_cast<uchar *>(dfield->data);
         dlen = dfield->len;
@@ -1571,7 +1572,7 @@ ibool row_upd_changes_ord_field_binary_func(
         const dict_index_t *clust_index =
             (ext == nullptr ? index->table->first_index() : ext->index);
         dptr = lob::btr_copy_externally_stored_field(
-            clust_index, &dlen, dptr, page_size, flen,
+            clust_index, &dlen, nullptr, dptr, page_size, flen,
             dict_table_is_sdi(index->table->id), temp_heap);
       } else {
         dptr = static_cast<uchar *>(upd_field->new_val.data);
@@ -3043,7 +3044,14 @@ error_handling:
 std::ostream &upd_field_t::print(std::ostream &out) const {
   out << "[upd_field_t: field_no=" << field_no << ", orig_len=" << orig_len
       << ", old_val=" << old_val << ", new_val=" << new_val
-      << ", ext_in_old=" << ext_in_old << "]";
+      << ", ext_in_old=" << ext_in_old;
+
+  for (auto iter = lob_diffs.begin(); iter != lob_diffs.end(); ++iter) {
+    out << *iter;
+  }
+
+  out << "]";
+
   return (out);
 }
 
@@ -3051,9 +3059,39 @@ std::ostream &upd_t::print(std::ostream &out) const {
   out << "[upd_t: n_fields=" << n_fields << ", ";
   for (ulint i = 0; i < n_fields; ++i) {
     out << fields[i];
+    print_puvect(out, &fields[i]);
   }
-  print_puvect(out);
   out << "]";
+  return (out);
+}
+
+/** Print the given binary diff into the given output stream.
+@param[in]	out	the output stream
+@param[in]	uf	the update vector of concerned field.
+@param[in]	bdiff	binary diff to be printed.
+@param[in]	table	the table dictionary object.
+@param[in]	field	mysql field object.
+@return the output stream */
+static std::ostream &print_binary_diff(std::ostream &out, upd_field_t *uf,
+                                       const Binary_diff *bdiff,
+                                       const dict_table_t *table,
+                                       const Field *field) {
+  ulint field_no = 0;
+  if (table != nullptr) {
+    dict_col_t *col = table->get_col(field->field_index);
+    field_no = dict_col_get_clust_pos(col, table->first_index());
+  }
+
+  const char *to = bdiff->new_data(const_cast<Field *>(field));
+  size_t len = bdiff->length();
+
+  const char *from = bdiff->old_data(const_cast<Field *>(field));
+
+  out << "[Binary_diff: field_index=" << field->field_index
+      << ", field_no=" << field_no << ", offset=" << bdiff->offset()
+      << ", length=" << len << ", new_data=" << PrintBuffer(to, len)
+      << ", old_data=" << PrintBuffer(from, len) << "]";
+
   return (out);
 }
 
@@ -3066,30 +3104,49 @@ std::ostream &upd_t::print(std::ostream &out) const {
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
                                 const dict_table_t *table, const Field *field) {
   ulint field_no = 0;
-
   if (table != nullptr) {
     dict_col_t *col = table->get_col(field->field_index);
     field_no = dict_col_get_clust_pos(col, table->first_index());
   }
 
+  const char *to = bdiff->new_data(const_cast<Field *>(field));
+  size_t len = bdiff->length();
+
   out << "[Binary_diff: field_index=" << field->field_index
       << ", field_no=" << field_no << ", offset=" << bdiff->offset()
-      << ", length=" << bdiff->length()
-      << ", new_data=" << (void *)bdiff->new_data(const_cast<Field *>(field))
-      << "]";
+      << ", length=" << len << ", new_data=" << PrintBuffer(to, len) << "]";
 
   return (out);
 }
 
 std::ostream &print_binary_diff(std::ostream &out, const Binary_diff *bdiff,
                                 Field *fld) {
+  const char *to = bdiff->new_data(fld);
+  size_t len = bdiff->length();
+
   out << "[Binary_diff: field_index=" << fld->field_index
       << ", offset=" << bdiff->offset() << ", length=" << bdiff->length()
-      << ", new_data=" << (void *)bdiff->new_data(fld) << "]";
+      << ", new_data=" << PrintBuffer(to, len) << "]";
   return (out);
 }
 
-std::ostream &upd_t::print_puvect(std::ostream &out) const { return (out); }
+std::ostream &upd_t::print_puvect(std::ostream &out, upd_field_t *uf) const {
+  if (!is_partially_updated(uf->field_no)) {
+    return (out);
+  }
+
+  Field *fld = uf->mysql_field;
+
+  const Binary_diff_vector *dv = mysql_table->get_binary_diffs(fld);
+
+  for (Binary_diff_vector::const_iterator iter = dv->begin(); iter != dv->end();
+       ++iter) {
+    const Binary_diff *bdiff = iter;
+    print_binary_diff(out, uf, bdiff, table, fld);
+  }
+
+  return (out);
+}
 
 upd_field_t *upd_t::get_field_by_field_no(ulint field_no,
                                           dict_index_t *index) const {
@@ -3119,7 +3176,7 @@ bool upd_t::is_partially_updated(ulint field_no) const {
 
   upd_field_t *uf = get_field_by_field_no(field_no, table->first_index());
 
-  if (uf == nullptr) {
+  if (uf == nullptr || uf->mysql_field == nullptr) {
     return (false);
   }
 
@@ -3161,7 +3218,13 @@ const Binary_diff_vector *upd_t::get_binary_diff_by_field_no(
   ut_ad(table != nullptr);
 
   upd_field_t *uf = get_field_by_field_no(field_no, table->first_index());
+  ut_ad(uf != nullptr);
+
   Field *fld = uf->mysql_field;
+
+  if (fld == nullptr) {
+    return (nullptr);
+  }
 
   return (mysql_table->get_binary_diffs(fld));
 }

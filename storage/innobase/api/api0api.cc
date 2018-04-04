@@ -373,8 +373,8 @@ static ib_err_t ib_read_tuple(
       means that partial update of LOB is not supported
       via this interface.*/
       data = lob::btr_rec_copy_externally_stored_field(
-          index, copy, offsets, page_size, i, &len, dict_index_is_sdi(index),
-          tuple->heap);
+          index, copy, offsets, page_size, i, &len, nullptr,
+          dict_index_is_sdi(index), tuple->heap);
 
       ut_a(len != UNIV_SQL_NULL);
     }

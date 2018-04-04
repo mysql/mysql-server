@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,10 +26,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef lob0inf_h
 #define lob0inf_h
 
+#include <list>
+
 #include "fut0lst.h"
+#include "lob0index.h"
 #include "lob0lob.h"
 #include "mtr0mtr.h"
+#include "table.h"
 #include "trx0trx.h"
+
+struct lob_diff_t;
 
 namespace lob {
 
@@ -79,9 +85,11 @@ ulint z_read(lob::ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
 @param[in]	undo_no		during rollback to savepoint, purge only upto
                                 this undo number.
 @param[in]	ref		reference to LOB that is purged.
-@param[in]	rec_type	undo record type.*/
+@param[in]	rec_type	undo record type.
+@param[in]	uf		update done on the field. */
 void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, lob::ref_t ref, ulint rec_type);
+           undo_no_t undo_no, lob::ref_t ref, ulint rec_type,
+           const upd_field_t *uf);
 
 /** Print information about the given LOB.
 @param[in]  trx  the current transaction.
@@ -113,6 +121,51 @@ dberr_t update(trx_t *trx, dict_index_t *index, const upd_t *upd,
 @return DB_SUCCESS on success, error code on failure. */
 dberr_t z_update(trx_t *trx, dict_index_t *index, const upd_t *upd,
                  ulint field_no);
+
+/** Get the list of index entries affected by the given partial update
+vector.
+@param[in]	ref	the LOB reference object.
+@param[in]	index	the clustered index to which LOB belongs.
+@param[in]	bdiff	single partial update vector
+@param[out]	entries	affected LOB index entries.
+@param[in]	mtr	the mini transaction
+@return DB_SUCCESS on success, error code on failure. */
+dberr_t get_affected_index_entries(const ref_t &ref, dict_index_t *index,
+                                   const Binary_diff &bdiff,
+                                   List_iem_t &entries, mtr_t *mtr);
+
+/** Apply the undo log on the LOB
+@param[in]  mtr  the mini transaction context.
+@param[in]  trx  the transaction that is being rolled back.
+@param[in]	index	the clustered index to which LOB belongs.
+@param[in]	ref	the LOB reference object.
+@param[in]	uf      the update vector for LOB field.
+@return DB_SUCCESS on success, error code on failure. */
+dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
+                      const upd_field_t *uf);
+
+/** Get information about the given LOB.
+@param[in]	ref	the LOB reference.
+@param[in]	index	the clustered index to which LOB belongs.
+@param[out]	lob_version	the lob version number.
+@param[out]	last_trx_id	the trx_id that modified the lob last.
+@param[out]	last_undo_no	the trx undo no that modified the lob last.
+@param[out]	page_type	the page type of first lob page.
+@param[in]	mtr		the mini transaction context.
+@return always returns DB_SUCCESS. */
+dberr_t get_info(ref_t &ref, dict_index_t *index, ulint &lob_version,
+                 trx_id_t &last_trx_id, undo_no_t &last_undo_no,
+                 ulint &page_type, mtr_t *mtr);
+
+/** Validate the size of the given LOB.
+@param[in]	lob_size	expected size of the LOB, mostly obtained from
+                                the LOB reference.
+@param[in]	index		clustered index containing the LOB.
+@param[in]	node_loc	the location of the first LOB index entry.
+@param[in]	mtr		the mini transaction context.
+@return true if size is valid, false otherwise. */
+bool validate_size(const ulint lob_size, dict_index_t *index,
+                   fil_addr_t node_loc, mtr_t *mtr);
 
 }  // namespace lob
 

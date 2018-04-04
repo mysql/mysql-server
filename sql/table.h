@@ -1146,6 +1146,14 @@ class Binary_diff final {
     @return a pointer to the start of the replacement data
   */
   const char *new_data(Field *field) const;
+
+  /**
+    Get a pointer to the start of the old data to be replaced.
+
+    @param field  the column that is updated
+    @return a pointer to the start of old data to be replaced.
+  */
+  const char *old_data(Field *field) const;
 };
 
 /**

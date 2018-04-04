@@ -354,6 +354,87 @@ an autoinc field defined in this table.
 ib_uint64_t row_upd_get_new_autoinc_counter(const upd_t *update,
                                             ulint autoinc_field_no);
 
+/** This structure is used for undo logging of LOB index changes. */
+struct lob_index_diff_t {
+  trx_id_t m_modifier_trxid;
+  undo_no_t m_modifier_undo_no;
+
+  /** Print the current object into the given output stream.
+  @param[in,out]	out	the output stream.
+  @return the output stream. */
+  std::ostream &print(std::ostream &out) const {
+    out << "[lob_index_diff_t: m_modifier_trxid=" << m_modifier_trxid
+        << ", m_modifier_undo_no=" << m_modifier_undo_no << "]";
+    return (out);
+  }
+};
+
+/** Overloading the global output operator to print lob_index_diff_t object.
+@param[in,out]	out	the output stream.
+@param[in]	obj	the object to be printed.
+@return the output stream.*/
+inline std::ostream &operator<<(std::ostream &out,
+                                const lob_index_diff_t &obj) {
+  return (obj.print(out));
+}
+
+/** The modification done to the LOB. */
+struct Lob_diff {
+  /** Read the offset from the undo record.
+  @param[in]   undo_ptr   pointer into the undo log record.
+  @return pointer into the undo log record after offset. */
+  const byte *read_offset(const byte *undo_ptr) {
+    /* Read the offset. */
+    m_offset = mach_read_next_compressed(&undo_ptr);
+    return (undo_ptr);
+  }
+
+  /** Read the length from the undo record.
+  @param[in]   undo_ptr   pointer into the undo log record.
+  @return pointer into the undo log record after length information. */
+  const byte *read_length(const byte *undo_ptr) {
+    /* Read the length. */
+    m_length = mach_read_next_compressed(&undo_ptr);
+    ut_ad(m_length <= lob::ref_t::LOB_SMALL_CHANGE_THRESHOLD);
+
+    return (undo_ptr);
+  }
+
+  void set_old_data(const byte *undo_ptr) { m_old_data = undo_ptr; }
+
+  std::ostream &print(std::ostream &out) const {
+    out << "[Lob_diff: offset=" << m_offset << ", length=" << m_length;
+    if (m_old_data == nullptr) {
+      out << ", m_old_data=nullptr";
+    } else {
+      out << ", m_old_data=" << PrintBuffer(m_old_data, m_length);
+    }
+
+    for (auto iter = m_idx_diffs.begin(); iter != m_idx_diffs.end(); ++iter) {
+      out << *iter;
+    }
+
+    out << "]";
+    return (out);
+  }
+
+  /** The offset within LOB where partial update happened. */
+  ulint m_offset = 0;
+
+  /** The length of the modification. */
+  ulint m_length = 0;
+
+  /** Changes to the LOB data. */
+  const byte *m_old_data = nullptr;
+
+  /** Changes to the LOB index. */
+  std::vector<lob_index_diff_t> m_idx_diffs;
+};
+
+inline std::ostream &operator<<(std::ostream &out, const Lob_diff &obj) {
+  return (obj.print(out));
+}
+
 /* Update vector field */
 struct upd_field_t {
   unsigned field_no : 16; /*!< field number in an index, usually
@@ -378,7 +459,25 @@ struct upd_field_t {
   /** If true, the field was stored externally in the old row. */
   bool ext_in_old;
 
+  /** List of changes done to this updated field.  This is usually
+  populated from the undo log. */
+  std::vector<Lob_diff> lob_diffs;
+
+  /** The LOB first page number.  This information is read from
+  the undo log. */
+  page_no_t lob_first_page_no;
+
+  ulint lob_version;
+
+  /** The last trx that modified the LOB. */
+  trx_id_t last_trx_id;
+
+  /** The last stmt within trx that modified the LOB. */
+  undo_no_t last_undo_no;
+
   std::ostream &print(std::ostream &out) const;
+
+  void destroy() { call_destructor(&lob_diffs); }
 };
 
 inline std::ostream &operator<<(std::ostream &out, const upd_field_t &obj) {
@@ -421,6 +520,13 @@ struct upd_t {
     return (false);
   }
 
+  /** Destroy the object. */
+  void destroy() const {
+    for (ulint i = 0; i < n_fields; ++i) {
+      fields[i].destroy();
+    }
+  }
+
   /** Get field by field number.
   @param[in]	field_no	the field number.
   @return the updated field information. */
@@ -447,8 +553,26 @@ struct upd_t {
 
   const Binary_diff_vector *get_binary_diff_by_field_no(ulint field_no) const;
 
+  /** Calculate the total number of bytes modified in one BLOB.
+  @param[in]	bdv	the binary diff vector containing all the
+                          modifications to one BLOB.
+  @return the total modified bytes. */
+  static size_t get_total_modified_bytes(const Binary_diff_vector &bdv) {
+    size_t total = 0;
+    for (const Binary_diff &bdiff : bdv) {
+      total += bdiff.length();
+    }
+    return (total);
+  }
+
   std::ostream &print(std::ostream &out) const;
-  std::ostream &print_puvect(std::ostream &out) const;
+
+  /** Print the partial update vector (puvect) of the given update
+  field.
+  @param[in,out]	out	the output stream
+  @param[in]	uf	the updated field.
+  @return the output stream. */
+  std::ostream &print_puvect(std::ostream &out, upd_field_t *uf) const;
 };
 
 #ifdef UNIV_DEBUG
@@ -571,15 +695,14 @@ struct upd_node_t {
     looked at and updated if an ordering \
     field changed */
 
-/* Compilation info flags: these must fit within 3 bits; see trx0rec.h */
+/* Compilation info flags: these must fit within 2 bits; see trx0rec.h */
 #define UPD_NODE_NO_ORD_CHANGE            \
   1 /* no secondary index record will be  \
     changed in the update and no ordering \
     field of the clustered index */
-#define UPD_NODE_NO_SIZE_CHANGE     \
-  2 /* no record field size will be \
-    changed in the update */
-
+#define UPD_NODE_NO_SIZE_CHANGE        \
+  2    /* no record field size will be \
+       changed in the update */
 #endif /* !UNIV_HOTBACKUP */
 
 #include "row0upd.ic"

@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "data0data.h"
 #include "dict0mem.h"
 #include "dict0types.h"
+#include "lob0undo.h"
 #include "mtr0mtr.h"
 #include "que0types.h"
 #include "rem0types.h"
@@ -88,29 +89,29 @@ ibool row_vers_old_has_index_entry(
 /** Constructs the version of a clustered index record which a consistent
  read should see. We assume that the trx id stored in rec is such that
  the consistent read should not see rec in its present version.
+ @param[in]   rec   record in a clustered index; the caller must have a latch
+                    on the page; this latch locks the top of the stack of
+                    versions of this records
+ @param[in]   mtr   mtr holding the latch on rec; it will also hold the latch
+                    on purge_view
+ @param[in]   index   the clustered index
+ @param[in]   offsets   offsets returned by rec_get_offsets(rec, index)
+ @param[in]   view   the consistent read view
+ @param[in,out]   offset_heap   memory heap from which the offsets are
+                                allocated
+ @param[in]   in_heap   memory heap from which the memory for *old_vers is
+                        allocated; memory for possible intermediate versions
+                        is allocated and freed locally within the function
+ @param[out]   old_vers   old version, or NULL if the history is missing or
+                          the record does not exist in the view, that is, it
+                          was freshly inserted afterwards.
+ @param[out]   vrow   reports virtual column info if any
+ @param[in]   lob_undo   undo log to be applied to blobs.
  @return DB_SUCCESS or DB_MISSING_HISTORY */
 dberr_t row_vers_build_for_consistent_read(
-    const rec_t *rec,         /*!< in: record in a clustered index; the
-                              caller must have a latch on the page; this
-                              latch locks the top of the stack of versions
-                              of this records */
-    mtr_t *mtr,               /*!< in: mtr holding the latch on rec; it will
-                              also hold the latch on purge_view */
-    dict_index_t *index,      /*!< in: the clustered index */
-    ulint **offsets,          /*!< in/out: offsets returned by
-                              rec_get_offsets(rec, index) */
-    ReadView *view,           /*!< in: the consistent read view */
-    mem_heap_t **offset_heap, /*!< in/out: memory heap from which
-                          the offsets are allocated */
-    mem_heap_t *in_heap,      /*!< in: memory heap from which the memory for
-                              *old_vers is allocated; memory for possible
-                              intermediate versions is allocated and freed
-                              locally within the function */
-    rec_t **old_vers,         /*!< out, own: old version, or NULL
-                             if the history is missing or the record
-                             does not exist in the view, that is,
-                             it was freshly inserted afterwards */
-    const dtuple_t **vrow);   /*!< out: reports virtual column info if any */
+    const rec_t *rec, mtr_t *mtr, dict_index_t *index, ulint **offsets,
+    ReadView *view, mem_heap_t **offset_heap, mem_heap_t *in_heap,
+    rec_t **old_vers, const dtuple_t **vrow, lob::undo_vers_t *lob_undo);
 
 /** Constructs the last committed version of a clustered index record,
  which should be seen by a semi-consistent read. */

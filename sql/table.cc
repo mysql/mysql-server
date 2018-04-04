@@ -7264,6 +7264,14 @@ const char *Binary_diff::new_data(Field *field) const {
   return fld->get_binary() + m_offset;
 }
 
+const char *Binary_diff::old_data(Field *field) const {
+  my_ptrdiff_t ptrdiff = field->table->record[1] - field->table->record[0];
+  field->move_field_offset(ptrdiff);
+  const char *data = new_data(field);
+  field->move_field_offset(-ptrdiff);
+  return data;
+}
+
 void TABLE::add_logical_diff(const Field_json *field,
                              const Json_seekable_path &path,
                              enum_json_diff_operation operation,
