@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,9 +98,8 @@ class Collation_impl : public Entity_object_impl, public Collation {
   // pad_attribute
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &pad_attribute() const { return m_pad_attribute; }
-
-  virtual void set_pad_attribute(const String_type &pad_attribute) {
+  virtual void set_pad_attribute(enum_pad_attribute pad_attribute) {
+    DBUG_ASSERT(pad_attribute != PA_UNDEFINED);
     m_pad_attribute = pad_attribute;
   }
 
@@ -132,7 +131,7 @@ class Collation_impl : public Entity_object_impl, public Collation {
   // Fields
   bool m_is_compiled;
   uint m_sort_length;
-  String_type m_pad_attribute;
+  enum_pad_attribute m_pad_attribute;
 
   // References to other objects
   Object_id m_charset_id;

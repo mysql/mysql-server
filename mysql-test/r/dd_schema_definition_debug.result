@@ -163,8 +163,8 @@ Table	Create Table
 catalogs	CREATE TABLE `catalogs` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(64) <LCTN dependent collation> NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
@@ -180,7 +180,7 @@ character_sets	CREATE TABLE `character_sets` (
   `options` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
-  KEY `default_collation_id` (`default_collation_id`),
+  UNIQUE KEY `default_collation_id` (`default_collation_id`),
   CONSTRAINT `character_sets_ibfk_1` FOREIGN KEY (`default_collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE mysql.collations;
@@ -191,7 +191,7 @@ collations	CREATE TABLE `collations` (
   `character_set_id` bigint(20) unsigned NOT NULL,
   `is_compiled` tinyint(1) NOT NULL,
   `sort_length` int(10) unsigned NOT NULL,
-  `pad_attribute` varchar(9) COLLATE utf8_bin NOT NULL,
+  `pad_attribute` enum('PAD SPACE','NO PAD') COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`),
@@ -288,8 +288,8 @@ events	CREATE TABLE `events` (
   `ends` datetime DEFAULT NULL,
   `status` enum('ENABLED','DISABLED','SLAVESIDE_DISABLED') COLLATE utf8_bin NOT NULL,
   `on_completion` enum('DROP','PRESERVE') COLLATE utf8_bin NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `last_executed` datetime DEFAULT NULL,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
   `originator` int(10) unsigned NOT NULL,
@@ -399,7 +399,7 @@ indexes	CREATE TABLE `indexes` (
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `tablespace_id` bigint(20) unsigned DEFAULT NULL,
-  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `table_id` (`table_id`,`name`),
   KEY `tablespace_id` (`tablespace_id`),
@@ -526,8 +526,8 @@ routines	CREATE TABLE `routines` (
   `client_collation_id` bigint(20) unsigned NOT NULL,
   `connection_collation_id` bigint(20) unsigned NOT NULL,
   `schema_collation_id` bigint(20) unsigned NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `comment` text COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `external_language` varchar(64) COLLATE utf8_bin NOT NULL DEFAULT 'SQL',
@@ -550,8 +550,8 @@ schemata	CREATE TABLE `schemata` (
   `catalog_id` bigint(20) unsigned NOT NULL,
   `name` varchar(64) <LCTN dependent collation> NOT NULL,
   `default_collation_id` bigint(20) unsigned NOT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   PRIMARY KEY (`id`),
   UNIQUE KEY `catalog_id` (`catalog_id`,`name`),
@@ -597,7 +597,7 @@ table_partitions	CREATE TABLE `table_partitions` (
   `number` smallint(5) unsigned NOT NULL,
   `name` varchar(64) CHARACTER SET utf8 COLLATE utf8_tolower_ci NOT NULL,
   `description_utf8` text COLLATE utf8_bin,
-  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
@@ -609,8 +609,10 @@ table_partitions	CREATE TABLE `table_partitions` (
   UNIQUE KEY `engine` (`engine`,`se_private_id`),
   KEY `engine_2` (`engine`),
   KEY `tablespace_id` (`tablespace_id`),
+  KEY `parent_partition_id` (`parent_partition_id`),
   CONSTRAINT `table_partitions_ibfk_1` FOREIGN KEY (`table_id`) REFERENCES `tables` (`id`),
-  CONSTRAINT `table_partitions_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+  CONSTRAINT `table_partitions_ibfk_2` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`),
+  CONSTRAINT `table_partitions_ibfk_3` FOREIGN KEY (`parent_partition_id`) REFERENCES `table_partitions` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE mysql.table_stats;
 Table	Create Table
@@ -643,11 +645,11 @@ tables	CREATE TABLE `tables` (
   `collation_id` bigint(20) unsigned DEFAULT NULL,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
   `hidden` enum('Visible','System','SE','DDL') COLLATE utf8_bin NOT NULL,
-  `options` mediumblob,
+  `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `se_private_id` bigint(20) unsigned DEFAULT NULL,
   `tablespace_id` bigint(20) unsigned DEFAULT NULL,
-  `partition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55','RANGE','LIST','RANGE_COLUMNS','LIST_COLUMNS','AUTO') COLLATE utf8_bin DEFAULT NULL,
+  `partition_type` enum('HASH','KEY_51','KEY_55','LINEAR_HASH','LINEAR_KEY_51','LINEAR_KEY_55','RANGE','LIST','RANGE_COLUMNS','LIST_COLUMNS','AUTO','AUTO_LINEAR') COLLATE utf8_bin DEFAULT NULL,
   `partition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
   `partition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
   `default_partitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
@@ -655,8 +657,8 @@ tables	CREATE TABLE `tables` (
   `subpartition_expression` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
   `subpartition_expression_utf8` varchar(2048) COLLATE utf8_bin DEFAULT NULL,
   `default_subpartitioning` enum('NO','YES','NUMBER') COLLATE utf8_bin DEFAULT NULL,
-  `created` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `last_altered` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   `view_definition` longblob,
   `view_definition_utf8` longtext COLLATE utf8_bin,
   `view_check_option` enum('NONE','LOCAL','CASCADED') COLLATE utf8_bin DEFAULT NULL,
@@ -671,11 +673,16 @@ tables	CREATE TABLE `tables` (
   UNIQUE KEY `schema_id` (`schema_id`,`name`),
   UNIQUE KEY `engine` (`engine`,`se_private_id`),
   KEY `engine_2` (`engine`),
+  KEY `type` (`type`),
   KEY `collation_id` (`collation_id`),
   KEY `tablespace_id` (`tablespace_id`),
+  KEY `view_client_collation_id` (`view_client_collation_id`),
+  KEY `view_connection_collation_id` (`view_connection_collation_id`),
   CONSTRAINT `tables_ibfk_1` FOREIGN KEY (`schema_id`) REFERENCES `schemata` (`id`),
   CONSTRAINT `tables_ibfk_2` FOREIGN KEY (`collation_id`) REFERENCES `collations` (`id`),
-  CONSTRAINT `tables_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`)
+  CONSTRAINT `tables_ibfk_3` FOREIGN KEY (`tablespace_id`) REFERENCES `tablespaces` (`id`),
+  CONSTRAINT `tables_ibfk_4` FOREIGN KEY (`view_client_collation_id`) REFERENCES `collations` (`id`),
+  CONSTRAINT `tables_ibfk_5` FOREIGN KEY (`view_connection_collation_id`) REFERENCES `collations` (`id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
 SHOW CREATE TABLE mysql.tablespace_files;
 Table	Create Table
@@ -696,7 +703,7 @@ tablespaces	CREATE TABLE `tablespaces` (
   `options` mediumtext COLLATE utf8_bin,
   `se_private_data` mediumtext COLLATE utf8_bin,
   `comment` varchar(2048) COLLATE utf8_bin NOT NULL,
-  `engine` varchar(64) COLLATE utf8_bin NOT NULL,
+  `engine` varchar(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC
@@ -712,8 +719,8 @@ triggers	CREATE TABLE `triggers` (
   `action_order` int(10) unsigned NOT NULL,
   `action_statement` longblob NOT NULL,
   `action_statement_utf8` longtext COLLATE utf8_bin NOT NULL,
-  `created` timestamp(2) NOT NULL DEFAULT CURRENT_TIMESTAMP(2) ON UPDATE CURRENT_TIMESTAMP(2),
-  `last_altered` timestamp(2) NOT NULL DEFAULT CURRENT_TIMESTAMP(2),
+  `created` timestamp(2) NOT NULL,
+  `last_altered` timestamp(2) NOT NULL,
   `sql_mode` set('REAL_AS_FLOAT','PIPES_AS_CONCAT','ANSI_QUOTES','IGNORE_SPACE','NOT_USED','ONLY_FULL_GROUP_BY','NO_UNSIGNED_SUBTRACTION','NO_DIR_IN_CREATE','NOT_USED_9','NOT_USED_10','NOT_USED_11','NOT_USED_12','NOT_USED_13','NOT_USED_14','NOT_USED_15','NOT_USED_16','NOT_USED_17','NOT_USED_18','ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES','STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES','ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NOT_USED_29','HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH') COLLATE utf8_bin NOT NULL,
   `definer` varchar(93) COLLATE utf8_bin NOT NULL,
   `client_collation_id` bigint(20) unsigned NOT NULL,

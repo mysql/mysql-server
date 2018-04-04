@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,10 +63,15 @@ class Table_partitions : public Object_table_impl {
     INDEX_UK_TABLE_ID_PARENT_PARTITION_ID_NUMBER,
     INDEX_UK_ENGINE_SE_PRIVATE_ID,
     INDEX_K_ENGINE,
-    INDEX_K_TABLESPACE_ID
+    INDEX_K_TABLESPACE_ID,
+    INDEX_K_PARENT_PARTITION_ID
   };
 
-  enum enum_foreign_keys { FK_TABLE_ID, FK_TABLESPACE_ID };
+  enum enum_foreign_keys {
+    FK_TABLE_ID,
+    FK_TABLESPACE_ID,
+    FK_PARENT_PARTITION_ID
+  };
 
   Table_partitions();
 

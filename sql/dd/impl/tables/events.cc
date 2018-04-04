@@ -112,10 +112,9 @@ Events::Events() {
   m_target_def.add_field(FIELD_ON_COMPLETION, "FIELD_ON_COMPLETION",
                          "on_completion ENUM('DROP', 'PRESERVE') NOT NULL");
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
-                         "created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP "
-                         "ON UPDATE CURRENT_TIMESTAMP");
+                         "created TIMESTAMP NOT NULL");
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
-                         "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
+                         "last_altered TIMESTAMP NOT NULL");
   m_target_def.add_field(FIELD_LAST_EXECUTED, "FIELD_LAST_EXECUTED",
                          "last_executed DATETIME");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",

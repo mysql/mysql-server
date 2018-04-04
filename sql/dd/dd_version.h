@@ -117,6 +117,9 @@
   - BUG#27309116: Add a new column `external_language` to `mysql`.`routines`
     and update `information_schema`.`routines` to reflect this column.
 
+  - Bug#27745526: Various adjustments to make the DD table definitions
+    in sync with WL#6379.
+
   80012: Next DD version number to use when there is change.
   ----------------------------------------------------------
   No changes yet, hence this number is not used yet.
