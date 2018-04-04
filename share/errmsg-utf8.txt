@@ -18062,6 +18062,9 @@ ER_SERVER_SHUTDOWN_INFO
 ER_GRP_RPL_PLUGIN_ABORT
   eng "The plugin encountered a critical error and will abort: %s"
 
+ER_REGEXP_INVALID_FLAG
+  eng "Invalid match mode flag in regular expression."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
