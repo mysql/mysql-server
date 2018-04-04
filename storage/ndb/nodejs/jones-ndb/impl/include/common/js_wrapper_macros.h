@@ -91,17 +91,17 @@
 #if NODE_MAJOR_VERSION > 3
 #define SET_RO_PROPERTY(target, symbol, value) \
   (target)->DefineOwnProperty((target)->CreationContext(), \
-                               symbol, value, static_cast<PropertyAttribute>\
-                               (ReadOnly|DontDelete)).IsJust()
+                               symbol, value, static_cast<v8::PropertyAttribute>\
+                               (v8::ReadOnly|v8::DontDelete)).IsJust()
 #else
 #define SET_RO_PROPERTY(target, symbol, value) \
-  (target)->ForceSet(symbol, value, \
-                     static_cast<PropertyAttribute>(ReadOnly|DontDelete))
+  (target)->ForceSet(symbol, value, static_cast<v8::PropertyAttribute>\
+                     (v8::ReadOnly|v8::DontDelete))
 #endif
 
 #define DEFINE_JS_INT(TARGET, name, value) \
   SET_RO_PROPERTY(TARGET, NEW_SYMBOL(name), \
-                  Integer::New(v8::Isolate::GetCurrent(), value))
+                  v8::Integer::New(v8::Isolate::GetCurrent(), value))
 
 #define DEFINE_JS_CONSTANT(TARGET, constant) \
    DEFINE_JS_INT(TARGET, #constant, constant)
