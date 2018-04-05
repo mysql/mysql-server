@@ -129,3 +129,4 @@ SET PERSIST max_connections = 18;
 SET PERSIST_ONLY max_connections = 18;
 ## set to default
 SET GLOBAL max_connections = DEFAULT;
+RESET PERSIST;

@@ -36,6 +36,7 @@ GRANT ALL ON *.* TO 'user_with_length_32_abcdefghijkl'@'localhost';
 --echo # cleanup
 DROP TABLE mysql.test;
 DROP USER 'user_with_length_32_abcdefghijkl'@'localhost';
+--remove_file $MYSQL_TMP_DIR/test.txt
 
 --echo
 --echo End of tests

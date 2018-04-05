@@ -214,6 +214,7 @@ EOF
 --echo # cleanup
 SET GLOBAL log_error_verbosity = @old_log_error_verbosity;
 SET GLOBAL log_timestamps      = @old_log_timestamps;
+--remove_file $MYSQLTEST_VARDIR/tmp/wl6661_log.err~
 
 FLUSH LOGS;
 

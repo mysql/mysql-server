@@ -196,4 +196,6 @@ DROP TABLE t1;
 --let $is_relay_log=
 --source include/assert_transaction_length.inc
 
+# Cleanup
+--remove_file $dump_file
 --source include/group_replication_end.inc

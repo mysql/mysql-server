@@ -154,7 +154,6 @@ DROP TABLE t1;
 #
 # Finally remove the temporary directory
 #
---error 0, 1
---rmdir $tmpdir
+--force-rmdir $tmpdir
 
 --source include/group_replication_end.inc

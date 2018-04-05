@@ -381,4 +381,9 @@ perl;
   print "Occurances : $count_error\n";
   close(FILE);
 EOF
---remove_file $out_file
+
+# Restart the server to get rid of the created file ctype_ldml_log.err
+# due to --log-error=$MYSQLTEST_VARDIR/tmp/ctype_ldml_log.err
+# present in the opt file
+# check-testcase will fail if we attempt to remove the file in the test
+--source include/force_restart.inc

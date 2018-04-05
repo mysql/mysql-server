@@ -80,5 +80,6 @@ perl;
   close F;
 EOF
 
+--remove_file $MYSQL_TMP_DIR/mysqld--help.txt
 --rmdir $TMP_DATADIR
 --rmdir $MYDIR

@@ -25,10 +25,12 @@ close FILE_INC;
 EOF
 --source $temp_inc
 
+--remove_file $temp_out_help_file
+--remove_file $temp_inc
+--enable_query_log
+
 if (!$is_debug)
 {
   --skip mysqlbinlog needs to be debug compiled
 }
---remove_file $temp_out_help_file
---remove_file $temp_inc
---enable_query_log
+

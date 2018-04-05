@@ -87,6 +87,8 @@ DROP TABLE IF EXISTS test.t3;
 
 diff_files $MYSQLTEST_VARDIR/tmp/sp004_master.sql $MYSQLTEST_VARDIR/tmp/sp004_slave.sql;
 
-
+# Cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/sp004_master.sql
+--remove_file $MYSQLTEST_VARDIR/tmp/sp004_slave.sql
 # End of 5.0 test case
 --source include/rpl_end.inc

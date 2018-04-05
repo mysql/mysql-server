@@ -767,3 +767,5 @@ CREATE TABLE t3(a VARCHAR(20), i INT NOT NULL);
 LOAD DATA INFILE '../../std_data/loaddata_utf8.dat' INTO TABLE t3 (a) SET i = NULL;
 
 DROP TABLE t3;
+--remove_file $MYSQLTEST_VARDIR/mysql
+--remove_file $file

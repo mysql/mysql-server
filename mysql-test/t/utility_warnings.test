@@ -106,3 +106,4 @@ DROP DATABASE db_25380000;
 --remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/t_25380000.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/t_25380000.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/25380000_stderr

@@ -148,3 +148,4 @@ SELECT 1;
 
 # Remove residue files
 --force-rmdir $MYSQLD_DATADIR1
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap1.log

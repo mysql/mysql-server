@@ -142,6 +142,7 @@ DROP DATABASE tde_db;
 
 --force-rmdir $MYSQL_TMP_DIR/log_encrypt_dir1
 --force-rmdir $MYSQL_TMP_DIR/innodb_undo_data_dir
+--remove_file $MYSQL_TMP_DIR/my_key_log3
 --remove_file $MYSQLTEST_VARDIR/tmp/bootstrap1.log
 --remove_file $BOOTSTRAP_SQL
 --disable_query_log

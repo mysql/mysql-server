@@ -951,3 +951,6 @@ SELECT * FROM performance_schema.global_status
 
 --remove_file $MYSQL_TMP_DIR/performance_schema.tmp
 --source include/xplugin_drop_user.inc
+
+# Bug#27799355 - X.SYSTEM_VARIABLES & X.PERFORMANCE_SCHEMA FAILS CHECK-TESTCASE ON PB2
+--source include/force_restart.inc

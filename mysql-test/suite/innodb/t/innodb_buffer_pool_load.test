@@ -232,3 +232,4 @@ let $restart_parameters=;
 # Remove residue files and data folder
 --force-rmdir $MYSQL_TMP_DIR/datadir1/
 --remove_file $BOOTSTRAP_SQL
+--remove_file $MYSQLTEST_VARDIR/tmp/bootstrap.log

@@ -332,3 +332,6 @@ INSERT INTO t1 VALUES(12,'abc','2005-01-01');
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 INSERT INTO t1 VALUES(13,'abc','2006-01-01');
 DROP TABLE t1;
+
+# Cleanup
+--force-rmdir $MYSQLTEST_VARDIR/tmp/tc_partition_list_directory

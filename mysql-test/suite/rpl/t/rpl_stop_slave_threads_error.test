@@ -55,6 +55,10 @@ DROP TABLE t1;
 --let SEARCH_PATTERN=Lost connection to MySQL server during query
 --source include/search_pattern.inc
 
---remove_file $MYSQLTEST_VARDIR/tmp/slave_log.err
 --source include/rpl_end.inc
 
+# Initally server was started with --log-error option which creates
+# master_log.err file. check-testcase would fail if we attempt to remove
+# the file. Hence restart is required to clean up the created file.
+# Restart
+--source include/force_restart.inc

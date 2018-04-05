@@ -4,10 +4,12 @@
 
 #check single character databases. Bug#11747866
 --let $rpl_skip_reset_master_and_slave= 1
---let $rpl_skip_change_master= 1
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
+
 --connection master
+--let $rpl_server_number=1
+--source include/rpl_stop_server.inc
 
 #check for normal functionality
 --echo testing for normal fuctionality
@@ -15,6 +17,9 @@
 --let $rpl_server_parameters= --replicate-rewrite-db='mysql->test'
 --source include/rpl_start_server.inc
 --echo [PASS]
+
+--let $rpl_server_number=1
+--source include/rpl_stop_server.inc
 
 #check for single characters databases. BUG#11747866
 --echo testing with single letter databases name.
@@ -47,3 +52,8 @@ exec $MYSQLD --replicate-rewrite-db='acc-> ' 2>&1;
 --enable_result_log
 --echo [FAIL]
 
+# End of test
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--source include/rpl_end.inc

@@ -20,13 +20,12 @@
 # no error, and a few other invariants.  So we issue SHOW SLAVE
 # STATUS, and if it returns no rows we fake the result.
 --let $tmp= 0
-if (`SELECT @@server_id <> 0`)
-{
+if (`SELECT @@server_id <> 0`) {
   --let $tmp= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1)
   --let $tmp= `SELECT '$tmp' = 'No such row'`
 }
-if ($tmp)
-{
+
+if ($tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
   --echo Slave_IO_State	
   --echo Master_Host	127.0.0.1
@@ -95,6 +94,128 @@ if (!$tmp) {
   SHOW SLAVE STATUS;
 }
 
-call mtr.check_testcase();
---enable_query_log
+# There might be more than one server used by a test and check-testcase.test
+# will be run for each server. The file lists for each server needs to be
+# uniquely identified. This can be achieved by appending the @@server_id with
+# the filename.
+--let $infile = `SELECT CONCAT('$MYSQLTEST_VARDIR_ABS/file_list_', @@server_id,'.flist')`
 
+# There may be restrictions on paths usable for import/export operations
+# on a server due to the --secure-file-priv setting.
+#
+# Example 1: sys_vars.secure_file_priv2.test
+#    - The server gets started with --secure_file_priv=$SECURE_LOAD_PATH
+#      --> LOAD DATA INFILE '$MYSQLTEST_VARDIR_ABS/...' gets rejected in this case
+#          if $SECURE_LOAD_PATH <> $MYSQLTEST_VARDIR_ABS
+# Hence, we do not run check-testcase in this case.
+#
+# Example 2: auth_sec.secure_file_priv_null.test
+#    - The server gets started with --secure_file_priv=null
+# Hence, we do not run check-testcase in this case.
+#
+# Example 3: sys_vars.secure_file_priv.test
+#    - The server gets started with --secure_file_priv=''
+# Default location for import/export operation is $MYSQLTEST_VARDIR_ABS
+# Note: $MYSQLTEST_VARDIR_ABS returns the absolute path of the vardir in-case
+# symbolic links are used (e.g --mem) option.
+
+# There might be a problem with "--innodb-force-recovery > 0"
+# When --innodb-force-recovery ranges between [1,3], it prevents all
+# INSERT, UPDATE or DELETE
+# When --innodb-force-recovery=4 (or greater), it places InnoDB in
+# READONLY mode
+# Example: innodb-force-recovery-4.test
+# Hence, check-testcase will not work in these cases.
+
+--let $secure_file_priv = `SELECT @@global.secure_file_priv`
+--let $proceed_with_check_of_files = `SELECT @@global.innodb_force_recovery = 0 AND '$secure_file_priv' = '$MYSQLTEST_VARDIR_ABS/'`
+if ($proceed_with_check_of_files) {
+  # Ensure that we have no impact on the content of the binary log.
+  #
+  # Some (CREATE TABLE, ...) statements within the current routine would be
+  # usually written into the binary log. This must be avoided.
+  # Otherwise tests processing the content of the binary log like
+  # "rpl.rpl_extra_row_data" will fail.
+  SET @sql_log_bin_save = @@sql_log_bin;
+  SET SESSION sql_log_bin = 0;
+
+--write_file $infile
+# These are the files, directory etc. found in some important directories.
+EOF
+#
+
+--append_file $infile
+#---------------- MYSQLTEST_VARDIR ----------------
+EOF
+--list_files_append_file $infile $MYSQLTEST_VARDIR *
+#
+
+# MYSQLTEST_VARDIR/log contains
+#   bootstrap.log
+#   current_test
+#   <testcase>.log
+#   timer
+# We do not list the content of this directory because
+# - the name of the testcase is currently not available
+# - it's rather unusual to create files there via a test script
+#
+
+--append_file $infile
+#-------------- MYSQLTEST_VARDIR/run --------------
+EOF
+--list_files_append_file $infile $MYSQLTEST_VARDIR/run *
+#
+
+--append_file $infile
+#-------------- MYSQLTEST_VARDIR/tmp --------------
+EOF
+--list_files_append_file $infile $MYSQLTEST_VARDIR/tmp *
+#
+
+--append_file $infile
+#------------- MYSQLTEST_VARDIR/std_data ------------
+EOF
+--list_files_append_file $infile $MYSQLTEST_VARDIR/std_data *
+#
+
+  USE test;
+
+  CREATE TEMPORARY TABLE file_tbl (filename varchar(1024));
+
+  # In case of binlog_killed_simulate the LOAD DATA fails with "query got an
+  # interrupt". Important characteristics of binlog_killed_simulate is the server
+  # system variable "debug" with a content <> "".
+  # On the other hand it is quite thinkable that LOAD DATA fails because of a non
+  # foreseen weakness of the current routine.
+  # Conclusion:
+  #    - use disable abort on error
+  #    - automatic abort of the test if LOAD DATA fails and "debug" = 0
+  #    - ignoring errors if LOAD DATA fails and "debug" <> 0
+
+  --let $debug_condition = query_get_value(SHOW VARIABLES LIKE 'debug',Value, 1)
+  --let $debug_condition_check = `SELECT '$debug_condition' <> ''`
+  if ($debug_condition_check == 1) {
+    --disable_abort_on_error
+  }
+
+  --eval LOAD DATA INFILE '$infile' INTO TABLE file_tbl
+
+  if ($debug_condition_check == 1) {
+    --enable_abort_on_error
+  }
+
+  SELECT filename FROM file_tbl
+  WHERE filename NOT LIKE 'check-mysqld_%'
+  AND filename NOT LIKE 'mysql%.sock%'
+  AND filename NOT LIKE 'file_list_%.flist'
+  AND filename NOT LIKE 'mysqld%.expect'
+  AND filename NOT LIKE 'bootstrap.log';
+
+  DROP TABLE test.file_tbl;
+  SET @@sql_log_bin = @sql_log_bin_save;
+  --remove_file $infile
+
+--enable_query_log
+}
+
+call mtr.check_testcase();
