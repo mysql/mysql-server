@@ -10743,13 +10743,10 @@ int ha_ndbcluster::create(const char *name,
     }
   } table_invalidator(dict, m_tabname);
 
-  int abort_error = 0;
   int create_result;
-  DBUG_PRINT("table", ("name: %s", m_tabname));  
   if (tab.setName(m_tabname))
   {
-    abort_error = errno;
-    goto abort;
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
   if (!ndb_sys_table)
   {
@@ -10913,8 +10910,7 @@ int ha_ndbcluster::create(const char *name,
           create_ndb_column(thd, col, field, create_info);
       if (create_column_result)
       {
-        abort_error = create_column_result;
-        goto abort;
+        DBUG_RETURN(create_column_result);
       }
 
       // Turn on use_disk if the column is configured to be on disk
@@ -10925,8 +10921,7 @@ int ha_ndbcluster::create(const char *name,
 
       if (tab.addColumn(col))
       {
-        abort_error = errno;
-        goto abort;
+        DBUG_RETURN(HA_ERR_OUT_OF_MEM);
       }
       if (col.getPrimaryKey())
         pk_length += (field->pack_length() + 3) / 4;
@@ -11011,8 +11006,7 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("Generating shadow key"));
     if (col.setName("$PK"))
     {
-      abort_error = errno;
-      goto abort;
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     col.setType(NdbDictionary::Column::Bigunsigned);
     col.setLength(1);
@@ -11022,8 +11016,7 @@ int ha_ndbcluster::create(const char *name,
     col.setDefaultValue(NULL, 0);
     if (tab.addColumn(col))
     {
-      abort_error = errno;
-      goto abort;
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
     }
     pk_length += 2;
   }
@@ -11095,8 +11088,7 @@ int ha_ndbcluster::create(const char *name,
                                            tab, table_map);
     if (setup_partinfo_result)
     {
-      abort_error = setup_partinfo_result;
-      goto abort;
+      DBUG_RETURN(setup_partinfo_result);
     }
   }
 
@@ -11158,16 +11150,14 @@ int ha_ndbcluster::create(const char *name,
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        abort_error = ndb_to_mysql_error(&err);
-        goto abort;
+        DBUG_RETURN(ndb_to_mysql_error(&err));
       }
 
       res= dict->createHashMap(hm);
       if (res == -1)
       {
         const NdbError err= dict->getNdbError();
-        abort_error = ndb_to_mysql_error(&err);
-        goto abort;
+        DBUG_RETURN(ndb_to_mysql_error(&err));
       }
     }
   }
@@ -11176,11 +11166,8 @@ int ha_ndbcluster::create(const char *name,
   if (dict->createTable(tab) != 0)
   {
     const NdbError err= dict->getNdbError();
-    abort_error = ndb_to_mysql_error(&err);
-    goto abort;
+    DBUG_RETURN(ndb_to_mysql_error(&err));
   }
-
-
 
   DBUG_PRINT("info", ("Table '%s/%s' created in NDB, id: %d, version: %d",
                       m_dbname, m_tabname,
@@ -11237,19 +11224,12 @@ int ha_ndbcluster::create(const char *name,
   {
     DBUG_PRINT("error", ("Failed to create schema objects in NDB, "
                          "create_result: %d", create_result));
-    abort_error = create_result;
-
-abort:
     /*
      *  Some step during table creation failed, abort schema transaction
      */
-    // Require that 'abort_error' was set before "goto abort"
-    DBUG_ASSERT(abort_error);
-    DBUG_PRINT("info", ("Aborting schema trans due to error: %d", abort_error));
-
     schema_trans.abort_trans();
 
-    DBUG_RETURN(abort_error);
+    DBUG_RETURN(create_result);
   }
 
   // All objects have been created sucessfully in NDB and
