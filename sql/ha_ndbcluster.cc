@@ -11264,6 +11264,10 @@ abort:
   // thus "create_result" have to be zero here
   DBUG_ASSERT(create_result == 0);
 
+  // Table created successfully but the table is not "open", verify
+  // that m_table is NULL
+  DBUG_ASSERT(m_table == nullptr);
+
   if (DBUG_EVALUATE_IF("ndb_create_open_fail", true, false))
   {
     // The table has been sucessfully created in NDB, emulate
@@ -11275,8 +11279,8 @@ abort:
   }
 
   Ndb_table_guard ndbtab_g(dict, m_tabname);
-  m_table= ndbtab_g.get_table();
-  if (m_table == NULL)
+  const NdbDictionary::Table* ndbtab = ndbtab_g.get_table();
+  if (ndbtab == nullptr)
   {
     // Failed to open the newly created table from NDB, since the
     // table is apparently not in NDB it cant be dropped.
@@ -11290,15 +11294,15 @@ abort:
   // a mismatch
   const bool check_partition_count_result =
       ndb_dd_table_check_partition_count(table_def,
-                                         m_table->getPartitionCount());
+                                         ndbtab->getPartitionCount());
   if (!check_partition_count_result)
   {
     ndb_dd_table_fix_partition_count(table_def,
-                                     m_table->getPartitionCount());
+                                     ndbtab->getPartitionCount());
   }
 
   // Check that NDB and DD metadata matches
-  DBUG_ASSERT(Ndb_metadata::compare(thd, m_table, table_def));
+  DBUG_ASSERT(Ndb_metadata::compare(thd, ndbtab, table_def));
 
   mysql_mutex_lock(&ndbcluster_mutex);
 
@@ -11311,10 +11315,9 @@ abort:
   {
     // Failed to create the NDB_SHARE instance for this table, most likely OOM.
     // Try to drop the table from NDB before returning
-    (void)drop_table_and_related(thd, ndb, dict, m_table,
+    (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                  0,          // drop_flags
                                  false);     // skip_related
-    m_table = nullptr;
     my_printf_error(ER_OUTOFMEMORY,
                     "Failed to acquire NDB_SHARE while creating table '%s'",
                     MYF(0), name);
@@ -11325,30 +11328,28 @@ abort:
   {
     // Temporary named table created OK
     NDB_SHARE::release_reference(share, "create"); // temporary ref.
-    m_table= 0;
     DBUG_RETURN(0); // All OK
   }
 
   // Apply the mysql.ndb_replication settings
   // NOTE! Should check error and fail the create
   (void)binlog_client.apply_replication_info(ndb, share,
-                                             m_table,
+                                             ndbtab,
                                              conflict_fn,
                                              args,
                                              num_args,
                                              binlog_flags);
 
-  if (binlog_client.table_should_have_event(share, m_table))
+  if (binlog_client.table_should_have_event(share, ndbtab))
   {
-    if (binlog_client.create_event(ndb, m_table, share))
+    if (binlog_client.create_event(ndb, ndbtab, share))
     {
       // Failed to create event for this table, fail the CREATE
       // and drop the table from NDB before returning
-      (void)drop_table_and_related(thd, ndb, dict, m_table,
+      (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                    0,          // drop_flags
                                    false);     // skip_related
       NDB_SHARE::release_reference(share, "create"); // temporary ref.
-      m_table = nullptr;
       my_printf_error(ER_INTERNAL_ERROR,
                       "Failed to create event for table '%s'",
                       MYF(0), name);
@@ -11359,15 +11360,14 @@ abort:
     {
       Ndb_event_data* event_data;
       if (!binlog_client.create_event_data(share, table_def, &event_data) ||
-          binlog_client.create_event_op(share, m_table, event_data))
+          binlog_client.create_event_op(share, ndbtab, event_data))
       {
         // Failed to create event operation for this table, fail the CREATE
         // and drop the table from NDB before returning
-        (void)drop_table_and_related(thd, ndb, dict, m_table,
+        (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                      0,          // drop_flags
                                      false);     // skip_related
         NDB_SHARE::release_reference(share, "create"); // temporary ref.
-        m_table = nullptr;
         my_printf_error(ER_INTERNAL_ERROR,
                         "Failed to create event operation for table '%s'",
                         MYF(0), name);
@@ -11380,15 +11380,15 @@ abort:
   if (thd_sql_command(thd) == SQLCOM_TRUNCATE)
   {
     schema_dist_result = schema_dist_client.truncate_table(
-        share->db, share->table_name, m_table->getObjectId(),
-        m_table->getObjectVersion());
+        share->db, share->table_name, ndbtab->getObjectId(),
+        ndbtab->getObjectVersion());
   }
   else
   {
     DBUG_ASSERT(thd_sql_command(thd) == SQLCOM_CREATE_TABLE);
     schema_dist_result = schema_dist_client.create_table(
-        share->db, share->table_name, m_table->getObjectId(),
-        m_table->getObjectVersion());
+        share->db, share->table_name, ndbtab->getObjectId(),
+        ndbtab->getObjectVersion());
   }
   if (!schema_dist_result)
   {
@@ -11397,11 +11397,10 @@ abort:
     // from NDB before returning
     // NOTE! Should probably not rollback a failed TRUNCATE by dropping
     // the new table(same in other places above).
-    (void)drop_table_and_related(thd, ndb, dict, m_table,
+    (void)drop_table_and_related(thd, ndb, dict, ndbtab,
                                  0,                 // drop_flags
                                  false);            // skip_related
     NDB_SHARE::release_reference(share, "create");  // temporary ref.
-    m_table = nullptr;
     my_printf_error(ER_INTERNAL_ERROR, "Failed to distribute table '%s'",
                     MYF(0), name);
     DBUG_RETURN(ER_INTERNAL_ERROR);
@@ -11409,7 +11408,6 @@ abort:
 
   NDB_SHARE::release_reference(share, "create"); // temporary ref.
 
-  m_table= 0;
   DBUG_RETURN(0); // All OK
 }
 
