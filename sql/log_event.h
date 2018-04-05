@@ -590,7 +590,6 @@ class Log_event {
     EVENT_CACHE_LOGGING_COUNT
   };
 
-  bool is_valid_param;
   /**
     Writes the common header of this event to the given memory buffer.
 
@@ -791,7 +790,7 @@ class Log_event {
    is_valid is event specific sanity checks to determine that the
     object is correctly initialized.
   */
-  bool is_valid() { return is_valid_param; }
+  bool is_valid();
   void set_artificial_event() {
     common_header->flags |= LOG_EVENT_ARTIFICIAL_F;
     /*
@@ -1544,7 +1543,7 @@ class Intvar_log_event : public binary_log::Intvar_event, public Log_event {
       : binary_log::Intvar_event(type_arg, val_arg),
         Log_event(thd_arg, 0, cache_type_arg, logging_type_arg, header(),
                   footer()) {
-    is_valid_param = true;
+    common_header->set_is_valid(true);
   }
   int pack_info(Protocol *protocol) override;
 #else
@@ -1606,7 +1605,7 @@ class Rand_log_event : public binary_log::Rand_event, public Log_event {
       : binary_log::Rand_event(seed1_arg, seed2_arg),
         Log_event(thd_arg, 0, cache_type_arg, logging_type_arg, header(),
                   footer()) {
-    is_valid_param = true;
+    common_header->set_is_valid(true);
   }
   int pack_info(Protocol *protocol) override;
 #else
@@ -1687,7 +1686,7 @@ class Xid_log_event : public binary_log::Xid_event, public Xid_apply_log_event {
   Xid_log_event(THD *thd_arg, my_xid x)
       : binary_log::Xid_event(x),
         Xid_apply_log_event(thd_arg, header(), footer()) {
-    is_valid_param = true;
+    common_header->set_is_valid(true);
   }
   int pack_info(Protocol *protocol) override;
 #else
@@ -1737,8 +1736,9 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
                        const Format_description_event *description_event)
       : binary_log::XA_prepare_event(buf, description_event),
         Xid_apply_log_event(header(), footer()) {
-    is_valid_param = !(my_xid.formatID == -1 && my_xid.gtrid_length == 0 &&
-                       my_xid.bqual_length == 0);
+    common_header->set_is_valid(my_xid.formatID != -1 ||
+                                my_xid.gtrid_length != 0 ||
+                                my_xid.bqual_length != 0);
     xid = NULL;
   }
   Log_event_type get_type_code() { return binary_log::XA_PREPARE_LOG_EVENT; }
@@ -1791,7 +1791,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
         Log_event(thd_arg, 0, cache_type_arg, logging_type_arg, header(),
                   footer()),
         deferred(false) {
-    if (name != 0) is_valid_param = true;
+    common_header->set_is_valid(name != 0);
   }
   int pack_info(Protocol *protocol) override;
 #else
@@ -1839,7 +1839,7 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
   Stop_log_event()
       : Log_event(header(), footer(), Log_event::EVENT_INVALID_CACHE,
                   Log_event::EVENT_INVALID_LOGGING) {
-    is_valid_param = true;
+    common_header->set_is_valid(true);
   }
 
 #else
@@ -1850,7 +1850,7 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
                  const Format_description_event *description_event)
       : binary_log::Stop_event(buf, description_event),
         Log_event(header(), footer()) {
-    is_valid_param = true;
+    common_header->set_is_valid(true);
   }
 
   ~Stop_log_event() {}
@@ -2206,7 +2206,7 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
                     const Format_description_event *description_event)
       : binary_log::Unknown_event(buf, description_event),
         Log_event(header(), footer()) {
-    is_valid_param = true;
+    common_header->set_is_valid(true);
   }
 
   ~Unknown_log_event() {}
@@ -3283,8 +3283,8 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("incident: %d", incident));
-    if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
-      is_valid_param = true;
+    common_header->set_is_valid(incident > INCIDENT_NONE &&
+                                incident < INCIDENT_COUNT);
     DBUG_ASSERT(message == NULL && message_length == 0);
     DBUG_VOID_RETURN;
   }
@@ -3295,8 +3295,8 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
                   Log_event::EVENT_IMMEDIATE_LOGGING, header(), footer()) {
     DBUG_ENTER("Incident_log_event::Incident_log_event");
     DBUG_PRINT("enter", ("incident: %d", incident));
-    if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
-      is_valid_param = true;
+    common_header->set_is_valid(incident > INCIDENT_NONE &&
+                                incident < INCIDENT_COUNT);
     DBUG_ASSERT(message == NULL && message_length == 0);
     if (!(message = (char *)my_malloc(key_memory_Incident_log_event_message,
                                       msg.length + 1, MYF(MY_WME)))) {
@@ -3377,7 +3377,7 @@ class Ignorable_log_event : public virtual binary_log::Ignorable_event,
       : Log_event(thd_arg, LOG_EVENT_IGNORABLE_F, Log_event::EVENT_STMT_CACHE,
                   Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
     DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
-    is_valid_param = true;
+    common_header->set_is_valid(true);
     DBUG_VOID_RETURN;
   }
 #endif

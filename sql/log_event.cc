@@ -924,8 +924,7 @@ Log_event::Log_event(THD *thd_arg, uint16 flags_arg,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg,
                      Log_event_header *header, Log_event_footer *footer)
-    : is_valid_param(false),
-      temp_buf(0),
+    : temp_buf(0),
       m_free_temp_buf_in_destructor(true),
       exec_time(0),
       event_cache_type(cache_type_arg),
@@ -951,8 +950,7 @@ Log_event::Log_event(THD *thd_arg, uint16 flags_arg,
 Log_event::Log_event(Log_event_header *header, Log_event_footer *footer,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
-    : is_valid_param(false),
-      temp_buf(0),
+    : temp_buf(0),
       m_free_temp_buf_in_destructor(true),
       exec_time(0),
       event_cache_type(cache_type_arg),
@@ -971,8 +969,7 @@ Log_event::Log_event(Log_event_header *header, Log_event_footer *footer,
 */
 
 Log_event::Log_event(Log_event_header *header, Log_event_footer *footer)
-    : is_valid_param(false),
-      temp_buf(0),
+    : temp_buf(0),
       m_free_temp_buf_in_destructor(true),
       exec_time(0),
       event_cache_type(EVENT_INVALID_CACHE),
@@ -1307,6 +1304,10 @@ bool Log_event::write_header(Basic_ostream *ostream, size_t event_data_length) {
   DBUG_RETURN(ret);
 }
 #endif /* MYSQL_SERVER */
+
+bool Log_event::is_valid() {
+  return common_header != nullptr && common_header->get_is_valid();
+}
 
 #ifndef MYSQL_SERVER
 
@@ -3677,7 +3678,7 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
       data_buf(0) {
   /* save the original thread id; we already know the server id */
   slave_proxy_id = thd_arg->variables.pseudo_thread_id;
-  if (query != 0) is_valid_param = true;
+  common_header->set_is_valid(query != 0);
 
   /*
   exec_time calculation has changed to use the same method that is used
@@ -3963,7 +3964,7 @@ Query_log_event::Query_log_event(
   */
   if (!(fill_data_buf(data_buf, buf_len))) DBUG_VOID_RETURN;
 
-  if (query != 0 && q_len > 0) is_valid_param = true;
+  common_header->set_is_valid(query != 0 && q_len > 0);
 
   DBUG_VOID_RETURN;
 }
@@ -4966,7 +4967,7 @@ Format_description_log_event::Format_description_log_event()
       Log_event(header(), footer())
 #endif
 {
-  is_valid_param = true;
+  common_header->set_is_valid(true);
 }
 
 /**
@@ -4992,7 +4993,7 @@ Format_description_log_event::Format_description_log_event(
     const Format_description_event *description_event)
     : Format_description_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
-  is_valid_param = header_is_valid() && version_is_valid();
+  common_header->set_is_valid(header_is_valid() && version_is_valid());
   common_header->type_code = binary_log::FORMAT_DESCRIPTION_EVENT;
 }
 
@@ -5276,7 +5277,7 @@ Rotate_log_event::Rotate_log_event(const char *new_log_ident_arg,
   if (flags & DUP_NAME)
     new_log_ident = my_strndup(key_memory_log_event, new_log_ident_arg,
                                ident_len, MYF(MY_WME));
-  if (new_log_ident != 0) is_valid_param = true;
+  common_header->set_is_valid(new_log_ident != 0);
   if (flags & RELAY_LOG) set_relay_log_event();
   DBUG_VOID_RETURN;
 }
@@ -5289,7 +5290,7 @@ Rotate_log_event::Rotate_log_event(
       Log_event(header(), footer()) {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
 
-  if (new_log_ident != 0) is_valid_param = true;
+  common_header->set_is_valid(new_log_ident != 0);
   DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
   DBUG_VOID_RETURN;
 }
@@ -5500,7 +5501,7 @@ Intvar_log_event::Intvar_log_event(
     const char *buf, const Format_description_event *description_event)
     : binary_log::Intvar_event(buf, description_event),
       Log_event(header(), footer()) {
-  is_valid_param = true;
+  common_header->set_is_valid(true);
 }
 
   /*
@@ -5615,7 +5616,7 @@ Rand_log_event::Rand_log_event(
     const char *buf, const Format_description_event *description_event)
     : binary_log::Rand_event(buf, description_event),
       Log_event(header(), footer()) {
-  is_valid_param = true;
+  common_header->set_is_valid(true);
 }
 
 #ifdef MYSQL_SERVER
@@ -5717,7 +5718,7 @@ Xid_log_event::Xid_log_event(const char *buf,
                              const Format_description_event *description_event)
     : binary_log::Xid_event(buf, description_event),
       Xid_apply_log_event(header(), footer()) {
-  is_valid_param = true;
+  common_header->set_is_valid(true);
 }
 
 #ifdef MYSQL_SERVER
@@ -6247,7 +6248,7 @@ User_var_log_event::User_var_log_event(
       query_id(0)
 #endif
 {
-  if (name != 0) is_valid_param = true;
+  common_header->set_is_valid(name != 0);
 }
 
 #ifdef MYSQL_SERVER
@@ -6631,7 +6632,7 @@ Append_block_log_event::Append_block_log_event(THD *thd_arg, const char *db_arg,
                 using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE
                             : Log_event::EVENT_STMT_CACHE,
                 Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
-  if (block != 0) is_valid_param = true;
+  common_header->set_is_valid(block != 0);
 }
 #endif  // MYSQL_SERVER
 
@@ -6645,7 +6646,7 @@ Append_block_log_event::Append_block_log_event(
     : binary_log::Append_block_event(buf, len, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Append_block_log_event::Append_block_log_event(char*,...)");
-  if (block != 0) is_valid_param = true;
+  common_header->set_is_valid(block != 0);
   DBUG_VOID_RETURN;
 }
 
@@ -6775,7 +6776,7 @@ Delete_file_log_event::Delete_file_log_event(THD *thd_arg, const char *db_arg,
                 using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE
                             : Log_event::EVENT_STMT_CACHE,
                 Log_event::EVENT_NORMAL_LOGGING, header(), footer()) {
-  if (file_id != 0) is_valid_param = true;
+  common_header->set_is_valid(file_id != 0);
 }
 #endif  // MYSQL_SERVER
 
@@ -6788,7 +6789,7 @@ Delete_file_log_event::Delete_file_log_event(
     const Format_description_event *description_event)
     : binary_log::Delete_file_event(buf, len, description_event),
       Log_event(header(), footer()) {
-  if (file_id != 0) is_valid_param = true;
+  common_header->set_is_valid(file_id != 0);
 }
 
   /*
@@ -6906,7 +6907,7 @@ Execute_load_query_log_event::Execute_load_query_log_event(
                       immediate, suppress_use, errcode),
       binary_log::Execute_load_query_event(thd_arg->file_id, fn_pos_start_arg,
                                            fn_pos_end_arg, dup_handling_arg) {
-  if (Query_log_event::is_valid() && file_id != 0) is_valid_param = true;
+  common_header->set_is_valid(Query_log_event::is_valid() && file_id != 0);
   common_header->type_code = binary_log::EXECUTE_LOAD_QUERY_EVENT;
 }
 #endif /* MYSQL_SERVER */
@@ -6925,7 +6926,7 @@ Execute_load_query_log_event::Execute_load_query_log_event(
     fn_pos_end = 0;
     dup_handling = binary_log::LOAD_DUP_ERROR;
   }
-  if (Query_log_event::is_valid() && file_id != 0) is_valid_param = true;
+  common_header->set_is_valid(Query_log_event::is_valid() && file_id != 0);
 }
 
 ulong Execute_load_query_log_event::get_post_header_size_for_derived() {
@@ -7324,7 +7325,7 @@ Rows_log_event::Rows_log_event(THD *thd_arg, TABLE *tbl_arg,
    -Checking that an Update_rows_log_event
     is valid is done while setting the Update_rows_log_event::is_valid
   */
-  if (m_rows_buf && m_cols.bitmap) is_valid_param = true;
+  common_header->set_is_valid(m_rows_buf && m_cols.bitmap);
 
   DBUG_VOID_RETURN;
 }
@@ -7434,7 +7435,7 @@ Rows_log_event::Rows_log_event(
     -Checking that an Update_rows_log_event
      is valid is done while setting the Update_rows_log_event::is_valid
   */
-  if (m_rows_buf && m_cols.bitmap) is_valid_param = true;
+  common_header->set_is_valid(m_rows_buf && m_cols.bitmap);
   DBUG_VOID_RETURN;
 }
 
@@ -7568,7 +7569,7 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length) {
     /* If the memory moved, we need to move the pointers */
     if (new_alloc && &row[0] != m_rows_buf) {
       m_rows_buf = &row[0];
-      if (m_rows_buf && m_cols.bitmap) is_valid_param = true;
+      common_header->set_is_valid(m_rows_buf && m_cols.bitmap);
       m_rows_cur = m_rows_buf + cur_size;
     }
 
@@ -9896,8 +9897,8 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
       (uchar *)my_malloc(key_memory_log_event, (m_colcnt * 2), MYF(MY_WME));
   memset(m_field_metadata, 0, (m_colcnt * 2));
 
-  if (m_null_bits != NULL && m_field_metadata != NULL && m_coltype != NULL)
-    is_valid_param = true;
+  common_header->set_is_valid(m_null_bits != NULL && m_field_metadata != NULL &&
+                              m_coltype != NULL);
   /*
     Create an array for the field metadata and store it.
   */
@@ -9951,8 +9952,8 @@ Table_map_log_event::Table_map_log_event(
 #endif
 {
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
-  if (m_null_bits != NULL && m_field_metadata != NULL && m_coltype != NULL)
-    is_valid_param = true;
+  common_header->set_is_valid(m_null_bits != NULL && m_field_metadata != NULL &&
+                              m_coltype != NULL);
   DBUG_ASSERT(header()->type_code == binary_log::TABLE_MAP_EVENT);
   DBUG_VOID_RETURN;
 }
@@ -11557,7 +11558,7 @@ Update_rows_log_event::Update_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
   DBUG_PRINT("info", ("update_rows event_type: %s", get_type_str()));
   common_header->type_code = m_type;
   init(tbl_arg->write_set);
-  if (Rows_log_event::is_valid() && m_cols_ai.bitmap) is_valid_param = true;
+  common_header->set_is_valid(Rows_log_event::is_valid() && m_cols_ai.bitmap);
   DBUG_VOID_RETURN;
 }
 
@@ -11592,7 +11593,7 @@ Update_rows_log_event::Update_rows_log_event(
     : binary_log::Rows_event(buf, event_len, description_event),
       Rows_log_event(buf, event_len, description_event),
       binary_log::Update_rows_event(buf, event_len, description_event) {
-  if (Rows_log_event::is_valid() && m_cols_ai.bitmap) is_valid_param = true;
+  common_header->set_is_valid(Rows_log_event::is_valid() && m_cols_ai.bitmap);
   DBUG_ASSERT(header()->type_code == m_type);
 }
 
@@ -11681,8 +11682,8 @@ Incident_log_event::Incident_log_event(
     : binary_log::Incident_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Incident_log_event::Incident_log_event");
-  if (incident > INCIDENT_NONE && incident < INCIDENT_COUNT)
-    is_valid_param = true;
+  common_header->set_is_valid(incident > INCIDENT_NONE &&
+                              incident < INCIDENT_COUNT);
   DBUG_VOID_RETURN;
 }
 
@@ -11811,7 +11812,7 @@ Ignorable_log_event::Ignorable_log_event(
       Log_event(header(), footer()) {
   DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
 
-  is_valid_param = true;
+  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 }
 
@@ -11847,7 +11848,7 @@ Rows_query_log_event::Rows_query_log_event(
     : binary_log::Ignorable_event(buf, descr_event),
       Ignorable_log_event(buf, descr_event),
       binary_log::Rows_query_event(buf, event_len, descr_event) {
-  is_valid_param = (m_rows_query != NULL);
+  common_header->set_is_valid(m_rows_query != NULL);
 }
 
 #ifdef MYSQL_SERVER
@@ -11941,7 +11942,7 @@ Gtid_log_event::Gtid_log_event(
               event_len, common_header_len, post_header_len));
 #endif
 
-  is_valid_param = true;
+  common_header->set_is_valid(true);
   spec.type = get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT
                   ? ANONYMOUS_GTID
                   : ASSIGNED_GTID;
@@ -11989,7 +11990,7 @@ Gtid_log_event::Gtid_log_event(THD *thd_arg, bool using_trans,
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
 #endif
-  is_valid_param = true;
+  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 }
 
@@ -12037,7 +12038,7 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
 #endif
-  is_valid_param = true;
+  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 }
 
@@ -12405,7 +12406,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(
     : binary_log::Previous_gtids_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
-  if (buf != NULL) is_valid_param = true;
+  common_header->set_is_valid(buf != NULL);
   DBUG_VOID_RETURN;
 }
 
@@ -12429,7 +12430,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
   }
   buf = buffer;
   // if buf is empty, is_valid will be false
-  if (buf != 0) is_valid_param = true;
+  common_header->set_is_valid(buf != 0);
   DBUG_VOID_RETURN;
 }
 
@@ -12555,11 +12556,11 @@ Transaction_context_log_event::Transaction_context_log_event(
         DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       };);
 
-  is_valid_param = true;
+  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 
 err:
-  is_valid_param = false;
+  common_header->set_is_valid(false);
   DBUG_VOID_RETURN;
 }
 #endif  // MYSQL_SERVER
@@ -12579,11 +12580,11 @@ Transaction_context_log_event::Transaction_context_log_event(
 
   if (server_uuid == NULL || encoded_snapshot_version == NULL) goto err;
 
-  is_valid_param = true;
+  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 
 err:
-  is_valid_param = false;
+  common_header->set_is_valid(false);
   DBUG_VOID_RETURN;
 }
 
@@ -12771,7 +12772,7 @@ View_change_log_event::View_change_log_event(char *raw_view_id)
   DBUG_ENTER("View_change_log_event::View_change_log_event(char*)");
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
 
-  if (strlen(view_id) != 0) is_valid_param = true;
+  common_header->set_is_valid(strlen(view_id) != 0);
 
   DBUG_VOID_RETURN;
 }
@@ -12787,7 +12788,7 @@ View_change_log_event::View_change_log_event(
       " uint, const Format_description_event*)");
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
 
-  if (strlen(view_id) != 0) is_valid_param = true;
+  common_header->set_is_valid(strlen(view_id) != 0);
 
   // Change the cache/logging types to allow writing to the binary log cache
   event_cache_type = EVENT_TRANSACTIONAL_CACHE;
@@ -13007,8 +13008,8 @@ Heartbeat_log_event::Heartbeat_log_event(
     const Format_description_event *description_event)
     : binary_log::Heartbeat_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
-  if ((log_ident != NULL && header()->log_pos >= BIN_LOG_HEADER_SIZE))
-    is_valid_param = true;
+  common_header->set_is_valid(log_ident != NULL &&
+                              header()->log_pos >= BIN_LOG_HEADER_SIZE);
 }
 #endif
 

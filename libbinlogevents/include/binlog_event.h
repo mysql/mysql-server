@@ -648,6 +648,38 @@ class Log_event_header {
   Log_event_header(const char *buf, uint16_t binlog_version);
 
   ~Log_event_header() {}
+
+  /**
+    The get_is_valid function is related to event specific sanity checks to
+    determine that the object was initialized without errors.
+
+    Note that a given event object may be valid at some point (ancestor
+    event type initialization was fine) but be turned invalid in a later
+    stage.
+
+    @return True if the event object is valid, false otherwise.
+  */
+
+  bool get_is_valid() { return m_is_valid; }
+
+  /**
+    Set if the event object shall be considered valid or not.
+
+    @param is_valid if the event object shall be considered valid.
+  */
+
+  void set_is_valid(bool is_valid) { m_is_valid = is_valid; }
+
+ private:
+  /*
+    As errors might happen when de-serializing events, the m_is_valid variable
+    will hold information about the validity of the event.
+
+    An invalid event shall never be applied/dumped/displayed, as its
+    interpretation (accessing its contents) might lead to using invalid
+    memory pointers.
+  */
+  bool m_is_valid;
 };
 
 /**

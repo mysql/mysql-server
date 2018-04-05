@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -90,7 +90,7 @@ enum_binlog_checksum_alg Log_event_footer::get_checksum_alg(const char *buf,
 */
 Log_event_header::Log_event_header(
     const char *buf, uint16_t binlog_version MY_ATTRIBUTE((unused)))
-    : data_written(0), log_pos(0) {
+    : data_written(0), log_pos(0), m_is_valid(false) {
   uint32_t tmp_sec;
   memcpy(&tmp_sec, buf, sizeof(tmp_sec));
   when.tv_sec = le32toh(tmp_sec);
