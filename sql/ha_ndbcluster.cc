@@ -10705,6 +10705,44 @@ int ha_ndbcluster::create(const char *name,
     ERR_RETURN(dict->getNdbError());
   }
 
+  // Guard class which will invalidate the table in NdbApi global dict
+  // cache when class goes out of scope or at a specific place in the code
+  class Ndb_table_invalidator_guard {
+    NdbDictionary::Dictionary *const m_dict;
+    const char *const m_name;
+    bool m_have_invalidated{false};
+    void invalidate()
+    {
+      assert(!m_have_invalidated);
+      const NdbDictionary::Table *ndbtab = m_dict->getTableGlobal(m_name);
+      if (ndbtab) {
+        const int invalidate = 1;
+        (void)m_dict->removeTableGlobal(*ndbtab, invalidate);
+      }
+      m_have_invalidated = true;
+    }
+
+   public:
+    Ndb_table_invalidator_guard(NdbDictionary::Dictionary *dict,
+                                const char *tabname)
+        : m_dict(dict), m_name(tabname) {}
+    Ndb_table_invalidator_guard(const Ndb_table_invalidator_guard&) = delete;
+    ~Ndb_table_invalidator_guard()
+    {
+      if (!m_have_invalidated) {
+        invalidate();
+      }
+    }
+    void invalidate_after_sucessfully_created_table()
+    {
+      // NOTE! This function invalidates the table after table has
+      // been created sucessfully in NDB. The reason why it need to be
+      // invalidated is unknown and no test curently fails if this
+      // function is removed.
+      invalidate();
+    }
+  } table_invalidator(dict, m_tabname);
+
   int abort_error = 0;
   int create_result;
   DBUG_PRINT("table", ("name: %s", m_tabname));  
@@ -11201,9 +11239,9 @@ int ha_ndbcluster::create(const char *name,
       ERR_RETURN(dict->getNdbError());
     }
 
-    Ndb_table_guard ndbtab_g(dict);
-    ndbtab_g.init(m_tabname);
-    ndbtab_g.invalidate();
+    // Invalidate the sucessfully created table in NdbApi global dict cache
+    table_invalidator.invalidate_after_sucessfully_created_table();
+
   }
   else
   {
@@ -11221,15 +11259,6 @@ abort:
 
     schema_trans.abort_trans();
     m_table= 0;
-
-    {
-      DBUG_PRINT("info", ("Flush out table %s out of dict cache",
-                          m_tabname));
-      // Flush the table out of ndbapi's dictionary cache
-      Ndb_table_guard ndbtab_g(dict);
-      ndbtab_g.init(m_tabname);
-      ndbtab_g.invalidate();
-    }
 
     DBUG_RETURN(abort_error);
   }
