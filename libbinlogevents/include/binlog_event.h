@@ -42,14 +42,9 @@
 #include <cstdio>
 #include <iostream>
 
-/*
- The header contains functions macros for reading and storing in
- machine independent format (low byte first).
-*/
-#include "byteorder.h"
 #include "debug_vars.h"
+#include "event_reader.h"
 #include "my_io.h"
-#include "wrapper_functions.h"
 
 #if defined(_WIN32)
 #include <Winsock2.h>
@@ -479,17 +474,52 @@ class Format_description_event;
     <td>checkusm_alg</td>
     <td>enum_checksum_alg</td>
     <td>Algorithm used to checksum the events contained in the binary log</td>
+  </tr>
+
   </table>
 
-  @note checksum *value* is not stored in the event. On master's side, it
-       is calculated before writing into the binary log, depending on the
-       updated event data. On the slave, the checksum value is retrieved
-       from a particular offset and checked for corruption, by computing
-       a new value. It is not required after that. Therefore, it is not
-       required to store the value in the instance as a class member.
+  @note checksum *value* is not generated with the event. On master's side, it
+        is calculated right before writing the event into the binary log. The
+        data_written field of the event is adjusted (+BINLOG_CHECKSUM_LEN) to
+        consider the checksum value as part of the event. On reading the event,
+        if the Format Description Event (FDE) used when serializing the event
+        tells that the events have checksum information, the checksum value can
+        be retrieved from a particular offset of the serialized event buffer
+        (event length - BINLOG_CHECKSUM_LEN) and checked for corruption by
+        computing a new value over the event buffer. It is not required after
+        that. Therefore, the checksum value is not required to be stored in the
+        instance as a class member.
 */
 class Log_event_footer {
  public:
+  /**
+    Wrapper to call get_checksum_alg(const char *, ulong) function based on the
+    event reader object (which knows both buffer and buffer length).
+
+    @param[in] reader The Event_reader object associated to the event buffer
+                      of the FD event.
+
+    @retval BINLOG_CHECKSUM_ALG_UNDEF originator is checksum-unaware
+                                      (effectively no checksum).
+    @retval BINLOG_CHECKSUM_ALG_OFF no checksum.
+    @retval other the actual checksum algorithm descriptor.
+  */
+  static enum_binlog_checksum_alg get_checksum_alg(Event_reader &reader);
+
+  /**
+    The method returns the checksum algorithm used to checksum the binary log
+    from a Format Description Event serialized buffer.
+
+    For MySQL server versions < 5.6, the algorithm is undefined.
+
+    @param buf buffer holding serialized FD event.
+    @param len length of the event buffer.
+
+    @retval BINLOG_CHECKSUM_ALG_UNDEF originator is checksum-unaware
+                                      (effectively no checksum).
+    @retval BINLOG_CHECKSUM_ALG_OFF no checksum.
+    @retval other the actual checksum algorithm descriptor.
+  */
   static enum_binlog_checksum_alg get_checksum_alg(const char *buf,
                                                    unsigned long len);
 
@@ -498,6 +528,18 @@ class Log_event_footer {
 
   /* Constructors */
   Log_event_footer() : checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF) {}
+
+  /**
+    This ctor will create a new object of Log_event_footer, and will adjust
+    the event reader buffer size with respect to CRC usage.
+
+    @param reader the Event_reader containing the serialized event (including
+                  header, event data and optional checksum information).
+    @param event_type the type of the event the footer belongs to.
+    @param fde An FDE event, used to get information about CRC.
+  */
+  Log_event_footer(Event_reader &reader, Log_event_type event_type,
+                   const Format_description_event *fde);
 
   explicit Log_event_footer(enum_binlog_checksum_alg checksum_alg_arg)
       : checksum_alg(checksum_alg_arg) {}
@@ -638,14 +680,12 @@ class Log_event_header {
     when.tv_usec = 0;
   }
   /**
-  Log_event_header constructor
+    Log_event_header constructor.
 
-  @param buf                  the buffer containing the complete information
-                              including the event and the header data
-
-  @param binlog_version       the binary log version
+    @param reader the Event_reader containing the serialized event (including
+                  header, event data and optional checksum information).
   */
-  Log_event_header(const char *buf, uint16_t binlog_version);
+  Log_event_header(Event_reader &reader);
 
   ~Log_event_header() {}
 
@@ -683,7 +723,7 @@ class Log_event_header {
 };
 
 /**
-    This is the abstract base class for binary log events.
+  This is the abstract base class for binary log events.
 
   @section Binary_log_event_binary_format Binary Format
 
@@ -801,20 +841,32 @@ class Binary_log_event {
     We set the type code to ENUM_END_EVENT so that the decoder
     asserts if event type has not been modified by the sub classes
   */
-  explicit Binary_log_event(Log_event_type type_code) : m_header(type_code) {}
+  explicit Binary_log_event(Log_event_type type_code)
+      : m_reader(nullptr, 0), m_header(type_code) {}
 
   /**
-    This ctor will create a new object of Log_event_header, and initialize
-    the variable m_header, which in turn will be used to initialize Log_event's
-    member common_header.
-    It will also advance the buffer after decoding the header(it is done through
-    the constructor of Log_event_header) and
-    will be pointing to the start of event data
+    Note to reviewers: this is the old implementation of Binary_log_event
+    contructor. It will be removed in WL#11567 step 7.
+
+    TODO: Remove this constructor in step 7.
 
     @param buf              Contains the serialized event
     @param binlog_version   The binary log format version
   */
   Binary_log_event(const char **buf, uint16_t binlog_version);
+
+  /**
+    This constructor will create a new object of Log_event_header and initialize
+    the variable m_header, which in turn will be used to initialize Log_event's
+    member common_header.
+    It will also advance the Event_reader cursor after decoding the header (it
+    is done through the constructor of Log_event_header) and will be pointing to
+    the start of event data.
+
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event used to get checksum information of non FDE events.
+  */
+  Binary_log_event(const char **buf, const Format_description_event *fde);
 
  public:
 #ifndef HAVE_MYSYS
@@ -857,8 +909,17 @@ class Binary_log_event {
     Return a non-const pointer to the footer of the log event
   */
   Log_event_footer *footer() { return &m_footer; }
+  /**
+    Returns a reference to the event Event_reader object.
+  */
+  Event_reader &reader() { return m_reader; }
 
  private:
+  /*
+    All the accesses to the event buffer shall be performed by using m_reader
+    methods.
+  */
+  Event_reader m_reader;
   Log_event_header m_header;
   Log_event_footer m_footer;
 };
@@ -876,13 +937,12 @@ class Binary_log_event {
 class Unknown_event : public Binary_log_event {
  public:
   /**
-   This is the minimal constructor, and set the type_code as
-   UNKNOWN_EVENT in the header object in Binary_log_event
+    This is the minimal constructor, and set the type_code as
+    UNKNOWN_EVENT in the header object in Binary_log_event
   */
   Unknown_event() : Binary_log_event(UNKNOWN_EVENT) {}
 
-  Unknown_event(const char *buf,
-                const Format_description_event *description_event);
+  Unknown_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &info);
   void print_long_info(std::ostream &info);

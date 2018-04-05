@@ -1736,10 +1736,15 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
                        const Format_description_event *description_event)
       : binary_log::XA_prepare_event(buf, description_event),
         Xid_apply_log_event(header(), footer()) {
+    DBUG_ENTER(
+        "XA_prepare_log_event::XA_prepare_log_event(const char*, const "
+        "Format_description_log_event *)");
+    if (!is_valid()) DBUG_VOID_RETURN;
     common_header->set_is_valid(my_xid.formatID != -1 ||
                                 my_xid.gtrid_length != 0 ||
                                 my_xid.bqual_length != 0);
     xid = NULL;
+    DBUG_VOID_RETURN;
   }
   Log_event_type get_type_code() { return binary_log::XA_PREPARE_LOG_EVENT; }
   size_t get_data_size() override {
@@ -1850,7 +1855,12 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
                  const Format_description_event *description_event)
       : binary_log::Stop_event(buf, description_event),
         Log_event(header(), footer()) {
+    DBUG_ENTER(
+        "Stop_log_event::Stop_log_event(const char*, const "
+        "Format_description_log_event *)");
+    if (!is_valid()) DBUG_VOID_RETURN;
     common_header->set_is_valid(true);
+    DBUG_VOID_RETURN;
   }
 
   ~Stop_log_event() {}
@@ -2206,7 +2216,12 @@ class Unknown_log_event : public binary_log::Unknown_event, public Log_event {
                     const Format_description_event *description_event)
       : binary_log::Unknown_event(buf, description_event),
         Log_event(header(), footer()) {
+    DBUG_ENTER(
+        "Unknown_log_event::Unknown_log_event(const char *, const "
+        "Format_description_log_event *)");
+    if (!is_valid()) DBUG_VOID_RETURN;
     common_header->set_is_valid(true);
+    DBUG_VOID_RETURN;
   }
 
   ~Unknown_log_event() {}

@@ -3947,6 +3947,8 @@ Query_log_event::Query_log_event(
       Log_event(header(), footer()),
       has_ddl_committed(false) {
   DBUG_ENTER("Query_log_event::Query_log_event(char*,...)");
+  if (!is_valid()) DBUG_VOID_RETURN;
+
   slave_proxy_id = thread_id;
   exec_time = query_exec_time;
 
@@ -3954,15 +3956,20 @@ Query_log_event::Query_log_event(
                   host_len + 1 + data_len + 1;
 
   if (!(data_buf = (Log_event_header::Byte *)my_malloc(key_memory_log_event,
-                                                       buf_len, MYF(MY_WME))))
+                                                       buf_len, MYF(MY_WME)))) {
+    common_header->set_is_valid(false);
     DBUG_VOID_RETURN;
+  }
   /*
     The data buffer is used by the slave SQL thread while applying
     the event. The catalog, time_zone)str, user, host, db, query
     are pointers to this data_buf. The function call below, points these
     const pointers to the data buffer.
   */
-  if (!(fill_data_buf(data_buf, buf_len))) DBUG_VOID_RETURN;
+  if (!(fill_data_buf(data_buf, buf_len))) {
+    common_header->set_is_valid(false);
+    DBUG_VOID_RETURN;
+  }
 
   common_header->set_is_valid(query != 0 && q_len > 0);
 
@@ -4993,8 +5000,13 @@ Format_description_log_event::Format_description_log_event(
     const Format_description_event *description_event)
     : Format_description_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
+  DBUG_ENTER(
+      "Format_description_log_event::Format_description_log_event(const char*, "
+      "uint, const Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(header_is_valid() && version_is_valid());
   common_header->type_code = binary_log::FORMAT_DESCRIPTION_EVENT;
+  DBUG_VOID_RETURN;
 }
 
 #ifndef MYSQL_SERVER
@@ -5289,7 +5301,7 @@ Rotate_log_event::Rotate_log_event(
     : binary_log::Rotate_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
-
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(new_log_ident != 0);
   DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
   DBUG_VOID_RETURN;
@@ -5501,7 +5513,12 @@ Intvar_log_event::Intvar_log_event(
     const char *buf, const Format_description_event *description_event)
     : binary_log::Intvar_event(buf, description_event),
       Log_event(header(), footer()) {
+  DBUG_ENTER(
+      "Intvar_log_event::Intvar_log_event(const char*, const "
+      "Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(true);
+  DBUG_VOID_RETURN;
 }
 
   /*
@@ -5616,7 +5633,12 @@ Rand_log_event::Rand_log_event(
     const char *buf, const Format_description_event *description_event)
     : binary_log::Rand_event(buf, description_event),
       Log_event(header(), footer()) {
+  DBUG_ENTER(
+      "Rand_log_event::Rand_log_event(const char*, const "
+      "Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(true);
+  DBUG_VOID_RETURN;
 }
 
 #ifdef MYSQL_SERVER
@@ -5718,7 +5740,12 @@ Xid_log_event::Xid_log_event(const char *buf,
                              const Format_description_event *description_event)
     : binary_log::Xid_event(buf, description_event),
       Xid_apply_log_event(header(), footer()) {
+  DBUG_ENTER(
+      "Xid_log_event::Xid_log_event(const char*, const "
+      "Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(true);
+  DBUG_VOID_RETURN;
 }
 
 #ifdef MYSQL_SERVER
@@ -6248,7 +6275,12 @@ User_var_log_event::User_var_log_event(
       query_id(0)
 #endif
 {
+  DBUG_ENTER(
+      "User_var_log_event::User_var_log_event(const char*, uint, const "
+      "Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(name != 0);
+  DBUG_VOID_RETURN;
 }
 
 #ifdef MYSQL_SERVER
@@ -6646,6 +6678,7 @@ Append_block_log_event::Append_block_log_event(
     : binary_log::Append_block_event(buf, len, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Append_block_log_event::Append_block_log_event(char*,...)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(block != 0);
   DBUG_VOID_RETURN;
 }
@@ -6789,7 +6822,12 @@ Delete_file_log_event::Delete_file_log_event(
     const Format_description_event *description_event)
     : binary_log::Delete_file_event(buf, len, description_event),
       Log_event(header(), footer()) {
+  DBUG_ENTER(
+      "Delete_file_log_event::Delete_file_log_event(const char*, uint, const "
+      "Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(file_id != 0);
+  DBUG_VOID_RETURN;
 }
 
   /*
@@ -6871,7 +6909,12 @@ Begin_load_query_log_event::Begin_load_query_log_event(
     const char *buf, uint len, const Format_description_event *desc_event)
     : binary_log::Append_block_event(buf, len, desc_event),
       Append_block_log_event(buf, len, desc_event),
-      binary_log::Begin_load_query_event(buf, len, desc_event) {}
+      binary_log::Begin_load_query_event(buf, len, desc_event) {
+  DBUG_ENTER(
+      "Begin_load_query_log_event::Begin_load_query_log_event(char*, uint, "
+      "const Format_description_event *)");
+  DBUG_VOID_RETURN;
+}
 
 #if defined(MYSQL_SERVER)
 int Begin_load_query_log_event::get_create_or_append() const {
@@ -6919,6 +6962,10 @@ Execute_load_query_log_event::Execute_load_query_log_event(
       Query_log_event(buf, event_len, desc_event,
                       binary_log::EXECUTE_LOAD_QUERY_EVENT),
       binary_log::Execute_load_query_event(buf, event_len, desc_event) {
+  DBUG_ENTER(
+      "Execute_load_query_log_event::Execute_load_query_log_event(const char*, "
+      "uint, const Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   if (!Query_log_event::is_valid()) {
     // clear all the variables set in execute_load_query_event
     file_id = 0;
@@ -6927,6 +6974,7 @@ Execute_load_query_log_event::Execute_load_query_log_event(
     dup_handling = binary_log::LOAD_DUP_ERROR;
   }
   common_header->set_is_valid(Query_log_event::is_valid() && file_id != 0);
+  DBUG_VOID_RETURN;
 }
 
 ulong Execute_load_query_log_event::get_post_header_size_for_derived() {
@@ -7354,6 +7402,7 @@ Rows_log_event::Rows_log_event(
 #endif
 {
   DBUG_ENTER("Rows_log_event::Rows_log_event(const char*,...)");
+  if (!is_valid()) DBUG_VOID_RETURN;
 
   DBUG_ASSERT(header()->type_code == m_type);
 
@@ -9952,6 +10001,7 @@ Table_map_log_event::Table_map_log_event(
 #endif
 {
   DBUG_ENTER("Table_map_log_event::Table_map_log_event(const char*,uint,...)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(m_null_bits != NULL && m_field_metadata != NULL &&
                               m_coltype != NULL);
   DBUG_ASSERT(header()->type_code == binary_log::TABLE_MAP_EVENT);
@@ -11593,8 +11643,13 @@ Update_rows_log_event::Update_rows_log_event(
     : binary_log::Rows_event(buf, event_len, description_event),
       Rows_log_event(buf, event_len, description_event),
       binary_log::Update_rows_event(buf, event_len, description_event) {
+  DBUG_ENTER(
+      "Update_rows_log_event::Update_rows_log_event(const char *, uint, const "
+      "Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(Rows_log_event::is_valid() && m_cols_ai.bitmap);
   DBUG_ASSERT(header()->type_code == m_type);
+  DBUG_VOID_RETURN;
 }
 
 #if defined(MYSQL_SERVER)
@@ -11682,6 +11737,7 @@ Incident_log_event::Incident_log_event(
     : binary_log::Incident_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Incident_log_event::Incident_log_event");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(incident > INCIDENT_NONE &&
                               incident < INCIDENT_COUNT);
   DBUG_VOID_RETURN;
@@ -11811,7 +11867,7 @@ Ignorable_log_event::Ignorable_log_event(
     : binary_log::Ignorable_event(buf, descr_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
-
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 }
@@ -11848,7 +11904,12 @@ Rows_query_log_event::Rows_query_log_event(
     : binary_log::Ignorable_event(buf, descr_event),
       Ignorable_log_event(buf, descr_event),
       binary_log::Rows_query_event(buf, event_len, descr_event) {
+  DBUG_ENTER(
+      "Rows_query_log_event::Rows_query_log_event(const char *, uint, const "
+      "Format_description_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(m_rows_query != NULL);
+  DBUG_VOID_RETURN;
 }
 
 #ifdef MYSQL_SERVER
@@ -11929,6 +11990,7 @@ Gtid_log_event::Gtid_log_event(
   DBUG_ENTER(
       "Gtid_log_event::Gtid_log_event(const char *,"
       " uint, const Format_description_log_event *");
+  if (!is_valid()) DBUG_VOID_RETURN;
 
 #ifndef DBUG_OFF
   uint8_t const common_header_len = description_event->common_header_len;
@@ -12406,6 +12468,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(
     : binary_log::Previous_gtids_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(buf != NULL);
   DBUG_VOID_RETURN;
 }
@@ -12573,18 +12636,15 @@ Transaction_context_log_event::Transaction_context_log_event(
   DBUG_ENTER(
       "Transaction_context_log_event::Transaction_context_log_event (const "
       "char *, uint, const Format_description_event*)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
 
   sid_map = new Sid_map(NULL);
   snapshot_version = new Gtid_set(sid_map);
 
-  if (server_uuid == NULL || encoded_snapshot_version == NULL) goto err;
+  common_header->set_is_valid(server_uuid != NULL &&
+                              encoded_snapshot_version != NULL);
 
-  common_header->set_is_valid(true);
-  DBUG_VOID_RETURN;
-
-err:
-  common_header->set_is_valid(false);
   DBUG_VOID_RETURN;
 }
 
@@ -12786,6 +12846,7 @@ View_change_log_event::View_change_log_event(
   DBUG_ENTER(
       "View_change_log_event::View_change_log_event(const char *,"
       " uint, const Format_description_event*)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
 
   common_header->set_is_valid(strlen(view_id) != 0);
@@ -13008,8 +13069,13 @@ Heartbeat_log_event::Heartbeat_log_event(
     const Format_description_event *description_event)
     : binary_log::Heartbeat_event(buf, event_len, description_event),
       Log_event(header(), footer()) {
+  DBUG_ENTER(
+      "Heartbeat_log_event::Heartbeat_log_event(const char*, uint, const "
+      "Format_description_log_event *)");
+  if (!is_valid()) DBUG_VOID_RETURN;
   common_header->set_is_valid(log_ident != NULL &&
                               header()->log_pos >= BIN_LOG_HEADER_SIZE);
+  DBUG_VOID_RETURN;
 }
 #endif
 
