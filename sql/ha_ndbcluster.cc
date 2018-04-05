@@ -11260,57 +11260,26 @@ abort:
     DBUG_RETURN(abort_error);
   }
 
-  // All objects have been created sucessfully and
+  // All objects have been created sucessfully in NDB and
   // thus "create_result" have to be zero here
   DBUG_ASSERT(create_result == 0);
 
-  /**
-   * createTable/index schema transaction OK
-   */
+  if (DBUG_EVALUATE_IF("ndb_create_open_fail", true, false))
+  {
+    // The table has been sucessfully created in NDB, emulate
+    // failure to open the table by dropping the table from NDB
+    Ndb_table_guard ndbtab_g(dict, m_tabname);
+    (void)drop_table_and_related(thd, ndb, dict, ndbtab_g.get_table(),
+                                 0,       // drop_flags
+                                 false);  // skip_related
+  }
+
   Ndb_table_guard ndbtab_g(dict, m_tabname);
   m_table= ndbtab_g.get_table();
   if (m_table == NULL)
   {
-    /*
-      Failed to create an index,
-      drop the table (and all it's indexes)
-    */
-    while (!thd->killed)
-    {
-      if (dict->beginSchemaTrans() == -1)
-        goto cleanup_failed;
-      if (m_table && dict->dropTableGlobal(*m_table))
-      {
-        switch (dict->getNdbError().status)
-        {
-        case NdbError::TemporaryError:
-          if (!thd->killed) 
-          {
-            if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
-                == -1)
-              DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
-                                  dict->getNdbError().code));
-            goto cleanup_failed;
-          }
-          break;
-        default:
-          break;
-        }
-      }
-      if (dict->endSchemaTrans() == -1)
-      {
-cleanup_failed:
-        DBUG_PRINT("info", ("Could not cleanup failed create %i",
-                          dict->getNdbError().code));
-        continue; // retry indefinitly
-      }
-      break;
-    }
-    m_table = 0;
-
-    // The above code is activated when the table can't be opened in NDB,
-    // it then tries to drop the table which it can't open, having m_table
-    // being NULL indicates that most of the code is dead(and obfuscated).
+    // Failed to open the newly created table from NDB, since the
+    // table is apparently not in NDB it cant be dropped.
     // However an NDB error must have occured since the table can't
     // be opened and as such the NDB error can be returned here
     ERR_RETURN(dict->getNdbError());

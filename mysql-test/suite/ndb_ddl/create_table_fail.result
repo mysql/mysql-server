@@ -20,3 +20,17 @@ val INT
 ENGINE=ndbcluster;
 # - cleanup and remove the table
 DROP TABLE t1;
+#
+# Test failure to open the NDB table during create.
+# NOTE! This is very unlikely and should only
+# happen at cluster failure.
+SET SESSION debug="+d,ndb_create_open_fail";
+CREATE TABLE t1(a int primary key) engine = NDB;
+ERROR 42S02: Table 'test.t1' doesn't exist
+SHOW WARNINGS;
+Level	Code	Message
+Error	1146	Table 'test.t1' doesn't exist
+SET SESSION debug=@save_debug;
+# Check that table does not exist
+SELECT * FROM t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
