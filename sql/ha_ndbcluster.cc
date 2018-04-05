@@ -10743,7 +10743,6 @@ int ha_ndbcluster::create(const char *name,
     }
   } table_invalidator(dict, m_tabname);
 
-  int create_result;
   if (tab.setName(m_tabname))
   {
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
@@ -11181,7 +11180,7 @@ int ha_ndbcluster::create(const char *name,
                                          tab.getObjectVersion());
 
   // Create secondary indexes
-  create_result = create_indexes(thd, form, &tab);
+  int create_result = create_indexes(thd, form, &tab);
 
   if (create_result == 0 &&
       thd_sql_command(thd) != SQLCOM_TRUNCATE)
@@ -11206,35 +11205,21 @@ int ha_ndbcluster::create(const char *name,
                                              fk_list_for_truncate);
   }
 
-
-  if (create_result == 0)
-  {
-
-    // All schema objects created, commit NDB schema transaction
-    if (!schema_trans.commit_trans())
-    {
-      ERR_RETURN(dict->getNdbError());
-    }
-
-    // Invalidate the sucessfully created table in NdbApi global dict cache
-    table_invalidator.invalidate_after_sucessfully_created_table();
-
-  }
-  else
+  if (create_result)
   {
     DBUG_PRINT("error", ("Failed to create schema objects in NDB, "
                          "create_result: %d", create_result));
-    /*
-     *  Some step during table creation failed, abort schema transaction
-     */
-    schema_trans.abort_trans();
-
     DBUG_RETURN(create_result);
   }
 
-  // All objects have been created sucessfully in NDB and
-  // thus "create_result" have to be zero here
-  DBUG_ASSERT(create_result == 0);
+  // All schema objects created, commit NDB schema transaction
+  if (!schema_trans.commit_trans())
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
+
+  // Invalidate the sucessfully created table in NdbApi global dict cache
+  table_invalidator.invalidate_after_sucessfully_created_table();
 
   if (DBUG_EVALUATE_IF("ndb_create_open_fail", true, false))
   {
