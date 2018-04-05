@@ -656,6 +656,7 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
 rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql 
+rm -f %{buildroot}%{_datadir}/mysql/upgrade_firewall.sql
 rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
 
 # Remove upcoming man pages, to avoid breakage when they materialize
