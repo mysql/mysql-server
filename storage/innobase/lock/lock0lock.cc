@@ -1248,11 +1248,11 @@ other hand does not lead to a clear cut separation into independent queues, but
 rather a complicated graph of relations. Note, that I strategically avoided if I
 mean LOCK_PRDT_PAGE or LOCK_PREDICATE. This is because the two interact with
 each other which makes it all even more complicated to refactor/implement, as
-the current CATS implmentation for LOCK_REC simply iterates over a single bucket
-of a single hash map, but for predicate locks we might need to scan both
+the current CATS implementation for LOCK_REC simply iterates over a single
+bucket of a single hash map, but for predicate locks we might need to scan both
 lock_sys->prdt_page_hash and lock_sys->prdt_hash.
 
-@param[in]	trx		Transaction to check
+@param[in]	lock		Lock to check
 @return true if FCFS algorithm should be used */
 static bool lock_use_fcfs(const lock_t *lock) {
   ut_ad(lock_mutex_own());
