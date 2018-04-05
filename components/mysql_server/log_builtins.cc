@@ -1619,24 +1619,42 @@ int make_iso8601_timestamp(char *buf, ulonglong utime, int mode) {
 /**
   Helper: get token from error stack configuration string
 
-  @param[in,out]  s  start of the token (may be positioned on whitespace
-                     on call; this will be adjusted to the first non-white
-                     character)
-  @param[out]     e  end of the token
+  @param[in,out]  s   start of the token (may be positioned on whitespace
+                      on call; this will be adjusted to the first non-white
+                      character)
+  @param[out]     e   end of the token
+  @param[in,out]  d   delimiter (in: last used, \0 if none; out: detected here)
 
+  @retval         <0  an error occur
   @retval            the length in bytes of the token
 */
 static size_t log_builtins_stack_get_service_from_var(const char **s,
-                                                      const char **e) {
+                                                      const char **e, char *d) {
   DBUG_ASSERT(s != nullptr);
   DBUG_ASSERT(e != nullptr);
 
-  while (isspace(**s) || (**s == ';')) (*s)++;
+  // proceed to next service (skip whitespace, and the delimiter once defined)
+  while (isspace(**s) || ((*d != '\0') && (**s == *d))) (*s)++;
 
   *e = *s;
 
-  while ((**e != '\0') && (**e != ';') && !isspace(**e)) (*e)++;
+  // find end of service
+  while ((**e != '\0') && !isspace(**e)) {
+    if ((**e == ';') || (**e == ',')) {
+      if (*d == '\0')  // no delimiter determined yet
+      {
+        if (*e == *s)  // token may not start with a delimiter
+          return -1;
+        *d = **e;            // save the delimiter we found
+      } else if (**e != *d)  // different delimiter than last time: error
+        return -2;
+    }
+    if (**e == *d)  // found a valid delimiter; end scan
+      goto done;
+    (*e)++;  // valid part of token found, go on!
+  }
 
+done:
   return (size_t)(*e - *s);
 }
 
@@ -1861,9 +1879,11 @@ int log_builtins_error_stack_flush() {
 int log_builtins_error_stack(const char *conf, bool check_only) {
   char buf[128];
   const char *start = conf, *end;
-  size_t len;
+  char delim = '\0';
+  long len;
   my_h_service service;
   int rr = 0;
+  int count = 0;
   log_service_cache_entry *sce;
   log_service_instance *lsi;
 
@@ -1881,8 +1901,15 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
   }
 
   lsi = nullptr;
-  while ((len = log_builtins_stack_get_service_from_var(&start, &end)) > 0) {
+  while ((len = log_builtins_stack_get_service_from_var(&start, &end, &delim)) >
+         0) {
     log_service_builtin_type srvtype = LOG_SERVICE_BUILTIN_TYPE_NONE;
+
+    // more than one services listed, but no delimiter used (only space)
+    if ((++count > 1) && (delim == '\0')) {
+      rr = (int)-(start - conf + 1);  // at least one service not found => fail
+      goto done;
+    }
 
     // find current service name in service-cache
     auto it = log_service_cache->find(string(start, len));
@@ -1906,7 +1933,8 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
       if ((sce = log_service_cache_entry_new(start, len, service)) == nullptr) {
         // failed to make cache-entry. if we hold a service handle, release it!
         if (service != nullptr) imp_mysql_server_registry.release(service);
-        rr = -2;
+        rr =
+            (int)-(start - conf + 1);  // at least one service not found => fail
         goto done;
       }
 
@@ -1976,7 +2004,7 @@ int log_builtins_error_stack(const char *conf, bool check_only) {
     start = end;
   }
 
-  rr = 0;
+  rr = (len < 0) ? ((int)-(start - conf + 1)) : 0;
 
 done:
   // remove stale entries from cache

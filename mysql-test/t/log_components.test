@@ -42,15 +42,30 @@ SELECT @@global.log_error_services;
 
 SELECT "*** SWITCHING ERROR LOG TO JSON ***";
 INSTALL COMPONENT "file://component_log_sink_json";
-SET @@global.log_error_services="log_filter_internal; log_sink_json";
+SET @@global.log_error_services="log_filter_internal; log_sink_json;";
+--echo # may not start with a delimiter
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_services=";log_filter_internal";
+SHOW WARNINGS;
+
+--echo # may not mix delimiters
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_services="log_filter_internal;,log_sink_internal";
+SHOW WARNINGS;
+
+--echo # whitespace alone is no valid delimiter
+--error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_error_services="log_filter_internal log_sink_internal";
+SHOW WARNINGS;
+
 SELECT "logging as JSON";
-SET @@global.log_error_services="log_filter_internal; log_sink_internal";
+SET @@global.log_error_services="log_filter_internal, log_sink_internal,";
 UNINSTALL COMPONENT "file://component_log_sink_json";
 --echo
 
 SELECT "*** SWITCHING ERROR LOG TO TRAD AND JSON ***";
 INSTALL COMPONENT "file://component_log_sink_json";
-SET @@global.log_error_services="log_filter_internal; log_sink_internal; log_sink_json";
+SET @@global.log_error_services="log_filter_internal, log_sink_internal, log_sink_json";
 SELECT "logging as traditional MySQL error log and as JSON";
 SET @@global.log_error_services="log_filter_internal; log_sink_internal";
 UNINSTALL COMPONENT "file://component_log_sink_json";
