@@ -2468,12 +2468,13 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   DBUG_RETURN(0);
 }
 
-/*
-  Create all the indexes for a table.
-  If any index should fail to be created,
-  the error is returned immediately
+/**
+  @brief Create all the indexes for a table.
+  @note If any index should fail to be created, the error is returned
+  immediately
 */
-int ha_ndbcluster::create_indexes(THD *thd, TABLE *tab) const
+int ha_ndbcluster::create_indexes(THD *thd, TABLE *tab,
+                                  const NdbDictionary::Table *ndbtab) const
 {
   int error= 0;
   KEY* key_info= tab->key_info;
@@ -2484,7 +2485,7 @@ int ha_ndbcluster::create_indexes(THD *thd, TABLE *tab) const
   {
     const char* index_name= *key_name;
     NDB_INDEX_TYPE idx_type= get_index_type_from_table(i);
-    error= create_index(thd, index_name, key_info, idx_type);
+    error= create_index(thd, index_name, key_info, idx_type, ndbtab);
     if (error)
     {
       DBUG_PRINT("error", ("Failed to create index %u", i));
@@ -11192,16 +11193,8 @@ int ha_ndbcluster::create(const char *name,
                                          tab.getObjectId(),
                                          tab.getObjectVersion());
 
-  // Only this part of ha_ndbcluster::create() uses functions which need
-  // m_table to be set. That's actually wrong since the ha_ndbcluster
-  // instance is not "open"(which would be indicated by having m_table set)
-  m_table= &tab;
-
   // Create secondary indexes
-  create_result = create_indexes(thd, form);
-
-  // Only create_indexes() uses m_table
-  m_table= nullptr;
+  create_result = create_indexes(thd, form, &tab);
 
   if (create_result == 0 &&
       thd_sql_command(thd) != SQLCOM_TRUNCATE)
@@ -11262,10 +11255,6 @@ abort:
   // All objects have been created sucessfully in NDB and
   // thus "create_result" have to be zero here
   DBUG_ASSERT(create_result == 0);
-
-  // Table created successfully but the table is not "open", verify
-  // that m_table is NULL
-  DBUG_ASSERT(m_table == nullptr);
 
   if (DBUG_EVALUATE_IF("ndb_create_open_fail", true, false))
   {
@@ -11410,9 +11399,9 @@ abort:
   DBUG_RETURN(0); // All OK
 }
 
-
 int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
-                                NDB_INDEX_TYPE idx_type) const
+                                NDB_INDEX_TYPE idx_type,
+                                const NdbDictionary::Table *ndbtab) const
 {
   int error= 0;
   char unique_name[FN_LEN + 1];
@@ -11431,11 +11420,11 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
     // Do nothing, already created
     break;
   case PRIMARY_KEY_ORDERED_INDEX:
-    error= create_ordered_index(thd, name, key_info);
+    error= create_ordered_index(thd, name, key_info, ndbtab);
     break;
   case UNIQUE_ORDERED_INDEX:
-    if (!(error= create_ordered_index(thd, name, key_info)))
-      error= create_unique_index(thd, unique_name, key_info);
+    if (!(error= create_ordered_index(thd, name, key_info, ndbtab)))
+      error= create_unique_index(thd, unique_name, key_info, ndbtab);
     break;
   case UNIQUE_INDEX:
     if (check_index_fields_not_null(key_info))
@@ -11444,7 +11433,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
 			  ER_NULL_COLUMN_IN_INDEX,
 			  "Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan");
     }
-    error= create_unique_index(thd, unique_name, key_info);
+    error= create_unique_index(thd, unique_name, key_info, ndbtab);
     break;
   case ORDERED_INDEX:
     if (key_info->algorithm == HA_KEY_ALG_HASH)
@@ -11458,7 +11447,7 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
       error= HA_ERR_UNSUPPORTED;
       break;
     }
-    error= create_ordered_index(thd, name, key_info);
+    error= create_ordered_index(thd, name, key_info, ndbtab);
     break;
   default:
     DBUG_ASSERT(false);
@@ -11468,30 +11457,28 @@ int ha_ndbcluster::create_index(THD *thd, const char *name, KEY *key_info,
   DBUG_RETURN(error);
 }
 
-int ha_ndbcluster::create_ordered_index(THD *thd, const char *name, 
-                                        KEY *key_info) const
+int ha_ndbcluster::create_ordered_index(
+    THD *thd, const char *name, KEY *key_info,
+    const NdbDictionary::Table *ndbtab) const
 {
   DBUG_ENTER("ha_ndbcluster::create_ordered_index");
-  DBUG_RETURN(create_ndb_index(thd, name, key_info, false));
+  DBUG_RETURN(create_ndb_index(thd, name, key_info, ndbtab, false));
 }
 
-int ha_ndbcluster::create_unique_index(THD *thd, const char *name, 
-                                       KEY *key_info) const
+int ha_ndbcluster::create_unique_index(
+    THD *thd, const char *name, KEY *key_info,
+    const NdbDictionary::Table *ndbtab) const
 {
-
   DBUG_ENTER("ha_ndbcluster::create_unique_index");
-  DBUG_RETURN(create_ndb_index(thd, name, key_info, true));
+  DBUG_RETURN(create_ndb_index(thd, name, key_info, ndbtab, true));
 }
 
 /**
-  Create an index in NDB Cluster.
-
-  @todo
-    Only temporary ordered indexes supported
+  @brief Create an index in NDB.
 */
 
-int ha_ndbcluster::create_ndb_index(THD *thd, const char *name, 
-                                    KEY *key_info,
+int ha_ndbcluster::create_ndb_index(THD *thd, const char *name, KEY *key_info,
+                                    const NdbDictionary::Table *ndbtab,
                                     bool unique) const
 {
   char index_name[FN_LEN + 1];
@@ -11512,13 +11499,19 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   else 
   {
     ndb_index.setType(NdbDictionary::Index::OrderedIndex);
-    // TODO Only temporary ordered indexes supported
     ndb_index.setLogging(false);
   }
-  if (!m_table->getLogging())
+
+  if (!ndbtab->getLogging())
+  {
     ndb_index.setLogging(false);
-  if (((NDBTAB*)m_table)->getTemporary())
+  }
+
+  if (ndbtab->getTemporary())
+  {
     ndb_index.setTemporary(true);
+  }
+
   if (ndb_index.setTable(m_tabname))
   {
     // Can only fail due to memory -> return HA_ERR_OUT_OF_MEM
@@ -11545,7 +11538,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     }
   }
   
-  if (dict->createIndex(ndb_index, *m_table))
+  if (dict->createIndex(ndb_index, *ndbtab))
     ERR_RETURN(dict->getNdbError());
 
   // Success
@@ -11622,7 +11615,7 @@ int ha_ndbcluster::prepare_inplace__add_index(THD *thd,
     // Create index in ndb
     const NDB_INDEX_TYPE idx_type =
         get_index_type_from_key(idx, key_info, false);
-    if ((error = create_index(thd, key_info[idx].name, key, idx_type)))
+    if ((error = create_index(thd, key_info[idx].name, key, idx_type, m_table)))
     {
       break;
     }
