@@ -360,6 +360,12 @@ NdbImportImpl::Job::Job(NdbImportImpl& impl, uint jobno) :
   for (uint i = 0; i < g_max_ndb_nodes; i++)
     m_rows_exec[i] = 0;
   m_rows_reject = 0;
+  m_old_rows = 0;
+  m_old_reject = 0;
+  m_old_runtime = 0;
+  m_new_rows = 0;
+  m_new_reject = 0;
+  m_new_runtime = 0;
   // stats
   Stats& stats = m_stats;
   {
@@ -595,11 +601,27 @@ NdbImportImpl::Job::start_diag_team()
 void
 NdbImportImpl::Job::start_resume()
 {
+  log1("start_resume jobno=" << m_jobno);
+  // verify old stats counts against old rowmap
+  {
+    uint64 old_rows;
+    uint64 old_reject;
+    m_rowmap_in.get_total(old_rows, old_reject);
+    if (m_old_rows != old_rows ||
+        m_old_reject != old_reject)
+    {
+      m_util.set_error_gen(m_error, __LINE__,
+                           "inconsistent counts from old state files"
+                           " (*.stt vs *.map)"
+                           " rows %llu vs %llu reject %llu vs %llu",
+                           m_old_rows, old_rows, m_old_reject, old_reject);
+      return;
+    }
+  }
   // copy entire old rowmap
   require(m_rowmap_out.empty());
   m_rowmap_out.add(m_rowmap_in);
   // input worker handles seek in do_init()
-  log1("range_in: " << m_range_in);
 }
 
 void
@@ -727,15 +749,21 @@ NdbImportImpl::Job::collect_stats()
   uint64 msec = m_timer.elapsed_msec();
   if (msec == 0)
     msec = 1;
+  // counts
   const RowMap& rowmap = m_rowmap_out;
-  uint64 rows;
-  uint64 reject;
-  rowmap.get_total(rows, reject);
-  uint64 rowssec = (rows * 1000) / msec;
-  m_stat_rows->add(rows);
-  m_stat_reject->add(reject);
-  m_stat_runtime->add(msec);
-  m_stat_rowssec->add(rowssec);
+  uint64 total_rows;
+  uint64 total_reject;
+  rowmap.get_total(total_rows, total_reject);
+  require(total_rows >= m_old_rows);
+  require(total_reject >= m_old_reject);
+  m_new_rows = total_rows - m_old_rows;
+  m_new_reject = total_reject - m_old_reject;
+  m_stat_rows->add(m_new_rows);
+  m_stat_reject->add(m_new_reject);
+  // times
+  m_new_runtime = msec;
+  m_stat_runtime->add(m_new_runtime);
+  m_stat_rowssec->add((m_new_rows * 1000) / msec);
   m_stat_rowmap_utime->add(m_timer.m_utime_msec);
 }
 
@@ -3435,6 +3463,59 @@ NdbImportImpl::DiagTeam::read_old_diags()
       return;
     }
     log1("old rowmap:" << rowmap_in);
+  }
+  // old counts
+  {
+    const char* path = opt.m_stats_file;
+    const Table& table = m_util.c_stats_table;
+    RowList rows;
+    read_old_diags("old-stats", path, table, rows);
+    if (has_error())
+      return;
+    uint64 old_rows = 0;
+    uint64 old_reject = 0;
+    uint64 old_runtime = 0;
+    Row* row = 0;
+    while ((row = rows.pop_front()) != 0)
+    {
+      char name[200];
+      {
+        const Attr& attr = table.get_attr("name");
+        attr.get_value(row, name, sizeof(name));
+      }
+      // rows
+      if (strcmp(name, "job-rows") == 0)
+      {
+        const Attr& attr = table.get_attr("sum");
+        uint64 value;
+        attr.get_value(row, value);
+        old_rows += value;
+      }
+      // reject
+      if (strcmp(name, "job-reject") == 0)
+      {
+        const Attr& attr = table.get_attr("sum");
+        uint64 value;
+        attr.get_value(row, value);
+        old_reject += value;
+      }
+      // runtime
+      if (strcmp(name, "job-runtime") == 0)
+      {
+        const Attr& attr = table.get_attr("sum");
+        uint64 value;
+        attr.get_value(row, value);
+        old_runtime += value;
+      }
+      m_util.free_row(row);
+    }
+    job.m_old_rows = old_rows;
+    job.m_old_reject = old_reject;
+    job.m_old_runtime = old_runtime;
+    log1("old stats:" <<
+         " rows=" << old_rows <<
+         " reject=" << old_reject <<
+         " runtime=" << old_runtime);
   }
 }
 

@@ -534,11 +534,55 @@ NdbImportUtil::Attr::set_null(Row* row, bool null) const
     data[m_null_byte] &= ~mask;
 }
 
-const void*
+const uchar*
 NdbImportUtil::Attr::get_value(const Row* row) const
 {
   const uchar* p = &row->m_data[m_offset];
   return p;
+}
+
+void
+NdbImportUtil::Attr::get_value(const Row* row, uint32& value) const
+{
+  const uchar* p = get_value(row);
+  if (m_type == NdbDictionary::Column::Unsigned)
+  {
+    memcpy(&value, p, sizeof(value));
+    return;
+  }
+  require(false);
+}
+
+void
+NdbImportUtil::Attr::get_value(const Row* row, uint64& value) const
+{
+  const uchar* p = get_value(row);
+  if (m_type == NdbDictionary::Column::Bigunsigned)
+  {
+    memcpy(&value, p, sizeof(value));
+    return;
+  }
+  require(false);
+}
+
+void
+NdbImportUtil::Attr::get_value(const Row* row, char* buf, uint bufsz) const
+{
+  const uchar* p = get_value(row);
+  memset(buf, 0, bufsz);
+  if (m_type == NdbDictionary::Column::Varchar) {
+    uint sz = p[0];
+    require(sz < bufsz);
+    memcpy(buf, &p[1], sz);
+    return;
+  }
+  if (m_type == NdbDictionary::Column::Longvarchar) {
+    uint sz = p[0] | (p[1] << 8);
+    require(sz < bufsz);
+    memcpy(buf, &p[2], sz);
+    return;
+  }
+  require(false);
 }
 
 bool
@@ -1893,6 +1937,8 @@ NdbImportUtil::add_stats_table()
                         NdbDictionary::Column::Double);
 }
 
+#include <math.h>
+
 void
 NdbImportUtil::add_error_attrs(Table& table)
 {
@@ -2202,6 +2248,8 @@ NdbImportUtil::set_stats_row(Row* row,
     double mean = 0.0;
     if (stat.m_obs != 0)
       mean = sum1 / obsf;
+    if (!my_isfinite(mean))
+      mean = 0.0;
     attr.set_value(row, &mean, sizeof(mean));
     id++;
   }
@@ -2223,6 +2271,8 @@ NdbImportUtil::set_stats_row(Row* row,
     double stddev = 0.0;
     if (stat.m_obs != 0)
       stddev = ::sqrt((obsf * sum2 - (sum1 * sum1)) / (obsf * obsf));
+    if (!my_isfinite(stddev))
+      stddev = 0.0;
     attr.set_value(row, &stddev, sizeof(stddev));
     id++;
   }
