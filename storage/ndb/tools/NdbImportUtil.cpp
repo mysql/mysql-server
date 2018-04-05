@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1850,67 +1850,6 @@ NdbImportUtil::add_rowmap_table()
 }
 
 void
-NdbImportUtil::set_rowmap_row(Row* row,
-                              uint32 runno,
-                              const Range& range)
-{
-  const Table& table = c_rowmap_table;
-  const Attrs& attrs = table.m_attrs;
-  uint id = 0;
-  // runno
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &runno, sizeof(runno));
-    id++;
-  }
-  // start
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_start, sizeof(range.m_start));
-    id++;
-  }
-  // end
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_end, sizeof(range.m_end));
-    id++;
-  }
-  // rows
-  {
-    const Attr& attr = attrs[id];
-    uint64 rows = range.m_end - range.m_start;
-    attr.set_value(row, &rows, sizeof(rows));
-    id++;
-  }
-  // startpos
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_startpos, sizeof(range.m_startpos));
-    id++;
-  }
-  // end
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_endpos, sizeof(range.m_endpos));
-    id++;
-  }
-  // bytes
-  {
-    const Attr& attr = attrs[id];
-    uint64 bytes = range.m_endpos - range.m_startpos;
-    attr.set_value(row, &bytes, sizeof(bytes));
-    id++;
-  }
-  // reject
-  {
-    const Attr& attr = attrs[id];
-    attr.set_value(row, &range.m_reject, sizeof(range.m_reject));
-    id++;
-  }
-  require(id == attrs.size());
-}
-
-void
 NdbImportUtil::add_stopt_table()
 {
   Table& table = c_stopt_table;
@@ -2097,6 +2036,67 @@ NdbImportUtil::set_reject_row(Row* row,
   {
     const Attr& attr = attrs[id];
     attr.set_blob(row, reject, rejectlen);
+    id++;
+  }
+  require(id == attrs.size());
+}
+
+void
+NdbImportUtil::set_rowmap_row(Row* row,
+                              uint32 runno,
+                              const Range& range)
+{
+  const Table& table = c_rowmap_table;
+  const Attrs& attrs = table.m_attrs;
+  uint id = 0;
+  // runno
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &runno, sizeof(runno));
+    id++;
+  }
+  // start
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_start, sizeof(range.m_start));
+    id++;
+  }
+  // end
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_end, sizeof(range.m_end));
+    id++;
+  }
+  // rows
+  {
+    const Attr& attr = attrs[id];
+    uint64 rows = range.m_end - range.m_start;
+    attr.set_value(row, &rows, sizeof(rows));
+    id++;
+  }
+  // startpos
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_startpos, sizeof(range.m_startpos));
+    id++;
+  }
+  // end
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_endpos, sizeof(range.m_endpos));
+    id++;
+  }
+  // bytes
+  {
+    const Attr& attr = attrs[id];
+    uint64 bytes = range.m_endpos - range.m_startpos;
+    attr.set_value(row, &bytes, sizeof(bytes));
+    id++;
+  }
+  // reject
+  {
+    const Attr& attr = attrs[id];
+    attr.set_value(row, &range.m_reject, sizeof(range.m_reject));
     id++;
   }
   require(id == attrs.size());
