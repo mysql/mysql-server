@@ -11180,36 +11180,42 @@ int ha_ndbcluster::create(const char *name,
                                          tab.getObjectVersion());
 
   // Create secondary indexes
-  int create_result = create_indexes(thd, form, &tab);
-
-  if (create_result == 0 &&
-      thd_sql_command(thd) != SQLCOM_TRUNCATE)
+  const int create_index_result = create_indexes(thd, form, &tab);
+  if (create_index_result != 0)
   {
-    create_result = create_fks(thd, ndb);
+    DBUG_RETURN(create_index_result);
   }
 
-  if (create_result == 0 &&
-      (thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
-       thd->lex->sql_command == SQLCOM_DROP_INDEX ||
-       thd->lex->sql_command == SQLCOM_CREATE_INDEX))
+  if (thd_sql_command(thd) != SQLCOM_TRUNCATE)
+  {
+    const int create_fks_result = create_fks(thd, ndb);
+    if (create_fks_result != 0)
+    {
+      DBUG_RETURN(create_fks_result);
+    }
+  }
+
+  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE ||
+      thd->lex->sql_command == SQLCOM_DROP_INDEX ||
+      thd->lex->sql_command == SQLCOM_CREATE_INDEX)
   {
     // Copy foreign keys from the old NDB table (which still exists)
-    create_result = copy_fk_for_offline_alter(thd, ndb, m_tabname);
+    const int copy_fk_result = copy_fk_for_offline_alter(thd, ndb, m_tabname);
+    if (copy_fk_result != 0)
+    {
+      DBUG_RETURN(copy_fk_result);
+    }
   }
 
-  if (create_result == 0 &&
-      !fk_list_for_truncate.is_empty())
+  if (!fk_list_for_truncate.is_empty())
   {
     // create foreign keys from the list extracted from old table
-    create_result = recreate_fk_for_truncate(thd, ndb, m_tabname,
-                                             fk_list_for_truncate);
-  }
-
-  if (create_result)
-  {
-    DBUG_PRINT("error", ("Failed to create schema objects in NDB, "
-                         "create_result: %d", create_result));
-    DBUG_RETURN(create_result);
+    const int recreate_fk_result =
+        recreate_fk_for_truncate(thd, ndb, m_tabname, fk_list_for_truncate);
+    if (recreate_fk_result != 0)
+    {
+      DBUG_RETURN(recreate_fk_result);
+    }
   }
 
   // All schema objects created, commit NDB schema transaction
