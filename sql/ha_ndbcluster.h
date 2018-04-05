@@ -472,7 +472,7 @@ public:
   int get_fk_data(THD *thd, Ndb *ndb);
   void release_fk_data();
   int create_fks(THD *thd, Ndb *ndb);
-  int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
+  int copy_fk_for_offline_alter(THD *thd, Ndb *, const char* tabname);
   int inplace__drop_fks(THD*, Ndb*, NdbDictionary::Dictionary*,
                        const NdbDictionary::Table*);
   static int get_fk_data_for_truncate(NdbDictionary::Dictionary*,

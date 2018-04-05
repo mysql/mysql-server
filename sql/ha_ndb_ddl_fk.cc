@@ -2243,9 +2243,12 @@ ha_ndbcluster::free_foreign_key_create_info(char* str)
 }
 
 int
-ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
+ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb,
+                                         const char* tabname)
 {
   DBUG_ENTER("ha_ndbcluster::copy_fk_for_offline_alter");
+  DBUG_PRINT("enter", ("tabname: '%s'", tabname));
+
   if (thd->lex == 0)
   {
     assert(false);
@@ -2262,7 +2265,6 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
     DBUG_RETURN(0);
   }
 
-  assert(thd->lex != 0);
   NDBDICT* dict = ndb->getDictionary();
   setDbName(ndb, src_db);
   Ndb_table_guard srctab(dict, src_tab);
@@ -2275,7 +2277,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
   }
 
   db_guard.restore();
-  Ndb_table_guard dsttab(dict, _dsttab->getName());
+  Ndb_table_guard dsttab(dict, tabname);
   if (dsttab.get_table() == 0)
   {
     ERR_RETURN(dict->getNdbError());

@@ -11209,11 +11209,8 @@ int ha_ndbcluster::create(const char *name,
        thd->lex->sql_command == SQLCOM_DROP_INDEX ||
        thd->lex->sql_command == SQLCOM_CREATE_INDEX))
   {
-    /**
-     * mysql doesnt know/care about FK (buhhh)
-     *   so we need to copy the old ones ourselves
-     */
-    create_result = copy_fk_for_offline_alter(thd, ndb, &tab);
+    // Copy foreign keys from the old NDB table (which still exists)
+    create_result = copy_fk_for_offline_alter(thd, ndb, m_tabname);
   }
 
   if (create_result == 0 &&
