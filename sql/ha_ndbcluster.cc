@@ -10701,7 +10701,6 @@ int ha_ndbcluster::create(const char *name,
   Ndb_schema_trans_guard schema_trans(thd_ndb, dict);
   if (!schema_trans.begin_trans())
   {
-    m_table = nullptr;
     ERR_RETURN(dict->getNdbError());
   }
 
@@ -11193,6 +11192,9 @@ int ha_ndbcluster::create(const char *name,
                                          tab.getObjectId(),
                                          tab.getObjectVersion());
 
+  // Only this part of ha_ndbcluster::create() uses functions which need
+  // m_table to be set. That's actually wrong since the ha_ndbcluster
+  // instance is not "open"(which would be indicated by having m_table set)
   m_table= &tab;
 
   // Create secondary indexes
@@ -11224,7 +11226,7 @@ int ha_ndbcluster::create(const char *name,
                                              fk_list_for_truncate);
   }
 
-  m_table= 0;
+  m_table= nullptr;
 
   if (create_result == 0)
   {
@@ -11232,7 +11234,6 @@ int ha_ndbcluster::create(const char *name,
     // All schema objects created, commit NDB schema transaction
     if (!schema_trans.commit_trans())
     {
-      m_table = nullptr;
       ERR_RETURN(dict->getNdbError());
     }
 
@@ -11255,7 +11256,6 @@ abort:
     DBUG_PRINT("info", ("Aborting schema trans due to error: %d", abort_error));
 
     schema_trans.abort_trans();
-    m_table= 0;
 
     DBUG_RETURN(abort_error);
   }
