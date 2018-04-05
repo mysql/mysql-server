@@ -26,7 +26,6 @@
 #include "my_base.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_list.h"
-#include "sql/thr_malloc.h"
 #include "sql/window.h"
 
 struct MI_COLUMNDEF;
@@ -34,9 +33,6 @@ class KEY;
 class Copy_field;
 class Item;
 class Window;
-
-template <typename T>
-using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
 
 /**
    Helper class for copy_funcs(); represents an Item to copy from table to
@@ -72,16 +68,9 @@ typedef Mem_root_array<Func_ptr> Func_ptr_array;
 
 class Temp_table_param {
  public:
-  /**
-    Used to store the values of grouped non-column-reference expressions in
-    between groups, so they can be retreived when the group changes.
-
-    @see setup_copy_fields
-    @see copy_fields
-  */
-  Memroot_vector<Item_copy *> grouped_expressions;
-  Memroot_vector<Copy_field> copy_fields;
-
+  /// Is used by copy_fields() to copy non-column expressions.
+  List<Item> copy_funcs;
+  Copy_field *copy_field, *copy_field_end;
   uchar *group_buff;
   Func_ptr_array *items_to_copy; /* Fields in tmp table */
   MI_COLUMNDEF *recinfo, *start_recinfo;
@@ -168,9 +157,9 @@ class Temp_table_param {
   /// If this is the out table of a window: the said window
   Window *m_window;
 
-  Temp_table_param(MEM_ROOT *mem_root = *THR_MALLOC)
-      : grouped_expressions(Memroot_allocator<Item_copy *>(mem_root)),
-        copy_fields(Memroot_allocator<Copy_field>(mem_root)),
+  Temp_table_param()
+      : copy_field(NULL),
+        copy_field_end(NULL),
         group_buff(nullptr),
         items_to_copy(nullptr),
         recinfo(NULL),
@@ -196,11 +185,9 @@ class Temp_table_param {
         can_use_pk_for_unique(true),
         m_window_short_circuit(false),
         m_window(nullptr) {}
+  ~Temp_table_param() { cleanup(); }
 
-  void cleanup() {
-    grouped_expressions.clear();
-    copy_fields.clear();
-  }
+  void cleanup(void);
 };
 
 #endif  // TEMP_TABLE_PARAM_INCLUDED

@@ -884,6 +884,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
   uchar *null_flags;
   Field **reg_field, **from_field, **default_field;
   uint *blob_field;
+  Copy_field *copy = 0;
   KEY *keyinfo;
   KEY_PART_INFO *key_part_info;
   MI_COLUMNDEF *recinfo;
@@ -958,13 +959,12 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
           &bitmaps, bitmap_buffer_size(field_count + 1) * 3, NullS)) {
     DBUG_RETURN(NULL); /* purecov: inspected */
   }
-
-  try {
-    param->copy_fields.reserve(field_count);
-  } catch (std::bad_alloc &) {
-    DBUG_RETURN(nullptr);
+  /* Copy_field belongs to Temp_table_param, allocate it in THD mem_root */
+  if (!(param->copy_field = copy =
+            new (thd->mem_root) Copy_field[field_count])) {
+    free_root(&own_root, MYF(0)); /* purecov: inspected */
+    DBUG_RETURN(NULL);            /* purecov: inspected */
   }
-
   param->items_to_copy = copy_func;
   /* make table according to fields */
 
@@ -1471,17 +1471,17 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       f_in_record0->move_field_offset(-diff);  // Back to record[0]
     }
 
-    if (from_field[i]) {
-      /* This column is directly mapped to a column in the GROUP BY clause. */
+    if (from_field[i]) { /* Not a table Item */
       if (param->m_window && param->m_window->frame_buffer_param() &&
           field->flags & FIELD_IS_MARKED) {
         Temp_table_param *window_fb = param->m_window->frame_buffer_param();
         // Grep for FIELD_IS_MARKED in this file.
         field->flags ^= FIELD_IS_MARKED;
-        window_fb->copy_fields.emplace_back(from_field[i], field,
-                                            save_sum_fields);
+        window_fb->copy_field_end->set(from_field[i], field, save_sum_fields);
+        window_fb->copy_field_end++;
       } else {
-        param->copy_fields.emplace_back(field, from_field[i], save_sum_fields);
+        copy->set(field, from_field[i], save_sum_fields);
+        copy++;
       }
     }
     length = field->pack_length();
@@ -1506,6 +1506,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     field->table_name = &table->alias;
   }
 
+  param->copy_field_end = copy;
   param->recinfo = recinfo;
   store_record(table, s->default_values);  // Make empty default record
 

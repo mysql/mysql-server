@@ -231,7 +231,7 @@ class JOIN {
         group_fields_cache(),
         sum_funcs(NULL),
         sum_funcs_end(),
-        tmp_table_param(thd_arg->mem_root),
+        tmp_table_param(),
         lock(thd->lock),
         rollup(),
         // @todo Can this be substituted with select->is_implicitly_grouped()?

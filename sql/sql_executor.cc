@@ -41,17 +41,14 @@
 #include <cstring>
 #include <map>
 #include <memory>
-#include <new>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "binary_log_types.h"
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "memory_debugging.h"
-#include "memroot_allocator.h"
 #include "my_alloc.h"
 #include "my_bitmap.h"
 #include "my_byteorder.h"
@@ -112,9 +109,6 @@
 
 using std::max;
 using std::min;
-
-template <typename T>
-using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
 
 static void return_zero_rows(JOIN *join, List<Item> &fields);
 static int do_select(JOIN *join);
@@ -177,6 +171,12 @@ static bool having_is_true(Item *h) {
 
 /// Maximum amount of space (in bytes) to allocate for a Record_buffer.
 static constexpr size_t MAX_RECORD_BUFFER_SIZE = 128 * 1024;  // 128KB
+
+void Temp_table_param::cleanup(void) {
+  destroy_array(copy_field, field_count);
+  copy_field = NULL;
+  copy_field_end = NULL;
+}
 
 /**
   Execute select, executor entry point.
@@ -3221,16 +3221,19 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
         (2) and reset group aggregate functions.
 
         About (1): some expressions to copy are not Item_fields and they are
-        copied by copy_fields() which evaluates them (see
-        param->grouped_expressions, set up in setup_copy_fields()). Thus,
-        copy_fields() can evaluate functions. One of them, F2, may reference
-        another one F1, example: SELECT expr AS F1 ... GROUP BY ... HAVING
-        F2(F1)<=2 . Assume F1 and F2 are not aggregate functions. Then they are
-        calculated by copy_fields() when starting a new group, i.e. here. As F2
-        uses an alias to F1, F1 is calculated first; F2 must use that value (not
-        evaluate expr again, as expr may not be deterministic), so F2 uses a
-        reference (Item_ref) to the already-computed value of F1; that value is
-        in Item_copy part of REF_SLICE_TMP3. So, we switch to that slice.
+        copied by copy_fields() which evaluates them (see param->copy_funcs,
+        set up in setup_copy_fields()).
+        Thus, copy_fields() can evaluate functions. One of them, F2, may
+        reference another one F1, example:
+        SELECT expr AS F1 ... GROUP BY ... HAVING F2(F1)<=2 .
+        Assume F1 and F2 are not aggregate functions.
+        Then they are calculated by copy_fields() when starting a new group,
+        i.e. here.
+        As F2 uses an alias to F1, F1 is calculated first;
+        F2 must use that value (not evaluate expr again, as expr may not be
+        deterministic), so F2 uses a reference (Item_ref) to the
+        already-computed value of F1; that value is in Item_copy part of
+        REF_SLICE_TMP3. So, we switch to that slice.
       */
       Switch_ref_item_slice slice_switch(join, REF_SLICE_TMP3);
       if (copy_fields(&join->tmp_table_param, join->thd))  // (1)
@@ -3493,8 +3496,11 @@ static inline void reset_non_framing_wf_state(Func_ptr_array *func_ptr) {
 
   @param param  represents the frame buffer tmp file
 */
-static void swap_copy_field_direction(Temp_table_param *param) {
-  for (Copy_field &copy_field : param->copy_fields) copy_field.swap_direction();
+static void swap_copy_field_direction(const Temp_table_param *param) {
+  Copy_field *ptr = param->copy_field;
+  Copy_field *end = param->copy_field_end;
+
+  for (; ptr < end; ptr++) ptr->swap_direction();
 }
 
 /**
@@ -3761,14 +3767,18 @@ static bool read_frame_buffer_row(int64 rowno, Window *w,
 #if !defined(DBUG_OFF)
 inline static void dbug_allow_write_all_columns(
     Temp_table_param *param, std::map<TABLE *, my_bitmap_map *> &map) {
-  for (auto &copy_field : param->copy_fields) {
-    TABLE *const t = copy_field.from_field()->table;
+  Copy_field *ptr = param->copy_field;
+  Copy_field *const end = param->copy_field_end;
+
+  while (ptr < end) {
+    TABLE *const t = ptr->from_field()->table;
     if (t != nullptr) {
       auto it = map.find(t);
       if (it == map.end())
         map.insert(it, std::pair<TABLE *, my_bitmap_map *>(
                            t, dbug_tmp_use_all_columns(t, t->write_set)));
     }
+    ptr++;
   }
 }
 
@@ -5163,8 +5173,7 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
   Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
   join->found_records++;
 
-  // See comment below.
-  DBUG_ASSERT(tmp_tbl->grouped_expressions.size() == 0);
+  DBUG_ASSERT(tmp_tbl->copy_funcs.elements == 0);  // See comment below.
 
   if (copy_fields(tmp_tbl, join->thd))  // Groups are copied twice.
     DBUG_RETURN(NESTED_LOOP_ERROR);     /* purecov: inspected */
@@ -5220,8 +5229,8 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
     "SELECT a, a*a ... GROUP BY a": only the first/last row of the group,
     needs to evaluate a*a).
 
-    The assertion on tmp_tbl->grouped_expressions.size() is to make sure
-    copy_fields() doesn't suffer from the late switching.
+    The assertion on tmp_tbl->copy_funcs is to make sure copy_fields() doesn't
+    suffer from the late switching.
   */
   Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
   DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3 &&
@@ -5761,12 +5770,9 @@ int test_if_item_cache_changed(List<Cached_item> &list) {
 }
 
 /**
-  Sets up caches for holding the values of non-aggregated expressions. The
-  values are saved at the start of every new group.
+  Setup copy_fields to save fields at start of new group.
 
-  This code path is used in the cases when aggregation can be performed
-  without a temporary table. Why it still uses a Temp_table_param is a
-  mystery.
+  Setup copy_fields to save fields at start of new group
 
   Only FIELD_ITEM:s and FUNC_ITEM:s needs to be saved between groups.
   Change old item_field to use a new field with points at saved fieldvalue
@@ -5798,32 +5804,27 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 
   Item *pos;
   List_iterator_fast<Item> li(all_fields);
+  Copy_field *copy = NULL;
+  Copy_field *copy_start MY_ATTRIBUTE((unused));
   res_selected_fields.empty();
   res_all_fields.empty();
   List_iterator_fast<Item> itr(res_all_fields);
+  List<Item> extra_funcs;
   uint i, border = all_fields.elements - elements;
-  Memroot_vector<Item_copy *> extra_funcs(
-      Memroot_allocator<Item_copy *>(thd->mem_root));
 
-  param->grouped_expressions.clear();
-  DBUG_ASSERT(param->copy_fields.empty());
+  if (param->field_count && !(copy = param->copy_field = new (*THR_MALLOC)
+                                  Copy_field[param->field_count]))
+    goto err2;
 
-  try {
-    param->grouped_expressions.reserve(all_fields.elements);
-    param->copy_fields.reserve(param->field_count);
-    extra_funcs.reserve(border);
-  } catch (std::bad_alloc &) {
-    DBUG_RETURN(true);
-  }
-
+  param->copy_funcs.empty();
+  copy_start = copy;
   for (i = 0; (pos = li++); i++) {
     Field *field;
     uchar *tmp;
     Item *real_pos = pos->real_item();
     if (real_pos->type() == Item::FIELD_ITEM) {
       Item_field *item;
-      if (!(item = new Item_field(thd, ((Item_field *)real_pos))))
-        DBUG_RETURN(true);
+      if (!(item = new Item_field(thd, ((Item_field *)real_pos)))) goto err;
       if (pos->type() == Item::REF_ITEM) {
         /* preserve the names of the ref when dereferncing */
         Item_ref *ref = (Item_ref *)pos;
@@ -5833,9 +5834,7 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
       }
       pos = item;
       if (item->field->flags & BLOB_FLAG) {
-        Item_copy *item_copy = Item_copy::create(pos);
-        if (item_copy == nullptr) DBUG_RETURN(true);
-        pos = item_copy;
+        if (!(pos = Item_copy::create(pos))) goto err;
         /*
           Item_copy_string::copy for function can call
           Item_copy_string::val_int for blob via Item_ref.
@@ -5845,7 +5844,7 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
           copy_funcs
           (to see full test case look at having.test, BUG #4358)
         */
-        param->grouped_expressions.push_back(item_copy);
+        if (param->copy_funcs.push_front(pos)) goto err;
       } else {
         /*
            set up save buffer and change result_field to point at
@@ -5857,28 +5856,28 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
           We need to allocate one extra byte for null handling.
         */
         if (!(tmp = static_cast<uchar *>(sql_alloc(field->pack_length() + 1))))
-          DBUG_RETURN(true);
+          goto err;
+        if (copy) {
+          DBUG_ASSERT(param->field_count > (uint)(copy - copy_start));
+          copy->set(tmp, item->result_field);
+          item->result_field->move_field(copy->to_ptr, copy->to_null_ptr, 1);
 
-        DBUG_ASSERT(param->field_count > param->copy_fields.size());
-        param->copy_fields.emplace_back(tmp, item->result_field);
-        item->result_field->move_field(param->copy_fields.back().to_ptr,
-                                       param->copy_fields.back().to_null_ptr,
-                                       1);
-
-        /*
-          We have created a new Item_field; its field points into the
-          previous table; its result_field points into a memory area
-          (REF_SLICE_TMP3) which represents the pseudo-tmp-table from where
-          aggregates' values can be read. So does 'field'.
-          A Copy_field manages copying from 'field' to the memory area.
-        */
-        item->field = item->result_field;
-        /*
-          Even though the field doesn't point into field->table->record[0], we
-          must still link it to 'table' through field->table because that's an
-          existing way to access some type info (e.g. nullability from
-          table->nullable).
-        */
+          /*
+            We have created a new Item_field; its field points into the
+            previous table; its result_field points into a memory area
+            (REF_SLICE_TMP3) which represents the pseudo-tmp-table from where
+            aggregates' values can be read. So does 'field'.
+            A Copy_field manages copying from 'field' to the memory area.
+          */
+          item->field = item->result_field;
+          /*
+            Even though the field doesn't point into field->table->record[0], we
+            must still link it to 'table' through field->table because that's an
+            existing way to access some type info (e.g. nullability from
+            table->nullable).
+          */
+          copy++;
+        }
       }
     } else if (((real_pos->type() == Item::FUNC_ITEM ||
                  real_pos->type() == Item::SUBSELECT_ITEM ||
@@ -5893,18 +5892,18 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
          on how the value is to be used: In some cases this may be an
          argument in a group function, like: IF(ISNULL(col),0,COUNT(*))
       */
-      Item_copy *item_copy = Item_copy::create(pos);
-      if (item_copy == nullptr) DBUG_RETURN(true);
-      pos = item_copy;
+      if (!(pos = Item_copy::create(pos))) goto err;
       if (i < border)  // HAVING, ORDER and GROUP BY
-        extra_funcs.push_back(item_copy);
-      else
-        param->grouped_expressions.push_back(item_copy);
+      {
+        if (extra_funcs.push_back(pos)) goto err;
+      } else if (param->copy_funcs.push_back(pos))
+        goto err;
     }
     res_all_fields.push_back(pos);
     ref_item_array[((i < border) ? all_fields.elements - i - 1 : i - border)] =
         pos;
   }
+  param->copy_field_end = copy;
 
   for (i = 0; i < border; i++) itr++;
   itr.sublist(res_selected_fields, elements);
@@ -5912,9 +5911,15 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
     Put elements from HAVING, ORDER BY and GROUP BY last to ensure that any
     reference used in these will resolve to a item that is already calculated
   */
-  param->grouped_expressions.insert(param->grouped_expressions.end(),
-                                    extra_funcs.begin(), extra_funcs.end());
-  DBUG_RETURN(false);
+  param->copy_funcs.concat(&extra_funcs);
+
+  DBUG_RETURN(0);
+
+err:
+  destroy_array(param->copy_field, param->field_count);
+  param->copy_field = nullptr;
+err2:
+  DBUG_RETURN(true);
 }
 
 /**
@@ -5931,16 +5936,19 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
 
 bool copy_fields(Temp_table_param *param, const THD *thd) {
   DBUG_ENTER("copy_fields");
+  Copy_field *ptr = param->copy_field;
+  Copy_field *end = param->copy_field_end;
 
+  DBUG_ASSERT((ptr != NULL && end >= ptr) || (ptr == NULL && end == NULL));
   DBUG_PRINT("enter", ("for param %p", param));
-  for (Copy_field &ptr : param->copy_fields) ptr.invoke_do_copy(&ptr);
+  for (; ptr < end; ptr++) ptr->invoke_do_copy(ptr);
 
-  if (thd->is_error()) DBUG_RETURN(true);
+  List_iterator_fast<Item> it(param->copy_funcs);
+  Item_copy *item;
+  bool is_error = thd->is_error();
+  while (!is_error && (item = (Item_copy *)it++)) is_error = item->copy(thd);
 
-  for (Item_copy *item : param->grouped_expressions)
-    if (item->copy(thd)) DBUG_RETURN(true);
-
-  DBUG_RETURN(false);
+  DBUG_RETURN(is_error);
 }
 
 /**
