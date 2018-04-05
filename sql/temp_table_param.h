@@ -23,6 +23,8 @@
 #ifndef TEMP_TABLE_PARAM_INCLUDED
 #define TEMP_TABLE_PARAM_INCLUDED
 
+#include <vector>
+
 #include "my_base.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_list.h"

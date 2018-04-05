@@ -103,6 +103,7 @@
 #include "sql/sql_tmp_table.h"  // create_tmp_table
 #include "sql/system_variables.h"
 #include "sql/table_function.h"
+#include "sql/temp_table_param.h"  // Memroot_vector
 #include "sql/thr_malloc.h"
 #include "sql/window.h"
 #include "sql/window_lex.h"
@@ -112,9 +113,6 @@
 
 using std::max;
 using std::min;
-
-template <typename T>
-using Memroot_vector = std::vector<T, Memroot_allocator<T>>;
 
 static void return_zero_rows(JOIN *join, List<Item> &fields);
 static int do_select(JOIN *join);
@@ -5937,9 +5935,9 @@ bool copy_fields(Temp_table_param *param, const THD *thd) {
 
   if (thd->is_error()) DBUG_RETURN(true);
 
-  for (Item_copy *item : param->grouped_expressions)
+  for (Item_copy *item : param->grouped_expressions) {
     if (item->copy(thd)) DBUG_RETURN(true);
-
+  }
   DBUG_RETURN(false);
 }
 
