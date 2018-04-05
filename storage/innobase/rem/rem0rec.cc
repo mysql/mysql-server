@@ -1397,7 +1397,7 @@ static void rec_print_comp(
   ulint i;
 
   for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-    const byte *data;
+    const byte *data = nullptr;
     ulint len;
 
     if (rec_offs_nth_default(offsets, i)) {
