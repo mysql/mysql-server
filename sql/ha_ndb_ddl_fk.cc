@@ -1443,11 +1443,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 
     const Foreign_key_spec * fk= down_cast<const Foreign_key_spec*>(key);
 
-    /**
-     * NOTE: we need to fetch also child table...
-     *   cause the one we just created (in m_table) is not properly
-     *   initialize
-     */
+    // Open the table to create foreign keys for
     Ndb_table_guard child_tab(dict, m_tabname);
     if (child_tab.get_table() == 0)
     {

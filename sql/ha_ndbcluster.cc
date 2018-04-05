@@ -11200,6 +11200,9 @@ int ha_ndbcluster::create(const char *name,
   // Create secondary indexes
   create_result = create_indexes(thd, form);
 
+  // Only create_indexes() uses m_table
+  m_table= nullptr;
+
   if (create_result == 0 &&
       thd_sql_command(thd) != SQLCOM_TRUNCATE)
   {
@@ -11218,15 +11221,11 @@ int ha_ndbcluster::create(const char *name,
   if (create_result == 0 &&
       !fk_list_for_truncate.is_empty())
   {
-    /*
-     create FKs for the new table from the list got from old table.
-     for truncate table.
-     */
-    create_result = recreate_fk_for_truncate(thd, ndb, tab.getName(),
+    // create foreign keys from the list extracted from old table
+    create_result = recreate_fk_for_truncate(thd, ndb, m_tabname,
                                              fk_list_for_truncate);
   }
 
-  m_table= nullptr;
 
   if (create_result == 0)
   {
