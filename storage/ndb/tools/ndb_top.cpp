@@ -407,7 +407,7 @@ get_one_option(int optid,
     print_version();
     exit(0);
   }
-  case 't':
+  case 'P':
   case 'n':
   case 'u':
   case 'h':
@@ -415,7 +415,7 @@ get_one_option(int optid,
   case 'm':
   case 'o':
   case 'c':
-  case 'x':
+  case 't':
   case 'g':
   case 'r':
   {
