@@ -81,8 +81,8 @@ struct My_free_functor {
   assumes that allocators are default-constructible".
 
   @note allocate() throws std::bad_alloc() similarly to the default
-  STL memory allocator. This is necessary - STL functions which allocates
-  memory expects it. Otherwise these functions will try to use the memory,
+  STL memory allocator. This is necessary - STL functions which allocate
+  memory expect it. Otherwise these functions will try to use the memory,
   leading to seg faults if memory allocation was not successful.
 
 */

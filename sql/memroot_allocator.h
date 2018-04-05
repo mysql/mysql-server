@@ -42,8 +42,8 @@
   vector<int, Memroot_allocator<int> > v((Memroot_allocator<int>(&mem_root)));
 
   @note allocate() throws std::bad_alloc() similarly to the default
-  STL memory allocator. This is necessary - STL functions which allocates
-  memory expects it. Otherwise these functions will try to use the memory,
+  STL memory allocator. This is necessary - STL functions which allocate
+  memory expect it. Otherwise these functions will try to use the memory,
   leading to seg faults if memory allocation was not successful.
 
   @note This allocator cannot be used for std::basic_string

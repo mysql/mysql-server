@@ -4334,8 +4334,12 @@ class Send_field {
   Send_field() {}
 };
 
-/*
-  A class for quick copying data to fields
+/**
+  Constitutes a mapping from columns of tables in the from clause to
+  aggregated columns. Typically, this means that they represent the mapping
+  between columns of temporary tables used for aggregatation, but not
+  always. They are also used for aggregation that can be executed "on the
+  fly" without a temporary table.
 */
 
 class Copy_field {
@@ -4354,7 +4358,11 @@ class Copy_field {
 
   Copy_field() : m_from_field(NULL), m_to_field(NULL) {}
 
-  ~Copy_field() {}
+  Copy_field(Field *to, Field *from, bool save) : Copy_field() {
+    set(to, from, save);
+  }
+
+  Copy_field(uchar *to, Field *from) : Copy_field() { set(to, from); }
 
   void set(Field *to, Field *from, bool save);  // Field to field
   void set(uchar *to, Field *from);             // Field to string
@@ -4382,6 +4390,11 @@ class Copy_field {
   */
   uint m_from_length;
   uint m_to_length;
+
+  /**
+    The field in the table in the from clause that is read from. If this
+    Copy_field is used without a temporary table, this member is nullptr.
+  */
   Field *m_from_field;
   Field *m_to_field;
 
