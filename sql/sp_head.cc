@@ -1914,24 +1914,18 @@ sp_head::~sp_head() {
 }
 
 Field *sp_head::create_result_field(size_t field_max_length,
-                                    const char *field_name, TABLE *table) {
+                                    const char *field_name_or_null,
+                                    TABLE *table) {
   size_t field_length =
       !m_return_field_def.length ? field_max_length : m_return_field_def.length;
 
-  Field *field = ::make_field(
-      table->s,     /* TABLE_SHARE ptr */
-      (uchar *)0,   /* field ptr */
-      field_length, /* field [max] length */
-      (uchar *)"",  /* null ptr */
-      0,            /* null bit */
-      m_return_field_def.sql_type, m_return_field_def.charset,
-      m_return_field_def.geom_type, Field::NONE, /* unreg check */
-      m_return_field_def.interval,
-      field_name ? field_name : (const char *)m_name.str,
-      m_return_field_def.maybe_null, m_return_field_def.is_zerofill,
-      m_return_field_def.is_unsigned, m_return_field_def.decimals,
-      m_return_field_def.treat_bit_as_char,
-      m_return_field_def.pack_length_override, m_return_field_def.m_srid);
+  auto field_name =
+      field_name_or_null != nullptr ? field_name_or_null : m_name.str;
+
+  DBUG_ASSERT(m_return_field_def.auto_flags == Field::NONE);
+  Field *field =
+      make_field(m_return_field_def, table->s, field_name, field_length,
+                 pointer_cast<uchar *>(const_cast<char *>("")));
 
   field->gcol_info = m_return_field_def.gcol_info;
   field->stored_in_db = m_return_field_def.stored_in_db;

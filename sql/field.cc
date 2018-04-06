@@ -9103,8 +9103,6 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   field_name = fld_name;
   sql_type = sql_type_arg;
   char_length = length = length_arg;
-  ;
-  auto_flags = Field::NONE;
   interval = 0;
   charset = &my_charset_bin;
   geom_type = Field::GEOM_GEOMETRY;
@@ -9668,6 +9666,134 @@ size_t calc_pack_length(enum_field_types type, size_t length) {
   }
 }
 
+/**
+    Constructs a column definition from an object representing an actual
+    column. This is a reverse-engineering procedure that creates a column
+    definition object as produced by the parser (Create_field) from a resolved
+    column object (Field).
+
+    @param old_field  The column object from which the column definition is
+                      constructed.
+    @param orig_field Used for copying default values. This parameter may be
+                      NULL, but if present it is used for copying default
+                      values.
+
+    Default values are copied into an Item_string unless:
+    - The default value is a function.
+    - There is no default value.
+    - old_field is a BLOB column.
+    - old_field has its data pointer improperly initialized.
+*/
+
+Create_field::Create_field(Field *old_field, Field *orig_field)
+    : field_name(old_field->field_name),
+      change(NULL),
+      comment(old_field->comment),
+      sql_type(old_field->real_type()),
+      length(old_field->field_length),
+      decimals(old_field->decimals()),
+      flags(old_field->flags),
+      pack_length(old_field->pack_length()),
+      key_length(old_field->key_length()),
+      auto_flags(old_field->auto_flags),
+      charset(old_field->charset()),  // May be NULL ptr
+      is_explicit_collation(false),
+      geom_type(Field::GEOM_GEOMETRY),
+      field(old_field),
+      maybe_null(old_field->maybe_null()),
+      is_zerofill(false),  // Init to avoid UBSAN warnings
+      is_unsigned(false),  // Init to avoid UBSAN warnings
+      treat_bit_as_char(
+          false),  // Init to avoid valgrind warnings in opt. build
+      pack_length_override(0),
+      gcol_info(old_field->gcol_info),
+      stored_in_db(old_field->stored_in_db) {
+  switch (sql_type) {
+    case MYSQL_TYPE_JSON:
+      /*
+        Divide by four here, so we can multiply by four in
+        create_length_to_internal_length()
+       */
+      length /= charset->mbmaxlen;
+      break;
+    case MYSQL_TYPE_BLOB:
+      sql_type =
+          blob_type_from_pack_length(pack_length - portable_sizeof_char_ptr);
+      length /= charset->mbmaxlen;
+      key_length /= charset->mbmaxlen;
+      break;
+    case MYSQL_TYPE_STRING:
+      /* Change CHAR -> VARCHAR if dynamic record length */
+      if (old_field->type() == MYSQL_TYPE_VAR_STRING)
+        sql_type = MYSQL_TYPE_VARCHAR;
+      /* fall through */
+
+    case MYSQL_TYPE_ENUM:
+    case MYSQL_TYPE_SET:
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VAR_STRING:
+      /* This is corrected in create_length_to_internal_length */
+      length = (length + charset->mbmaxlen - 1) / charset->mbmaxlen;
+      break;
+    case MYSQL_TYPE_GEOMETRY: {
+      const Field_geom *field_geom = down_cast<const Field_geom *>(old_field);
+      geom_type = field_geom->geom_type;
+      m_srid = field_geom->get_srid();
+      break;
+    }
+    case MYSQL_TYPE_YEAR:
+      length = 4;  // set default value
+      break;
+    default:
+      break;
+  }
+
+  if (flags & (ENUM_FLAG | SET_FLAG))
+    interval = down_cast<Field_enum *>(old_field)->typelib;
+  else
+    interval = nullptr;
+  def = nullptr;
+  char_length = length;
+
+  /*
+    Copy the default (constant/function) from the column object orig_field, if
+    supplied. We do this if all these conditions are met:
+
+    - The column allows a default.
+
+    - The column type is not a BLOB type.
+
+    - The original column (old_field) was properly initialized with a record
+      buffer pointer.
+  */
+  if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
+      old_field->ptr != nullptr && orig_field != nullptr) {
+    bool default_now = false;
+    if (real_type_with_now_as_default(sql_type)) {
+      // The SQL type of the new field allows a function default:
+      default_now = orig_field->has_insert_default_function();
+      auto_flags = default_now ? Field::DEFAULT_NOW : Field::NONE;
+      if (orig_field->has_update_default_function())
+        auto_flags |= Field::ON_UPDATE_NOW;
+    }
+    if (!default_now)  // Give a constant default
+    {
+      StringBuffer<MAX_FIELD_WIDTH> tmp(charset);
+
+      /* Get the value from default_values */
+      my_ptrdiff_t diff = orig_field->table->default_values_offset();
+      orig_field->move_field_offset(diff);  // Points now at default_values
+      if (!orig_field->is_real_null()) {
+        StringBuffer<MAX_FIELD_WIDTH> tmp(charset);
+        String *res = orig_field->val_str(&tmp);
+        char *pos = sql_strmake(res->ptr(), res->length());
+        def = new Item_string(pos, res->length(), charset);
+      }
+      orig_field->move_field_offset(-diff);  // Back to record[0]
+    }
+  }
+}
+
 Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
                   uchar *null_pos, uchar null_bit, enum_field_types field_type,
                   const CHARSET_INFO *field_charset,
@@ -9855,134 +9981,34 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
   return 0;
 }
 
-/**
-    Constructs a column definition from an actual column object. This is a
-    reverse-engineering procedure that creates a column definition object as
-    produced by the parser (Create_field) from a resolved column object
-    (Field).
+static Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
+                         const char *field_name, size_t field_length,
+                         uchar *ptr, uchar *null_pos, size_t null_bit) {
+  return make_field(share, ptr, field_length, null_pos, null_bit,
+                    create_field.sql_type, create_field.charset,
+                    create_field.geom_type, create_field.auto_flags,
+                    create_field.interval, field_name, create_field.maybe_null,
+                    create_field.is_zerofill, create_field.is_unsigned,
+                    create_field.decimals, create_field.treat_bit_as_char,
+                    create_field.pack_length_override, create_field.m_srid);
+}
 
-    @param old_field  The column object from which the column definition is
-                      constructed.
-    @param orig_field Used for copying default values. This parameter may be
-                      NULL, but if present it is used for copying default
-                      values.
+Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
+                  const char *field_name, size_t field_length,
+                  uchar *null_pos) {
+  return make_field(create_field, share, field_name, field_length, nullptr,
+                    null_pos, size_t{0});
+}
 
-    Default values are copied into an Item_string unless:
-    @li The default value is a function.
-    @li There is no default value.
-    @li old_field is a BLOB column.
-    @li old_field has its data pointer improperly initialized.
-*/
+Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
+                  uchar *ptr, uchar *null_pos, size_t null_bit) {
+  return make_field(create_field, share, create_field.field_name,
+                    create_field.length, ptr, null_pos, null_bit);
+}
 
-Create_field::Create_field(Field *old_field, Field *orig_field)
-    : field_name(old_field->field_name),
-      change(NULL),
-      comment(old_field->comment),
-      sql_type(old_field->real_type()),
-      length(old_field->field_length),
-      decimals(old_field->decimals()),
-      flags(old_field->flags),
-      pack_length(old_field->pack_length()),
-      key_length(old_field->key_length()),
-      auto_flags(old_field->auto_flags),
-      charset(old_field->charset()),  // May be NULL ptr
-      is_explicit_collation(false),
-      geom_type(Field::GEOM_GEOMETRY),
-      field(old_field),
-      maybe_null(old_field->maybe_null()),
-      is_zerofill(false),  // Init to avoid UBSAN warnings
-      is_unsigned(false),  // Init to avoid UBSAN warnings
-      treat_bit_as_char(
-          false),  // Init to avoid valgrind warnings in opt. build
-      pack_length_override(0),
-      gcol_info(old_field->gcol_info),
-      stored_in_db(old_field->stored_in_db) {
-  switch (sql_type) {
-    case MYSQL_TYPE_JSON:
-      /*
-        Divide by four here, so we can multiply by four in
-        create_length_to_internal_length()
-       */
-      length /= charset->mbmaxlen;
-      break;
-    case MYSQL_TYPE_BLOB:
-      sql_type =
-          blob_type_from_pack_length(pack_length - portable_sizeof_char_ptr);
-      length /= charset->mbmaxlen;
-      key_length /= charset->mbmaxlen;
-      break;
-    case MYSQL_TYPE_STRING:
-      /* Change CHAR -> VARCHAR if dynamic record length */
-      if (old_field->type() == MYSQL_TYPE_VAR_STRING)
-        sql_type = MYSQL_TYPE_VARCHAR;
-      /* fall through */
-
-    case MYSQL_TYPE_ENUM:
-    case MYSQL_TYPE_SET:
-    case MYSQL_TYPE_VARCHAR:
-    case MYSQL_TYPE_VAR_STRING:
-      /* This is corrected in create_length_to_internal_length */
-      length = (length + charset->mbmaxlen - 1) / charset->mbmaxlen;
-      break;
-    case MYSQL_TYPE_GEOMETRY: {
-      const Field_geom *field_geom = down_cast<const Field_geom *>(old_field);
-      geom_type = field_geom->geom_type;
-      m_srid = field_geom->get_srid();
-      break;
-    }
-    case MYSQL_TYPE_YEAR:
-      if (length != 4) length = 4;  // set default value
-      break;
-    default:
-      break;
-  }
-
-  if (flags & (ENUM_FLAG | SET_FLAG))
-    interval = ((Field_enum *)old_field)->typelib;
-  else
-    interval = 0;
-  def = 0;
-  char_length = length;
-
-  /*
-    Copy the default (constant/function) from the column object orig_field, if
-    supplied. We do this if all these conditions are met:
-
-    - The column allows a default.
-
-    - The column type is not a BLOB type.
-
-    - The original column (old_field) was properly initialized with a record
-      buffer pointer.
-  */
-  if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
-      old_field->ptr != NULL && orig_field != NULL) {
-    bool default_now = false;
-    if (real_type_with_now_as_default(sql_type)) {
-      // The SQL type of the new field allows a function default:
-      default_now = orig_field->has_insert_default_function();
-      auto_flags = default_now ? Field::DEFAULT_NOW : Field::NONE;
-      if (orig_field->has_update_default_function())
-        auto_flags |= Field::ON_UPDATE_NOW;
-    }
-    if (!default_now)  // Give a constant default
-    {
-      char buff[MAX_FIELD_WIDTH];
-      String tmp(buff, sizeof(buff), charset);
-
-      /* Get the value from default_values */
-      my_ptrdiff_t diff = orig_field->table->default_values_offset();
-      orig_field->move_field_offset(diff);  // Points now at default_values
-      if (!orig_field->is_real_null()) {
-        char buff[MAX_FIELD_WIDTH], *pos;
-        String tmp(buff, sizeof(buff), charset), *res;
-        res = orig_field->val_str(&tmp);
-        pos = sql_strmake(res->ptr(), res->length());
-        def = new Item_string(pos, res->length(), charset);
-      }
-      orig_field->move_field_offset(-diff);  // Back to record[0]
-    }
-  }
+Field *make_field(const Create_field &create_field, TABLE_SHARE *share) {
+  return make_field(create_field, share, create_field.field_name,
+                    create_field.length, nullptr, nullptr, 0);
 }
 
 /**

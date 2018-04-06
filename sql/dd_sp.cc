@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@
 #include "sql/dd/types/parameter.h"               // dd::Parameter
 #include "sql/dd/types/parameter_type_element.h"  // dd::Parameter_type_element
 #include "sql/dd/types/view.h"
-#include "sql/dd_table_share.h"  // dd_get_mysql_charset
+#include "sql/dd_table_share.h"  // dd_get_mysql_charset, dd_get_old_field_type
 #include "sql/field.h"
 #include "sql/gis/srid.h"
 #include "sql/sp.h"         // SP_DEFAULT_ACCESS_MAPPING
@@ -94,6 +94,25 @@ void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
   DBUG_VOID_RETURN;
 }
 
+static Field *make_field(const dd::Parameter &param, TABLE_SHARE *share,
+                         Field::geometry_type geom_type, TYPELIB *interval) {
+  // Decimals
+  uint numeric_scale = 0;
+  if (param.data_type() == dd::enum_column_types::DECIMAL ||
+      param.data_type() == dd::enum_column_types::NEWDECIMAL)
+    numeric_scale = param.numeric_scale();
+  else if (param.data_type() == dd::enum_column_types::FLOAT ||
+           param.data_type() == dd::enum_column_types::DOUBLE)
+    numeric_scale =
+        param.is_numeric_scale_null() ? NOT_FIXED_DEC : param.numeric_scale();
+
+  return make_field(share, (uchar *)0, param.char_length(), (uchar *)"", 0,
+                    dd_get_old_field_type(param.data_type()),
+                    dd_get_mysql_charset(param.collation_id()), geom_type,
+                    Field::NONE, interval, "", false, param.is_zerofill(),
+                    param.is_unsigned(), numeric_scale, 0, 0, {});
+}
+
 /**
   Helper method to prepare type in string format from the dd::Parameter's
   object.
@@ -110,16 +129,6 @@ static void prepare_type_string_from_dd_param(THD *thd,
                                               const dd::Parameter *param,
                                               String *type_str) {
   DBUG_ENTER("prepare_type_string_from_dd_param");
-
-  // Decimals
-  uint numeric_scale = 0;
-  if (param->data_type() == dd::enum_column_types::DECIMAL ||
-      param->data_type() == dd::enum_column_types::NEWDECIMAL)
-    numeric_scale = param->numeric_scale();
-  else if (param->data_type() == dd::enum_column_types::FLOAT ||
-           param->data_type() == dd::enum_column_types::DOUBLE)
-    numeric_scale =
-        param->is_numeric_scale_null() ? NOT_FIXED_DEC : param->numeric_scale();
 
   // ENUM/SET elements.
   TYPELIB *interval = NULL;
@@ -165,12 +174,8 @@ static void prepare_type_string_from_dd_param(THD *thd,
   table.in_use = thd;
   table.s = &share;
 
-  std::unique_ptr<Field, Destroy_only<Field>> field(
-      ::make_field(table.s, (uchar *)0, param->char_length(), (uchar *)"", 0,
-                   dd_get_old_field_type(param->data_type()),
-                   dd_get_mysql_charset(param->collation_id()), geom_type,
-                   Field::NONE, interval, "", false, param->is_zerofill(),
-                   param->is_unsigned(), numeric_scale, 0, 0, {}));
+  unique_ptr_destroy_only<Field> field(
+      make_field(*param, table.s, geom_type, interval));
 
   field->init(&table);
   field->sql_type(*type_str);

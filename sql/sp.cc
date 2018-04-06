@@ -582,7 +582,7 @@ static void sp_returns_type(THD *thd, String &result, sp_head *sp) {
   Field *field;
   table.in_use = thd;
   table.s = &share;
-  field = sp->create_result_field(0, 0, &table);
+  field = sp->create_result_field(0, nullptr, &table);
   field->sql_type(result);
 
   if (field->has_charset()) {

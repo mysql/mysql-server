@@ -1940,12 +1940,11 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
   List_iterator_fast<Create_field> it(field_list);
   uint idx = 0;
   while ((cdef = it++)) {
-    *reg_field = make_field(
-        share, 0, cdef->length, (uchar *)(cdef->maybe_null ? "" : 0),
-        cdef->maybe_null ? 1 : 0, cdef->sql_type, cdef->charset,
-        cdef->geom_type, cdef->auto_flags, cdef->interval, cdef->field_name,
-        cdef->maybe_null, cdef->is_zerofill, cdef->is_unsigned, cdef->decimals,
-        cdef->treat_bit_as_char, cdef->pack_length_override, cdef->m_srid);
+    *reg_field =
+        cdef->maybe_null
+            ? make_field(*cdef, share, nullptr,
+                         pointer_cast<uchar *>(const_cast<char *>("")), 1)
+            : make_field(*cdef, share, nullptr, nullptr, 0);
     if (!*reg_field) goto error;
     (*reg_field)->init(table);
     record_length += (*reg_field)->pack_length();

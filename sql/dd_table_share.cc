@@ -747,6 +747,105 @@ static uint column_preamble_bits(const dd::Column *col_obj) {
   return result;
 }
 
+static Field *make_field(const dd::Column &col_obj, TABLE_SHARE *share,
+                         uchar *ptr, uchar *null_pos, size_t null_bit) {
+  auto field_type = dd_get_old_field_type(col_obj.type());
+  auto field_length = col_obj.char_length();
+  auto charset = get_charset(static_cast<uint>(col_obj.collation_id()), MYF(0));
+
+  auto column_options = const_cast<dd::Properties *>(&col_obj.options());
+
+  // Reconstruct auto_flags
+  auto auto_flags = static_cast<uint>(Field::NONE);
+
+  /*
+    The only value for DEFAULT and ON UPDATE options which we support
+    at this point is CURRENT_TIMESTAMP.
+  */
+  if (!col_obj.default_option().empty()) auto_flags |= Field::DEFAULT_NOW;
+  if (!col_obj.update_option().empty()) auto_flags |= Field::ON_UPDATE_NOW;
+
+  if (col_obj.is_auto_increment()) auto_flags |= Field::NEXT_NUMBER;
+
+  /*
+    Columns can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at
+    the same time.
+  */
+  DBUG_ASSERT(
+      !((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW)) != 0 &&
+        (auto_flags & Field::NEXT_NUMBER) != 0));
+
+  // Read Interval TYPELIB
+  TYPELIB *interval = nullptr;
+
+  if (field_type == MYSQL_TYPE_ENUM || field_type == MYSQL_TYPE_SET) {
+    //
+    // Allocate space for interval (column elements)
+    //
+    size_t interval_parts = col_obj.elements_count();
+
+    interval = (TYPELIB *)alloc_root(&share->mem_root, sizeof(TYPELIB));
+    interval->type_names = (const char **)alloc_root(
+        &share->mem_root, sizeof(char *) * (interval_parts + 1));
+    interval->type_names[interval_parts] = 0;
+
+    interval->type_lengths =
+        (uint *)alloc_root(&share->mem_root, sizeof(uint) * interval_parts);
+    interval->count = interval_parts;
+    interval->name = NULL;
+
+    //
+    // Iterate through all the column elements
+    //
+    for (const dd::Column_type_element *ce : col_obj.elements()) {
+      // Read the enum/set element name
+      dd::String_type element_name = ce->name();
+
+      uint pos = ce->index() - 1;
+      interval->type_lengths[pos] = static_cast<uint>(element_name.length());
+      interval->type_names[pos] = strmake_root(
+          &share->mem_root, element_name.c_str(), element_name.length());
+    }
+  }
+
+  // Column name
+  char *name = nullptr;
+  dd::String_type s = col_obj.name();
+  DBUG_ASSERT(!s.empty());
+  name = strmake_root(&share->mem_root, s.c_str(), s.length());
+  name[s.length()] = '\0';
+
+  uint decimals;
+  // Decimals
+  if (field_type == MYSQL_TYPE_DECIMAL || field_type == MYSQL_TYPE_NEWDECIMAL) {
+    DBUG_ASSERT(col_obj.is_numeric_scale_null() == false);
+    decimals = col_obj.numeric_scale();
+  } else if (field_type == MYSQL_TYPE_FLOAT ||
+             field_type == MYSQL_TYPE_DOUBLE) {
+    decimals = col_obj.is_numeric_scale_null() ? NOT_FIXED_DEC
+                                               : col_obj.numeric_scale();
+  } else
+    decimals = 0;
+
+  auto geom_type = Field::GEOM_GEOMETRY;
+  // Read geometry sub type
+  if (field_type == MYSQL_TYPE_GEOMETRY) {
+    uint32 sub_type;
+    column_options->get_uint32("geom_type", &sub_type);
+    geom_type = static_cast<Field::geometry_type>(sub_type);
+  }
+
+  bool treat_bit_as_char = false;
+  if (field_type == MYSQL_TYPE_BIT)
+    column_options->get_bool("treat_bit_as_char", &treat_bit_as_char);
+
+  return make_field(share, ptr, field_length, null_pos, null_bit, field_type,
+                    charset, geom_type, auto_flags, interval, name,
+                    col_obj.is_nullable(), col_obj.is_zerofill(),
+                    col_obj.is_unsigned(), decimals, treat_bit_as_char, 0,
+                    col_obj.srs_id());
+}
+
 /**
   Add Field constructed according to column metadata from dd::Column
   object to TABLE_SHARE.
@@ -758,12 +857,9 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
                                 uint field_nr) {
   char *name = NULL;
   uchar auto_flags;
-  size_t field_length;
   enum_field_types field_type;
   const CHARSET_INFO *charset = NULL;
-  Field::geometry_type geom_type = Field::GEOM_GEOMETRY;
   Field *reg_field;
-  uint decimals;
   ha_storage_media field_storage;
   column_format_type field_column_format;
 
@@ -782,9 +878,6 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Type
   field_type = dd_get_old_field_type(col_obj->type());
-
-  // Char length
-  field_length = col_obj->char_length();
 
   // Reconstruct auto_flags
   auto_flags = Field::NONE;
@@ -820,21 +913,13 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   }
 
   // Decimals
-  if (field_type == MYSQL_TYPE_DECIMAL || field_type == MYSQL_TYPE_NEWDECIMAL) {
+  if (field_type == MYSQL_TYPE_DECIMAL || field_type == MYSQL_TYPE_NEWDECIMAL)
     DBUG_ASSERT(col_obj->is_numeric_scale_null() == false);
-    decimals = col_obj->numeric_scale();
-  } else if (field_type == MYSQL_TYPE_FLOAT ||
-             field_type == MYSQL_TYPE_DOUBLE) {
-    decimals = col_obj->is_numeric_scale_null() ? NOT_FIXED_DEC
-                                                : col_obj->numeric_scale();
-  } else
-    decimals = 0;
 
   // Read geometry sub type
   if (field_type == MYSQL_TYPE_GEOMETRY) {
     uint32 sub_type;
     column_options->get_uint32("geom_type", &sub_type);
-    geom_type = (Field::geometry_type)sub_type;
   }
 
   // Read values of storage media and column format options
@@ -910,11 +995,8 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
   //
   // Create FIELD
   //
-  reg_field = make_field(share, rec_pos, (uint32)field_length, null_pos,
-                         null_bit_pos, field_type, charset, geom_type,
-                         auto_flags, interval, name, col_obj->is_nullable(),
-                         col_obj->is_zerofill(), col_obj->is_unsigned(),
-                         decimals, treat_bit_as_char, 0, col_obj->srs_id());
+
+  reg_field = make_field(*col_obj, share, rec_pos, null_pos, null_bit_pos);
 
   reg_field->field_index = field_nr;
   reg_field->gcol_info = gcol_info;

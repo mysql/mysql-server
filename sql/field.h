@@ -4224,7 +4224,7 @@ class Create_field {
 
     @sa Field::enum_auto_flags for possible options.
   */
-  uchar auto_flags;
+  uchar auto_flags{Field::NONE};
   TYPELIB *interval;  // Which interval to use
                       // Used only for UCS2 intervals
   List<String> interval_list;
@@ -4268,7 +4268,7 @@ class Create_field {
 
     Initialized at prepare_create_field()/init_for_tmp_table() stage.
   */
-  uint pack_length_override;
+  uint pack_length_override{0};
 
   /* Generated column expression information */
   Generated_column *gcol_info;
@@ -4297,6 +4297,7 @@ class Create_field {
         pack_length_override(0),
         stored_in_db(false) {}
   Create_field(Field *field, Field *orig_field);
+
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
   Create_field *clone(MEM_ROOT *mem_root) const {
     return new (mem_root) Create_field(*this);
@@ -4329,6 +4330,52 @@ class Create_field {
     return (column_format_type)((flags >> FIELD_FLAGS_COLUMN_FORMAT) & 3);
   }
 };
+
+/// This function should only be called from legacy code.
+Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
+                  uchar *null_pos, uchar null_bit, enum_field_types field_type,
+                  const CHARSET_INFO *field_charset,
+                  Field::geometry_type geom_type, uchar auto_flags,
+                  TYPELIB *interval, const char *field_name, bool maybe_null,
+                  bool is_zerofill, bool is_unsigned, uint decimals,
+                  bool treat_bit_as_char, uint pack_length_override,
+                  Nullable<gis::srid_t> srid);
+
+/**
+  Instantiates a Field object with the given name and record buffer values.
+  @param create_field The column meta data.
+  @param share The table share object.
+
+  @param field_name Create_field::field_name is overridden with this value
+  when instantiating the Field object.
+
+  @param field_length Create_field::length is overridden with this value
+  when instantiating the Field object.
+
+  @param null_pos The address of the null bytes.
+*/
+Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
+                  const char *field_name, size_t field_length, uchar *null_pos);
+
+/**
+  Instantiates a Field object with the given record buffer values.
+  @param create_field The column meta data.
+  @param share The table share object.
+  @param ptr The start of the record buffer.
+  @param null_pos The address of the null bytes.
+
+  @param null_bit The position of the column's null bit within the row's null
+  bytes.
+*/
+Field *make_field(const Create_field &create_field, TABLE_SHARE *share,
+                  uchar *ptr, uchar *null_pos, size_t null_bit);
+
+/**
+  Instantiates a Field object without a record buffer.
+  @param create_field The column meta data.
+  @param share The table share object.
+*/
+Field *make_field(const Create_field &create_field, TABLE_SHARE *share);
 
 /*
   A class for sending info to the client
@@ -4438,13 +4485,6 @@ class Copy_field {
   void swap_direction();
 };
 
-Field *make_field(TABLE_SHARE *share, uchar *ptr, size_t field_length,
-                  uchar *null_pos, uchar null_bit, enum_field_types field_type,
-                  const CHARSET_INFO *cs, Field::geometry_type geom_type,
-                  uchar auto_flags, TYPELIB *interval, const char *field_name,
-                  bool maybe_null, bool is_zerofill, bool is_unsigned,
-                  uint decimals, bool treat_bit_as_char,
-                  uint pack_length_override, Nullable<gis::srid_t> srid);
 enum_field_types get_blob_type_from_length(ulong length);
 size_t calc_pack_length(enum_field_types type, size_t length);
 uint32 calc_key_length(enum_field_types sql_type, uint32 length,
