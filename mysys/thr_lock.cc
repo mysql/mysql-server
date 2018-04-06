@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -151,37 +151,37 @@ static int check_lock(struct st_lock_list *list, const char *lock_type,
     for (data = list->data; data && count++ < MAX_LOCKS; data = data->next) {
       if (data->type != last_lock_type) last_lock_type = TL_IGNORE;
       if (data->prev != prev) {
-        my_message_stderr(0,
-                          "prev link %d didn't point at "
-                          "previous lock at %s: %s",
-                          count, lock_type, where);
+        fprintf(stderr,
+                "prev link %d didn't point at "
+                "previous lock at %s: %s",
+                count, lock_type, where);
         return 1;
       }
       if (same_owner && !thr_lock_owner_equal(data->owner, first_owner) &&
           last_lock_type != TL_WRITE_ALLOW_WRITE) {
-        my_message_stderr(0,
-                          "Found locks from different threads "
-                          "in %s: %s",
-                          lock_type, where);
+        fprintf(stderr,
+                "Found locks from different threads "
+                "in %s: %s",
+                lock_type, where);
         return 1;
       }
       if (no_cond && data->cond) {
-        my_message_stderr(0,
-                          "Found active lock with not reset "
-                          "cond %s: %s",
-                          lock_type, where);
+        fprintf(stderr,
+                "Found active lock with not reset "
+                "cond %s: %s",
+                lock_type, where);
         return 1;
       }
       prev = &data->next;
     }
     if (data) {
-      my_message_stderr(0, "found too many locks at %s: %s", lock_type, where);
+      fprintf(stderr, "found too many locks at %s: %s", lock_type, where);
       return 1;
     }
   }
   if (prev != list->last) {
-    my_message_stderr(0, "last didn't point at last lock at %s: %s", lock_type,
-                      where);
+    fprintf(stderr, "last didn't point at last lock at %s: %s", lock_type,
+            where);
     return 1;
   }
   return 0;
@@ -209,28 +209,28 @@ static void check_locks(THR_LOCK *lock, const char *where,
       }
       if (count != lock->read_no_write_count) {
         found_errors++;
-        my_message_stderr(0,
-                          "at '%s': Locks read_no_write_count "
-                          "was %u when it should have been %u",
-                          where, lock->read_no_write_count, count);
+        fprintf(stderr,
+                "at '%s': Locks read_no_write_count "
+                "was %u when it should have been %u",
+                where, lock->read_no_write_count, count);
       }
 
       if (!lock->write.data) {
         if (!allow_no_locks && !lock->read.data &&
             (lock->write_wait.data || lock->read_wait.data)) {
           found_errors++;
-          my_message_stderr(0,
-                            "at '%s': No locks in use but locks "
-                            "are in wait queue",
-                            where);
+          fprintf(stderr,
+                  "at '%s': No locks in use but locks "
+                  "are in wait queue",
+                  where);
         }
         if (!lock->write_wait.data) {
           if (!allow_no_locks && lock->read_wait.data) {
             found_errors++;
-            my_message_stderr(0,
-                              "at '%s': No write locks and "
-                              "waiting read locks",
-                              where);
+            fprintf(stderr,
+                    "at '%s': No write locks and "
+                    "waiting read locks",
+                    where);
           }
         } else {
           if (!allow_no_locks &&
@@ -238,10 +238,10 @@ static void check_locks(THR_LOCK *lock, const char *where,
                  lock->write_wait.data->type == TL_WRITE_ALLOW_WRITE) &&
                 !lock->read_no_write_count))) {
             found_errors++;
-            my_message_stderr(0,
-                              "at '%s': Write lock %d waiting "
-                              "while no exclusive read locks",
-                              where, (int)lock->write_wait.data->type);
+            fprintf(stderr,
+                    "at '%s': Write lock %d waiting "
+                    "while no exclusive read locks",
+                    where, (int)lock->write_wait.data->type);
           }
         }
       } else { /* Have write lock */
@@ -250,10 +250,10 @@ static void check_locks(THR_LOCK *lock, const char *where,
               lock->write.data->type == TL_WRITE_ALLOW_WRITE &&
               lock->write_wait.data->type == TL_WRITE_ALLOW_WRITE) {
             found_errors++;
-            my_message_stderr(0,
-                              "at '%s': Found WRITE_ALLOW_WRITE "
-                              "lock waiting for WRITE_ALLOW_WRITE lock",
-                              where);
+            fprintf(stderr,
+                    "at '%s': Found WRITE_ALLOW_WRITE "
+                    "lock waiting for WRITE_ALLOW_WRITE lock",
+                    where);
           }
         }
         if (lock->read.data) {
@@ -265,10 +265,10 @@ static void check_locks(THR_LOCK *lock, const char *where,
                  lock->write.data->type == TL_WRITE_ALLOW_WRITE) &&
                 lock->read_no_write_count))) {
             found_errors++;
-            my_message_stderr(0,
-                              "at '%s': Found lock of type %d "
-                              "that is write and read locked",
-                              where, lock->write.data->type);
+            fprintf(stderr,
+                    "at '%s': Found lock of type %d "
+                    "that is write and read locked",
+                    where, lock->write.data->type);
             DBUG_PRINT("warning", ("At '%s': Found lock of type %d that is "
                                    "write and read locked\n",
                                    where, lock->write.data->type));
@@ -279,11 +279,11 @@ static void check_locks(THR_LOCK *lock, const char *where,
               lock->write.data->type <= TL_WRITE_CONCURRENT_INSERT &&
               lock->read_wait.data->type <= TL_READ_HIGH_PRIORITY) {
             found_errors++;
-            my_message_stderr(0,
-                              "at '%s': Found read lock of "
-                              "type %d waiting for write lock of type %d",
-                              where, (int)lock->read_wait.data->type,
-                              (int)lock->write.data->type);
+            fprintf(stderr,
+                    "at '%s': Found read lock of "
+                    "type %d waiting for write lock of type %d",
+                    where, (int)lock->read_wait.data->type,
+                    (int)lock->write.data->type);
           }
         }
       }
