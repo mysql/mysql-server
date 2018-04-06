@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #===========================================================================
+
+# All non-empty non-comment lines are regex patterns using CMake regex
+# syntax. Matching lines will be removed from the error log when writing
+# tofix-all.log. See run_doxygen.cmake for details.
 
 #===========================================================================
 # MAINTAINER:
@@ -43,8 +47,3 @@
 # DATE / BUG REPORT AUTHOR
 # include/m_ctype.h:*
 #===========================================================================
-
-# Bug 25542956 - INNODB_MEMCACHED DOXYGEN DOCUMENTATION
-# 2017-02-13 Marc Alff
-plugin/innodb_memcached/*
-

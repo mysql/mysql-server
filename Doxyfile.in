@@ -41,28 +41,11 @@
 #
 #   cmake --build . --config <Debug|RelWithDebInfo> --target doxygen
 #
-# See the logs in ./doxyerror.log
-# See the doc in ./doxygen/html/index.html
-#
-# To parse the error log generated:
-# ---------------------------------
-#
-#   sort -u doxyerror.log |
-#     grep "^"`pwd` |
-#       sed -e "s|"`pwd`"/||g" > tofix-all.log
-#
-# See the errors to fix in tofix-all.log
-#
-# To filter known issues from the error log:
-# ------------------------------------------
-#
-#    grep -v "#" Doxyfile-ignored |
-#      grep -v "^[[:space:]]*$" > Doxyfile-ignored.tmp
-#
-#    grep -v -E --file=Doxyfile-ignored.tmp tofix-all.log > tofix-regressions.log
-#
-# See the list of filtering rules in Doxyfile-ignored.tmp
-# See the list of regression errors in tofix-regressions.log
+# The documentation can be found in ./doxygen/html/index.html
+# Doxygen stdout is written to ./doxyoutput.log
+# Doxygen stderr is written to ./doxyerror.log
+# All errors and warnings are written to ./tofix-all.log
+# Regressions are written to ./tofix-regressions.log
 #
 # To edit the list of known errors:
 # ---------------------------------
@@ -844,7 +827,7 @@ WARN_FORMAT            = "$file:$line: $text"
 # messages should be written. If left blank the output is written to standard
 # error (stderr).
 
-WARN_LOGFILE           = @CMAKE_CURRENT_BINARY_DIR@/doxyerror.log
+WARN_LOGFILE           =
 
 #---------------------------------------------------------------------------
 # Configuration options related to the input files
