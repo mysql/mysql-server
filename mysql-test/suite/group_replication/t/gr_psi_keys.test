@@ -22,8 +22,8 @@
 --echo #    table immediately after plugin installation
 --echo #    (before starting the GR).
 --connection server1
-SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%' AND NAME NOT LIKE 'wait/synch/%/group_rpl/GCS_%';
---let $psi_keys_count_before_gr=`SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%' AND NAME NOT LIKE 'wait/synch/%/group_rpl/GCS_%'`
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%' AND NAME NOT LIKE 'wait/synch/%/group_rpl/GCS_%' AND NAME NOT LIKE '%GCS_XCom::xcom_cache%';
+--let $psi_keys_count_before_gr=`SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%' AND NAME NOT LIKE 'wait/synch/%/group_rpl/GCS_%' AND NAME NOT LIKE '%GCS_XCom::xcom_cache%'`
 
 --echo
 --echo ############################################################
@@ -34,7 +34,7 @@ SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%'
 --echo ############################################################
 --echo # 3. Verify that there are no extra psi keys that were added
 --echo #   after starting the GR
---let $psi_keys_count_after_gr=`SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%' AND NAME NOT LIKE 'wait/synch/%/group_rpl/GCS_%'`
+--let $psi_keys_count_after_gr=`SELECT COUNT(*) FROM performance_schema.setup_instruments WHERE NAME LIKE '%group_rpl%' AND NAME NOT LIKE 'wait/synch/%/group_rpl/GCS_%' AND NAME NOT LIKE '%GCS_XCom::xcom_cache%'`
 --let $assert_text= 'There should be no extra psi keys added after starting the GR'
 --let $assert_cond= $psi_keys_count_before_gr = $psi_keys_count_after_gr
 --source include/assert.inc

@@ -21,7 +21,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_psi.h"
+#include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_logging_system.h"
 
+#include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
 
 PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
@@ -133,6 +135,13 @@ static PSI_cond_info all_gcs_psi_cond_keys_info[] = {
      "GCS_Gcs_xcom_proxy_impl::m_cond_xcom_exit", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME}};
 
+PSI_memory_key key_MEM_XCOM_xcom_cache;
+
+static PSI_memory_info xcom_cache_memory_info[] = {
+    {&key_MEM_XCOM_xcom_cache, "GCS_XCom::xcom_cache",
+     PSI_FLAG_ONLY_GLOBAL_STAT, PSI_VOLATILITY_UNKNOWN,
+     "Memory usage statistics for the XCom cache."}};
+
 void register_gcs_thread_psi_keys() {
   const char *category = "group_rpl";
   int count = static_cast<int>(array_elements(all_gcs_psi_thread_keys_info));
@@ -150,3 +159,47 @@ void register_gcs_mutex_cond_psi_keys() {
 
   mysql_mutex_register(category, all_gcs_psi_mutex_keys_info, count);
 }
+
+void register_xcom_memory_psi_keys() {
+  const char *category = "group_rpl";
+  int count = (int)array_elements(xcom_cache_memory_info);
+
+  mysql_memory_register(category, xcom_cache_memory_info, count);
+}
+
+/*
+  Debug counter. Tracks the current allocated count (effectively mirroring
+  the value shown in the "CURRENT_NUMBER_OF_BYTES_USED" row of the
+  "performance_schema.memory_summary_global_by_event_name" table.
+*/
+static long long current_count = 0;
+
+/**
+  Reports to PSI the allocation of 'size' bytes of data.
+*/
+extern "C" int psi_report_mem_alloc(size_t size) {
+  PSI_thread *owner = NULL;
+  PSI_memory_key key = key_MEM_XCOM_xcom_cache;
+  if (PSI_MEMORY_CALL(memory_alloc)(key, size, &owner) == PSI_NOT_INSTRUMENTED)
+    return 0;
+  /* This instrument is flagged global, so there should be no thread owner. */
+  DBUG_ASSERT(owner == NULL);
+  current_count += size;
+  return 1;
+}
+
+/**
+  Reports to PSI the deallocation of 'size' bytes of data.
+*/
+extern "C" void psi_report_mem_free(size_t size, int is_instrumented) {
+  if (!is_instrumented) return;
+  current_count -= size;
+  PSI_MEMORY_CALL(memory_free)(key_MEM_XCOM_xcom_cache, size, NULL);
+}
+
+/**
+  After the cache is de-initialized 'current_count' must be zero; otherwise
+  we have allocated data that has not been deallocated (or has not been
+  reported as deallocated).
+*/
+extern "C" void psi_report_cache_shutdown() { DBUG_ASSERT(current_count == 0); }

@@ -1,0 +1,46 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Verify that the entries corresponding to the
+#    instrumented memory are in the setup instruments
+#    table and the memory summary tables.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%GCS_XCom::xcom_cache%';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/GCS_XCom::xcom_cache	YES	NULL	global_statistics	0	Memory usage statistics for the XCom cache.
+include/assert.inc ['There should be 1 entry corresponding to the XCom cache in the setup_instruments table after starting GR']
+SELECT EVENT_NAME FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE '%GCS_XCom::xcom_cache%';
+EVENT_NAME
+memory/group_rpl/GCS_XCom::xcom_cache
+include/assert.inc ['There should be 1 entry corresponding to the XCom cache in the memory_summary_global_by_event_name table after starting GR']
+
+############################################################
+# 2. Verify that the sum of bytes allocated is greater than
+#    the sum of bytes deallocated.
+include/assert.inc ['The sum bytes allocated must be equal to or greater than the sum of bytes deallocated']
+
+############################################################
+# 3. Stop GR
+include/stop_group_replication.inc
+
+##############################################################
+# 4. Verify that the entries corresponding to the instrumented
+#    GCS memory remain in the tables after stopping GR.
+SELECT * FROM performance_schema.setup_instruments WHERE NAME LIKE '%GCS_XCom::xcom_cache%';
+NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
+memory/group_rpl/GCS_XCom::xcom_cache	YES	NULL	global_statistics	0	Memory usage statistics for the XCom cache.
+include/assert.inc ['There should be 1 entry corresponding to the XCom cache in the setup_instruments table after stopping GR']
+SELECT EVENT_NAME, CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME LIKE '%GCS_XCom::xcom_cache%';
+EVENT_NAME	CURRENT_NUMBER_OF_BYTES_USED
+memory/group_rpl/GCS_XCom::xcom_cache	0
+include/assert.inc ['There should be 1 entry corresponding to the XCom cache in the memory_summary_global_by_event_name table after stopping GR']
+
+#################################################################
+# 5. Assert that the number of bytes allocated is the same as the
+#    number of bytes deallocated after stopping GR.
+include/assert.inc ['The sum of bytes allocated must be equal to the sum of bytes deallocated after stopping GR']
+
+include/group_replication_end.inc

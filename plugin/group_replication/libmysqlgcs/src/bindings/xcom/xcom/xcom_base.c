@@ -2862,7 +2862,7 @@ static void do_learn(site_def const *site MY_ATTRIBUTE((unused)),
      it is only necessary to compute the added memory when we
      record the outcome of a consensus round.
   */
-  add_cache_size(pax_machine_size(p));
+  add_cache_size(p);
   /* Shrink the cache size if necessary */
   shrink_cache();
 }

@@ -230,6 +230,7 @@ void deinit_cache() {
     for the deactivation routine simple and straightforward.
   */
   init_cache();
+  psi_report_cache_shutdown();
   for (i = 0; i < CACHED; i++) {
     lru_machine *l = &cache[i];
     pax_machine *p = &l->pax;
@@ -330,7 +331,7 @@ void xcom_cache_var_init() {}
 /* Initialize a Paxos instance */
 static pax_machine *init_pax_machine(pax_machine *p, lru_machine *lru,
                                      synode_no synode) {
-  sub_cache_size(pax_machine_size(p));
+  sub_cache_size(p);
   link_init(&p->hash_link, type_hash("pax_machine"));
   p->lru = lru;
   p->synode = synode;
@@ -438,22 +439,32 @@ static size_t cache_size = 0;
 void init_cache_size() { cache_size = 0; }
 
 /* Add to cache size */
-size_t add_cache_size(size_t x) {
+
+size_t add_cache_size(pax_machine *p) {
+  size_t x = pax_machine_size(p);
   cache_size += x;
   if (DBG_CACHE_SIZE && x) {
     G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
             (long unsigned int)cache_size, (long unsigned int)x);
   }
+#ifndef XCOM_STANDALONE
+  p->is_instrumented = psi_report_mem_alloc(x);
+#endif
   return cache_size;
 }
 
 /* Subtract from cache size */
-size_t sub_cache_size(size_t x) {
+size_t sub_cache_size(pax_machine *p) {
+  size_t x = pax_machine_size(p);
   cache_size -= x;
   if (DBG_CACHE_SIZE && x) {
     G_DEBUG("%f %s:%d cache_size %lu x %lu", seconds(), __FILE__, __LINE__,
             (long unsigned int)cache_size, (long unsigned int)x);
   }
+#ifndef XCOM_STANDALONE
+  psi_report_mem_free(x, p->is_instrumented);
+  p->is_instrumented = 0;
+#endif
   return cache_size;
 }
 

@@ -56,6 +56,8 @@ extern PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
     key_GCS_THD_Gcs_xcom_control_m_xcom_thread,
     key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread;
 
+extern PSI_memory_key key_MEM_XCOM_xcom_cache;
+
 /**
   Registers the psi keys for the threads that will be instrumented.
 */
@@ -67,5 +69,10 @@ void register_gcs_thread_psi_keys();
 */
 
 void register_gcs_mutex_cond_psi_keys();
+
+/**
+  Registers the psi keys for the memory operations that will be instrumented.
+ */
+void register_xcom_memory_psi_keys();
 
 #endif /* GCS_PSI_H */
