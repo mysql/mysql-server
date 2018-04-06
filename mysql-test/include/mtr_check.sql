@@ -150,9 +150,14 @@ BEGIN
   -- Due to this, even after the slave is stopped, the master will not close
   -- the client session until MASTER_HEARTBEAT_PERIOD is reached.
   -- Hence, excluding the 'Binlog Dump' thread.
+
+  -- mysql.session is used internally by plugins to access the server. We may
+  -- not find consistent result in information_schema.processlist, hence
+  -- excluding it from check-testcase.
   SELECT USER, HOST, DB, COMMAND, INFO FROM INFORMATION_SCHEMA.PROCESSLIST
     WHERE COMMAND NOT IN ('Binlog Dump','Binlog Dump GTID','Sleep')
-      ORDER BY COMMAND;
+      AND USER <> 'mysql.session'
+        ORDER BY COMMAND;
 
   -- Checksum system tables to make sure they have been properly
   -- restored after test.

@@ -75,4 +75,5 @@ DROP TABLE t1;
 --echo #
 --echo # Re-installing the Plugin
 --echo #
-INSTALL PLUGIN replication_observers_example SONAME 'replication_observers_example_plugin.so';
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN replication_observers_example SONAME '$RPL_OBS_EXAMPLE';

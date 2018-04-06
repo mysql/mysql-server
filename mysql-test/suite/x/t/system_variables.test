@@ -100,5 +100,3 @@ let $wait_condition=
 --let $assert_cond= [SHOW GLOBAL VARIABLES LIKE "Mysqlx_document_id_unique_prefix", Value, 1] = 0
 --source include/assert.inc
 
-# Bug#27799355 - X.SYSTEM_VARIABLES & X.PERFORMANCE_SCHEMA FAILS CHECK-TESTCASE ON PB2
---source include/force_restart.inc
