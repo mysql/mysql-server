@@ -1,0 +1,30 @@
+#
+#Bug #27542720 SCHEMA MISMATCH - TABLE FLAGS DON'T MATCH,
+#	       BUT FLAGS ARE NUMBERS
+#
+
+
+--source include/have_innodb.inc
+
+--let $MYSQLD_DATADIR=`select @@datadir`
+--let $DB = `SELECT DATABASE()`
+#--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+
+SET GLOBAL innodb_default_row_format = 'compact';
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+FLUSH TABLES t1 FOR EXPORT;
+#--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--copy_file $MYSQLD_DATADIR/$DB/t1.ibd $MYSQL_TMP_DIR/t1.ibd
+--copy_file $MYSQLD_DATADIR/$DB/t1.cfg $MYSQL_TMP_DIR/t1.cfg
+
+UNLOCK TABLES;
+DROP TABLE t1;
+SET GLOBAL innodb_default_row_format = 'dynamic';
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+ALTER TABLE t1 DISCARD TABLESPACE;
+--copy_file $MYSQL_TMP_DIR/t1.ibd $MYSQLD_DATADIR/$DB/t1.ibd
+--copy_file $MYSQL_TMP_DIR/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg
+
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t1 IMPORT TABLESPACE;
+DROP TABLE t1;
