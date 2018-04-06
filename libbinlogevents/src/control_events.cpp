@@ -20,56 +20,45 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <sys/types.h>
-#include <algorithm>
-#include <cstdio>
-#include <string>
-
-#include "binary_log_types.h"
-#include "byteorder.h"
-#include "my_io.h"
-#include "mysql_com.h"  // net_field_length_ll, net_field_length_size
-#include "statement_events.h"
+#include "control_events.h"
+#include "event_reader_macros.h"
 
 namespace binary_log {
 
-/**
-  The variable part of the Rotate event contains the name of the next binary
-  log file,  and the position of the first event in the next binary log file.
-*/
-Rotate_event::Rotate_event(const char *buf, unsigned int event_len,
-                           const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version),
-      new_log_ident(0),
-      flags(DUP_NAME) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
+Rotate_event::Rotate_event(const char *buf, const Format_description_event *fde)
+    : Binary_log_event(&buf, fde), new_log_ident(0), flags(DUP_NAME) {
+  BAPI_ENTER("Rotate_event::Rotate_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+#ifndef DBUG_OFF
+  size_t header_size = fde->common_header_len;
+#endif
+  READER_ASSERT_POSITION(header_size);
+  uint8_t post_header_len = fde->post_header_len[ROTATE_EVENT - 1];
 
-  // This will ensure that the event_len is what we have at EVENT_LEN_OFFSET
-  size_t header_size = description_event->common_header_len;
-  uint8_t post_header_len =
-      description_event->post_header_len[ROTATE_EVENT - 1];
-  unsigned int ident_offset;
-
-  if (event_len < header_size) return;
-
-  /**
+  /*
     By default, an event start immediately after the magic bytes in the binary
     log, which is at offset 4. In case if the slave has to rotate to a
     different event instead of the first one, the binary log offset for that
     event is specified in the post header. Else, the position is set to 4.
   */
   if (post_header_len) {
-    memcpy(&pos, buf + R_POS_OFFSET, 8);
-    pos = le64toh(pos);
+    READER_ASSERT_POSITION(header_size + R_POS_OFFSET);
+    READER_TRY_SET(pos, read_and_letoh<uint64_t>);
+    READER_ASSERT_POSITION(header_size + post_header_len);
   } else
     pos = 4;
 
-  ident_len = event_len - (header_size + post_header_len);
-  ident_offset = post_header_len;
+  ident_len = READER_CALL(available_to_read);
+  if (ident_len == 0) READER_THROW("Event is smaller than expected");
+
   if (ident_len > FN_REFLEN - 1) ident_len = FN_REFLEN - 1;
 
-  new_log_ident = bapi_strndup(buf + ident_offset, ident_len);
+  READER_TRY_SET(new_log_ident, strndup<const char *>, ident_len);
+  if (new_log_ident == 0)
+    READER_THROW("Invalid binary log file name in Rotate event");
+
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 /**
@@ -219,41 +208,51 @@ bool Format_description_event::is_version_before_checksum() const {
 
 */
 Format_description_event::Format_description_event(
-    const char *buf, unsigned int event_len,
-    const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version),
-      common_header_len(0) {
-  unsigned long ver_calc;
+    const char *buf, const Format_description_event *fde)
+    : Binary_log_event(&buf, fde), common_header_len(0) {
+  BAPI_ENTER(
+      "Format_description_event::"
+      "Format_description_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
 
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  memcpy(&binlog_version, buf + ST_BINLOG_VER_OFFSET, 2);
-  binlog_version = le16toh(binlog_version);
-  memcpy(server_version, buf + ST_SERVER_VER_OFFSET, ST_SERVER_VER_LEN);
+  unsigned long ver_calc;
+  unsigned long available_bytes;
+  number_of_event_types = 0;
+
+  READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_BINLOG_VER_OFFSET);
+  READER_TRY_SET(binlog_version, read_and_letoh<uint16_t>);
+
+  READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_SERVER_VER_OFFSET);
+  READER_TRY_CALL(memcpy<char *>, server_version, ST_SERVER_VER_LEN);
+
   // prevent overrun if log is corrupted on disk
   server_version[ST_SERVER_VER_LEN - 1] = 0;
-  created = 0;
-  memcpy(&created, buf + ST_CREATED_OFFSET, 4);
-  created = le64toh(created);
+
+  READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET);
+  READER_TRY_SET(created, read_and_letoh<uint64_t>, 4);
   dont_set_created = 1;
 
-  common_header_len = buf[ST_COMMON_HEADER_LEN_OFFSET];
-  if (common_header_len < LOG_EVENT_HEADER_LEN) {
-    return; /* sanity check */
-  }
-  number_of_event_types = event_len - (LOG_EVENT_MINIMAL_HEADER_LEN +
-                                       ST_COMMON_HEADER_LEN_OFFSET + 1);
+  READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN +
+                         ST_COMMON_HEADER_LEN_OFFSET);
+  READER_TRY_SET(common_header_len, read<uint8_t>);
 
-  post_header_len.insert(
-      post_header_len.begin(),
-      reinterpret_cast<const uint8_t *>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1),
-      reinterpret_cast<const uint8_t *>(buf + ST_COMMON_HEADER_LEN_OFFSET + 1 +
-                                        number_of_event_types));
+  if (common_header_len < LOG_EVENT_HEADER_LEN)
+    READER_THROW("Invalid Format_description common header length");
+
+  available_bytes = READER_CALL(available_to_read);
+  if (available_bytes == 0)
+    READER_THROW("Invalid Format_description common header length");
 
   calc_server_version_split();
   if ((ver_calc = get_product_version()) >= checksum_version_product) {
     /* the last bytes are the checksum alg desc and value (or value's room) */
-    number_of_event_types -= BINLOG_CHECKSUM_ALG_DESC_LEN;
+    available_bytes -= BINLOG_CHECKSUM_ALG_DESC_LEN;
+  }
+
+  number_of_event_types = available_bytes;
+  READER_TRY_CALL(assign, &post_header_len, number_of_event_types);
+
+  if ((ver_calc = get_product_version()) >= checksum_version_product) {
     /*
       FD from the checksum-home version server (ver_calc ==
       checksum_version_product) must have
@@ -261,148 +260,115 @@ Format_description_event::Format_description_event(
     */
     BAPI_ASSERT(ver_calc != checksum_version_product ||
                 number_of_event_types == LOG_EVENT_TYPES);
-    footer()->checksum_alg =
-        (enum_binlog_checksum_alg)post_header_len[number_of_event_types];
+    uint8_t alg;
+    READER_TRY_SET(alg, read<uint8_t>);
+    footer()->checksum_alg = static_cast<enum_binlog_checksum_alg>(alg);
   } else {
     footer()->checksum_alg = BINLOG_CHECKSUM_ALG_UNDEF;
   }
+
+  if (!header_is_valid()) READER_THROW("Invalid Format_description header");
+
+  if (!version_is_valid())
+    READER_THROW("Invalid server version in Format_description event");
+
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 Format_description_event::~Format_description_event() {}
 
-/**
-  Constructor of Incident_event
-*/
-Incident_event::Incident_event(const char *buf, unsigned int event_len,
-                               const Format_description_event *descr_event)
-    : Binary_log_event(&buf, descr_event->binlog_version) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  uint8_t const common_header_len = descr_event->common_header_len;
-  uint8_t const post_header_len =
-      descr_event->post_header_len[INCIDENT_EVENT - 1];
+Stop_event::Stop_event(const char *buf, const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  BAPI_ENTER("Stop_event::Stop_event (const char*, ...)");
+  BAPI_VOID_RETURN;
+}
+
+Incident_event::Incident_event(const char *buf,
+                               const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  BAPI_ENTER("Incident_event::Incident_event(const char *, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  uint16_t incident_number;
+  uint8_t len = 0;         // Assignment to keep compiler happy
+  const char *str = NULL;  // Assignment to keep compiler happy
 
   message = NULL;
   message_length = 0;
-  uint16_t incident_number;
-  memcpy(&incident_number, buf, 2);
-  incident_number = le16toh(incident_number);
-  if (incident_number >= INCIDENT_COUNT || incident_number <= INCIDENT_NONE) {
+  incident = INCIDENT_NONE;
+
+  READER_TRY_SET(incident_number, read_and_letoh<uint16_t>);
+  if (incident_number >= INCIDENT_COUNT || incident_number <= INCIDENT_NONE)
     /*
       If the incident is not recognized, this binlog event is
       invalid.
     */
-    incident = INCIDENT_NONE;
+    READER_THROW("Invalid incident number in INCIDENT");
 
-  } else
-    incident = static_cast<enum_incident>(incident_number);
+  incident = static_cast<enum_incident>(incident_number);
 
-  char const *ptr = buf + post_header_len;
-  char const *const str_end = buf - common_header_len + event_len;
-  uint8_t len = 0;         // Assignment to keep compiler happy
-  const char *str = NULL;  // Assignment to keep compiler happy
-  read_str_at_most_255_bytes(&ptr, str_end, &str, &len);
-  if (!(message = static_cast<char *>(bapi_malloc(len + 1, 16)))) {
-    /* Mark this event invalid */
-    incident = INCIDENT_NONE;
-    return;
-  }
+  READER_ASSERT_POSITION(fde->common_header_len +
+                         fde->post_header_len[INCIDENT_EVENT - 1]);
+  READER_TRY_CALL(read_str_at_most_255_bytes, &str, &len);
 
-  // bapi_strmake(message, str, len);
+  if (!(message = static_cast<char *>(bapi_malloc(len + 1, 16))))
+    READER_THROW("Out of memory");
+
   strncpy(message, str, len);
   // Appending '\0' at the end.
   message[len] = '\0';
   message_length = len;
-  return;
+
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
-
-/**
-    We create an object of Ignorable_log_event for unrecognized sub-class, while
-    decoding. So that we just update the position and continue.
-
-    @param buf                Contains the serialized event.
-    @param descr_event        An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
-*/
 
 Ignorable_event::Ignorable_event(const char *buf,
-                                 const Format_description_event *descr_event)
-    : Binary_log_event(&buf, descr_event->binlog_version) {}
-
-/**
-    Constructor for Xid_event at its decoding.
-
-    @param buf                Contains the serialized event.
-    @param description_event  An FDE event (see comments for
-                              Ignorable_event for fine details).
-*/
-
-Xid_event::Xid_event(const char *buf,
-                     const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  /*
-   We step to the post-header despite it being empty because it could later be
-   filled with something and we have to support that case.
-   The Variable Data part begins immediately.
-  */
-  buf += description_event->post_header_len[XID_EVENT - 1];
-  memcpy((char *)&xid, buf, 8);
+                                 const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  BAPI_ENTER("Ignorable_event::Ignorable_event(const char*, ...)");
+  BAPI_VOID_RETURN;
 }
 
-/**
-    Constructor for XA_prepare_event at its decoding.
+Xid_event::Xid_event(const char *buf, const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  BAPI_ENTER("Xid_event::Xid_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  READER_TRY_CALL(forward, fde->post_header_len[XID_EVENT - 1]);
+  READER_TRY_SET(xid, memcpy<int64_t>);
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
+}
 
-    @param buf                Contains the serialized event.
-    @param description_event  An FDE event (see comments for
-                              Ignorable_event for fine details).
-*/
-
-XA_prepare_event::XA_prepare_event(
-    const char *buf, const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version) {
-  uint32_t temp = 0;
-  uint8_t temp_byte;
-
-  buf += description_event->post_header_len[XA_PREPARE_LOG_EVENT - 1];
-  memcpy(&temp_byte, buf, 1);
-  one_phase = (bool)temp_byte;
-  buf += sizeof(temp_byte);
-  memcpy(&temp, buf, sizeof(temp));
-  my_xid.formatID = le32toh(temp);
-  buf += sizeof(temp);
-  memcpy(&temp, buf, sizeof(temp));
-  my_xid.gtrid_length = le32toh(temp);
-  buf += sizeof(temp);
-  memcpy(&temp, buf, sizeof(temp));
-  my_xid.bqual_length = le32toh(temp);
-  buf += sizeof(temp);
+XA_prepare_event::XA_prepare_event(const char *buf,
+                                   const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  BAPI_ENTER("XA_prepare_event::XA_prepare_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  READER_TRY_CALL(forward, fde->post_header_len[XA_PREPARE_LOG_EVENT - 1]);
+  READER_TRY_SET(one_phase, read<bool>);
+  READER_TRY_SET(my_xid.formatID, read_and_letoh<uint32_t>);
+  READER_TRY_SET(my_xid.gtrid_length, read_and_letoh<uint32_t>);
+  READER_TRY_SET(my_xid.bqual_length, read_and_letoh<uint32_t>);
 
   /* Sanity check */
   if (MY_XIDDATASIZE >= my_xid.gtrid_length + my_xid.bqual_length &&
       my_xid.gtrid_length >= 0 && my_xid.gtrid_length <= 64 &&
       my_xid.bqual_length >= 0 && my_xid.bqual_length <= 64) {
-    memcpy(my_xid.data, buf, my_xid.gtrid_length + my_xid.bqual_length);
-  } else {
-    my_xid.formatID = -1;
-    my_xid.gtrid_length = 0;
-    my_xid.bqual_length = 0;
-  }
+    READER_TRY_CALL(memcpy<char *>, my_xid.data,
+                    my_xid.gtrid_length + my_xid.bqual_length);
+  } else
+    READER_THROW("Invalid XID information in XA Prepare");
+
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
-/**
-  ctor to decode a Gtid_event
-*/
-Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
-                       const Format_description_event *description_event)
-    : Binary_log_event(&buffer, description_event->binlog_version),
+Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
+    : Binary_log_event(&buf, fde),
       last_committed(SEQ_UNINIT),
       sequence_number(SEQ_UNINIT),
       may_have_sbr_stmts(true),
@@ -437,10 +403,7 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
 
     5.6 did not have TS_TYPE and the following fields. 5.7.4 and
     earlier had a different value for TS_TYPE and a shorter length for
-    the following fields. Both these cases are accepted and ignored.
-
-    The buffer is advanced in Binary_log_event constructor to point to
-    beginning of post-header
+    the following TS fields. Both these cases are accepted and ignored.
 
    * The section titled "timestamps" contains commit timestamps on originating
      server and commit timestamp on the immediate master.
@@ -459,233 +422,125 @@ Gtid_event::Gtid_event(const char *buffer, uint32_t event_len,
        | immediate_commit_timestamp        |
        +-----------------------------------+
   */
-  char const *ptr_buffer = buffer;
-  char const *ptr_buffer_end =
-      buffer + event_len - description_event->common_header_len;
-
-  unsigned char gtid_flags = *ptr_buffer;
-
+  BAPI_ENTER("Gtid_event::Gtid_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  unsigned char gtid_flags;
+  READER_TRY_SET(gtid_flags, read<unsigned char>);
   may_have_sbr_stmts = gtid_flags & FLAG_MAY_HAVE_SBR;
 
-  ptr_buffer += ENCODED_FLAG_LENGTH;
-
-  memcpy(Uuid_parent_struct.bytes, (const unsigned char *)ptr_buffer,
-         Uuid_parent_struct.BYTE_LENGTH);
-  ptr_buffer += ENCODED_SID_LENGTH;
-
+  READER_TRY_CALL(memcpy<unsigned char *>, Uuid_parent_struct.bytes,
+                  Uuid_parent_struct.BYTE_LENGTH);
   // SIDNO is only generated if needed, in get_sidno().
   gtid_info_struct.rpl_gtid_sidno = -1;
 
-  memcpy(&(gtid_info_struct.rpl_gtid_gno), ptr_buffer,
-         sizeof(gtid_info_struct.rpl_gtid_gno));
-  gtid_info_struct.rpl_gtid_gno = le64toh(gtid_info_struct.rpl_gtid_gno);
-  ptr_buffer += ENCODED_GNO_LENGTH;
+  READER_TRY_SET(gtid_info_struct.rpl_gtid_gno, read_and_letoh<int64_t>);
+
+  /* GNO sanity check */
+  if (header()->type_code == GTID_LOG_EVENT) {
+    if (gtid_info_struct.rpl_gtid_gno < MIN_GNO ||
+        gtid_info_struct.rpl_gtid_gno > MAX_GNO)
+      READER_THROW("Invalid GNO");
+  } else { /* Assume this is an ANONYMOUS_GTID_LOG_EVENT */
+    BAPI_ASSERT(header()->type_code == ANONYMOUS_GTID_LOG_EVENT);
+    if (gtid_info_struct.rpl_gtid_gno != 0) READER_THROW("Invalid GNO");
+  }
 
   /*
     Fetch the logical clocks. Check the length before reading, to
     avoid out of buffer reads.
   */
-  if (ptr_buffer + LOGICAL_TIMESTAMP_TYPECODE_LENGTH +
-              LOGICAL_TIMESTAMP_LENGTH <=
-          ptr_buffer_end &&
-      *ptr_buffer == LOGICAL_TIMESTAMP_TYPECODE) {
-    ptr_buffer += LOGICAL_TIMESTAMP_TYPECODE_LENGTH;
-    memcpy(&last_committed, ptr_buffer, sizeof(last_committed));
-    last_committed = (int64_t)le64toh(last_committed);
-    memcpy(&sequence_number, ptr_buffer + 8, sizeof(sequence_number));
-    sequence_number = (int64_t)le64toh(sequence_number);
-    ptr_buffer += LOGICAL_TIMESTAMP_LENGTH;
-  }
-  /*
-    Fetch the timestamps used to monitor replication lags with respect to
-    the immediate master and the server that originated this transaction.
-    Check that the timestamps exist before reading. Note that a master
-    older than MySQL-5.8 will NOT send these timestamps. We should be
-    able to ignore these fields in this case.
-  */
-  has_commit_timestamps =
-      ptr_buffer + IMMEDIATE_COMMIT_TIMESTAMP_LENGTH <= ptr_buffer_end;
-  if (has_commit_timestamps) {
-    memcpy(&immediate_commit_timestamp, ptr_buffer,
-           IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
-    immediate_commit_timestamp = (int64_t)le64toh(immediate_commit_timestamp);
-    ptr_buffer += IMMEDIATE_COMMIT_TIMESTAMP_LENGTH;
-    // Check the MSB to determine how we should populate
-    // original_commit_timestamp
-    if ((immediate_commit_timestamp &
-         (1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH)) != 0) {
-      // Read the original_commit_timestamp
-      immediate_commit_timestamp &=
-          ~(1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH); /* Clear MSB. */
-      memcpy(&original_commit_timestamp, ptr_buffer,
-             ORIGINAL_COMMIT_TIMESTAMP_LENGTH);
-      original_commit_timestamp = (int64_t)le64toh(original_commit_timestamp);
-      ptr_buffer += ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
-    } else {
-      // The transaction originated in the previous server
-      original_commit_timestamp = immediate_commit_timestamp;
-    }
-  }
+  if (READER_CALL(can_read, LOGICAL_TIMESTAMP_TYPECODE_LENGTH)) {
+    uint8_t lc_typecode = 0;
+    READER_TRY_SET(lc_typecode, read<uint8_t>);
+    if (lc_typecode == LOGICAL_TIMESTAMP_TYPECODE) {
+      READER_TRY_SET(last_committed, read_and_letoh<uint64_t>);
+      READER_TRY_SET(sequence_number, read_and_letoh<uint64_t>);
 
-  /*
-    Fetch the transaction length. Check the length before reading, to
-    avoid out of buffer reads.
-  */
-  if (ptr_buffer + TRANSACTION_LENGTH_MIN_LENGTH <= ptr_buffer_end) {
-    // It is safe to read the first byte of the transaction_length
-    unsigned char *ptr_trx_length;
-    ptr_trx_length =
-        reinterpret_cast<unsigned char *>(const_cast<char *>(ptr_buffer));
-    unsigned int trx_length_field_size = net_field_length_size(ptr_trx_length);
-
-    if (ptr_buffer + trx_length_field_size <= ptr_buffer_end) {
-      // It is safe to read the full transaction_length from the buffer
-      transaction_length = net_field_length_ll(&ptr_trx_length);
-      ptr_buffer += trx_length_field_size;
-    } else {
       /*
-        The buffer must be corrupted. We expected a transaction length but the
-        buffer size is not enough to provide all length information.
+        Fetch the timestamps used to monitor replication lags with respect to
+        the immediate master and the server that originated this transaction.
+        Check that the timestamps exist before reading. Note that a master
+        older than MySQL-5.8 will NOT send these timestamps. We should be
+        able to ignore these fields in this case.
       */
-      BAPI_ASSERT(false);
+      has_commit_timestamps =
+          READER_CALL(can_read, IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
+      if (has_commit_timestamps) {
+        READER_TRY_SET(immediate_commit_timestamp, read_and_letoh<uint64_t>,
+                       IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
+        // Check the MSB to determine how to populate
+        // original_commit_timestamps
+        if ((immediate_commit_timestamp &
+             (1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH)) != 0) {
+          // Read the original_commit_timestamp
+          immediate_commit_timestamp &=
+              ~(1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH); /* Clear MSB. */
+          READER_TRY_SET(original_commit_timestamp, read_and_letoh<uint64_t>,
+                         ORIGINAL_COMMIT_TIMESTAMP_LENGTH);
+        } else {
+          // The transaction originated in the previous server
+          original_commit_timestamp = immediate_commit_timestamp;
+        }
+
+        /* Fetch the transaction length if possible */
+        if (READER_CALL(can_read, TRANSACTION_LENGTH_MIN_LENGTH)) {
+          READER_TRY_SET(transaction_length, net_field_length_ll);
+        }
+      }
     }
   }
 
-  return;
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
-/**
-  Constructor of Previous_gtids_event
-  Decodes the gtid_executed in the last binlog file
-*/
+Previous_gtids_event::Previous_gtids_event(const char *buffer,
+                                           const Format_description_event *fde)
+    : Binary_log_event(&buffer, fde) {
+  BAPI_ENTER("Previous_gtids_event::Previous_gtids_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  READER_TRY_CALL(forward, fde->post_header_len[PREVIOUS_GTIDS_LOG_EVENT - 1]);
 
-Previous_gtids_event::Previous_gtids_event(
-    const char *buffer, unsigned int event_len,
-    const Format_description_event *description_event)
-    : Binary_log_event(&buffer, description_event->binlog_version) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  uint8_t const common_header_len = description_event->common_header_len;
-  uint8_t const post_header_len =
-      description_event->post_header_len[PREVIOUS_GTIDS_LOG_EVENT - 1];
-
-  buf = (const unsigned char *)buffer + post_header_len;
-  buf_size = event_len - common_header_len - post_header_len;
-  return;
+  buf = (const unsigned char *)READER_CALL(ptr);
+  buf_size = READER_CALL(available_to_read);
+  if (buf_size < 8) READER_THROW("Invalid Previous_gtids information");
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
-/**
-  Constructor of Transaction_context_event
-
-  This event is used to store the information regarding the ongoing
-  transaction. Information like write_set, threads information etc. is stored
-  in this event.
-*/
 Transaction_context_event::Transaction_context_event(
-    const char *buffer, unsigned int event_len,
-    const Format_description_event *description_event)
-    : Binary_log_event(&buffer, description_event->binlog_version) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  const char *data_head = buffer;
-  const char *buffer_start = buffer - description_event->common_header_len;
+    const char *buffer, const Format_description_event *fde)
+    : Binary_log_event(&buffer, fde) {
+  BAPI_ENTER(
+      "Transaction_context_event::"
+      "Transaction_context_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
 
   server_uuid = NULL;
   encoded_snapshot_version = NULL;
 
-  /* Avoid reading out of buffer */
-  if (static_cast<unsigned int>(description_event->common_header_len +
-                                TRANSACTION_CONTEXT_HEADER_LEN) > event_len)
-    return;
+  uint8_t server_uuid_len;
+  uint32_t write_set_len;
+  uint32_t read_set_len;
 
-  uint8_t server_uuid_len =
-      (static_cast<unsigned int>(data_head[ENCODED_SERVER_UUID_LEN_OFFSET]));
+  READER_TRY_SET(server_uuid_len, read<uint8_t>);
+  READER_TRY_SET(thread_id, read_and_letoh<uint32_t>);
+  READER_TRY_SET(gtid_specified, read<bool>);
+  READER_TRY_SET(encoded_snapshot_version_length, read_and_letoh<uint32_t>);
+  READER_TRY_SET(write_set_len, read_and_letoh<uint32_t>);
+  READER_TRY_SET(read_set_len, read_and_letoh<uint32_t>);
 
-  uint32_t write_set_len = 0;
-  memcpy(&write_set_len, data_head + ENCODED_WRITE_SET_ITEMS_OFFSET,
-         sizeof(write_set_len));
-  write_set_len = le32toh(write_set_len);
+  READER_TRY_SET(server_uuid, strndup<const char *>, server_uuid_len);
+  READER_TRY_SET(encoded_snapshot_version, strndup<const unsigned char *>,
+                 encoded_snapshot_version_length);
+  READER_TRY_CALL(read_data_set, write_set_len, &write_set);
+  READER_TRY_CALL(read_data_set, read_set_len, &read_set);
 
-  uint32_t read_set_len = 0;
-  memcpy(&read_set_len, data_head + ENCODED_READ_SET_ITEMS_OFFSET,
-         sizeof(read_set_len));
-  read_set_len = le32toh(read_set_len);
-
-  encoded_snapshot_version_length = 0;
-  memcpy(&encoded_snapshot_version_length,
-         data_head + ENCODED_SNAPSHOT_VERSION_LEN_OFFSET,
-         sizeof(encoded_snapshot_version_length));
-  encoded_snapshot_version_length = le32toh(encoded_snapshot_version_length);
-
-  memcpy(&thread_id, data_head + ENCODED_THREAD_ID_OFFSET, sizeof(thread_id));
-  thread_id = (uint32_t)le32toh(thread_id);
-  gtid_specified = (int8_t)data_head[ENCODED_GTID_SPECIFIED_OFFSET];
-
-  const char *pos = data_head + TRANSACTION_CONTEXT_HEADER_LEN;
-  uint32_t remaining_buffer = 0;
-
-  /* Avoid reading out of buffer */
-  if (event_len <
-      (TRANSACTION_CONTEXT_HEADER_LEN + server_uuid_len +
-       encoded_snapshot_version_length + write_set_len + read_set_len))
-    goto err;
-
-  server_uuid = bapi_strndup(pos, server_uuid_len);
-  pos += server_uuid_len;
-
-  encoded_snapshot_version = reinterpret_cast<const unsigned char *>(
-      bapi_strndup(pos, encoded_snapshot_version_length));
-  pos += encoded_snapshot_version_length;
-  remaining_buffer = event_len - (pos - buffer_start);
-
-  pos = read_data_set(pos, write_set_len, &write_set, remaining_buffer);
-  if (pos == NULL) goto err;
-  remaining_buffer = event_len - (pos - buffer_start);
-  pos = read_data_set(pos, read_set_len, &read_set, remaining_buffer);
-  if (pos == NULL) goto err;
-
-  return;
-
-err:
-  if (server_uuid) bapi_free((void *)server_uuid);
-  server_uuid = NULL;
-  if (encoded_snapshot_version) bapi_free((void *)encoded_snapshot_version);
-  encoded_snapshot_version = NULL;
-  clear_set(&write_set);
-  clear_set(&read_set);
-  return;
-}
-
-/**
-  Function to read the data set for the ongoing transaction.
-
-  @param[in] pos       - postion to read from.
-  @param[in] set_len   - length of the set object
-  @param[in] set       - pointer to the set object
-  @param[in] remaining - remaining available bytes on the buffer
-
-  @retval - returns the pointer in the buffer to the end of the added hash
-            value or NULL in case of an error.
-*/
-const char *Transaction_context_event::read_data_set(
-    const char *pos, uint32_t set_len, std::list<const char *> *set,
-    uint32_t remaining) {
-  uint16_t len = 0;
-  for (uint32_t i = 0; i < set_len; i++) {
-    if (remaining < static_cast<uint32_t>(ENCODED_READ_WRITE_SET_ITEM_LEN))
-      return (NULL);
-    memcpy(&len, pos, 2);
-    len = le16toh(len);
-    remaining -= ENCODED_READ_WRITE_SET_ITEM_LEN;
-    pos += ENCODED_READ_WRITE_SET_ITEM_LEN;
-    if (remaining < len) return (NULL);
-    const char *hash = bapi_strndup(pos, len);
-    if (hash == NULL) return (NULL);
-    pos += len;
-    remaining -= len;
-    set->push_back(hash);
-  }
-  return (pos);
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 /**
@@ -704,20 +559,13 @@ void Transaction_context_event::clear_set(std::list<const char *> *set) {
   Destructor of the Transaction_context_event class.
 */
 Transaction_context_event::~Transaction_context_event() {
-  bapi_free((void *)server_uuid);
+  if (server_uuid) bapi_free((void *)server_uuid);
   server_uuid = NULL;
-  bapi_free((void *)encoded_snapshot_version);
+  if (encoded_snapshot_version) bapi_free((void *)encoded_snapshot_version);
   encoded_snapshot_version = NULL;
   clear_set(&write_set);
   clear_set(&read_set);
 }
-
-/**
-  Constructor of View_change_event
-
-  This event is used to add view change events in the binary log when a member
-  enters or leaves the group.
-*/
 
 View_change_event::View_change_event(char *raw_view_id)
     : Binary_log_event(VIEW_CHANGE_EVENT),
@@ -727,93 +575,26 @@ View_change_event::View_change_event(char *raw_view_id)
   memcpy(view_id, raw_view_id, strlen(raw_view_id));
 }
 
-View_change_event::View_change_event(
-    const char *buffer, unsigned int event_len,
-    const Format_description_event *description_event)
-    : Binary_log_event(&buffer, description_event->binlog_version),
+View_change_event::View_change_event(const char *buffer,
+                                     const Format_description_event *fde)
+    : Binary_log_event(&buffer, fde),
       view_id(),
       seq_number(0),
       certification_info() {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  const char *data_header = buffer;
-  uint32_t cert_info_len = 0;
-  memcpy(view_id, data_header, ENCODED_VIEW_ID_MAX_LEN);
-  memcpy(&seq_number, data_header + ENCODED_SEQ_NUMBER_OFFSET,
-         sizeof(seq_number));
-  seq_number = (int64_t)le64toh(seq_number);
-  memcpy(&cert_info_len, data_header + ENCODED_CERT_INFO_SIZE_OFFSET,
-         sizeof(cert_info_len));
-  cert_info_len = le32toh(cert_info_len);
+  BAPI_ENTER("View_change_event::View_change_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+  uint32_t cert_info_len;
 
-  char *pos = (char *)data_header + VIEW_CHANGE_HEADER_LEN;
+  READER_TRY_CALL(memcpy<char *>, view_id, ENCODED_VIEW_ID_MAX_LEN);
+  if (strlen(view_id) == 0) READER_THROW("Invalid View_change information");
 
-  /* Avoid reading out of buffer */
-  if (event_len < (LOG_EVENT_HEADER_LEN + VIEW_CHANGE_HEADER_LEN)) {
-    pos = NULL;
-  } else {
-    unsigned int max_cert_info_len =
-        event_len - (LOG_EVENT_HEADER_LEN + VIEW_CHANGE_HEADER_LEN);
+  READER_TRY_SET(seq_number, read_and_letoh<uint64_t>);
+  READER_TRY_SET(cert_info_len, read_and_letoh<uint32_t>);
+  READER_TRY_CALL(read_data_map, cert_info_len, &certification_info);
 
-    pos = read_data_map(pos, cert_info_len, &certification_info,
-                        max_cert_info_len);
-  }
-
-  if (pos == NULL)
-    // Make is_valid() defined in the server return false.
-    view_id[0] = '\0';
-  return;
-}
-
-/**
-  This method is used to read the certification map and return pointer to
-  the snapshot version.
-
-  @param[in] pos     - start position.
-  @param[in] map_len - the length of the certification info map.
-  @param[in] map     - Certification info map
-  @param[in] consumable - the amount of bytes that can be read from buffer
-
-  @return pointer to the snapshot version.
-*/
-char *View_change_event::read_data_map(char *pos, uint32_t map_len,
-                                       std::map<std::string, std::string> *map,
-                                       uint32_t consumable) {
-  BAPI_ASSERT(map->empty());
-  uint16_t created = 0;
-  uint32_t created_value = 0;
-  for (uint32_t i = 0; i < map_len; i++) {
-    if (!consumable ||
-        consumable < static_cast<uint32_t>(ENCODED_CERT_INFO_KEY_SIZE_LEN))
-      return NULL;
-    created = 0;
-    memcpy(&created, pos, sizeof(created));
-    uint16_t key_len = (uint16_t)le16toh(created);
-    pos += ENCODED_CERT_INFO_KEY_SIZE_LEN;
-    consumable -= ENCODED_CERT_INFO_KEY_SIZE_LEN;
-
-    if (!consumable || consumable < key_len) return NULL;
-    std::string key(pos, key_len);
-    pos += key_len;
-    consumable -= key_len;
-
-    if (!consumable ||
-        consumable < static_cast<uint32_t>(ENCODED_CERT_INFO_VALUE_LEN))
-      return NULL;
-    created_value = 0;
-    memcpy(&created_value, pos, sizeof(created_value));
-    uint32_t value_len = le32toh(created_value);
-    pos += ENCODED_CERT_INFO_VALUE_LEN;
-    consumable -= ENCODED_CERT_INFO_VALUE_LEN;
-
-    if (!consumable || consumable < value_len) return NULL;
-    std::string value(pos, value_len);
-    pos += value_len;
-    consumable -= value_len;
-
-    (*map)[key] = value;
-  }
-  return (pos);
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 /**
@@ -821,16 +602,22 @@ char *View_change_event::read_data_map(char *pos, uint32_t map_len,
 */
 View_change_event::~View_change_event() { certification_info.clear(); }
 
-Heartbeat_event::Heartbeat_event(
-    const char *buf, unsigned int event_len,
-    const Format_description_event *description_event)
-    : Binary_log_event(&buf, description_event->binlog_version),
-      log_ident(buf) {
-  // buf is advanced in Binary_log_event constructor to point to
-  // beginning of post-header
-  unsigned char header_size = description_event->common_header_len;
-  ident_len = event_len - header_size;
+Heartbeat_event::Heartbeat_event(const char *buf,
+                                 const Format_description_event *fde)
+    : Binary_log_event(&buf, fde) {
+  BAPI_ENTER("Heartbeat_event::Heartbeat_event(const char*, ...)");
+  READER_TRY_INITIALIZATION;
+  READER_ASSERT_POSITION(fde->common_header_len);
+
+  READER_TRY_SET(log_ident, ptr);
+  if (log_ident == NULL || header()->log_pos < BIN_LOG_HEADER_SIZE)
+    READER_THROW("Invalid Heartbeat information");
+
+  ident_len = READER_CALL(available_to_read);
   if (ident_len > FN_REFLEN - 1) ident_len = FN_REFLEN - 1;
+
+  READER_CATCH_ERROR;
+  BAPI_VOID_RETURN;
 }
 
 #ifndef HAVE_MYSYS

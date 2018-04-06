@@ -4996,15 +4996,13 @@ Format_description_log_event::Format_description_log_event()
 */
 
 Format_description_log_event::Format_description_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : Format_description_event(buf, event_len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : Format_description_event(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER(
       "Format_description_log_event::Format_description_log_event(const char*, "
       "uint, const Format_description_event *)");
   if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(header_is_valid() && version_is_valid());
   common_header->type_code = binary_log::FORMAT_DESCRIPTION_EVENT;
   DBUG_VOID_RETURN;
 }
@@ -5103,8 +5101,8 @@ bool Format_description_log_event::write(Basic_ostream *ostream) {
   if (!dont_set_created) created = get_time();
   int4store(buff + ST_CREATED_OFFSET, static_cast<uint32>(created));
   buff[ST_COMMON_HEADER_LEN_OFFSET] = LOG_EVENT_HEADER_LEN;
-  memcpy((char *)buff + ST_COMMON_HEADER_LEN_OFFSET + 1,
-         &post_header_len.front(), Binary_log_event::LOG_EVENT_TYPES);
+  memcpy((char *)buff + ST_COMMON_HEADER_LEN_OFFSET + 1, &post_header_len[0],
+         Binary_log_event::LOG_EVENT_TYPES);
   /*
     if checksum is requested
     record the checksum-algorithm descriptor next to
@@ -5296,13 +5294,11 @@ Rotate_log_event::Rotate_log_event(const char *new_log_ident_arg,
 #endif  // MYSQL_SERVER
 
 Rotate_log_event::Rotate_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Rotate_event(buf, event_len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Rotate_event(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(char*,...)");
   if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(new_log_ident != 0);
   DBUG_PRINT("debug", ("new_log_ident: '%s'", new_log_ident));
   DBUG_VOID_RETURN;
 }
@@ -5743,8 +5739,6 @@ Xid_log_event::Xid_log_event(const char *buf,
   DBUG_ENTER(
       "Xid_log_event::Xid_log_event(const char*, const "
       "Format_description_event *)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 }
 
@@ -11732,14 +11726,10 @@ void Update_rows_log_event::print(FILE *file,
 #endif
 
 Incident_log_event::Incident_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Incident_event(buf, event_len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Incident_event(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Incident_log_event::Incident_log_event");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(incident > INCIDENT_NONE &&
-                              incident < INCIDENT_COUNT);
   DBUG_VOID_RETURN;
 }
 
@@ -11867,8 +11857,6 @@ Ignorable_log_event::Ignorable_log_event(
     : binary_log::Ignorable_event(buf, descr_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Ignorable_log_event::Ignorable_log_event");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(true);
   DBUG_VOID_RETURN;
 }
 
@@ -11983,9 +11971,8 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli) {
 const char *Gtid_log_event::SET_STRING_PREFIX = "SET @@SESSION.GTID_NEXT= '";
 
 Gtid_log_event::Gtid_log_event(
-    const char *buffer, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Gtid_event(buffer, event_len, description_event),
+    const char *buffer, const Format_description_event *description_event)
+    : binary_log::Gtid_event(buffer, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER(
       "Gtid_log_event::Gtid_log_event(const char *,"
@@ -12000,11 +11987,10 @@ Gtid_log_event::Gtid_log_event(
                 ->post_header_len[binary_log::ANONYMOUS_GTID_LOG_EVENT - 1]
           : description_event->post_header_len[binary_log::GTID_LOG_EVENT - 1];
   DBUG_PRINT("info",
-             ("event_len: %u; common_header_len: %d; post_header_len: %d",
-              event_len, common_header_len, post_header_len));
+             ("event_len: %zu; common_header_len: %d; post_header_len: %d",
+              header()->data_written, common_header_len, post_header_len));
 #endif
 
-  common_header->set_is_valid(true);
   spec.type = get_type_code() == binary_log::ANONYMOUS_GTID_LOG_EVENT
                   ? ANONYMOUS_GTID
                   : ASSIGNED_GTID;
@@ -12463,13 +12449,10 @@ void Gtid_log_event::set_trx_length_by_cache_size(ulonglong cache_size,
 }
 
 Previous_gtids_log_event::Previous_gtids_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Previous_gtids_event(buf, event_len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Previous_gtids_event(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(buf != NULL);
   DBUG_VOID_RETURN;
 }
 
@@ -12629,21 +12612,20 @@ err:
 #endif  // MYSQL_SERVER
 
 Transaction_context_log_event::Transaction_context_log_event(
-    const char *buffer, uint event_len,
-    const Format_description_event *descr_event)
-    : binary_log::Transaction_context_event(buffer, event_len, descr_event),
-      Log_event(header(), footer()) {
+    const char *buffer, const Format_description_event *descr_event)
+    : binary_log::Transaction_context_event(buffer, descr_event),
+      Log_event(header(), footer()),
+      sid_map(NULL),
+      snapshot_version(nullptr) {
   DBUG_ENTER(
       "Transaction_context_log_event::Transaction_context_log_event (const "
-      "char *, uint, const Format_description_event*)");
+      "char *, const Format_description_event*)");
   if (!is_valid()) DBUG_VOID_RETURN;
+
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
 
   sid_map = new Sid_map(NULL);
   snapshot_version = new Gtid_set(sid_map);
-
-  common_header->set_is_valid(server_uuid != NULL &&
-                              encoded_snapshot_version != NULL);
 
   DBUG_VOID_RETURN;
 }
@@ -12839,17 +12821,14 @@ View_change_log_event::View_change_log_event(char *raw_view_id)
 #endif
 
 View_change_log_event::View_change_log_event(
-    const char *buffer, uint event_len,
-    const Format_description_event *descr_event)
-    : binary_log::View_change_event(buffer, event_len, descr_event),
+    const char *buffer, const Format_description_event *descr_event)
+    : binary_log::View_change_event(buffer, descr_event),
       Log_event(header(), footer()) {
   DBUG_ENTER(
       "View_change_log_event::View_change_log_event(const char *,"
-      " uint, const Format_description_event*)");
+      " const Format_description_event*)");
   if (!is_valid()) DBUG_VOID_RETURN;
   common_header->flags |= LOG_EVENT_IGNORABLE_F;
-
-  common_header->set_is_valid(strlen(view_id) != 0);
 
   // Change the cache/logging types to allow writing to the binary log cache
   event_cache_type = EVENT_TRANSACTIONAL_CACHE;
@@ -13065,16 +13044,12 @@ PRINT_EVENT_INFO::PRINT_EVENT_INFO()
 
 #if defined(MYSQL_SERVER)
 Heartbeat_log_event::Heartbeat_log_event(
-    const char *buf, uint event_len,
-    const Format_description_event *description_event)
-    : binary_log::Heartbeat_event(buf, event_len, description_event),
+    const char *buf, const Format_description_event *description_event)
+    : binary_log::Heartbeat_event(buf, description_event),
       Log_event(header(), footer()) {
   DBUG_ENTER(
-      "Heartbeat_log_event::Heartbeat_log_event(const char*, uint, const "
+      "Heartbeat_log_event::Heartbeat_log_event(const char*, const "
       "Format_description_log_event *)");
-  if (!is_valid()) DBUG_VOID_RETURN;
-  common_header->set_is_valid(log_ident != NULL &&
-                              header()->log_pos >= BIN_LOG_HEADER_SIZE);
   DBUG_VOID_RETURN;
 }
 #endif

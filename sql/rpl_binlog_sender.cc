@@ -487,8 +487,8 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
       be skipped. and maybe removing the gtid from m_exclude_gtid will make
       skip_event has better performance.
     */
-    if (m_exclude_gtid && (in_exclude_group = skip_event(event_ptr, event_len,
-                                                         in_exclude_group))) {
+    if (m_exclude_gtid &&
+        (in_exclude_group = skip_event(event_ptr, in_exclude_group))) {
       /*
         If we have not send any event from past 'heartbeat_period' time
         period, then it is time to send a packet before skipping this group.
@@ -602,7 +602,7 @@ bool Binlog_sender::check_event_type(Log_event_type type, const char *log_file,
   return false;
 }
 
-inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
+inline bool Binlog_sender::skip_event(const uchar *event_ptr,
                                       bool in_exclude_group) {
   DBUG_ENTER("Binlog_sender::skip_event");
 
@@ -611,10 +611,7 @@ inline bool Binlog_sender::skip_event(const uchar *event_ptr, uint32 event_len,
     case binary_log::GTID_LOG_EVENT: {
       Format_description_log_event fd_ev;
       fd_ev.common_footer->checksum_alg = m_event_checksum_alg;
-      Gtid_log_event gtid_ev(
-          (const char *)event_ptr,
-          event_checksum_on() ? event_len - BINLOG_CHECKSUM_LEN : event_len,
-          &fd_ev);
+      Gtid_log_event gtid_ev(reinterpret_cast<const char *>(event_ptr), &fd_ev);
       Gtid gtid;
       gtid.sidno = gtid_ev.get_sidno(m_exclude_gtid->get_sid_map());
       gtid.gno = gtid_ev.get_gno();

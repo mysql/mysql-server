@@ -7195,11 +7195,12 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       do_flush_mi = false;
       goto end;
     case binary_log::ROTATE_EVENT: {
-      Rotate_log_event rev(buf,
-                           checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF
-                               ? event_len - BINLOG_CHECKSUM_LEN
-                               : event_len,
-                           mi->get_mi_description_event());
+      Format_description_log_event *fde = mi->get_mi_description_event();
+      enum_binlog_checksum_alg fde_checksum_alg = fde->footer()->checksum_alg;
+      if (fde_checksum_alg != checksum_alg)
+        fde->footer()->checksum_alg = checksum_alg;
+      Rotate_log_event rev(buf, fde);
+      fde->footer()->checksum_alg = fde_checksum_alg;
 
       if (unlikely(process_io_rotate(mi, &rev))) {
         // This error will be reported later at handle_slave_io().
@@ -7321,12 +7322,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       /*
         HB (heartbeat) cannot come before RL (Relay)
       */
-      Heartbeat_log_event hb(buf,
-                             mi->rli->relay_log.relay_log_checksum_alg !=
-                                     binary_log::BINLOG_CHECKSUM_ALG_OFF
-                                 ? event_len - BINLOG_CHECKSUM_LEN
-                                 : event_len,
-                             mi->get_mi_description_event());
+      Heartbeat_log_event hb(buf, mi->get_mi_description_event());
       if (!hb.is_valid()) {
         char errbuf[1024];
         char llbuf[22];
@@ -7443,11 +7439,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
             mi->get_master_log_name(), mi->get_master_log_pos());
         goto err;
       }
-      Gtid_log_event gtid_ev(buf,
-                             checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF
-                                 ? event_len - BINLOG_CHECKSUM_LEN
-                                 : event_len,
-                             mi->get_mi_description_event());
+      Gtid_log_event gtid_ev(buf, mi->get_mi_description_event());
       rli->get_sid_lock()->rdlock();
       gtid.sidno = gtid_ev.get_sidno(rli->get_gtid_set()->get_sid_map());
       rli->get_sid_lock()->unlock();
@@ -7497,12 +7489,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
        save the original_commit_timestamp and the immediate_commit_timestamp to
        be later used for monitoring
       */
-      Gtid_log_event anon_gtid_ev(
-          buf,
-          checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF
-              ? event_len - BINLOG_CHECKSUM_LEN
-              : event_len,
-          mi->get_mi_description_event());
+      Gtid_log_event anon_gtid_ev(buf, mi->get_mi_description_event());
       original_commit_timestamp = anon_gtid_ev.original_commit_timestamp;
       immediate_commit_timestamp = anon_gtid_ev.immediate_commit_timestamp;
     }

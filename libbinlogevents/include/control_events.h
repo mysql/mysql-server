@@ -43,7 +43,6 @@
 #include <vector>
 
 #include "binlog_event.h"
-#include "byteorder.h"
 #include "template_utils.h"
 #include "uuid.h"
 
@@ -134,26 +133,24 @@ class Rotate_event : public Binary_log_event {
         pos(pos_arg) {}
 
   /**
+    The layout of Rotate_event data part is as follows:
+
     <pre>
-    The buffer layout is as follows:
     +-----------------------------------------------------------------------+
     | common_header | post_header | position of the first event | file name |
     +-----------------------------------------------------------------------+
     </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event, used to get the following information:
+                  -binlog_version
+                  -server_version
+                  -post_header_len
+                  -common_header_len
+                The content of this object depends on the binlog-version
+                currently in use.
   */
-  Rotate_event(const char *buf, unsigned int event_len,
-               const Format_description_event *description_event);
+  Rotate_event(const char *buf, const Format_description_event *fde);
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &);
@@ -285,49 +282,72 @@ class Format_description_event : public Binary_log_event {
   */
   Format_description_event(uint8_t binlog_ver, const char *server_ver);
   /**
-     The layout of the event data part  in  Format_description_event
-     <pre>
-     +=====================================+
-     | event  | binlog_version   19 : 2    | = 4
-     | data   +----------------------------+
-     |        | server_version   21 : 50   |
-     |        +----------------------------+
-     |        | create_timestamp 71 : 4    |
-     |        +----------------------------+
-     |        | header_length    75 : 1    |
-     |        +----------------------------+
-     |        | post-header      76 : n    | = array of n bytes, one byte
-     |        | lengths for all            |   per event type that the
-     |        | event types                |   server knows about
-     +=====================================+
-     </pre>
-     @param buf                Contains the serialized event.
-     @param event_len          Length of the serialized event.
-     @param description_event  An FDE event, used to get the
-     following information
-     -binlog_version
-     -server_version
-     -post_header_len
-     -common_header_len
-     The content of this object
-     depends on the binlog-version currently in use.
-     @note The description_event passed to this constructor was created
-     through another constructor of FDE class
+    The layout of Format_description_event data part is as follows:
+
+    <pre>
+    +=====================================+
+    | event  | binlog_version   19 : 2    | = 4
+    | data   +----------------------------+
+    |        | server_version   21 : 50   |
+    |        +----------------------------+
+    |        | create_timestamp 71 : 4    |
+    |        +----------------------------+
+    |        | header_length    75 : 1    |
+    |        +----------------------------+
+    |        | post-header      76 : n    | = array of n bytes, one byte
+    |        | lengths for all            |   per event type that the
+    |        | event types                |   server knows about
+    +=====================================+
+    </pre>
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
+
+    @note The fde passed to this constructor was created through another
+          constructor of FDE class.
   */
-  Format_description_event(const char *buf, unsigned int event_len,
-                           const Format_description_event *description_event);
+  Format_description_event(const char *buf,
+                           const Format_description_event *fde);
 
   Format_description_event &operator=(const Format_description_event &) =
       default;
   uint8_t number_of_event_types;
+  /**
+    This method is used to find out the version of server that originated
+    the current FD instance.
+
+    @return the version of server.
+  */
   unsigned long get_product_version() const;
+  /**
+    This method checks the MySQL version to determine whether checksums may be
+    present in the events contained in the binary log.
+
+    @retval true  if the event's version is earlier than one that introduced
+                  the replication event checksum.
+    @retval false otherwise.
+  */
   bool is_version_before_checksum() const;
+  /**
+    This method populates the array server_version_split which is then used for
+    lookups to find if the server which created this event has some known bug.
+  */
   void calc_server_version_split();
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &info);
   void print_long_info(std::ostream &info);
 #endif
   ~Format_description_event();
+
+  bool header_is_valid() const {
+    return ((common_header_len >= LOG_EVENT_MINIMAL_HEADER_LEN) &&
+            (!post_header_len.empty()));
+  }
+
+  bool version_is_valid() const {
+    /* It is invalid only when all version numbers are 0 */
+    return server_version_split[0] != 0 || server_version_split[1] != 0 ||
+           server_version_split[2] != 0;
+  }
 };
 
 /**
@@ -351,26 +371,16 @@ class Stop_event : public Binary_log_event {
     STOP_EVENT in the header object in Binary_log_event.
   */
   Stop_event() : Binary_log_event(STOP_EVENT) {}
-  // buf is advanced in Binary_log_event constructor to point to beginning of
-  // post-header
 
   /**
     A Stop_event is occurs under these circumstances:
     -  A master writes the event to the binary log when it shuts down
     -  A slave writes the event to the relay log when it shuts down or when a
        RESET SLAVE statement is executed
-    @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Stop_event(const char *buf, const Format_description_event *description_event)
-      : Binary_log_event(&buf, description_event->binlog_version) {}
+  Stop_event(const char *buf, const Format_description_event *fde);
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &){};
@@ -456,19 +466,10 @@ class Incident_event : public Binary_log_event {
     there may be lost events (a "gap") in the replication stream that requires
     databases to be resynchronized.
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Incident_event(const char *buf, unsigned int event_len,
-                 const Format_description_event *description_event);
+  Incident_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &info);
   void print_long_info(std::ostream &info);
@@ -520,17 +521,10 @@ class Xid_event : public Binary_log_event {
   /**
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
-    @param buf                Contains the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Xid_event(const char *buf, const Format_description_event *description_event);
+  Xid_event(const char *buf, const Format_description_event *fde);
   uint64_t xid;
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &info);
@@ -615,15 +609,10 @@ class XA_prepare_event : public Binary_log_event {
   /**
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
-    @param buf    Contains the serialized event.
-    @param description_event    An FDE event, used to get the following
-    information -binlog_version -server_version -post_header_len
-                     -common_header_len
-                     The content of this object
-                     depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  XA_prepare_event(const char *buf,
-                   const Format_description_event *description_event);
+  XA_prepare_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
   /*
     todo: we need to find way how to exploit server's code of
@@ -667,18 +656,11 @@ class Ignorable_event : public Binary_log_event {
   */
   explicit Ignorable_event(Log_event_type type_arg = IGNORABLE_LOG_EVENT)
       : Binary_log_event(type_arg) {}
-  /*
-   @param buf                Contains the serialized event.
-   @param description_event  An FDE event, used to get the
-                             following information
-                             -binlog_version
-                             -server_version
-                             -post_header_len
-                             -common_header_len
-                             The content of this object
-                             depends on the binlog-version currently in use.
+  /**
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Ignorable_event(const char *buf, const Format_description_event *descr_event);
+  Ignorable_event(const char *buf, const Format_description_event *fde);
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &) {}
   void print_long_info(std::ostream &) {}
@@ -736,7 +718,7 @@ struct gtid_info {
 
   @section Gtid_event_binary_format Binary Format
 
-  The Body has eight components:
+  The Body can have up to nine components:
 
   <table>
   <caption>Body for Gtid_event</caption>
@@ -758,14 +740,19 @@ struct gtid_info {
         written in statement format.</td>
   </tr>
   <tr>
-    <td>ENCODED_SID_LENGTH</td>
-    <td>4 bytes static const integer</td>
-    <td>Length of SID in event encoding</td>
+    <td>SID</td>
+    <td>16 byte sequence</td>
+    <td>UUID representing the SID</td>
   </tr>
   <tr>
-    <td>ENCODED_GNO_LENGTH</td>
-    <td>4 bytes static const integer</td>
-    <td>Length of GNO in event encoding.</td>
+    <td>GNO</td>
+    <td>8 byte integer</td>
+    <td>Group number, second component of GTID.</td>
+  </tr>
+  <tr>
+    <td>logical clock timestamp typecode</td>
+    <td>1 byte integer</td>
+    <td>The type of logical timestamp used in the logical clock fields.</td>
   </tr>
   <tr>
     <td>last_committed</td>
@@ -780,7 +767,7 @@ struct gtid_info {
   <tr>
     <td>immediate_commit_timestamp</td>
     <td>7 byte integer</td>
-    <td>Timestamp of commit on the immediate master/td>
+    <td>Timestamp of commit on the immediate master</td>
   </tr>
   <tr>
     <td>original_commit_timestamp</td>
@@ -788,7 +775,8 @@ struct gtid_info {
     <td>Timestamp of commit on the originating master</td>
   </tr>
   <tr>
-    <td>1 to 9 byte integer</td> // Using net_store_length
+    <td>transaction_length</td>
+    <td>1 to 9 byte integer // See net_length_size(ulonglong num)</td>
     <td>The packed transaction's length in bytes, including the Gtid</td>
   </tr>
   </table>
@@ -821,26 +809,19 @@ class Gtid_event : public Binary_log_event {
     Ctor of Gtid_event
 
     The layout of the buffer is as follows
+    <pre>
     +----------+---+---+-------+--------------+---------+----------+
     |gtid flags|SID|GNO|TS_TYPE|logical ts(:s)|commit ts|trx length|
     +----------+---+---+-------+------------------------+----------+
+    </pre>
     TS_TYPE is from {G_COMMIT_TS2} singleton set of values
     Details on commit timestamps in Gtid_event(const char*...)
 
-    @param buffer             Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param descr_event        An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
 
-  Gtid_event(const char *buffer, uint32_t event_len,
-             const Format_description_event *descr_event);
+  Gtid_event(const char *buf, const Format_description_event *fde);
   /**
     Constructor.
   */
@@ -893,6 +874,11 @@ class Gtid_event : public Binary_log_event {
 
   gtid_info gtid_info_struct;
   Uuid Uuid_parent_struct;
+
+  /* Minimum GNO expected in a serialized GTID event */
+  static const int64_t MIN_GNO = 1;
+  /* Maximum GNO expected in a serialized GTID event */
+  static const int64_t MAX_GNO = LLONG_MAX;
 
  public:
   /// Total length of post header
@@ -969,19 +955,10 @@ class Previous_gtids_event : public Binary_log_event {
     | Gtids executed in the last binary log file |
     +--------------------------------------------+
     </pre>
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param descr_event        An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Previous_gtids_event(const char *buf, unsigned int event_len,
-                       const Format_description_event *descr_event);
+  Previous_gtids_event(const char *buf, const Format_description_event *fde);
   /**
     This is the minimal constructor, and set the
     type_code as PREVIOUS_GTIDS_LOG_EVENT in the header object in
@@ -1064,19 +1041,11 @@ class Transaction_context_event : public Binary_log_event {
     The buffer layout is as follows
     </pre>
 
-    @param buffer             Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Transaction_context_event(const char *buffer, unsigned int event_len,
-                            const Format_description_event *description_event);
+  Transaction_context_event(const char *buf,
+                            const Format_description_event *fde);
 
   Transaction_context_event(unsigned int thread_id_arg,
                             bool is_gtid_specified_arg)
@@ -1174,27 +1143,14 @@ class View_change_event : public Binary_log_event {
     The buffer layout is as follows
     </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param descr_event        An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  View_change_event(const char *buf, unsigned int event_len,
-                    const Format_description_event *descr_event);
+  View_change_event(const char *buf, const Format_description_event *fde);
 
   explicit View_change_event(char *raw_view_id);
 
   virtual ~View_change_event();
-
-  static char *read_data_map(char *pos, uint32_t map_len,
-                             std::map<std::string, std::string> *map,
-                             uint32_t consumable);
 
 #ifndef HAVE_MYSYS
   void print_event_info(std::ostream &) {}
@@ -1278,19 +1234,10 @@ class Heartbeat_event : public Binary_log_event {
     They are generated on a master server by the thread that dumps events and
     sent straight to the slave without ever being written to the binary log.
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
+    @param buf  Contains the serialized event.
+    @param fde  An FDE event (see Rotate_event constructor for more info).
   */
-  Heartbeat_event(const char *buf, unsigned int event_len,
-                  const Format_description_event *description_event);
+  Heartbeat_event(const char *buf, const Format_description_event *fde);
 
   const char *get_log_ident() { return log_ident; }
   unsigned int get_ident_len() { return ident_len; }

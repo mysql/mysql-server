@@ -329,13 +329,11 @@ class Binlog_sender : Gtid_mode_copy {
     DDL statement
 
     @param[in] event_ptr  Buffer of the event
-    @param[in] event_len  Length of the event
     @param[in] in_exclude_group  If it is in a execude group
 
     @return It returns true if it should be skipped, otherwise false is turned.
   */
-  inline bool skip_event(const uchar *event_ptr, uint32 event_len,
-                         bool in_exclude_group);
+  inline bool skip_event(const uchar *event_ptr, bool in_exclude_group);
 
   inline void calc_event_checksum(uchar *event_ptr, size_t event_len);
   inline int flush_net();

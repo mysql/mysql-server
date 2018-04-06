@@ -1473,25 +1473,13 @@ class Format_description_log_event : public Format_description_event,
 
   Format_description_log_event();
   Format_description_log_event(
-      const char *buf, uint event_len,
-      const Format_description_event *description_event);
+      const char *buf, const Format_description_event *description_event);
 #ifdef MYSQL_SERVER
   bool write(Basic_ostream *ostream) override;
   int pack_info(Protocol *protocol) override;
 #else
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
-
-  bool header_is_valid() const {
-    return ((common_header_len >= LOG_EVENT_MINIMAL_HEADER_LEN) &&
-            (!post_header_len.empty()));
-  }
-
-  bool version_is_valid() const {
-    /* It is invalid only when all version numbers are 0 */
-    return !(server_version_split[0] == 0 && server_version_split[1] == 0 &&
-             server_version_split[2] == 0);
-  }
 
   size_t get_data_size() override {
     /*
@@ -1739,10 +1727,6 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
     DBUG_ENTER(
         "XA_prepare_log_event::XA_prepare_log_event(const char*, const "
         "Format_description_log_event *)");
-    if (!is_valid()) DBUG_VOID_RETURN;
-    common_header->set_is_valid(my_xid.formatID != -1 ||
-                                my_xid.gtrid_length != 0 ||
-                                my_xid.bqual_length != 0);
     xid = NULL;
     DBUG_VOID_RETURN;
   }
@@ -1858,8 +1842,6 @@ class Stop_log_event : public binary_log::Stop_event, public Log_event {
     DBUG_ENTER(
         "Stop_log_event::Stop_log_event(const char*, const "
         "Format_description_log_event *)");
-    if (!is_valid()) DBUG_VOID_RETURN;
-    common_header->set_is_valid(true);
     DBUG_VOID_RETURN;
   }
 
@@ -1916,7 +1898,7 @@ class Rotate_log_event : public binary_log::Rotate_event, public Log_event {
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) const override;
 #endif
 
-  Rotate_log_event(const char *buf, uint event_len,
+  Rotate_log_event(const char *buf,
                    const Format_description_event *description_event);
   ~Rotate_log_event() {}
   size_t get_data_size() override {
@@ -3333,7 +3315,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
   int pack_info(Protocol *) override;
 #endif
 
-  Incident_log_event(const char *buf, uint event_len,
+  Incident_log_event(const char *buf,
                      const Format_description_event *description_event);
 
   virtual ~Incident_log_event();
@@ -3509,7 +3491,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
 class Heartbeat_log_event : public binary_log::Heartbeat_event,
                             public Log_event {
  public:
-  Heartbeat_log_event(const char *buf, uint event_len,
+  Heartbeat_log_event(const char *buf,
                       const Format_description_event *description_event);
 };
 
@@ -3576,7 +3558,7 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event {
 #ifdef MYSQL_SERVER
   int pack_info(Protocol *) override;
 #endif
-  Gtid_log_event(const char *buffer, uint event_len,
+  Gtid_log_event(const char *buffer,
                  const Format_description_event *description_event);
 
   virtual ~Gtid_log_event() {}
@@ -3794,7 +3776,7 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
   int pack_info(Protocol *) override;
 #endif
 
-  Previous_gtids_log_event(const char *buf, uint event_len,
+  Previous_gtids_log_event(const char *buf,
                            const Format_description_event *description_event);
   virtual ~Previous_gtids_log_event() {}
 
@@ -3924,7 +3906,7 @@ class Transaction_context_log_event
                                 bool is_gtid_specified_arg);
 #endif
 
-  Transaction_context_log_event(const char *buffer, uint event_len,
+  Transaction_context_log_event(const char *buffer,
                                 const Format_description_event *descr_event);
 
   virtual ~Transaction_context_log_event();
@@ -4042,7 +4024,7 @@ class View_change_log_event : public binary_log::View_change_event,
  public:
   View_change_log_event(char *view_id);
 
-  View_change_log_event(const char *buffer, uint event_len,
+  View_change_log_event(const char *buffer,
                         const Format_description_event *descr_event);
 
   virtual ~View_change_log_event();

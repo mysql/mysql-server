@@ -84,23 +84,33 @@ enum_binlog_checksum_alg Log_event_footer::get_checksum_alg(
 */
 enum_binlog_checksum_alg Log_event_footer::get_checksum_alg(const char *buf,
                                                             unsigned long len) {
-  enum_binlog_checksum_alg ret;
+  BAPI_ENTER("Log_event_footer::get_checksum_alg(const char*, unsigned long)");
+  enum_binlog_checksum_alg ret = BINLOG_CHECKSUM_ALG_UNDEF;
   char version[ST_SERVER_VER_LEN];
   unsigned char version_split[3];
   BAPI_ASSERT(buf[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT);
-  memcpy(version,
-         buf + buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET] +
-             ST_SERVER_VER_OFFSET,
-         ST_SERVER_VER_LEN);
-  version[ST_SERVER_VER_LEN - 1] = 0;
+  if (len > LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET + 1) {
+    uint8_t common_header_len =
+        buf[LOG_EVENT_MINIMAL_HEADER_LEN + ST_COMMON_HEADER_LEN_OFFSET];
+    if (len >=
+        static_cast<unsigned long>(common_header_len + ST_SERVER_VER_OFFSET +
+                                   ST_SERVER_VER_LEN)) {
+      memcpy(version, buf + common_header_len + ST_SERVER_VER_OFFSET,
+             ST_SERVER_VER_LEN);
+      version[ST_SERVER_VER_LEN - 1] = 0;
 
-  do_server_version_split(version, version_split);
-  if (version_product(version_split) < checksum_version_product)
-    ret = BINLOG_CHECKSUM_ALG_UNDEF;
-  else
-    ret = static_cast<enum_binlog_checksum_alg>(
-        *(buf + len - BINLOG_CHECKSUM_LEN - BINLOG_CHECKSUM_ALG_DESC_LEN));
-  return ret;
+      do_server_version_split(version, version_split);
+      if (version_product(version_split) < checksum_version_product)
+        ret = BINLOG_CHECKSUM_ALG_UNDEF;
+      else {
+        size_t checksum_alg_offset =
+            len - (BINLOG_CHECKSUM_ALG_DESC_LEN + BINLOG_CHECKSUM_LEN);
+        ret =
+            static_cast<enum_binlog_checksum_alg>(*(buf + checksum_alg_offset));
+      }
+    }
+  }
+  BAPI_RETURN(ret);
 }
 
 /**
