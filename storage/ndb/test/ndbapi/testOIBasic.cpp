@@ -471,12 +471,10 @@ Tmr::over(const Tmr& t1)
 static const uint maxcsnumber = 512;
 static const uint maxcharcount = 32;
 static const uint maxcharsize = 4;
-static const uint maxxfrmsize = 128; //64 proven to be too small
 
 // single mb char
 struct Chr {
   uchar m_bytes[maxcharsize];
-  uchar m_xbytes[maxxfrmsize];
   uint m_size;   //Actual size of m_bytes[]
   Chr();
 };
@@ -484,14 +482,12 @@ struct Chr {
 Chr::Chr()
 {
   memset(m_bytes, 0, sizeof(m_bytes));
-  memset(m_xbytes, 0, sizeof(m_xbytes));
   m_size = 0;
 }
 
 // charset and random valid chars to use
 struct Chs {
   CHARSET_INFO* m_cs;
-  uint m_xlen;  // Max xfrm-len of single mb char, <= maxxfrmsize
   Chr* m_chr;
   Chs(CHARSET_INFO* cs);
   ~Chs();
@@ -504,73 +500,37 @@ Chs::Chs(CHARSET_INFO* cs) :
   m_cs(cs)
 {
   require(m_cs->mbmaxlen <= maxcharsize);
-  
-  // Maximum xformed length of a single code point:
-  m_xlen = (*cs->coll->strnxfrmlen)(cs, m_cs->mbmaxlen);
-  require(m_xlen <= maxxfrmsize);
 
   m_chr = new Chr [maxcharcount];
   uint i = 0;
   uint miss1 = 0;
-  uint miss2 = 0;
-  uint miss3 = 0;
   uint miss4 = 0;
   while (i < maxcharcount) {
     uchar* bytes = m_chr[i].m_bytes;
-    uchar* xbytes = m_chr[i].m_xbytes;
-    uint& size = m_chr[i].m_size;
-    bool ok;
-    size = m_cs->mbminlen + urandom(m_cs->mbmaxlen - m_cs->mbminlen + 1);
-    require(m_cs->mbminlen <= size && size <= m_cs->mbmaxlen);
-    // prefer longer chars
-    if (size == m_cs->mbminlen && m_cs->mbminlen < m_cs->mbmaxlen && urandom(5) != 0)
-      continue;
-    for (uint j = 0; j < size; j++) {
-      bytes[j] = urandom(256);
-    }
-    int not_used;
-    // check wellformed
-    const char* sbytes = (const char*)bytes;
-    if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + size, 1, &not_used) != size) {
+    uint size = 0;
+    bool ok = false;
+    do {
+      bytes[size++] = urandom(256);
+
+      int not_used;
+      const char* sbytes = (const char*)bytes;
+      if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes+size,
+				       size, &not_used) == size) {
+        // Break when a well_formed Chr has been produced.
+	ok = true;
+        break;
+      }
+    } while (size < m_cs->mbmaxlen);
+
+    if (!ok) {  //Chr never became well_formed.
       miss1++;
       continue;
     }
-    // check no proper prefix wellformed
-    ok = true;
-    for (uint j = 1; j < size; j++) {
-      if ((*cs->cset->well_formed_len)(cs, sbytes, sbytes + j, 1, &not_used) == j) {
-        ok = false;
-        break;
-      }
-    }
-    if (!ok) {
-      miss2++;
-      continue;
-    }
-    // normalize
-    memset(xbytes, 0, sizeof(m_chr[i].m_xbytes));
-    // currently returns buffer size always
-    const size_t dstlen = m_xlen;
-    const size_t xlen = (*cs->coll->strnxfrm)(
-                                cs, xbytes, dstlen, (uint)dstlen,
-                                bytes, size, 0);
-    // check we got something
-    ok = false;
-    for (uint j = 0; j < (uint)xlen; j++) {
-      if (xbytes[j] != 0) {
-        ok = true;
-        break;
-      }
-    }
-    if (!ok) {
-      miss3++;
-      continue;
-    }
-    // check for duplicate (before normalize)
-    ok = true;
+
+    // check for duplicate
     for (uint j = 0; j < i; j++) {
       const Chr& chr = m_chr[j];
-      if (chr.m_size == size && memcmp(chr.m_bytes, bytes, size) == 0) {
+      if ((*cs->coll->strnncollsp)(cs, chr.m_bytes, chr.m_size, bytes, size) == 0) {
         ok = false;
         break;
       }
@@ -579,6 +539,7 @@ Chs::Chs(CHARSET_INFO* cs) :
       miss4++;
       continue;
     }
+    m_chr[i].m_size = size;
     i++;
   }
   bool disorder = true;
@@ -586,9 +547,10 @@ Chs::Chs(CHARSET_INFO* cs) :
   while (disorder) {
     disorder = false;
     for (uint i = 1; i < maxcharcount; i++) {
-      uint len = sizeof(m_chr[i].m_xbytes);
-      if (memcmp(m_chr[i-1].m_xbytes, m_chr[i].m_xbytes, len) > 0) {
-        Chr chr = m_chr[i];
+      if ((*cs->coll->strnncollsp)(cs,
+				   m_chr[i-1].m_bytes, m_chr[i-1].m_size,
+				   m_chr[i].m_bytes,   m_chr[i].m_size) > 0) {
+        const Chr chr = m_chr[i];
         m_chr[i] = m_chr[i-1];
         m_chr[i-1] = chr;
         disorder = true;
@@ -596,7 +558,7 @@ Chs::Chs(CHARSET_INFO* cs) :
       }
     }
   }
-  LL3("inited charset " << *this << " miss=" << miss1 << "," << miss2 << "," << miss3 << "," << miss4 << " bubbles=" << bubbles);
+  LL3("inited charset " << *this << " miss=" << miss1 << "," << miss4 << " bubbles=" << bubbles);
 }
 
 Chs::~Chs()
@@ -608,7 +570,7 @@ static NdbOut&
 operator<<(NdbOut& out, const Chs& chs)
 {
   CHARSET_INFO* cs = chs.m_cs;
-  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "," << chs.m_xlen << "]";
+  out << cs->name << "[" << cs->mbminlen << "-" << cs->mbmaxlen << "]";
   return out;
 }
 
@@ -1983,11 +1945,15 @@ Val::calckeychars(const Par& par, uint i, uint& n, uchar* buf)
   const Chs* chs = col.m_chs;
   n = 0;
   uint len = 0;
+  uint rem = i;
   while (len < col.m_length) {
-    if (i % (1 + n) == 0) {
+    if (rem == 0) {
       break;
     }
-    const Chr& chr = chs->m_chr[i % maxcharcount];
+    uint ix = (rem % maxcharcount);
+    rem = (rem / maxcharcount);
+
+    const Chr& chr = chs->m_chr[ix];
     require(n + chr.m_size <= col.m_bytelength);
     memcpy(buf + n, chr.m_bytes, chr.m_size);
     n += chr.m_size;
@@ -6053,7 +6019,7 @@ main(int argc,  char** argv)
     for (uint i = 0; i < tabcount; i++) {
       delete tablist[i];
     }
-    delete tablist;
+    delete [] tablist;
   }
   for (uint i = 0; i < maxcsnumber; i++) {
     delete cslist[i];
