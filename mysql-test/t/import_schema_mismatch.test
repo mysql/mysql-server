@@ -12,7 +12,6 @@
 
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB ROW_FORMAT=COMPACT;
 FLUSH TABLES t1 FOR EXPORT;
-#--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 --copy_file $MYSQLD_DATADIR/$DB/t1.ibd $MYSQL_TMP_DIR/t1.ibd
 --copy_file $MYSQLD_DATADIR/$DB/t1.cfg $MYSQL_TMP_DIR/t1.cfg
 
@@ -22,11 +21,14 @@ SET GLOBAL innodb_file_format=`Barracuda`;
 SET GLOBAL innodb_file_per_table= ON;
 CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 ALTER TABLE t1 DISCARD TABLESPACE;
---copy_file $MYSQL_TMP_DIR/t1.ibd $MYSQLD_DATADIR/$DB/t1.ibd
---copy_file $MYSQL_TMP_DIR/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg
+--move_file $MYSQL_TMP_DIR/t1.ibd $MYSQLD_DATADIR/$DB/t1.ibd
+--move_file $MYSQL_TMP_DIR/t1.cfg $MYSQLD_DATADIR/$DB/t1.cfg
 
 --error ER_TABLE_SCHEMA_MISMATCH
 ALTER TABLE t1 IMPORT TABLESPACE;
 DROP TABLE t1;
 
 SET GLOBAL innodb_file_format=`Antelope`;
+
+--remove_file $MYSQLD_DATADIR/$DB/t1.ibd
+--remove_file $MYSQLD_DATADIR/$DB/t1.cfg
