@@ -191,6 +191,7 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   c_maxNumberOfIndexes(0),
   c_fk_hash(c_fk_pool),
   c_currentApiConTimers(NULL),
+  inflightZSHRINK_TRANSIENT_POOLS(false),
   m_commitAckMarkerHash(m_commitAckMarkerPool)
 {
   BLOCK_CONSTRUCTOR(Dbtc);

@@ -48,6 +48,7 @@
 #include <KeyTable.hpp>
 #include <portlib/NdbTick.h>
 #include "TransientPool.hpp"
+#include "TransientSlotPool.hpp"
 #endif
 
 
@@ -1292,6 +1293,8 @@ Uint32 nextPool; // ArrayPool
                                          c_apiConTimersList);
       timers_list.remove(apiConTimers);
       c_apiConTimersPool.release(apiConTimers);
+      Signal signal[1];
+      checkPoolShrinkNeed(signal, c_apiConTimersPool);
       if (apiConTimers.p == c_currentApiConTimers)
       {
         jam();
@@ -2082,6 +2085,8 @@ private:
   void releaseTcCon();
   void releaseTcConnectFail(Signal* signal);
   void releaseTransResources(Signal* signal, ApiConnectRecordPtr apiConnectptr);
+  void checkPoolShrinkNeed(Signal* signal, const TransientFastSlotPool& pool);
+  void sendPoolShrink(Signal* signal);
   bool seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
   bool seizeApiConnectCopy(Signal* signal, ApiConnectRecord* regApiPtr);
   bool seizeApiConnectFail(Signal* signal, ApiConnectRecordPtr& apiConnectptr);
@@ -2592,6 +2597,7 @@ private:
   UintR ctransidFailHash[TRANSID_FAIL_HASH_SIZE];
   UintR ctcConnectFailHash[TC_FAIL_HASH_SIZE];
 
+  bool inflightZSHRINK_TRANSIENT_POOLS;
   /**
    * Commit Ack handling
    */
@@ -2807,6 +2813,15 @@ static Uint64 getTransactionMemoryNeed(
 #endif
 };
 
+#ifndef DBTC_STATE_EXTRACT
+inline void Dbtc::checkPoolShrinkNeed(Signal* signal, const TransientFastSlotPool& pool)
+{
+  if (pool.may_shrink())
+  {
+    sendPoolShrink(signal);
+  }
+}
+#endif
 
 #undef JAM_FILE_ID
 

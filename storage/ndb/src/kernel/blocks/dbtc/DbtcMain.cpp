@@ -493,6 +493,34 @@ void Dbtc::execCONTINUEB(Signal* signal)
     break;
   }
 #endif
+  case TcContinueB::ZSHRINK_TRANSIENT_POOLS:
+  {
+    inflightZSHRINK_TRANSIENT_POOLS = false;
+
+    const Uint32 MAX_SHRINKS = 8;
+    bool more = false;
+
+    more = more || c_theAttributeBufferPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || c_theCommitAckMarkerBufferPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || c_theFiredTriggerPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || c_theIndexOperationPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || c_apiConTimersPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || m_fragLocationPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || c_apiConnectRecordPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || tcConnectRecord.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || c_cacheRecordPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || c_gcpRecordPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || c_scan_frag_pool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || scanRecordPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+    more = more || m_commitAckMarkerPool.rearrange_free_list_and_shrink(MAX_SHRINKS);
+
+    if (more)
+    {
+      inflightZSHRINK_TRANSIENT_POOLS = true;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+    }
+    break;
+  }
   default:
     ndbabort();
   }//switch
@@ -1602,6 +1630,7 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
                        nodeId};
         simBlockNodeFailure(signal, nodeId, cb);
       }
+      checkPoolShrinkNeed(signal, m_commitAckMarkerPool);
       return;
     }
     
@@ -1650,12 +1679,13 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
       sendRemoveMarkers(signal, iter.curr.p, 1);
       m_commitAckMarkerHash.remove(iter.curr);
       m_commitAckMarkerPool.release(iter.curr);
-      
       break;
     } 
     m_commitAckMarkerHash.next(iter);
   } // for (... i<RT_BREAK ...)
   
+  checkPoolShrinkNeed(signal, m_commitAckMarkerPool);
+
   // Takes a RT-break to avoid starving other activity
   signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS;
   signal->theData[1] = nodeId;
@@ -2962,6 +2992,17 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->m_lastTcConnectPtrI_FT = RNIL;
 }//Dbtc::initApiConnectRec()
 
+void
+Dbtc::sendPoolShrink(Signal* signal)
+{
+  if (!inflightZSHRINK_TRANSIENT_POOLS)
+  {
+    inflightZSHRINK_TRANSIENT_POOLS = true;
+    signal->theData[0] = TcContinueB::ZSHRINK_TRANSIENT_POOLS;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 1, JBB);
+  }
+}
+
 int
 Dbtc::seizeTcRecord(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
@@ -3019,6 +3060,8 @@ Dbtc::releaseCacheRecord(ApiConnectRecordPtr transPtr, CacheRecord* regCachePtr)
   cachePtr.i = regApiPtr->cachePtr;
   c_cacheRecordPool.release(cachePtr);
   regApiPtr->cachePtr = RNIL;
+  Signal signal[1];
+  checkPoolShrinkNeed(signal, c_cacheRecordPool);
 }
 
 void
@@ -4796,6 +4839,8 @@ void Dbtc::releaseAttrinfo(CacheRecordPtr cachePtr, ApiConnectRecord* const regA
   //---------------------------------------------------
   c_cacheRecordPool.release(cachePtr);
   regApiPtr->cachePtr = RNIL;
+  Signal signal[1];
+  checkPoolShrinkNeed(signal, c_cacheRecordPool);
   return;
 }//Dbtc::releaseAttrinfo()
 
@@ -4884,6 +4929,8 @@ void Dbtc::releaseTcCon()
 
   tcConnectRecord.release(tcConnectptr);
   c_counters.cconcurrentOp--;
+  Signal signal[1];
+  checkPoolShrinkNeed(signal, tcConnectRecord);
 }//Dbtc::releaseTcCon()
 
 void Dbtc::execPACKED_SIGNAL(Signal* signal) 
@@ -7364,6 +7411,7 @@ Dbtc::execTC_COMMIT_ACK(Signal* signal){
   }//if
   sendRemoveMarkers(signal, removedMarker.p, 0);
   m_commitAckMarkerPool.release(removedMarker);
+  checkPoolShrinkNeed(signal, m_commitAckMarkerPool);
 }
 
 void
@@ -7395,6 +7443,7 @@ Dbtc::sendRemoveMarkers(Signal* signal,
     next_flag = commitAckMarkers.next(iter, 1);
   }
   commitAckMarkers.release();
+  checkPoolShrinkNeed(signal, c_theCommitAckMarkerBufferPool);
 }
 
 void
@@ -7638,6 +7687,7 @@ void Dbtc::releaseApiConCopy(Signal* signal, ApiConnectRecordPtr const apiConnec
   regApiPtr->apiConnectkind = ApiConnectRecord::CK_FREE;
   releaseApiConTimer(apiConnectptr);
   c_apiConnectRecordPool.release(apiConnectptr);
+  checkPoolShrinkNeed(signal, c_apiConnectRecordPool);
 }//Dbtc::releaseApiConCopy()
 
 /* ========================================================================= */
@@ -9853,6 +9903,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
         Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
         run.remove(ptr);
         c_scan_frag_pool.release(ptr);
+        checkPoolShrinkNeed(signal, c_scan_frag_pool);
       }
     }
     
@@ -10313,8 +10364,8 @@ Dbtc::checkNodeFailComplete(Signal* signal,
   if (ERROR_INSERTED(8059))
   {
     signal->theData[0] = 9999;
-    sendSignalWithDelay(numberToRef(CMVMI, hostptr.i), 
-                        GSN_NDB_TAMPER, signal, 100, 1);
+sendSignalWithDelay(numberToRef(CMVMI, hostptr.i), 
+		GSN_NDB_TAMPER, signal, 100, 1);
   }
 }
 
@@ -10357,6 +10408,10 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
 	  c_scan_frag_pool.release(curr);
 	  found = true;
 	}
+      }
+      if (found)
+      {
+        checkPoolShrinkNeed(signal, c_scan_frag_pool);
       }
       if (!found)
       {
@@ -10809,6 +10864,10 @@ void Dbtc::releaseMarker(ApiConnectRecord * const regApiPtr)
     }
     m_commitAckMarkerHash.remove(marker);
     m_commitAckMarkerPool.release(marker);
+
+    Signal signal[1];
+    checkPoolShrinkNeed(signal, c_theCommitAckMarkerBufferPool);
+    checkPoolShrinkNeed(signal, m_commitAckMarkerPool);
   }
 }
 
@@ -13172,6 +13231,8 @@ errout:
       list.release(old_ptr);
     }
   }
+  Signal signal[1];
+  checkPoolShrinkNeed(signal, c_scan_frag_pool);
   return ZSCAN_FRAGREC_ERROR;
 }//Dbtc::initScanrec()
 
@@ -13644,6 +13705,7 @@ void Dbtc::releaseScanResources(Signal* signal,
       queue.remove(old_ptr);
       c_scan_frag_pool.release(old_ptr);
     }
+    checkPoolShrinkNeed(signal, c_scan_frag_pool);
   }
 
   {
@@ -13654,6 +13716,7 @@ void Dbtc::releaseScanResources(Signal* signal,
     {
       m_fragLocationPool.release(ptr);
     }
+    checkPoolShrinkNeed(signal, m_fragLocationPool);
   }
 
   if (scanPtr.p->scanKeyInfoPtr != RNIL)
@@ -13693,6 +13756,7 @@ void Dbtc::releaseScanResources(Signal* signal,
     
   // link into free list
   scanRecordPool.release(scanPtr);
+  checkPoolShrinkNeed(signal, scanRecordPool);
   ndbassert(cConcScanCount > 0);
   cConcScanCount--;
   
@@ -14110,6 +14174,7 @@ void Dbtc::execSCAN_FRAGREF(Signal* signal)
     Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
     run.remove(scanFragptr);
     c_scan_frag_pool.release(scanFragptr);
+    checkPoolShrinkNeed(signal, c_scan_frag_pool);
   }    
   scanError(signal, scanptr, errCode);
 }//Dbtc::execSCAN_FRAGREF()
@@ -14219,6 +14284,7 @@ void Dbtc::execSCAN_FRAGCONF(Signal* signal)
         Local_ScanFragRec_dllist run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
         run.remove(scanFragptr);
         c_scan_frag_pool.release(scanFragptr);
+        checkPoolShrinkNeed(signal, c_scan_frag_pool);
       }
     }
     close_scan_req_send_conf(signal, scanptr, apiConnectptr);
@@ -14609,6 +14675,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received, A
 	c_scan_frag_pool.release(curr);
       }
     }
+    checkPoolShrinkNeed(signal, c_scan_frag_pool);
   }
   close_scan_req_send_conf(signal, scanPtr, apiConnectptr);
 }
@@ -14738,10 +14805,12 @@ bool Dbtc::sendScanFragReq(Signal* signal,
       jam();
       sections.clear();
       scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+      checkPoolShrinkNeed(signal, m_fragLocationPool);
       return false;
     }
     sections.m_ptr[sections.m_cnt++].i = fragIdPtr.i;
   } //MultiFrag
+  checkPoolShrinkNeed(signal, m_fragLocationPool);
 
   /* Determine whether this is the last scanFragReq.
    * Handle normal scan-all-fragments and partition pruned
@@ -14979,6 +15048,7 @@ void Dbtc::sendScanTabConf(Signal* signal,
       }
     }
   }
+  checkPoolShrinkNeed(signal, c_scan_frag_pool);
   
   bool release = false;
   scanPtr.p->m_booked_fragments_count = booked;
@@ -15345,7 +15415,12 @@ void Dbtc::releaseAbortResources(Signal* signal, ApiConnectRecordPtr const apiCo
     copyPtr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->apiCopyRecord = RNIL;
     releaseApiConTimer(copyPtr);
+    ndbrequire(copyPtr.p->theSeizedIndexOperations.isEmpty());
+    ndbrequire(copyPtr.p->theFiredTriggers.isEmpty());
+    ndbrequire(copyPtr.p->cachePtr == RNIL);
+    ndbrequire(copyPtr.p->tcConnect.isEmpty());
     c_apiConnectRecordPool.release(copyPtr);
+    checkPoolShrinkNeed(signal, c_apiConnectRecordPool);
   }
   if (apiConnectptr.p->cachePtr != RNIL)
   {
@@ -15489,6 +15564,7 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
   TlocalApiConnectptr.p->transid[1] = 0;
   releaseApiConTimer(TlocalApiConnectptr);
   c_apiConnectRecordPool.release(TlocalApiConnectptr);
+  checkPoolShrinkNeed(signal, c_apiConnectRecordPool);
 }//Dbtc::releaseApiCon()
 
 void Dbtc::releaseApiConnectFail(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
@@ -15629,6 +15705,8 @@ void Dbtc::unlinkAndReleaseGcp(Ptr<GcpRecord> tmpGcpPtr)
   LocalGcpRecord_list gcp_list(c_gcpRecordPool, c_gcpRecordList);
   gcp_list.removeFirst(tmpGcpPtr);
   c_gcpRecordPool.release(tmpGcpPtr);
+  Signal signal[1];
+  checkPoolShrinkNeed(signal, c_gcpRecordPool);
 }
 
 void
@@ -17863,6 +17941,8 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     LocalAttributeBuffer tmp3(pool, trigPtr.p->afterValues);
     tmp3.release();
     c_theFiredTriggerPool.release(trigPtr);
+    checkPoolShrinkNeed(signal, c_theAttributeBufferPool);
+    checkPoolShrinkNeed(signal, c_theFiredTriggerPool);
   }
 
   releaseSections(handle);
@@ -19259,6 +19339,8 @@ void Dbtc::releaseIndexOperation(ApiConnectRecord* regApiPtr,
                                     regApiPtr->theSeizedIndexOperations);
   list.remove(indexOpPtr);
   c_theIndexOperationPool.release(indexOpPtr);
+  Signal signal[1];
+  checkPoolShrinkNeed(signal, c_theIndexOperationPool);
 }
 
 void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
@@ -19287,6 +19369,8 @@ void Dbtc::releaseAllSeizedIndexOperations(ApiConnectRecord* regApiPtr)
 
     c_theIndexOperationPool.release(seizedIndexOpPtr);
   }
+  Signal signal[1];
+  checkPoolShrinkNeed(signal, c_theIndexOperationPool);
   jam();
 }
 
@@ -19536,6 +19620,8 @@ void Dbtc::executeTriggers(Signal* signal, ApiConnectRecordPtr const* transPtr)
 	  tmp3.release();
           list.remove(trigPtr);
           c_theFiredTriggerPool.release(trigPtr);
+          checkPoolShrinkNeed(signal, c_theAttributeBufferPool);
+          checkPoolShrinkNeed(signal, c_theFiredTriggerPool);
         }
 	trigPtr = nextTrigPtr;
       }
@@ -21112,6 +21198,9 @@ void Dbtc::releaseFiredTriggerData(Local_TcFiredTriggerData_fifo::Head*
     tmp3.release();
     c_theFiredTriggerPool.release(trigPtr);
   }
+  Signal signal[1];
+  checkPoolShrinkNeed(signal, c_theAttributeBufferPool);
+  checkPoolShrinkNeed(signal, c_theFiredTriggerPool);
 }
 
 /**
