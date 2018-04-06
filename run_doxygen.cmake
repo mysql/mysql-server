@@ -67,6 +67,19 @@ FOREACH(LINE ${ERROR_FILE_LINES})
     CONTINUE()
   ENDIF()
 
+  # Filter out git errors that occur if running on a tarball insted of a git
+  # repo (doxygen_resources/doxygen-filter-mysqld calls git).
+  STRING(REGEX MATCH "^Stopping at filesystem boundary \\(GIT_DISCOVERY_ACROSS_FILESYSTEM not set\\).\$" GIT_ERROR ${LINE})
+  STRING(LENGTH "${GIT_ERROR}" LEN_GIT_ERROR)
+  IF (${LEN_GIT_ERROR} GREATER 0)
+    CONTINUE()
+  ENDIF()
+  STRING(REGEX MATCH "^fatal: Not a git repository \\(or any parent up to mount point " GIT_ERROR ${LINE})
+  STRING(LENGTH "${GIT_ERROR}" LEN_GIT_ERROR)
+  IF (${LEN_GIT_ERROR} GREATER 0)
+    CONTINUE()
+  ENDIF()
+
   STRING(REGEX MATCH "^(${SOURCE_DIR}/)(.*)" XXX ${LINE})
   IF(CMAKE_MATCH_1)
     SET(LINE ${CMAKE_MATCH_2})
