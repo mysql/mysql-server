@@ -36,6 +36,7 @@
 #include <signal.h>
 #include "../../../client/client_priv.h"
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+#include "my_default.h"
 
 
 #define BLUE_COLOR 1
@@ -68,6 +69,7 @@ unsigned int opt_port_number = 0;
 char *opt_host = (char*)"localhost";
 char *opt_user = (char*)"root";
 char *opt_password = 0;
+char *opt_socket = 0;
 my_bool tty_password = 0;
 char *db_name = (char *)"ndbinfo";
 unsigned int opt_node_id = 0;
@@ -81,6 +83,7 @@ my_bool opt_sort = 0;
 my_bool opt_help = 0;
 
 static char percentage_sign = '%';
+const char *load_default_groups[] = {"ndb_top", "client", 0};
 
 void
 handle_error()
@@ -111,8 +114,9 @@ cleanup(bool in_screen)
 
 int connect_mysql()
 {
-  enum mysql_protocol_type prot_type= MYSQL_PROTOCOL_TCP;
-  mysql_options(con, MYSQL_OPT_PROTOCOL, (void*)&prot_type);
+  const mysql_protocol_type connect_protocol =
+      opt_socket != 0 ? MYSQL_PROTOCOL_SOCKET : MYSQL_PROTOCOL_TCP;
+  mysql_options(con, MYSQL_OPT_PROTOCOL, (void*)&connect_protocol);
 
   MYSQL *loc = mysql_real_connect(con,
                                   opt_host,
@@ -120,7 +124,7 @@ int connect_mysql()
                                   opt_password,
                                   db_name,
                                   opt_port_number,
-                                  NULL,
+                                  opt_socket,
                                   0);
   return loc == NULL ? 1 : 0;
 }
@@ -265,6 +269,9 @@ my_long_options[] =
    "Port of MySQL Server",
    &opt_port_number, &opt_port_number, 0, GET_UINT,
    REQUIRED_ARG, 3306, 0, 0, 0, 0, 0},
+  {"socket", 'S', "The socket file to use for connection.",
+   &opt_socket, &opt_socket, 0, GET_STR_ALLOC,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u',
    "Username to log into MySQL Server",
    (uchar**) &opt_user, (uchar**) &opt_user, 0, GET_STR,
@@ -373,6 +380,7 @@ static void usage(void)
     }
   }
   my_print_help(my_long_options);
+  print_defaults(MYSQL_CONFIG_NAME,load_default_groups);
   my_print_variables(my_long_options);
 } /* usage */
 
@@ -415,6 +423,7 @@ get_one_option(int optid,
     exit(0);
   }
   case 'P':
+  case 'S':
   case 'n':
   case 'u':
   case 'h':
@@ -497,6 +506,8 @@ int main(int argc, char **argv)
   WINDOW *win;
   unsigned int sort_order[SORT_ORDER_ENTRIES];
   MY_INIT("ndb_top");
+
+  my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL);
 
   ret = handle_options(&argc, &argv, my_long_options, get_one_option);
   if (ret != 0)
