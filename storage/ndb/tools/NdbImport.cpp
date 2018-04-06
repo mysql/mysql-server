@@ -267,17 +267,18 @@ NdbImport::JobStats::JobStats()
 {
   m_rows = 0;
   m_reject = 0;
-  m_temperrors = 0;
   m_runtime = 0;
   m_rowssec = 0;
-  m_utime = 0;
-  m_stime = 0;
+  m_new_rows = 0;
+  m_new_reject = 0;
+  m_temperrors = 0;
 }
 
 NdbImport::Job::Job(NdbImport& imp) :
   m_imp(imp)
 {
   m_jobno = Inval_uint;
+  m_runno = Inval_uint;
   m_status = JobStatus::Status_null;
   m_str_status = g_str_status(m_status);
   m_teamcnt = 0;
@@ -416,14 +417,19 @@ NdbImport::Job::get_status()
     m_status = JobStatus::Status_success;
     break;
   }
-  m_stats.m_rows = jobImpl->m_stat_rows->m_max;
-  m_stats.m_reject = jobImpl->m_stat_reject->m_max;
+  m_runno = jobImpl->m_runno;
+  // from all resumed runs
+  m_stats.m_rows = jobImpl->m_old_rows + jobImpl->m_new_rows;
+  m_stats.m_reject = jobImpl->m_old_reject + jobImpl->m_new_reject;
+  m_stats.m_runtime = jobImpl->m_old_runtime + jobImpl->m_new_runtime;
+  if (m_stats.m_runtime == 0)
+    m_stats.m_runtime = 1;
+  m_stats.m_rowssec = (m_stats.m_rows * 1000) / m_stats.m_runtime;
+  // from latest run
+  m_stats.m_new_rows = jobImpl->m_new_rows;
+  m_stats.m_new_reject = jobImpl->m_new_reject;
   m_stats.m_temperrors = jobImpl->m_errormap.get_sum();
   m_stats.m_errormap = jobImpl->m_errormap.m_map;
-  m_stats.m_runtime = jobImpl->m_stat_runtime->m_max;
-  m_stats.m_rowssec = jobImpl->m_stat_rowssec->m_max;
-  m_stats.m_utime = jobImpl->m_stat_utime->m_max;
-  m_stats.m_stime = jobImpl->m_stat_stime->m_max;
   // check for errors
   if (jobImpl->has_error())
   {
