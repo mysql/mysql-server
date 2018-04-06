@@ -1940,11 +1940,15 @@ Val::calckeychars(const Par& par, uint i, uint& n, uchar* buf)
   const Chs* chs = col.m_chs;
   n = 0;
   uint len = 0;
+  uint rem = i;
   while (len < col.m_length) {
-    if (i % (1 + n) == 0) {
+    if (rem == 0) {
       break;
     }
-    const Chr& chr = chs->m_chr[i % maxcharcount];
+    uint ix = (rem % maxcharcount);
+    rem = (rem / maxcharcount);
+
+    const Chr& chr = chs->m_chr[ix];
     require(n + chr.m_size <= col.m_bytelength);
     memcpy(buf + n, chr.m_bytes, chr.m_size);
     n += chr.m_size;
