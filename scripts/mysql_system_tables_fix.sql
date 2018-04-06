@@ -917,19 +917,6 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- Add a column that serves as a primary key of the table
---
-SET @firewall_whitelist_id_column =
-  (SELECT COUNT(column_name) FROM information_schema.columns
-     WHERE table_schema = 'mysql' AND table_name = 'firewall_whitelist' AND
-           table_type = 'BASE TABLE' AND column_name = 'ID');
-SET @cmd="ALTER TABLE mysql.firewall_whitelist ADD ID INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY";
-SET @str = IF(@firewall_whitelist_id_column > 0, "SET @dummy = 0", @cmd);
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
---
 -- Change engine of the audit log tables to InnoDB
 --
 SET @had_audit_log_filter =
