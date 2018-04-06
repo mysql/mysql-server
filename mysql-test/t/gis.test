@@ -4173,3 +4173,10 @@ SELECT
 FROM t2;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #27808412 UBSAN: ITEM_FUNC_AS_WKB::VAL_STR, NULL POINTER PASSED AS
+--echo # ARGUMENT
+--echo #
+--error ER_GIS_INVALID_DATA
+DO ST_ASWKB(JSON_UNQUOTE(JSON_SET('{"a":""}', '$', '')));
