@@ -29,6 +29,8 @@
 #include <NdbDictionaryImpl.hpp>
 
 #include <Vector.hpp>
+// STL
+#include <cmath>
 
 NdbImportUtil::NdbImportUtil() :
   m_util(*this),
@@ -2253,7 +2255,7 @@ NdbImportUtil::set_stats_row(Row* row,
     double mean = 0.0;
     if (stat.m_obs != 0)
       mean = sum1 / obsf;
-    if (!my_isfinite(mean))
+    if (!std::isfinite(mean))
       mean = 0.0;
     attr.set_value(row, &mean, sizeof(mean));
     id++;
@@ -2276,7 +2278,7 @@ NdbImportUtil::set_stats_row(Row* row,
     double stddev = 0.0;
     if (stat.m_obs != 0)
       stddev = ::sqrt((obsf * sum2 - (sum1 * sum1)) / (obsf * obsf));
-    if (!my_isfinite(stddev))
+    if (!std::isfinite(stddev))
       stddev = 0.0;
     attr.set_value(row, &stddev, sizeof(stddev));
     id++;
