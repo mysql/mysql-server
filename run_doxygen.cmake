@@ -60,11 +60,14 @@ FILE(REMOVE ${REGRESSION_FILE})
 UNSET(FOUND_WARNINGS)
 # See if we have any warnings/errors.
 FOREACH(LINE ${ERROR_FILE_LINES})
+  # Workaround for missing CONTINUE() in CMake version < 3.2
+  UNSET(LOOP_CONTINUE)
+
   # Filter out information messages from dia.
   STRING(REGEX MATCH "^.*\\.dia --> dia_.*\\.png\$" DIA_STATUS ${LINE})
   STRING(LENGTH "${DIA_STATUS}" LEN_DIA_STATUS)
   IF (${LEN_DIA_STATUS} GREATER 0)
-    CONTINUE()
+    SET (LOOP_CONTINUE 1)
   ENDIF()
 
   # Filter out git errors that occur if running on a tarball insted of a git
@@ -72,45 +75,47 @@ FOREACH(LINE ${ERROR_FILE_LINES})
   STRING(REGEX MATCH "^Stopping at filesystem boundary \\(GIT_DISCOVERY_ACROSS_FILESYSTEM not set\\).\$" GIT_ERROR ${LINE})
   STRING(LENGTH "${GIT_ERROR}" LEN_GIT_ERROR)
   IF (${LEN_GIT_ERROR} GREATER 0)
-    CONTINUE()
+    SET(LOOP_CONTINUE 1)
   ENDIF()
   STRING(REGEX MATCH "^fatal: Not a git repository \\(or any parent up to mount point " GIT_ERROR ${LINE})
   STRING(LENGTH "${GIT_ERROR}" LEN_GIT_ERROR)
   IF (${LEN_GIT_ERROR} GREATER 0)
-    CONTINUE()
+    SET(LOOP_CONTINUE 1)
   ENDIF()
 
-  STRING(REGEX MATCH "^(${SOURCE_DIR}/)(.*)" XXX ${LINE})
-  IF(CMAKE_MATCH_1)
-    SET(LINE ${CMAKE_MATCH_2})
-  ELSE()
-    GET_FILENAME_COMPONENT(SOURCE_DIR_REALPATH ${SOURCE_DIR} REALPATH)
-    STRING(REGEX MATCH "^(${SOURCE_DIR_REALPATH}/)(.*)" XXX ${LINE})
+  IF(NOT ${LOOP_CONTINUE})
+    STRING(REGEX MATCH "^(${SOURCE_DIR}/)(.*)" XXX ${LINE})
     IF(CMAKE_MATCH_1)
       SET(LINE ${CMAKE_MATCH_2})
+    ELSE()
+      GET_FILENAME_COMPONENT(SOURCE_DIR_REALPATH ${SOURCE_DIR} REALPATH)
+      STRING(REGEX MATCH "^(${SOURCE_DIR_REALPATH}/)(.*)" XXX ${LINE})
+      IF(CMAKE_MATCH_1)
+	SET(LINE ${CMAKE_MATCH_2})
+      ENDIF()
     ENDIF()
-  ENDIF()
 
-  # Check for known patterns. Known patterns are not reported as regressions.
-  SET(IS_REGRESSION 1)
-  FOREACH(IGNORE_PATTERN ${IGNORE_LIST})
-    STRING(REGEX MATCH "${IGNORE_PATTERN}" IGNORED ${LINE})
-    STRING(LENGTH "${IGNORED}" LEN_IGNORED)
-    IF (${LEN_IGNORED} GREATER 0)
-      # The line matches a pattern in IGNORE_FILE, so this is a known error.
-      UNSET(IS_REGRESSION)
-      BREAK()
+    # Check for known patterns. Known patterns are not reported as regressions.
+    SET(IS_REGRESSION 1)
+    FOREACH(IGNORE_PATTERN ${IGNORE_LIST})
+      STRING(REGEX MATCH "${IGNORE_PATTERN}" IGNORED ${LINE})
+      STRING(LENGTH "${IGNORED}" LEN_IGNORED)
+      IF (${LEN_IGNORED} GREATER 0)
+	# The line matches a pattern in IGNORE_FILE, so this is a known error.
+	UNSET(IS_REGRESSION)
+	BREAK()
+      ENDIF()
+    ENDFOREACH()
+
+    # All errors go to TOFIX_FILE.
+    FILE(APPEND ${TOFIX_FILE} "${LINE}\n")
+
+    # Only regressions go to REGRESSION_FILE.
+    IF (${IS_REGRESSION})
+      MESSAGE(${LINE})
+      FILE(APPEND ${REGRESSION_FILE} "${LINE}\n")
+      SET(FOUND_WARNINGS 1)
     ENDIF()
-  ENDFOREACH()
-
-  # All errors go to TOFIX_FILE.
-  FILE(APPEND ${TOFIX_FILE} "${LINE}\n")
-
-  # Only regressions go to REGRESSION_FILE.
-  IF (${IS_REGRESSION})
-    MESSAGE(${LINE})
-    FILE(APPEND ${REGRESSION_FILE} "${LINE}\n")
-    SET(FOUND_WARNINGS 1)
   ENDIF()
 ENDFOREACH()
 
