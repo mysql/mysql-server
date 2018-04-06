@@ -79,8 +79,9 @@ eval CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_pub
 CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
 
 --echo ==== IO thread should start without issues because password is still cached ====
---source include/rpl_connection_slave.inc
 --source include/start_slave.inc
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 
 --echo ==== Reset and cleanup ====
