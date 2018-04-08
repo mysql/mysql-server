@@ -3079,21 +3079,8 @@ os_file_fsync_posix(
 
 		case EIO:
 
-			++failures;
-			ut_a(failures < 1000);
-
-			if (!(failures % 100)) {
-
-				ib::warn()
-					<< "fsync(): "
-					<< "An error occurred during "
-					<< "synchronization,"
-					<< " retrying";
-			}
-
-			/* 0.2 sec */
-			os_thread_sleep(200000);
-			break;
+                        ib::fatal()
+				<< "fsync() returned EIO, aborting.";
 
 		case EINTR:
 
