@@ -3081,6 +3081,7 @@ os_file_fsync_posix(
 
                         ib::fatal()
 				<< "fsync() returned EIO, aborting.";
+			break;
 
 		case EINTR:
 
