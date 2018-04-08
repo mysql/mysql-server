@@ -2832,6 +2832,7 @@ static int os_file_fsync_posix(os_file_t file) {
       case EIO:
 
         ib::fatal() << "fsync() returned EIO, aborting.";
+        break;
 
       case EINTR:
 
