@@ -60,7 +60,7 @@ Table_partitions::Table_partitions() {
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE utf8_tolower_ci");
   m_target_def.add_field(FIELD_ENGINE, "FIELD_ENGINE",
-                         "engine VARCHAR(64) NOT NULL COLLATE utf8_general_ci");
+                         "engine VARCHAR(64) NOT NULL");
   m_target_def.add_field(FIELD_DESCRIPTION_UTF8, "FIELD_DESCRIPTION_UTF8",
                          "description_utf8 TEXT");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
@@ -85,9 +85,6 @@ Table_partitions::Table_partitions() {
   m_target_def.add_index(INDEX_K_ENGINE, "INDEX_K_ENGINE", "KEY(engine)");
   m_target_def.add_index(INDEX_K_TABLESPACE_ID, "INDEX_K_TABLESPACE_ID",
                          "KEY(tablespace_id)");
-  m_target_def.add_index(INDEX_K_PARENT_PARTITION_ID,
-                         "INDEX_K_PARENT_PARTITION_ID",
-                         "KEY(parent_partition_id)");
 
   m_target_def.add_foreign_key(FK_TABLE_ID, "FK_TABLE_ID",
                                "FOREIGN KEY (table_id) REFERENCES "
@@ -95,9 +92,6 @@ Table_partitions::Table_partitions() {
   m_target_def.add_foreign_key(FK_TABLESPACE_ID, "FK_TABLESPACE_ID",
                                "FOREIGN KEY (tablespace_id) REFERENCES "
                                "tablespaces(id)");
-  m_target_def.add_foreign_key(FK_PARENT_PARTITION_ID, "FK_PARENT_PARTITION_ID",
-                               "FOREIGN KEY (parent_partition_id) REFERENCES "
-                               "table_partitions(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

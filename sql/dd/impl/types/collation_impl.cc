@@ -57,8 +57,7 @@ bool Collation_impl::restore_attributes(const Raw_record &r) {
   m_is_compiled = r.read_bool(Collations::FIELD_IS_COMPILED);
   m_sort_length = r.read_uint(Collations::FIELD_SORT_LENGTH);
   m_charset_id = r.read_ref_id(Collations::FIELD_CHARACTER_SET_ID);
-  m_pad_attribute = static_cast<enum_pad_attribute>(
-      r.read_int(Collations::FIELD_PAD_ATTRIBUTE));
+  m_pad_attribute = r.read_str(Collations::FIELD_PAD_ATTRIBUTE);
 
   return false;
 }
@@ -71,8 +70,7 @@ bool Collation_impl::store_attributes(Raw_record *r) {
          r->store_ref_id(Collations::FIELD_CHARACTER_SET_ID, m_charset_id) ||
          r->store(Collations::FIELD_IS_COMPILED, m_is_compiled) ||
          r->store(Collations::FIELD_SORT_LENGTH, m_sort_length) ||
-         r->store(Collations::FIELD_PAD_ATTRIBUTE,
-                  static_cast<int>(m_pad_attribute));
+         r->store(Collations::FIELD_PAD_ATTRIBUTE, m_pad_attribute);
 }
 
 ///////////////////////////////////////////////////////////////////////////

@@ -139,7 +139,7 @@ def			TABLES	Max_data_length	Max_data_length	8	21	0	Y	32800	0	63
 def			TABLES	Index_length	Index_length	8	21	0	Y	32800	0	63
 def			TABLES	Data_free	Data_free	8	21	0	Y	32800	0	63
 def			TABLES	Auto_increment	Auto_increment	8	21	0	Y	32800	0	63
-def	mysql	tables	TABLES	Create_time	Create_time	7	19	0	N	#	0	63
+def	mysql	tables	TABLES	Create_time	Create_time	7	19	0	N	129	0	63
 def			TABLES	Update_time	Update_time	12	19	0	Y	128	0	63
 def			TABLES	Check_time	Check_time	12	19	0	Y	128	0	63
 def	mysql	collations	TABLES	Collation	Collation	253	256	0	Y	4096	0	255
@@ -884,7 +884,7 @@ def		COLLATIONS	COLLATIONS	Id	Id	8	20	2	N	32801	0	63
 def		COLLATIONS	COLLATIONS	Default	Default	253	9	0	N	1	0	33
 def		COLLATIONS	COLLATIONS	Compiled	Compiled	253	9	3	N	1	0	33
 def		COLLATIONS	COLLATIONS	Sortlen	Sortlen	3	10	1	N	36897	0	63
-def		COLLATIONS	COLLATIONS	Pad_attribute	Pad_attribute	254	27	9	N	4481	0	33
+def		COLLATIONS	COLLATIONS	Pad_attribute	Pad_attribute	253	27	9	N	4225	0	33
 Collation	Charset	Id	Default	Compiled	Sortlen	Pad_attribute
 latin1_bin	latin1	47		Yes	1	PAD SPACE
 ----------------------------------------------------------------
@@ -946,7 +946,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def		TABLES	TABLES	TABLE_CATALOG	TABLE_CATALOG	253	192	3	Y	0	31	33
 def		TABLES	TABLES	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	Y	0	31	33
 def		TABLES	TABLES	TABLE_NAME	TABLE_NAME	253	192	2	Y	0	31	33
-def	mysql	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	254	33	10	N	20873	0	33
+def	mysql	TABLES	TABLES	TABLE_TYPE	TABLE_TYPE	254	33	10	N	4481	0	33
 def		TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	31	33
 def	mysql	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	254	30	7	Y	384	0	33
 def	mysql	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	192	18	Y	20484	0	33
@@ -1014,7 +1014,7 @@ def	mysql	triggers	TRIGGERS	Event	Event	254	18	6	N	4481	0	33
 def	mysql	tables	TRIGGERS	Table	Table	253	192	2	N	4097	0	33
 def	mysql	triggers	TRIGGERS	Statement	Statement	252	4294967295	10	N	4241	0	33
 def	mysql	triggers	TRIGGERS	Timing	Timing	254	18	6	N	4481	0	33
-def	mysql	triggers	TRIGGERS	Created	Created	7	22	22	N	4225	2	63
+def	mysql	triggers	TRIGGERS	Created	Created	7	22	22	N	129	2	63
 def	mysql	triggers	TRIGGERS	sql_mode	sql_mode	254	1467	117	N	6273	0	33
 def	mysql	triggers	TRIGGERS	Definer	Definer	253	279	14	N	4225	0	33
 def	mysql	character_sets	TRIGGERS	character_set_client	character_set_client	253	192	6	N	4097	0	33

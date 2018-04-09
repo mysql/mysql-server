@@ -55,7 +55,7 @@ class Character_sets : public Entity_object_table_impl {
   enum enum_indexes {
     INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
     INDEX_UK_NAME = static_cast<uint>(Common_index::UK_NAME),
-    INDEX_UK_DEFAULT_COLLATION_ID
+    INDEX_K_DEFAULT_COLLATION_ID
   };
 
   enum enum_foreign_keys { FK_DEFAULT_COLLATION_ID };

@@ -63,9 +63,11 @@ class Catalogs : public Object_table_impl {
             String_type(
                 Object_table_definition_impl::fs_name_collation()->name));
     m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
-                           "created TIMESTAMP NOT NULL");
+                           "created TIMESTAMP NOT NULL\n"
+                           "  DEFAULT CURRENT_TIMESTAMP"
+                           "  ON UPDATE CURRENT_TIMESTAMP");
     m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
-                           "last_altered TIMESTAMP NOT NULL");
+                           "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
     m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS",
                            "options MEDIUMTEXT");
 
@@ -74,7 +76,7 @@ class Catalogs : public Object_table_impl {
 
     m_target_def.add_populate_statement(
         "INSERT INTO catalogs(id, name, options, created, last_altered) "
-        "VALUES (1, 'def', NULL, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
+        "VALUES (1, 'def', NULL, now(), now())");
   }
 };
 

@@ -67,7 +67,7 @@ Collations::Collations() {
   m_target_def.add_field(FIELD_SORT_LENGTH, "FIELD_SORT_LENGTH",
                          "sort_length INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_PAD_ATTRIBUTE, "FIELD_PAD_ATTRIBUTE",
-                         "pad_attribute ENUM('PAD SPACE', 'NO PAD') NOT NULL");
+                         "pad_attribute VARCHAR(9) NOT NULL");
   m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
 
   m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY(id)");
@@ -136,9 +136,9 @@ bool Collations::populate(THD *thd) const {
           new_collation->set_is_compiled((cl->state & MY_CS_COMPILED));
           new_collation->set_sort_length(cl->strxfrm_multiply);
           if (cl->pad_attribute == PAD_SPACE)
-            new_collation->set_pad_attribute(Collation::PA_PAD_SPACE);
+            new_collation->set_pad_attribute("PAD SPACE");
           else
-            new_collation->set_pad_attribute(Collation::PA_NO_PAD);
+            new_collation->set_pad_attribute("NO PAD");
 
           // If the collation exists, it will be updated; otherwise,
           // it will be inserted.
