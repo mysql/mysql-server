@@ -16283,7 +16283,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
-#if 0 /* TODO YYY */
   if (dumpState->args[0] == DumpStateOrd::TcDumpApiConnectRecSummary)
   {
     /**
@@ -16361,18 +16360,19 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
 
-//// TODO loop getUncheckedPtrs
-    Uint32 limit = MIN(pos + 16, userVisibleConnectFilesize);
-
-    while(pos < limit)
+    for (int laps = 0; laps < 16 && pos != RNIL; laps++)
     {
       ApiConnectRecordPtr apiConnectptr;
-      apiConnectptr.i = pos;
-      if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
-          apiConnectptr.isNull() ||
-          (apiConnectptr.p->apiConnectkind != ApiConnectRecord::CK_USER))
+      if (c_apiConnectRecordPool.getUncheckedPtrs(&pos, &apiConnectptr, 1) == 0)
       {
-        pos++;
+        continue;
+      }
+      if (!Magic::match(apiConnectptr.p->m_magic, ApiConnectRecord::TYPE_ID))
+      {
+        continue;
+      }
+      if (apiConnectptr.p->apiConnectkind != ApiConnectRecord::CK_USER)
+      {
         continue;
       }
       /* Following code mostly similar to that for NdbInfo transactions table */
@@ -16405,11 +16405,9 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
           stateful_count++;
         }
       }
-      
-      pos++;
     }
 
-    if (pos >= userVisibleConnectFilesize)
+    if (pos == RNIL)
     {
       /* Finished with this apiNode, output info, if any */
 //      if (seized_count > 0)
@@ -16514,7 +16512,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
     return;
   }
-#endif
 #if 0 /* TODO YYY */
   if (arg == 2551)
   {
