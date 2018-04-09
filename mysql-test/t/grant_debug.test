@@ -171,3 +171,32 @@ SET sql_mode= @orig_sql_mode;
 DROP PROCEDURE db_1.p_def;
 DROP DATABASE db_1;
 
+--echo ###
+--echo ### Bug#27302337: MYSQL ABORTS WITHOUT PROPER ERROR MESSAGE ON
+--echo ###               STARTUP IF GRANT TABLES ARE CORRUPT
+--echo ###
+
+let $DDIR= `select @@datadir`;
+let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+
+--echo # Shutdown the server
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Start the server to simulate acl_init() failure
+--error 1
+--exec $MYSQLD_CMD --datadir=$DDIR --debug=+d,simulate_acl_init_failure > $server_log 2>&1
+
+let SEARCH_FILE=$server_log;
+let SEARCH_PATTERN=Table 'user' is marked as crashed and should be repaired;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Fatal error: Failed to initialize ACL/grant/time zones structures or failed to remove temporary table files.;
+--source include/search_pattern.inc
+let SEARCH_PATTERN=Aborting;
+--source include/search_pattern.inc
+
+--echo # Restart the server
+--exec echo "restart: --debug=-d,simulate_acl_init_failure" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
