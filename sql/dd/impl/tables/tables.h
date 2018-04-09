@@ -89,20 +89,11 @@ class Tables : public Entity_object_table_impl {
     INDEX_UK_SCHEMA_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_UK_ENGINE_SE_PRIVATE_ID,
     INDEX_K_ENGINE,
-    INDEX_K_TYPE,
     INDEX_K_COLLATION_ID,
-    INDEX_K_TABLESPACE_ID,
-    INDEX_K_VIEW_CLIENT_COLLATION_ID,
-    INDEX_K_VIEW_CONNECTION_COLLATION_ID
+    INDEX_K_TABLESPACE_ID
   };
 
-  enum enum_foreign_keys {
-    FK_SCHEMA_ID,
-    FK_COLLATION_ID,
-    FK_TABLESPACE_ID,
-    FK_VIEW_CLIENT_COLLATION_ID,
-    FK_VIEW_CONNECTION_COLLATION_ID
-  };
+  enum enum_foreign_keys { FK_SCHEMA_ID, FK_COLLATION_ID, FK_TABLESPACE_ID };
 
   Tables();
 

@@ -42,7 +42,7 @@ MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL
 INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
 DATA_FREE	bigint(21) unsigned	YES		NULL	
 AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
-CREATE_TIME	timestamp	NO		NULL	
+CREATE_TIME	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
@@ -68,7 +68,7 @@ MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL
 INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
 DATA_FREE	bigint(21) unsigned	YES		NULL	
 AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
-CREATE_TIME	timestamp	NO		NULL	
+CREATE_TIME	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	

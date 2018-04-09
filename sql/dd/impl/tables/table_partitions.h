@@ -63,15 +63,10 @@ class Table_partitions : public Object_table_impl {
     INDEX_UK_TABLE_ID_PARENT_PARTITION_ID_NUMBER,
     INDEX_UK_ENGINE_SE_PRIVATE_ID,
     INDEX_K_ENGINE,
-    INDEX_K_TABLESPACE_ID,
-    INDEX_K_PARENT_PARTITION_ID
+    INDEX_K_TABLESPACE_ID
   };
 
-  enum enum_foreign_keys {
-    FK_TABLE_ID,
-    FK_TABLESPACE_ID,
-    FK_PARENT_PARTITION_ID
-  };
+  enum enum_foreign_keys { FK_TABLE_ID, FK_TABLESPACE_ID };
 
   Table_partitions();
 

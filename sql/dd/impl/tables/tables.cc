@@ -76,7 +76,7 @@ Tables::Tables() {
   m_target_def.add_field(
       FIELD_HIDDEN, "FIELD_HIDDEN",
       "hidden ENUM('Visible', 'System', 'SE', 'DDL') NOT NULL");
-  m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
+  m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMBLOB");
   m_target_def.add_field(FIELD_SE_PRIVATE_DATA, "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");
   m_target_def.add_field(FIELD_SE_PRIVATE_ID, "FIELD_SE_PRIVATE_ID",
@@ -89,7 +89,7 @@ Tables::Tables() {
                          "  'LINEAR_HASH','LINEAR_KEY_51',\n"
                          "  'LINEAR_KEY_55','RANGE','LIST',\n"
                          "  'RANGE_COLUMNS','LIST_COLUMNS',\n"
-                         "  'AUTO', 'AUTO_LINEAR'"
+                         "  'AUTO'"
                          ")");
   m_target_def.add_field(FIELD_PARTITION_EXPRESSION,
                          "FIELD_PARTITION_EXPRESSION",
@@ -118,9 +118,11 @@ Tables::Tables() {
                          "default_subpartitioning ENUM('NO', 'YES', "
                          "'NUMBER')");
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
-                         "created TIMESTAMP NOT NULL");
+                         "created TIMESTAMP NOT NULL\n"
+                         " DEFAULT CURRENT_TIMESTAMP\n"
+                         " ON UPDATE CURRENT_TIMESTAMP");
   m_target_def.add_field(FIELD_LAST_ALTERED, "FIELD_LAST_ALTERED",
-                         "last_altered TIMESTAMP NOT NULL");
+                         "last_altered TIMESTAMP NOT NULL DEFAULT NOW()");
   m_target_def.add_field(FIELD_VIEW_DEFINITION, "FIELD_VIEW_DEFINITION",
                          "view_definition LONGBLOB");
   m_target_def.add_field(FIELD_VIEW_DEFINITION_UTF8,
@@ -155,17 +157,10 @@ Tables::Tables() {
                          "INDEX_UK_ENGINE_SE_PRIVATE_ID",
                          "UNIQUE KEY (engine, se_private_id)");
   m_target_def.add_index(INDEX_K_ENGINE, "INDEX_K_ENGINE", "KEY(engine)");
-  m_target_def.add_index(INDEX_K_TYPE, "INDEX_K_TYPE", "KEY(type)");
   m_target_def.add_index(INDEX_K_COLLATION_ID, "INDEX_K_COLLATION_ID",
                          "KEY(collation_id)");
   m_target_def.add_index(INDEX_K_TABLESPACE_ID, "INDEX_K_TABLESPACE_ID",
                          "KEY(tablespace_id)");
-  m_target_def.add_index(INDEX_K_VIEW_CLIENT_COLLATION_ID,
-                         "INDEX_K_VIEW_CLIENT_COLLATION_ID",
-                         "KEY(view_client_collation_id)");
-  m_target_def.add_index(INDEX_K_VIEW_CONNECTION_COLLATION_ID,
-                         "INDEX_K_VIEW_CONNECTION_COLLATION_ID",
-                         "KEY(view_connection_collation_id)");
 
   m_target_def.add_foreign_key(FK_SCHEMA_ID, "FK_SCHEMA_ID",
                                "FOREIGN KEY (schema_id) "
@@ -176,13 +171,6 @@ Tables::Tables() {
   m_target_def.add_foreign_key(FK_TABLESPACE_ID, "FK_TABLESPACE_ID",
                                "FOREIGN KEY (tablespace_id) "
                                "REFERENCES tablespaces(id)");
-
-  m_target_def.add_foreign_key(
-      FK_VIEW_CLIENT_COLLATION_ID, "FK_VIEW_CLIENT_COLLATION_ID",
-      "FOREIGN KEY (view_client_collation_id) REFERENCES collations(id)");
-  m_target_def.add_foreign_key(
-      FK_VIEW_CONNECTION_COLLATION_ID, "FK_VIEW_CONNECTION_COLLATION_ID",
-      "FOREIGN KEY (view_connection_collation_id) REFERENCES collations(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
