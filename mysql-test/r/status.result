@@ -30,7 +30,7 @@ update t1 set n = 3;
 # Switched to connection: default
 # wait for the second UPDATE to get blocked
 Timeout in wait_condition.inc for select 1 from INFORMATION_SCHEMA.PROCESSLIST
-where ID = 9 and STATE = "Waiting for table level lock"
+where ID = (select connection_id()) and STATE = "Waiting for table level lock"
 select release_lock('mysqltest_lock');
 release_lock('mysqltest_lock')
 1
@@ -59,6 +59,9 @@ insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select * from t1 where a=6;
 a
 6
@@ -116,15 +119,15 @@ Max_used_connections	4
 SET GLOBAL thread_cache_size=@save_thread_cache_size;
 CREATE TABLE t1 ( a INT );
 INSERT INTO t1 VALUES (1), (2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 SELECT a FROM t1 LIMIT 1;
 a
 1
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
 Last_query_cost	0.449000
-analyze table t1;
-Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
 EXPLAIN SELECT a FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
