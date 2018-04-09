@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,8 +66,11 @@ static int ngram_parse(MYSQL_FTPARSER_PARAM *param, const char *doc, int len,
     if (next + char_len > end || char_len == 0) {
       break;
     } else {
-      /* Skip SPACE */
-      if (char_len == 1 && *next == ' ') {
+      /* Skip SPACE or ","/"." etc as they are not words*/
+      int ctype;
+      cs->cset->ctype(cs, &ctype, (uchar *)next, (uchar *)end);
+
+      if (char_len == 1 && (*next == ' ' || !true_word_char(ctype, *next))) {
         start = next + 1;
         next = start;
         n_chars = 0;
