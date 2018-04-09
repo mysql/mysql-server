@@ -18,6 +18,9 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --source ../inc/start_and_bootstrap_group_replication.inc
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("The request to add .*:[0-9]* to the group has been rejected because it is aimed at another group");
+SET SESSION sql_log_bin= 1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
