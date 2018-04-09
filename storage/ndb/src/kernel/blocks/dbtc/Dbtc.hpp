@@ -2793,6 +2793,17 @@ private:
 #ifndef DBTC_STATE_EXTRACT
   void dump_trans(ApiConnectRecordPtr transPtr);
   bool hasOp(ApiConnectRecordPtr transPtr, Uint32 op);
+
+public:
+static Uint64 getTransactionMemoryNeed(
+    const Uint32 dbtc_instance_count,
+    const Uint32 MaxNoOfConcurrentIndexOperations,
+    const Uint32 MaxNoOfConcurrentOperations,
+    const Uint32 MaxNoOfConcurrentScans,
+    const Uint32 MaxNoOfConcurrentTransactions,
+    const Uint32 MaxNoOfFiredTriggers,
+    const Uint32 MaxNoOfLocalScans,
+    const Uint32 TransactionBufferMemory);
 #endif
 };
 

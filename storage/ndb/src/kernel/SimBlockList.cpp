@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,3 +232,26 @@ SimBlockList::unload(){
     noOfBlocks = 0;
   }
 }
+
+Uint64 SimBlockList::getTransactionMemoryNeed(
+  const Uint32 dbtc_instance_count,
+  const Uint32 MaxNoOfConcurrentIndexOperations,
+  const Uint32 MaxNoOfConcurrentOperations,
+  const Uint32 MaxNoOfConcurrentScans,
+  const Uint32 MaxNoOfConcurrentTransactions,
+  const Uint32 MaxNoOfFiredTriggers,
+  const Uint32 MaxNoOfLocalScans,
+  const Uint32 TransactionBufferMemory) const
+{
+  Uint64 byte_count = Dbtc::getTransactionMemoryNeed(
+  dbtc_instance_count,
+  MaxNoOfConcurrentIndexOperations,
+  MaxNoOfConcurrentOperations,
+  MaxNoOfConcurrentScans,
+  MaxNoOfConcurrentTransactions,
+  MaxNoOfFiredTriggers,
+  MaxNoOfLocalScans,
+  TransactionBufferMemory);
+  return byte_count;
+}
+

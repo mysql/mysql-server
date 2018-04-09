@@ -452,6 +452,48 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   }
 
   Uint32 transmem = 0;
+  Uint32 tcInstances = 1;
+  if (globalData.ndbMtTcThreads > 1)
+  {
+    tcInstances = globalData.ndbMtTcThreads;
+  }
+
+  Uint32 MaxNoOfConcurrentIndexOperations = 8192;
+  Uint32 MaxNoOfConcurrentOperations = 32768;
+  Uint32 MaxNoOfConcurrentScans = 256;
+  Uint32 MaxNoOfConcurrentTransactions = 4096;
+  Uint32 MaxNoOfFiredTriggers = 4000;
+  Uint32 MaxNoOfLocalScans = 0;
+  Uint32 TransactionBufferMemory = 1048576;
+
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_INDEX_OPS,
+                            &MaxNoOfConcurrentIndexOperations);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_OPS, &MaxNoOfConcurrentOperations);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_SCANS, &MaxNoOfConcurrentScans);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRANSACTIONS, &MaxNoOfConcurrentTransactions);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_TRIGGERS, &MaxNoOfFiredTriggers);
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_LOCAL_SCANS, &MaxNoOfLocalScans);
+  ndb_mgm_get_int_parameter(p, CFG_DB_TRANS_BUFFER_MEM, &TransactionBufferMemory);
+
+  if (MaxNoOfLocalScans == 0)
+  {
+    const Uint32 noOfDBNodes = 48;
+    MaxNoOfLocalScans = tcInstances * lqhInstances *
+        (noOfDBNodes * MaxNoOfConcurrentScans) + 1 + 1;
+  }
+
+  Uint64 transmem_bytes =
+      globalEmulatorData.theSimBlockList->getTransactionMemoryNeed(
+        tcInstances,
+        MaxNoOfConcurrentIndexOperations,
+        MaxNoOfConcurrentOperations,
+        MaxNoOfConcurrentScans,
+        MaxNoOfConcurrentTransactions,
+        MaxNoOfFiredTriggers,
+        MaxNoOfLocalScans,
+        TransactionBufferMemory);
+
+  transmem = transmem_bytes / 32768;
   {
     /**
      * Request extra undo buffer memory to be allocated when
@@ -482,7 +524,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
         Uint32 undopages = Uint32(undo_buffer_size / GLOBAL_PAGE_SIZE);
         g_eventLogger->info("reserving %u extra pages for undo buffer memory",
                             undopages);
-        transmem = undopages;
+        transmem += undopages;
         Resource_limit rl;
         rl.m_min = transmem;
         rl.m_max = 0;
