@@ -3046,8 +3046,10 @@ std::ostream &upd_field_t::print(std::ostream &out) const {
       << ", old_val=" << old_val << ", new_val=" << new_val
       << ", ext_in_old=" << ext_in_old;
 
-  for (auto iter = lob_diffs.begin(); iter != lob_diffs.end(); ++iter) {
-    out << *iter;
+  if (lob_diffs != nullptr) {
+    for (auto iter = lob_diffs->begin(); iter != lob_diffs->end(); ++iter) {
+      out << *iter;
+    }
   }
 
   out << "]";

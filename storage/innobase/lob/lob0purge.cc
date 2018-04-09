@@ -71,7 +71,7 @@ static void rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
   ut_ad(ctx->m_rollback);
 
-  if (uf != nullptr && uf->lob_diffs.size() > 0) {
+  if (uf != nullptr && uf->lob_diffs != nullptr && uf->lob_diffs->size() > 0) {
     /* Undo log contains changes done to the LOB.  This must have
     been a small change done to LOB.  Apply the undo log on the
     LOB.*/
@@ -317,7 +317,8 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
     DBUG_VOID_RETURN;
   }
 
-  if (!is_rollback && uf != nullptr && uf->lob_diffs.size() > 0) {
+  if (!is_rollback && uf != nullptr && uf->lob_diffs != nullptr &&
+      uf->lob_diffs->size() > 0) {
     /* Undo record contains LOB diffs.  So purge shouldn't look
     at the LOB. */
     DBUG_VOID_RETURN;

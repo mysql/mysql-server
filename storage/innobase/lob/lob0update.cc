@@ -574,7 +574,7 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
                       const upd_field_t *uf) {
   DBUG_ENTER("lob::apply_undolog");
 
-  const std::vector<Lob_diff> &lob_diffs = uf->lob_diffs;
+  const Lob_diff_vector &lob_diffs = *uf->lob_diffs;
 
   page_no_t first_page_no = ref.page_no();
   space_id_t space_id = ref.space_id();
@@ -675,11 +675,12 @@ dberr_t apply_undolog(mtr_t *mtr, trx_t *trx, dict_index_t *index, ref_t ref,
       /* Ensure that only 1 or 2 index entries will be modified.*/
       ut_ad(count <= 1);
 
-      trx_id_t t1 = lob_diff.m_idx_diffs[count].m_modifier_trxid;
+      lob_index_diff_t &tmp = lob_diff.m_idx_diffs->at(count);
+      trx_id_t t1 = tmp.m_modifier_trxid;
 
       cur_entry.set_trx_id_modifier(t1);
 
-      undo_no_t u1 = lob_diff.m_idx_diffs[count].m_modifier_undo_no;
+      undo_no_t u1 = tmp.m_modifier_undo_no;
 
       cur_entry.set_trx_undo_no_modifier(u1);
 

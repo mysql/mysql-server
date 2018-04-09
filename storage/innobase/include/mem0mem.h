@@ -449,6 +449,10 @@ class mem_heap_allocator {
     typedef mem_heap_allocator<U> other;
   };
 
+  /** Get the underlying memory heap object.
+  @return the underlying memory heap object. */
+  mem_heap_t *get_mem_heap() const { return (m_heap); }
+
  private:
   mem_heap_t *m_heap;
   template <typename U>
@@ -458,13 +462,13 @@ class mem_heap_allocator {
 template <class T>
 bool operator==(const mem_heap_allocator<T> &left,
                 const mem_heap_allocator<T> &right) {
-  return (left.heap == right.heap);
+  return (left.get_mem_heap() == right.get_mem_heap());
 }
 
 template <class T>
 bool operator!=(const mem_heap_allocator<T> &left,
                 const mem_heap_allocator<T> &right) {
-  return (left.heap != right.heap);
+  return (left.get_mem_heap() != right.get_mem_heap());
 }
 
 #endif

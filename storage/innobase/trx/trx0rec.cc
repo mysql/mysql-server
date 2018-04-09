@@ -872,7 +872,7 @@ static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
   uf->last_undo_no = mach_read_next_compressed(&undo_ptr);
 
   for (size_t i = 0; i < N; ++i) {
-    Lob_diff lob_diff;
+    Lob_diff lob_diff(uf->heap);
     lob::undo_seq_t *lob_seq = nullptr;
     lob::undo_data_t lob_undo_data;
 
@@ -919,10 +919,10 @@ static const byte *trx_undo_read_blob_update(const byte *undo_ptr,
       /* Write the modifier trx undo_no of the LOB index entry. */
       idx_diff.m_modifier_undo_no = mach_read_next_compressed(&undo_ptr);
 
-      lob_diff.m_idx_diffs.push_back(idx_diff);
+      lob_diff.m_idx_diffs->push_back(idx_diff);
     }
 
-    uf->lob_diffs.push_back(lob_diff);
+    uf->push_lob_diff(lob_diff);
     DBUG_LOG("lob", lob_diff);
   }
 
@@ -2533,7 +2533,7 @@ bool trx_undo_prev_version_build(
   }
 
   if (update != nullptr) {
-    update->destroy();
+    update->reset();
   }
 
   DBUG_RETURN(true);

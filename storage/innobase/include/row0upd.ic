@@ -54,11 +54,9 @@ upd_t *upd_create(ulint n,          /*!< in: number of fields */
   update->fields = reinterpret_cast<upd_field_t *>(&update[1]);
   update->heap = heap;
 
-  /* Initialize the std::list container holding Binary_diff objects in
-  the upd_field_t object. */
   for (ulint i = 0; i < n; ++i) {
     upd_field_t *uf = &update->fields[i];
-    new (&uf->lob_diffs) std::vector<Lob_diff>();
+    uf->heap = heap;
   }
 
   return (update);

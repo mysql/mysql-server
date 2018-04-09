@@ -1042,7 +1042,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_record_func(
   }
 
   if (node->update != nullptr) {
-    node->update->destroy();
+    node->update->reset();
   }
 
   if (node->found_clust) {
