@@ -369,6 +369,9 @@ struct lob_index_diff_t {
   }
 };
 
+using Lob_index_diff_vec =
+    std::vector<lob_index_diff_t, mem_heap_allocator<lob_index_diff_t>>;
+
 /** Overloading the global output operator to print lob_index_diff_t object.
 @param[in,out]	out	the output stream.
 @param[in]	obj	the object to be printed.
@@ -380,6 +383,16 @@ inline std::ostream &operator<<(std::ostream &out,
 
 /** The modification done to the LOB. */
 struct Lob_diff {
+  /** Constructor.
+  @param[in]  mem_heap  the memory heap in which this object
+                        has been created. */
+  Lob_diff(mem_heap_t *mem_heap) : heap(mem_heap) {
+    m_idx_diffs = static_cast<Lob_index_diff_vec *>(
+        mem_heap_alloc(heap, sizeof(Lob_index_diff_vec)));
+    new (m_idx_diffs)
+        Lob_index_diff_vec(mem_heap_allocator<lob_index_diff_t>(heap));
+  }
+
   /** Read the offset from the undo record.
   @param[in]   undo_ptr   pointer into the undo log record.
   @return pointer into the undo log record after offset. */
@@ -410,8 +423,11 @@ struct Lob_diff {
       out << ", m_old_data=" << PrintBuffer(m_old_data, m_length);
     }
 
-    for (auto iter = m_idx_diffs.begin(); iter != m_idx_diffs.end(); ++iter) {
-      out << *iter;
+    if (m_idx_diffs != nullptr) {
+      for (auto iter = m_idx_diffs->begin(); iter != m_idx_diffs->end();
+           ++iter) {
+        out << *iter;
+      }
     }
 
     out << "]";
@@ -428,8 +444,13 @@ struct Lob_diff {
   const byte *m_old_data = nullptr;
 
   /** Changes to the LOB index. */
-  std::vector<lob_index_diff_t> m_idx_diffs;
+  Lob_index_diff_vec *m_idx_diffs;
+
+  /** Memory heap in which this object is allocated. */
+  mem_heap_t *heap;
 };
+
+using Lob_diff_vector = std::vector<Lob_diff, mem_heap_allocator<Lob_diff>>;
 
 inline std::ostream &operator<<(std::ostream &out, const Lob_diff &obj) {
   return (obj.print(out));
@@ -459,9 +480,18 @@ struct upd_field_t {
   /** If true, the field was stored externally in the old row. */
   bool ext_in_old;
 
+  void push_lob_diff(const Lob_diff &lob_diff) {
+    if (lob_diffs == nullptr) {
+      lob_diffs = static_cast<Lob_diff_vector *>(
+          mem_heap_alloc(heap, sizeof(Lob_diff_vector)));
+      new (lob_diffs) Lob_diff_vector(mem_heap_allocator<Lob_diff>(heap));
+    }
+    lob_diffs->push_back(lob_diff);
+  }
+
   /** List of changes done to this updated field.  This is usually
   populated from the undo log. */
-  std::vector<Lob_diff> lob_diffs;
+  Lob_diff_vector *lob_diffs;
 
   /** The LOB first page number.  This information is read from
   the undo log. */
@@ -477,7 +507,15 @@ struct upd_field_t {
 
   std::ostream &print(std::ostream &out) const;
 
-  void destroy() { call_destructor(&lob_diffs); }
+  /** Empty the information collected on LOB diffs. */
+  void reset() {
+    if (lob_diffs != nullptr) {
+      lob_diffs->clear();
+    }
+  }
+
+  /** Memory heap in which this object is allocated. */
+  mem_heap_t *heap;
 };
 
 inline std::ostream &operator<<(std::ostream &out, const upd_field_t &obj) {
@@ -520,10 +558,10 @@ struct upd_t {
     return (false);
   }
 
-  /** Destroy the object. */
-  void destroy() const {
+  /** Reset the update fields. */
+  void reset() {
     for (ulint i = 0; i < n_fields; ++i) {
-      fields[i].destroy();
+      fields[i].reset();
     }
   }
 
