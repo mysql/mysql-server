@@ -2978,7 +2978,10 @@ void trx_kill_blocking(trx_t *trx) {
     /* Return back inside InnoDB */
     if (exited_innodb) {
       exited_innodb = false;
+      /* Exit transaction mutex before entering Innodb. */
+      trx_mutex_exit(victim_trx);
       srv_conc_force_enter_innodb(trx);
+      trx_mutex_enter(victim_trx);
     }
 
     /* Compare the version to check if the transaction has
