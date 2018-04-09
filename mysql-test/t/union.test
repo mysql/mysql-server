@@ -1256,3 +1256,17 @@ SET @@long_query_time= @old_long_query_time;
 SET @@global.log_output= @old_log_output;
 SET @@global.slow_query_log= @old_slow_query_log;
 
+--echo #
+--echo # Bug#27197235 USER VARIABLE + UINON + DECIMAL COLUMN RETURNS
+--echo #              WRONG VALUES
+--echo #
+
+let $old_charset= `SELECT @@character_set_client`;
+
+SET NAMES utf8;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
+
+eval SET NAMES $old_charset;
+SET @advertAcctId = 1000003;
+select @advertAcctId as a from dual union all select 1.0 from dual;
