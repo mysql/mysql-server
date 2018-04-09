@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1718,7 +1718,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last) {
     records of our table; none of these can be a group-by/window tmp table, so
     we should still be on the join's first slice.
   */
-  DBUG_ASSERT(qep_tab->join()->get_ref_item_slice() == REF_SLICE_SAVE);
+  DBUG_ASSERT(qep_tab->join()->get_ref_item_slice() == REF_SLICE_SAVED_BASE);
 
   if (qep_tab->first_unmatched == NO_PLAN_IDX) {
     const bool pfs_batch_update = qep_tab->pfs_batch_update(join);

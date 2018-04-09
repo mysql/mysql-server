@@ -702,13 +702,13 @@ void sort_copy_func(const SELECT_LEX *select, Func_ptr_array *copy_func) {
 
     Let's go through the process of writing to the tmp table
     (e.g. end_write(), end_write_group()). We also include here the
-    "pseudo-tmp table" embedded into REF_ITEM_SLICE3, used by
+    "pseudo-tmp table" embedded into REF_SLICE_ORDERED_GROUP_BY, used by
     end_send_group().
     (1) we switch to the REF_SLICE used to read from that tmp table
     (2.1) we (copy_fields() part 1) copy some columns from the
     output of the previous step of execution (e.g. the join's output) to the
     tmp table
-    (2.2) (specifically for REF_SLICE_TMP3 in end_send_group()) we
+    (2.2) (specifically for REF_SLICE_ORDERED_GROUP_BY in end_send_group()) we
     (copy_fields() part 2) evaluate some expressions from the same previous
     step of execution, with Item_copy::copy(). The mechanism of Item_copy is:
     * copy() evaluates the expression and caches its value in memory
@@ -1456,8 +1456,8 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
       Field *orig_field = default_field[i];
       /*
         Get the value from default_values. Note that orig_field->ptr might not
-        point into record[0] if previous step is REF_SLICE_TMP3 and we are
-        creating a tmp table to materialize the query's result.
+        point into record[0] if previous step is REF_SLICE_ORDERED_GROUP_BY and
+        we are creating a tmp table to materialize the query's result.
       */
       my_ptrdiff_t diff = orig_field->table->default_values_offset();
       Field *f_in_record0 = orig_field->table->field[orig_field->field_index];

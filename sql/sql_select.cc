@@ -1325,7 +1325,7 @@ void JOIN::reset() {
     }
   }
   clear_sj_tmp_tables(this);
-  set_ref_item_slice(REF_SLICE_SAVE);
+  set_ref_item_slice(REF_SLICE_SAVED_BASE);
 
   /* need to reset ref access state (see join_read_key) */
   if (qep_tab) {
@@ -1438,7 +1438,7 @@ bool JOIN::destroy() {
   if (tmp_all_fields != nullptr) {
     cleanup_item_list(tmp_all_fields[REF_SLICE_TMP1]);
     cleanup_item_list(tmp_all_fields[REF_SLICE_TMP2]);
-    cleanup_item_list(tmp_all_fields[REF_SLICE_TMP3]);
+    cleanup_item_list(tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY]);
     for (uint widx = 0; widx < m_windows.elements; widx++) {
       cleanup_item_list(tmp_all_fields[REF_SLICE_WIN_1 + widx]);
       cleanup_item_list(tmp_all_fields[REF_SLICE_WIN_1 + widx +
@@ -2890,7 +2890,7 @@ void JOIN::cleanup() {
   }
 
   /* Restore ref array to original state */
-  set_ref_item_slice(REF_SLICE_SAVE);
+  set_ref_item_slice(REF_SLICE_SAVED_BASE);
 
   DBUG_VOID_RETURN;
 }
@@ -3781,7 +3781,7 @@ bool JOIN::make_tmp_tables_info() {
     tmp_table_param.precomputed_group_by =
         !qep_tab[0].quick()->is_agg_loose_index_scan();
 
-  uint last_slice_before_windowing = REF_SLICE_BASE;
+  uint last_slice_before_windowing = REF_SLICE_ACTIVE;
 
   /*
     Create the first temporary table if distinct elimination is requested or
@@ -3801,10 +3801,10 @@ bool JOIN::make_tmp_tables_info() {
       After this slice has been used, overwrite the base slice again with
       the copy in the save slice.
     */
-    if (alloc_ref_item_slice(thd, REF_SLICE_SAVE)) DBUG_RETURN(true);
+    if (alloc_ref_item_slice(thd, REF_SLICE_SAVED_BASE)) DBUG_RETURN(true);
 
-    copy_ref_item_slice(REF_SLICE_SAVE, REF_SLICE_BASE);
-    current_ref_item_slice = REF_SLICE_SAVE;
+    copy_ref_item_slice(REF_SLICE_SAVED_BASE, REF_SLICE_ACTIVE);
+    current_ref_item_slice = REF_SLICE_SAVED_BASE;
 
     /*
       Create temporary table for use in a single execution.
@@ -4081,29 +4081,33 @@ bool JOIN::make_tmp_tables_info() {
     if (make_group_fields(this, this)) DBUG_RETURN(true);
 
     // "save" slice of ref_items array is needed due to overwriting strategy.
-    if (ref_items[REF_SLICE_SAVE].is_null()) {
-      if (alloc_ref_item_slice(thd, REF_SLICE_SAVE)) DBUG_RETURN(true);
+    if (ref_items[REF_SLICE_SAVED_BASE].is_null()) {
+      if (alloc_ref_item_slice(thd, REF_SLICE_SAVED_BASE)) DBUG_RETURN(true);
 
-      copy_ref_item_slice(REF_SLICE_SAVE, REF_SLICE_BASE);
-      current_ref_item_slice = REF_SLICE_SAVE;
+      copy_ref_item_slice(REF_SLICE_SAVED_BASE, REF_SLICE_ACTIVE);
+      current_ref_item_slice = REF_SLICE_SAVED_BASE;
     }
 
     /*
       Allocate a slice of ref items that describe the items to be copied
       from the record buffer for this temporary table.
     */
-    if (alloc_ref_item_slice(thd, REF_SLICE_TMP3)) DBUG_RETURN(true);
-    setup_copy_fields(thd, &tmp_table_param, ref_items[REF_SLICE_TMP3],
-                      tmp_fields_list[REF_SLICE_TMP3],
-                      tmp_all_fields[REF_SLICE_TMP3],
+    if (alloc_ref_item_slice(thd, REF_SLICE_ORDERED_GROUP_BY))
+      DBUG_RETURN(true);
+    setup_copy_fields(thd, &tmp_table_param,
+                      ref_items[REF_SLICE_ORDERED_GROUP_BY],
+                      tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY],
+                      tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY],
                       curr_fields_list->elements, *curr_all_fields);
 
-    curr_fields_list = &tmp_fields_list[REF_SLICE_TMP3];
-    curr_all_fields = &tmp_all_fields[REF_SLICE_TMP3];
-    last_slice_before_windowing = REF_SLICE_TMP3;
+    curr_fields_list = &tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY];
+    curr_all_fields = &tmp_all_fields[REF_SLICE_ORDERED_GROUP_BY];
+    last_slice_before_windowing = REF_SLICE_ORDERED_GROUP_BY;
 
-    if (qep_tab)  // remember when to switch to REF_SLICE_TMP3 in execution
-      before_ref_item_slice_tmp3 = &qep_tab[primary_tables + tmp_tables - 1];
+    if (qep_tab)  // remember when to switch to REF_SLICE_ORDERED_GROUP_BY in
+                  // execution
+      ref_slice_immediately_before_group_by =
+          &qep_tab[primary_tables + tmp_tables - 1];
     /*
       make_sum_func_list() calls rollup_make_fields() which needs the slice
       TMP3 in input; indeed it compares *curr_all_fields (i.e. the fields_list
@@ -4112,7 +4116,7 @@ bool JOIN::make_tmp_tables_info() {
       TMP3 for the comparison to work:
     */
     uint save_sliceno = current_ref_item_slice;
-    set_ref_item_slice(REF_SLICE_TMP3);
+    set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
     if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
       DBUG_RETURN(true);
     /*
@@ -4126,7 +4130,7 @@ bool JOIN::make_tmp_tables_info() {
     if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
       DBUG_RETURN(true);
     // And now set it as input for next phases:
-    set_ref_item_slice(REF_SLICE_TMP3);
+    set_ref_item_slice(REF_SLICE_ORDERED_GROUP_BY);
   }
 
   if (qep_tab && (group_list || (order && !m_windowing_steps /* [1] */))) {
@@ -4222,7 +4226,7 @@ bool JOIN::make_tmp_tables_info() {
         tmp_tables++;
         if (plan_is_const()) first_select = sub_select_op;
 
-        if (ref_items[REF_SLICE_SAVE].is_null()) {
+        if (ref_items[REF_SLICE_SAVED_BASE].is_null()) {
           /*
            Make a copy of the base slice in the save slice.
            This is needed because later steps will overwrite the base slice with
@@ -4230,10 +4234,11 @@ bool JOIN::make_tmp_tables_info() {
            After this slice has been used, overwrite the base slice again with
            the copy in the save slice.
            */
-          if (alloc_ref_item_slice(thd, REF_SLICE_SAVE)) DBUG_RETURN(true);
+          if (alloc_ref_item_slice(thd, REF_SLICE_SAVED_BASE))
+            DBUG_RETURN(true);
 
-          copy_ref_item_slice(REF_SLICE_SAVE, REF_SLICE_BASE);
-          current_ref_item_slice = REF_SLICE_SAVE;
+          copy_ref_item_slice(REF_SLICE_SAVED_BASE, REF_SLICE_ACTIVE);
+          current_ref_item_slice = REF_SLICE_SAVED_BASE;
         }
       } else {
         curr_tmp_table++;
@@ -4242,12 +4247,12 @@ bool JOIN::make_tmp_tables_info() {
 
       ORDER_with_src dummy = NULL;
 
-      if (last_slice_before_windowing == REF_SLICE_BASE) {
+      if (last_slice_before_windowing == REF_SLICE_ACTIVE) {
         tmp_table_param.hidden_field_count =
             all_fields.elements - fields_list.elements;
       } else {
         DBUG_ASSERT(tmp_tables >= 1 &&
-                    last_slice_before_windowing > REF_SLICE_BASE);
+                    last_slice_before_windowing > REF_SLICE_ACTIVE);
 
         tmp_table_param.hidden_field_count =
             tmp_all_fields[last_slice_before_windowing].elements -
@@ -4339,7 +4344,7 @@ bool JOIN::make_tmp_tables_info() {
       if (change_to_use_tmp_fields(
               thd, ref_items[widx], tmp_fields_list[widx], tmp_all_fields[widx],
               fields_list.elements,
-              (last_slice_before_windowing == REF_SLICE_BASE
+              (last_slice_before_windowing == REF_SLICE_ACTIVE
                    ? all_fields
                    : tmp_all_fields[last_slice_before_windowing])))
         DBUG_RETURN(true);
@@ -4361,7 +4366,7 @@ bool JOIN::make_tmp_tables_info() {
 
   fields = curr_fields_list;
   // Reset before execution
-  set_ref_item_slice(REF_SLICE_SAVE);
+  set_ref_item_slice(REF_SLICE_SAVED_BASE);
   if (qep_tab) {
     qep_tab[primary_tables + tmp_tables - 1].next_select =
         get_end_select_func();

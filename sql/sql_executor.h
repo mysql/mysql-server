@@ -427,7 +427,7 @@ class QEP_TAB : public QEP_shared_owner {
         op(NULL),
         tmp_table_param(NULL),
         filesort(NULL),
-        ref_item_slice(REF_SLICE_SAVE),
+        ref_item_slice(REF_SLICE_SAVED_BASE),
         send_records(0),
         quick_traced_before(false),
         m_condition_optim(NULL),

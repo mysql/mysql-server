@@ -267,8 +267,8 @@ class JOIN {
         cond_equal(NULL),
         return_tab(0),
         ref_items(nullptr),
-        before_ref_item_slice_tmp3(nullptr),
-        current_ref_item_slice(REF_SLICE_SAVE),
+        ref_slice_immediately_before_group_by(nullptr),
+        current_ref_item_slice(REF_SLICE_SAVED_BASE),
         recursive_iteration_count(0),
         zero_result_cause(NULL),
         child_subquery_can_materialize(false),
@@ -429,7 +429,7 @@ class JOIN {
      - is transiently used as a model by create_intermediate_table(), to build
      the tmp table's own tmp_table_param.
      - is also used as description of the pseudo-tmp-table of grouping
-     (REF_SLICE_TMP3) (e.g. in end_send_group()).
+     (REF_SLICE_ORDERED_GROUP_BY) (e.g. in end_send_group()).
   */
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
@@ -627,13 +627,14 @@ class JOIN {
     are associated with a single optimization. The size of slice 0 determines
     the slice size used when allocating the other slices.
    */
-  Ref_item_array *ref_items;  // cardinality: REF_SLICE_SAVE + 1 + #windows*2
+  Ref_item_array
+      *ref_items;  // cardinality: REF_SLICE_SAVED_BASE + 1 + #windows*2
 
   /**
-     If slice REF_SLICE_TMP3 has been created, this is the QEP_TAB which is
-     right before calculation of items in this slice.
+     If slice REF_SLICE_ORDERED_GROUP_BY has been created, this is the QEP_TAB
+     which is right before calculation of items in this slice.
   */
-  QEP_TAB *before_ref_item_slice_tmp3;
+  QEP_TAB *ref_slice_immediately_before_group_by;
 
   /**
     The slice currently stored in ref_items[0].
@@ -752,7 +753,7 @@ class JOIN {
   void set_ref_item_slice(uint sliceno) {
     DBUG_ASSERT((int)sliceno >= 1);
     if (current_ref_item_slice != sliceno) {
-      copy_ref_item_slice(REF_SLICE_BASE, sliceno);
+      copy_ref_item_slice(REF_SLICE_ACTIVE, sliceno);
       DBUG_PRINT("info",
                  ("ref slice %u -> %u", current_ref_item_slice, sliceno));
       current_ref_item_slice = sliceno;

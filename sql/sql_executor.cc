@@ -431,7 +431,7 @@ bool JOIN::rollup_send_data(uint idx) {
   uint save_slice = current_ref_item_slice;
   for (uint i = send_group_parts; i-- > idx;) {
     // Get references to sum functions in place
-    copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
+    copy_ref_item_slice(ref_items[REF_SLICE_ACTIVE], rollup.ref_item_arrays[i]);
     current_ref_item_slice = -1;  // as we switched to a not-numbered slice
     if (having_is_true(having_cond)) {
       if (send_records < unit->select_limit_cnt && do_send_rows &&
@@ -496,7 +496,7 @@ bool JOIN::rollup_write_data(uint idx, QEP_TAB *qep_tab) {
   uint save_slice = current_ref_item_slice;
   for (uint i = send_group_parts; i-- > idx;) {
     // Get references to sum functions in place
-    copy_ref_item_slice(ref_items[REF_SLICE_BASE], rollup.ref_item_arrays[i]);
+    copy_ref_item_slice(ref_items[REF_SLICE_ACTIVE], rollup.ref_item_arrays[i]);
     current_ref_item_slice = -1;  // as we switched to a not-numbered slice
     if (having_is_true(qep_tab->having)) {
       int write_error;
@@ -3017,9 +3017,9 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     int error;
     int sliceno;
     if (qep_tab) {
-      if (qep_tab - 1 == join->before_ref_item_slice_tmp3) {
-        // Read Items from pseudo-table REF_SLICE_TMP3
-        sliceno = REF_SLICE_TMP3;
+      if (qep_tab - 1 == join->ref_slice_immediately_before_group_by) {
+        // Read Items from pseudo-table REF_SLICE_ORDERED_GROUP_BY
+        sliceno = REF_SLICE_ORDERED_GROUP_BY;
       } else {
         sliceno = qep_tab[-1].ref_item_slice;
       }
@@ -3111,8 +3111,8 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
 
   List<Item> *fields;
   if (qep_tab) {
-    DBUG_ASSERT(qep_tab - 1 == join->before_ref_item_slice_tmp3);
-    fields = &join->tmp_fields_list[REF_SLICE_TMP3];
+    DBUG_ASSERT(qep_tab - 1 == join->ref_slice_immediately_before_group_by);
+    fields = &join->tmp_fields_list[REF_SLICE_ORDERED_GROUP_BY];
   } else
     fields = join->fields;
 
@@ -3135,20 +3135,20 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
           While end_write_group() has a real tmp table as output,
           end_send_group() has a pseudo-table, made of a list of Item_copy
           items (created by setup_copy_fields()) which are accessible through
-          REF_SLICE_TMP3. This is equivalent to one row where the current
-          group is accumulated. The creation of a new group in the
+          REF_SLICE_ORDERED_GROUP_BY. This is equivalent to one row where the
+          current group is accumulated. The creation of a new group in the
           pseudo-table happens in this function (call to
           init_sum_functions()); the update of an existing group also happens
           in this function (call to update_sum_func()); the reading of an
           existing group happens right below.
-          As we are now reading from pseudo-table REF_SLICE_TMP3, we switch to
-          this slice; we should not have switched when calculating group
-          expressions in test_if_item_cache_changed() above; indeed these
+          As we are now reading from pseudo-table REF_SLICE_ORDERED_GROUP_BY, we
+          switch to this slice; we should not have switched when calculating
+          group expressions in test_if_item_cache_changed() above; indeed these
           group expressions need the current row of the input table, not what
           is in this slice (which is generally the last completed group so is
           based on some previous row of the input table).
         */
-        Switch_ref_item_slice slice_switch(join, REF_SLICE_TMP3);
+        Switch_ref_item_slice slice_switch(join, REF_SLICE_ORDERED_GROUP_BY);
         DBUG_ASSERT(fields == join->get_current_fields());
         int error = 0;
         {
@@ -3228,9 +3228,10 @@ enum_nested_loop_state end_send_group(JOIN *join, QEP_TAB *qep_tab,
         uses an alias to F1, F1 is calculated first; F2 must use that value (not
         evaluate expr again, as expr may not be deterministic), so F2 uses a
         reference (Item_ref) to the already-computed value of F1; that value is
-        in Item_copy part of REF_SLICE_TMP3. So, we switch to that slice.
+        in Item_copy part of REF_SLICE_ORDERED_GROUP_BY. So, we switch to that
+        slice.
       */
-      Switch_ref_item_slice slice_switch(join, REF_SLICE_TMP3);
+      Switch_ref_item_slice slice_switch(join, REF_SLICE_ORDERED_GROUP_BY);
       if (copy_fields(&join->tmp_table_param, join->thd))  // (1)
         DBUG_RETURN(NESTED_LOOP_ERROR);
       if (init_sum_functions(join->sum_funcs,
@@ -4873,7 +4874,7 @@ static enum_nested_loop_state end_write(JOIN *join, QEP_TAB *const qep_tab,
   if (!end_of_records) {
     Temp_table_param *const tmp_tbl = qep_tab->tmp_table_param;
     Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-    DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3);
+    DBUG_ASSERT(qep_tab - 1 != join->ref_slice_immediately_before_group_by);
 
     if (copy_fields(tmp_tbl, join->thd))
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
@@ -5020,8 +5021,8 @@ static enum_nested_loop_state end_write_wf(JOIN *join, QEP_TAB *const qep_tab,
     slice:
   */
   Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-  DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3 &&
-              qep_tab != join->before_ref_item_slice_tmp3);
+  DBUG_ASSERT(qep_tab - 1 != join->ref_slice_immediately_before_group_by &&
+              qep_tab != join->ref_slice_immediately_before_group_by);
 
   TABLE *const table = qep_tab->table();
   if (window_buffering) {
@@ -5222,8 +5223,8 @@ static enum_nested_loop_state end_update(JOIN *join, QEP_TAB *const qep_tab,
     copy_fields() doesn't suffer from the late switching.
   */
   Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-  DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3 &&
-              qep_tab != join->before_ref_item_slice_tmp3);
+  DBUG_ASSERT(qep_tab - 1 != join->ref_slice_immediately_before_group_by &&
+              qep_tab != join->ref_slice_immediately_before_group_by);
 
   /*
     Copy null bits from group key to table
@@ -5277,8 +5278,9 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
       int send_group_parts = join->send_group_parts;
       if (idx < send_group_parts) {
         Switch_ref_item_slice slice_switch(join, qep_tab->ref_item_slice);
-        DBUG_ASSERT(qep_tab - 1 != join->before_ref_item_slice_tmp3 &&
-                    qep_tab != join->before_ref_item_slice_tmp3);
+        DBUG_ASSERT(qep_tab - 1 !=
+                        join->ref_slice_immediately_before_group_by &&
+                    qep_tab != join->ref_slice_immediately_before_group_by);
         table_map save_nullinfo = 0;
         if (!join->first_record) {
           // Calculate aggregate functions for no rows
@@ -5470,8 +5472,8 @@ static size_t compute_field_lengths(Field **first_field,
 
 bool QEP_TAB::remove_duplicates() {
   bool error;
-  DBUG_ASSERT(this - 1 != join()->before_ref_item_slice_tmp3 &&
-              this != join()->before_ref_item_slice_tmp3);
+  DBUG_ASSERT(this - 1 != join()->ref_slice_immediately_before_group_by &&
+              this != join()->ref_slice_immediately_before_group_by);
   THD *thd = join()->thd;
   DBUG_ENTER("remove_duplicates");
 
@@ -5866,9 +5868,9 @@ bool setup_copy_fields(THD *thd, Temp_table_param *param,
         /*
           We have created a new Item_field; its field points into the
           previous table; its result_field points into a memory area
-          (REF_SLICE_TMP3) which represents the pseudo-tmp-table from where
-          aggregates' values can be read. So does 'field'.
-          A Copy_field manages copying from 'field' to the memory area.
+          (REF_SLICE_ORDERED_GROUP_BY) which represents the pseudo-tmp-table
+          from where aggregates' values can be read. So does 'field'. A
+          Copy_field manages copying from 'field' to the memory area.
         */
         item->field = item->result_field;
         /*

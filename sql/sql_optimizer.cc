@@ -252,7 +252,7 @@ int JOIN::optimize() {
   if (alloc_indirection_slices()) DBUG_RETURN(1);
 
   // The base ref items from query block are assigned as JOIN's ref items
-  ref_items[REF_SLICE_BASE] = select_lex->base_ref_items;
+  ref_items[REF_SLICE_ACTIVE] = select_lex->base_ref_items;
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   /*
@@ -1212,7 +1212,7 @@ bool JOIN::optimize_distinct_group_order() {
     }
     ORDER *o;
     bool all_order_fields_used;
-    if ((o = create_distinct_group(thd, ref_items[REF_SLICE_BASE], order,
+    if ((o = create_distinct_group(thd, ref_items[REF_SLICE_ACTIVE], order,
                                    fields_list, &all_order_fields_used))) {
       group_list = ORDER_with_src(o, ESC_DISTINCT);
       const bool skip_group =
@@ -10399,7 +10399,7 @@ void JOIN::refine_best_rowcount() {
 
 List<Item> *JOIN::get_current_fields() {
   DBUG_ASSERT((int)current_ref_item_slice >= 0);
-  if (current_ref_item_slice == REF_SLICE_SAVE) return fields;
+  if (current_ref_item_slice == REF_SLICE_SAVED_BASE) return fields;
   return &tmp_fields_list[current_ref_item_slice];
 }
 
