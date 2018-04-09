@@ -1857,8 +1857,15 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   } // END while reading records from the mysql.user table
 
   end_read_record(&read_record_info);
+
+  DBUG_EXECUTE_IF("simulate_acl_init_failure",
+                  read_rec_errcode= HA_ERR_WRONG_IN_RECORD;);
+
   if (read_rec_errcode > 0)
+  {
+    table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
     goto end;
+  }
 
   std::sort(acl_users->begin(), acl_users->end(), ACL_compare());
   acl_users->shrink_to_fit();
@@ -1943,7 +1950,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
   end_read_record(&read_record_info);
   if (read_rec_errcode > 0)
+  {
+    table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
     goto end;
+  }
 
   std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
   acl_dbs->shrink_to_fit();
@@ -1973,7 +1983,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
 
     end_read_record(&read_record_info);
     if (read_rec_errcode > 0)
+    {
+      table->file->print_error(read_rec_errcode, MYF(ME_ERRORLOG));
       goto end;
+    }
 
     std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
   }
