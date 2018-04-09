@@ -13241,7 +13241,7 @@ ER_GRP_RPL_KILLED_FAILED_ID
   eng "killed failed id: %d failed: %d"
 
 ER_GRP_RPL_INTERNAL_QUERY
-  eng "Internal query: %s result in error. Error number: %s"
+  eng "Internal query: %s result in error. Error number: %ld"
 
 ER_GRP_RPL_COPY_FROM_EMPTY_STRING
   eng "Error copying from empty string "
