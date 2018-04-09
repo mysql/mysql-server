@@ -1,0 +1,46 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression(".* Could not execute Write_rows event on table test.*");
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET @@GLOBAL.slave_transaction_retries = 10;
+SET @@GLOBAL.innodb_lock_wait_timeout = 2;
+[connection master]
+CREATE TABLE t1 (a INT UNIQUE);
+include/sync_slave_sql_with_master.inc
+BEGIN;
+INSERT INTO t1 VALUES (1);
+[connection master]
+SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+INSERT INTO t1 VALUES (1);
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+[connection slave]
+include/wait_for_slave_sql_to_stop.inc
+include/assert.inc [The master transaction should not be in the slave GTID_EXECUTED set]
+COMMIT;
+SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+COMMIT;
+SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
+include/start_slave_sql.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/assert.inc [The master transaction should be in the slave GTID_EXECUTED set]
+include/assert.inc [The GTID information about the last applied transaction was not changed]
+include/assert.inc [The OCT information about the last applied transaction was not changed]
+include/assert.inc [The ICT information about the last applied transaction was not changed]
+include/assert.inc [The start apply timestamp information about the last applied transaction was not changed]
+include/assert.inc [The end apply timestamp information about the last applied transaction was not changed]
+include/assert.inc [The retries count information about the last applied transaction was not changed]
+include/assert.inc [The last transient error number information about the last applied transaction was not changed]
+include/assert.inc [The last transient error message information about the last applied transaction was not changed]
+include/assert.inc [The last transient error timestamp information about the last applied transaction was not changed]
+SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+SET @@GLOBAL.slave_transaction_retries = @saved_slave_transaction_retries;
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/rpl_end.inc

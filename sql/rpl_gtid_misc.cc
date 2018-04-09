@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -274,7 +274,10 @@ rpl_gno get_last_executed_gno(rpl_sidno sidno) {
   DBUG_RETURN(gno);
 }
 
-Trx_monitoring_info::Trx_monitoring_info() { is_info_set = false; }
+Trx_monitoring_info::Trx_monitoring_info() {
+  is_info_set = false;
+  is_retrying = false;
+}
 
 Trx_monitoring_info::Trx_monitoring_info(const Trx_monitoring_info &info) {
   if ((is_info_set = info.is_info_set)) {
@@ -284,6 +287,11 @@ Trx_monitoring_info::Trx_monitoring_info(const Trx_monitoring_info &info) {
     start_time = info.start_time;
     end_time = info.end_time;
     skipped = info.skipped;
+    last_transient_error_number = info.last_transient_error_number;
+    strcpy(last_transient_error_message, info.last_transient_error_message);
+    last_transient_error_timestamp = info.last_transient_error_timestamp;
+    transaction_retries = info.transaction_retries;
+    is_retrying = info.is_retrying;
   }
 }
 
@@ -295,6 +303,11 @@ void Trx_monitoring_info::clear() {
   end_time = 0;
   skipped = false;
   is_info_set = false;
+  last_transient_error_number = 0;
+  last_transient_error_message[0] = '\0';
+  last_transient_error_timestamp = 0;
+  transaction_retries = 0;
+  is_retrying = false;
 }
 
 void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
@@ -302,6 +315,13 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            ulonglong *original_commit_ts_arg,
                                            ulonglong *immediate_commit_ts_arg,
                                            ulonglong *start_time_arg) {
+  DBUG_ASSERT(sid_map);
+  DBUG_ASSERT(gtid_arg);
+  DBUG_ASSERT(gtid_length_arg);
+  DBUG_ASSERT(original_commit_ts_arg);
+  DBUG_ASSERT(immediate_commit_ts_arg);
+  DBUG_ASSERT(start_time_arg);
+
   if (is_info_set) {
     // The trx_monitoring_info is populated
     if (gtid.is_empty()) {
@@ -334,9 +354,57 @@ void Trx_monitoring_info::copy_to_ps_table(Sid_map *sid_map, char *gtid_arg,
                                            ulonglong *immediate_commit_ts_arg,
                                            ulonglong *start_time_arg,
                                            ulonglong *end_time_arg) {
+  DBUG_ASSERT(end_time_arg);
+
   *end_time_arg = is_info_set ? end_time / 10 : 0;
   copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
                    immediate_commit_ts_arg, start_time_arg);
+}
+
+void Trx_monitoring_info::copy_to_ps_table(
+    Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+    ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
+    ulonglong *start_time_arg, uint *last_transient_errno_arg,
+    char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
+  DBUG_ASSERT(last_transient_errno_arg);
+  DBUG_ASSERT(last_transient_errmsg_arg);
+  DBUG_ASSERT(last_transient_errmsg_length_arg);
+  DBUG_ASSERT(last_transient_timestamp_arg);
+  DBUG_ASSERT(retries_count_arg);
+
+  if (is_info_set) {
+    *last_transient_errno_arg = last_transient_error_number;
+    strcpy(last_transient_errmsg_arg, last_transient_error_message);
+    *last_transient_errmsg_length_arg = strlen(last_transient_error_message);
+    *last_transient_timestamp_arg = last_transient_error_timestamp / 10;
+    *retries_count_arg = transaction_retries;
+  } else {
+    *last_transient_errno_arg = 0;
+    memcpy(last_transient_errmsg_arg, "", 1);
+    *last_transient_errmsg_length_arg = 0;
+    *last_transient_timestamp_arg = 0;
+    *retries_count_arg = 0;
+  }
+  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
+                   immediate_commit_ts_arg, start_time_arg);
+}
+
+void Trx_monitoring_info::copy_to_ps_table(
+    Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+    ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
+    ulonglong *start_time_arg, ulonglong *end_time_arg,
+    uint *last_transient_errno_arg, char *last_transient_errmsg_arg,
+    uint *last_transient_errmsg_length_arg,
+    ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg) {
+  DBUG_ASSERT(end_time_arg);
+
+  *end_time_arg = is_info_set ? end_time / 10 : 0;
+  copy_to_ps_table(sid_map, gtid_arg, gtid_length_arg, original_commit_ts_arg,
+                   immediate_commit_ts_arg, start_time_arg,
+                   last_transient_errno_arg, last_transient_errmsg_arg,
+                   last_transient_errmsg_length_arg,
+                   last_transient_timestamp_arg, retries_count_arg);
 }
 
 Gtid_monitoring_info::Gtid_monitoring_info(mysql_mutex_t *atomic_mutex_arg)
@@ -407,18 +475,38 @@ void Gtid_monitoring_info::clear_last_processed_trx() {
 
 void Gtid_monitoring_info::start(Gtid gtid_arg, ulonglong original_ts_arg,
                                  ulonglong immediate_ts_arg, bool skipped_arg) {
-  /* Collect current timestamp before the atomic operation */
-  ulonglong start_time = gtid_monitoring_getsystime();
+  /**
+    When a new transaction starts processing, we reset all the information from
+    the previous processing_trx and fetch the current timestamp as the new
+    start_time.
+  */
+  if (!processing_trx->gtid.equals(gtid_arg) || !processing_trx->is_retrying) {
+    /* Collect current timestamp before the atomic operation */
+    ulonglong start_time = gtid_monitoring_getsystime();
 
-  atomic_lock();
-  processing_trx->gtid = gtid_arg;
-  processing_trx->original_commit_timestamp = original_ts_arg;
-  processing_trx->immediate_commit_timestamp = immediate_ts_arg;
-  processing_trx->start_time = start_time;
-  processing_trx->end_time = 0;
-  processing_trx->skipped = skipped_arg;
-  processing_trx->is_info_set = true;
-  atomic_unlock();
+    atomic_lock();
+    processing_trx->gtid = gtid_arg;
+    processing_trx->original_commit_timestamp = original_ts_arg;
+    processing_trx->immediate_commit_timestamp = immediate_ts_arg;
+    processing_trx->start_time = start_time;
+    processing_trx->end_time = 0;
+    processing_trx->skipped = skipped_arg;
+    processing_trx->is_info_set = true;
+    processing_trx->last_transient_error_number = 0;
+    processing_trx->last_transient_error_message[0] = '\0';
+    processing_trx->last_transient_error_timestamp = 0;
+    processing_trx->transaction_retries = 0;
+    atomic_unlock();
+  } else {
+    /**
+      If the transaction is being retried, only update the skipped field
+      because it determines if the information will be kept after it finishes
+      executing.
+    */
+    atomic_lock();
+    processing_trx->skipped = skipped_arg;
+    atomic_unlock();
+  }
 }
 
 void Gtid_monitoring_info::finish() {
@@ -467,5 +555,20 @@ const Gtid *Gtid_monitoring_info::get_processing_trx_gtid() {
   DBUG_ASSERT(atomic_mutex != NULL);
   mysql_mutex_assert_owner(atomic_mutex);
   return &processing_trx->gtid;
+}
+
+void Gtid_monitoring_info::store_transient_error(
+    uint transient_errno_arg, const char *transient_err_message_arg,
+    ulong trans_retries_arg) {
+  ulonglong retry_timestamp = gtid_monitoring_getsystime();
+  processing_trx->is_retrying = true;
+  atomic_lock();
+  processing_trx->transaction_retries = trans_retries_arg;
+  processing_trx->last_transient_error_number = transient_errno_arg;
+  snprintf(processing_trx->last_transient_error_message,
+           sizeof(processing_trx->last_transient_error_message), "%.*s",
+           MAX_SLAVE_ERRMSG - 1, transient_err_message_arg);
+  processing_trx->last_transient_error_timestamp = retry_timestamp;
+  atomic_unlock();
 }
 #endif  // ifdef MYSQL_SERVER

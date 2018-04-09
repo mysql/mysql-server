@@ -1,0 +1,78 @@
+include/rpl_init.inc [topology=1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CREATE TABLE t1 (a INT UNIQUE);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [LAST_APPLIED_TRANSACTION_RETRIES_COUNT must be zero for the first transaction]
+include/assert.inc [LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER must be zero for the first transaction]
+include/assert.inc [LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE must be empty for the first transaction]
+include/assert.inc [LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP must be zero for the first transaction]
+include/assert.inc [APPLYING_TRANSACTION_RETRIES_COUNT must be zero when no transaction is being applied]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER must be zero when no transaction is being applied]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE must be empty when no transaction is being applied]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP must be zero when no transaction is being applied]
+include/stop_slave.inc
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
+SET GLOBAL slave_transaction_retries = 10;
+SET GLOBAL innodb_lock_wait_timeout = 2;
+# Adding debug point 'rpl_ps_tables_worker_retry' to @@GLOBAL.debug
+include/start_slave.inc
+BEGIN;
+INSERT INTO t1 VALUES(1);
+[connection server_1]
+INSERT INTO t1 VALUES(1);
+[connection server_2]
+SET debug_sync= 'now WAIT_FOR signal.rpl_ps_tables_worker_retry_pause';
+SET debug_sync= 'now SIGNAL signal.rpl_ps_tables_worker_retry_continue';
+SET debug_sync= 'now WAIT_FOR signal.rpl_ps_tables_worker_retry_pause';
+SET debug_sync= 'now SIGNAL signal.rpl_ps_tables_worker_retry_continue';
+include/assert.inc [APPLYING_TRANSACTION_RETRIES_COUNT must be 2]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER must correspond to ER_LOCK_WAIT_TIMEOUT]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE must correspond to ER_LOCK_WAIT_TIMEOUT message]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP must be more recent than APPLYING_TRANSACTION_START_APPLY_TIMESTAMP]
+include/assert.inc [APPLYING_TRANSACTION_START_APPLY_TIMESTAMP must not have changed between retries]
+include/assert.inc [APPLYING_TRANSACTION_RETRIES_COUNT must increase between retries]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER must not have changed between retries]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_TIMESTAMP must be more recent when the transaction is retried]
+ROLLBACK;
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [LAST_APPLIED_TRANSACTION_RETRIES_COUNT must larger than zero for a retried transaction]
+include/assert.inc [LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER should be the same as previous APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER]
+include/assert.inc [LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE should be the same as previous APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE]
+include/assert.inc [LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP must be more recent than LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP]
+include/assert.inc [LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP must be older than LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP]
+include/assert.inc [APPLYING_TRANSACTION_RETRIES_COUNT must be zero when no transaction is being applied]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER must be zero when no transaction is being applied]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE must be empty when no transaction is being applied]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP must be zero when no transaction is being applied]
+# Removing debug point 'rpl_ps_tables_worker_retry' from @@GLOBAL.debug
+BEGIN;
+INSERT INTO t1 VALUES(2);
+[connection server_1]
+INSERT INTO t1 VALUES(2);
+[connection server_2]
+include/wait_for_slave_sql_to_stop.inc
+ROLLBACK;
+include/start_slave.inc
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/assert.inc [The information on LAST_APPLIED_TRANSACTION_START_APPLY_TIMESTAMP was kept]
+include/assert.inc [The information on LAST_APPLIED_TRANSACTION_END_APPLY_TIMESTAMP was kept]
+include/assert.inc [The information on LAST_APPLIED_TRANSACTION_RETRIES_COUNT was kept]
+include/assert.inc [The information on LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER was kept]
+include/assert.inc [The information on LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE was kept]
+include/assert.inc [The information on LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP was kept]
+include/assert.inc [APPLYING_TRANSACTION_RETRIES_COUNT is the same as slave_transaction_retries]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER must correspond to ER_LOCK_WAIT_TIMEOUT]
+include/assert.inc [APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE must correspond to ER_LOCK_WAIT_TIMEOUT message]
+[connection server_1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+SET GLOBAL slave_transaction_retries = @saved_slave_transaction_retries;
+include/rpl_end.inc
+RESET SLAVE ALL FOR CHANNEL 'channel_1';

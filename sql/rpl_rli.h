@@ -324,6 +324,22 @@ class Relay_log_info : public Rpl_info {
   */
   void clear_gtid_monitoring_info() { gtid_monitoring_info->clear(); }
 
+  /**
+   When a transaction is retried, the error number and message, and total number
+   of retries are stored. The timestamp for this error is also set here.
+
+   @param transient_errno_arg        Transient error number.
+   @param transient_err_message_arg  Transient error message.
+   @param trans_retries_arg          Number of times this transaction has been
+                                     retried so far.
+  */
+  void retried_processing(uint transient_errno_arg,
+                          const char *transient_err_message_arg,
+                          ulong trans_retries_arg) {
+    gtid_monitoring_info->store_transient_error(
+        transient_errno_arg, transient_err_message_arg, trans_retries_arg);
+  }
+
   /*
     If on init_info() call error_on_rli_init_info is true that means
     that previous call to init_info() terminated with an error, RESET

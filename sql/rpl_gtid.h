@@ -32,6 +32,7 @@
 #include "my_thread_local.h"
 #include "mysql/psi/mysql_rwlock.h"  // mysql_rwlock_t
 #include "prealloced_array.h"        // Prealloced_array
+#include "sql/rpl_reporting.h"       // MAX_SLAVE_ERRMSG
 #include "template_utils.h"
 #include "typelib.h"
 
@@ -1028,6 +1029,16 @@ struct Trx_monitoring_info {
   bool skipped;
   /// True when this information contains useful data.
   bool is_info_set;
+  /// Number of the last transient error of this transaction
+  uint last_transient_error_number;
+  /// Message of the last transient error of this transaction
+  char last_transient_error_message[MAX_SLAVE_ERRMSG];
+  /// Timestamp in microseconds of the last transient error of this transaction
+  ulonglong last_transient_error_timestamp;
+  /// Number of times this transaction was retried
+  ulong transaction_retries;
+  /// True when the transaction is retrying
+  bool is_retrying;
 
   /// Constructor
   Trx_monitoring_info();
@@ -1038,7 +1049,9 @@ struct Trx_monitoring_info {
   void clear();
 
   /**
-    Copies the info to the corresponding fields in p_s tables.
+    Copies this transaction monitoring information to the output parameters
+    passed as input, which are the corresponding fields in a replication
+    performance schema table.
 
     @param[in]  sid_map                  The SID map for the GTID.
     @param[out] gtid_arg                 GTID field in the PS table.
@@ -1053,7 +1066,9 @@ struct Trx_monitoring_info {
                         ulonglong *start_time_arg);
 
   /**
-    Copies the info to the corresponding fields in p_s tables.
+    Copies this transaction monitoring information to the output parameters
+    passed as input, which are the corresponding fields in a replication
+    performance schema table.
 
     @param[in]  sid_map                  The SID map for the GTID.
     @param[out] gtid_arg                 GTID field in the PS table.
@@ -1069,6 +1084,71 @@ struct Trx_monitoring_info {
                         ulonglong *original_commit_ts_arg,
                         ulonglong *immediate_commit_ts_arg,
                         ulonglong *start_time_arg, ulonglong *end_time_arg);
+
+  /**
+    Copies this transaction monitoring information to the output parameters
+    passed as input, which are the corresponding fields in a replication
+    performance schema table.
+
+    @param[in]  sid_map                          The SID map for the GTID.
+    @param[out] gtid_arg                         GTID field in the PS table.
+    @param[out] gtid_length_arg                  Length of the GTID as string.
+    @param[out] original_commit_ts_arg           The original commit timestamp.
+    @param[out] immediate_commit_ts_arg          The immediate commit timestamp.
+    @param[out] start_time_arg                   The start time field.
+    @param[out] last_transient_errno_arg         The last transient error
+                                                 number.
+    @param[out] last_transient_errmsg_arg        The last transient error
+                                                 message.
+    @param[out] last_transient_errmsg_length_arg Length of the last transient
+                                                 error message.
+    @param[out] last_transient_timestamp_arg     The last transient error
+                                                 timestamp.
+    @param[out] retries_count_arg                The total number of retries for
+                                                 this transaction.
+  */
+  void copy_to_ps_table(
+      Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+      ulonglong *original_commit_ts_arg, ulonglong *immediate_commit_ts_arg,
+      ulonglong *start_time_arg, uint *last_transient_errno_arg,
+      char *last_transient_errmsg_arg, uint *last_transient_errmsg_length_arg,
+      ulonglong *last_transient_timestamp_arg, ulong *retries_count_arg);
+
+  /**
+    Copies this transaction monitoring information to the output parameters
+    passed as input, which are the corresponding fields in a replication
+    performance schema table.
+
+    @param[in]  sid_map                          The SID map for the GTID.
+    @param[out] gtid_arg                         GTID field in the PS table.
+    @param[out] gtid_length_arg                  Length of the GTID as string.
+    @param[out] original_commit_ts_arg           The original commit timestamp.
+    @param[out] immediate_commit_ts_arg          The immediate commit timestamp.
+    @param[out] start_time_arg                   The start time field.
+    @param[out] end_time_arg                     The end time field. This can be
+                                                 null when the PS table fields
+                                                 are for the "still processing"
+                                                 information.
+    @param[out] last_transient_errno_arg         The last transient error
+                                                 number.
+    @param[out] last_transient_errmsg_arg        The last transient error
+                                                 message.
+    @param[out] last_transient_errmsg_length_arg Length of the last transient
+                                                 error message.
+    @param[out] last_transient_timestamp_arg     The last transient error
+                                                 timestamp.
+    @param[out] retries_count_arg                The total number of retries for
+                                                 this transaction.
+  */
+  void copy_to_ps_table(Sid_map *sid_map, char *gtid_arg, uint *gtid_length_arg,
+                        ulonglong *original_commit_ts_arg,
+                        ulonglong *immediate_commit_ts_arg,
+                        ulonglong *start_time_arg, ulonglong *end_time_arg,
+                        uint *last_transient_errno_arg,
+                        char *last_transient_errmsg_arg,
+                        uint *last_transient_errmsg_length_arg,
+                        ulonglong *last_transient_timestamp_arg,
+                        ulong *retries_count_arg);
 };
 
 /**
@@ -1179,6 +1259,20 @@ class Gtid_monitoring_info {
   bool is_processing_trx_set();
   /// Returns the GTID of the processing_trx.
   const Gtid *get_processing_trx_gtid();
+  /**
+    Stores the information about the last transient error in the current
+    transaction, namely: the error number, message and total number of retries.
+    It also sets the timestamp for this error.
+
+    @param transient_errno_arg        The number of the transient error in this
+                                      transaction.
+    @param transient_err_message_arg  The message of this transient error.
+    @param trans_retries_arg          The number of times this transaction has
+                                      been retried.
+  */
+  void store_transient_error(uint transient_errno_arg,
+                             const char *transient_err_message_arg,
+                             ulong trans_retries_arg);
 };
 
 /**

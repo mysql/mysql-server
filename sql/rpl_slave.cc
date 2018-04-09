@@ -4868,8 +4868,10 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
           rli->cleanup_context(thd, 1);
           /*
             Temporary error status is both unneeded and harmful for following
-            open-and-lock slave system tables.
+            open-and-lock slave system tables but store its number first for
+            monitoring purposes.
           */
+          uint temp_trans_errno = thd->get_stmt_da()->mysql_errno();
           thd->clear_error();
           applier_reader->close();
           /*
@@ -4890,10 +4892,29 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
                         min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                         sql_slave_killed, rli);
             mysql_mutex_lock(&rli->data_lock);  // because of SHOW STATUS
-            if (!silent) rli->trans_retries++;
+            if (!silent) {
+              rli->trans_retries++;
+              if (rli->is_processing_trx()) {
+                rli->retried_processing(temp_trans_errno,
+                                        ER_THD(thd, temp_trans_errno),
+                                        rli->trans_retries);
+              }
+            }
 
             rli->retried_trans++;
             mysql_mutex_unlock(&rli->data_lock);
+#ifndef DBUG_OFF
+            if (rli->trans_retries == 2 || rli->trans_retries == 6) {
+              DBUG_EXECUTE_IF("rpl_ps_tables_worker_retry", {
+                char const act[] =
+                    "now SIGNAL signal.rpl_ps_tables_worker_retry_pause "
+                    "WAIT_FOR signal.rpl_ps_tables_worker_retry_continue";
+                DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                DBUG_ASSERT(
+                    !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+              };);
+            }
+#endif
             DBUG_PRINT("info", ("Slave retries transaction "
                                 "rli->trans_retries: %lu",
                                 rli->trans_retries));

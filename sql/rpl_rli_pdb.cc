@@ -1840,7 +1840,28 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
       DBUG_RETURN(true);
     }
 
-    if (!silent) trans_retries++;
+    if (!silent) {
+      trans_retries++;
+      if (current_thd->rli_slave->is_processing_trx()) {
+        // if the error code is zero, we get the top of the error stack
+        uint transient_error =
+            (error == 0) ? thd->get_stmt_da()->mysql_errno() : error;
+        current_thd->rli_slave->retried_processing(
+            transient_error, ER_THD(thd, transient_error), trans_retries);
+#ifndef DBUG_OFF
+        if (trans_retries == 2 || trans_retries == 6)
+          DBUG_EXECUTE_IF("rpl_ps_tables_worker_retry", {
+            char const act[] =
+                "now SIGNAL signal.rpl_ps_tables_worker_retry_pause "
+                "WAIT_FOR signal.rpl_ps_tables_worker_retry_continue";
+            DBUG_ASSERT(opt_debug_sync_timeout > 0);
+            // we can't add the usual DBUG_ASSERT here because thd->is_error()
+            // is true (and that's OK)
+            debug_sync_set_action(thd, STRING_WITH_LEN(act));
+          });
+#endif
+      }
+    }
 
     mysql_mutex_lock(&c_rli->data_lock);
     c_rli->retried_trans++;

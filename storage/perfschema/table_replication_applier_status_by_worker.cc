@@ -77,7 +77,17 @@ Plugin_table table_replication_applier_status_by_worker::m_table_def(
     "  APPLYING_TRANSACTION_IMMEDIATE_COMMIT_TIMESTAMP TIMESTAMP(6)\n"
     "                                                  not null,\n"
     "  APPLYING_TRANSACTION_START_APPLY_TIMESTAMP TIMESTAMP(6)\n"
-    "                                             not null\n",
+    "                                             not null,\n"
+    "  LAST_APPLIED_TRANSACTION_RETRIES_COUNT BIGINT UNSIGNED not null,\n"
+    "  LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER INTEGER not null,\n"
+    "  LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE VARCHAR(1024),\n"
+    "  LAST_APPLIED_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                          not null,\n"
+    "  APPLYING_TRANSACTION_RETRIES_COUNT BIGINT UNSIGNED not null,\n"
+    "  APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_NUMBER INTEGER not null,\n"
+    "  APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_MESSAGE VARCHAR(1024),\n"
+    "  APPLYING_TRANSACTION_LAST_TRANSIENT_ERROR_TIMESTAMP TIMESTAMP(6)\n"
+    "                                                        not null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -526,14 +536,24 @@ void table_replication_applier_status_by_worker::populate_trx_info(
                                 &m_row.applying_trx_length,
                                 &m_row.applying_trx_original_commit_timestamp,
                                 &m_row.applying_trx_immediate_commit_timestamp,
-                                &m_row.applying_trx_start_apply_timestamp);
+                                &m_row.applying_trx_start_apply_timestamp,
+                                &m_row.applying_trx_last_retry_err_number,
+                                m_row.applying_trx_last_retry_err_msg,
+                                &m_row.applying_trx_last_retry_err_msg_length,
+                                &m_row.applying_trx_last_retry_timestamp,
+                                &m_row.applying_trx_retries_count);
 
   last_applied_trx.copy_to_ps_table(
       global_sid_map, m_row.last_applied_trx, &m_row.last_applied_trx_length,
       &m_row.last_applied_trx_original_commit_timestamp,
       &m_row.last_applied_trx_immediate_commit_timestamp,
       &m_row.last_applied_trx_start_apply_timestamp,
-      &m_row.last_applied_trx_end_apply_timestamp);
+      &m_row.last_applied_trx_end_apply_timestamp,
+      &m_row.last_applied_trx_last_retry_err_number,
+      m_row.last_applied_trx_last_retry_err_msg,
+      &m_row.last_applied_trx_last_retry_err_msg_length,
+      &m_row.last_applied_trx_last_retry_timestamp,
+      &m_row.last_applied_trx_retries_count);
 }
 
 int table_replication_applier_status_by_worker::read_row_values(
@@ -601,6 +621,33 @@ int table_replication_applier_status_by_worker::read_row_values(
           break;
         case 15: /*applying_trx_start_apply_timestamp*/
           set_field_timestamp(f, m_row.applying_trx_start_apply_timestamp);
+          break;
+        case 16: /*last_applied_trx_retries_count*/
+          set_field_ulonglong(f, m_row.last_applied_trx_retries_count);
+          break;
+        case 17: /*last_applied_trx_last_trans_errno*/
+          set_field_ulong(f, m_row.last_applied_trx_last_retry_err_number);
+          break;
+        case 18: /*last_applied_trx_last_retry_err_msg*/
+          set_field_varchar_utf8(
+              f, m_row.last_applied_trx_last_retry_err_msg,
+              m_row.last_applied_trx_last_retry_err_msg_length);
+          break;
+        case 19: /*last_applied_trx_last_retry_timestamp*/
+          set_field_timestamp(f, m_row.last_applied_trx_last_retry_timestamp);
+          break;
+        case 20: /*applying_trx_retries_count*/
+          set_field_ulonglong(f, m_row.applying_trx_retries_count);
+          break;
+        case 21: /*applying_trx_last_trans_errno*/
+          set_field_ulong(f, m_row.applying_trx_last_retry_err_number);
+          break;
+        case 22: /*applying_trx_last_retry_err_msg*/
+          set_field_varchar_utf8(f, m_row.applying_trx_last_retry_err_msg,
+                                 m_row.applying_trx_last_retry_err_msg_length);
+          break;
+        case 23: /*applying_trx_last_retry_timestamp*/
+          set_field_timestamp(f, m_row.applying_trx_last_retry_timestamp);
           break;
         default:
           DBUG_ASSERT(false);
