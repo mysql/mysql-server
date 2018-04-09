@@ -2046,7 +2046,7 @@ class Item_equal final : public Item_bool_func {
   longlong val_int() override;
   const char *func_name() const override { return "multiple equal"; }
   optimize_type select_optimize() const override { return OPTIMIZE_EQUAL; }
-  void sort(Node_cmp_func compare, void *arg);
+  void sort(List<Item_field>::Node_cmp_func compare, void *arg);
   friend class Item_equal_iterator;
   bool resolve_type(THD *) override;
   bool fix_fields(THD *thd, Item **ref) override;

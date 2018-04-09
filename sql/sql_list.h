@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -132,8 +132,6 @@ extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
      1  n1 > n2
 */
 
-typedef int (*Node_cmp_func)(void *n1, void *n2, void *arg);
-
 class base_list {
  protected:
   list_node *first, **last;
@@ -254,33 +252,6 @@ class base_list {
       if (is_empty()) last = list->last;
       first = list->first;
       elements += list->elements;
-    }
-  }
-  /**
-    @brief
-    Sort the list
-
-    @param cmp  node comparison function
-    @param arg  additional info to be passed to comparison function
-
-    @details
-    The function sorts list nodes by an exchange sort algorithm.
-    The order of list nodes isn't changed, values of info fields are
-    swapped instead. Due to this, list iterators that are initialized before
-    sort could be safely used after sort, i.e they wouldn't cause a crash.
-    As this isn't an effective algorithm the list to be sorted is supposed to
-    be short.
-  */
-  void sort(Node_cmp_func cmp, void *arg) {
-    if (elements < 2) return;
-    for (list_node *n1 = first; n1 && n1 != &end_of_list; n1 = n1->next) {
-      for (list_node *n2 = n1->next; n2 && n2 != &end_of_list; n2 = n2->next) {
-        if ((*cmp)(n1->info, n2->info, arg) > 0) {
-          void *tmp = n1->info;
-          n1->info = n2->info;
-          n2->info = tmp;
-        }
-      }
     }
   }
   /**
@@ -537,7 +508,37 @@ class List : public base_list {
 
     return false;
   }
-  using base_list::sort;
+
+  typedef int (*Node_cmp_func)(T *n1, T *n2, void *arg);
+
+  /**
+    @brief
+    Sort the list
+
+    @param cmp  node comparison function
+    @param arg  additional info to be passed to comparison function
+
+    @details
+    The function sorts list nodes by an exchange sort algorithm.
+    The order of list nodes isn't changed, values of info fields are
+    swapped instead. Due to this, list iterators that are initialized before
+    sort could be safely used after sort, i.e they wouldn't cause a crash.
+    As this isn't an effective algorithm the list to be sorted is supposed to
+    be short.
+  */
+  void sort(Node_cmp_func cmp, void *arg) {
+    if (elements < 2) return;
+    for (list_node *n1 = first; n1 && n1 != &end_of_list; n1 = n1->next) {
+      for (list_node *n2 = n1->next; n2 && n2 != &end_of_list; n2 = n2->next) {
+        if ((*cmp)(static_cast<T *>(n1->info), static_cast<T *>(n2->info),
+                   arg) > 0) {
+          void *tmp = n1->info;
+          n1->info = n2->info;
+          n2->info = tmp;
+        }
+      }
+    }
+  }
 };
 
 template <class T>

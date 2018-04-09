@@ -183,9 +183,8 @@ static bool append_str(String *str, bool comma, const char *key,
     @retval 1 if n1 &gt; n2
     @retval 0 if n1 &lt;= n2
 */
-static int lex_user_comp(void *n1, void *n2, void *arg MY_ATTRIBUTE((unused))) {
-  LEX_USER *l1 = (LEX_USER *)n1;
-  LEX_USER *l2 = (LEX_USER *)n2;
+static int lex_user_comp(LEX_USER *l1, LEX_USER *l2,
+                         void *arg MY_ATTRIBUTE((unused))) {
   size_t length = std::min(l1->user.length, l2->user.length);
   int key = memcmp(l1->user.str, l2->user.str, length);
   if (key == 0 && l1->user.length == l2->user.length) {
@@ -203,7 +202,7 @@ static void rewrite_default_roles(LEX *lex, String *rlb) {
   bool comma = false;
   if (lex->default_roles && lex->default_roles->elements > 0) {
     rlb->append(" DEFAULT ROLE ");
-    lex->default_roles->sort(&lex_user_comp, 0);
+    lex->default_roles->sort(&lex_user_comp, nullptr);
     List_iterator<LEX_USER> role_it(*(lex->default_roles));
     LEX_USER *role;
     while ((role = role_it++)) {

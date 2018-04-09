@@ -6581,7 +6581,7 @@ bool TABLE_LIST::generate_keys() {
       return true; /* purecov: inspected */
 
   /* Sort entries to make key numbers sequence deterministic. */
-  derived_key_list.sort((Node_cmp_func)Derived_key_comp, 0);
+  derived_key_list.sort(Derived_key_comp, nullptr);
 
   List_iterator<Derived_key> it(derived_key_list);
   Derived_key *entry;

@@ -5831,7 +5831,7 @@ bool Item_equal::merge(THD *thd, Item_equal *item) {
   @param arg          context extra parameter for the cmp function
 */
 
-void Item_equal::sort(Node_cmp_func compare, void *arg) {
+void Item_equal::sort(List<Item_field>::Node_cmp_func compare, void *arg) {
   fields.sort(compare, arg);
 }
 
