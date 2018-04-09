@@ -114,8 +114,9 @@ my $opt_valgrind_path;
 my $opt_view_protocol;
 my $opt_wait_all;
 
-my $opt_build_thread  = $ENV{'MTR_BUILD_THREAD'} || "auto";
-my $opt_ctest_timeout = $ENV{MTR_CTEST_TIMEOUT}  || 120;      # seconds
+my $opt_build_thread  = $ENV{'MTR_BUILD_THREAD'}  || "auto";
+my $opt_colored_diff  = $ENV{'MTR_COLORED_DIFF'}  || 0;
+my $opt_ctest_timeout = $ENV{'MTR_CTEST_TIMEOUT'} || 120;      # seconds
 my $opt_debug_sync_timeout = 600;    # Default timeout for WAIT_FOR actions.
 my $opt_discover           = 0;
 my $opt_do_test_list       = "";
@@ -1373,6 +1374,7 @@ sub command_line_setup {
 
     # Misc
     'charset-for-testdb=s'  => \$opt_charset_for_testdb,
+    'colored-diff'          => \$opt_colored_diff,
     'comment=s'             => \$opt_comment,
     'default-myisam!'       => \&collect_option,
     'disk-usage!'           => \&report_option,
@@ -2547,15 +2549,15 @@ sub environment_setup {
   $ENV{'LC_COLLATE'} = "C";
   $ENV{'LC_CTYPE'}   = "C";
 
-  $ENV{'DEFAULT_MASTER_PORT'}  = $mysqld_variables{'port'};
-  $ENV{'MYSQL_BINDIR'}         = "$bindir";
-  $ENV{'MYSQL_CHARSETSDIR'}    = $path_charsetsdir;
-  $ENV{'MYSQL_SHAREDIR'}       = $path_language;
-  $ENV{'MYSQL_TEST_DIR'}       = $glob_mysql_test_dir;
-  $ENV{'MYSQL_TEST_DIR_ABS'}   = getcwd();
-  $ENV{'MYSQL_TMP_DIR'}        = $opt_tmpdir;
-  $ENV{'MYSQLTEST_VARDIR'}     = $opt_vardir;
-  $ENV{'USE_RUNNING_SERVER'}   = using_extern();
+  $ENV{'DEFAULT_MASTER_PORT'} = $mysqld_variables{'port'};
+  $ENV{'MYSQL_BINDIR'}        = "$bindir";
+  $ENV{'MYSQL_CHARSETSDIR'}   = $path_charsetsdir;
+  $ENV{'MYSQL_SHAREDIR'}      = $path_language;
+  $ENV{'MYSQL_TEST_DIR'}      = $glob_mysql_test_dir;
+  $ENV{'MYSQL_TEST_DIR_ABS'}  = getcwd();
+  $ENV{'MYSQL_TMP_DIR'}       = $opt_tmpdir;
+  $ENV{'MYSQLTEST_VARDIR'}    = $opt_vardir;
+  $ENV{'USE_RUNNING_SERVER'}  = using_extern();
 
   if (IS_WINDOWS) {
     $ENV{'SECURE_LOAD_PATH'}      = $glob_mysql_test_dir . "\\std_data";
@@ -6214,6 +6216,10 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--max-connections=%d", $opt_max_connections);
   }
 
+  if ($opt_colored_diff) {
+    mtr_add_arg($args, "--colored-diff", $opt_colored_diff);
+  }
+
   foreach my $arg (@opt_extra_mysqltest_opt) {
     mtr_add_arg($args, $arg);
   }
@@ -6929,6 +6935,7 @@ Options for valgrind
 Misc options
 
   charset-for-testdb    CREATE DATABASE test CHARACTER SET <option value>.
+  colored-diff          Colorize the diff part of the output.
   comment=STR           Write STR to the output.
   debug-sync-timeout=NUM
                         Set default timeout for WAIT_FOR debug sync

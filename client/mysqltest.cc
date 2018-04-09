@@ -51,6 +51,7 @@
 #endif
 
 #include <cmath>  // std::isinf
+#include <cstring>
 #ifdef _WIN32
 #include <thread>  // std::thread
 #endif
@@ -156,24 +157,25 @@ static void signal_handler(int sig);
 static bool get_one_option(int optid, const struct my_option *, char *argument);
 
 enum {
-  OPT_PS_PROTOCOL = OPT_MAX_CLIENT_OPTION,
-  OPT_SP_PROTOCOL,
-  OPT_NO_SKIP,
+  OPT_COLORED_DIFF = OPT_MAX_CLIENT_OPTION,
   OPT_CURSOR_PROTOCOL,
-  OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES,
-  OPT_MAX_CONNECTIONS,
-  OPT_MARK_PROGRESS,
-  OPT_LOG_DIR,
-  OPT_TAIL_LINES,
-  OPT_RESULT_FORMAT_VERSION,
-  OPT_TRACE_PROTOCOL,
   OPT_EXPLAIN_PROTOCOL,
   OPT_JSON_EXPLAIN_PROTOCOL,
+  OPT_LOG_DIR,
+  OPT_MARK_PROGRESS,
+  OPT_MAX_CONNECT_RETRIES,
+  OPT_MAX_CONNECTIONS,
+  OPT_NO_SKIP,
+  OPT_PS_PROTOCOL,
+  OPT_RESULT_FORMAT_VERSION,
 #ifdef _WIN32
   OPT_SAFEPROCESS_PID,
 #endif
-  OPT_TRACE_EXEC
+  OPT_SP_PROTOCOL,
+  OPT_TAIL_LINES,
+  OPT_TRACE_EXEC,
+  OPT_TRACE_PROTOCOL,
+  OPT_VIEW_PROTOCOL,
 };
 
 static int record = 0, opt_sleep = -1;
@@ -187,6 +189,7 @@ static int opt_port = 0;
 static int opt_max_connect_retries;
 static int opt_result_format_version;
 static int opt_max_connections = DEFAULT_MAX_CONN;
+static bool opt_colored_diff = 0;
 static bool opt_compress = 0, silent = 0, verbose = 0, trace_exec = 0;
 static bool debug_info_flag = 0, debug_check_flag = 0;
 static bool tty_password = 0;
@@ -947,7 +950,7 @@ static void show_query(MYSQL *mysql, const char *query) {
                 row[i] ? row[i] : "NULL");
       }
     }
-    for (i = 0; i < strlen(query) + 8; i++) fprintf(stderr, "=");
+    for (i = 0; i < std::strlen(query) + 8; i++) fprintf(stderr, "=");
     fprintf(stderr, "\n\n");
   }
   mysql_free_result(res);
@@ -1477,7 +1480,7 @@ static int run_tool(const char *tool_path, DYNAMIC_STRING *ds_res, ...) {
 
   while ((arg = va_arg(args, char *))) {
     /* Options should be os quoted */
-    if (strncmp(arg, "--", 2) == 0)
+    if (std::strncmp(arg, "--", 2) == 0)
       dynstr_append_os_quoted(&ds_cmdline, arg, NullS);
     else
       dynstr_append(&ds_cmdline, arg);
@@ -1529,33 +1532,26 @@ static int diff_check(const char *diff_name) {
 
 #endif
 
-/*
-  Show the diff of two files using the systems builtin diff
-  command. If no such diff command exist, just dump the content
-  of the two files and inform about how to get "diff"
-
-  SYNOPSIS
-  show_diff
-  ds - pointer to dynamic string where to add the diff(may be NULL)
-  filename1 - name of first file
-  filename2 - name of second file
-
-*/
-
+/// Show the diff of two files using the systems builtin diff
+/// command. If no such diff command exist, just dump the content
+/// of the two files and inform about how to get "diff"
+///
+/// @param ds        Pointer to dynamic string where to add the
+///                  diff. If NULL, print the diff to stderr.
+/// @param filename1 Name of the first file
+/// @param filename2 Name of the second file
 static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
                       const char *filename2) {
-  DYNAMIC_STRING ds_tmp;
+  DYNAMIC_STRING ds_diff;
+  if (init_dynamic_string(&ds_diff, "", 256, 256)) die("Out of memory");
+
   const char *diff_name = 0;
 
-  if (init_dynamic_string(&ds_tmp, "", 256, 256)) die("Out of memory");
-
-    /* determine if we have diff on Windows
-       needs special processing due to return values
-       on that OS
-       This test is only done on Windows since it's only needed there
-       in order to correctly detect non-availibility of 'diff', and
-       the way it's implemented does not work with default 'diff' on Solaris.
-    */
+  // Determine if we have diff on Windows. If yes, then needs special
+  // processing due to return values on that OS. This test is only done
+  // on Windows since it's only needed there in order to correctly
+  // detect non-availibility of 'diff', and the way it's implemented
+  // does not work with default 'diff' on Solaris.
 #ifdef _WIN32
   if (diff_check("diff"))
     diff_name = "diff";
@@ -1564,43 +1560,52 @@ static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
   else
     diff_name = 0;
 #else
-  diff_name = "diff"; /* Otherwise always assume it's called diff */
+  // Otherwise always assume it's called diff
+  diff_name = "diff";
 #endif
 
   if (diff_name) {
-    /* First try with unified diff */
-    if (run_tool(diff_name, &ds_tmp, /* Get output from diff in ds_tmp */
-                 "-u", filename1, filename2, "2>&1",
-                 NULL) > 1) /* Most "diff" tools return >1 if error */
-    {
-      dynstr_set(&ds_tmp, "");
+    int exit_code = 0;
+    // Use 'diff --color=always' to print the colored diff if it is enabled
+    if (opt_colored_diff) {
+      // Most "diff" tools return '> 1' if error
+      exit_code = run_tool(diff_name, &ds_diff, "-u --color='always'",
+                           filename1, filename2, "2>&1", NULL);
 
-      /* Fallback to context diff with "diff -c" */
-      if (run_tool(diff_name, &ds_tmp, /* Get output from diff in ds_tmp */
-                   "-c", filename1, filename2, "2>&1",
-                   NULL) > 1) /* Most "diff" tools return >1 if error */
-      {
-        dynstr_set(&ds_tmp, "");
+      if (exit_code > 1)
+        die("Option '--colored-diff' is not supported on this machine. "
+            "To get colored diff output, install GNU diffutils version "
+            "3.4 or higher.");
+    } else {
+      // Colored diff is disabled, clear the diff string and try unified
+      // diff with "diff -u".
+      dynstr_set(&ds_diff, "");
+      exit_code = run_tool(diff_name, &ds_diff, "-u", filename1, filename2,
+                           "2>&1", NULL);
 
-        /* Fallback to simple diff with "diff" */
-        if (run_tool(diff_name, &ds_tmp, /* Get output from diff in ds_tmp */
-                     filename1, filename2, "2>&1",
-                     NULL) > 1) /* Most "diff" tools return >1 if error */
-        {
-          diff_name = 0;
+      if (exit_code > 1) {
+        // Clear the diff string and fallback to context diff with "diff -c"
+        dynstr_set(&ds_diff, "");
+        exit_code = run_tool(diff_name, &ds_diff, "-c", filename1, filename2,
+                             "2>&1", NULL);
+
+        if (exit_code > 1) {
+          // Clear the diff string and fallback to simple diff with "diff"
+          dynstr_set(&ds_diff, "");
+          exit_code =
+              run_tool(diff_name, &ds_diff, filename1, filename2, "2>&1", NULL);
+          if (exit_code > 1) diff_name = 0;
         }
       }
     }
   }
 
   if (!diff_name) {
-    /*
-      Fallback to dump both files to result file and inform
-      about installing "diff"
-    */
-    dynstr_append(&ds_tmp, "\n");
+    // Fallback to dump both files to result file and inform
+    // about installing "diff".
+    dynstr_append(&ds_diff, "\n");
     dynstr_append(
-        &ds_tmp,
+        &ds_diff,
         "\n"
         "The two files differ but it was not possible to execute 'diff' in\n"
         "order to show only the difference. Instead the whole content of the\n"
@@ -1614,26 +1619,25 @@ static void show_diff(DYNAMIC_STRING *ds, const char *filename1,
 #endif
         "\n");
 
-    dynstr_append(&ds_tmp, " --- ");
-    dynstr_append(&ds_tmp, filename1);
-    dynstr_append(&ds_tmp, " >>>\n");
-    cat_file(&ds_tmp, filename1);
-    dynstr_append(&ds_tmp, "<<<\n --- ");
-    dynstr_append(&ds_tmp, filename1);
-    dynstr_append(&ds_tmp, " >>>\n");
-    cat_file(&ds_tmp, filename2);
-    dynstr_append(&ds_tmp, "<<<<\n");
+    dynstr_append(&ds_diff, " --- ");
+    dynstr_append(&ds_diff, filename1);
+    dynstr_append(&ds_diff, " >>>\n");
+    cat_file(&ds_diff, filename1);
+    dynstr_append(&ds_diff, "<<<\n --- ");
+    dynstr_append(&ds_diff, filename1);
+    dynstr_append(&ds_diff, " >>>\n");
+    cat_file(&ds_diff, filename2);
+    dynstr_append(&ds_diff, "<<<<\n");
   }
 
-  if (ds) {
-    /* Add the diff to output */
-    dynstr_append_mem(ds, ds_tmp.str, ds_tmp.length);
-  } else {
-    /* Print diff directly to stdout */
-    fprintf(stderr, "%s\n", ds_tmp.str);
-  }
+  if (ds)
+    // Add the diff to output
+    dynstr_append_mem(ds, ds_diff.str, ds_diff.length);
+  else
+    // Print diff directly to stderr
+    fprintf(stderr, "%s\n", ds_diff.str);
 
-  dynstr_free(&ds_tmp);
+  dynstr_free(&ds_diff);
 }
 
 enum compare_files_result_enum {
@@ -1745,7 +1749,7 @@ static void check_result() {
 #ifdef HAVE_GCOV
   char cmd[FN_REFLEN];
   strcpy(cmd, "sed -i '/gcda:Merge mismatch for function/d' ");
-  strcat(cmd, log_file.file_name());
+  std::strcat(cmd, log_file.file_name());
   system(cmd);
 #endif
 
@@ -1842,8 +1846,8 @@ VAR *var_init(VAR *v, const char *name, size_t name_len, const char *val,
               size_t val_len) {
   size_t val_alloc_len;
   VAR *tmp_var;
-  if (!name_len && name) name_len = strlen(name);
-  if (!val_len && val) val_len = strlen(val);
+  if (!name_len && name) name_len = std::strlen(name);
+  if (!val_len && val) val_len = std::strlen(val);
   if (!val) val_len = 0;
   val_alloc_len = val_len + 16; /* room to grow */
   if (!(tmp_var = v) && !(tmp_var = (VAR *)my_malloc(
@@ -1879,7 +1883,7 @@ VAR *var_from_env(const char *name, const char *def_val) {
   VAR *v;
   if (!(tmp = getenv(name))) tmp = def_val;
 
-  v = var_init(0, name, strlen(name), tmp, strlen(tmp));
+  v = var_init(0, name, std::strlen(name), tmp, std::strlen(tmp));
   var_hash->emplace(name, unique_ptr<VAR, var_free>(v));
   return v;
 }
@@ -1918,7 +1922,7 @@ VAR *var_get(const char *var_name, const char **var_name_end, bool raw,
   if (!raw && v->int_dirty) {
     sprintf(v->str_val, "%d", v->int_val);
     v->int_dirty = false;
-    v->str_val_len = strlen(v->str_val);
+    v->str_val_len = std::strlen(v->str_val);
   }
   if (var_name_end) *var_name_end = var_name;
   DBUG_RETURN(v);
@@ -1970,7 +1974,7 @@ void var_set(const char *var_name, const char *var_name_end,
     if (v->int_dirty) {
       sprintf(v->str_val, "%d", v->int_val);
       v->int_dirty = false;
-      v->str_val_len = strlen(v->str_val);
+      v->str_val_len = std::strlen(v->str_val);
     }
     /* setenv() expects \0-terminated strings */
     DBUG_ASSERT(v->name[v->name_len] == 0);
@@ -1980,7 +1984,7 @@ void var_set(const char *var_name, const char *var_name_end,
 }
 
 static void var_set_string(const char *name, const char *value) {
-  var_set(name, name + strlen(name), value, value + strlen(value));
+  var_set(name, name + std::strlen(name), value, value + std::strlen(value));
 }
 
 static void var_set_int(const char *name, int value) {
@@ -2012,7 +2016,7 @@ static void set_once_property(enum_prop prop, bool val) {
 
 static void set_property(st_command *command, enum_prop prop, bool val) {
   char *p = command->first_argument;
-  if (p && !strcmp(p, "ONCE")) {
+  if (p && !std::strcmp(p, "ONCE")) {
     command->last_argument = p + 4;
     set_once_property(prop, val);
     return;
@@ -2060,8 +2064,8 @@ void revert_properties() {
 */
 
 static void var_query_set(VAR *var, const char *query, const char **query_end) {
-  char *end =
-      (char *)((query_end && *query_end) ? *query_end : query + strlen(query));
+  char *end = (char *)((query_end && *query_end) ? *query_end
+                                                 : query + std::strlen(query));
   MYSQL_RES *res = NULL;
   MYSQL_ROW row;
   MYSQL *mysql = &cur_con->mysql;
@@ -2117,7 +2121,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
           /* Regex replace */
           if (!multi_reg_replace(glob_replace_regex, (char *)val)) {
             val = glob_replace_regex->buf;
-            len = strlen(val);
+            len = std::strlen(val);
           }
         }
         DYNAMIC_STRING ds_temp;
@@ -2140,7 +2144,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
             dynstr_free(&ds_temp);
             init_dynamic_string(&ds_temp, "", 512, 512);
             replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
-                                         buffer, strlen(buffer));
+                                         buffer, std::strlen(buffer));
           } else
             replace_numeric_round_append(glob_replace_numeric_round, &ds_temp,
                                          val, len);
@@ -2149,7 +2153,7 @@ static void var_query_set(VAR *var, const char *query, const char **query_end) {
         if (!glob_replace && glob_replace_numeric_round < 0)
           dynstr_append_mem(&result, val, len);
         else
-          dynstr_append_mem(&result, ds_temp.str, strlen(ds_temp.str));
+          dynstr_append_mem(&result, ds_temp.str, std::strlen(ds_temp.str));
         dynstr_free(&ds_temp);
       }
       dynstr_append_mem(&result, "\t", 1);
@@ -2367,8 +2371,8 @@ static void var_set_query_get_value(struct st_command *command, VAR *var) {
     MYSQL_FIELD *fields = mysql_fetch_fields(res);
 
     for (i = 0; i < num_fields; i++) {
-      if (strcmp(fields[i].name, ds_col.str) == 0 &&
-          strlen(fields[i].name) == ds_col.length) {
+      if (std::strcmp(fields[i].name, ds_col.str) == 0 &&
+          std::strlen(fields[i].name) == ds_col.length) {
         col_no = i;
         break;
       }
@@ -2467,8 +2471,8 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
   {
     /* Check if this is a "let $var= query_get_value()" */
     const char *get_value_str = "query_get_value";
-    const size_t len = strlen(get_value_str);
-    if (strncmp(p, get_value_str, len) == 0) {
+    const size_t len = std::strlen(get_value_str);
+    if (std::strncmp(p, get_value_str, len) == 0) {
       struct st_command command;
       memset(&command, 0, sizeof(command));
       command.query = (char *)p;
@@ -2480,8 +2484,8 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
     }
     /* Check if this is a "let $var= convert_error()" */
     const char *get_value_str1 = "convert_error";
-    const size_t len1 = strlen(get_value_str1);
-    if (strncmp(p, get_value_str1, len1) == 0) {
+    const size_t len1 = std::strlen(get_value_str1);
+    if (std::strncmp(p, get_value_str1, len1) == 0) {
       struct st_command command;
       memset(&command, 0, sizeof(command));
       command.query = (char *)p;
@@ -2495,7 +2499,7 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
 
 NO_EVAL : {
   size_t new_val_len =
-      (p_end && *p_end) ? static_cast<size_t>(*p_end - p) : strlen(p);
+      (p_end && *p_end) ? static_cast<size_t>(*p_end - p) : std::strlen(p);
   if (new_val_len + 1 >= v->alloced_len) {
     static size_t MIN_VAR_ALLOC = 32;
     v->alloced_len =
@@ -2619,12 +2623,12 @@ static FILE *my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
     uint dummy_errors;
     size_t len;
     len = my_convert((char *)wcmd, sizeof(wcmd) - sizeof(wcmd[0]),
-                     &my_charset_utf16le_bin, ds_cmd->str, strlen(ds_cmd->str),
-                     charset_info, &dummy_errors);
+                     &my_charset_utf16le_bin, ds_cmd->str,
+                     std::strlen(ds_cmd->str), charset_info, &dummy_errors);
     wcmd[len / sizeof(wchar_t)] = 0;
     len = my_convert((char *)wmode, sizeof(wmode) - sizeof(wmode[0]),
-                     &my_charset_utf16le_bin, mode, strlen(mode), charset_info,
-                     &dummy_errors);
+                     &my_charset_utf16le_bin, mode, std::strlen(mode),
+                     charset_info, &dummy_errors);
     wmode[len / sizeof(wchar_t)] = 0;
     return _wpopen(wcmd, wmode);
   }
@@ -2745,9 +2749,9 @@ static void do_exec(struct st_command *command, bool run_in_background) {
   do_eval(&ds_cmd, cmd, command->end, !is_windows);
 
   // Check if echo should be replaced with "builtin" echo
-  if (builtin_echo[0] && strncmp(cmd, "echo", 4) == 0) {
+  if (builtin_echo[0] && std::strncmp(cmd, "echo", 4) == 0) {
     // Replace echo with our "builtin" echo
-    replace(&ds_cmd, "echo", 4, builtin_echo, strlen(builtin_echo));
+    replace(&ds_cmd, "echo", 4, builtin_echo, std::strlen(builtin_echo));
   }
 
 #ifdef _WIN32
@@ -2798,12 +2802,12 @@ static void do_exec(struct st_command *command, bool run_in_background) {
     char buf[512];
     std::string str;
     while (std::fgets(buf, sizeof(buf), res_file)) {
-      if (strlen(buf) < 1) continue;
+      if (std::strlen(buf) < 1) continue;
 
 #ifdef WIN32
       // Replace CRLF char with LF.
       // See bug#22608247 and bug#22811243
-      DBUG_ASSERT(!strcmp(mode, "rb"));
+      DBUG_ASSERT(!std::strcmp(mode, "rb"));
       replace_crlf_with_lf(buf);
 #endif
       if (trace_exec) {
@@ -2811,13 +2815,14 @@ static void do_exec(struct st_command *command, bool run_in_background) {
         fflush(stdout);
       }
       if (disable_result_log) {
-        buf[strlen(buf) - 1] = 0;
+        buf[std::strlen(buf) - 1] = 0;
         DBUG_PRINT("exec_result", ("%s", buf));
       } else {
         // Read the file line by line. Check if the buffer read from the
         // file ends with EOL character.
-        if ((buf[strlen(buf) - 1] != '\n' && strlen(buf) < (sizeof(buf) - 1)) ||
-            (buf[strlen(buf) - 1] == '\n')) {
+        if ((buf[std::strlen(buf) - 1] != '\n' &&
+             std::strlen(buf) < (sizeof(buf) - 1)) ||
+            (buf[std::strlen(buf) - 1] == '\n')) {
           // Found EOL
           if (str.length()) {
             // Temporary string exists, append the current buffer read
@@ -3102,8 +3107,8 @@ static void do_remove_files_wildcard(struct st_command *command) {
     /* if (!MY_S_ISREG(file->mystat->st_mode)) */
     /* MY_S_ISREG does not work here on Windows, just skip directories */
     if (MY_S_ISDIR(file->mystat->st_mode)) continue;
-    if (wild_compare_full(file->name, strlen(file->name), ds_wild.str,
-                          strlen(ds_wild.str), false, 0, '?', '*'))
+    if (wild_compare_full(file->name, std::strlen(file->name), ds_wild.str,
+                          std::strlen(ds_wild.str), false, 0, '?', '*'))
       continue;
     /* Not required as the var ds_file_to_remove.length already has the
        length in canonnicalized form */
@@ -3223,16 +3228,17 @@ static int recursive_copy(DYNAMIC_STRING *ds_source,
       }
     } else {
       /* Extracting the source directory name */
-      if (ds_source->str[strlen(ds_source->str) - 1] == '/') {
-        strmake(ds_source->str, ds_source->str, strlen(ds_source->str) - 1);
+      if (ds_source->str[std::strlen(ds_source->str) - 1] == '/') {
+        strmake(ds_source->str, ds_source->str,
+                std::strlen(ds_source->str) - 1);
         ds_source->length = ds_source->length - 1;
       }
       char *src_dir_name = strrchr(ds_source->str, '/');
 
       /* Extracting the destination directory name */
-      if (ds_destination->str[strlen(ds_destination->str) - 1] == '/') {
+      if (ds_destination->str[std::strlen(ds_destination->str) - 1] == '/') {
         strmake(ds_destination->str, ds_destination->str,
-                strlen(ds_destination->str) - 1);
+                std::strlen(ds_destination->str) - 1);
         ds_destination->length = ds_destination->length - 1;
       }
       char *dest_dir_name = strrchr(ds_destination->str, '/');
@@ -3248,7 +3254,7 @@ static int recursive_copy(DYNAMIC_STRING *ds_source,
         directory "abc" under "def" and copy the files from source to
         destination directory.
       */
-      if (strcmp(src_dir_name, dest_dir_name)) {
+      if (std::strcmp(src_dir_name, dest_dir_name)) {
         dynstr_append(ds_destination, src_dir_name);
         my_dirend(dest_dir_info);
         dest_dir_info =
@@ -3283,7 +3289,8 @@ static int recursive_copy(DYNAMIC_STRING *ds_source,
       FILEINFO *file = src_dir_info->dir_entry + i;
 
       /* Skip the names "." and ".." */
-      if (!strcmp(file->name, ".") || !strcmp(file->name, "..")) continue;
+      if (!std::strcmp(file->name, ".") || !std::strcmp(file->name, ".."))
+        continue;
 
       dynstr_append(ds_source, file->name);
       dynstr_append(ds_destination, file->name);
@@ -3352,7 +3359,7 @@ static void do_force_cpdir(struct st_command *command) {
     Throw an error if source directory path and
     destination directory path are same.
   */
-  if (!strcmp(ds_source.str, ds_destination.str)) {
+  if (!std::strcmp(ds_source.str, ds_destination.str)) {
     error = 1;
     set_my_errno(EEXIST);
   } else
@@ -3459,8 +3466,8 @@ static void do_copy_files_wildcard(struct st_command *command) {
     if (MY_S_ISDIR(file->mystat->st_mode)) continue;
 
     /* Copy only those files which the pattern matches */
-    if (wild_compare_full(file->name, strlen(file->name), ds_wild.str,
-                          strlen(ds_wild.str), false, 0, '?', '*'))
+    if (wild_compare_full(file->name, std::strlen(file->name), ds_wild.str,
+                          std::strlen(ds_wild.str), false, 0, '?', '*'))
       continue;
 
     match_count++;
@@ -3743,7 +3750,8 @@ void do_force_rmdir(struct st_command *command, DYNAMIC_STRING *ds_dirname) {
       FILEINFO *file = dir_info->dir_entry + i;
 
       /* Skip the names "." and ".." */
-      if (!strcmp(file->name, ".") || !strcmp(file->name, "..")) continue;
+      if (!std::strcmp(file->name, ".") || !std::strcmp(file->name, ".."))
+        continue;
 
       ds_dirname->length = length;
       char dir_separator[2] = {FN_LIBCHAR, 0};
@@ -3828,8 +3836,8 @@ static int get_list_files(DYNAMIC_STRING *ds, const DYNAMIC_STRING *ds_dirname,
          (file->name[1] == '.' && file->name[2] == '\0')))
       continue; /* . or .. */
     if (ds_wild && ds_wild->length &&
-        wild_compare_full(file->name, strlen(file->name), ds_wild->str,
-                          strlen(ds_wild->str), false, 0, '?', '*'))
+        wild_compare_full(file->name, std::strlen(file->name), ds_wild->str,
+                          std::strlen(ds_wild->str), false, 0, '?', '*'))
       continue;
     replace_dynstr_append(ds, file->name);
     dynstr_append(ds, "\n");
@@ -4150,7 +4158,7 @@ static void do_diff_files(struct st_command *command) {
 static struct st_connection *find_connection_by_name(const char *name) {
   struct st_connection *con;
   for (con = connections; con < next_con; con++) {
-    if (!strcmp(con->name, name)) {
+    if (!std::strcmp(con->name, name)) {
       return con;
     }
   }
@@ -4323,7 +4331,7 @@ static void do_perl(struct st_command *command) {
 
     while (fgets(buf, sizeof(buf), res_file)) {
       if (disable_result_log) {
-        buf[strlen(buf) - 1] = 0;
+        buf[std::strlen(buf) - 1] = 0;
         DBUG_PRINT("exec_result", ("%s", buf));
       } else {
         replace_dynstr_append(&ds_res, buf);
@@ -4410,7 +4418,7 @@ static void do_wait_for_slave_to_stop(
       mysql_free_result(res);
       die("Strange result from query while probing slave for stop");
     }
-    done = !strcmp(row[1], "OFF");
+    done = !std::strcmp(row[1], "OFF");
     mysql_free_result(res);
     if (done) break;
     my_sleep(SLAVE_POLL_INTERVAL);
@@ -4517,7 +4525,7 @@ static void ndb_wait_for_binlog_injector(void) {
   if (!(row = mysql_fetch_row(res)))
     die("Query '%s' returned empty result", query);
 
-  have_ndbcluster = strcmp(row[0], "1") == 0;
+  have_ndbcluster = std::strcmp(row[0], "1") == 0;
   mysql_free_result(res);
 
   if (!have_ndbcluster) {
@@ -4540,15 +4548,17 @@ static void ndb_wait_for_binlog_injector(void) {
     if (mysql_query(mysql, query = "show engine ndb status"))
       die("failed in '%s': %d %s", query, mysql_errno(mysql),
           mysql_error(mysql));
+
     if (!(res = mysql_store_result(mysql)))
       die("mysql_store_result() returned NULL for '%s'", query);
+
     while ((row = mysql_fetch_row(res))) {
-      if (strcmp(row[1], binlog) == 0) {
+      if (std::strcmp(row[1], binlog) == 0) {
         const char *status = row[2];
 
         /* latest_trans_epoch */
-        while (*status && strncmp(status, latest_trans_epoch_str,
-                                  sizeof(latest_trans_epoch_str) - 1))
+        while (*status && std::strncmp(status, latest_trans_epoch_str,
+                                       sizeof(latest_trans_epoch_str) - 1))
           status++;
         if (*status) {
           status += sizeof(latest_trans_epoch_str) - 1;
@@ -4558,8 +4568,9 @@ static void ndb_wait_for_binlog_injector(void) {
               query);
 
         /* latest_handled_binlog */
-        while (*status && strncmp(status, latest_handled_binlog_epoch_str,
-                                  sizeof(latest_handled_binlog_epoch_str) - 1))
+        while (*status &&
+               std::strncmp(status, latest_handled_binlog_epoch_str,
+                            sizeof(latest_handled_binlog_epoch_str) - 1))
           status++;
         if (*status) {
           status += sizeof(latest_handled_binlog_epoch_str) - 1;
@@ -4782,7 +4793,7 @@ static void do_expr(struct st_command *command) {
 
   char math_operator[3];
   strmake(math_operator, operator_start, (p - operator_start));
-  if (!strlen(math_operator))
+  if (!std::strlen(math_operator))
     die("Missing mathematical operator in expr command.");
 
   // Skip spaces after the operator
@@ -4810,31 +4821,31 @@ static void do_expr(struct st_command *command) {
 
   double result;
   // Arithmetic Operators
-  if (!strcmp(math_operator, "+"))
+  if (!std::strcmp(math_operator, "+"))
     result = operand1 + operand2;
-  else if (!strcmp(math_operator, "-"))
+  else if (!std::strcmp(math_operator, "-"))
     result = operand1 - operand2;
-  else if (!strcmp(math_operator, "*"))
+  else if (!std::strcmp(math_operator, "*"))
     result = operand1 * operand2;
-  else if (!strcmp(math_operator, "/"))
+  else if (!std::strcmp(math_operator, "/"))
     result = operand1 / operand2;
-  else if (!strcmp(math_operator, "%"))
+  else if (!std::strcmp(math_operator, "%"))
     result = (int)operand1 % (int)operand2;
   // Logical Operators
-  else if (!strcmp(math_operator, "&&"))
+  else if (!std::strcmp(math_operator, "&&"))
     result = operand1 && operand2;
-  else if (!strcmp(math_operator, "||"))
+  else if (!std::strcmp(math_operator, "||"))
     result = operand1 || operand2;
   // Bitwise Operators
-  else if (!strcmp(math_operator, "&"))
+  else if (!std::strcmp(math_operator, "&"))
     result = (int)operand1 & (int)operand2;
-  else if (!strcmp(math_operator, "|"))
+  else if (!std::strcmp(math_operator, "|"))
     result = (int)operand1 | (int)operand2;
-  else if (!strcmp(math_operator, "^"))
+  else if (!std::strcmp(math_operator, "^"))
     result = (int)operand1 ^ (int)operand2;
-  else if (!strcmp(math_operator, ">>"))
+  else if (!std::strcmp(math_operator, ">>"))
     result = (int)operand1 >> (int)operand2;
-  else if (!strcmp(math_operator, "<<"))
+  else if (!std::strcmp(math_operator, "<<"))
     result = (int)operand1 << (int)operand2;
   else
     die("Invalid operator '%s' in expr command", math_operator);
@@ -5089,7 +5100,7 @@ static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused))) {
       /* Append mysqld.<pid>.dmp to the path. */
       strncpy(name, path, sizeof(name) - 1);
       name[sizeof(name) - 1] = '\0';
-      end = name + strlen(name);
+      end = name + std::strlen(name);
       /* Make sure "/mysqld.nnnnnnnnnn.dmp" fits */
       if ((end - name) < (sizeof(name) - 23)) {
         if (!is_directory_separator(end[-1])) {
@@ -5188,7 +5199,7 @@ static void do_shutdown_server(struct st_command *command) {
     /* Check if we should generate a minidump on timeout. */
     if (query_get_string(mysql, "SHOW VARIABLES LIKE 'core_file'", 1,
                          &ds_file_name) ||
-        strcmp("ON", ds_file_name.c_str())) {
+        std::strcmp("ON", ds_file_name.c_str())) {
     } else {
       /* Get the data dir and use it as path for a minidump if needed. */
       if (query_get_string(mysql, "SHOW VARIABLES LIKE 'datadir'", 1,
@@ -5248,8 +5259,8 @@ uint get_errcode_from_name(char *error_name, char *error_end) {
       matched against in case it was longer than what we are checking
       (as in ER_WRONG_VALUE vs. ER_WRONG_VALUE_COUNT).
     */
-    if (!strncmp(error_name, e->name, (int)(error_end - error_name)) &&
-        (uint)strlen(e->name) == (uint)(error_end - error_name)) {
+    if (!std::strncmp(error_name, e->name, (int)(error_end - error_name)) &&
+        (uint)std::strlen(e->name) == (uint)(error_end - error_name)) {
       DBUG_RETURN(e->code);
     }
   }
@@ -5874,19 +5885,19 @@ static void do_connect(struct st_command *command) {
     char cur_con_option[10];
     strmake(cur_con_option, con_options, con_option_len);
 
-    if (!strcmp(cur_con_option, "SSL"))
+    if (!std::strcmp(cur_con_option, "SSL"))
       con_ssl = 1;
-    else if (!strcmp(cur_con_option, "COMPRESS"))
+    else if (!std::strcmp(cur_con_option, "COMPRESS"))
       con_compress = 1;
-    else if (!strcmp(cur_con_option, "PIPE"))
+    else if (!std::strcmp(cur_con_option, "PIPE"))
       con_pipe = 1;
-    else if (!strcmp(cur_con_option, "SHM"))
+    else if (!std::strcmp(cur_con_option, "SHM"))
       con_shm = 1;
-    else if (!strcmp(cur_con_option, "CLEARTEXT"))
+    else if (!std::strcmp(cur_con_option, "CLEARTEXT"))
       con_cleartext_enable = 1;
-    else if (!strcmp(cur_con_option, "SOCKET"))
+    else if (!std::strcmp(cur_con_option, "SOCKET"))
       con_socket = 1;
-    else if (!strcmp(cur_con_option, "TCP"))
+    else if (!std::strcmp(cur_con_option, "TCP"))
       con_tcp = 1;
     else
       die("Illegal option to connect: %s", cur_con_option);
@@ -5994,7 +6005,7 @@ static void do_connect(struct st_command *command) {
                   (char *)&con_cleartext_enable);
 
   /* Special database to allow one to connect without a database name */
-  if (ds_database.length && !strcmp(ds_database.str, "*NO-ONE*"))
+  if (ds_database.length && !std::strcmp(ds_database.str, "*NO-ONE*"))
     dynstr_set(&ds_database, "");
 
   if (connect_n_handle_errors(command, &con_slot->mysql, ds_host.str,
@@ -6006,7 +6017,7 @@ static void do_connect(struct st_command *command) {
     if (!(con_slot->name = my_strdup(PSI_NOT_INSTRUMENTED,
                                      ds_connection_name.str, MYF(MY_WME))))
       die("Out of memory");
-    con_slot->name_len = strlen(con_slot->name);
+    con_slot->name_len = std::strlen(con_slot->name);
     set_current_connection(con_slot);
 
     if (con_slot == next_con)
@@ -6043,7 +6054,7 @@ static int do_done(struct st_command *command) {
     if (*cur_block->delim) {
       /* Restore "old" delimiter after false if block */
       strcpy(delimiter, cur_block->delim);
-      delimiter_length = strlen(delimiter);
+      delimiter_length = std::strlen(delimiter);
     }
     /* Pop block from stack, goto next line */
     cur_block--;
@@ -6200,14 +6211,14 @@ static void do_block(enum block_cmd cmd, struct st_command *command) {
         if (v.is_int)
           v.int_val = (v2.is_int && v2.int_val == v.int_val);
         else
-          v.int_val = !strcmp(v.str_val, v2.str_val);
+          v.int_val = !std::strcmp(v.str_val, v2.str_val);
         break;
 
       case NE_OP:
         if (v.is_int)
           v.int_val = !(v2.is_int && v2.int_val == v.int_val);
         else
-          v.int_val = (strcmp(v.str_val, v2.str_val) != 0);
+          v.int_val = (std::strcmp(v.str_val, v2.str_val) != 0);
         break;
 
       case LT_OP:
@@ -6276,7 +6287,7 @@ static void do_delimiter(struct st_command *command) {
   if (!(*p)) die("Can't set empty delimiter");
 
   strmake(delimiter, p, sizeof(delimiter) - 1);
-  delimiter_length = strlen(delimiter);
+  delimiter_length = std::strlen(delimiter);
 
   DBUG_PRINT("exit", ("delimiter: %s", delimiter));
   command->last_argument = p + delimiter_length;
@@ -6617,7 +6628,7 @@ void check_eol_junk_line(const char *line) {
   DBUG_PRINT("enter", ("line: %s", line));
 
   /* Check for extra delimiter */
-  if (*p && !strncmp(p, delimiter, delimiter_length))
+  if (*p && !std::strncmp(p, delimiter, delimiter_length))
     die("Extra delimiter \"%s\" found", delimiter);
 
   /* Allow trailing # comment */
@@ -6750,18 +6761,22 @@ static int read_command(struct st_command **command_ptr) {
 }
 
 static struct my_option my_long_options[] = {
-    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
-     0, 0, 0, 0, 0},
+#include "caching_sha2_passwordopt-longopts.h"
+#include "sslopt-longopts.h"
     {"basedir", 'b', "Basedir for tests.", &opt_basedir, &opt_basedir, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"character-sets-dir", OPT_CHARSETS_DIR,
      "Directory for character set files.", &opt_charsets_dir, &opt_charsets_dir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"default-character-set", OPT_DEFAULT_CHARSET,
-     "Set the default character set.", &default_charset, &default_charset, 0,
-     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"colored-diff", OPT_COLORED_DIFF, "Colorize the diff outout.",
+     &opt_colored_diff, &opt_colored_diff, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+     0},
     {"compress", 'C', "Use the compressed server/client protocol.",
      &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"connect_timeout", OPT_CONNECT_TIMEOUT,
+     "Number of seconds before connection timeout.", &opt_connect_timeout,
+     &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG, 120, 0, 3600 * 12, 0, 0,
+     0},
     {"cursor-protocol", OPT_CURSOR_PROTOCOL,
      "Use cursors for prepared statements.", &cursor_protocol, &cursor_protocol,
      0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6785,10 +6800,24 @@ static struct my_option my_long_options[] = {
     {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
      &debug_info_flag, &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+    {"default-character-set", OPT_DEFAULT_CHARSET,
+     "Set the default character set.", &default_charset, &default_charset, 0,
+     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"explain-protocol", OPT_EXPLAIN_PROTOCOL,
+     "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
+     &explain_protocol, &explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+     0},
+    {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
+     0, 0, 0, 0, 0},
     {"host", 'h', "Connect to host.", &opt_host, &opt_host, 0, GET_STR,
      REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"include", 'i', "Include SQL before each test case.", &opt_include,
      &opt_include, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"json-explain-protocol", OPT_JSON_EXPLAIN_PROTOCOL,
+     "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements with "
+     "FORMAT=JSON",
+     &json_explain_protocol, &json_explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0,
+     0, 0, 0, 0},
     {"logdir", OPT_LOG_DIR, "Directory for log files", &opt_logdir, &opt_logdir,
      0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"mark-progress", OPT_MARK_PROGRESS,
@@ -6802,11 +6831,20 @@ static struct my_option my_long_options[] = {
     {"max-connections", OPT_MAX_CONNECTIONS,
      "Max number of open connections to server", &opt_max_connections,
      &opt_max_connections, 0, GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
+    {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.", &no_skip,
+     &no_skip, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"no-skip-exclude-list", 'n',
+     "Contains comma seperated list of to be excluded inc files.",
+     &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
+     0, 0},
+    {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
+     "Trace DML statements with optimizer trace", &opt_trace_protocol,
+     &opt_trace_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"password", 'p', "Password to use when connecting to server.", 0, 0, 0,
      GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-    {"protocol", OPT_MYSQL_PROTOCOL,
-     "The protocol of connection (tcp,socket,pipe,memory).", 0, 0, 0, GET_STR,
-     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
+     0},
     {"port", 'P',
      "Port number to use for connection or 0 for default to, in "
      "order of preference, my.cnf, $MYSQL_TCP_PORT, "
@@ -6815,6 +6853,9 @@ static struct my_option my_long_options[] = {
 #endif
      "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
      &opt_port, &opt_port, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+    {"protocol", OPT_MYSQL_PROTOCOL,
+     "The protocol of connection (tcp,socket,pipe,memory).", 0, 0, 0, GET_STR,
+     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"ps-protocol", OPT_PS_PROTOCOL,
      "Use prepared-statement protocol for communication.", &ps_protocol,
      &ps_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6828,6 +6869,11 @@ static struct my_option my_long_options[] = {
     {"result-format-version", OPT_RESULT_FORMAT_VERSION,
      "Version of the result file format to use", &opt_result_format_version,
      &opt_result_format_version, 0, GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
+#ifdef _WIN32
+    {"safe-process-pid", OPT_SAFEPROCESS_PID, "PID of safeprocess.",
+     &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
+     0, 0, 0, 0, 0},
+#endif
     {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
      "Base name of shared memory.", &shared_memory_base_name,
      &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -6839,21 +6885,12 @@ static struct my_option my_long_options[] = {
      &unix_sock, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"sp-protocol", OPT_SP_PROTOCOL, "Use stored procedures for select.",
      &sp_protocol, &sp_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.", &no_skip,
-     &no_skip, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#include "caching_sha2_passwordopt-longopts.h"
-#include "sslopt-longopts.h"
-
     {"tail-lines", OPT_TAIL_LINES,
      "Number of lines of the result to include in a failure report.",
      &opt_tail_lines, &opt_tail_lines, 0, GET_INT, REQUIRED_ARG, 0, 0, 10000, 0,
      0, 0},
     {"test-file", 'x', "Read test from/in this file (default stdin).", 0, 0, 0,
      GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-    {"no-skip-exclude-list", 'n',
-     "Contains comma seperated list of to be excluded inc files.",
-     &excluded_string, &excluded_string, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0,
-     0, 0},
     {"timer-file", 'm', "File where the timing in microseconds is stored.", 0,
      0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
     {"tmpdir", 't', "Temporary directory where sockets are put.", 0, 0, 0,
@@ -6868,30 +6905,6 @@ static struct my_option my_long_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
     {"view-protocol", OPT_VIEW_PROTOCOL, "Use views for select.",
      &view_protocol, &view_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"opt-trace-protocol", OPT_TRACE_PROTOCOL,
-     "Trace DML statements with optimizer trace", &opt_trace_protocol,
-     &opt_trace_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-    {"explain-protocol", OPT_EXPLAIN_PROTOCOL,
-     "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements",
-     &explain_protocol, &explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-     0},
-    {"json-explain-protocol", OPT_JSON_EXPLAIN_PROTOCOL,
-     "Explain all SELECT/INSERT/REPLACE/UPDATE/DELETE statements with "
-     "FORMAT=JSON",
-     &json_explain_protocol, &json_explain_protocol, 0, GET_BOOL, NO_ARG, 0, 0,
-     0, 0, 0, 0},
-    {"connect_timeout", OPT_CONNECT_TIMEOUT,
-     "Number of seconds before connection timeout.", &opt_connect_timeout,
-     &opt_connect_timeout, 0, GET_UINT, REQUIRED_ARG, 120, 0, 3600 * 12, 0, 0,
-     0},
-    {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
-     &opt_plugin_dir, &opt_plugin_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0,
-     0},
-#ifdef _WIN32
-    {"safe-process-pid", OPT_SAFEPROCESS_PID, "PID of safeprocess.",
-     &opt_safe_process_pid, &opt_safe_process_pid, 0, GET_INT, REQUIRED_ARG, 0,
-     0, 0, 0, 0, 0},
-#endif
     {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
 static void usage() {
@@ -7161,7 +7174,7 @@ void init_win_path_patterns() {
       p = my_strdup(PSI_NOT_INSTRUMENTED, paths[i], MYF(MY_FAE));
 
     /* Don't insert zero length strings in patterns array */
-    if (strlen(p) == 0) {
+    if (std::strlen(p) == 0) {
       my_free(p);
       continue;
     }
@@ -7239,7 +7252,7 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
 
   if (col_idx < max_replace_column && replace_column[col_idx]) {
     val = replace_column[col_idx];
-    len = strlen(val);
+    len = std::strlen(val);
   } else if (is_null) {
     val = null;
     len = 4;
@@ -7250,8 +7263,8 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
            field->decimals >= 31) {
     /* Convert 1.2e+018 to 1.2e+18 and 1.2e-018 to 1.2e-18 */
     char *start = strchr(val, 'e');
-    if (start && strlen(start) >= 5 && (start[1] == '-' || start[1] == '+') &&
-        start[2] == '0') {
+    if (start && std::strlen(start) >= 5 &&
+        (start[1] == '-' || start[1] == '+') && start[2] == '0') {
       start += 2; /* Now points at first '0' */
       if (field->flags & ZEROFILL_FLAG) {
         /* Move all chars before the first '0' one step right */
@@ -7259,7 +7272,7 @@ static void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD *field,
         *val = '0';
       } else {
         /* Move all chars after the first '0' one step left */
-        memmove(start, start + 1, strlen(start));
+        memmove(start, start + 1, std::strlen(start));
         len--;
       }
     }
@@ -7667,8 +7680,8 @@ static int match_expected_error(struct st_command *command,
             "one...",
             command->expected_errors.err[i].code.sqlstate, command->query);
 
-      if (strncmp(command->expected_errors.err[i].code.sqlstate, err_sqlstate,
-                  SQLSTATE_LENGTH) == 0)
+      if (std::strncmp(command->expected_errors.err[i].code.sqlstate,
+                       err_sqlstate, SQLSTATE_LENGTH) == 0)
         return i;
     }
   }
@@ -7773,8 +7786,8 @@ void handle_no_error(struct st_command *command) {
     die("query '%s' succeeded - should have failed with errno %d...",
         command->query, command->expected_errors.err[0].code.errnum);
   } else if (command->expected_errors.err[0].type == ERR_SQLSTATE &&
-             strcmp(command->expected_errors.err[0].code.sqlstate, "00000") !=
-                 0) {
+             std::strcmp(command->expected_errors.err[0].code.sqlstate,
+                         "00000") != 0) {
     /* SQLSTATE we wanted was != "00000", i.e. not an expected success */
     die("query '%s' succeeded - should have failed with sqlstate %s...",
         command->query, command->expected_errors.err[0].code.sqlstate);
@@ -8075,7 +8088,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
     query_len = eval_query.length;
   } else {
     query = command->query;
-    query_len = strlen(query);
+    query_len = std::strlen(query);
   }
 
   /*
@@ -8124,7 +8137,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
       */
       view_created = 1;
       query = (char *)"SELECT * FROM mysqltest_tmp_v";
-      query_len = strlen(query);
+      query_len = std::strlen(query);
 
       /*
         Collect warnings from create of the view that should otherwise
@@ -8165,7 +8178,7 @@ static void run_query(struct st_connection *cn, struct st_command *command,
       sp_created = 1;
 
       query = (char *)"CALL mysqltest_tmp_sp()";
-      query_len = strlen(query);
+      query_len = std::strlen(query);
     }
     dynstr_free(&query_str);
   }
@@ -8835,7 +8848,7 @@ int main(int argc, char **argv) {
     result file doesn't exist
   */
   if (!result_file_name) {
-    if (strcmp(cur_file->file_name, "<stdin>"))
+    if (std::strcmp(cur_file->file_name, "<stdin>"))
       temp_log_file.open(opt_logdir, cur_file->file_name, ".log");
     else
       temp_log_file.open(opt_logdir, "stdin", ".log");
@@ -8845,7 +8858,7 @@ int main(int argc, char **argv) {
     if (result_file_name)
       progress_file.open(opt_logdir, result_file_name, ".progress");
     else {
-      if (strcmp(cur_file->file_name, "<stdin>"))
+      if (std::strcmp(cur_file->file_name, "<stdin>"))
         progress_file.open(opt_logdir, cur_file->file_name, ".progress");
       else
         progress_file.open(opt_logdir, "stdin", ".progress");
@@ -8874,7 +8887,7 @@ int main(int argc, char **argv) {
                   (void *)&opt_connect_timeout);
   if (opt_compress) mysql_options(&con->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, 0);
-  if (strcmp(default_charset, charset_info->csname) &&
+  if (std::strcmp(default_charset, charset_info->csname) &&
       !(charset_info =
             get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME))))
     die("Invalid character set specified.");
@@ -8888,7 +8901,7 @@ int main(int argc, char **argv) {
 #if defined(HAVE_OPENSSL)
   /* Turn on VERIFY_IDENTITY mode only if host=="localhost". */
   if (opt_ssl_mode == SSL_MODE_VERIFY_IDENTITY) {
-    if (!opt_host || strcmp(opt_host, "localhost"))
+    if (!opt_host || std::strcmp(opt_host, "localhost"))
       opt_ssl_mode = SSL_MODE_VERIFY_CA;
   }
 #endif
@@ -9565,7 +9578,7 @@ void do_get_replace_column(struct st_command *command) {
   if (!*from) die("Missing argument in %s", command->query);
 
   /* Allocate a buffer for results */
-  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, strlen(from) + 1,
+  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, std::strlen(from) + 1,
                                    MYF(MY_WME | MY_FAE));
   while (*from) {
     char *to;
@@ -9770,7 +9783,7 @@ void do_get_replace(struct st_command *command) {
   free_replace();
 
   if (!*from) die("Missing argument in %s", command->query);
-  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, strlen(from) + 1,
+  start = buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, std::strlen(from) + 1,
                                    MYF(MY_WME | MY_FAE));
   while (*from) {
     char *to = buff;
@@ -9852,7 +9865,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
 
     /* Append replace string */
     dynstr_append_mem(ds, rep_str->replace_string,
-                      strlen(rep_str->replace_string));
+                      std::strlen(rep_str->replace_string));
 
     if (!*(from -= rep_str->from_offset) && rep_pos->found != 2) {
       /* End of from string */
@@ -9906,7 +9919,7 @@ static struct st_replace_regex *init_replace_regex(char *expr) {
   char *buf, *expr_end;
   char *p;
   char *buf_p;
-  size_t expr_len = strlen(expr);
+  size_t expr_len = std::strlen(expr);
   char last_c = 0;
   struct st_regex reg;
 
@@ -10101,7 +10114,7 @@ int reg_replace(char **buf_p, int *buf_len_p, char *pattern, char *replace,
   char *res_p, *str_p, *str_end;
 
   buf_len = *buf_len_p;
-  len = strlen(string);
+  len = std::strlen(string);
   str_end = string + len;
 
   /* start with a buffer of a reasonable size that hopefully will not
@@ -10125,7 +10138,7 @@ int reg_replace(char **buf_p, int *buf_len_p, char *pattern, char *replace,
 
   *res_p = 0;
   str_p = string;
-  replace_end = replace + strlen(replace);
+  replace_end = replace + std::strlen(replace);
 
   /* for each pattern match instance perform a replacement */
   while (!err_code) {
@@ -10328,7 +10341,7 @@ REPLACE *init_replace(char **from, char **to, uint count,
       DBUG_RETURN(0);
     }
     states += len + 1;
-    result_len += (uint)strlen(to[i]) + 1;
+    result_len += (uint)std::strlen(to[i]) + 1;
     if (len > max_length) max_length = len;
   }
   memset(is_word_end, 0, sizeof(is_word_end));
@@ -10723,7 +10736,7 @@ int insert_pointer_name(POINTER_ARRAY *pa, char *name) {
     pa->max_length = PS_MALLOC - MALLOC_OVERHEAD;
     pa->array_allocs = 1;
   }
-  length = (uint)strlen(name) + 1;
+  length = (uint)std::strlen(name) + 1;
   if (pa->length + length >= pa->max_length) {
     if (!(new_pos = (uchar *)my_realloc(PSI_NOT_INSTRUMENTED, (uchar *)pa->str,
                                         (uint)(pa->length + length + PS_MALLOC),
@@ -10791,7 +10804,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
     /* Regex replace */
     if (!multi_reg_replace(glob_replace_regex, (char *)val)) {
       val = glob_replace_regex->buf;
-      len = strlen(val);
+      len = std::strlen(val);
     }
   }
 
@@ -10817,7 +10830,7 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
       dynstr_free(&ds_temp);
       init_dynamic_string(&ds_temp, "", 512, 512);
       replace_numeric_round_append(glob_replace_numeric_round, &ds_temp, buffer,
-                                   strlen(buffer));
+                                   std::strlen(buffer));
     } else
       replace_numeric_round_append(glob_replace_numeric_round, &ds_temp, val,
                                    len);
@@ -10826,13 +10839,13 @@ void replace_dynstr_append_mem(DYNAMIC_STRING *ds, const char *val,
   if (!glob_replace && glob_replace_numeric_round < 0)
     dynstr_append_mem(ds, val, len);
   else
-    dynstr_append_mem(ds, ds_temp.str, strlen(ds_temp.str));
+    dynstr_append_mem(ds, ds_temp.str, std::strlen(ds_temp.str));
   dynstr_free(&ds_temp);
 }
 
 /* Append zero-terminated string to ds, with optional replace */
 void replace_dynstr_append(DYNAMIC_STRING *ds, const char *val) {
-  replace_dynstr_append_mem(ds, val, strlen(val));
+  replace_dynstr_append_mem(ds, val, std::strlen(val));
 }
 
 /* Append uint to ds, with optional replace */
@@ -10857,7 +10870,9 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val) {
 class Comp_lines
     : public std::binary_function<const char *, const char *, bool> {
  public:
-  bool operator()(const char *a, const char *b) { return strcmp(a, b) < 0; }
+  bool operator()(const char *a, const char *b) {
+    return std::strcmp(a, b) < 0;
+  }
 };
 
 void dynstr_append_sorted(DYNAMIC_STRING *ds, DYNAMIC_STRING *ds_input) {

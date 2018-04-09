@@ -3119,6 +3119,22 @@
     </li>
 
     <li>
+      <tt>`--colored-diff`</tt>
+
+      Colorize the diff part of the output.
+
+      If enabled, @ref PAGE_MYSQLTEST "mysqltest" uses <b>diff</b>
+      command with <b>`--color`='always'</b> option to print the
+      colored diff. If the command fails or is not supported, @ref
+      PAGE_MYSQLTEST "mysqltest" will report an error and abort the
+      test run.
+
+      @note
+      <b>`--color`</b> option for <b>diff</b> command is available
+      from <b>GNU diffutils</b> version <b>3.4</b>.
+    </li>
+
+    <li>
       <tt>`--compress`, -C</tt>
 
       Compress all information sent between the client and the server
@@ -4040,6 +4056,22 @@
       <tt>`--client-libdir`=<b>path</b></tt>
 
       The path to the directory where client libraries are located.
+    </li>
+
+    <li>
+      <tt>`--colored-diff`</tt>
+
+      Colorize the diff part of the output.
+
+      When this option is enabled, @ref PAGE_MYSQL_TEST_RUN_PL
+      "mysql-test-run.pl" passes <b>`--colored-diff`</b> option to
+      @ref PAGE_MYSQLTEST "mysqltest". If colored diff is enabled,
+      @ref PAGE_MYSQLTEST "mysqltest" uses <b>diff</b> command with
+      <b>`--color`='always'</b> option to print the colored diff.
+
+      @note
+      <b>`--color`</b> option for <b>diff</b> command is available
+      from <b>GNU diffutils</b> version <b>3.4</b>.
     </li>
 
     <li>
