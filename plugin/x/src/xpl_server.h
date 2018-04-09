@@ -66,6 +66,7 @@ class Server : public ngs::Server_delegate {
   static int main(MYSQL_PLUGIN p);
   static int exit(MYSQL_PLUGIN p);
   static bool reset();
+  static void stop();
 
   ngs::Server &server() { return m_server; }
 
