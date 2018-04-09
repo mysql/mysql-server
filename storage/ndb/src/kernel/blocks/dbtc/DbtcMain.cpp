@@ -16512,43 +16512,43 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
     return;
   }
-#if 0 /* TODO YYY */
   if (arg == 2551)
   {
     jam();
-    Uint32 record = signal->theData[1];
     Uint32 len = signal->getLength();
     ndbassert(len > 1);
-
-    ApiConnectRecordPtr ap;
-    ap.i = record;
-// TODO YYY loop getUnchecked
-    c_apiConnectRecordPool.getPtr(ap); // TODO YYY fail if invalid or null
+    Uint32 record = signal->theData[1];
 
     bool print = false;
-    for (Uint32 i = 0; i<32; i++)
+    for (Uint32 i = 0; i < 32 && record != RNIL; i++)
     {
       jam();
+      ApiConnectRecordPtr ap;
+      if (c_apiConnectRecordPool.getUncheckedPtrs(&record, &ap, 1) != 1)
+      {
+        continue;
+      }
+      if (!Magic::match(ap.p->m_magic, ApiConnectRecord::TYPE_ID))
+      {
+        continue;
+      }
       print = match_and_print(signal, ap);
 
-      ap.i++;
-      if (ap.i == capiConnectFilesize || print)
+      if (print)
       {
 	jam();
 	break;
       }
-      
-      c_apiConnectRecordPool.getPtr(ap); // TODO YYY fail if invalid or null
     }
 
-    if (ap.i == capiConnectFilesize)
+    if (record == RNIL)
     {
       jam();
       infoEvent("End of transaction dump");
       return;
     }
     
-    signal->theData[1] = ap.i;
+    signal->theData[1] = record;
     if (print)
     {
       jam();
@@ -16567,7 +16567,6 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     ndbrequire(m_commitAckMarkerPool.getNoOfFree() == m_commitAckMarkerPool.getSize());
     return;
   }
-#endif
 #endif
   if (arg == DumpStateOrd::DihTcSumaNodeFailCompleted &&
       signal->getLength() == 2)
