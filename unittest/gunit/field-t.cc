@@ -642,6 +642,7 @@ TEST_F(FieldTest, MakeSortKey) {
     SCOPED_TRACE("Field_blob");
     CHARSET_INFO cs;
     cs.state = MY_CHARSET_UNDEFINED;  // Avoid valgrind warning.
+    cs.mbmaxlen = 1;
     Field_blob fb(0, false, "", &cs, false);
   }
   {
