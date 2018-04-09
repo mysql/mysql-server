@@ -15086,97 +15086,15 @@ void Dbtc::gcpTcfinished(Signal* signal, Uint64 gci)
 
 void Dbtc::initApiConnect(Signal* signal) 
 {
-#if  0
-  Uint32 tiacTmp;
-  Uint32 guard4;
-  ApiConnectRecordPtr apiConnectptr;
-
-  /* seize and initialise all api connect record slots, release again after all
-   * slots are initialized */
-  tiacTmp = capiConnectFilesize / 3;
-  ndbrequire(tiacTmp > 0);
-  guard4 = tiacTmp - 1;
-  Uint32 i;
-  for (i = 0; i <= guard4; i++)
-  {
-    refresh_watch_dog();
-    jam();
-    ndbrequire(c_apiConnectRecordPool.seize(apiConnectptr));
-    apiConnectptr.p = new (apiConnectptr.p) ApiConnectRecord();
-    apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
-    apiConnectptr.p->apiConnectstate = CS_DISCONNECTED;
-    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
-    apiConnectptr.p->m_apiConTimer = RNIL;
-    ndbrequire(seizeApiConTimer(apiConnectptr));
-    setApiConTimer(apiConnectptr, 0, __LINE__);
-    apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
-    apiConnectptr.p->cachePtr = RNIL;
-    apiConnectptr.p->nextApiConnect = RNIL;
-    apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF;  // Invalid ref
-    apiConnectptr.p->commitAckMarker = RNIL;
-    apiConnectptr.p->num_commit_ack_markers = 0;
-    apiConnectptr.p->tcConnect.init();
-    apiConnectptr.p->m_flags = 0;
-    apiConnectptr.p->m_special_op_flags = 0;
-    apiConnectptr.p->accumulatingIndexOp = RNIL;
-    apiConnectptr.p->executingIndexOp = RNIL;
-    apiConnectptr.p->buddyPtr = RNIL;
-    apiConnectptr.p->currSavePointId = 0;
-    apiConnectptr.p->m_transaction_nodes.clear();
-    apiConnectptr.p->singleUserMode = 0;
-    apiConnectptr.p->apiCopyRecord = RNIL;
-  }//for
-  apiConnectptr.i = tiacTmp - 1;  // guard4
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
-  apiConnectptr.p->nextApiConnect = RNIL;
-
-  guard4 = (2 * tiacTmp) - 1;
-  for (i = tiacTmp; i <= guard4; i++)
-  {
-    refresh_watch_dog();
-    jam();
-    ndbrequire(c_apiConnectRecordPool.seize(apiConnectptr));
-    apiConnectptr.p = new (apiConnectptr.p) ApiConnectRecord();
-    apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
-    apiConnectptr.p->apiConnectstate = CS_RESTART;
-    apiConnectptr.p->apiFailState = ApiConnectRecord::AFS_API_OK;
-    apiConnectptr.p->m_apiConTimer = RNIL;
-    ndbrequire(seizeApiConTimer(apiConnectptr));
-    setApiConTimer(apiConnectptr, 0, __LINE__);
-    apiConnectptr.p->takeOverRec = (Uint8)Z8NIL;
-    apiConnectptr.p->cachePtr = RNIL;
-    ndbrequire(apiConnectptr.i == i);
-    apiConnectptr.p->nextApiConnect = apiConnectptr.i + 1;
-    apiConnectptr.p->ndbapiBlockref = 0xFFFFFFFF;  // Invalid ref
-    apiConnectptr.p->commitAckMarker = RNIL;
-    apiConnectptr.p->num_commit_ack_markers = 0;
-    apiConnectptr.p->tcConnect.init();
-    apiConnectptr.p->m_flags = 0;
-    apiConnectptr.p->m_special_op_flags = 0;
-    apiConnectptr.p->accumulatingIndexOp = RNIL;
-    apiConnectptr.p->executingIndexOp = RNIL;
-    apiConnectptr.p->buddyPtr = RNIL;
-    apiConnectptr.p->currSavePointId = 0;
-    apiConnectptr.p->m_transaction_nodes.clear();
-    apiConnectptr.p->singleUserMode = 0;
-    apiConnectptr.p->apiCopyRecord = RNIL;
-  }//for
-  apiConnectptr.i = (2 * tiacTmp) - 1;  // guard4
-  c_apiConnectRecordPool.getPtr(apiConnectptr);
-  apiConnectptr.p->nextApiConnect = RNIL;
-#endif
   c_apiConnectFailList.init();
   LocalApiConnectRecord_api_list apiConListFail(c_apiConnectRecordPool,
                                                 c_apiConnectFailList);
-//  for (Uint32 j = 0; j < tiacTmp; j++)
-fprintf(stderr,"YYY: %s: %u: %s: %p: instance %u: m_max_writes_per_trans = %u\n",__FILE__,__LINE__,__func__,this,instance(),capiConnectFailCount);
   for (Uint32 j = 0; j < capiConnectFailCount; j++)
   {
     refresh_watch_dog();
     jam();
     ApiConnectRecordPtr apiConnectptr;
     ndbrequire(c_apiConnectRecordPool.seize(apiConnectptr));
-//    i = apiConnectptr.i;
     apiConnectptr.p->apiConnectkind = ApiConnectRecord::CK_FREE;
     apiConnectptr.p->m_apiConTimer = RNIL;
     ndbrequire(seizeApiConTimer(apiConnectptr));
@@ -15200,21 +15118,7 @@ fprintf(stderr,"YYY: %s: %u: %s: %p: instance %u: m_max_writes_per_trans = %u\n"
     apiConnectptr.p->apiCopyRecord = RNIL;
     apiConListFail.addFirst(apiConnectptr);
   }//for
-#if 0
-  /* release api connect and copy records */
-  guard4 = (2 * tiacTmp) - 1;
-  for (i = 0; i <= guard4; i++)
-  {
-    refresh_watch_dog();
-    jam();
-    ApiConnectRecordPtr apiConnectptr;
-    apiConnectptr.i = i;
-    c_apiConnectRecordPool.getPtr(apiConnectptr);
-    ndbrequire(apiConnectptr.p->apiConnectkind == ApiConnectRecord::CK_FREE);
-    releaseApiConTimer(apiConnectptr);
-    c_apiConnectRecordPool.release(apiConnectptr);
-  }
-#endif
+
   capiConnectPREPARE_TO_COMMITList.init();
 }//Dbtc::initApiConnect()
 
