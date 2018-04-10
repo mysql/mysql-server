@@ -18,4 +18,3 @@ mysql_embedded_client_test      : Bug#13964673 2012-04-16 amitbha since most of 
 mysql_client_test_embedded : Bug#16084066 2013-01-08 Disabled since this test is failing
 mysqlhotcopy_archive @solaris : DBD-mysql perl module not available on Solaris
 mysqlhotcopy_myisam @solaris  : DBD-mysql perl module not available on Solaris
-mysqld--defaults-file    : Bug#27448061 2018-26-01 ppribeir Missing backport of fix for Bug#24579973
