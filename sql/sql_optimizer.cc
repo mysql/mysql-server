@@ -9757,7 +9757,7 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab) {
     if (!item) DBUG_RETURN(NULL);
     if (cond->add(item)) DBUG_RETURN(NULL);
   }
-  cond->fix_fields(thd, (Item **)&cond);
+  if (cond->fix_fields(thd, (Item **)&cond)) DBUG_RETURN(NULL);
 
   DBUG_RETURN(cond);
 }

@@ -245,3 +245,22 @@ FROM t1;
 eval EXPLAIN $query;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#27665085 ASSERTION FAILED: JOIN == 0.
+--echo #
+
+SET sql_mode='';
+CREATE TABLE a(d INT,e BIGINT, KEY(e));
+INSERT a VALUES (0,0);
+CREATE TABLE b(f TIME);
+INSERT b VALUES (null),(null),(null);
+CREATE TABLE c(g DATETIME(6) NOT NULL);
+INSERT c(g) VALUES (now()+interval 1 day);
+INSERT c(g) VALUES (now()-interval 1 day);
+
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM a WHERE (SELECT f FROM b WHERE (SELECT 1 FROM c)) <=> e GROUP BY d;
+
+SET sql_mode=default;
+DROP TABLES a, b, c;
