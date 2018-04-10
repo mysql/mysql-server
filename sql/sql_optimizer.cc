@@ -3894,8 +3894,8 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
     The function finds out what of two fields is better according
     this criteria.
 
-  @param v_field1        first field item to compare
-  @param v_field2        second field item to compare
+  @param field1          first field item to compare
+  @param field2          second field item to compare
   @param table_join_idx  index to tables determining table order
 
   @retval
@@ -3907,7 +3907,7 @@ bool build_equal_items(THD *thd, Item *cond, Item **retcond,
 */
 
 static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
-                                         void *table_join_idx) {
+                                         JOIN_TAB **table_join_idx) {
   int cmp = 0;
   bool outer_ref = 0;
   if (field1->used_tables() & OUTER_REF_TABLE_BIT) {
@@ -3919,19 +3919,18 @@ static int compare_fields_by_table_order(Item_field *field1, Item_field *field2,
     cmp++;
   }
   if (outer_ref) return cmp;
-  JOIN_TAB **idx = (JOIN_TAB **)table_join_idx;
 
   /*
-    idx is NULL if this function was not called from JOIN::optimize()
+    table_join_idx is NULL if this function was not called from JOIN::optimize()
     but from e.g. mysql_delete() or mysql_update(). In these cases
     there is only one table and both fields belong to it. Example
     condition where this is the case: t1.fld1=t1.fld2
   */
-  if (!idx) return 0;
+  if (!table_join_idx) return 0;
 
   // Locate JOIN_TABs thanks to table_join_idx, then compare their index.
-  cmp = idx[field1->table_ref->tableno()]->idx() -
-        idx[field2->table_ref->tableno()]->idx();
+  cmp = table_join_idx[field1->table_ref->tableno()]->idx() -
+        table_join_idx[field2->table_ref->tableno()]->idx();
   return cmp < 0 ? -1 : (cmp ? 1 : 0);
 }
 
@@ -4118,7 +4117,7 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
 */
 
 Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
-                                      void *table_join_idx) {
+                                      JOIN_TAB **table_join_idx) {
   Item_equal *item_equal;
 
   if (cond->type() == Item::COND_ITEM) {
@@ -4131,8 +4130,11 @@ Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
       cond_list->disjoin((List<Item> *)&cond_equal->current_level);
 
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
+      auto cmp = [table_join_idx](Item_field *f1, Item_field *f2) {
+        return compare_fields_by_table_order(f1, f2, table_join_idx);
+      };
       while ((item_equal = it++)) {
-        item_equal->sort(&compare_fields_by_table_order, table_join_idx);
+        item_equal->sort(cmp);
       }
     }
 
@@ -4168,7 +4170,9 @@ Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
              (down_cast<Item_func *>(cond))->functype() ==
                  Item_func::MULT_EQUAL_FUNC) {
     item_equal = (Item_equal *)cond;
-    item_equal->sort(&compare_fields_by_table_order, table_join_idx);
+    item_equal->sort([table_join_idx](Item_field *f1, Item_field *f2) {
+      return compare_fields_by_table_order(f1, f2, table_join_idx);
+    });
     if (cond_equal && cond_equal->current_level.head() == item_equal)
       cond_equal = cond_equal->upper_levels;
     return eliminate_item_equal(0, cond_equal, item_equal);

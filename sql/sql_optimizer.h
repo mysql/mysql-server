@@ -1072,7 +1072,7 @@ bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
 bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
                    List<TABLE_LIST> *join_list, Item::cond_result *cond_value);
 Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
-                                      void *table_join_idx);
+                                      JOIN_TAB **table_join_idx);
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
                        List<TABLE_LIST> *join_list,

@@ -509,14 +509,11 @@ class List : public base_list {
     return false;
   }
 
-  typedef int (*Node_cmp_func)(T *n1, T *n2, void *arg);
-
   /**
     @brief
     Sort the list
 
     @param cmp  node comparison function
-    @param arg  additional info to be passed to comparison function
 
     @details
     The function sorts list nodes by an exchange sort algorithm.
@@ -526,12 +523,12 @@ class List : public base_list {
     As this isn't an effective algorithm the list to be sorted is supposed to
     be short.
   */
-  void sort(Node_cmp_func cmp, void *arg) {
+  template <typename Node_cmp_func>
+  void sort(Node_cmp_func cmp) {
     if (elements < 2) return;
     for (list_node *n1 = first; n1 && n1 != &end_of_list; n1 = n1->next) {
       for (list_node *n2 = n1->next; n2 && n2 != &end_of_list; n2 = n2->next) {
-        if ((*cmp)(static_cast<T *>(n1->info), static_cast<T *>(n2->info),
-                   arg) > 0) {
+        if (cmp(static_cast<T *>(n1->info), static_cast<T *>(n2->info)) > 0) {
           void *tmp = n1->info;
           n1->info = n2->info;
           n2->info = tmp;

@@ -5815,27 +5815,6 @@ bool Item_equal::merge(THD *thd, Item_equal *item) {
 }
 
 /**
-  Order field items in multiple equality according to a sorting criteria.
-
-  The function perform ordering of the field items in the Item_equal
-  object according to the criteria determined by the cmp callback parameter.
-  If cmp(item_field1,item_field2,arg)<0 than item_field1 must be
-  placed after item_fiel2.
-
-  The function sorts field items by the exchange sort algorithm.
-  The list of field items is looked through and whenever two neighboring
-  members follow in a wrong order they are swapped. This is performed
-  again and again until we get all members in a right order.
-
-  @param compare      function to compare field item
-  @param arg          context extra parameter for the cmp function
-*/
-
-void Item_equal::sort(List<Item_field>::Node_cmp_func compare, void *arg) {
-  fields.sort(compare, arg);
-}
-
-/**
   Check appearance of new constant items in the multiple equality object.
 
   The function checks appearance of new constant items among
