@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1166,25 +1166,17 @@ static void check_range_capable_PF(TABLE *) {
 */
 
 static bool set_up_partition_bitmaps(partition_info *part_info) {
-  uint32 *bitmap_buf;
-  uint bitmap_bits = part_info->num_subparts
-                         ? (part_info->num_subparts * part_info->num_parts)
-                         : part_info->num_parts;
-  uint bitmap_bytes = bitmap_buffer_size(bitmap_bits);
   DBUG_ENTER("set_up_partition_bitmaps");
 
   DBUG_ASSERT(!part_info->bitmaps_are_initialized);
 
-  /* Allocate for both read and lock_partitions */
-  if (!(bitmap_buf = (uint32 *)alloc_root(&part_info->table->mem_root,
-                                          bitmap_bytes * 2))) {
-    mem_alloc_error(bitmap_bytes * 2);
+  if (part_info->init_partition_bitmap(&part_info->read_partitions,
+                                       &part_info->table->mem_root))
     DBUG_RETURN(true);
-  }
-  bitmap_init(&part_info->read_partitions, bitmap_buf, bitmap_bits, false);
-  /* Use the second half of the allocated buffer for lock_partitions */
-  bitmap_init(&part_info->lock_partitions, bitmap_buf + (bitmap_bytes / 4),
-              bitmap_bits, false);
+  if (part_info->init_partition_bitmap(&part_info->lock_partitions,
+                                       &part_info->table->mem_root))
+    DBUG_RETURN(true);
+
   part_info->bitmaps_are_initialized = true;
   part_info->set_partition_bitmaps(NULL);
   DBUG_RETURN(false);

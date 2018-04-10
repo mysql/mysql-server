@@ -90,3 +90,100 @@ t1	CREATE TABLE `t1` (
 SELECT * FROM t1;
 a	b
 DROP TABLE t1;
+CREATE TABLE t1 (
+a INT NOT NULL AUTO_INCREMENT,
+b INT NOT NULL,
+PRIMARY KEY (a)
+)
+ENGINE=InnoDB
+PARTITION BY RANGE (a)
+PARTITIONS 3
+(PARTITION P1 VALUES LESS THAN (5),
+PARTITION P2 VALUES LESS THAN (20),
+PARTITION p3 VALUES LESS THAN MAXVALUE);
+INSERT INTO t1 VALUES(0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7);
+SELECT count(*) FROM t1;
+count(*)
+7
+SET SESSION DEBUG="+d,ib_truncate_fail_after_rename";
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION P1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT count(*) FROM t1;
+count(*)
+7
+SET SESSION DEBUG="-d,ib_truncate_fail_after_rename";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_delete";
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION P1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT count(*) FROM t1;
+count(*)
+7
+SET SESSION DEBUG="-d,ib_truncate_fail_after_delete";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_create_new_table";
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION P1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT count(*) FROM t1;
+count(*)
+7
+SET SESSION DEBUG="-d,ib_truncate_fail_after_create_new_table";
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (`a`)
+(PARTITION P1 VALUES LESS THAN (5) ENGINE = InnoDB,
+ PARTITION P2 VALUES LESS THAN (20) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+SELECT count(*) FROM t1;
+count(*)
+4
+DROP TABLE t1;

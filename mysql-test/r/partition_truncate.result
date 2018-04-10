@@ -36,5 +36,5 @@ partition p1 values less than (maxvalue));
 # Partition_handler::truncate_partition() failure.
 alter table t1 discard partition p0 tablespace;
 alter table t1 truncate partition p0;
-ERROR HY000: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table './test/t1'
 drop table t1;

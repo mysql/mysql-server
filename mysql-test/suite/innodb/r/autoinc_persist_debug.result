@@ -238,17 +238,6 @@ SELECT * FROM t6;
 id	name
 99	mysql
 DROP TABLE t1, t2, t3, t4, t5, t6;
-CREATE TABLE t1 (a INT AUTO_INCREMENT NOT NULL, b INT, KEY(a))
-PARTITION BY RANGE (b)
-( PARTITION p0 VALUES LESS THAN (4),
-PARTITION p1 VALUES LESS THAN (100));
-SELECT * FROM t1;
-a	b
-set session debug = "+d,partition_truncate_no_reset";
-TRUNCATE TABLE t1;
-set session debug = "-d,partition_truncate_no_reset";
-ALTER TABLE t1 ADD INDEX(b), ALGORITHM = INPLACE;
-DROP TABLE t1;
 #
 # Scenario 4: Test ALTER TABLE .. AUTO_INCREMENT to a smaller value
 # and maybe crash
