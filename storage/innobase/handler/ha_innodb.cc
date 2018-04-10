@@ -19280,13 +19280,13 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, srv_buf_pool_curr_size,
                              static_cast<longlong>(srv_buf_pool_min_size),
                              LLONG_MAX, 1024 * 1024L);
 
-static MYSQL_SYSVAR_ULONG(
+static MYSQL_SYSVAR_ULONGLONG(
     buffer_pool_chunk_size, srv_buf_pool_chunk_unit,
     PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
     "Size of a single memory chunk within each buffer pool instance"
     " for resizing buffer pool. Online buffer pool resizing happens"
     " at this granularity. 0 means disable resizing buffer pool.",
-    NULL, NULL, 128 * 1024 * 1024, 1024 * 1024, LONG_MAX, 1024 * 1024);
+    NULL, NULL, 128 * 1024 * 1024, 1024 * 1024, ULONG_MAX, 1024 * 1024);
 
 #if defined UNIV_DEBUG || defined UNIV_PERF_DEBUG
 static MYSQL_SYSVAR_ULONG(page_hash_locks, srv_n_page_hash_locks,
@@ -21021,7 +21021,7 @@ debug_set:
   if (srv_buf_pool_size == requested_buf_pool_size) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "InnoDB: Cannot resize buffer pool to lesser than"
-                        " chunk size of %lu bytes.",
+                        " chunk size of %llu bytes.",
                         srv_buf_pool_chunk_unit);
     /* nothing to do */
     return (0);

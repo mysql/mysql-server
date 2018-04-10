@@ -1810,10 +1810,9 @@ static void buf_pool_resize() {
   new_instance_size = srv_buf_pool_size / srv_buf_pool_instances;
   new_instance_size /= UNIV_PAGE_SIZE;
 
-  buf_resize_status("Resizing buffer pool from " ULINTPF " to " ULINTPF
-                    " (unit=" ULINTPF ").",
-                    srv_buf_pool_old_size, srv_buf_pool_size,
-                    srv_buf_pool_chunk_unit);
+  buf_resize_status(
+      "Resizing buffer pool from " ULINTPF " to " ULINTPF " (unit=%llu).",
+      srv_buf_pool_old_size, srv_buf_pool_size, srv_buf_pool_chunk_unit);
 
   /* set new limit for all buffer pool for resizing */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
