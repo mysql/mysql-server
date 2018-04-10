@@ -2064,8 +2064,6 @@ private:
 			 bool releaseIndexOperations = false);
   void inithost(Signal* signal);
   void initialiseScanrec(Signal* signal);
-  void initialiseScanFragrec(Signal* signal);
-  void initialiseScanOprec(Signal* signal);
   void initTable(Signal* signal);
   void initialiseTcConnect(Signal* signal);
   void linkApiToGcp(Ptr<GcpRecord>, Ptr<ApiConnectRecord>);

@@ -15245,11 +15245,9 @@ void Dbtc::initialiseRecordsLab(Signal* signal, UintR Tdata0,
     break;
   case 8:
     jam();
-    initialiseScanOprec(signal);
     break;
   case 9:
     jam();
-    initialiseScanFragrec(signal);
     break;
   case 10:
     jam();
@@ -15292,14 +15290,6 @@ void Dbtc::initialiseScanrec(Signal* signal)
   ndbrequire(cscanrecFileSize > 0);
   cConcScanCount = 0;
 }//Dbtc::initialiseScanrec()
-
-void Dbtc::initialiseScanFragrec(Signal* signal) 
-{
-}//Dbtc::initialiseScanFragrec()
-
-void Dbtc::initialiseScanOprec(Signal* signal) 
-{
-}//Dbtc::initialiseScanOprec()
 
 void Dbtc::initTable(Signal* signal) 
 {
