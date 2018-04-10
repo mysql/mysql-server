@@ -1,72 +1,161 @@
-CREATE TABLE t1 (
-a char(10) NOT NULL primary key,
-b int not null,
-unique (a,b),
-key(b, a)
-) comment='NDB_TABLE=FULLY_REPLICATED=1' ENGINE=ndbcluster;
-SHOW CREATE TABLE t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` char(10) NOT NULL,
-  `b` int(11) NOT NULL,
-  PRIMARY KEY (`a`),
-  UNIQUE KEY `a` (`a`,`b`),
-  KEY `b` (`b`,`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
--- t1 --
-Version: Any
-Fragment type: HashMapPartition
-K Value: 6
-Min load factor: 78
-Max load factor: 80
-Temporary table: no
-Number of attributes: 2
-Number of primary keys: 1
-Length of frm data: XXX
-Max Rows: 0
-Row Checksum: 1
-Row GCI: 1
-SingleUserMode: 0
-ForceVarPart: 1
-PartitionCount: 4
-FragmentCount: 16
-PartitionBalance: FOR_RP_BY_LDM
-ExtraRowGciBits: 0
-ExtraRowAuthorBits: 0
-TableStatus: Retrieved
-Table options: readbackup, fullyreplicated
-HashMap: DEFAULT-HASHMAP-3840-4
--- Attributes --
-a Char(40;utf8mb4_0900_ai_ci) PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Int NOT NULL AT=FIXED ST=MEMORY
--- Indexes -- 
-PRIMARY KEY(a) - UniqueHashIndex
-PRIMARY(a) - OrderedIndex
-a(a, b) - OrderedIndex
-a$unique(a, b) - UniqueHashIndex
-b(b, a) - OrderedIndex
+CREATE TABLE t1_rp_by_ldm
+(a bigint, b bigint, c bigint, d bigint,
+PRIMARY KEY (a,b,c,d))
+ENGINE = NDB
+COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 
-NDBT_ProgramExit: 0 - OK
+Expected number of partitions with "FOR_RP_BY_LDM" = 8
 
-INSERT INTO t1 VALUES
-('1',1), ('2',2), ('3',3), ('4',4),
-('5',5), ('6',6), ('7',7), ('8',8);
-SELECT * FROM t1;
-a	b
-1	1
-2	2
-3	3
-4	4
-5	5
-6	6
-7	7
-8	8
-SELECT partition_name, table_rows
-FROM information_schema.partitions
-WHERE table_name = 't1';
-PARTITION_NAME	TABLE_ROWS
-p0	2
-p1	2
-p2	2
-p3	2
-DROP TABLE t1;
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_rp_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	NODEGROUP
+t1_rp_by_ldm	p0	1	AUTO	default
+t1_rp_by_ldm	p1	2	AUTO	default
+t1_rp_by_ldm	p2	3	AUTO	default
+t1_rp_by_ldm	p3	4	AUTO	default
+t1_rp_by_ldm	p4	5	AUTO	default
+t1_rp_by_ldm	p5	6	AUTO	default
+t1_rp_by_ldm	p6	7	AUTO	default
+t1_rp_by_ldm	p7	8	AUTO	default
+DROP TABLE t1_rp_by_ldm;
+CREATE TABLE t1_rp_by_node
+(a bigint, b bigint, c bigint, d bigint,
+PRIMARY KEY (a,b,c,d))
+ENGINE = NDB
+COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
+
+Expected number of partitions with "FOR_RP_BY_NODE"= 2
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_rp_by_node'
+ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	NODEGROUP
+t1_rp_by_node	p0	1	AUTO	default
+t1_rp_by_node	p1	2	AUTO	default
+DROP TABLE t1_rp_by_node;
+CREATE TABLE t1_ra_by_node
+(a bigint, b bigint, c bigint, d bigint,
+PRIMARY KEY (a,b,c,d))
+ENGINE = NDB
+COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_NODE";
+
+Expected number of partitions with "FOR_RA_BY_NODE"= 1
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_node'
+ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	NODEGROUP
+t1_ra_by_node	p0	1	AUTO	default
+DROP TABLE t1_ra_by_node;
+CREATE TABLE t1_ra_by_ldm
+(a bigint, b bigint, c bigint, d bigint,
+PRIMARY KEY (a,b,c,d))
+ENGINE = NDB
+COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_3";
+
+Expected number of partitions with "FOR_RA_BY_LDM_X_3" = 12
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	NODEGROUP
+t1_ra_by_ldm	p0	1	AUTO	default
+t1_ra_by_ldm	p1	2	AUTO	default
+t1_ra_by_ldm	p2	3	AUTO	default
+t1_ra_by_ldm	p3	4	AUTO	default
+t1_ra_by_ldm	p4	5	AUTO	default
+t1_ra_by_ldm	p5	6	AUTO	default
+t1_ra_by_ldm	p6	7	AUTO	default
+t1_ra_by_ldm	p7	8	AUTO	default
+t1_ra_by_ldm	p8	9	AUTO	default
+t1_ra_by_ldm	p9	10	AUTO	default
+t1_ra_by_ldm	p10	11	AUTO	default
+t1_ra_by_ldm	p11	12	AUTO	default
+ALTER TABLE t1_ra_by_ldm
+COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_2";
+
+Expected number of partitions with "FOR_RA_BY_LDM_X_2" = 8
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	NODEGROUP
+t1_ra_by_ldm	p0	1	AUTO	default
+t1_ra_by_ldm	p1	2	AUTO	default
+t1_ra_by_ldm	p2	3	AUTO	default
+t1_ra_by_ldm	p3	4	AUTO	default
+t1_ra_by_ldm	p4	5	AUTO	default
+t1_ra_by_ldm	p5	6	AUTO	default
+t1_ra_by_ldm	p6	7	AUTO	default
+t1_ra_by_ldm	p7	8	AUTO	default
+ALTER TABLE t1_ra_by_ldm
+COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
+
+Expected number of partitions with "FOR_RA_BY_LDM" = 4
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	NODEGROUP
+t1_ra_by_ldm	p0	1	AUTO	default
+t1_ra_by_ldm	p1	2	AUTO	default
+t1_ra_by_ldm	p2	3	AUTO	default
+t1_ra_by_ldm	p3	4	AUTO	default
+ALTER TABLE t1_ra_by_ldm
+COMMENT = "NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM_X_4";
+
+Expected number of partitions with "FOR_RA_BY_LDM_X_4" = 16
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_ra_by_ldm'
+ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	NODEGROUP
+t1_ra_by_ldm	p0	1	AUTO	default
+t1_ra_by_ldm	p1	2	AUTO	default
+t1_ra_by_ldm	p2	3	AUTO	default
+t1_ra_by_ldm	p3	4	AUTO	default
+t1_ra_by_ldm	p4	5	AUTO	default
+t1_ra_by_ldm	p5	6	AUTO	default
+t1_ra_by_ldm	p6	7	AUTO	default
+t1_ra_by_ldm	p7	8	AUTO	default
+t1_ra_by_ldm	p8	9	AUTO	default
+t1_ra_by_ldm	p9	10	AUTO	default
+t1_ra_by_ldm	p10	11	AUTO	default
+t1_ra_by_ldm	p11	12	AUTO	default
+t1_ra_by_ldm	p12	13	AUTO	default
+t1_ra_by_ldm	p13	14	AUTO	default
+t1_ra_by_ldm	p14	15	AUTO	default
+t1_ra_by_ldm	p15	16	AUTO	default
+DROP TABLE t1_ra_by_ldm;
+CREATE TABLE t1_fully_replicated (
+a char(10) NOT NULL PRIMARY KEY,
+b int NOT NULL,
+UNIQUE(a,b),
+KEY(b, a))
+ENGINE = NDB
+COMMENT = 'NDB_TABLE=FULLY_REPLICATED=1';
+
+Expected number of partitions with "FULLY_REPLICATED" = 8
+
+SELECT TABLE_NAME, PARTITION_NAME, PARTITION_ORDINAL_POSITION, PARTITION_METHOD, NODEGROUP
+FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE table_schema = 'test' AND table_name = 't1_fully_replicated'
+ORDER BY PARTITION_ORDINAL_POSITION;
+TABLE_NAME	PARTITION_NAME	PARTITION_ORDINAL_POSITION	PARTITION_METHOD	NODEGROUP
+t1_fully_replicated	p0	1	AUTO	default
+t1_fully_replicated	p1	2	AUTO	default
+t1_fully_replicated	p2	3	AUTO	default
+t1_fully_replicated	p3	4	AUTO	default
+t1_fully_replicated	p4	5	AUTO	default
+t1_fully_replicated	p5	6	AUTO	default
+t1_fully_replicated	p6	7	AUTO	default
+t1_fully_replicated	p7	8	AUTO	default
+DROP TABLE t1_fully_replicated;

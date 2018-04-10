@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -73,6 +73,17 @@ class Ndb_metadata {
     @note Only compares the properties which can be stored in NDB dictionary
   */
   bool compare_table_def(const dd::Table* t1, const dd::Table* t2);
+
+
+  /*
+    @brief Check partition information in DD table definition
+
+    @t1             table definition
+
+    @return true if the table's partition information is as expected
+
+  */
+  bool check_partition_info(const dd::Table* t1);
 
 public:
   /*

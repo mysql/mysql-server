@@ -1,2 +1,0 @@
-# Problem with incorrect partition information in information_schema
-information_schema_partitions: Bug #26794953 INCORRECT PARTITIONS INFORMATION IN INFORMATION_SCHEMA.PARTITIONS

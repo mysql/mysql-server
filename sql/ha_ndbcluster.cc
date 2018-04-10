@@ -88,7 +88,6 @@
 #ifndef DBUG_OFF
 #include "sql/sql_test.h"   // print_where
 #endif
-#include "sql/ndb_dd.h"
                             // tablename_to_filename
 #include "sql/sql_class.h"
 #include "sql/sql_table.h"  // build_table_filename,
@@ -11203,8 +11202,6 @@ int ha_ndbcluster::create(const char *name,
 
   if (create_result == 0)
   {
-    // Check that NDB and DD metadata matches
-    DBUG_ASSERT(Ndb_metadata::compare(thd, &tab, table_def));
 
     /*
      * All steps have succeeded, try and commit schema transaction
@@ -11336,6 +11333,21 @@ cleanup_failed:
     // be opened and as such the NDB error can be returned here
     ERR_RETURN(dict->getNdbError());
   }
+
+  // Check if the DD table object has the correct number of partitions.
+  // Correct the number of partitions in the DD table object in case of
+  // a mismatch
+  const bool check_partition_count_result =
+      ndb_dd_table_check_partition_count(table_def,
+                                         m_table->getPartitionCount());
+  if (!check_partition_count_result)
+  {
+    ndb_dd_table_fix_partition_count(table_def,
+                                     m_table->getPartitionCount());
+  }
+
+  // Check that NDB and DD metadata matches
+  DBUG_ASSERT(Ndb_metadata::compare(thd, m_table, table_def));
 
   mysql_mutex_lock(&ndbcluster_mutex);
 
@@ -13300,7 +13312,7 @@ int ndbcluster_discover(handlerton*, THD* thd,
 
     if (!dd_client.install_table(db, name, sdi,
                                  tab->getObjectId(), tab->getObjectVersion(),
-                                 false))
+                                 tab->getPartitionCount(), false))
     {
       // Table existed in NDB but it could not be inserted into DD
       DBUG_ASSERT(false);
@@ -17698,8 +17710,8 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   // The pointer to new table_def is not valid anymore
   m_share->inplace_alter_new_table_def = nullptr;
 
-  // Fetch the new table version and write it to the table definition,
-  // the caller will then save it into DD
+  // Fetch the new table version and write it to the table definition.
+  // The caller will then save it into DD
   {
     Ndb_table_guard ndbtab_g(alter_data->dictionary, name);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
@@ -17712,6 +17724,16 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
     ndb_dd_table_set_object_id_and_version(new_table_def,
                                            table_id,
                                            ndbtab->getObjectVersion());
+
+    // Also check and correct the partition count if required.
+    const bool check_partition_count_result =
+        ndb_dd_table_check_partition_count(new_table_def,
+                                           ndbtab->getPartitionCount());
+    if (!check_partition_count_result)
+    {
+      ndb_dd_table_fix_partition_count(new_table_def,
+                                       ndbtab->getPartitionCount());
+    }
   }
 
   // Unpin the NDB_SHARE of the altered table

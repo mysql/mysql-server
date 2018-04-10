@@ -25,8 +25,12 @@
 // Implements the functions defined in ndb_dd_table.h
 #include "sql/ndb_dd_table.h"
 
+#include <string>
+
+#include "sql/dd/impl/types/partition_impl.h"
 #include "sql/dd/properties.h"
 #include "sql/dd/types/column.h"
+#include "sql/dd/types/partition.h"
 #include "sql/dd/types/table.h"
 
 // The key used to store the NDB tables object version in the
@@ -135,4 +139,67 @@ ndb_dd_table_set_row_format(dd::Table* table_def,
   {
     table_def->set_row_format(dd::Table::RF_DYNAMIC);
   }
+}
+
+bool ndb_dd_table_check_partition_count(const dd::Table* table_def,
+                                        size_t ndb_num_partitions)
+{
+  return table_def->partitions().size() == ndb_num_partitions;
+}
+
+void ndb_dd_table_fix_partition_count(dd::Table* table_def,
+                                      size_t ndb_num_partitions)
+{
+
+  DBUG_ENTER("ndb_dd_table_fix_partition_count");
+  DBUG_PRINT("enter", ("ndb_num_partitions: %lu", ndb_num_partitions));
+
+  const size_t dd_num_partitions = table_def->partitions()->size();
+
+  if (ndb_num_partitions < dd_num_partitions)
+  {
+    // Remove extra partitions from DD
+
+    dd::Collection<dd::Partition* >* dd_partitions = table_def->partitions();
+
+    // Check if the extra partitions have been stored in the DD
+    // Checking only one of the partitions is sufficient
+    const bool partition_object_stored_in_DD =
+      dd_partitions->at(ndb_num_partitions)->is_persistent();
+
+    for (size_t i = ndb_num_partitions; i < dd_num_partitions; i++)
+    {
+      auto partition = dd_partitions->at(ndb_num_partitions);
+      dd_partitions->remove(dynamic_cast<dd::Partition_impl *>(partition));
+    }
+
+    if (!partition_object_stored_in_DD)
+    {
+      // This case has to handled differently. When the partitions
+      // are removed from the collection above, they are dropped
+      // from the DD later. In case the partitions have not
+      // been stored in the DD at this point, we can simply
+      // clear the removed partitions. If we fail to do so, there'll
+      // be a crash when the table definition is stored in the DD.
+      // This path is hit for ALTER TABLE as well as when the table
+      // is "discovered" from NDB Dictionary and installed into the
+      // DD
+      dd_partitions->clear_removed_items();
+    }
+  }
+  else if (dd_num_partitions < ndb_num_partitions)
+  {
+    // Add missing partitions to DD
+    for (size_t i = dd_num_partitions; i < ndb_num_partitions; i++)
+    {
+      dd::Partition *partition_def = table_def->add_partition();
+      const std::string partition_name = "p" + std::to_string(i);
+      partition_def->set_name(partition_name.c_str());
+      partition_def->set_engine(table_def->engine());
+      partition_def->set_number(i);
+    }
+  }
+
+  DBUG_ASSERT(ndb_num_partitions == table_def->partitions()->size());
+  DBUG_VOID_RETURN;
 }
