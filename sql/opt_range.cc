@@ -10554,8 +10554,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
     goto err;
   quick->records= records;
 
-  if ((cp_buffer_from_ref(thd, table, ref) && thd->is_fatal_error) ||
-      !(range= new (alloc) QUICK_RANGE()))
+  if (!(range= new (alloc) QUICK_RANGE()))
     goto err;                                   // out of memory
 
   range->min_key= range->max_key= ref->key_buff;
