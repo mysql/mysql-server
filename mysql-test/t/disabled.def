@@ -17,4 +17,3 @@ mysql_embedded           : Bug#12561297 2011-05-14 Anitha Dependent on PB2 chang
 
 file_contents            : bug#12585902 2013-05-21 Jonas - FILE_CONTENTS.TEST FAILS WHEN BUILDING FROM "BZR EXPORT", this is still broken, not sure why it's reenabled
 
-mysqld--defaults-file    : Bug#27448061 2018-26-01 ppribeir Missing backport of fix for Bug#24579973
