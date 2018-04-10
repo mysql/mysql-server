@@ -61,7 +61,7 @@ UNSET(FOUND_WARNINGS)
 # See if we have any warnings/errors.
 FOREACH(LINE ${ERROR_FILE_LINES})
   # Workaround for missing CONTINUE() in CMake version < 3.2
-  UNSET(LOOP_CONTINUE)
+  SET(LOOP_CONTINUE 0)
 
   # Filter out information messages from dia.
   STRING(REGEX MATCH "^.*\\.dia --> dia_.*\\.png\$" DIA_STATUS ${LINE})
