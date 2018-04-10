@@ -2093,6 +2093,10 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
   DBUG_ASSERT(rli->info_thd == thd);
   DBUG_ASSERT(rli->slave_running == 1);
   if (rli->sql_thread_kill_accepted) DBUG_RETURN(true);
+  DBUG_EXECUTE_IF("stop_when_mts_in_group", rli->abort_slave = 1;
+                  DBUG_SET("-d,stop_when_mts_in_group");
+                  DBUG_SET("-d,simulate_stop_when_mts_in_group");
+                  DBUG_RETURN(false););
   if (connection_events_loop_aborted() || thd->killed || rli->abort_slave) {
     rli->sql_thread_kill_accepted = true;
     is_parallel_warn =
@@ -4317,6 +4321,11 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
       DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 
     exec_res = ev->apply_event(rli);
+
+    DBUG_EXECUTE_IF("simulate_stop_when_mts_in_group",
+                    if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP &&
+                        rli->curr_group_seen_begin)
+                        DBUG_SET("+d,stop_when_mts_in_group"););
 
     if (!exec_res && (ev->worker != rli)) {
       if (ev->worker) {
@@ -6576,6 +6585,7 @@ extern "C" void *handle_slave_sql(void *arg) {
 
   Relay_log_info *rli = ((Master_info *)arg)->rli;
   const char *errmsg;
+  longlong slave_errno = 0;
   bool mts_inited = false;
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   Commit_order_manager *commit_order_mngr = NULL;
@@ -6880,22 +6890,13 @@ extern "C" void *handle_slave_sql(void *arg) {
                  err->message_text(), err->mysql_errno());
         }
         if (udf_error)
-          LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY,
-                 rli->get_rpl_log_name(),
-                 llstr(rli->get_group_master_log_pos(), llbuff));
+          slave_errno = ER_RPL_SLAVE_ERROR_LOADING_USER_DEFINED_LIBRARY;
         else
-          LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ERROR_RUNNING_QUERY,
-                 rli->get_rpl_log_name(),
-                 llstr(rli->get_group_master_log_pos(), llbuff));
+          slave_errno = ER_RPL_SLAVE_ERROR_RUNNING_QUERY;
       }
       goto err;
     }
   }
-
-  /* Thread stopped. Print the current replication position to the log */
-  LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SQL_THREAD_EXITING,
-         rli->get_for_channel_str(), rli->get_rpl_log_name(),
-         llstr(rli->get_group_master_log_pos(), llbuff));
 
 err:
   /* At this point the SQL thread will not try to work anymore. */
@@ -6905,6 +6906,15 @@ err:
       (thd, rli->mi, rli->is_error() || !rli->sql_thread_kill_accepted));
 
   slave_stop_workers(rli, &mts_inited);  // stopping worker pool
+  /* Thread stopped. Print the current replication position to the log */
+  if (slave_errno)
+    LogErr(ERROR_LEVEL, slave_errno, rli->get_rpl_log_name(),
+           llstr(rli->get_group_master_log_pos(), llbuff));
+  else
+    LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_SQL_THREAD_EXITING,
+           rli->get_for_channel_str(), rli->get_rpl_log_name(),
+           llstr(rli->get_group_master_log_pos(), llbuff));
+
   delete rli->current_mts_submode;
   rli->current_mts_submode = 0;
   rli->clear_mts_recovery_groups();
