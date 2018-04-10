@@ -779,7 +779,8 @@ static bool socket_listener_active = false;
 static int pipe_write_fd = -1;
 static bool opt_daemonize = 0;
 #endif
-static bool opt_debugging = 0, opt_external_locking = 0, opt_console = 0;
+bool opt_debugging = false;
+static bool opt_external_locking = 0, opt_console = 0;
 static bool opt_short_log_format = 0;
 static char *mysqld_user, *mysqld_chroot;
 static char *default_character_set_name;
@@ -850,6 +851,7 @@ ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
 
 #if defined(_WIN32)
 ulong slow_start_timeout;
+bool opt_no_monitor = false;
 #endif
 
 bool opt_no_dd_upgrade = false;
@@ -1778,6 +1780,12 @@ static void close_connections(void) {
 }
 
 bool signal_restart_server() {
+  if (!is_mysqld_managed()) {
+    my_error(ER_RESTART_SERVER_FAILED, MYF(0),
+             "mysqld is not managed by supervisor process");
+    return true;
+  }
+
 #ifdef _WIN32
   if (!SetEvent(hEventRestart)) {
     sql_print_error("Got error: %ld from SetEvent", GetLastError());
@@ -1785,11 +1793,6 @@ bool signal_restart_server() {
     return true;
   }
 #else
-  if (!is_mysqld_managed()) {
-    my_error(ER_RESTART_SERVER_FAILED, MYF(0),
-             "mysqld is not managed by supervisor process");
-    return true;
-  }
 
   if (pthread_kill(signal_thread_id.thread, SIGUSR2)) {
     DBUG_PRINT("error", ("Got error %d from pthread_kill", errno));
@@ -7157,6 +7160,8 @@ struct my_option my_long_options[] = {
 #ifdef _WIN32
     {"standalone", 0, "Dummy option to start as a standalone program (NT).", 0,
      0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+    {"no-monitor", 0, "Disable monitor process.", &opt_no_monitor,
+     &opt_no_monitor, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
     {"symbolic-links", 's',
      "Enable symbolic link support (deprecated and will be  removed in a future"

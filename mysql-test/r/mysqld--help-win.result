@@ -655,6 +655,7 @@ The following options may be given as the first argument:
  -n, --new           Use very new possible "unsafe" functions
  --no-dd-upgrade     Abort restart if automatic upgrade or downgrade of the
  data dictionary is needed.
+ --no-monitor        Disable monitor process.
  --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
@@ -1497,6 +1498,7 @@ net-retry-count 10
 net-write-timeout 60
 new FALSE
 no-dd-upgrade FALSE
+no-monitor FALSE
 offline-mode FALSE
 old FALSE
 old-alter-table FALSE

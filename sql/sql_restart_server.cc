@@ -54,14 +54,16 @@ static inline bool check_restart_server_admin_privilege(THD *thd) {
   return !opt_noacl && check_global_access(thd, SHUTDOWN_ACL);
 }
 
-#ifndef _WIN32
 bool is_mysqld_managed() {
+#ifndef _WIN32
   char *parent_pid = getenv("MYSQLD_PARENT_PID");
   if (parent_pid == nullptr) return false;
 
   return atoi(parent_pid) == getppid();
-}
+#else
+  return !(opt_debugging || opt_no_monitor);
 #endif  // _WIN32
+}
 
 bool Sql_cmd_restart_server::execute(THD *thd) {
   DBUG_ENTER("Sql_cmd_restart_server");
