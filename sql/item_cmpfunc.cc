@@ -963,34 +963,29 @@ static longlong get_time_value(THD *, Item ***item_arg, Item **cache_arg,
                                const Item *, bool *is_null) {
   longlong value;
   Item *item = **item_arg;
+  String buf, *str = 0;
+
+  if (item->data_type() == MYSQL_TYPE_TIME ||
+      item->data_type() == MYSQL_TYPE_NULL) {
+    value = item->val_time_temporal();
+    *is_null = item->null_value;
+  } else {
+    str = item->val_str(&buf);
+    *is_null = item->null_value;
+  }
+  if (*is_null) return ~(ulonglong)0;
 
   /*
-    Note, it's wrong to assume that we always get
-    a TIME expression or NULL here:
-
-  DBUG_ASSERT(item->data_type() == MYSQL_TYPE_TIME ||
-              item->data_type() == MYSQL_TYPE_NULL);
-
-    because when this condition is optimized:
-
-    WHERE time_column=DATE(NULL) AND time_column=TIME(NULL);
-
-    rhe first AND part is eliminated and DATE(NULL) is substituted
-    to the second AND part like this:
-
-    WHERE DATE(NULL) = TIME(NULL) // as TIME
-
-    whose Arg_comparator has already get_time_value set for both arguments.
-    Therefore, get_time_value is executed for DATE(NULL).
-    This condition is further evaluated as impossible condition.
-
-    TS-TODO: perhaps such cases should be evaluated without
-    calling get_time_value at all.
-
-    See a similar comment in Arg_comparator::compare_time_packed.
+    Convert strings to the integer TIME representation.
   */
-  value = item->val_time_temporal();
-  *is_null = item->null_value;
+  if (str) {
+    MYSQL_TIME l_time;
+    if (str_to_time_with_warn(str, &l_time)) {
+      *is_null = true;
+      return ~(ulonglong)0;
+    }
+    value = TIME_to_longlong_datetime_packed(&l_time);
+  }
 
   if (item->const_item() && cache_arg && item->type() != Item::CACHE_ITEM &&
       item->type() != Item::FUNC_ITEM) {
