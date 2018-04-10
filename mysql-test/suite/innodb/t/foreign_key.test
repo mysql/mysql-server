@@ -164,7 +164,7 @@ ID='test/child_table_ibfk_1';
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FOREIGN_COLS WHERE
 ID='test/child_table_ibfk_1';
 
---error 1217
+--error ER_FK_CANNOT_DROP_PARENT
 DROP TABLE parent_table;
 DROP TABLE child_table;
 DROP TABLE parent_table;

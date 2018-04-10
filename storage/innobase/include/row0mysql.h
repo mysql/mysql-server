@@ -369,26 +369,20 @@ by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
 @param[in]	name		table name
 @param[in,out]	trx		data dictionary transaction
-@param[in]	sqlcom		SQL command
 @param[in]	nonatomic	whether it is permitted
 to release and reacquire dict_operation_lock
 @param[in,out]	handler		intrinsic temporary table handle, or NULL
 @return error code or DB_SUCCESS */
-dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
-                                 enum enum_sql_command sqlcom, bool nonatomic,
+dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
                                  dict_table_t *handler = NULL);
 /** Drop a table for MySQL. If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
 @param[in]	name		table name
 @param[in,out]	trx		data dictionary transaction
-@param[in]	drop_db		whether the database is being dropped
-(ignore certain foreign key constraints)
 @return error code or DB_SUCCESS */
-inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
-                                        bool drop_db) {
-  return (row_drop_table_for_mysql(
-      name, trx, drop_db ? SQLCOM_DROP_DB : SQLCOM_DROP_TABLE, true, NULL));
+inline dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx) {
+  return (row_drop_table_for_mysql(name, trx, true, NULL));
 }
 
 /** Discards the tablespace of a table which stored in an .ibd file. Discarding

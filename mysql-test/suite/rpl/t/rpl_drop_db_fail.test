@@ -25,7 +25,7 @@ use db2;
 CREATE TABLE table_child(id INT PRIMARY KEY, info VARCHAR(20), father_id INT) ENGINE=INNODB;
 ALTER TABLE table_child ADD CONSTRAINT aaa FOREIGN KEY (father_id) REFERENCES db1.table_father(id);
 
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP DATABASE db1;
 DROP DATABASE db2;
 --source include/sync_slave_sql_with_master.inc
