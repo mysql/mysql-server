@@ -25,6 +25,8 @@ if ($HAVE_LINUX)
 --source include/is_local_machine.inc
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
+# Make sure that there are no other tests running in parallel
+--source include/not_parallel.inc
 
 ##############################################################################
 # Autoscaling is done as per below formula:                                  #
