@@ -3510,9 +3510,9 @@ void lock_update_discard(
   lock_mutex_enter();
 
   if (!lock_rec_get_first_on_page(lock_sys->rec_hash, block) &&
+      (!lock_rec_get_first_on_page(lock_sys->prdt_page_hash, block)) &&
       (!lock_rec_get_first_on_page(lock_sys->prdt_hash, block))) {
     /* No locks exist on page, nothing to do */
-    ut_ad(!lock_rec_get_first_on_page(lock_sys->prdt_page_hash, block));
     lock_mutex_exit();
 
     return;
