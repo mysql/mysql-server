@@ -6143,62 +6143,36 @@ Dbtc::ApiConnectRecord::ApiConnectRecord()
   m_apiConTimer_line(0),
   apiConnectstate(CS_RESTART), /* CS_DISCONNECTED (CS_RESTART for Copy and Fail) */
   apiConnectkind(CK_FREE),
-//  transid
-//tcConnect
   lqhkeyconfrec(0),
   cachePtr(RNIL),
   currSavePointId(0),
-//counter
   nextApiConnect(RNIL),
-//  nextHash(RNIL),
-//  prevApiConnect(RNIL),
-//gcpPointer
-//ndbapiConnect
   ndbapiBlockref(0xFFFFFFFF), // Invalid ref
   apiCopyRecord(RNIL),
   globalcheckpointid(0),
-//??
   lqhkeyreqrec(0),
   buddyPtr(RNIL),
   commitAckMarker(RNIL),
   num_commit_ack_markers(0),
   m_write_count(0),
-//returnsignal
-//abortState
   m_flags(0),
   m_special_op_flags(0),
   takeOverRec((Uint8)Z8NIL),
-//currentReplicaNo
   tckeyrec(0),
   tcindxrec(0),
   apiFailState(ApiConnectRecord::AFS_API_OK),
-//timeOutCounter
   singleUserMode(0),
   returncode(0),
-//takeOverInd
-//currentTcConnect
-//tcBlockref
-//failureNr
-//tcSendArray
-//m_transaction_nodes
-//theFiredTriggers
-//noIndexOp
-//...
   noIndexOp(0),
   immediateTriggerId(RNIL),
   firedFragId(RNIL),
   accumulatingIndexOp(RNIL),
   executingIndexOp(RNIL),
-//  returnsignal = RS_TCKEYCONF;
-//  failureNr(TfailureNr;
-//  transid[0] = Ttransid0;
-//  transid[1] = Ttransid1;
 #ifdef ERROR_INSERT
   continueBCount(0),
 #endif
   m_pre_commit_pass(0),
   cascading_scans_count(0)
-//...
 {
   NdbTick_Invalidate(&m_start_ticks);
   tcConnect.init();
