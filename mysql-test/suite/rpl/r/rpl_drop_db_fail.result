@@ -14,7 +14,7 @@ use db2;
 CREATE TABLE table_child(id INT PRIMARY KEY, info VARCHAR(20), father_id INT) ENGINE=INNODB;
 ALTER TABLE table_child ADD CONSTRAINT aaa FOREIGN KEY (father_id) REFERENCES db1.table_father(id);
 DROP DATABASE db1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 'table_father' referenced by a foreign key constraint 'aaa' on table 'table_child'.
 DROP DATABASE db2;
 include/sync_slave_sql_with_master.inc
 DROP DATABASE db1;

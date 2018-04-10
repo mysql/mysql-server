@@ -12074,13 +12074,11 @@ template int innobase_basic_ddl::create_impl<dd::Partition>(
 @param[in,out]	thd		THD object
 @param[in]	name		table name
 @param[in]	dd_tab		dd::Table describing table to be dropped
-@param[in]	sqlcom		type of operation that the DROP is part of
 @return	error number
 @retval 0 on success */
 template <typename Table>
 int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
-                                    const Table *dd_tab,
-                                    enum enum_sql_command sqlcom) {
+                                    const Table *dd_tab) {
   dberr_t error = DB_SUCCESS;
   char norm_name[FN_REFLEN];
 
@@ -12152,7 +12150,7 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
     }
   }
 
-  error = row_drop_table_for_mysql(norm_name, trx, sqlcom, true, handler);
+  error = row_drop_table_for_mysql(norm_name, trx, true, handler);
 
   if (handler != nullptr && error == DB_SUCCESS) {
     priv->unregister_table_handler(norm_name);
@@ -12172,11 +12170,10 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
 }
 
 template int innobase_basic_ddl::delete_impl<dd::Table>(THD *, const char *,
-                                                        const dd::Table *,
-                                                        enum enum_sql_command);
+                                                        const dd::Table *);
 
 template int innobase_basic_ddl::delete_impl<dd::Partition>(
-    THD *, const char *, const dd::Partition *, enum enum_sql_command);
+    THD *, const char *, const dd::Partition *);
 
 /** Renames an InnoDB table.
 @tparam		Table		dd::Table or dd::Partition
@@ -12409,8 +12406,7 @@ int innobase_truncate<Table>::truncate() {
 
   DBUG_EXECUTE_IF("ib_truncate_crash_after_rename", DBUG_SUICIDE(););
 
-  error = innobase_basic_ddl::delete_impl(m_thd, m_name, m_dd_table,
-                                          SQLCOM_TRUNCATE);
+  error = innobase_basic_ddl::delete_impl(m_thd, m_name, m_dd_table);
 
   DBUG_EXECUTE_IF("ib_truncate_fail_after_delete", error = HA_ERR_GENERIC;);
 
@@ -13134,23 +13130,12 @@ int ha_innobase::delete_table(const char *name, const dd::Table *table_def) {
 
   THD *thd = ha_thd();
   trx_t *trx = check_trx_exists(thd);
-  enum enum_sql_command sqlcom =
-      static_cast<enum enum_sql_command>(thd_sql_command(thd));
-
-  if (sqlcom == SQLCOM_TRUNCATE && thd_killed(thd) &&
-      (m_prebuilt == NULL || m_prebuilt->table->is_temporary())) {
-    sqlcom = SQLCOM_DROP_TABLE;
-  }
-
-  /* SQLCOM_TRUNCATE will not drop FOREIGN KEY constraints
-  from the data dictionary tables. */
-  DBUG_ASSERT(sqlcom != SQLCOM_TRUNCATE);
 
   if (table_def != nullptr && table_def->is_persistent()) {
     innobase_register_trx(ht, thd, trx);
   }
 
-  return (innobase_basic_ddl::delete_impl(thd, name, table_def, sqlcom));
+  return (innobase_basic_ddl::delete_impl(thd, name, table_def));
 }
 
 /** Validate the parameters in st_alter_tablespace

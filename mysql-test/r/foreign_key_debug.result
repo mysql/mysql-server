@@ -601,7 +601,7 @@ WHERE referenced_table_schema LIKE 's1';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
 grandchild_ibfk_1	child_i_key	s1	child
 DROP SCHEMA s1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 'child' referenced by a foreign key constraint 'grandchild_ibfk_1' on table 'grandchild'.
 SET @@foreign_key_checks= 0;
 DROP SCHEMA s1;
 SET @@foreign_key_checks= 1;
@@ -624,7 +624,7 @@ WHERE referenced_table_schema LIKE 's1';
 name	unique_constraint_name	referenced_table_schema	referenced_table_name
 grandchild_ibfk_1	child_i_key	s1	child
 DROP SCHEMA s1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 'child' referenced by a foreign key constraint 'grandchild_ibfk_1' on table 'grandchild'.
 SET @@foreign_key_checks= 0;
 DROP SCHEMA s1;
 SET @@foreign_key_checks= 1;

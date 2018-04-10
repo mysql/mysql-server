@@ -92,19 +92,15 @@ SELECT * FROM tt_m;
 SELECT * FROM tt_i;
 
 --echo #
---echo # 1.c) DROP TABLES which fails due to foreign key error might
---echo #      have side effect. This might change once WL#6049 is
---echo #      implemented and we support smarter checks while dropping
---echo #      tables with foreign keys. Until this side-effect is
---echo #      limited to non-atomic SEs only.
+--echo # 1.c) DROP TABLES which fails due to foreign key error does
+--echo #      not have side effect.
 CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 CREATE TABLE t_i_2 (t_i_2 INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t_i_3 (t_i_3 INT, FOREIGN KEY(t_i_3) REFERENCES t_i_2(t_i_2)) ENGINE=InnoDB;
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP TABLES t_m, t_i_1, t_i_2;
---echo # Table t_m is gone, t_i_1 and t_i_2 are still there.
---error ER_NO_SUCH_TABLE
+--echo # All tables are still there.
 SELECT * FROM t_m;
 SELECT * FROM t_i_1;
 SELECT * FROM t_i_2;
@@ -114,7 +110,6 @@ SELECT * FROM t_i_2;
 --echo #      effect. Tables in engines which do not support atomic DDL
 --echo #      which we have managed to drop before error stay dropped.
 --echo #      Removal of InnoDB tables should be rolled back.
-CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 --error ER_UNKNOWN_ERROR
 DROP TABLES t_m, t_i_1;
@@ -178,9 +173,8 @@ DROP TABLE IF EXISTS t1;
 --echo #
 
 --echo #
---echo # 4.a) DROP DATABASE which fails due to foreign key error might
---echo #      have side effect. This  side-effect is limited to non-atomic
---echo #      SEs only.
+--echo # 4.a) DROP DATABASE which fails due to foreign key error should
+--echo #      not have side effect.
 CREATE DATABASE mysqltest;
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE= InnoDB;
@@ -189,12 +183,10 @@ CREATE FUNCTION mysqltest.f1() RETURNS INT RETURN 0;
 CREATE TABLE t1 (fk INT,
                  FOREIGN KEY (fk) REFERENCES mysqltest.t_i_2(t_i_2))
                  ENGINE=InnoDB;
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP DATABASE mysqltest;
---echo # Table t_m is gone.
---error ER_NO_SUCH_TABLE
+--echo # Database and all tables are still there.
 SELECT * FROM mysqltest.t_m;
---echo # Database and tables t_i_1, t_i_2 are still there.
 SELECT * FROM mysqltest.t_i_1;
 SELECT * FROM mysqltest.t_i_2;
 --echo # Stored function f1() is still there too.
@@ -206,7 +198,6 @@ SELECT mysqltest.f1();
 --echo #      which we have managed to drop before error stay dropped.
 --echo #      Removal of InnoDB tables should be rolled back.
 DROP TABLE t1;
-CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
 SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
 --error ER_UNKNOWN_ERROR
 DROP DATABASE mysqltest;

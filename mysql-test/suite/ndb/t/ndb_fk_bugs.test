@@ -536,7 +536,7 @@ while ($i)
 	     foreign key fk1 (b) references t1 (a)
 	) engine=$engine;
 
-	--error ER_ROW_IS_REFERENCED
+	--error ER_FK_CANNOT_DROP_PARENT
 	drop table t1;
 
 	drop table t2, t1;

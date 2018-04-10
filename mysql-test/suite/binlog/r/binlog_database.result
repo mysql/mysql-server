@@ -53,14 +53,14 @@ CREATE DATABASE testing_1;
 USE testing_1;
 CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGINE=InnoDB;
 #
 # 'DROP DATABASE' will fail but will delete table t1.
 #
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE testing_1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-DROP TABLE test.t1;
-# Now we can drop the database.
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+# Cleanup.
 DROP DATABASE testing_1;
 #
 # Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
@@ -72,18 +72,17 @@ DROP TABLE IF EXISTS t3;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine=innodb;
 CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
-CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
-engine=innodb;
 RESET MASTER;
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE db1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 SHOW TABLES FROM db1;
 Tables_in_db1
 t1
 t2
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-DROP TABLE t3;
 DROP DATABASE db1;
 RESET MASTER;
 set binlog_format=mixed;
@@ -139,14 +138,14 @@ CREATE DATABASE testing_1;
 USE testing_1;
 CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGINE=InnoDB;
 #
 # 'DROP DATABASE' will fail but will delete table t1.
 #
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE testing_1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-DROP TABLE test.t1;
-# Now we can drop the database.
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+# Cleanup.
 DROP DATABASE testing_1;
 #
 # Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
@@ -158,18 +157,17 @@ DROP TABLE IF EXISTS t3;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine=innodb;
 CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
-CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
-engine=innodb;
 RESET MASTER;
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE db1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 SHOW TABLES FROM db1;
 Tables_in_db1
 t1
 t2
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-DROP TABLE t3;
 DROP DATABASE db1;
 RESET MASTER;
 set binlog_format='row';
@@ -227,14 +225,14 @@ CREATE DATABASE testing_1;
 USE testing_1;
 CREATE TABLE t1(c1 INT) ENGINE=MyISAM;
 CREATE TABLE t2(c1 INT PRIMARY KEY) ENGINE=InnoDB;
-CREATE TABLE test.t1 (c1 INT, FOREIGN KEY(c1) REFERENCES testing_1.t2(c1)) ENGINE=InnoDB;
 #
 # 'DROP DATABASE' will fail but will delete table t1.
 #
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE testing_1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-DROP TABLE test.t1;
-# Now we can drop the database.
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
+# Cleanup.
 DROP DATABASE testing_1;
 #
 # Bug#11765416 58381: FAILED DROP DATABASE CAN BREAK STATEMENT
@@ -246,18 +244,17 @@ DROP TABLE IF EXISTS t3;
 CREATE DATABASE db1;
 CREATE TABLE db1.t1 (a INT) engine=innodb;
 CREATE TABLE db1.t2 (b INT, KEY(b)) engine=innodb;
-CREATE TABLE t3 (a INT, KEY (a), FOREIGN KEY(a) REFERENCES db1.t2(b))
-engine=innodb;
 RESET MASTER;
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP DATABASE db1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Unknown error
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 SHOW TABLES FROM db1;
 Tables_in_db1
 t1
 t2
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-DROP TABLE t3;
 DROP DATABASE db1;
 RESET MASTER;
 show databases;

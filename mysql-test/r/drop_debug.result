@@ -77,20 +77,17 @@ ERROR 42S02: Table 'test.tt_m' doesn't exist
 SELECT * FROM tt_i;
 ERROR 42S02: Table 'test.tt_i' doesn't exist
 #
-# 1.c) DROP TABLES which fails due to foreign key error might
-#      have side effect. This might change once WL#6049 is
-#      implemented and we support smarter checks while dropping
-#      tables with foreign keys. Until this side-effect is
-#      limited to non-atomic SEs only.
+# 1.c) DROP TABLES which fails due to foreign key error does
+#      not have side effect.
 CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE t_i_1 (t_i_1 INT) ENGINE=InnoDB;
 CREATE TABLE t_i_2 (t_i_2 INT PRIMARY KEY) ENGINE=InnoDB;
 CREATE TABLE t_i_3 (t_i_3 INT, FOREIGN KEY(t_i_3) REFERENCES t_i_2(t_i_2)) ENGINE=InnoDB;
 DROP TABLES t_m, t_i_1, t_i_2;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-# Table t_m is gone, t_i_1 and t_i_2 are still there.
+ERROR HY000: Cannot drop table 't_i_2' referenced by a foreign key constraint 't_i_3_ibfk_1' on table 't_i_3'.
+# All tables are still there.
 SELECT * FROM t_m;
-ERROR 42S02: Table 'test.t_m' doesn't exist
+t_m
 SELECT * FROM t_i_1;
 t_i_1
 SELECT * FROM t_i_2;
@@ -100,7 +97,6 @@ t_i_2
 #      effect. Tables in engines which do not support atomic DDL
 #      which we have managed to drop before error stay dropped.
 #      Removal of InnoDB tables should be rolled back.
-CREATE TABLE t_m (t_m INT) ENGINE=MyISAM;
 SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
 DROP TABLES t_m, t_i_1;
 ERROR HY000: Unknown error
@@ -157,9 +153,8 @@ Warning	1017	Can't find file: 't1' (errno: 2 - No such file or directory)
 # 4) Error handling by DROP DATABASE.
 #
 #
-# 4.a) DROP DATABASE which fails due to foreign key error might
-#      have side effect. This  side-effect is limited to non-atomic
-#      SEs only.
+# 4.a) DROP DATABASE which fails due to foreign key error should
+#      not have side effect.
 CREATE DATABASE mysqltest;
 CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
 CREATE TABLE mysqltest.t_i_1 (t_i_1 INT) ENGINE= InnoDB;
@@ -169,11 +164,10 @@ CREATE TABLE t1 (fk INT,
 FOREIGN KEY (fk) REFERENCES mysqltest.t_i_2(t_i_2))
 ENGINE=InnoDB;
 DROP DATABASE mysqltest;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
-# Table t_m is gone.
+ERROR HY000: Cannot drop table 't_i_2' referenced by a foreign key constraint 't1_ibfk_1' on table 't1'.
+# Database and all tables are still there.
 SELECT * FROM mysqltest.t_m;
-ERROR 42S02: Table 'mysqltest.t_m' doesn't exist
-# Database and tables t_i_1, t_i_2 are still there.
+t_m
 SELECT * FROM mysqltest.t_i_1;
 t_i_1
 SELECT * FROM mysqltest.t_i_2;
@@ -188,7 +182,6 @@ mysqltest.f1()
 #      which we have managed to drop before error stay dropped.
 #      Removal of InnoDB tables should be rolled back.
 DROP TABLE t1;
-CREATE TABLE mysqltest.t_m (t_m INT) ENGINE=MyISAM;
 SET SESSION DEBUG='+d,rm_db_fail_after_dropping_tables';
 DROP DATABASE mysqltest;
 ERROR HY000: Unknown error

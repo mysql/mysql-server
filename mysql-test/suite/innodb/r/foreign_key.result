@@ -155,7 +155,7 @@ ID='test/child_table_ibfk_1';
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/child_table_ibfk_1	c1	c1	1
 DROP TABLE parent_table;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 'parent_table' referenced by a foreign key constraint 'child_table_ibfk_1' on table 'child_table'.
 DROP TABLE child_table;
 DROP TABLE parent_table;
 #

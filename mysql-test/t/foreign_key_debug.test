@@ -589,7 +589,7 @@ SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_n
   FROM mysql.foreign_keys
   WHERE referenced_table_schema LIKE 's1';
 
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP SCHEMA s1;
 
 SET @@foreign_key_checks= 0;
@@ -613,7 +613,7 @@ SELECT name, unique_constraint_name, referenced_table_schema, referenced_table_n
   FROM mysql.foreign_keys
   WHERE referenced_table_schema LIKE 's1';
 
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP SCHEMA s1;
 
 SET @@foreign_key_checks= 0;
