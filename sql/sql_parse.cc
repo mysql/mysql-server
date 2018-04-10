@@ -1250,7 +1250,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
         TODO: remove this when we have full 64 bit my_time_t support
       */
-      sql_print_error("This MySQL server doesn't support dates later then 2038");
+      sql_print_error("This MySQL server doesn't support dates later than 2038");
       ulong master_access= thd->security_context()->master_access();
       thd->security_context()->set_master_access(master_access | SHUTDOWN_ACL);
       command= COM_SHUTDOWN;
