@@ -7205,7 +7205,7 @@ ER_GIS_UNSUPPORTED_ARGUMENT
   eng "Calling geometry function %s with unsupported types of arguments."
 
 ER_GIS_UNKNOWN_ERROR
-  eng "Unknown GIS error occured in function %s."
+  eng "Unknown GIS error occurred in function %s."
 
 ER_GIS_UNKNOWN_EXCEPTION
   eng "Unknown exception caught in GIS function %s."
@@ -9236,13 +9236,13 @@ ER_TRX_GTID_COLLECT_REJECT
   eng "Failed to collect GTID to send in the response packet!"
 
 ER_SQL_AUTHOR_DEFAULT_ROLES_FAIL
-  eng "MYSQL.DEFAULT_ROLES couldn't be updated for authorizationidentifier %s"
+  eng "MYSQL.DEFAULT_ROLES couldn't be updated for authorization identifier %s"
 
 ER_SQL_USER_TABLE_CREATE_WARNING
-  eng "Following users were specified in CREATE USER IF NOT EXISTS but they already exist. Corresponding entry in binary log used default authentication plugin '%s' to rewrite authentication information(if any) for them: %s"
+  eng "Following users were specified in CREATE USER IF NOT EXISTS but they already exist. Corresponding entry in binary log used default authentication plugin '%s' to rewrite authentication information (if any) for them: %s"
 
 ER_SQL_USER_TABLE_ALTER_WARNING
-  eng "Following users were specified in ALTER USER IF EXISTS but they do not exist. Corresponding entry in binary log used default authentication plugin '%s' to rewrite authentication information(if any) for them: %s"
+  eng "Following users were specified in ALTER USER IF EXISTS but they do not exist. Corresponding entry in binary log used default authentication plugin '%s' to rewrite authentication information (if any) for them: %s"
 
 ER_ROW_IN_WRONG_PARTITION_PLEASE_REPAIR
   eng "Table '%-192s' corrupted: row in wrong partition: %s -- Please REPAIR the table!"
@@ -9319,7 +9319,7 @@ ER_CONN_TCP_CANT_RESET_V6ONLY
 ER_CONN_TCP_BIND_RETRY
   eng "Retrying bind on TCP/IP port %u"
 
-ER_CONN_TPC_BIND_FAIL
+ER_CONN_TCP_BIND_FAIL
   eng "Can't start server: Bind on TCP/IP port: %s"
 
 ER_CONN_TCP_IP_NOT_LOGGED
@@ -10619,7 +10619,7 @@ ER_NDB_BINLOG_CLUSTER_RESTARTED_RESET_MASTER_SUGGESTED
   eng "NDB Binlog: cluster has been restarted --initial or with older filesystem. ndb_latest_handled_binlog_epoch: %u/%u, while current epoch: %u/%u. RESET MASTER should be issued. Resetting ndb_latest_handled_binlog_epoch."
 
 ER_NDB_BINLOG_CLUSTER_HAS_RECONNECTED
-  eng "NDB Binlog: cluster has reconnected. Changes to the database that occured while disconnected will not be in the binlog"
+  eng "NDB Binlog: cluster has reconnected. Changes to the database that occurred while disconnected will not be in the binlog"
 
 ER_NDB_BINLOG_STARTING_LOG_AT_EPOCH
   eng "NDB Binlog: starting log at epoch %u/%u"
@@ -11354,7 +11354,7 @@ ER_FAILED_TO_GET_ABSOLUTE_PATH
   eng "Failed to get absolute path of program executable %s"
 
 ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP
-  eng "Failed to bootstrap performace schema components infrastructure."
+  eng "Failed to bootstrap performance schema components infrastructure."
 
 ER_PERFSCHEMA_COMPONENTS_INFRASTRUCTURE_SHUTDOWN
   eng "Failed to deinit performance schema components infrastructure."
@@ -12875,7 +12875,7 @@ ER_GRP_RPL_ERROR_GTID_EXECUTION_INFO
   eng "Error when extracting group GTID execution information, some recovery operations may face future issues."
 
 ER_GRP_RPL_CERTIFICATE_SIZE_ERROR
-  eng "An error occured when trying to reduce the Certification information size for transmission."
+  eng "An error occurred when trying to reduce the Certification information size for transmission."
 
 ER_GRP_RPL_CREATE_APPLIER_CACHE_ERROR
   eng "Failed to create group replication pipeline applier cache!"
@@ -12986,7 +12986,7 @@ ER_GRP_RPL_CANT_READ_WRITE_SET_ITEM
   eng "Error reading the write set item '%s' from the View_change_log_event."
 
 ER_GRP_RPL_INIT_CERTIFICATION_INFO_FAILURE
-  eng "Error during certfication_info initialization."
+  eng "Error during certification_info initialization."
 
 ER_GRP_RPL_CONFLICT_DETECTION_DISABLED
   eng "Primary had applied all relay logs, disabled conflict detection."
@@ -17456,7 +17456,7 @@ ER_IB_MSG_1148
   eng "Cannot start InnoDB. The tail of the system tablespace is missing. Have you edited innodb_data_file_path in my.cnf in an inappropriate way, removing ibdata files from there? You can set innodb_force_recovery=1 in my.cnf to force a startup if you are trying to recover a badly corrupt database."
 
 ER_IB_MSG_1149
-  eng "ablespace size stored in header is %lu pages, but the sum of data file sizes is only %lu pages"
+  eng "Tablespace size stored in header is %lu pages, but the sum of data file sizes is only %lu pages"
 
 ER_IB_MSG_1150
   eng "Cannot start InnoDB. The tail of the system tablespace is missing. Have you edited innodb_data_file_path in my.cnf in an InnoDB: inappropriate way, removing ibdata files from there? You can set innodb_force_recovery=1 in my.cnf to force InnoDB: a startup if you are trying to recover a badly corrupt database."
@@ -17858,7 +17858,7 @@ ER_GRP_RPL_LOWER_CASE_TABLE_NAMES_DIFF_FROM_GRP
   eng "The member is configured with a lower_case_table_names option value '%u' different from the group '%u'. The member will now exit the group. If there is existing data on member, it may be incompatible with group if it was created with a lower_case_table_names value different from the group."
 
 ER_OOM_SAVE_GTIDS
-  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
+  eng "An out-of-memory error occurred while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
 
 ER_LCTN_NOT_FOUND
   eng "The lower_case_table_names setting for the data dictionary was not found. Starting the server using lower_case_table_names = '%u'."
@@ -17891,7 +17891,7 @@ ER_SLAVE_HEARTBEAT_FAILURE
   eng "Unexpected master's heartbeat data: %s"
 
 ER_SLAVE_INCIDENT
-  eng "The incident %s occured on the master. Message: %s"
+  eng "The incident %s occurred on the master. Message: %s"
 
 ER_SLAVE_MASTER_COM_FAILURE
   eng "Master command %s failed: %s"

@@ -26,7 +26,7 @@ select count(*) from t1;
 # which will occur on slave when master is restarted while
 # slave is running
 --disable_query_log
-call mtr.add_suppression("Slave.*: The incident LOST_EVENTS occured on the master");
+call mtr.add_suppression("Slave.*: The incident LOST_EVENTS occurred on the master");
 --enable_query_log
 
 --connection master
