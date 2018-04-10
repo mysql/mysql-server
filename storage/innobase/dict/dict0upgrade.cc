@@ -861,6 +861,12 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     return (failure);
   }
 
+  /* Set table id to mysql.columns as runtime */
+  for (auto dd_column : *dd_table->table().columns()) {
+    dd_column->se_private_data().set_uint64(dd_index_key_strings[DD_TABLE_ID],
+                                            ib_table->id);
+  }
+
   dd::Object_id dd_space_id;
   if (ib_table->space == SYSTEM_TABLE_SPACE) {
     dd_space_id = dict_sys_t::s_dd_sys_space_id;
