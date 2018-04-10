@@ -17,4 +17,3 @@ mysql_client_test_embedded : Bug#16084066 2013-01-08 Disabled since this test is
 ssl-big                  : Bug #18977126 MAIN.SSL-BIG FAILS WITH TIMEOUT Times out on weekly, disable it
 explain_for_connection_rqg_json  : Bug#20697533 2015-03-20 erlend Fails several times each day on all platforms
 explain_for_connection_rqg_trad : Bug#20697533 2015-03-20 erlend Fails several times each day on all platforms
-mysqld--defaults-file    : Bug#27448061 2018-26-01 ppribeir Missing backport of fix for Bug#24579973
