@@ -1003,10 +1003,7 @@ public:
     // Fourth 16 byte cache line. Only used in late phases.
     // Plus 4 bytes of error handling.
     //---------------------------------------------------
-union {
     UintR nextApiConnect; // free, freeFail, ctransidFailHash, PREPARE_COMMIT
-Uint32 nextPool; // ArrayPool
-};
     BlockReference ndbapiBlockref;
     UintR apiCopyRecord;
     Uint64 globalcheckpointid;
