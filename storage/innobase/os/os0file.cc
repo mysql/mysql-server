@@ -7929,6 +7929,13 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
   size_t key_len;
   char *key_type = nullptr;
   char key_name[ENCRYPTION_MASTER_KEY_NAME_MAX_LEN];
+  extern ib_mutex_t master_key_id_mutex;
+  bool key_id_locked = false;
+
+  if (s_master_key_id == 0) {
+    mutex_enter(&master_key_id_mutex);
+    key_id_locked = true;
+  }
 
   memset(key_name, 0x0, sizeof(key_name));
 
@@ -8011,6 +8018,11 @@ void Encryption::get_master_key(ulint *master_key_id, byte **master_key) {
   if (key_type != nullptr) {
     my_free(key_type);
   }
+
+  if (key_id_locked) {
+    mutex_exit(&master_key_id_mutex);
+  }
+
 #endif /* !UNIV_HOTBACKUP */
 }
 
