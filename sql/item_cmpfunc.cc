@@ -961,7 +961,7 @@ bool Arg_comparator::can_compare_as_dates(Item *a, Item *b,
 
 static longlong get_time_value(THD *, Item ***item_arg, Item **cache_arg,
                                const Item *, bool *is_null) {
-  longlong value;
+  longlong value = 0;
   Item *item = **item_arg;
   String buf, *str = 0;
 
