@@ -8513,6 +8513,9 @@ ER_SPATIAL_UNIQUE_INDEX
 ER_INDEX_TYPE_NOT_SUPPORTED_FOR_SPATIAL_INDEX
   eng "The index type %.20s is not supported for spatial indexes."
 
+ER_FK_CANNOT_DROP_PARENT
+  eng "Cannot drop table '%s' referenced by a foreign key constraint '%s' on table '%s'."
+
 #
 #  End of 8.0 error messages.
 #

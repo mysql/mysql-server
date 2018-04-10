@@ -8559,8 +8559,8 @@ class alter_part_drop : public alter_part {
     build_partition_name(old_part, false, part_name);
 
     if (!m_conflict) {
-      error = innobase_basic_ddl::delete_impl<dd::Partition>(
-          thd, part_name, old_part, SQLCOM_DROP_TABLE);
+      error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, part_name,
+                                                             old_part);
     } else {
       /* Have to rename it to a temporary name to prevent
       name conflict, because later deleting table doesn't
@@ -8587,8 +8587,8 @@ class alter_part_drop : public alter_part {
       error = innobase_basic_ddl::rename_impl<dd::Partition>(
           thd, part_name, temp_name, old_part, old_part);
       if (error == 0) {
-        error = innobase_basic_ddl::delete_impl<dd::Partition>(
-            thd, temp_name, old_part, SQLCOM_DROP_TABLE);
+        error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, temp_name,
+                                                               old_part);
       }
 
       mem_heap_free(heap);
@@ -8778,8 +8778,8 @@ int alter_part_change::try_commit(const TABLE *table, TABLE *altered_table,
     error = innobase_basic_ddl::rename_impl<dd::Partition>(
         thd, temp_name, old_name, new_part, new_part);
     if (error == 0) {
-      error = innobase_basic_ddl::delete_impl<dd::Partition>(
-          thd, temp_old_name, old_part, SQLCOM_DROP_TABLE);
+      error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, temp_old_name,
+                                                             old_part);
     }
   }
 

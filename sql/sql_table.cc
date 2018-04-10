@@ -1887,6 +1887,14 @@ static bool rm_table_sort_into_groups(THD *thd, Drop_tables_ctx *drop_ctx,
       handlerton *hton;
       if (dd::table_storage_engine(thd, table_def, &hton)) return true;
 
+      /*
+        We don't have SEs which support FKs and don't support atomic DDL.
+        If we ever to support such engines we need to adjust code that checks
+        if we can drop parent table to correctly handle such SEs.
+      */
+      DBUG_ASSERT(!(hton->flags & HTON_SUPPORTS_FOREIGN_KEYS) ||
+                  (hton->flags & HTON_SUPPORTS_ATOMIC_DDL));
+
       if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL || thd->is_plugin_fake_ddl())
         drop_ctx->base_atomic_tables.push_back(table);
       else
@@ -2174,6 +2182,78 @@ static bool rm_table_eval_gtid_and_table_groups_state(
         */
         drop_ctx->gtid_and_table_groups_state =
             Drop_tables_ctx::NO_GTID_MANY_TABLE_GROUPS;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+  Check if DROP TABLES or DROP DATABASE statement going to violate
+  some foreign key constraint by dropping its parent table without
+  dropping child at the same time.
+*/
+static bool rm_table_check_fks(THD *thd, Drop_tables_ctx *drop_ctx) {
+  /*
+    In FOREIGN_KEY_CHECKS=0 mode it is allowed to drop parent without
+    dropping child at the same time, so we return early.
+    In FOREIGN_KEY_CHECKS=1 mode we need to check if we are about to
+    drop parent table without dropping child table.
+  */
+  if (thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS) return false;
+
+  // Earlier we assert that only SEs supporting atomic DDL support FKs.
+  for (TABLE_LIST *table : drop_ctx->base_atomic_tables) {
+    const dd::Table *table_def = nullptr;
+    if (thd->dd_client()->acquire(table->db, table->table_name, &table_def))
+      return true;
+    DBUG_ASSERT(table_def != nullptr);
+
+    if (table_def && table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE) {
+      my_error(ER_NO_SUCH_TABLE, MYF(0), table->db, table->table_name);
+      DBUG_ASSERT(true);
+      return true;
+    }
+
+    for (const dd::Foreign_key_parent *fk : table_def->foreign_key_parents()) {
+      if (drop_ctx->drop_database) {
+        /*
+          In case of DROP DATABASE list of tables to be dropped can be huge.
+          We avoid scanning it by assuming that DROP DATABASE will drop all
+          tables in the database and no tables from other databases.
+        */
+        if (my_strcasecmp(table_alias_charset, fk->child_schema_name().c_str(),
+                          table->db) != 0) {
+          my_error(ER_FK_CANNOT_DROP_PARENT, MYF(0), table->table_name,
+                   fk->fk_name().c_str(), fk->child_table_name().c_str());
+          return true;
+        }
+      } else {
+        if (my_strcasecmp(table_alias_charset, fk->child_schema_name().c_str(),
+                          table->db) == 0 &&
+            my_strcasecmp(table_alias_charset, fk->child_table_name().c_str(),
+                          table->table_name) == 0)
+          continue;
+
+        bool child_dropped = false;
+
+        for (TABLE_LIST *dropped : drop_ctx->base_atomic_tables) {
+          if (my_strcasecmp(table_alias_charset,
+                            fk->child_schema_name().c_str(),
+                            dropped->db) == 0 &&
+              my_strcasecmp(table_alias_charset, fk->child_table_name().c_str(),
+                            dropped->table_name) == 0) {
+            child_dropped = true;
+            break;
+          }
+        }
+
+        if (!child_dropped) {
+          my_error(ER_FK_CANNOT_DROP_PARENT, MYF(0), table->table_name,
+                   fk->fk_name().c_str(), fk->child_table_name().c_str());
+          return true;
+        }
       }
     }
   }
@@ -2633,6 +2713,9 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     my_error(ER_BAD_TABLE_ERROR, MYF(0), wrong_tables.c_ptr());
     DBUG_RETURN(true);
   }
+
+  /* Check if we are about to violate any foreign keys. */
+  if (rm_table_check_fks(thd, &drop_ctx)) DBUG_RETURN(true);
 
   if (drop_ctx.if_exists && drop_ctx.has_any_nonexistent_tables()) {
     for (TABLE_LIST *table : drop_ctx.nonexistent_tables) {

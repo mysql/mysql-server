@@ -947,13 +947,10 @@ class innobase_basic_ddl {
   @param[in,out]	thd		THD object
   @param[in]	name		table name
   @param[in]	dd_tab		dd::Table describing table to be dropped
-  @param[in]	sqlcom		type of operation that the DROP
-                                  is part of
   @return	error number
   @retval	0 on success */
   template <typename Table>
-  static int delete_impl(THD *thd, const char *name, const Table *dd_tab,
-                         enum enum_sql_command sqlcom);
+  static int delete_impl(THD *thd, const char *name, const Table *dd_tab);
 
   /** Renames an InnoDB table.
   @tparam		Table		dd::Table or dd::Partition

@@ -94,7 +94,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT PRIMARY KEY);
 CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
 DROP TABLE t1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 't2_ibfk_1' on table 't2'.
 DROP TABLE t2, t1;
 SET @@foreign_key_checks= DEFAULT;
 # Test coverage of identifier length related to foreign keys.
@@ -1076,7 +1076,7 @@ connection con1;
 COMMIT;
 connection default;
 # Reap DROP TABLES
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 'parent' referenced by a foreign key constraint 'child_ibfk_1' on table 'child'.
 # 4.4) DROP TABLES which acquires lock on child table and fails
 #      due to lock timeout.
 connection con1;
@@ -1898,7 +1898,7 @@ SET @@session.foreign_key_checks= 1;
 # Drop only parent with FKC == 0.
 LOCK TABLE parent WRITE;
 DROP TABLES parent;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 'parent' referenced by a foreign key constraint 'child_ibfk_1' on table 'child'.
 UNLOCK TABLE;
 SET @@session.foreign_key_checks= 0;
 # Drop only parent.
@@ -2999,3 +2999,55 @@ CREATE TABLE T2 (fk INT);
 ALTER TABLE T2 ADD FOREIGN KEY (fk) REFERENCES t1 (pk);
 RENAME TABLE T2 TO T3;
 DROP TABLES T3, t1;
+#
+# Bug #27821060 "NEWDD FK: DROP TABLES/DATABASE SHOULD CHECK FOR FKS".
+#
+#
+# 1) Attempt to DROP TABLE which serves as parent in FK without dropping
+#    child should fail with nice error message.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
+DROP TABLE t1;
+ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 't2_ibfk_1' on table 't2'.
+#
+# 2) However, same should be allowed in FOREIGN_KEY_CHECKS=0 mode.
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+#
+# 3) Dropping of parent table along with child table should be allowed.
+#    Even if parent precedes child in table list.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+DROP TABLES t1, t2;
+#
+# 4) Even if FKs form circular dependencies.
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, fk INT,
+FOREIGN KEY(fk) REFERENCES t1 (pk));
+ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
+DROP TABLES t1, t2;
+#
+# 5) Attempt to DROP SCHEMA which will remove parent without
+#    removing child should fail with nice error message.
+CREATE SCHEMA mysqltest;
+CREATE TABLE mysqltest.t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY(fk) REFERENCES mysqltest.t1 (pk));
+DROP SCHEMA mysqltest;
+ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 't2_ibfk_1' on table 't2'.
+#
+# 6) But the same should be allowed in FOREIGN_KEY_CHECKS=0 mode.
+SET FOREIGN_KEY_CHECKS=0;
+DROP SCHEMA mysqltest;
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLE t2;
+#
+# 7) Also dropping schema which drops both parent and child
+#    should be OK.
+CREATE SCHEMA mysqltest;
+USE mysqltest;
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, fk INT,
+FOREIGN KEY(fk) REFERENCES t1 (pk));
+ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
+USE test;
+DROP SCHEMA mysqltest;

@@ -3424,8 +3424,7 @@ dberr_t row_merge_drop_table(trx_t *trx,          /*!< in: transaction */
   /* There must be no open transactions on the table. */
   ut_a(table->get_ref_count() == 0);
 
-  return (row_drop_table_for_mysql(table->name.m_name, trx, SQLCOM_DROP_TABLE,
-                                   false, NULL));
+  return (row_drop_table_for_mysql(table->name.m_name, trx, false, NULL));
 }
 
 /** Write an MLOG_INDEX_LOAD record to indicate in the redo-log
