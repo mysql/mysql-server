@@ -362,7 +362,7 @@ const ulint srv_buf_pool_min_size = 5 * 1024 * 1024;
 const ulint srv_buf_pool_def_size = 128 * 1024 * 1024;
 /** Requested buffer pool chunk size. Each buffer pool instance consists
 of one or more chunks. */
-ulong srv_buf_pool_chunk_unit;
+ulonglong srv_buf_pool_chunk_unit;
 /** Requested number of buffer pool instances */
 ulong srv_buf_pool_instances;
 /** Default number of buffer pool instances */
