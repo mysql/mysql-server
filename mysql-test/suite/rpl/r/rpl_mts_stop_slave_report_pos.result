@@ -1,0 +1,101 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t1 ( id INT(11) PRIMARY KEY ) ENGINE=INNODB;
+CREATE TABLE db2.t1 ( id INT(11) PRIMARY KEY ) ENGINE=INNODB;
+INSERT INTO db1.t1 VALUES (40);
+INSERT INTO db2.t1 VALUES (40);
+include/sync_slave_sql_with_master.inc
+SET @save_debug = @@GLOBAL.debug;
+SET @save_slave_checkpoint_group= @@GLOBAL.slave_checkpoint_group;
+SET @save_slave_checkpoint_period= @@GLOBAL.slave_checkpoint_period;
+SET GLOBAL slave_checkpoint_group=512;
+SET GLOBAL slave_checkpoint_period=3000000;
+[connection master]
+insert into db1.t1 values (30);
+insert into db2.t1 values (30);
+insert into db1.t1 values (29);
+insert into db2.t1 values (29);
+insert into db1.t1 values (28);
+insert into db2.t1 values (28);
+insert into db1.t1 values (27);
+insert into db2.t1 values (27);
+insert into db1.t1 values (26);
+insert into db2.t1 values (26);
+insert into db1.t1 values (25);
+insert into db2.t1 values (25);
+insert into db1.t1 values (24);
+insert into db2.t1 values (24);
+insert into db1.t1 values (23);
+insert into db2.t1 values (23);
+insert into db1.t1 values (22);
+insert into db2.t1 values (22);
+insert into db1.t1 values (21);
+insert into db2.t1 values (21);
+insert into db1.t1 values (20);
+insert into db2.t1 values (20);
+insert into db1.t1 values (19);
+insert into db2.t1 values (19);
+insert into db1.t1 values (18);
+insert into db2.t1 values (18);
+insert into db1.t1 values (17);
+insert into db2.t1 values (17);
+insert into db1.t1 values (16);
+insert into db2.t1 values (16);
+insert into db1.t1 values (15);
+insert into db2.t1 values (15);
+insert into db1.t1 values (14);
+insert into db2.t1 values (14);
+insert into db1.t1 values (13);
+insert into db2.t1 values (13);
+insert into db1.t1 values (12);
+insert into db2.t1 values (12);
+insert into db1.t1 values (11);
+insert into db2.t1 values (11);
+insert into db1.t1 values (10);
+insert into db2.t1 values (10);
+insert into db1.t1 values (9);
+insert into db2.t1 values (9);
+insert into db1.t1 values (8);
+insert into db2.t1 values (8);
+insert into db1.t1 values (7);
+insert into db2.t1 values (7);
+insert into db1.t1 values (6);
+insert into db2.t1 values (6);
+insert into db1.t1 values (5);
+insert into db2.t1 values (5);
+insert into db1.t1 values (4);
+insert into db2.t1 values (4);
+insert into db1.t1 values (3);
+insert into db2.t1 values (3);
+insert into db1.t1 values (2);
+insert into db2.t1 values (2);
+insert into db1.t1 values (1);
+insert into db2.t1 values (1);
+include/sync_slave_io_with_master.inc
+[connection slave]
+include/stop_slave_io.inc
+[connection master]
+BEGIN;
+INSERT INTO db1.t1 VALUES (50);
+COMMIT;
+[connection slave]
+SET global debug="d,simulate_stop_when_mts_in_group";
+include/start_slave_io.inc
+include/wait_for_slave_sql_to_stop.inc
+include/assert_grep.inc [Assert that the expected entry is in the error log during STOP SLAVE]
+SET GLOBAL debug=@save_debug;
+SET @@GLOBAL.slave_checkpoint_group= @save_slave_checkpoint_group;
+set @@GLOBAL.slave_checkpoint_period= @save_slave_checkpoint_period;
+include/start_slave.inc
+include/assert_grep.inc [Assert that the expected entry is in the error log during START SLAVE]
+[connection master]
+include/sync_slave_sql_with_master.inc
+[connection master]
+DROP DATABASE db1;
+DROP DATABASE db2;
+include/rpl_end.inc
