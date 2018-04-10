@@ -222,6 +222,9 @@ drop user 'pfs_user_2'@localhost;
 drop user 'pfs_user_3'@localhost;
 flush privileges;
 
+--error ER_DBACCESS_DENIED_ERROR
+DROP SCHEMA performance_schema;
+
 --echo # Test cases from WL#4818
 --echo # Setup user
 

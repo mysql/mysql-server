@@ -971,6 +971,41 @@ class PFS_internal_schema_access : public ACL_internal_schema_access {
   const ACL_internal_table_access *lookup(const char *name) const;
 };
 
+static bool allow_drop_schema_privilege() {
+  /*
+    The same DROP_ACL privilege is used for different statements,
+    in particular, as a schema level privilege:
+    - DROP SCHEMA
+    - GRANT DROP on performance_schema.*
+    - DROP TABLE performance_schema.*
+
+    As a table level privilege:
+    - DROP TABLE performance_schema.foo
+    - GRANT DROP on performance_schema.foo
+    - TRUNCATE TABLE performance_schema.foo
+
+    Here, we want to:
+    - always prevent DROP SCHEMA (SQLCOM_DROP_DB)
+    - allow GRANT to give the TRUNCATE on any tables
+    - allow DROP TABLE checks to proceed further,
+      in particular to drop unknown tables,
+      see PFS_unknown_acl::check()
+  */
+  THD *thd = current_thd;
+  if (thd == NULL) {
+    return false;
+  }
+
+  DBUG_ASSERT(thd->lex != NULL);
+  if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
+      (thd->lex->sql_command != SQLCOM_GRANT) &&
+      (thd->lex->sql_command != SQLCOM_DROP_TABLE)) {
+    return false;
+  }
+
+  return true;
+}
+
 ACL_internal_access_result PFS_internal_schema_access::check(ulong want_access,
                                                              ulong *) const {
   const ulong always_forbidden =
@@ -980,6 +1015,12 @@ ACL_internal_access_result PFS_internal_schema_access::check(ulong want_access,
 
   if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
+  }
+
+  if (want_access & DROP_ACL) {
+    if (!allow_drop_schema_privilege()) {
+      return ACL_INTERNAL_ACCESS_DENIED;
+    }
   }
 
   /*
@@ -1025,7 +1066,7 @@ void initialize_performance_schema_acl(bool bootstrap) {
   }
 }
 
-static bool allow_drop_privilege() {
+static bool allow_drop_table_privilege() {
   /*
     The same DROP_ACL privilege is used for different statements,
     in particular:
@@ -1091,7 +1132,7 @@ ACL_internal_access_result PFS_truncatable_acl::check(ulong want_access,
   }
 
   if (want_access & DROP_ACL) {
-    if (!allow_drop_privilege()) {
+    if (!allow_drop_table_privilege()) {
       return ACL_INTERNAL_ACCESS_DENIED;
     }
   }
@@ -1139,7 +1180,7 @@ ACL_internal_access_result PFS_editable_acl::check(ulong want_access,
   }
 
   if (want_access & DROP_ACL) {
-    if (!allow_drop_privilege()) {
+    if (!allow_drop_table_privilege()) {
       return ACL_INTERNAL_ACCESS_DENIED;
     }
   }
