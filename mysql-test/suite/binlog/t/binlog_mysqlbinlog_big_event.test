@@ -5,7 +5,6 @@
 # a big string in a table having a BLOB column.
 #
 # === Implementaion ===
--- source include/not_windows.inc
 -- source include/have_binlog_format_statement.inc
 
 # Reset master to cleanup binlog
@@ -33,8 +32,34 @@ INSERT INTO t2 VALUES(@string);
 --enable_query_log
 let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1);
 FLUSH LOGS;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+
 --replace_regex /SQL_LOAD_MB-[a-f0-9]-[a-f0-9]/SQL_LOAD_MB-#-#/
---exec cat $MYSQLD_DATADIR/$binlog_file | $MYSQL_BINLOG  --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ - > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+
+--let _BINLOG_FILE= $MYSQLD_DATADIR/$binlog_file
+--let _MYSQLBINLOG= $MYSQL_BINLOG
+# use this to find out which command to use 'cat' or 'type'
+--let _IS_WINDOWS = 0
+if (`SELECT CONVERT(@@VERSION_COMPILE_OS USING latin1) IN ('Win32', 'Win64', 'Windows')`)
+{
+  --let _IS_WINDOWS= 1
+}
+--perl
+  use strict;
+  use warnings;
+  my $binlog_file_perl = $ENV{'_BINLOG_FILE'};
+  my $mysqlbinlog = $ENV{'_MYSQLBINLOG'};
+  my $is_windows = $ENV{'_IS_WINDOWS'};
+
+  if ($is_windows)
+  {
+    $binlog_file_perl =~ tr{/}{\\};
+    my $result = `type  $binlog_file_perl | $mysqlbinlog --short-form -`;
+  }
+  else
+  {
+    my $result = `cat  $binlog_file_perl | $mysqlbinlog  --short-form - `;
+  }
+EOF
+
 DROP TABLE t2;
---remove_file $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
