@@ -2515,8 +2515,8 @@ int ha_innopart::delete_table(const char *name, const dd::Table *dd_table) {
       DBUG_RETURN(error);
     }
 
-    error = innobase_basic_ddl::delete_impl<dd::Partition>(
-        thd, partition_name, dd_part, SQLCOM_DROP_TABLE);
+    error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, partition_name,
+                                                           dd_part);
 
     if (error != 0) {
       break;

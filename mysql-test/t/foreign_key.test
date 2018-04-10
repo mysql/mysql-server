@@ -133,7 +133,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1(a INT PRIMARY KEY);
 CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP TABLE t1;
 DROP TABLE t2, t1;
 
@@ -1157,7 +1157,7 @@ COMMIT;
 
 connection default;
 --echo # Reap DROP TABLES
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 --reap
 
 --echo # 4.4) DROP TABLES which acquires lock on child table and fails
@@ -2333,7 +2333,7 @@ CREATE TABLE child(pk INTEGER PRIMARY KEY, fk_i INTEGER,
 SET @@session.foreign_key_checks= 1;
 --echo # Drop only parent with FKC == 0.
 LOCK TABLE parent WRITE;
---error ER_ROW_IS_REFERENCED
+--error ER_FK_CANNOT_DROP_PARENT
 DROP TABLES parent;
 UNLOCK TABLE;
 
@@ -2870,3 +2870,64 @@ CREATE TABLE T2 (fk INT);
 ALTER TABLE T2 ADD FOREIGN KEY (fk) REFERENCES t1 (pk);
 RENAME TABLE T2 TO T3;
 DROP TABLES T3, t1;
+
+
+--echo #
+--echo # Bug #27821060 "NEWDD FK: DROP TABLES/DATABASE SHOULD CHECK FOR FKS".
+--echo #
+
+--echo #
+--echo # 1) Attempt to DROP TABLE which serves as parent in FK without dropping
+--echo #    child should fail with nice error message.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY (fk) REFERENCES t1 (pk));
+--error ER_FK_CANNOT_DROP_PARENT
+DROP TABLE t1;
+
+--echo #
+--echo # 2) However, same should be allowed in FOREIGN_KEY_CHECKS=0 mode.
+SET FOREIGN_KEY_CHECKS=0;
+DROP TABLE t1;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo #
+--echo # 3) Dropping of parent table along with child table should be allowed.
+--echo #    Even if parent precedes child in table list.
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+DROP TABLES t1, t2;
+
+--echo #
+--echo # 4) Even if FKs form circular dependencies.
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, fk INT,
+                 FOREIGN KEY(fk) REFERENCES t1 (pk));
+ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
+DROP TABLES t1, t2;
+
+--echo #
+--echo # 5) Attempt to DROP SCHEMA which will remove parent without
+--echo #    removing child should fail with nice error message.
+CREATE SCHEMA mysqltest;
+CREATE TABLE mysqltest.t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk INT, FOREIGN KEY(fk) REFERENCES mysqltest.t1 (pk));
+--error ER_FK_CANNOT_DROP_PARENT
+DROP SCHEMA mysqltest;
+
+--echo #
+--echo # 6) But the same should be allowed in FOREIGN_KEY_CHECKS=0 mode.
+SET FOREIGN_KEY_CHECKS=0;
+DROP SCHEMA mysqltest;
+SET FOREIGN_KEY_CHECKS=1;
+DROP TABLE t2;
+
+--echo #
+--echo # 7) Also dropping schema which drops both parent and child
+--echo #    should be OK.
+CREATE SCHEMA mysqltest;
+USE mysqltest;
+CREATE TABLE t1 (pk INT PRIMARY KEY, fk INT);
+CREATE TABLE t2 (pk INT PRIMARY KEY, fk INT,
+                 FOREIGN KEY(fk) REFERENCES t1 (pk));
+ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
+USE test;
+DROP SCHEMA mysqltest;

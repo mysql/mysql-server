@@ -3,6 +3,7 @@
 
 -- source include/not_group_replication_plugin.inc
 -- source include/master-slave.inc
+-- source include/have_debug.inc
 
 --disable_warnings
 DROP DATABASE IF EXISTS test1;
@@ -28,37 +29,34 @@ DROP DATABASE test1;
 --let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=3
 --source include/assert.inc
 
-# Case when we fail while dropping table and there are InnoDB tables only.
+# Case when we fail while dropping tables and there are InnoDB tables only.
 let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test1/f1.txt;
 
-CREATE TABLE test1.t4 (pk INT PRIMARY KEY);
---echo  Wait until test1.t4 is created on slave
---source include/sync_slave_sql_with_master.inc
-
---source include/rpl_connection_master.inc
-CREATE TABLE test2.t2 (fk INT, FOREIGN KEY (fk) REFERENCES test1.t4(pk));
-
---error ER_ROW_IS_REFERENCED
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+--error ER_UNKNOWN_ERROR
 DROP DATABASE test1;
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 USE test1;
 # No tables should be dropped after WL#9536.
 --let assert_text= Tables in test1 database are not dropped
---let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=4
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=3
 --source include/assert.inc
 
 # Finally, case when we fail while dropping table and there are both InnoDB and MyISAM tables.
 CREATE TABLE test1.t5(n INT) ENGINE=MyISAM;
 
---error ER_ROW_IS_REFERENCED
+SET SESSION DEBUG='+d,rm_table_no_locks_abort_after_atomic_tables';
+--error ER_UNKNOWN_ERROR
 DROP DATABASE test1;
+SET SESSION DEBUG='-d,rm_table_no_locks_abort_after_atomic_tables';
 
 --let assert_text= MyISAM table t5 is dropped
 --let assert_cond="[SHOW TABLES LIKE "t5"]"=""
 --source include/assert.inc
 
 --let assert_text= InnoDB tables in test1 database are not dropped
---let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=4
+--let assert_cond="[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA="test1"]"=3
 --source include/assert.inc
 
 # Ensuring that replication is successful
@@ -68,10 +66,6 @@ INSERT INTO t1 VALUES (1234);
 
 # Cleanup
 DROP TABLE t1;
-DROP TABLE t2;
-
---echo Wait until test2.t2 is deleted on slave
---source include/sync_slave_sql_with_master.inc
 
 #cleanup
 --source include/rpl_connection_master.inc

@@ -3031,7 +3031,7 @@ static dberr_t row_drop_table_for_mysql_in_background(
 
   /* Try to drop the table in InnoDB */
 
-  error = row_drop_table_for_mysql(name, trx, FALSE);
+  error = row_drop_table_for_mysql(name, trx);
 
   /* Flush the log to reduce probability that the .frm files and
   the InnoDB data dictionary get out-of-sync if the user runs
@@ -3702,16 +3702,13 @@ the transaction will be committed.  Otherwise, the data dictionary
 will remain locked.
 @param[in]	name		Table name
 @param[in]	trx		Transaction handle
-@param[in]	sqlcom		SQL command
 @param[in]	nonatomic	Whether it is permitted to release
 and reacquire dict_operation_lock
 @param[in,out]	handler		Table handler
 @return error code or DB_SUCCESS */
-dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
-                                 enum enum_sql_command sqlcom, bool nonatomic,
+dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
                                  dict_table_t *handler) {
   dberr_t err = DB_SUCCESS;
-  dict_foreign_t *foreign;
   dict_table_t *table = NULL;
   char *filepath = NULL;
   bool locked_dictionary = false;
@@ -3856,43 +3853,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
   dd_table_close(table, thd, NULL, true);
 
   /* Check if the table is referenced by foreign key constraints from
-  some other table (not the table itself) */
-
-  if (!srv_read_only_mode && trx->check_foreigns) {
-    for (dict_foreign_set::iterator it = table->referenced_set.begin();
-         it != table->referenced_set.end(); ++it) {
-      foreign = *it;
-
-      const bool ref_ok =
-          sqlcom == SQLCOM_DROP_DB &&
-          dict_tables_have_same_db(name, foreign->foreign_table_name_lookup);
-
-      if (foreign->foreign_table != table && !ref_ok) {
-        FILE *ef = dict_foreign_err_file;
-
-        /* We only allow dropping a referenced table
-        if FOREIGN_KEY_CHECKS is set to 0 */
-
-        err = DB_CANNOT_DROP_CONSTRAINT;
-
-        mutex_enter(&dict_foreign_err_mutex);
-        rewind(ef);
-        ut_print_timestamp(ef);
-
-        fputs("  Cannot drop table ", ef);
-        ut_print_name(ef, trx, name);
-        fputs(
-            "\n"
-            "because it is referenced by ",
-            ef);
-        ut_print_name(ef, trx, foreign->foreign_table_name);
-        putc('\n', ef);
-        mutex_exit(&dict_foreign_err_mutex);
-
-        goto funct_exit;
-      }
-    }
-  }
+  some other table now happens on SQL-layer. */
 
   DBUG_EXECUTE_IF("row_drop_table_add_to_background",
                   row_add_table_to_background_drop_list(table->name.m_name);
