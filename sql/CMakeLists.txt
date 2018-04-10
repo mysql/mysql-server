@@ -619,6 +619,15 @@ IF(WIN32)
     COMPILE_FLAGS "/bigobj")
 ENDIF()
 
+# Force optimization of (large) MYSQLparse function in MSVC
+IF(WIN32)
+  IF (MSVC_VERSION GREATER_EQUAL 1910)
+    ADD_COMPILE_FLAGS(
+      ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+      COMPILE_FLAGS "/d2OptimizeHugeFunctions")
+  ENDIF()
+ENDIF()
+
 # Common for all versions of GCC/Clang
 # Bison output uses undefined symbols in #if checks
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
