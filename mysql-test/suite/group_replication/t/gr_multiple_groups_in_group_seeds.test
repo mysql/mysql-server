@@ -37,6 +37,9 @@
 --let $group_replication_group_name= $group_name_server1
 --source include/start_and_bootstrap_group_replication.inc
 --let $local_address_m1= `SELECT @@GLOBAL.group_replication_local_address;`
+set session sql_log_bin=0;
+call mtr.add_suppression("The request to add .*:[0-9]* to the group has been rejected because it is aimed at another group");
+set session sql_log_bin=1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
@@ -45,6 +48,9 @@
 --let $group_replication_group_name= $group_name_server2
 --source include/start_and_bootstrap_group_replication.inc
 --let $local_address_m2= `SELECT @@GLOBAL.group_replication_local_address;`
+set session sql_log_bin=0;
+call mtr.add_suppression("The request to add .*:[0-9]* to the group has been rejected because it is aimed at another group");
+set session sql_log_bin=1;
 
 --echo #
 --echo # GROUP#1 is $group_name_server1
