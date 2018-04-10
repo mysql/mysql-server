@@ -2907,6 +2907,13 @@ void Prepared_statement::swap_prepared_statement(Prepared_statement *copy) {
   /* Ditto */
   std::swap(m_db, copy->m_db);
 
+  // The call to copy.prepare() will have set the copy as the owner of
+  // the Sql_cmd object, if there is one. Set it back to this.
+  if (lex->m_sql_cmd != nullptr) {
+    DBUG_ASSERT(lex->m_sql_cmd->get_owner() == copy);
+    lex->m_sql_cmd->set_owner(this);
+  }
+
   DBUG_ASSERT(param_count == copy->param_count);
   DBUG_ASSERT(thd == copy->thd);
   last_error[0] = '\0';
