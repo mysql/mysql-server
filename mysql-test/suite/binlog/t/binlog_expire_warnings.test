@@ -1,0 +1,210 @@
+# ==== Requirements ====
+#
+# Verify the logic for warnings related to expire-logs-days and
+# binlog-expire-logs-seconds on server start:
+#
+# R0. All the following shall hold with binlog disabled and binlog enabled.
+#
+# R1. Deprecation warnings:
+#
+#     R1.1. expire-logs-days is not used: no deprecation warning.
+#
+#     R1.2. expire-logs-days is used explicitly: deprecation warning.
+#
+# R3. Combination warnings:
+#
+#     R3.1. Both expire-logs-days and binlog-expire-logs-seconds are
+#           explicitly passed and set to nonzero: server shall generate
+#           a warning for this incompatible combination.
+#
+#     R3.2. At least one of expire-logs-days and
+#           binlog-expire-logs-seconds is either set to 0 not passed
+#           at all: server shall not generate a warning for
+#           incompatible combinations.
+#
+# R4. Binlog off warnings:
+#
+#     R4.1. If the binary log is disabled, using any of
+#           binlog-expire-logs-seconds or expire_logs_days shall
+#           generate a warning.
+#
+#     R4.2. If the binary log is enabled, or if
+#           binlog-expire-logs-seconds / expire_logs_days is not used,
+#           there shall be no warning for this case.
+#
+# R5. Values:
+#
+#     R5.1. None of expire-logs-days or binlog-expire-logs-seconds is
+#           set: both shall use their default values (days=0,
+#           seconds=60*60*24*30)
+#
+#     R5.2. Exactly one of expire-logs-days or binlog-expire-logs-seconds
+#           is set: that value is used and the other option is set to zero.
+#
+#     R5.3. Both expire-logs-days or binlog-expire-logs-seconds are
+#           set, and at least one of them is set to zero: both are set
+#           to the given values.
+#
+#     R5.4. Both expire-logs-days and binlog-expire-logs-seconds are
+#           set, and both are non-zero: binlog_expire_logs_seconds is
+#           set to the specified value, and expire_logs_days is set to
+#           0.
+#
+# ==== Implementation ====
+#
+# Test all combinations of:
+#
+# - log-bin: on, off
+# - expire-logs-days: not set, set to 0, set to nonzero
+# - binlog-expire-logs-seconds: not set, set to 0, set to nonzero
+#
+# For each such scenario, state the expected warnings and values, and
+# use extra/binlog_tests/binlog_expire_warnings.inc to execute the
+# scenario.
+#
+# ==== References ====
+#
+# WL#10924: Deprecate expire_logs_days
+# BUG#26483363: WARNING ABOUT EXPIRE-LOGS-DAYS
+# BUG#27699608: WARNING FOR CONFLICTING EXPIRE-LOGS-[DAYS|SECONDS] SUPPRESSED WITH SKIP-LOG-BIN
+
+# No need to run multiple times.
+--source include/have_binlog_format_row.inc
+
+# Restarts the server with new options.
+--source include/force_restart.inc
+
+# A bit slow, since it restarts the server many times.  Also, this is
+# unlikely to break in the future, so not important to run frequently.
+--source include/big_test.inc
+
+
+--let $ofile = $MYSQLTEST_VARDIR/tmp/binlog_expire_warnings-output.err
+
+--let $i = 0
+while ($i < 2) {
+
+if ($i == 0) {
+    --echo #### Binary log ENABLED ####
+    --let $options =
+    --let $binlog_off = 0
+  }
+  if ($i == 1) {
+    --echo #### Binary log DISABLED ####
+    --let $options = --skip-log-bin
+    --let $binlog_off = 1
+  }
+
+  --echo ==== Don't set any option ====
+
+  --let $days =
+  --let $seconds =
+  --let $expect_deprecation_warning = 0
+  --let $expect_combination_warning = 0
+  --let $expect_binlog_off_and_days_warning = 0
+  --let $expect_binlog_off_and_seconds_warning = 0
+  --let $expect_days = 0
+  --let $expect_seconds = 60*60*24*30
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --echo ==== Set one option to zero ====
+
+  --echo ---- days=0 ----
+  --let $days = 0
+  --let $seconds =
+  --let $expect_deprecation_warning = 1
+  --let $expect_combination_warning = 0
+  --let $expect_binlog_off_and_days_warning = $binlog_off
+  --let $expect_binlog_off_and_seconds_warning = 0
+  --let $expect_days = 0
+  --let $expect_seconds = 0
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --echo ---- seconds=0 ----
+  --let $days =
+  --let $seconds = 0
+  --let $expect_deprecation_warning = 0
+  --let $expect_combination_warning = 0
+  --let $expect_binlog_off_and_days_warning = 0
+  --let $expect_binlog_off_and_seconds_warning = $binlog_off
+  --let $expect_days = 0
+  --let $expect_seconds = 0
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --echo ==== Set one option to non-zero ====
+
+  --echo ---- days=14 ----
+  --let $days = 14
+  --let $seconds =
+  --let $expect_deprecation_warning = 1
+  --let $expect_combination_warning = 0
+  --let $expect_binlog_off_and_days_warning = $binlog_off
+  --let $expect_binlog_off_and_seconds_warning = 0
+  --let $expect_days = 14
+  --let $expect_seconds = 0
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --echo ---- seconds=3600 ----
+  --let $days =
+  --let $seconds = 3600
+  --let $expect_deprecation_warning = 0
+  --let $expect_combination_warning = 0
+  --let $expect_binlog_off_and_days_warning = 0
+  --let $expect_binlog_off_and_seconds_warning = $binlog_off
+  --let $expect_days = 0
+  --let $expect_seconds = 3600
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --echo ==== Set both options to zero ====
+
+  --let $days = 0
+  --let $seconds = 0
+  --let $expect_deprecation_warning = 1
+  --let $expect_combination_warning = 0
+  --let $expect_binlog_off_and_days_warning = $binlog_off
+  --let $expect_binlog_off_and_seconds_warning = $binlog_off
+  --let $expect_days = 0
+  --let $expect_seconds = 0
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --echo ==== Set both options: one to zero and one to non-zero ====
+
+  --echo ---- seconds=0 days=14 ----
+  --let $days = 14
+  --let $seconds = 0
+  --let $expect_deprecation_warning = 1
+  --let $expect_combination_warning = 0
+  --let $expect_binlog_off_and_days_warning = $binlog_off
+  --let $expect_binlog_off_and_seconds_warning = $binlog_off
+  --let $expect_days = 14
+  --let $expect_seconds = 0
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --echo ---- seconds=14 days=0 ----
+  --let $days = 0
+  --let $seconds = 14
+  --let $expect_deprecation_warning = 1
+  --let $expect_combination_warning = 0
+  --let $expect_binlog_off_and_days_warning = $binlog_off
+  --let $expect_binlog_off_and_seconds_warning = $binlog_off
+  --let $expect_days = 0
+  --let $expect_seconds = 14
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --echo ==== Set both options to non-zero ====
+
+  --let $days = 14
+  --let $seconds = 14
+  --let $expect_deprecation_warning = 1
+  --let $expect_combination_warning = 1
+  --let $expect_binlog_off_and_days_warning = $binlog_off
+  --let $expect_binlog_off_and_seconds_warning = $binlog_off
+  --let $expect_days = 0
+  --let $expect_seconds = 14
+  --source extra/binlog_tests/binlog_expire_warnings.inc
+
+  --inc $i
+}
+
+# cleanup
+--remove_file $ofile
