@@ -3566,7 +3566,8 @@ bool innobase_encryption_key_rotation() {
 
 /** Return partitioning flags. */
 static uint innobase_partition_flags() {
-  return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK);
+  return (HA_CAN_EXCHANGE_PARTITION | HA_CANNOT_PARTITION_FK |
+          HA_TRUNCATE_PARTITION_PRECLOSE);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -13057,82 +13058,6 @@ int ha_innobase::discard_or_import_tablespace(bool discard,
   }
 
   DBUG_RETURN(convert_error_code_to_mysql(err, dict_table->flags, NULL));
-}
-
-/** Rename tablespace file name for truncate
-@param[in]	name	Table name
-@return	0 on success, error code on failure */
-int ha_innobase::truncate_rename_tablespace(const char *name) {
-  char norm_name[FN_REFLEN];
-  dict_table_t *table;
-
-  normalize_table_name(norm_name, name);
-  table = dd_table_open_on_name_in_mem(norm_name, false);
-
-  ut_ad(table != nullptr);
-  ut_ad(dict_table_is_file_per_table(table));
-  ut_ad(!table->is_temporary());
-  ut_ad(table->trunc_name.m_name == nullptr);
-
-  lint old_size = mem_heap_get_size(table->heap);
-
-  char *temp_name = nullptr;
-  temp_name = dict_mem_create_temporary_tablename(
-      table->heap, table->name.m_name, table->id);
-
-  lint new_size = mem_heap_get_size(table->heap);
-
-  mutex_enter(&dict_sys->mutex);
-  dict_sys->size += new_size - old_size;
-  mutex_exit(&dict_sys->mutex);
-
-  char *old_path = nullptr;
-
-  old_path = fil_space_get_first_path(table->space);
-
-  std::string new_path;
-
-  if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-    new_path = Fil_path::make_new_ibd(old_path, temp_name);
-
-  } else {
-    char *ptr = Fil_path::make_ibd_from_table_name(temp_name);
-
-    new_path.assign(ptr);
-
-    ut_free(ptr);
-  }
-
-  /* New filepath must not exist. */
-  dberr_t err = fil_rename_tablespace_check(table->space, old_path,
-                                            new_path.c_str(), false);
-
-  if (err == DB_SUCCESS) {
-    mutex_enter(&dict_sys->mutex);
-
-    clone_mark_abort(true);
-
-    bool success = fil_rename_tablespace(table->space, old_path, temp_name,
-                                         new_path.c_str());
-
-    clone_mark_active();
-
-    mutex_exit(&dict_sys->mutex);
-
-    if (!success) {
-      err = DB_ERROR;
-    }
-  }
-
-  if (err == DB_SUCCESS) {
-    table->trunc_name.m_name = temp_name;
-  }
-
-  ut_free(old_path);
-
-  dd_table_close(table, nullptr, nullptr, false);
-
-  return (convert_error_code_to_mysql(err, table->flags, nullptr));
 }
 
 int ha_innobase::truncate_impl(const char *name, TABLE *form,

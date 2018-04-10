@@ -2821,6 +2821,7 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
   innobase_register_trx(ht, thd, trx);
 
   table_name_len = strlen(name);
+  ut_ad(table_name_len < FN_REFLEN);
   memcpy(partition_name, name, table_name_len);
 
   for (const auto dd_part : *table_def->leaf_partitions()) {
@@ -2857,20 +2858,20 @@ int ha_innopart::truncate_impl(const char *name, TABLE *form,
     }
   }
 
-  if (error == 0) {
-    if (has_autoinc) {
-      dd_set_autoinc(table_def->se_private_data(), 0);
-    }
+  ut_ad(error == 0);
 
-    if (dd_table_has_instant_cols(*table_def)) {
-      for (dd::Partition *dd_part : *table_def->leaf_partitions()) {
-        if (dd_part_has_instant_cols(*dd_part)) {
-          dd_clear_instant_part(*dd_part);
-        }
+  if (has_autoinc) {
+    dd_set_autoinc(table_def->se_private_data(), 0);
+  }
+
+  if (dd_table_has_instant_cols(*table_def)) {
+    for (dd::Partition *dd_part : *table_def->leaf_partitions()) {
+      if (dd_part_has_instant_cols(*dd_part)) {
+        dd_clear_instant_part(*dd_part);
       }
-
-      dd_clear_instant_table(*table_def);
     }
+
+    dd_clear_instant_table(*table_def);
   }
 
   DBUG_RETURN(error);
@@ -2886,197 +2887,84 @@ at statement commit time.
 int ha_innopart::truncate_partition_low(dd::Table *dd_table) {
   int error = 0;
   const char *table_name = table->s->normalized_path.str;
-  HA_CREATE_INFO *create_infos;
-  ulint num_used_parts = m_part_info->num_partitions_used();
-  ulint processed = 0;
-  uint i = 0;
-  uint n_saved = 0;
+  char partition_name[FN_REFLEN];
+  uint16_t table_name_len;
   THD *thd = ha_thd();
+  trx_t *trx = check_trx_exists(thd);
+  uint16_t n_truncated = 0;
+  uint16_t i = 0;
+  uint64_t autoinc = 0;
+
   DBUG_ENTER("ha_innopart::truncate_partition_low");
 
   if (high_level_read_only) {
     DBUG_RETURN(HA_ERR_TABLE_READONLY);
   }
 
-  /* First we copy the info for the partitions that will be truncated,
-  since after we close the table the information is not accessible. */
+  innobase_register_trx(ht, thd, trx);
 
-  /* Use a heap to ease the memory alloc/free. Initialize with one
-  create_info + 5 bytes for short names (t#P#p) per partition. */
-  mem_heap_t *heap = mem_heap_create(
-      num_used_parts * (sizeof(HA_CREATE_INFO) + 5 + sizeof(ulint) * 2));
-  if (heap == NULL) {
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  }
+  table_name_len = strlen(table_name);
+  ut_ad(table_name_len < FN_REFLEN);
+  memcpy(partition_name, table_name, table_name_len);
 
-  innobase_register_trx(ht, thd, m_prebuilt->trx);
+  for (const auto dd_part : *dd_table->leaf_partitions()) {
+    size_t len;
+    char norm_name[FN_REFLEN];
+    dict_table_t *part_table = nullptr;
 
-  size_t alloc_size = sizeof(HA_CREATE_INFO) * num_used_parts;
-  create_infos =
-      static_cast<HA_CREATE_INFO *>(mem_heap_zalloc(heap, alloc_size));
+    len = Ha_innopart_share::create_partition_postfix(
+        partition_name + table_name_len, FN_REFLEN - table_name_len, dd_part);
+    ut_a(len + table_name_len < FN_REFLEN);
 
-  ulint *old_flags = static_cast<ulint *>(
-      mem_heap_zalloc(heap, sizeof(*old_flags) * num_used_parts));
-  ulint *old_flags2 = static_cast<ulint *>(
-      mem_heap_zalloc(heap, sizeof(*old_flags2) * num_used_parts));
+    normalize_table_name(norm_name, partition_name);
 
-  ut_a(create_infos != NULL);
+    innobase_truncate<dd::Partition> truncator(thd, norm_name, table, dd_part);
 
-  /* TRUNCATE TABLE and ALTER TABLE...TRUNCATE PARTITION ALL
-  must reset the AUTO_INCREMENT sequence, but
-  TRUNCATE PARTITION of some partitions should not affect it. */
-  const ib_uint64_t autoinc =
-      table->found_next_number_field &&
-              m_part_info->num_partitions_used() < m_tot_parts
-          ? m_part_share->next_auto_inc_val
-          : 1;
-
-  for (i = m_part_info->get_first_used_partition(); i < m_tot_parts;
-       i = m_part_info->get_next_used_partition(i)) {
-    dict_table_t *table_part = m_part_share->get_table_part(i);
-
-    /* The table should have been opened in ha_innobase::open().
-    Purge might be holding a reference to the table. */
-    ut_ad(table_part->n_ref_count >= 1);
-    /* Temporary partitioned tables are not supported! */
-    ut_ad(!table_part->is_temporary());
-    ut_ad(!table_part->is_intrinsic());
-
-    HA_CREATE_INFO *info = &create_infos[processed++];
-    update_create_info_from_table(info, table);
-
-    if (dict_table_is_discarded(table_part)) {
-      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
-                  table->s->table_name.str);
-      error = HA_ERR_NO_SUCH_TABLE;
-      break;
+    error = truncator.open_table(part_table);
+    if (error != 0) {
+      DBUG_RETURN(error);
     }
 
-    old_flags[n_saved] = table_part->flags;
-    old_flags2[n_saved] = table_part->flags2;
-
-    info->data_file_name =
-        table_part->data_dir_path == NULL
-            ? NULL
-            : mem_heap_strdup(heap, table_part->data_dir_path);
-    /* Use 'alias' variable as partition name. */
-    info->alias = mem_heap_strdup(heap, table_part->name.m_name);
-    /* InnoDB does not support MIN_ROWS, so use that variable
-    for file_per_table. */
-    info->min_rows = dict_table_is_file_per_table(table_part) ? 1 : 0;
-    info->key_block_size = table_share->key_block_size;
-    info->tablespace = table_part->tablespace == NULL
-                           ? NULL
-                           : mem_heap_strdup(heap, table_part->tablespace);
-
-    if (table_part->can_be_evicted) {
-      mutex_enter(&dict_sys->mutex);
-      dict_table_ddl_acquire(table_part);
-      mutex_exit(&dict_sys->mutex);
+    if (part_table->autoinc_persisted > autoinc) {
+      autoinc = part_table->autoinc_persisted;
     }
-    n_saved++;
-  }
 
-  if (error != 0) {
-    mem_heap_free(heap);
-    DBUG_RETURN(error);
-  }
-
-  ut_ad(processed == num_used_parts);
-
-  /* TRUNCATE also means resetting auto_increment. Hence, reset
-  it so that it will be initialized again at the next use. */
-  if (table->found_next_number_field != NULL) {
-    lock_auto_increment();
-    m_part_share->next_auto_inc_val = 0;
-    m_part_share->auto_inc_initialized = false;
-    DBUG_EXECUTE_IF("partition_truncate_no_reset",
-                    m_part_share->auto_inc_initialized = true;);
-    unlock_auto_increment();
-  }
-
-  if ((error = close()) != 0) {
-    mem_heap_free(heap);
-    DBUG_RETURN(error);
-  }
-
-  /* From now on m_prebuilt is reset and m_part_info is still usable! */
-  processed = 0;
-  i = 0;
-  for (dd::Partition *dd_part : *dd_table->leaf_partitions()) {
     if (!m_part_info->is_partition_used(i++)) {
       continue;
     }
 
-    HA_CREATE_INFO *info = &create_infos[processed++];
-    bool file_per_table = (info->min_rows != 0);
-    const char *name = info->alias;
-
-    info->alias = NULL;
-    info->min_rows = 0;
-
-    if (file_per_table) {
-      error = ha_innobase::truncate_rename_tablespace(name);
-      if (error != 0) {
-        break;
-      }
+    if (dict_table_is_discarded(part_table)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, table_name);
+      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+    } else if (part_table->ibd_file_missing) {
+      DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
     }
 
-    error = innobase_basic_ddl::delete_impl<dd::Partition>(thd, name, dd_part,
-                                                           SQLCOM_TRUNCATE);
-    if (error == 0) {
-      bool reset = false;
-      /* Don't change the tablespace in this case, so
-      temporarily set the tablespace_id as an explicit one
-      to make it consistent with info->tablespace */
-      if (info->tablespace != NULL &&
-          dd_part->tablespace_id() == dd::INVALID_OBJECT_ID) {
-        dd::Object_id dd_space_id = dd_first_index(dd_part)->tablespace_id();
-        dd_part->set_tablespace_id(dd_space_id);
-        reset = true;
-      }
-
-      error = innobase_basic_ddl::create_impl(
-          thd, name, table, info, dd_part, file_per_table, true, true,
-          old_flags[processed - 1], old_flags2[processed - 1]);
-
-      if (reset) {
-        dd_part->set_tablespace_id(dd::INVALID_OBJECT_ID);
-      }
-    }
+    error = truncator.exec();
 
     if (error != 0) {
-      break;
+      DBUG_RETURN(error);
     }
+
+    if (dd_table_has_instant_cols(*dd_table) &&
+        dd_part_has_instant_cols(*dd_part)) {
+      dd_clear_instant_part(*dd_part);
+    }
+
+    ++n_truncated;
   }
 
-  mem_heap_free(heap);
-  open(table_name, 0, 0, dd_table);
+  ut_ad(error == 0);
 
-  if (error == 0 && table->found_next_number_field) {
-    dd_set_autoinc(dd_table->se_private_data(), autoinc);
+  /* If it's TRUNCATE PARTITION ALL, reset the AUTOINC */
+  if (table->found_next_number_field) {
+    dd_set_autoinc(dd_table->se_private_data(),
+                   ((n_truncated == m_tot_parts) ? 0 : autoinc + 1));
   }
 
-  if (error == 0 && dd_table_has_instant_cols(*dd_table)) {
-    i = 0;
-    for (dd::Partition *dd_part : *dd_table->leaf_partitions()) {
-      if (!m_part_info->is_partition_used(i)) {
-        ++i;
-        continue;
-      }
-
-      if (dd_part_has_instant_cols(*dd_part)) {
-        dd_clear_instant_part(*dd_part);
-      }
-
-      dict_table_t *table_part = m_part_share->get_table_part(i);
-      table_part->discard_after_ddl = true;
-      ++i;
-    }
-
-    if (!dd_table_part_has_instant_cols(*dd_table)) {
-      dd_clear_instant_table(*dd_table);
-    }
+  if (dd_table_has_instant_cols(*dd_table) &&
+      !dd_table_part_has_instant_cols(*dd_table)) {
+    dd_clear_instant_table(*dd_table);
   }
 
   DBUG_RETURN(error);

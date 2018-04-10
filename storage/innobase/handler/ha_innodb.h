@@ -539,11 +539,6 @@ class ha_innobase : public handler {
   doesn't give any clue that it is called at the end of a statement. */
   int end_stmt();
 
-  /** Rename tablespace file name for truncate
-  @param[in]	name	table name
-  @return 0 on success, error code on failure */
-  int truncate_rename_tablespace(const char *name);
-
   /** Implementation of prepare_inplace_alter_table()
   @tparam		Table		dd::Table or dd::Partition
   @param[in]	altered_table	TABLE object for new version of table.

@@ -42,6 +42,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"            // check_access
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd_table_share.h"              // open_table_def
 #include "sql/debug_sync.h"                  // DEBUG_SYNC
 #include "sql/handler.h"
 #include "sql/log.h"
@@ -616,14 +617,32 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   hton = first_table->table->file->ht;
 
   /*
-    Prune all, but named partitions,
-    to avoid excessive calls to external_lock().
+    Prune all, but named partitions. SE can use partitions bitmap
+    to understand what partitions need to be truncated. This also
+    allows to avoid excessive calls to external_lock().
   */
   first_table->partition_names = &m_alter_info->partition_names;
   if (first_table->table->part_info->set_partition_bitmaps(first_table))
     DBUG_RETURN(true);
 
-  if (lock_tables(thd, first_table, table_counter, 0)) DBUG_RETURN(true);
+  /*
+    Under locked table modes we still don't have an exclusive lock.
+    Hence, upgrade the lock since the handler truncate method mandates
+    an exclusive metadata lock. Don't forget to downgrade the lock
+    before leaving this method.
+  */
+  auto downgrade_mdl_lambda = [](MDL_ticket *ticket) {
+    ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+  };
+  std::unique_ptr<MDL_ticket, decltype(downgrade_mdl_lambda)>
+      downgrade_mdl_guard(nullptr, downgrade_mdl_lambda);
+
+  if (thd->locked_tables_mode) {
+    MDL_ticket *ticket = first_table->table->mdl_ticket;
+    if (thd->mdl_context.upgrade_shared_lock(ticket, MDL_EXCLUSIVE, timeout))
+      DBUG_RETURN(true);
+    downgrade_mdl_guard.reset(ticket);
+  }
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   dd::Table *table_def = nullptr;
@@ -635,21 +654,88 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
   /* Table was successfully opened above. */
   DBUG_ASSERT(table_def != nullptr);
 
-  /*
-    Under locked table modes this might still not be an exclusive
-    lock. Hence, upgrade the lock since the handler truncate method
-    mandates an exclusive metadata lock.
-  */
-  MDL_ticket *ticket = first_table->table->mdl_ticket;
-  if (thd->mdl_context.upgrade_shared_lock(ticket, MDL_EXCLUSIVE, timeout))
-    DBUG_RETURN(true);
+  if (hton->partition_flags() & HA_TRUNCATE_PARTITION_PRECLOSE) {
+    /*
+      Storage engine requires closing all open table instances before
+      calling Partition_handler::truncate_partition().
+    */
+    char path[FN_REFLEN + 1];
+    TABLE_SHARE share;
+    TABLE table;
 
-  tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, first_table->db,
-                   first_table->table_name, false);
+    /*
+      Save information about which partitions need to be truncated
+      before destroying partitions bitmaps along with open table
+      instance.
+    */
+    MY_BITMAP saved_parts_map;
+    if (first_table->table->part_info->init_partition_bitmap(&saved_parts_map,
+                                                             thd->mem_root))
+      DBUG_RETURN(true);
+    bitmap_copy(&saved_parts_map,
+                &first_table->table->part_info->read_partitions);
 
-  /* Invoke the handler method responsible for truncating the partition. */
-  if ((error = part_handler->truncate_partition(table_def))) {
-    first_table->table->file->print_error(error, MYF(0));
+    close_all_tables_for_name(thd, first_table->table->s, false, nullptr);
+
+    /*
+      Construct artificial TABLE/TABLE_SHARE and handler instances for
+      calling Partition_handler::truncate_partition().
+    */
+    build_table_filename(path, sizeof(path) - 1, first_table->db,
+                         first_table->table_name, "", 0);
+
+    init_tmp_table_share(thd, &share, first_table->db, 0,
+                         first_table->table_name, path, nullptr);
+
+    auto free_share_lambda = [](TABLE_SHARE *share) {
+      free_table_share(share);
+    };
+    std::unique_ptr<TABLE_SHARE, decltype(free_share_lambda)> free_share_guard(
+        &share, free_share_lambda);
+
+    error = open_table_def(thd, &share, *table_def);
+
+    if (!error) {
+      /*
+        When db_stat is 0, we can pass nullptr as dd::Table since it
+        won't be used.
+      */
+      destroy(&table);
+      error = open_table_from_share(thd, &share, "", 0, (uint)READ_ALL, 0,
+                                    &table, true, nullptr);
+
+      if (!error) {
+        auto closefrm_lambda = [](TABLE *table) { (void)closefrm(table, 0); };
+        std::unique_ptr<TABLE, decltype(closefrm_lambda)> closefrm_guard(
+            &table, closefrm_lambda);
+
+        bitmap_copy(&table.part_info->read_partitions, &saved_parts_map);
+
+        part_handler = table.file->get_partition_handler();
+        // We succeeded obtaining Partition_hanlder earlier.
+        DBUG_ASSERT(part_handler != nullptr);
+
+        if (!error && (error = part_handler->truncate_partition(table_def))) {
+          table.file->print_error(error, MYF(0));
+        }
+      }
+    }
+  } else {
+    if (lock_tables(thd, first_table, table_counter, 0)) DBUG_RETURN(true);
+
+    tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, first_table->db,
+                     first_table->table_name, false);
+
+    /* Invoke the handler method responsible for truncating the partition. */
+    if ((error = part_handler->truncate_partition(table_def))) {
+      first_table->table->file->print_error(error, MYF(0));
+    }
+
+    /*
+      Since we about to update table definition in the data-dictionary below
+      we need to remove its TABLE/TABLE_SHARE from TDC now.
+    */
+    close_all_tables_for_name(thd, first_table->table->s, false, NULL);
   }
 
   if (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) {
@@ -683,12 +769,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
     }
   }
 
-  /*
-    Since we have updated table definition in the data-dictionary above
-    we need to remove its TABLE/TABLE_SHARE from TDC now.
-  */
-  close_all_tables_for_name(thd, first_table->table->s, false, NULL);
-
   if (!error) error = (trans_commit_stmt(thd) || trans_commit_implicit(thd));
 
   if (error) {
@@ -705,13 +785,6 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd) {
     hton->post_ddl(thd);
 
   (void)thd->locked_tables_list.reopen_tables(thd);
-
-  /*
-    A locked table ticket was upgraded to a exclusive lock. After the
-    the query has been written to the binary log, downgrade the lock
-    to a shared one.
-  */
-  if (thd->locked_tables_mode) ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
 
   if (!error) my_ok(thd);
 
