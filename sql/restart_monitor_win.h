@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -160,10 +160,11 @@ const char *get_monitor_pid();
 void signal_event(Signal_type signal);
 
 /**
-  Check if there is an option of early type.
+  Check if option is an early type or --gdb, --no-monitor.
   The early type options are verbose, help, initialize, version
   and initialize-insecure. These options print and do certain activities
-  and allow the server to exit.
+  and allow the server to exit. In addition there are options like gdb,
+  no-monitor where we do not spawn a monitor process.
 
   @param argc   Count of arguments.
   @param argv   Vector of arguments.

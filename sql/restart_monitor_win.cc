@@ -563,7 +563,8 @@ static inline bool is_early_option(const char *cur_arg) {
          strncmp(cur_arg, "verbose", strlen("verbose")) == 0 ||
          strncmp(cur_arg, "version", strlen("version")) == 0 ||
          strncmp(cur_arg, "help", strlen("help")) == 0 ||
-         strncmp(cur_arg, "gdb", strlen("gdb")) == 0;
+         strncmp(cur_arg, "gdb", strlen("gdb")) == 0 ||
+         strncmp(cur_arg, "no-monitor", strlen("no-monitor")) == 0;
 }
 
 bool is_early_option(int argc, char **argv) {

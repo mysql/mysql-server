@@ -166,6 +166,10 @@ extern ulong slave_exec_mode_options;
 extern Rpl_global_filter rpl_global_filter;
 extern int32_t opt_regexp_time_limit;
 extern int32_t opt_regexp_stack_limit;
+#ifdef _WIN32
+extern bool opt_no_monitor;
+#endif  // _WIN32
+extern bool opt_debugging;
 
 enum enum_slave_type_conversions {
   SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
