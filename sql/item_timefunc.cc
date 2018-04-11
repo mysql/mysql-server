@@ -3116,6 +3116,8 @@ bool Item_func_internal_update_time::get_date(
   String *table_name_ptr = nullptr;
   String engine_name;
   String *engine_name_ptr = nullptr;
+  String partition_name;
+  String *partition_name_ptr = nullptr;
   bool skip_hidden_table = args[4]->val_int();
   String ts_se_private_data;
   String *ts_se_private_data_ptr = args[5]->val_str(&ts_se_private_data);
@@ -3145,8 +3147,20 @@ bool Item_func_internal_update_time::get_date(
     table_name_ptr->c_ptr_safe();
     engine_name_ptr->c_ptr_safe();
 
+    /*
+      The same native function used by I_S.PARTITIONS is used by I_S.TABLES.
+      We invoke native function with partition name only with I_S.PARTITIONS
+      as a last argument. So, we check for argument count below, before
+      reading partition name.
+    */
+    if (arg_count == 10)
+      partition_name_ptr = args[9]->val_str(&partition_name);
+    else if (arg_count == 9)
+      partition_name_ptr = args[8]->val_str(&partition_name);
+
     unixtime = thd->lex->m_IS_table_stats.read_stat(
-        thd, *schema_name_ptr, *table_name_ptr, *engine_name_ptr, nullptr,
+        thd, *schema_name_ptr, *table_name_ptr, *engine_name_ptr,
+        (partition_name_ptr ? partition_name_ptr->c_ptr_safe() : nullptr),
         se_private_id,
         (ts_se_private_data_ptr ? ts_se_private_data_ptr->c_ptr_safe()
                                 : nullptr),
@@ -3181,6 +3195,8 @@ bool Item_func_internal_check_time::get_date(
   String *table_name_ptr = nullptr;
   String engine_name;
   String *engine_name_ptr = nullptr;
+  String partition_name;
+  String *partition_name_ptr = nullptr;
   bool skip_hidden_table = args[4]->val_int();
   String ts_se_private_data;
   String *ts_se_private_data_ptr = args[5]->val_str(&ts_se_private_data);
@@ -3212,8 +3228,20 @@ bool Item_func_internal_check_time::get_date(
     table_name_ptr->c_ptr_safe();
     engine_name_ptr->c_ptr_safe();
 
+    /*
+     The same native function used by I_S.PARTITIONS is used by I_S.TABLES.
+     We invoke native function with partition name only with I_S.PARTITIONS
+     as a last argument. So, we check for argument count below, before
+     reading partition name.
+   */
+    if (arg_count == 10)
+      partition_name_ptr = args[9]->val_str(&partition_name);
+    else if (arg_count == 9)
+      partition_name_ptr = args[8]->val_str(&partition_name);
+
     unixtime = thd->lex->m_IS_table_stats.read_stat(
-        thd, *schema_name_ptr, *table_name_ptr, *engine_name_ptr, nullptr,
+        thd, *schema_name_ptr, *table_name_ptr, *engine_name_ptr,
+        (partition_name_ptr ? partition_name_ptr->c_ptr_safe() : nullptr),
         se_private_id,
         (ts_se_private_data_ptr ? ts_se_private_data_ptr->c_ptr_safe()
                                 : nullptr),

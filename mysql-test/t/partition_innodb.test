@@ -1316,3 +1316,45 @@ partition_id=1;
 
 --connection default
 drop table test12;
+
+
+--echo #
+--echo # Bug#27073100: PARTITION UPDATE_TIME NOT CORRECT AFTER RESTART/REBUILD
+--echo #
+
+--echo # Set up.
+CREATE TABLE t1 (fld1 INT(11) NOT NULL, fld2 INT(11) NOT NULL,
+fld3 DATE NOT NULL,  fld4 DATE NOT NULL,
+PRIMARY KEY (fld1, fld3),  KEY(fld1)) PARTITION
+BY RANGE (YEAR(fld3))
+(PARTITION p01 VALUES LESS THAN (1985) ENGINE = InnoDB,
+PARTITION p02 VALUES LESS THAN (1986) ENGINE = InnoDB,
+PARTITION p03 VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
+INSERT INTO t1 VALUES('11', '11111', '1984-11-16',
+'2008-11-16'), ('12', '11112', '1985-11-16', '2008-11-16'),
+('13', '11113', '1986-11-16', '2008-11-16');
+
+--echo # Fetch the count of 'update_time' which is not null.
+SELECT TABLE_NAME, COUNT(UPDATE_TIME) FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' ORDER BY
+PARTITION_ORDINAL_POSITION;
+
+--echo # Rebuild the table.
+ALTER TABLE t1 ENGINE=INNODB;
+
+--echo # After table rebuild, the 'update_time' will be set to NULL.
+--echo # Hence the count would return 0.
+SELECT TABLE_NAME, COUNT(UPDATE_TIME) FROM INFORMATION_SCHEMA.PARTITIONS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1' ORDER BY
+PARTITION_ORDINAL_POSITION;
+
+--echo # Update the table where partition p02 is updated.
+UPDATE t1 SET fld2 = 71000 WHERE fld1 = 12 AND fld3 = '1985-11-16';
+
+--echo # Without fix, the count for 'update_time' will be 3. After fix,
+--echo # it will be 1 since only partition 'p02' is updated.
+SELECT TABLE_NAME, COUNT(UPDATE_TIME)
+FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = 'test' AND
+TABLE_NAME = 't1' ORDER BY PARTITION_ORDINAL_POSITION;
+
+DROP TABLE t1;
