@@ -155,6 +155,25 @@ TEST_F(Xcl_protocol_impl_tests, recv_fails_at_payload) {
   ASSERT_EQ(expected_error_code, out_error.error());
 }
 
+TEST_F(Xcl_protocol_impl_tests, recv_large_message) {
+  std::string message_payload(1024 * 64, 'x');
+  expect_read_header(::Mysqlx::ServerMessages::OK,
+                     static_cast<int32>(message_payload.size()));
+
+  EXPECT_CALL(*m_mock_connection, read(_, message_payload.size()))
+      .WillOnce(Invoke([message_payload](uchar *data,
+                                         const std::size_t data_length
+                                             MY_ATTRIBUTE((unused))) -> XError {
+        std::copy(message_payload.begin(), message_payload.end(), data);
+        return {};
+      }));
+  XProtocol::Server_message_type_id out_id;
+  XError out_error;
+  auto result = m_sut->recv_single_message(&out_id, &out_error);
+  ASSERT_TRUE(result.get());
+  ASSERT_EQ(0, out_error.error());
+}
+
 TEST_F(Xcl_protocol_impl_tests, recv_unknown_msg_type) {
   const int32 invalid_message_id = 255;
   const int32 expected_payload_size = 10;

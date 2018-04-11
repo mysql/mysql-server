@@ -212,6 +212,8 @@ class Protocol_impl : public XProtocol,
   XError recv_id(const XProtocol::Server_message_type_id id);
   Message *recv_id(const XProtocol::Server_message_type_id id,
                    XError *out_error);
+  XError recv_header(Header_message_type_id *out_mid,
+                     std::size_t *out_buffer_size);
   Message *recv_payload(const Server_message_type_id mid,
                         const std::size_t msglen, XError *out_error);
   Message *recv_message_with_header(Server_message_type_id *out_mid,
@@ -284,6 +286,7 @@ class Protocol_impl : public XProtocol,
   std::unique_ptr<XConnection> m_sync_connection;
   std::unique_ptr<Query_instances> m_query_instances;
   std::shared_ptr<Context> m_context;
+  std::vector<std::uint8_t> m_static_recv_buffer;
 };
 
 template <typename Auth_continue_handler>
