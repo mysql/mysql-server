@@ -424,7 +424,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     ScanRecordPtr scanptr;
     scanptr.i = signal->theData[1];
-    if (scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull())
+    if (likely(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull()))
     {
       ApiConnectRecordPtr apiConnectptr;
       apiConnectptr.i = scanptr.p->scanApiRec;
@@ -438,7 +438,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     ScanRecordPtr scanptr;
     scanptr.i = signal->theData[1];
-    if (scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull())
+    if (likely(scanRecordPool.getValidPtr(scanptr) && !scanptr.isNull()))
     {
       ApiConnectRecordPtr apiConnectptr;
       apiConnectptr.i = scanptr.p->scanApiRec;
@@ -1834,7 +1834,8 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
   tuserpointer = signal->theData[2];
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tapiPointer;
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.isNull()))
   {
     jam();
     ndbassert(false);
@@ -2451,7 +2452,8 @@ void Dbtc::execKEYINFO(Signal* signal)
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
   tmaxData = 20;
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.isNull()))
   {
     TCKEY_abort(signal, 18, apiConnectptr);
     return;
@@ -2501,7 +2503,7 @@ void Dbtc::execKEYINFO(Signal* signal)
   UintR TtcTimer = ctcTimer;
   CacheRecordPtr cachePtr;
   cachePtr.i = apiConnectptr.p->cachePtr;
-  if (!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.isNull())
+  if (unlikely(!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.isNull()))
   {
     TCKEY_abort(signal, 42, apiConnectptr);
     return;
@@ -2631,7 +2633,8 @@ void Dbtc::execATTRINFO(Signal* signal)
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = Tdata1;
   ttransid_ptr = 1;
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.isNull()))
   {
     DEBUG("Drop ATTRINFO, wrong apiConnectptr");
     TCKEY_abort(signal, 18, apiConnectptr);
@@ -2670,7 +2673,8 @@ void Dbtc::execATTRINFO(Signal* signal)
     UintR TtcTimer = ctcTimer;
     CacheRecordPtr cachePtr;
     cachePtr.i = regApiPtr->cachePtr;
-    if (!c_cacheRecordPool.getValidPtr(cachePtr) || cachePtr.isNull())
+    if (unlikely(!c_cacheRecordPool.getValidPtr(cachePtr) ||
+                 cachePtr.isNull()))
     {
       TCKEY_abort(signal, 43, apiConnectptr);
       return;
@@ -3007,7 +3011,7 @@ int
 Dbtc::seizeTcRecord(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  if (!tcConnectRecord.seize(tcConnectptr))
+  if (unlikely(!tcConnectRecord.seize(tcConnectptr)))
   {
     int place = 3;
     TCKEY_abort(signal, place, apiConnectptr);
@@ -3036,7 +3040,7 @@ Dbtc::seizeTcRecord(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
 int
 Dbtc::seizeCacheRecord(Signal* signal, CacheRecordPtr& cachePtr, ApiConnectRecord* const regApiPtr)
 {
-  if (!c_cacheRecordPool.seize(cachePtr))
+  if (unlikely(!c_cacheRecordPool.seize(cachePtr)))
   {
     TCKEY_abort(signal, 41, ApiConnectRecordPtr::get(NULL, RNIL));
     return 1;
@@ -3143,7 +3147,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   ttransid_ptr = 6; 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = TapiIndex;
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.isNull()))
   {
     releaseSections(handle);
     TCKEY_abort(signal, 6, ApiConnectRecordPtr::get(NULL, RNIL));
@@ -3344,7 +3349,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (regApiPtr->apiCopyRecord == RNIL)
   {
     ndbrequire(TstartFlag == 1);
-    if (!seizeApiConnectCopy(signal, apiConnectptr.p))
+    if (unlikely(!seizeApiConnectCopy(signal, apiConnectptr.p)))
     {
       jam();
       releaseSections(handle);
@@ -3376,14 +3381,14 @@ void Dbtc::execTCKEYREQ(Signal* signal)
     return;
   }//if
   
-  if (seizeTcRecord(signal, apiConnectptr) != 0)
+  if (unlikely(seizeTcRecord(signal, apiConnectptr) != 0))
   {
     releaseSections(handle);
     return;
   }//if
   
   CacheRecordPtr cachePtr;
-  if (seizeCacheRecord(signal, cachePtr, apiConnectptr.p) != 0)
+  if (unlikely(seizeCacheRecord(signal, cachePtr, apiConnectptr.p) != 0))
   {
     releaseSections(handle);
     return;
@@ -3729,7 +3734,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
           return;
         }
 
-        if (!m_commitAckMarkerPool.seize(tmp))
+        if (unlikely(!m_commitAckMarkerPool.seize(tmp)))
         {
           TCKEY_abort(signal, 56, apiConnectptr);
           return;
@@ -5071,7 +5076,8 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
     
     ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = apiIndex;
-    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+    if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+                 apiConnectptr.isNull()))
     {
       jam();
       warningHandlerLab(signal, __LINE__);
@@ -5121,7 +5127,8 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
     
     ApiConnectRecordPtr apiConnectptr;
     apiConnectptr.i = apiConnectPtr;
-    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+    if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+                 apiConnectptr.isNull()))
     {
       jam();
       warningHandlerLab(signal, __LINE__);
@@ -5269,7 +5276,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
    * This is more reason to ignore the signal if not all states are correct.
    *------------------------------------------------------------------------*/
   tcConnectptr.i = TtcConnectptrIndex;
-  if (!tcConnectRecord.getValidPtr(tcConnectptr) || tcConnectptr.isNull())
+  if (unlikely(!tcConnectRecord.getValidPtr(tcConnectptr) ||
+               tcConnectptr.isNull()))
   {
     warningReport(signal, 23);
     return;
@@ -5289,7 +5297,8 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = TapiConnectptrIndex;
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.isNull()))
   {
     TCKEY_abort(signal, 29, ApiConnectRecordPtr::get(NULL, RNIL));
     return;
@@ -5473,7 +5482,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     ndbrequire( regTcPtr->triggeringOperation == RNIL );
 
     /* Switch to the original locking operation */
-    if (lockingOpI == RNIL)
+    if (unlikely(lockingOpI == RNIL))
     {
       jam();
       TCKEY_abort(signal, 61, apiConnectptr);
@@ -5481,7 +5490,7 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     }
     
     tcConnectptr.i = lockingOpI;
-    if (!tcConnectRecord.getValidPtr(tcConnectptr))
+    if (unlikely(!tcConnectRecord.getValidPtr(tcConnectptr)))
     {
       jam();
       TCKEY_abort(signal, 63, apiConnectptr);
@@ -5691,7 +5700,8 @@ Dbtc::lqhKeyConf_checkTransactionState(Signal * signal,
       diverify010Lab(signal, apiConnectptr);
       return;
     } else if (TnoOfOutStanding > 0) {
-      if (apiConnectptr.p->tckeyrec == ZTCOPCONF_SIZE) {
+      if (apiConnectptr.p->tckeyrec == ZTCOPCONF_SIZE)
+      {
         jam();
         sendtckeyconf(signal, 0, apiConnectptr);
         return;
@@ -6187,7 +6197,7 @@ bool Dbtc::seizeApiConnectCopy(Signal* signal,
 {
   ApiConnectRecordPtr locApiConnectptr;
 
-  if (!c_apiConnectRecordPool.seize(locApiConnectptr))
+  if (unlikely(!c_apiConnectRecordPool.seize(locApiConnectptr)))
   {
     return false;
   }
@@ -6223,7 +6233,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   if (TapiConnectptrIndex == RNIL)
   {
     /* Pop first transaction in verification queue */
-    if (!apiConList.removeFirst(apiConnectptr))
+    if (unlikely(!apiConList.removeFirst(apiConnectptr)))
     {
       /**
        * DIVERIFYCONF from DBDIH
@@ -6241,7 +6251,8 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
      * There should be no transactions queue for verification.
      */
     apiConnectptr.i = TapiConnectptrIndex;
-    if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+    if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+                 apiConnectptr.isNull()))
     {
       TCKEY_abort(signal, 31, ApiConnectRecordPtr::get(NULL, RNIL));
       return;
@@ -6294,7 +6305,7 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
   regApiPtr->counter = regApiPtr->lqhkeyconfrec;
   regApiPtr->apiConnectstate = CS_COMMITTING;
 
-  if (regApiPtr->tcConnect.isEmpty())
+  if (unlikely(regApiPtr->tcConnect.isEmpty()))
   {
     TCKEY_abort(signal, 33, apiConnectptr); // Not really invalid, rather just empty
     return;
@@ -6386,7 +6397,7 @@ void Dbtc::seizeGcp(Ptr<GcpRecord> & dst, Uint64 Tgci)
 {
   GcpRecordPtr localGcpPointer;
 
-  if (!c_gcpRecordPool.seize(localGcpPointer))
+  if (unlikely(!c_gcpRecordPool.seize(localGcpPointer)))
   {
     ndbout_c("%u/%u", Uint32(Tgci >> 32), Uint32(Tgci));
     crash_gcp(__LINE__);
@@ -6598,7 +6609,8 @@ void Dbtc::execCOMMITTED(Signal* signal)
 #endif
   localTcConnectptr.i = signal->theData[0];
   jamEntry();
-  if (!tcConnectRecord.getValidPtr(localTcConnectptr) || localTcConnectptr.isNull())
+  if (unlikely(!tcConnectRecord.getValidPtr(localTcConnectptr) ||
+               localTcConnectptr.isNull()))
   {
     warningReport(signal, 4);
     return;
@@ -7713,7 +7725,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
    * LQHKEYREF HAVE CLEARED ALL PARTS ON ITS PATH BACK TO TC.
    *-------------------------------------------------------------------------*/
   tcConnectptr.i = lqhKeyRef->connectPtr;
-  if (!tcConnectRecord.getValidPtr(tcConnectptr))
+  if (unlikely(!tcConnectRecord.getValidPtr(tcConnectptr)))
   {
     warningReport(signal, 26);
     // errorReport(signal, 6);
@@ -8192,7 +8204,8 @@ void Dbtc::execTCROLLBACKREQ(Signal* signal)
 
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = signal->theData[0];
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  if (!unlikely(c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+                apiConnectptr.isNull()))
   {
     goto TC_ROLL_warning;
   }//if
@@ -8295,7 +8308,8 @@ void Dbtc::execTC_HBREP(Signal* signal)
   if (apiConnectptr.p->transid[0] == tcHbRep->transId1 &&
       apiConnectptr.p->transid[1] == tcHbRep->transId2){
 
-    if (getApiConTimer(apiConnectptr) != 0){
+    if (likely(getApiConTimer(apiConnectptr) != 0))
+    {
       setApiConTimer(apiConnectptr, ctcTimer, __LINE__);
     } else {
       DEBUG("TCHBREP received when timer was off apiConnectptr.i=" 
@@ -8562,8 +8576,8 @@ void Dbtc::execABORTED(Signal* signal)
    *     TRANSACTION ALREADY ABORTED. THIS CAN HAPPEN WHEN TIME-OUT OCCURS  
    *     IN TC WAITING FOR ABORTED.                                         
    *-------------------------------------------------------------------------*/
-  if (!tcConnectRecord.getValidPtr(tcConnectptr) ||
-      tcConnectptr.p->tcConnectstate != OS_ABORT_SENT)
+  if (unlikely(!tcConnectRecord.getValidPtr(tcConnectptr) ||
+               tcConnectptr.p->tcConnectstate != OS_ABORT_SENT))
   {
     warningReport(signal, 2);
     return;
@@ -8573,8 +8587,8 @@ void Dbtc::execABORTED(Signal* signal)
   }//if
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = tcConnectptr.p->apiConnect;
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
-      apiConnectptr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.isNull()))
   {
     warningReport(signal, 0);
     return;
@@ -9743,7 +9757,7 @@ void Dbtc::execSCAN_HBREP(Signal* signal)
 
   ScanRecordPtr scanptr;
   scanptr.i = scanFragptr.p->scanRec;
-  if (!scanRecordPool.getValidPtr(scanptr) || scanptr.isNull())
+  if (unlikely(!scanRecordPool.getValidPtr(scanptr) || scanptr.isNull()))
   {
     return;
   }
@@ -9862,7 +9876,7 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
     Uint32 connectCount = getNodeInfo(nodeId).m_connectCount;
     ScanRecordPtr scanptr;
     scanptr.i = ptr.p->scanRec;
-    if (!scanRecordPool.getValidPtr(scanptr) || scanptr.isNull())
+    if (unlikely(!scanRecordPool.getValidPtr(scanptr) || scanptr.isNull()))
     {
       break;
     }
@@ -10351,7 +10365,7 @@ void Dbtc::checkScanActiveInFailedLqh(Signal* signal,
   while (scanPtrI != RNIL)
   {
     jam();
-    if (scanRecordPool.getUncheckedPtrs(&scanPtrI, &scanptr, 1) == 0)
+    if (unlikely(scanRecordPool.getUncheckedPtrs(&scanPtrI, &scanptr, 1) == 0))
     {
       continue;
     }
@@ -11095,7 +11109,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   }
   else
   {
-    if (!seizeApiConnectFail(signal, apiConnectptr))
+    if (unlikely(!seizeApiConnectFail(signal, apiConnectptr)))
     {
       jam();
       /**
@@ -11705,8 +11719,8 @@ void Dbtc::execABORTCONF(Signal* signal)
     sendSignalWithDelay(cownref, GSN_ABORTCONF, signal, 2000, 5);
     return;
   }//if
-  if (!tcConnectRecord.getValidPtr(tcConnectptr) ||
-      tcConnectptr.p->tcConnectstate != OS_WAIT_ABORT_CONF)
+  if (unlikely(!tcConnectRecord.getValidPtr(tcConnectptr) ||
+               tcConnectptr.p->tcConnectstate != OS_WAIT_ABORT_CONF))
   {
     warningReport(signal, 16);
     return;
@@ -11843,8 +11857,8 @@ void Dbtc::execCOMMITCONF(Signal* signal)
     sendSignalWithDelay(cownref, GSN_COMMITCONF, signal, 2000, 4);
     return;
   }//if
-  if (!tcConnectRecord.getValidPtr(tcConnectptr) ||
-      tcConnectptr.p->tcConnectstate != OS_WAIT_COMMIT_CONF)
+  if (unlikely(!tcConnectRecord.getValidPtr(tcConnectptr) ||
+               tcConnectptr.p->tcConnectstate != OS_WAIT_COMMIT_CONF))
   {
     warningReport(signal, 8);
     return;
@@ -11989,8 +12003,8 @@ void Dbtc::execCOMPLETECONF(Signal* signal)
     sendSignalWithDelay(cownref, GSN_COMPLETECONF, signal, 2000, 4);
     return;
   }//if
-  if (!tcConnectRecord.getValidPtr(tcConnectptr) ||
-      tcConnectptr.p->tcConnectstate != OS_WAIT_COMPLETE_CONF)
+  if (unlikely(!tcConnectRecord.getValidPtr(tcConnectptr) ||
+               tcConnectptr.p->tcConnectstate != OS_WAIT_COMPLETE_CONF))
   {
     warningReport(signal, 12);
     return;
@@ -12871,7 +12885,8 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   apiConnectptr.i = scanTabReq->apiConnectPtr;
   tabptr.i = scanTabReq->tableId;
 
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.isNull()))
   {
     jam();
     releaseSections(handle);
@@ -13251,7 +13266,7 @@ void Dbtc::scanKeyinfoLab(Signal* signal, CacheRecord * const regCachePtr, ApiCo
     ndbrequire(apiConnectptr.p->apiScanRec != RNIL);
     ScanRecordPtr scanPtr;
     scanPtr.i = apiConnectptr.p->apiScanRec;
-    if (scanRecordPool.getValidPtr(scanPtr) && !scanPtr.isNull())
+    if (likely(scanRecordPool.getValidPtr(scanPtr) && !scanPtr.isNull()))
     {
       abortScanLab(signal, 
                    scanPtr,
@@ -14349,7 +14364,8 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
   SectionHandle handle(this, signal);
   ApiConnectRecordPtr apiConnectptr;
   apiConnectptr.i = req->apiConnectPtr;
-  if (!c_apiConnectRecordPool.getValidPtr(apiConnectptr) || apiConnectptr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(apiConnectptr) ||
+               apiConnectptr.isNull()))
   {
     jam();
     releaseSections(handle);
@@ -15562,7 +15578,7 @@ void Dbtc::releaseTcConnectFail(Signal* signal)
 
 bool Dbtc::seizeApiConnect(Signal* signal, ApiConnectRecordPtr& apiConnectptr)
 {
-  if (c_apiConnectRecordPool.seize(apiConnectptr))
+  if (likely(c_apiConnectRecordPool.seize(apiConnectptr)))
   {
     jam();
     terrorCode = ZOK;
@@ -15590,7 +15606,7 @@ bool Dbtc::seizeApiConnectFail(Signal* signal,
 {
   LocalApiConnectRecord_api_list apiConList(c_apiConnectRecordPool,
                                             c_apiConnectFailList);
-  if (!apiConList.removeFirst(apiConnectptr))
+  if (unlikely(!apiConList.removeFirst(apiConnectptr)))
   {
     return false;
   }
@@ -15721,7 +15737,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       numRecords = MAX_RECORDS_AT_A_TIME;
     }
-    if (recordNo >= RNIL)
+    if (unlikely(recordNo >= RNIL))
     {
       return;
     }
@@ -15777,7 +15793,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     {
       return;
     }
-    if (recordNo >= RNIL)
+    if (unlikely(recordNo >= RNIL))
     {
       return;
     }
@@ -15844,7 +15860,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     for (; numRecords > 0 && recordNo != RNIL; numRecords--)
     {
       ScanRecordPtr sp;
-      if (scanRecordPool.getUncheckedPtrs(&recordNo, &sp, 1) != 1)
+      if (unlikely(scanRecordPool.getUncheckedPtrs(&recordNo, &sp, 1) != 1))
       {
         continue;
       }
@@ -15906,7 +15922,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
       return;
     }
     ScanRecordPtr sp;
-    if (scanRecordPool.getUncheckedPtrs(&recordNo, &sp, 1) != 1)
+    if (unlikely(scanRecordPool.getUncheckedPtrs(&recordNo, &sp, 1) != 1))
     {
       return;
     }
@@ -18040,7 +18056,8 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   SectionHandle handle(this, signal);
 
   transPtr.i = TapiIndex;
-  if (!c_apiConnectRecordPool.getValidPtr(transPtr) || transPtr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(transPtr) ||
+               transPtr.isNull()))
   {
     jam();
     warningHandlerLab(signal, __LINE__);
@@ -18151,7 +18168,7 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   if (regApiPtr->apiCopyRecord == RNIL)
   {
     jam();
-    if (!seizeApiConnectCopy(signal, transPtr.p))
+    if (unlikely(!seizeApiConnectCopy(signal, transPtr.p)))
     {
       jam();
       releaseSections(handle);
@@ -18281,7 +18298,8 @@ void Dbtc::execINDXKEYINFO(Signal* signal)
   const UintR TconnectIndex = indxKeyInfo->connectPtr;
   ApiConnectRecordPtr transPtr;
   transPtr.i = TconnectIndex;
-  if (!c_apiConnectRecordPool.getValidPtr(transPtr) || transPtr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(transPtr) ||
+               transPtr.isNull()))
   {
     jam();
     warningHandlerLab(signal, __LINE__);
@@ -18329,7 +18347,8 @@ void Dbtc::execINDXATTRINFO(Signal* signal)
   const UintR TconnectIndex = indxAttrInfo->connectPtr;
   ApiConnectRecordPtr transPtr;
   transPtr.i = TconnectIndex;
-  if (!c_apiConnectRecordPool.getValidPtr(transPtr) || transPtr.isNull())
+  if (unlikely(!c_apiConnectRecordPool.getValidPtr(transPtr) ||
+               transPtr.isNull()))
   {
     jam();
     warningHandlerLab(signal, __LINE__);
@@ -19257,7 +19276,7 @@ void Dbtc::executeIndexOperation(Signal* signal,
 bool Dbtc::seizeIndexOperation(ApiConnectRecord* regApiPtr,
 			       TcIndexOperationPtr& indexOpPtr)
 {
-  if (c_theIndexOperationPool.seize(indexOpPtr))
+  if (likely(c_theIndexOperationPool.seize(indexOpPtr)))
   {
     jam();
     ndbassert(indexOpPtr.p->pendingKeyInfo == 0);

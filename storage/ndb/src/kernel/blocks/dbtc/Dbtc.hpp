@@ -1242,12 +1242,12 @@ public:
   bool seizeApiConTimer(ApiConnectRecordPtr apiConPtr)
   {
     ndbrequire(apiConPtr.p->m_apiConTimer == RNIL);
-    if ((c_currentApiConTimers == NULL) ||
+    if (unlikely(c_currentApiConTimers == NULL) ||
         (c_currentApiConTimers->m_top == ApiConTimers::INDEX_MAX_COUNT))
     {
       jam();
       ApiConTimersPtr apiConTimersptr;
-      if (!c_apiConTimersPool.seize(apiConTimersptr))
+      if (unlikely(!c_apiConTimersPool.seize(apiConTimersptr)))
       {
         jam();
         return false;
