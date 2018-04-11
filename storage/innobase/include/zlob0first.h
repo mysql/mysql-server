@@ -466,6 +466,10 @@ struct z_first_page_t {
   bool validate();
 #endif /* UNIV_DEBUG */
 
+  /** Get the buffer block of the first page of LOB.
+  @return the buffer block of the first page of LOB. */
+  buf_block_t *get_block() const { return (m_block); }
+
  private:
   /** The buffer block of the first page. */
   buf_block_t *m_block;
