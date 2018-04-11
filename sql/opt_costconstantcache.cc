@@ -254,8 +254,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
   READ_RECORD read_record_info;
 
   // Prepare to read from the table
-  const bool ret =
-      init_read_record(&read_record_info, thd, table, NULL, true, false);
+  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false);
   if (!ret) {
     table->use_all_columns();
 
@@ -324,8 +323,7 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
   READ_RECORD read_record_info;
 
   // Prepare to read from the table
-  const bool ret =
-      init_read_record(&read_record_info, thd, table, NULL, true, false);
+  const bool ret = init_read_record(&read_record_info, thd, table, NULL, false);
   if (!ret) {
     table->use_all_columns();
 

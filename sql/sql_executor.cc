@@ -2633,8 +2633,7 @@ int join_init_read_record(QEP_TAB *tab) {
     (void)report_handler_error(tab->table(), error);
     return 1;
   }
-  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, 1,
-                       false))
+  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, false))
     return 1;
 
   if (first_init && tab->table()->file->inited && set_record_buffer(tab))

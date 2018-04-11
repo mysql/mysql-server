@@ -218,7 +218,7 @@ static int search_topics(THD *thd, QEP_TAB *topics,
   READ_RECORD read_record_info;
   DBUG_ENTER("search_topics");
 
-  if (init_read_record(&read_record_info, thd, NULL, topics, 0, false))
+  if (init_read_record(&read_record_info, thd, NULL, topics, false))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info)) {
@@ -258,7 +258,7 @@ static int search_keyword(THD *thd, QEP_TAB *keywords,
   READ_RECORD read_record_info;
   DBUG_ENTER("search_keyword");
 
-  if (init_read_record(&read_record_info, thd, NULL, keywords, 0, false))
+  if (init_read_record(&read_record_info, thd, NULL, keywords, false))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info) && count < 2) {
@@ -383,7 +383,7 @@ static int search_categories(THD *thd, QEP_TAB *categories,
 
   DBUG_ENTER("search_categories");
 
-  if (init_read_record(&read_record_info, thd, NULL, categories, 0, false))
+  if (init_read_record(&read_record_info, thd, NULL, categories, false))
     DBUG_RETURN(0);
 
   while (!read_record_info.read_record(&read_record_info)) {
@@ -416,7 +416,7 @@ static void get_all_items_for_category(THD *thd, QEP_TAB *items, Field *pfname,
   READ_RECORD read_record_info;
   DBUG_ENTER("get_all_items_for_category");
 
-  if (init_read_record(&read_record_info, thd, NULL, items, 0, false))
+  if (init_read_record(&read_record_info, thd, NULL, items, false))
     DBUG_VOID_RETURN;
   while (!read_record_info.read_record(&read_record_info)) {
     if (!items->condition()->val_int()) continue;

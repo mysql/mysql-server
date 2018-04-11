@@ -437,9 +437,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     }
 
     if (usable_index == MAX_KEY || qep_tab.quick())
-      error = init_read_record(&info, thd, NULL, &qep_tab, 1, false);
+      error = init_read_record(&info, thd, NULL, &qep_tab, false);
     else
-      error = init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
+      error = init_read_record_idx(&info, thd, table, usable_index, reverse);
 
     if (error) DBUG_RETURN(true); /* purecov: inspected */
 
@@ -1112,7 +1112,7 @@ int Query_result_delete::do_table_deletes(TABLE *table) {
   READ_RECORD info;
   ha_rows last_deleted = deleted_rows;
   DBUG_ENTER("Query_result_delete::do_table_deletes");
-  if (init_read_record(&info, thd, table, NULL, 1, false)) DBUG_RETURN(1);
+  if (init_read_record(&info, thd, table, NULL, false)) DBUG_RETURN(1);
   /*
     Ignore any rows not found in reference tables as they may already have
     been deleted by foreign key handling

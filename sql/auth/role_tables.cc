@@ -226,7 +226,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
 
   {
     roles_edges_table->use_all_columns();
-    if (init_read_record(&read_record_info, thd, roles_edges_table, NULL, 1,
+    if (init_read_record(&read_record_info, thd, roles_edges_table, NULL,
                          false)) {
       my_error(ER_TABLE_CORRUPT, MYF(0), roles_edges_table->s->db.str,
                roles_edges_table->s->table_name.str);
@@ -272,7 +272,7 @@ bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
     default_role_table->use_all_columns();
 
     bool ret = init_read_record(&read_record_info, thd, default_role_table,
-                                NULL, 1, false);
+                                NULL, false);
     DBUG_EXECUTE_IF("dbug_fail_in_role_cache_reinit",
                     end_read_record(&read_record_info);
                     ret = true;);

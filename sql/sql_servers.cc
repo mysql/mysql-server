@@ -222,7 +222,7 @@ static bool servers_load(THD *thd, TABLE *table) {
   free_root(&mem, MYF(0));
   init_sql_alloc(key_memory_servers, &mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  if (init_read_record(&read_record_info, thd, table, NULL, 1, false))
+  if (init_read_record(&read_record_info, thd, table, NULL, false))
     DBUG_RETURN(true);
 
   while (!(read_record_info.read_record(&read_record_info))) {

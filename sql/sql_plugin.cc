@@ -1663,7 +1663,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
     DBUG_VOID_RETURN;
   }
   table = tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, false)) {
+  if (init_read_record(&read_record_info, new_thd, table, NULL, false)) {
     close_trans_system_tables(new_thd);
     DBUG_VOID_RETURN;
   }
@@ -1745,7 +1745,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     switch ((*(p++) = *(list++))) {
       case '\0':
         list = NULL; /* terminate the loop */
-        /* fall through */
+                     /* fall through */
       case ';':
 #ifndef _WIN32
       case ':': /* can't use this as delimiter as it may be drive letter */

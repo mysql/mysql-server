@@ -246,7 +246,7 @@ void udf_read_functions_table() {
   }
 
   table = tables.table;
-  if (init_read_record(&read_record_info, new_thd, table, NULL, 1, false))
+  if (init_read_record(&read_record_info, new_thd, table, NULL, false))
     goto end;
   while (!(error = read_record_info.read_record(&read_record_info))) {
     DBUG_PRINT("info", ("init udf record"));

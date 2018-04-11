@@ -80,17 +80,16 @@ struct READ_RECORD {
   uchar *cache{nullptr}, *cache_pos{nullptr}, *cache_end{nullptr},
       *read_positions{nullptr};
   IO_CACHE *io_cache{nullptr};
-  bool print_error{false}, ignore_not_found_rows{false};
+  bool ignore_not_found_rows{false};
 
  public:
   READ_RECORD() {}
 };
 
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, bool print_errors,
-                      bool disable_rr_cache);
-bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
-                          bool print_error, uint idx, bool reverse);
+                      QEP_TAB *qep_tab, bool disable_rr_cache);
+bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
+                          bool reverse);
 void end_read_record(READ_RECORD *info);
 
 void rr_unlock_row(QEP_TAB *tab);

@@ -81,8 +81,6 @@ static void end_read_record_sort(READ_RECORD *info);
   @param info         READ_RECORD structure to initialize.
   @param thd          Thread handle
   @param table        Table to be accessed
-  @param print_error  If true, call table->file->print_error() if an error
-                      occurs (except for end-of-records error)
   @param idx          index to scan
   @param reverse      Scan in the reverse direction
 
@@ -90,19 +88,18 @@ static void end_read_record_sort(READ_RECORD *info);
   @retval false  success
 */
 
-bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
-                          bool print_error, uint idx, bool reverse) {
+bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table, uint idx,
+                          bool reverse) {
   int error;
   empty_record(table);
   new (info) READ_RECORD;
   info->thd = thd;
   info->table = table;
   info->record = table->record[0];
-  info->print_error = print_error;
   info->unlock_row = rr_unlock_row;
 
   if (!table->file->inited && (error = table->file->ha_index_init(idx, 1))) {
-    if (print_error) table->file->print_error(error, MYF(0));
+    table->file->print_error(error, MYF(0));
     return true;
   }
 
@@ -135,7 +132,6 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
       'table' is inferred from 'qep_tab'; if non-NULL, 'qep_tab' must be NULL.
       qep_tab           QEP_TAB for 'table', if there is one; we may use
       qep_tab->quick() as data source
-      print_error       Copy this to info->print_error
       disable_rr_cache  Don't use rr_from_cache (used by sort-union
                         index-merge which produces rowid sequences that
                         are already ordered)
@@ -200,8 +196,7 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   @retval false  success
 */
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, bool print_error,
-                      bool disable_rr_cache) {
+                      QEP_TAB *qep_tab, bool disable_rr_cache) {
   int error = 0;
   DBUG_ENTER("init_read_record");
 
@@ -223,7 +218,6 @@ bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
     info->ref_length = table->file->ref_length;
   }
   info->quick = qep_tab ? qep_tab->quick() : NULL;
-  info->print_error = print_error;
   info->unlock_row = rr_unlock_row;
   info->ignore_not_found_rows = 0;
 
@@ -356,7 +350,7 @@ skip_caching:
   DBUG_RETURN(false);
 
 err:
-  if (print_error) table->file->print_error(error, MYF(0));
+  table->file->print_error(error, MYF(0));
   DBUG_RETURN(true);
 } /* init_read_record */
 
@@ -388,7 +382,7 @@ static int rr_handle_error(READ_RECORD *info, int error) {
   if (error == HA_ERR_END_OF_FILE)
     error = -1;
   else {
-    if (info->print_error) info->table->file->print_error(error, MYF(0));
+    info->table->file->print_error(error, MYF(0));
     if (error < 0)  // Fix negative BDB errno
       error = 1;
   }
@@ -710,7 +704,7 @@ static int rr_from_cache(READ_RECORD *info) {
     if (info->cache_pos != info->cache_end) {
       if (info->cache_pos[info->error_offset]) {
         shortget(&error, info->cache_pos);
-        if (info->print_error) info->table->file->print_error(error, MYF(0));
+        info->table->file->print_error(error, MYF(0));
       } else {
         error = 0;
         memcpy(info->record, info->cache_pos,

@@ -14780,7 +14780,7 @@ static int copy_data_between_tables(
 
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
-  if (init_read_record(&info, thd, from, NULL, 1, false)) {
+  if (init_read_record(&info, thd, from, NULL, false)) {
     error = 1;
     goto err;
   }

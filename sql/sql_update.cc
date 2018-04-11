@@ -600,9 +600,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
 
         if (used_index == MAX_KEY || qep_tab.quick()
-                ? init_read_record(&info, thd, NULL, &qep_tab, true, false)
-                : init_read_record_idx(&info, thd, table, true, used_index,
-                                       reverse))
+                ? init_read_record(&info, thd, NULL, &qep_tab, false)
+                : init_read_record_idx(&info, thd, table, used_index, reverse))
           DBUG_RETURN(true); /* purecov: inspected */
 
         THD_STAGE_INFO(thd, stage_searching_rows_for_update);
@@ -685,7 +684,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
 
     table->file->try_semi_consistent_read(1);
-    if (init_read_record(&info, thd, NULL, &qep_tab, true, false))
+    if (init_read_record(&info, thd, NULL, &qep_tab, false))
       DBUG_RETURN(true); /* purecov: inspected */
 
     /*
