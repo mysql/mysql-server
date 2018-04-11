@@ -43,13 +43,13 @@ ENDIF()
 INCLUDE(CheckTypeSize)
 CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
 
-# We require at least GCC 4.8.3 or SunStudio 12.4 (CC 5.13)
+# We require at least GCC 7.3 or SunStudio 12.5 (CC 5.14)
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(CMAKE_COMPILER_IS_GNUCC)
     EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
                     OUTPUT_VARIABLE GCC_VERSION)
-    IF(GCC_VERSION VERSION_LESS 4.8.3)
-      MESSAGE(FATAL_ERROR "GCC 4.8.3 or newer is required!")
+    IF(GCC_VERSION VERSION_LESS 7.3)
+      MESSAGE(FATAL_ERROR "GCC 7.3 or newer is required!")
     ENDIF()
   ELSEIF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
     IF(SIZEOF_VOIDP MATCHES 4)
@@ -72,8 +72,8 @@ IF(NOT FORCE_UNSUPPORTED_COMPILER)
         VERSION_STRING ${stderr})
     ENDIF()
     SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
-    IF(${CC_MINOR_VERSION} LESS 13)
-      MESSAGE(FATAL_ERROR "SunStudio 12.4 or newer is required!")
+    IF(${CC_MINOR_VERSION} LESS 14)
+      MESSAGE(FATAL_ERROR "Oracle Studio 12.5 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")
@@ -89,17 +89,6 @@ ADD_DEFINITIONS(-D__EXTENSIONS__)
 # Solaris threads with POSIX semantics:
 # http://docs.oracle.com/cd/E19455-01/806-5257/6je9h033k/index.html
 ADD_DEFINITIONS(-D_POSIX_PTHREAD_SEMANTICS -D_REENTRANT -D_PTHREADS)
-
-# Workaround for Bug 22973151
-# Cannot include <math.h> then <cmath> w/ Studio 12.4 in -std=c++11 mode
-IF(CMAKE_SYSTEM_VERSION VERSION_EQUAL "5.11" AND CC_MINOR_VERSION EQUAL 13)
-  EXEC_PROGRAM(uname ARGS -v OUTPUT_VARIABLE MY_OS_MINOR_VERSION)
-  IF(MY_OS_MINOR_VERSION MATCHES "11.3")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -W0,-stdhdrs_not_idempotent")
-    MESSAGE("Adding -W0,-stdhdrs_not_idempotent")
-  ENDIF()
-ENDIF()
-
 
 # On  Solaris, use of intrinsics will screw the lib search logic
 # Force using -lm, so rint etc are found.
@@ -150,98 +139,6 @@ ENDIF()
 MACRO(DIRNAME IN OUT)
   GET_FILENAME_COMPONENT(${OUT} ${IN} PATH)
 ENDMACRO()
-
-MACRO(FIND_REAL_LIBRARY SOFTLINK_NAME REALNAME)
-  # We re-distribute libstdc++.so which is a symlink.
-  # There is no 'readlink' on solaris, so we use perl to follow links:
-  SET(PERLSCRIPT
-    "my $link= $ARGV[0]; use Cwd qw(abs_path); my $file = abs_path($link); print $file;")
-  EXECUTE_PROCESS(
-    COMMAND perl -e "${PERLSCRIPT}" ${SOFTLINK_NAME}
-    RESULT_VARIABLE result
-    OUTPUT_VARIABLE real_library
-    )
-  SET(REALNAME ${real_library})
-ENDMACRO()
-
-MACRO(EXTEND_CXX_LINK_FLAGS LIBRARY_PATH)
-  # Using the $ORIGIN token with the -R option to locate the libraries
-  # on a path relative to the executable:
-  # We need an extra backslash to pass $ORIGIN to the mysql_config script...
-  SET(QUOTED_CMAKE_CXX_LINK_FLAGS
-    "${CMAKE_CXX_LINK_FLAGS} -R'\\$ORIGIN/../lib' -R${LIBRARY_PATH} ")
-  SET(CMAKE_CXX_LINK_FLAGS
-    "${CMAKE_CXX_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
-  MESSAGE(STATUS "CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS}")
-ENDMACRO()
-
-MACRO(EXTEND_C_LINK_FLAGS LIBRARY_PATH)
-  SET(CMAKE_C_LINK_FLAGS
-    "${CMAKE_C_LINK_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
-  MESSAGE(STATUS "CMAKE_C_LINK_FLAGS ${CMAKE_C_LINK_FLAGS}")
-  SET(CMAKE_SHARED_LIBRARY_C_FLAGS
-    "${CMAKE_SHARED_LIBRARY_C_FLAGS} -R'\$ORIGIN/../lib' -R${LIBRARY_PATH}")
-ENDMACRO()
-
-# We assume that the client code is built with -std=c++11
-# Both compilers will use libstdc++.so but possibly different version.
-# Hence we install the gcc version here, for use by the server and plugins.
-# Install only if INSTALL_GPP_LIBRARIES is set, use for non-native compilers.
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
-  DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
-  SET(LIB_SUFFIX "lib")
-  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
-    SET(LIB_SUFFIX "lib/sparcv9")
-  ENDIF()
-  IF(SIZEOF_VOIDP EQUAL 8 AND CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-    SET(LIB_SUFFIX "lib/amd64")
-  ENDIF()
-  FIND_LIBRARY(GPP_LIBRARY_NAME
-    NAMES "stdc++"
-    PATHS ${CXX_PATH}/../${LIB_SUFFIX}
-    NO_DEFAULT_PATH
-  )
-  MESSAGE(STATUS "GPP_LIBRARY_NAME ${GPP_LIBRARY_NAME}")
-  IF(GPP_LIBRARY_NAME)
-    DIRNAME(${GPP_LIBRARY_NAME} GPP_LIBRARY_PATH)
-    FIND_REAL_LIBRARY(${GPP_LIBRARY_NAME} real_library)
-    IF(INSTALL_GPP_LIBRARIES)
-      MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_NAME} ${real_library}")
-      INSTALL(FILES ${GPP_LIBRARY_NAME} ${real_library}
-        DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
-    ENDIF()
-    EXTEND_CXX_LINK_FLAGS(${GPP_LIBRARY_PATH})
-    EXECUTE_PROCESS(
-      COMMAND sh -c "elfdump ${real_library} | grep SONAME"
-      RESULT_VARIABLE result
-      OUTPUT_VARIABLE sonameline
-    )
-    IF(NOT result)
-      STRING(REGEX MATCH "libstdc.*[^\n]" soname ${sonameline})
-      IF(INSTALL_GPP_LIBRARIES)
-        MESSAGE(STATUS "INSTALL ${GPP_LIBRARY_PATH}/${soname}")
-        INSTALL(FILES "${GPP_LIBRARY_PATH}/${soname}"
-          DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
-      ENDIF()
-    ENDIF()
-  ENDIF()
-  FIND_LIBRARY(GCC_LIBRARY_NAME
-    NAMES "gcc_s"
-    PATHS ${CXX_PATH}/../${LIB_SUFFIX}
-    NO_DEFAULT_PATH
-  )
-  IF(GCC_LIBRARY_NAME)
-    DIRNAME(${GCC_LIBRARY_NAME} GCC_LIBRARY_PATH)
-    FIND_REAL_LIBRARY(${GCC_LIBRARY_NAME} real_library)
-    IF(INSTALL_GPP_LIBRARIES)
-      MESSAGE(STATUS "INSTALL ${GCC_LIBRARY_NAME} ${real_library}")
-      INSTALL(FILES ${GCC_LIBRARY_NAME} ${real_library}
-        DESTINATION ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
-    ENDIF()
-    EXTEND_C_LINK_FLAGS(${GCC_LIBRARY_PATH})
-  ENDIF()
-ENDIF()
-
 
 # We assume that developer studio runtime libraries are installed.
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
@@ -304,4 +201,3 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
   SET(QUOTED_CMAKE_CXX_LINK_FLAGS
     "${QUOTED_CMAKE_CXX_LINK_FLAGS} -lstatomic ")
 ENDIF()
-

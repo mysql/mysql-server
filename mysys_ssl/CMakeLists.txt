@@ -20,6 +20,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
+
 IF(WITH_SSL STREQUAL "wolfssl")
   SET(MYSYS_AES_IMPLEMENTATION my_aes_wolfssl.cc)
 ELSE()
@@ -43,4 +45,9 @@ TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES} ${ZLIB_LIBRARY})
 # Needed to resolve OpenSSL dependency on Windows
 IF(WIN32 AND NOT WITH_SSL STREQUAL "wolfssl")
   TARGET_LINK_LIBRARIES(mysys_ssl crypt32)
+ENDIF()
+
+# MD5_Init() MD5_Update() MD5_Final() are all deprecated
+IF(SOLARIS AND CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(my_md5.cc COMPILE_FLAGS "-Wno-deprecated-declarations")
 ENDIF()
