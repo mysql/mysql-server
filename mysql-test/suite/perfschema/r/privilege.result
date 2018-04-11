@@ -518,6 +518,8 @@ drop user 'pfs_user_1'@localhost;
 drop user 'pfs_user_2'@localhost;
 drop user 'pfs_user_3'@localhost;
 flush privileges;
+DROP SCHEMA performance_schema;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 # Test cases from WL#4818
 # Setup user
 CREATE user pfs_user_4;
