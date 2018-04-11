@@ -172,12 +172,12 @@ references mydb1.t1(a);
 alter table mydb1.t1 add constraint fk1 foreign key (a)
 references mydb0.t0(a);
 drop database mydb0;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 't0' referenced by a foreign key constraint 'fk1' on table 't1'.
 drop database mydb1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 'fk0' on table 't0'.
 alter table mydb0.t0 drop foreign key fk0;
 drop database mydb0;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 't0' referenced by a foreign key constraint 'fk1' on table 't1'.
 drop database mydb1;
 drop database mydb0;
 set @i=1;
@@ -192,11 +192,11 @@ references mydb1.t1(a);
 alter table mydb1.t1 add constraint fk1 foreign key (a)
 references mydb0.t0(a);
 drop database mydb0;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 't0' referenced by a foreign key constraint 'fk1' on table 't1'.
 drop database mydb1;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 't1' referenced by a foreign key constraint 'fk0' on table 't0'.
 alter table mydb0.t0 drop foreign key fk0;
 drop database mydb0;
-ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+ERROR HY000: Cannot drop table 't0' referenced by a foreign key constraint 'fk1' on table 't1'.
 drop database mydb1;
 drop database mydb0;

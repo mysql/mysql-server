@@ -41,29 +41,19 @@ show create table child;
 # child pk, uk, oi
 # not supported
 
-# The failing alters spits out warnings, which include the
-# name of the temporary table...which has a random name
-# so disable_result_log :-(
---disable_result_log
-
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table child algorithm=copy, add constraint fk8 foreign key (a) references parent(c);
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table child algorithm=copy, add constraint fk9 foreign key (a) references parent(c);
 
---enable_result_log
-
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table child algorithm=inplace, add constraint fk7 foreign key (a) references parent(c);
-show warnings;
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table child algorithm=inplace, add constraint fk8 foreign key (a) references parent(c);
-show warnings;
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 alter table child algorithm=inplace, add constraint fk9 foreign key (a) references parent(c);
-show warnings;
 
 drop table child, parent;
 
@@ -205,7 +195,7 @@ drop table child, parent;
 --echo #
 
 --echo # Create a table with bad fk reference
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_CANNOT_OPEN_PARENT
 create table test(
   a int,
   foreign key fk1(a) references bogus_table(a)

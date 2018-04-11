@@ -1507,15 +1507,15 @@ DROP TABLE t1;
 #
 # Test for foreign keys.
 #
-CREATE TABLE parent(p POINT SRID 0) ENGINE=InnoDB;
+CREATE TABLE parent(p POINT NOT NULL SRID 0) ENGINE=InnoDB;
 CREATE TABLE child(p POINT NOT NULL SRID 0) ENGINE=InnoDB;
 ALTER TABLE parent ADD SPATIAL INDEX idx1(p);
-ERROR 42000: All parts of a SPATIAL index must be NOT NULL
 ALTER TABLE child ADD SPATIAL INDEX idx2(p);
 SHOW CREATE TABLE parent;
 Table	Create Table
 parent	CREATE TABLE `parent` (
-  `p` point /*!80003 SRID 0 */ DEFAULT NULL
+  `p` point NOT NULL /*!80003 SRID 0 */,
+  SPATIAL KEY `idx1` (`p`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE child;
 Table	Create Table
@@ -1524,12 +1524,13 @@ child	CREATE TABLE `child` (
   SPATIAL KEY `idx2` (`p`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ALTER TABLE parent DROP INDEX idx1;
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
 ALTER TABLE child DROP INDEX idx2;
 ALTER TABLE child ADD FOREIGN KEY(p) REFERENCES parent(p);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
 DROP TABLE child, parent;
 #
 # Bug#28763: Selecting geometry fields in UNION caused server crash.

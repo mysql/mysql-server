@@ -324,9 +324,11 @@ create index i2 on t1 (a);
 Warnings:
 Warning	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 drop table t1;
+CREATE TABLE t0 (a INT PRIMARY KEY);
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 PARTITION BY HASH (a);
 ERROR HY000: Foreign keys are not yet supported in conjunction with partitioning
+DROP TABLE t0;
 CREATE TABLE t1 (
 pk INT NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)

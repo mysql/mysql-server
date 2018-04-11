@@ -2775,7 +2775,8 @@ bool Query_result_create::send_eof() {
     if ((!dd::get_dictionary()->is_dd_table_name(create_table->db,
                                                  create_table->table_name) &&
          collect_fk_children(thd, create_table->db, create_table->table_name,
-                             create_info->db_type, &mdl_requests)) ||
+                             create_info->db_type, MDL_EXCLUSIVE,
+                             &mdl_requests)) ||
         collect_fk_parents_for_new_fks(thd, create_table->db,
                                        create_table->table_name, alter_info,
                                        MDL_EXCLUSIVE, create_info->db_type,

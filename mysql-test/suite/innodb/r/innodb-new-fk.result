@@ -19,7 +19,7 @@ SET DEBUG_SYNC = 'now SIGNAL conn_add_fk';
 connection con1;
 SET DEBUG_SYNC = 'now WAIT_FOR conn_add_fk';
 ALTER TABLE child ADD CONSTRAINT cfx FOREIGN KEY (b) REFERENCES parent(b);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'cfx' in the referenced table 'parent'
 SET DEBUG_SYNC = 'RESET';
 connection default;
 DROP TABLE child;

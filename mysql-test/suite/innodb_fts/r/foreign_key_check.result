@@ -5,14 +5,14 @@ PRIMARY  KEY (id),
 FULLTEXT KEY (title),
 FOREIGN  KEY (id) REFERENCES t2 (id)
 ) ENGINE=InnoDB;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 't2'
 CREATE TABLE t1 (
 id       INT NOT NULL,
 title    TEXT,
 PRIMARY  KEY (id)
 ) ENGINE=InnoDB;
 ALTER TABLE t1 ADD FULLTEXT KEY (title), ADD FOREIGN KEY (id) REFERENCES t2 (id);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 't2'
 SET FOREIGN_KEY_CHECKS = 0;
 ALTER TABLE t1 ADD FULLTEXT KEY (title), ADD FOREIGN KEY (id) REFERENCES t2 (id);
 Warnings:

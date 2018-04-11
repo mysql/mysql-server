@@ -33,7 +33,7 @@ SET DEBUG_SYNC = 'now SIGNAL conn_add_fk';
 
 connection con1;
 SET DEBUG_SYNC = 'now WAIT_FOR conn_add_fk';
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE child ADD CONSTRAINT cfx FOREIGN KEY (b) REFERENCES parent(b);
 
 

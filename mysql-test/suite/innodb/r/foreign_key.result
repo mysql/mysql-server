@@ -89,7 +89,7 @@ set @@foreign_key_checks=0;
 CREATE TABLE t1(a CHAR(100), b GEOMETRY NOT NULL SRID 0) ENGINE InnoDB;
 # Creating a foreign key on a GEOMETRY column is not supported
 ALTER TABLE t1 ADD CONSTRAINT fi_b FOREIGN KEY(b) REFERENCES ti2(b);
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fi_b' in the foreign table 't1'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fi_b' in the foreign table 't1'
 # Adds FULLTEXT and SPATAL indices which cannot be used as foreign keys
 ALTER TABLE t1 ADD FULLTEXT INDEX(a), ADD SPATIAL INDEX(b);
 Warnings:
@@ -206,7 +206,7 @@ sixty int(11) DEFAULT NULL,
 PRIMARY KEY (pk),
 CONSTRAINT fk6 FOREIGN KEY (sixty) REFERENCES t1(sixty)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk6' in the referenced table 't1'
 DROP TABLE t1;
 #
 # Bug#27014308 - UPGRADING TO 8.0.3 FAILS IF FOREIGN KEYS OF EXACTLY 64 CHARACTERS ARE PRESENT

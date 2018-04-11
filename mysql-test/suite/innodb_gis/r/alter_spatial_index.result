@@ -619,9 +619,9 @@ SHOW INDEX FROM child;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 child	1	idx2	1	parent_id	A	#	32	NULL		SPATIAL			YES
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ON DELETE CASCADE ;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
 DROP table child,parent;
 CREATE TABLE parent (id GEOMETRY SRID 0 NOT NULL) ENGINE=InnoDB;
 CREATE TABLE child (id GEOMETRY NOT NULL, parent_id GEOMETRY NOT NULL SRID 0) ENGINE=InnoDB;
@@ -653,7 +653,7 @@ SHOW INDEX FROM child;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible
 child	1	idx2	1	parent_id	A	0	32	NULL		SPATIAL			YES
 ALTER TABLE child ADD FOREIGN KEY(parent_id) REFERENCES parent(id) ;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
 DROP table child,parent;
 create table t1 (c1 int) engine=innodb;
 insert into t1 values(NULL);

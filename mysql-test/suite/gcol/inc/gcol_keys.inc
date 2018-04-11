@@ -147,6 +147,7 @@ drop table t1;
 
 if($support_virtual_index)
 {
+create table t2 (a int primary key);
 --error ER_CANNOT_ADD_FOREIGN
 create table t1 (a int, b int generated always as (a+1) virtual,
                  foreign key (b) references t2(a));
@@ -154,7 +155,7 @@ create table t1 (a int, b int generated always as (a+1) virtual,
 create table t1 (a int, b int generated always as (a+1) virtual);
 --error ER_CANNOT_ADD_FOREIGN
 alter table t1 add foreign key (b) references t2(a);
-drop table t1;
+drop table t1, t2;
 }
 
 --echo # Allowed FK options.

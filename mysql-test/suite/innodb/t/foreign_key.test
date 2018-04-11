@@ -212,7 +212,7 @@ CREATE TABLE t1 (
   KEY allkeygc(unique1gc,unique2gc,twogc,fourgc,tengc,twentygc,fortygc,sixtygc,eightygc)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 CREATE TABLE t2_fk (
   pk int(11) NOT NULL,
   sixty int(11) DEFAULT NULL,

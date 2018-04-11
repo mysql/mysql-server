@@ -1980,6 +1980,18 @@ struct handlerton {
 
 #define HTON_SUPPORTS_ATOMIC_DDL (1 << 12)
 
+/**
+  Engine supports both unique and non-unique parent keys for
+  foreign keys which contain full foreign key as its prefix.
+
+  Storage engines which support foreign keys but do not have
+  this flag set are assumed to support only parent keys which
+  are primary/unique and contain exactly the same columns as
+  the foreign key, possibly, in different order.
+*/
+
+#define HTON_SUPPORTS_FKS_WITH_PREFIX_PARENT_KEYS (1 << 13)
+
 inline bool ddl_is_atomic(const handlerton *hton) {
   return (hton->flags & HTON_SUPPORTS_ATOMIC_DDL) != 0;
 }

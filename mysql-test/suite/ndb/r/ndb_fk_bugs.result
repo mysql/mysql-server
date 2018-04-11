@@ -74,20 +74,12 @@ CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
 country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
 country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
 RESTRICT ON UPDATE RESTRICT) engine=ndb;
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'country_language' in the referenced table 'counties'
 CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
 country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
 country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
 RESTRICT ON UPDATE RESTRICT) engine=ndb;
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'country_language' in the referenced table 'counties'
 CREATE TABLE languages (id INT NOT NULL PRIMARY KEY) engine=ndb;
 drop table languages, towns, counties;
 # test: child vs parent column types
@@ -131,11 +123,7 @@ primary key using hash (a),
 key (b),
 constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1215	Parent table t1 not found in NDB: 723: No such table existed
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 't1'
 create table t2 (
 a int not null,
 b int not null,
@@ -144,11 +132,7 @@ key (b)
 ) engine ndb;
 alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1215	Parent table t1 not found in NDB: 723: No such table existed
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 't1'
 drop table t2;
 # test: parent column not exist
 create table t1 (
@@ -162,11 +146,7 @@ primary key using hash (a),
 key (b),
 constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1215	Parent table t1 has no column b in NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 create table t2 (
 a int not null,
 b int not null,
@@ -175,11 +155,7 @@ key (b)
 ) engine ndb;
 alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1215	Parent table t1 has no column b in NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 drop table t2, t1;
 # test: parent key no index
 create table t1 (
@@ -194,11 +170,7 @@ primary key using hash (a),
 key (b),
 constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
-show warnings;
-Level	Code	Message
-Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 create table t2 (
 a int not null,
 b int not null,
@@ -207,11 +179,7 @@ key (b)
 ) engine ndb;
 alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
-show warnings;
-Level	Code	Message
-Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 drop table t2, t1;
 # test: parent key no unique index
 create table t1 (
@@ -227,11 +195,7 @@ primary key using hash (a),
 key (b),
 constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 create table t2 (
 a int not null,
 b int not null,
@@ -240,11 +204,7 @@ key (b)
 ) engine ndb;
 alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 drop table t2, t1;
 # test: child column not exist
 create table t1 (
@@ -315,11 +275,7 @@ primary key using hash (a),
 key (b),
 constraint fk1 foreign key (b) references t1 (b)
 ) engine ndb;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
-show warnings;
-Level	Code	Message
-Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 create table t2 (
 a int not null,
 b int not null,
@@ -328,11 +284,7 @@ key (b)
 ) engine ndb;
 alter table t2 algorithm=inplace,
 add constraint fk1 foreign key (b) references t1 (b);
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
-show warnings;
-Level	Code	Message
-Error	1822	Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 drop table t2, t1;
 # bug#16246874
 create table t1 (
@@ -646,10 +598,6 @@ foreign key t2fk1 (b) references t1 (b)
 # try to drop indexes
 alter table t1 drop index t1x1;
 ERROR HY000: Cannot drop index 't1x1': needed in a foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21081 'Drop index not allowed in NDB - used as parent index of a foreign key' from NDB
-Error	1553	Cannot drop index 't1x1': needed in a foreign key constraint
 alter table t2 drop index t2x1;
 ERROR HY000: Cannot drop index 't2x1': needed in a foreign key constraint
 show warnings;

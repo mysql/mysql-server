@@ -79,7 +79,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 SET @@foreign_key_checks= 1;
 CREATE TABLE t1(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES non(a));
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 'non'
 CREATE TABLE t1(a INT PRIMARY KEY, b INT REFERENCES non(a));
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -89,7 +89,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD FOREIGN KEY (b) REFERENCES non(a);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 'non'
 DROP TABLE t1;
 CREATE TABLE t1(a INT PRIMARY KEY);
 CREATE TABLE t2(a INT PRIMARY KEY, b INT, FOREIGN KEY (b) REFERENCES t1(a));
@@ -484,10 +484,10 @@ DROP TABLE t1;
 CREATE TABLE t1(a INT PRIMARY KEY,
 b INT GENERATED ALWAYS AS (a+1) VIRTUAL UNIQUE);
 CREATE TABLE t2(a INT, FOREIGN KEY (a) REFERENCES t1(b));
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2_ibfk_1' in the referenced table 't1'
 CREATE TABLE t2(a INT);
 ALTER TABLE t2 ADD FOREIGN KEY(a) REFERENCES t1(b);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2_ibfk_1' in the referenced table 't1'
 DROP TABLE t1, t2;
 # FK on generated stored column
 CREATE TABLE t1(a INT PRIMARY KEY);
@@ -2977,15 +2977,15 @@ ERROR HY000: Duplicate foreign key constraint name 't3_ibfk_1'
 # Check that we detect potential conflicts resulting from
 # application of RENAME clause early.
 DROP TABLE t4;
-ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES test.t1 (pk),
 ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
 ALGORITHM=COPY;
 ERROR HY000: Duplicate foreign key constraint name 'd'
-ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES test.t1 (pk),
 ADD UNIQUE KEY (u), RENAME TO t8,
 ALGORITHM=COPY;
 ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
-ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES test.t1 (pk),
 ADD UNIQUE KEY (u), RENAME TO mysqltest.t8,
 ALGORITHM=COPY;
 ERROR HY000: Duplicate foreign key constraint name 't8_ibfk_1'
@@ -3051,3 +3051,301 @@ FOREIGN KEY(fk) REFERENCES t1 (pk));
 ALTER TABLE t1 ADD FOREIGN KEY (fk) REFERENCES t2 (pk);
 USE test;
 DROP SCHEMA mysqltest;
+#
+# Bug#27506922 "DROPPING OF PARENT KEY FOR FOREIGN KEY IS ALLOWED".
+#
+#
+# 1) CREATE TABLE with FK and no parent key.
+#
+CREATE TABLE parent(pk INT PRIMARY KEY, a INT);
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT,
+FOREIGN KEY (fk) REFERENCES self(a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT,
+FOREIGN KEY (fk) REFERENCES self(a));
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+# Missing parent table case.
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES no_such_parent(pk));
+ERROR HY000: Failed to open the referenced table 'no_such_parent'
+# We allow creation of orphan FKs in FOREIGN_KEY_CHECKS = 0 mode.
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES no_such_parent(pk));
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE child;
+#
+# 2) ALTER TABLE which adds FK without parent key.
+#
+CREATE TABLE child (fk INT, fk2 INT);
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES parent(a), ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE self (pk INT PRIMARY KEY, a INT, fk INT);
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+ALTER TABLE self ADD FOREIGN KEY (fk) REFERENCES self(a), ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'self_ibfk_1' in the referenced table 'self'
+# Missing parent table case.
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=COPY;
+ERROR HY000: Failed to open the referenced table 'no_such_parent'
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=INPLACE;
+ERROR HY000: Failed to open the referenced table 'no_such_parent'
+# We allow creation of orphan FKs in FOREIGN_KEY_CHECKS = 0 mode.
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE child ADD FOREIGN KEY (fk) REFERENCES no_such_parent(pk), ALGORITHM=COPY;
+ALTER TABLE child ADD FOREIGN KEY (fk2) REFERENCES no_such_parent(pk), ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE child, self, parent;
+#
+# 3) ALTER TABLE which drops parent key.
+#
+CREATE TABLE parent (pk INT PRIMARY KEY, u INT NOT NULL, UNIQUE(u));
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(u));
+ALTER TABLE parent DROP KEY u, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+ALTER TABLE parent DROP KEY u, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent DROP KEY u, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+ALTER TABLE parent DROP KEY u, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE self (pk INT PRIMARY KEY, u INT NOT NULL, fk INT, UNIQUE(u),
+FOREIGN KEY (fk) REFERENCES self(u));
+ALTER TABLE self DROP KEY u, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+ALTER TABLE self DROP KEY u, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE self DROP KEY u, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+ALTER TABLE self DROP KEY u, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'u': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 1;
+# Check case which requires additional handling during error-reporting.
+# Attempt to drop non-unique parent key.
+ALTER TABLE parent DROP KEY u, ADD KEY nu(u);
+ALTER TABLE parent DROP KEY nu, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+ALTER TABLE parent DROP KEY nu, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent DROP KEY nu, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+ALTER TABLE parent DROP KEY nu, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE self DROP KEY u, ADD KEY nu(u);
+ALTER TABLE self DROP KEY nu, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+ALTER TABLE self DROP KEY nu, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE self DROP KEY nu, ALGORITHM=COPY;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+ALTER TABLE self DROP KEY nu, ALGORITHM=INPLACE;
+ERROR HY000: Cannot drop index 'nu': needed in a foreign key constraint
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLES self, child, parent;
+#
+# 4) CREATE, RENAME and ALTER TABLE RENAME which create new
+#    parent for previously orphan child table.
+#
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(a));
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+ERROR HY000: Cannot add foreign key constraint
+SET FOREIGN_KEY_CHECKS = 0;
+CREATE TABLE parent (pk INT PRIMARY KEY, a INT);
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+CREATE TABLE parent1 (pk INT PRIMARY KEY, a INT);
+RENAME TABLE parent1 TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+RENAME TABLE parent1 TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE parent1 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent1 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE parent1 ADD COLUMN b INT, RENAME TO parent, ALGORITHM=INPLACE;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent1 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+ALTER TABLE parent1 ADD COLUMN b INT, RENAME TO parent, ALGORITHM=COPY;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 0;
+ALTER TABLE parent1 RENAME TO parent;
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'child_ibfk_1' in the referenced table 'parent'
+SET FOREIGN_KEY_CHECKS = 1;
+DROP TABLE parent1, child;
+#
+# 5) Special case. ALTER TABLE which replaces parent key with another
+#    one due to new key creation. Old key is generated so it is
+#    automagically replaced with a new explicit key or more universal
+#    generated key.
+#
+CREATE TABLE grandparent (pk INT PRIMARY KEY);
+CREATE TABLE parent (pkfk INT, FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pkfk` int(11) DEFAULT NULL,
+  KEY `pkfk` (`pkfk`),
+  CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pkfk));
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	NULL
+ALTER TABLE parent ADD UNIQUE KEY u (pkfk);
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pkfk` int(11) DEFAULT NULL,
+  UNIQUE KEY `u` (`pkfk`),
+  CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	u
+DROP TABLE child, parent;
+CREATE TABLE self (fk INT, pkfk INT,
+FOREIGN KEY (fk) REFERENCES self (pkfk),
+FOREIGN KEY (pkfk) REFERENCES grandparent(pk));
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `fk` int(11) DEFAULT NULL,
+  `pkfk` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  KEY `pkfk` (`pkfk`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk`),
+  CONSTRAINT `self_ibfk_2` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+grandparent	PRIMARY
+self	NULL
+ALTER TABLE self ADD UNIQUE KEY u (pkfk);
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `fk` int(11) DEFAULT NULL,
+  `pkfk` int(11) DEFAULT NULL,
+  UNIQUE KEY `u` (`pkfk`),
+  KEY `fk` (`fk`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk`),
+  CONSTRAINT `self_ibfk_2` FOREIGN KEY (`pkfk`) REFERENCES `grandparent` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+grandparent	PRIMARY
+self	u
+DROP TABLE self, grandparent;
+CREATE TABLE grandparent1 (pk INT PRIMARY KEY);
+CREATE TABLE grandparent2 (pk1 INT , pk2 INT, PRIMARY KEY(pk1, pk2));
+CREATE TABLE parent (pkfk1 INT, pkfk2 INT, FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pkfk1` int(11) DEFAULT NULL,
+  `pkfk2` int(11) DEFAULT NULL,
+  KEY `pkfk1` (`pkfk1`),
+  CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE child (fk INT, FOREIGN KEY (fk) REFERENCES parent(pkfk1));
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	NULL
+ALTER TABLE parent ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2);
+SHOW CREATE TABLE parent;
+Table	Create Table
+parent	CREATE TABLE `parent` (
+  `pkfk1` int(11) DEFAULT NULL,
+  `pkfk2` int(11) DEFAULT NULL,
+  KEY `pkfk1` (`pkfk1`,`pkfk2`),
+  CONSTRAINT `parent_ibfk_1` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`),
+  CONSTRAINT `parent_ibfk_2` FOREIGN KEY (`pkfk1`, `pkfk2`) REFERENCES `grandparent2` (`pk1`, `pk2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'child';
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+parent	NULL
+DROP TABLE child, parent;
+CREATE TABLE self (fk INT, pkfk1 INT, pkfk2 INT,
+FOREIGN KEY (fk) REFERENCES self (pkfk1),
+FOREIGN KEY (pkfk1) REFERENCES grandparent1(pk));
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `fk` int(11) DEFAULT NULL,
+  `pkfk1` int(11) DEFAULT NULL,
+  `pkfk2` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  KEY `pkfk1` (`pkfk1`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk1`),
+  CONSTRAINT `self_ibfk_2` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+grandparent1	PRIMARY
+self	NULL
+ALTER TABLE self ADD FOREIGN KEY (pkfk1, pkfk2) REFERENCES grandparent2(pk1, pk2);
+SHOW CREATE TABLE self;
+Table	Create Table
+self	CREATE TABLE `self` (
+  `fk` int(11) DEFAULT NULL,
+  `pkfk1` int(11) DEFAULT NULL,
+  `pkfk2` int(11) DEFAULT NULL,
+  KEY `fk` (`fk`),
+  KEY `pkfk1` (`pkfk1`,`pkfk2`),
+  CONSTRAINT `self_ibfk_1` FOREIGN KEY (`fk`) REFERENCES `self` (`pkfk1`),
+  CONSTRAINT `self_ibfk_2` FOREIGN KEY (`pkfk1`) REFERENCES `grandparent1` (`pk`),
+  CONSTRAINT `self_ibfk_3` FOREIGN KEY (`pkfk1`, `pkfk2`) REFERENCES `grandparent2` (`pk1`, `pk2`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT referenced_table_name, unique_constraint_name FROM
+information_schema.referential_constraints WHERE table_name = 'self'
+  ORDER BY referenced_table_name;
+REFERENCED_TABLE_NAME	UNIQUE_CONSTRAINT_NAME
+grandparent1	PRIMARY
+grandparent2	PRIMARY
+self	NULL
+DROP TABLE self, grandparent1, grandparent2;
