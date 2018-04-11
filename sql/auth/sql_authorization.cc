@@ -6387,6 +6387,55 @@ bool revoke_grant_option_for_all_dynamic_privileges(
 }
 
 /**
+  Grant nedded dynamic privielges to in memory internal auth id.
+
+  @param id            auth id to which privileges needs to be granted
+  @param priv_list     List of privileges to be added to internal auth id
+
+  @return
+    True    In case privilege is not registered
+    False   Success
+*/
+bool grant_dynamic_privileges_to_auth_id(
+    const Role_id &id, const std::vector<std::string> &priv_list) {
+  DBUG_ENTER("grant_dynamic_privileges_to_auth_id");
+  Update_dynamic_privilege_table update_table;
+
+  /* --skip-grants */
+  if (!initialized) DBUG_RETURN(false);
+  for (auto it : priv_list) {
+    LEX_CSTRING priv = {it.c_str(), it.length()};
+    LEX_CSTRING user = {id.user().c_str(), id.user().length()};
+    LEX_CSTRING host = {id.host().c_str(), id.host().length()};
+    if (grant_dynamic_privilege(priv, user, host, false, update_table))
+      DBUG_RETURN(true);
+  }
+  DBUG_RETURN(false);
+}
+
+/**
+  Revoke dynamic privielges from in memory internal auth id.
+
+  @param id            auth id from which privileges needs to be revoked
+  @param priv_list     List of privileges to be removed for internal auth id
+
+  @return None
+*/
+void revoke_dynamic_privileges_from_auth_id(
+    const Role_id &id, const std::vector<std::string> &priv_list) {
+  DBUG_ENTER("revoke_dynamic_privileges_from_auth_id");
+  if (!initialized) DBUG_VOID_RETURN;
+  Update_dynamic_privilege_table update_table;
+  for (auto priv_it : priv_list) {
+    LEX_CSTRING user = {id.user().c_str(), id.user().length()};
+    LEX_CSTRING host = {id.host().c_str(), id.host().length()};
+    LEX_CSTRING priv = {priv_it.c_str(), priv_it.length()};
+    revoke_dynamic_privilege(priv, user, host, update_table);
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
   Revoke one privilege from one user
   @param str_priv
   @param str_user
@@ -6652,6 +6701,96 @@ void update_mandatory_roles(void) {
   mysql_mutex_assert_owner(&LOCK_mandatory_roles);
   opt_mandatory_roles_cache = false;
   get_global_acl_cache()->increase_version();
+}
+
+Default_local_authid::Default_local_authid(const THD *thd) : m_thd(thd) {}
+
+/**
+ Check if the security context can be created as a local authid
+ @param sctx[out] The authid to be checked.
+ @return Success status
+  @retval true an error occurred
+  @retval false success
+*/
+bool Default_local_authid::precheck(
+    Security_context *sctx MY_ATTRIBUTE((unused))) {
+  return false;
+}
+
+/**
+ Create a local authid without modifying any tables.
+ @param sctx[out] The authid that will be extended with a user profile
+ @return Success status
+  @retval true an error occurred
+  @retval false success
+*/
+bool Default_local_authid::create(
+    Security_context *sctx MY_ATTRIBUTE((unused))) {
+  return false;
+}
+
+Grant_temporary_dynamic_privileges::Grant_temporary_dynamic_privileges(
+    const THD *thd, const std::vector<std::string> privs)
+    : m_thd(thd), m_privs(privs) {}
+
+bool Grant_temporary_dynamic_privileges::precheck(
+    Security_context *sctx MY_ATTRIBUTE((unused))) {
+  return false;
+}
+
+/**
+ Grant dynamic privileges to an in-memory global authid
+ @param sctx The authid to grant privileges to.
+ @return Success status
+  @retval true an error occurred
+  @retval false success
+ */
+bool Grant_temporary_dynamic_privileges::grant_privileges(
+    Security_context *sctx) {
+  return grant_dynamic_privileges_to_auth_id(
+      Role_id(sctx->priv_user(), sctx->priv_host()), m_privs);
+}
+
+void Drop_temporary_dynamic_privileges::operator()(Security_context *sctx) {
+  revoke_dynamic_privileges_from_auth_id(
+      Role_id(sctx->priv_user(), sctx->priv_host()), m_privs);
+}
+
+Sctx_ptr<Security_context> Security_context_factory::create() {
+  /* Setup default Security context */
+  Security_context *sctx = new Security_context();
+  sctx->init();
+  sctx->assign_user(m_user.c_str(), m_user.length());
+  sctx->assign_host(m_host.c_str(), m_host.length());
+  sctx->assign_priv_user(m_user.c_str(), m_user.length());
+  sctx->assign_priv_host(m_host.c_str(), m_host.length());
+
+  bool error = true;
+  while (error) {
+    // 1. Precheck conditions for creating the authid under current policy
+    if (m_user_profile(sctx, Security_context_policy::Precheck)) break;
+    // 2. Create the authid under the given policy
+    if (m_user_profile(sctx, Security_context_policy::Execute)) break;
+    // 3. Check preconditions for assigning privileges under the current policy
+    if (m_privileges(sctx, Security_context_policy::Precheck)) break;
+    // 4. Assign the privileges
+    if (m_privileges(sctx, Security_context_policy::Execute)) break;
+
+    error = false;
+  }
+
+  /* 5. check if policy still holds. */
+  if (error) {
+    /* Each specific policy must raise its own errors */
+    return nullptr;
+  }
+
+  sctx->set_drop_policy(m_drop_policy);
+  return Sctx_ptr<Security_context>(sctx, [](Security_context *sctx) {
+    if (sctx->has_drop_policy()) {
+      sctx->execute_drop_policy();
+    }
+  });
 }
 
 bool operator==(const Role_id &a, const std::string &b) {
