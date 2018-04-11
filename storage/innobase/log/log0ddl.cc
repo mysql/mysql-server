@@ -824,6 +824,14 @@ dberr_t Log_DDL::write_free_tree_log(trx_t *trx, const dict_index_t *index,
     return (DB_SUCCESS);
   }
 
+  if (dict_index_get_online_status(index) != ONLINE_INDEX_COMPLETE) {
+    /* To skip any previously aborted index. This is because this kind
+    of index should be already freed in previous post_ddl. It's inproper
+    to log it and may free it again later, which may trigger some
+    double free page problem. */
+    return (DB_SUCCESS);
+  }
+
   uint64_t id = next_id();
   ulint thread_id = thd_get_thread_id(trx->mysql_thd);
   dberr_t err;
