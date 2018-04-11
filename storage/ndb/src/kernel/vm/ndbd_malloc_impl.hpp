@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -652,7 +652,8 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
   page_num -= g_random_start_page_id;
 #endif
   const Uint32 page_region_index = page_num & PAGE_REGION_MASK;
-  if (page_region_index == 0 || page_region_index == PAGE_REGION_MASK)
+  if (unlikely(page_region_index == 0 ||
+               page_region_index == PAGE_REGION_MASK))
   {
     /**
      * First page in region are used internally for bitmap.
@@ -698,7 +699,7 @@ Ndbd_mem_manager::get_valid_page(Uint32 page_num) const
     }
   } while (!m_mapped_pages_lock.read_unlock(lock_value));
 
-  if (!page_is_mapped)
+  if (unlikely(!page_is_mapped))
   {
 #ifdef NDBD_RANDOM_START_PAGE
     ndbout_c("Warning: Ndbd_mem_manager::get_valid_page: unmapped page %u %u",

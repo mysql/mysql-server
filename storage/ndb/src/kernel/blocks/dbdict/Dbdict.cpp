@@ -6458,7 +6458,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
       }
     }
 
-    if (!c_attributeRecordPool.seize(attrPtr))
+    if (unlikely(!c_attributeRecordPool.seize(attrPtr)))
     {
       jam();
       parseP->errorCode = CreateTableRef::NoMoreAttributeRecords;
