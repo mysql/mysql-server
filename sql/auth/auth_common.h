@@ -819,6 +819,7 @@ extern volatile uint32 global_password_history, global_password_reuse_interval;
 
 struct Security_context_policy {
   enum Operation { Precheck, Execute };
+  virtual ~Security_context_policy() = default;
   virtual bool operator()(Security_context *, Operation) = 0;
 };
 
