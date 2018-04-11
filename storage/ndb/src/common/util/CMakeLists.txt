@@ -59,7 +59,6 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             ConfigValues.cpp
             ndb_init.cpp
             ndb_opts.cpp
-            basestring_vsnprintf.cpp
             Bitmask.cpp
 	    SparseBitmask.cpp
             require.cpp

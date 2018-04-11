@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #include <ndb_global.h>
 #include <ndb_version.h>
 #include <version.h>
-#include <basestring_vsnprintf.h>
 #include <NdbOut.hpp>
 
 extern "C"
@@ -64,28 +63,28 @@ const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version,
 {
   char tmp[NDB_VERSION_STRING_BUF_SZ];
   if (status && status[0] != 0)
-    basestring_snprintf(tmp, sizeof(tmp), "%s", status);
+    snprintf(tmp, sizeof(tmp), "%s", status);
   else
     tmp[0] = 0;
 
   if (mysql_version)
   {
-    basestring_snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s",
-			getMajor(mysql_version),
-			getMinor(mysql_version),
-			getBuild(mysql_version),
-			getMajor(version),
-			getMinor(version),
-			getBuild(version),
-			tmp);
+    snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s",
+             getMajor(mysql_version),
+             getMinor(mysql_version),
+             getBuild(mysql_version),
+             getMajor(version),
+             getMinor(version),
+             getBuild(version),
+             tmp);
   }
   else
   {
-    basestring_snprintf(buf, sz, "ndb-%d.%d.%d%s",
-			getMajor(version),
-			getMinor(version),
-			getBuild(version),
-			tmp);
+    snprintf(buf, sz, "ndb-%d.%d.%d%s",
+             getMajor(version),
+             getMinor(version),
+             getBuild(version),
+             tmp);
   }
   return buf;
 }

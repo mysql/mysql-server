@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 
 #include <ndb_global.h>
 #include <BaseString.hpp>
-#include "basestring_vsnprintf.h"
 
 BaseString::BaseString()
 {
@@ -222,7 +221,7 @@ BaseString::assfmt(const char *fmt, ...)
      * when called as vsnprintf(NULL, 0, ...).
      */
     va_start(ap, fmt);
-    l = basestring_vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
+    l = std::vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
     va_end(ap);
     if(l > (int)m_len) {
         char *t = new char[l];
@@ -235,7 +234,7 @@ BaseString::assfmt(const char *fmt, ...)
 	m_chr = t;
     }
     va_start(ap, fmt);
-    l = basestring_vsnprintf(m_chr, l, fmt, ap);
+    l = std::vsnprintf(m_chr, l, fmt, ap);
     assert(l == (int)strlen(m_chr));
     va_end(ap);
     m_len = (unsigned)strlen(m_chr);
@@ -254,7 +253,7 @@ BaseString::appfmt(const char *fmt, ...)
      * when called as vsnprintf(NULL, 0, ...).
      */
     va_start(ap, fmt);
-    l = basestring_vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
+    l = std::vsnprintf(buf, sizeof(buf), fmt, ap) + 1;
     va_end(ap);
     char *tmp = new char[l];
     if (tmp == NULL)
@@ -263,7 +262,7 @@ BaseString::appfmt(const char *fmt, ...)
       return *this;
     }
     va_start(ap, fmt);
-    basestring_vsnprintf(tmp, l, fmt, ap);
+    std::vsnprintf(tmp, l, fmt, ap);
     va_end(ap);
     append(tmp);
     delete[] tmp;
@@ -511,7 +510,7 @@ BaseString::trim(char * str, const char * delim){
 int
 BaseString::vsnprintf(char *str, size_t size, const char *format, va_list ap)
 {
-  return(basestring_vsnprintf(str, size, format, ap));
+  return(std::vsnprintf(str, size, format, ap));
 }
 
 int
@@ -519,7 +518,7 @@ BaseString::snprintf(char *str, size_t size, const char *format, ...)
 {
   va_list ap;
   va_start(ap, format);
-  int ret= basestring_vsnprintf(str, size, format, ap);
+  int ret= std::vsnprintf(str, size, format, ap);
   va_end(ap);
   return(ret);
 }

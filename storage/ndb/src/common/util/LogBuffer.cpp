@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 #include <portlib/NdbCondition.h>
 #include <portlib/NdbThread.h>
 #include <BaseString.hpp>
-#include <basestring_vsnprintf.h>
 
 LogBuffer::LogBuffer(size_t size) :
     m_log_buf(0),
@@ -155,13 +154,13 @@ LogBuffer::checkForBufferSpace(size_t write_bytes)
   {
     char* write_ptr = NULL;
     const char* lost_msg = "\n*** %u BYTES LOST ***\n";
-    int lost_msg_len = basestring_snprintf(NULL, 0, lost_msg, m_lost_count);
+    int lost_msg_len = snprintf(NULL, 0, lost_msg, m_lost_count);
     assert(lost_msg_len > 0);
 
     // append the lost msg
     if((write_ptr = getWritePtr(write_bytes + lost_msg_len + 1)))
     {
-      basestring_snprintf(write_ptr, lost_msg_len + 1, lost_msg, m_lost_count);
+      snprintf(write_ptr, lost_msg_len + 1, lost_msg, m_lost_count);
       m_lost_count = 0; // make lost count 0
       if(write_ptr == m_log_buf && m_write_ptr != m_log_buf)
       {
@@ -263,7 +262,7 @@ LogBuffer::append(const char* fmt, va_list ap, size_t len, bool append_ln)
 
     if(write_ptr)
     {
-      res = basestring_vsnprintf(write_ptr, write_bytes, fmt, ap);
+      res = vsnprintf(write_ptr, write_bytes, fmt, ap);
       assert(res >= 0);
 
       if(append_ln)
@@ -466,7 +465,7 @@ void fun(const char* fmt, ...)
   va_list arguments;
 
   va_start(arguments, fmt);
-  int len = basestring_vsnprintf(NULL, 0, fmt, arguments);
+  int len = vsnprintf(NULL, 0, fmt, arguments);
   va_end(arguments);
 
   va_start(arguments, fmt);
