@@ -839,3 +839,8 @@ DROP TABLE t1;
 #
 SELECT regexp_replace( ' F' , '^ ', '[,$' );
 ERROR HY000: A capture group has an invalid name.
+#
+# Bug#27751277: ASSERTION FALSE IN REGEXP::CHECK_ICU_STATUS
+#
+SELECT regexp_instr( 'abc', '(?-' );
+ERROR HY000: Invalid match mode flag in regular expression.

@@ -71,7 +71,8 @@ std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     {U_REGEX_STOPPED_BY_CALLER, ER_QUERY_INTERRUPTED},
     {U_REGEX_TIME_OUT, ER_REGEXP_TIME_OUT},
     {U_REGEX_PATTERN_TOO_BIG, ER_REGEXP_PATTERN_TOO_BIG},
-    {U_REGEX_INVALID_CAPTURE_GROUP_NAME, ER_REGEXP_INVALID_CAPTURE_GROUP_NAME}};
+    {U_REGEX_INVALID_CAPTURE_GROUP_NAME, ER_REGEXP_INVALID_CAPTURE_GROUP_NAME},
+    {U_REGEX_INVALID_FLAG, ER_REGEXP_INVALID_FLAG}};
 
 bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
   if (status == U_ZERO_ERROR || U_SUCCESS(status)) return false;
