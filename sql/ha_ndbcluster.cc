@@ -65,6 +65,7 @@
 #include "sql/ndb_mi.h"
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_modifiers.h"
+#include "sql/ndb_require.h"
 #include "sql/ndb_schema_dist.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
@@ -7017,9 +7018,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 */
 void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
 {
-  int res;
-  (void)res; // Bug#27150980 NDB_UNPACK_RECORD NEED ERROR HANDLING
-  DBUG_ASSERT(src_row != NULL);
+  DBUG_ASSERT(src_row != nullptr);
 
   my_ptrdiff_t dst_offset= dst_row - table->record[0];
   my_ptrdiff_t src_offset= src_row - table->record[0];
@@ -7046,8 +7045,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
           /* Field_bit in DBUG requires the bit set in write_set for store(). */
           my_bitmap_map *old_map=
             dbug_tmp_use_all_columns(table, table->write_set);
-          int res = field_bit->store(value, true);
-          assert(res == 0); NDB_IGNORE_VALUE(res);
+          ndbcluster::ndbrequire(field_bit->store(value, true) == 0);
           dbug_tmp_restore_column_map(table->write_set, old_map);
           field->move_field_offset(-dst_offset);
         }
@@ -7061,17 +7059,16 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
          * Verify Blob state to be certain.
          * Accessing PK/UK op Blobs after execute() is unsafe
          */
-        DBUG_ASSERT(ndb_blob != 0);
+        DBUG_ASSERT(ndb_blob != nullptr);
         DBUG_ASSERT(ndb_blob->getState() == NdbBlob::Active);
         int isNull;
-        res= ndb_blob->getNull(isNull);
-        DBUG_ASSERT(res == 0);                  // Already succeeded once
+        ndbcluster::ndbrequire(ndb_blob->getNull(isNull) == 0);
         Uint64 len64= 0;
         field_blob->move_field_offset(dst_offset);
         if (!isNull)
         {
-          res= ndb_blob->getLength(len64);
-          DBUG_ASSERT(res == 0 && len64 <= (Uint64)0xffffffff);
+          ndbcluster::ndbrequire(ndb_blob->getLength(len64) == 0);
+          ndbcluster::ndbrequire(len64 <= (Uint64)0xffffffff);
 
           if(len64 > field_blob->max_data_length())
           {
@@ -14639,7 +14636,7 @@ void ha_ndbcluster::check_read_before_write_removal()
   /* Index must be unique */
   DBUG_PRINT("info", ("using index %d", active_index));
   const KEY *key= table->key_info + active_index;
-  assert((key->flags & HA_NOSAME)); NDB_IGNORE_VALUE(key);
+  ndbcluster::ndbrequire((key->flags & HA_NOSAME));
 
   DBUG_VOID_RETURN;
 }

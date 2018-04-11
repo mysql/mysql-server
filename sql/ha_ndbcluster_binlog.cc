@@ -47,6 +47,7 @@
 #include "sql/ndb_log.h"
 #include "sql/ndb_name_util.h"
 #include "sql/ndb_ndbapi_util.h"
+#include "sql/ndb_require.h"
 #include "sql/ndb_sleep.h"
 #include "sql/ndb_table_guard.h"
 #include "sql/ndb_tdc.h"
@@ -5476,7 +5477,7 @@ Ndb_binlog_client::create_event_op(NDB_SHARE* share,
     {
       // set injector_ndb database/schema from table internal name
       int ret= ndb->setDatabaseAndSchemaName(ndbtab);
-      assert(ret == 0); NDB_IGNORE_VALUE(ret);
+      ndbcluster::ndbrequire(ret == 0);
       op= ndb->createEventOperation(event_name.c_str());
       // reset to catch errors
       ndb->setDatabaseName("");
@@ -6679,7 +6680,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
 #endif
   injector::transaction::table tbl(apply_status_table, true);
   int ret = trans.use_table(::server_id, tbl);
-  assert(ret == 0); NDB_IGNORE_VALUE(ret);
+  ndbcluster::ndbrequire(ret == 0);
 
   ret= trans.write_row(::server_id,
                        injector::transaction::table(apply_status_table,
@@ -7501,7 +7502,7 @@ restart_cluster_failure:
                                     table->s->fields));
                 injector::transaction::table tbl(table, true);
                 int ret = trans.use_table(::server_id, tbl);
-                assert(ret == 0); NDB_IGNORE_VALUE(ret);
+                ndbcluster::ndbrequire(ret == 0);
               }
             }
           }
