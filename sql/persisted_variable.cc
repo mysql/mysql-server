@@ -59,6 +59,7 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "prealloced_array.h"
+#include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"  // DEBUG_SYNC
@@ -598,13 +599,14 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
   vector<st_persist_var> *persist_variables = NULL;
   ulong access = 0;
   bool result = 0, new_thd = 0;
-
+  const std::vector<std::string> priv_list = {
+      "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN"};
+  Sctx_ptr<Security_context> ctx;
   /*
     if persisted_globals_load is set to false or --no-defaults is set
     then do not set persistent options
   */
   if (no_defaults || !persisted_globals_load) return 0;
-
   /*
     This function is called in only 2 places
       1. During server startup.
@@ -630,6 +632,14 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     /* save access privileges */
     access = thd->security_context()->master_access();
     thd->security_context()->set_master_access(~(ulong)0);
+    /* create security context for bootstrap auth id */
+    Security_context_factory default_factory(
+        thd, "bootstrap", "localhost", Default_local_authid(thd),
+        Grant_temporary_dynamic_privileges(thd, priv_list),
+        Drop_temporary_dynamic_privileges(priv_list));
+    ctx = default_factory.create();
+    /* attach this auth id to current security_context */
+    thd->set_security_context(ctx.get());
     thd->real_id = my_thread_self();
     new_thd = 1;
   }
@@ -753,6 +763,7 @@ err:
     thd->security_context()->set_master_access(access);
     lex_end(thd->lex);
     thd->release_resources();
+    ctx.reset(nullptr);
     delete thd;
   } else {
     thd->lex = sav_lex;

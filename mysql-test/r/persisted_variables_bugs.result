@@ -237,4 +237,18 @@ optimizer_trace_offset	-1
 sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 # Cleanup
 RESET PERSIST;
+#
+# Bug #27523095: SET PERSIST MANDATORY_ROLES FAILS TO START THE SERVER
+#
+SET PERSIST mandatory_roles= default;
+# Restart server and check if server starts
+# restart
+SET PERSIST keyring_operations= default;
+# Restart server and check if server starts
+# restart
+SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
+VARIABLE_NAME	VARIABLE_VALUE
+keyring_operations	ON
+mandatory_roles	
+RESET PERSIST;
 # End of the 8.0 tests

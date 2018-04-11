@@ -64,6 +64,8 @@ void Security_context::init() {
   m_map_checkout_count = 0;
   m_password_expired = false;
   m_is_locked = false;
+  m_has_drop_policy = false;
+  m_executed_drop_policy = false;
   DBUG_VOID_RETURN;
 }
 
@@ -79,8 +81,27 @@ void Security_context::logout() {
   }
 }
 
+bool Security_context::has_drop_policy(void) { return m_has_drop_policy; }
+
+void Security_context::execute_drop_policy(void) {
+  if (m_has_drop_policy && !m_executed_drop_policy) {
+    m_drop_policy(this);
+    m_executed_drop_policy = true;
+  }
+}
+
+void Security_context::set_drop_policy(
+    const std::function<void(Security_context *)> &func) {
+  m_drop_policy = func;
+  m_has_drop_policy = true;
+  m_executed_drop_policy = false;
+}
+
 void Security_context::destroy() {
   DBUG_ENTER("Security_context::destroy");
+  if (m_has_drop_policy && !m_executed_drop_policy) {
+    m_drop_policy(this);
+  }
   if (m_acl_map) {
     DBUG_PRINT(
         "info",
@@ -146,6 +167,8 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
   m_master_access = src_sctx.m_master_access;
   m_password_expired = src_sctx.m_password_expired;
   m_acl_map = 0;  // acl maps are reference counted we can't copy or share them!
+  m_has_drop_policy = false;  // you cannot copy a drop policy
+  m_executed_drop_policy = false;
   DBUG_VOID_RETURN;
 }
 
@@ -161,6 +184,9 @@ void Security_context::copy_security_ctx(const Security_context &src_sctx) {
                        in the thread. In case of success it points to the
                        saved old context, otherwise it points to NULL.
 
+
+  @note The Security_context_factory should be used as a replacement to this
+    function at every opportunity.
 
   During execution of a statement, multiple security contexts may
   be needed:
