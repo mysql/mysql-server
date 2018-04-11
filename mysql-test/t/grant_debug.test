@@ -186,7 +186,7 @@ let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 
 --echo # Start the server to simulate acl_init() failure
 --error 1
---exec $MYSQLD_CMD --datadir=$DDIR --debug=+d,simulate_acl_init_failure > $server_log 2>&1
+--exec $MYSQLD_CMD --datadir=$DDIR --debug=d,simulate_acl_init_failure --loose-console > $server_log 2>&1
 
 let SEARCH_FILE=$server_log;
 let SEARCH_PATTERN=Table 'user' is marked as crashed and should be repaired;
@@ -197,6 +197,6 @@ let SEARCH_PATTERN=Aborting;
 --source include/search_pattern.inc
 
 --echo # Restart the server
---exec echo "restart: --debug=-d,simulate_acl_init_failure" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
