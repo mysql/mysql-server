@@ -257,7 +257,7 @@ static ibool page_cur_rec_field_extends(const dtuple_t *tuple, const rec_t *rec,
 
   type = dfield_get_type(dfield);
 
-  rec_f = rec_get_nth_field(rec, offsets, n, index, &rec_f_len);
+  rec_f = rec_get_nth_field_instant(rec, offsets, n, index, &rec_f_len);
 
   if (type->mtype == DATA_VARCHAR || type->mtype == DATA_CHAR ||
       type->mtype == DATA_FIXBINARY || type->mtype == DATA_BINARY ||
@@ -1863,9 +1863,8 @@ rec_t *page_cur_insert_rec_zip(
         memset(free_rec + trx_id_offs, 0, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
       }
 
-      ut_ad(
-          free_rec + trx_id_offs + DATA_TRX_ID_LEN ==
-          rec_get_nth_field(free_rec, foffsets, trx_id_col + 1, nullptr, &len));
+      ut_ad(free_rec + trx_id_offs + DATA_TRX_ID_LEN ==
+            rec_get_nth_field(free_rec, foffsets, trx_id_col + 1, &len));
       ut_ad(len == DATA_ROLL_PTR_LEN);
     }
 

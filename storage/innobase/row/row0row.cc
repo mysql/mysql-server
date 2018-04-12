@@ -470,7 +470,7 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
 
     const byte *field;
 
-    field = rec_get_nth_field(copy, offsets, i, index, &len);
+    field = rec_get_nth_field_instant(copy, offsets, i, index, &len);
 
     dfield_set_data(dfield, field, len);
 
@@ -640,7 +640,7 @@ dtuple_t *row_rec_to_index_entry_low(
   for (i = 0; i < rec_len; i++) {
     dfield = dtuple_get_nth_field(entry, i);
 
-    field = rec_get_nth_field(rec, offsets, i, index, &len);
+    field = rec_get_nth_field_instant(rec, offsets, i, index, &len);
 
     dfield_set_data(dfield, field, len);
 
@@ -762,7 +762,7 @@ dtuple_t *row_build_row_ref(
 
     ut_a(pos != ULINT_UNDEFINED);
 
-    field = rec_get_nth_field(rec, offsets, pos, nullptr, &len);
+    field = rec_get_nth_field(rec, offsets, pos, &len);
 
     dfield_set_data(dfield, field, len);
 
@@ -852,7 +852,7 @@ void row_build_row_ref_in_tuple(
 
     ut_a(pos != ULINT_UNDEFINED);
 
-    field = rec_get_nth_field(rec, offsets, pos, nullptr, &len);
+    field = rec_get_nth_field(rec, offsets, pos, &len);
 
     dfield_set_data(dfield, field, len);
 

@@ -1544,6 +1544,7 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
 
   m_table->set_instant_cols(m_table->get_n_user_cols() - m_n_instant_cols);
   ut_ad(m_table->has_instant_cols());
+  m_table->first_index()->instant_cols = true;
   /* FIXME: Force to discard the table, in case of any rollback later. */
   //	m_table->discard_after_ddl = true;
 
@@ -1694,7 +1695,7 @@ dberr_t PageConverter::adjust_cluster_index_blob_column(rec_t *rec,
   ulint len;
   byte *field;
 
-  field = const_cast<byte *>(rec_get_nth_field(rec, offsets, i, nullptr, &len));
+  field = rec_get_nth_field(rec, offsets, i, &len);
 
   DBUG_EXECUTE_IF("ib_import_trigger_corruption_2",
                   len = BTR_EXTERN_FIELD_REF_SIZE - 1;);
@@ -2415,7 +2416,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_set_sys_max_row_id(
     offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &heap);
 
     field = rec_get_nth_field(rec, offsets, index->get_sys_col_pos(DATA_ROW_ID),
-                              nullptr, &len);
+                              &len);
 
     if (len == DATA_ROW_ID_LEN) {
       row_id = mach_read_from_6(field);

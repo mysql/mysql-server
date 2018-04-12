@@ -931,6 +931,9 @@ struct dict_index_t {
   /*!< a flag that is set for secondary indexes
   that have not been committed to the
   data dictionary yet */
+  unsigned instant_cols : 1;
+  /*!< TRUE if the index is clustered index and it has some
+  instant columns */
   uint32_t srid; /* spatial reference id */
   bool srid_is_valid;
   /* says whether SRID is valid - it cane be
@@ -1087,7 +1090,7 @@ struct dict_index_t {
 
   /** Check whether index has any instantly added columns
   @return true if this is instant affected, otherwise false */
-  bool has_instant_cols() const;
+  bool has_instant_cols() const { return (instant_cols); }
 
   /** Returns the number of nullable fields before specified
   nth field

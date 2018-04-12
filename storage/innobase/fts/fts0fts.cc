@@ -3397,7 +3397,7 @@ static void fts_fetch_doc_from_rec(
           clust_pos, &doc->text.f_len, nullptr, false,
           static_cast<mem_heap_t *>(doc->self_heap->arg));
     } else {
-      doc->text.f_str = const_cast<byte *>(rec_get_nth_field(
+      doc->text.f_str = const_cast<byte *>(rec_get_nth_field_instant(
           clust_rec, offsets, clust_pos, clust_index, &doc->text.f_len));
     }
 
@@ -3792,7 +3792,7 @@ doc_id_t fts_get_max_doc_id(dict_table_t *table) /*!< in: user table */
 
     offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    data = rec_get_nth_field(rec, offsets, 0, nullptr, &len);
+    data = rec_get_nth_field(rec, offsets, 0, &len);
 
     doc_id =
         static_cast<doc_id_t>(fts_read_doc_id(static_cast<const byte *>(data)));
@@ -5158,7 +5158,7 @@ doc_id_t fts_get_doc_id_from_rec(dict_table_t *table, const rec_t *rec,
 
   ut_ad(col_no != ULINT_UNDEFINED);
 
-  data = rec_get_nth_field(rec, offsets, col_no, nullptr, &len);
+  data = rec_get_nth_field(rec, offsets, col_no, &len);
 
   ut_a(len == 8);
   ut_ad(8 == sizeof(doc_id));

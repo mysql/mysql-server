@@ -86,12 +86,6 @@ void dict_mem_fill_index_struct(
 #endif /* UNIV_DEBUG */
 }
 
-/** Check whether index has any instantly added columns
-@return true if this is instant affected, otherwise false */
-inline bool dict_index_t::has_instant_cols() const {
-  return (is_clustered() && table->has_instant_cols());
-}
-
 /** Returns the number of fields before first instant ADD COLUMN */
 inline uint32_t dict_index_t::get_instant_fields() const {
   ut_ad(has_instant_cols());

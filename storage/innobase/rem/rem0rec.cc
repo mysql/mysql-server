@@ -1055,7 +1055,7 @@ void rec_copy_prefix_to_dtuple(
     ulint len;
 
     field = dtuple_get_nth_field(tuple, i);
-    data = rec_get_nth_field(rec, offsets, i, index, &len);
+    data = rec_get_nth_field_instant(rec, offsets, i, index, &len);
 
     if (len != UNIV_SQL_NULL) {
       dfield_set_data(field, mem_heap_dup(heap, data, len), len);
@@ -1403,7 +1403,7 @@ static void rec_print_comp(
     if (rec_offs_nth_default(offsets, i)) {
       len = UNIV_SQL_ADD_COL_DEFAULT;
     } else {
-      data = rec_get_nth_field(rec, offsets, i, nullptr, &len);
+      data = rec_get_nth_field(rec, offsets, i, &len);
     }
 
     fprintf(file, " %lu:", (ulong)i);
@@ -1521,7 +1521,7 @@ void rec_print_mbr_rec(
     ulint len;
 
     ut_ad(!rec_offs_nth_default(offsets, i));
-    data = rec_get_nth_field(rec, offsets, i, nullptr, &len);
+    data = rec_get_nth_field(rec, offsets, i, &len);
 
     if (i == 0) {
       fprintf(file, " MBR:");
@@ -1651,7 +1651,7 @@ void rec_print(std::ostream &o, const rec_t *rec, ulint info,
       continue;
     }
 
-    data = rec_get_nth_field(rec, offsets, i, nullptr, &len);
+    data = rec_get_nth_field(rec, offsets, i, &len);
 
     if (len == UNIV_SQL_NULL) {
       o << "NULL";
@@ -1724,7 +1724,7 @@ trx_id_t rec_get_trx_id(const rec_t *rec,          /*!< in: record */
 
   offsets = rec_get_offsets(rec, index, offsets, trx_id_col + 1, &heap);
 
-  trx_id = rec_get_nth_field(rec, offsets, trx_id_col, nullptr, &len);
+  trx_id = rec_get_nth_field(rec, offsets, trx_id_col, &len);
 
   ut_ad(len == DATA_TRX_ID_LEN);
 

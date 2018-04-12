@@ -4781,7 +4781,7 @@ ibool btr_cur_pessimistic_delete(
                                 ULINT_UNDEFINED, &heap);
 
       father_rec = btr_cur_get_rec(&father_cursor);
-      rtr_read_mbr(rec_get_nth_field(father_rec, offsets, 0, nullptr, &len),
+      rtr_read_mbr(rec_get_nth_field(father_rec, offsets, 0, &len),
                    &father_mbr);
 
       upd_ret = rtr_update_mbr_field(&father_cursor, offsets, NULL, page,

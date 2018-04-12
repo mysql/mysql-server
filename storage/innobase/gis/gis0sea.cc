@@ -1437,7 +1437,7 @@ void rtr_get_mbr_from_rec(const rec_t *rec,     /*!< in: data tuple */
   ulint rec_f_len;
   const byte *data;
 
-  data = rec_get_nth_field(rec, offsets, 0, nullptr, &rec_f_len);
+  data = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
 
   rtr_read_mbr(data, mbr);
 }

@@ -588,7 +588,7 @@ static ulint put_nth_field(
   added instantly, so no default value */
   ut_ad(!rec_offs_nth_default(offsets, n));
 
-  data = rec_get_nth_field(rec, offsets, n, nullptr, &data_len);
+  data = rec_get_nth_field(rec, offsets, n, &data_len);
 
   dict_field = index->get_field(n);
 
