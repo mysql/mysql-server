@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
 SET(MYSYS_SOURCES
   array.cc
@@ -145,6 +147,11 @@ TARGET_LINK_LIBRARIES(mysys dbug strings ${ZLIB_LIBRARY}
 # Need explicit pthread for gcc -fsanitize=address
 IF(CMAKE_USE_PTHREADS_INIT AND CMAKE_C_FLAGS MATCHES "-fsanitize=")
   TARGET_LINK_LIBRARIES(mysys pthread)
+ENDIF()
+
+# Bug in std::call_once in optimized mode
+IF(SOLARIS_SPARC AND CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(charset.cc COMPILE_FLAGS "-O0")
 ENDIF()
 
 MYSQL_ADD_EXECUTABLE(thr_lock thr_lock.cc SKIP_INSTALL)
