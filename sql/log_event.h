@@ -76,6 +76,7 @@ class Table_id;
 struct mysql_mutex_t;
 
 enum class enum_row_image_type;
+class Basic_ostream;
 
 #ifdef MYSQL_SERVER
 #include <stdio.h>
@@ -620,17 +621,17 @@ class Log_event {
   */
   uint32 write_header_to_memory(uchar *buf);
   /**
-    Writes the common-header of this event to the given IO_CACHE and
+    Writes the common-header of this event to the given output stream and
     updates the checksum.
 
-    @param file The event will be written to this IO_CACHE.
+    @param ostream The event will be written to this output stream.
 
     @param data_length The length of the post-header section plus the
     length of the data section; i.e., the length of the event minus
     the common-header and the checksum.
   */
-  bool write_header(IO_CACHE *file, size_t data_length);
-  bool write_footer(IO_CACHE *file);
+  bool write_header(Basic_ostream *ostream, size_t data_length);
+  bool write_footer(Basic_ostream *ostream);
   bool need_checksum();
 
  public:
@@ -861,30 +862,31 @@ class Log_event {
   static void *operator new(size_t, void *ptr) { return ptr; }
   static void operator delete(void *, void *) {}
   /**
-    Write the given buffer to the given IO_CACHE, updating the
+    Write the given buffer to the given output stream, updating the
     checksum if checksums are enabled.
 
-    @param file The IO_CACHE to write to.
+    @param ostream The output stream to write to.
     @param buf The buffer to write.
     @param data_length The number of bytes to write.
 
     @retval false Success.
     @retval true Error.
   */
-  bool wrapper_my_b_safe_write(IO_CACHE *file, const uchar *buf,
+  bool wrapper_my_b_safe_write(Basic_ostream *ostream, const uchar *buf,
                                size_t data_length);
 
 #ifdef MYSQL_SERVER
-  virtual bool write(IO_CACHE *file) {
-    return (write_header(file, get_data_size()) || write_data_header(file) ||
-            write_data_body(file) || write_footer(file));
+  virtual bool write(Basic_ostream *ostream) {
+    return (write_header(ostream, get_data_size()) ||
+            write_data_header(ostream) || write_data_body(ostream) ||
+            write_footer(ostream));
   }
 
   time_t get_time();
-#endif
 
-  virtual bool write_data_header(IO_CACHE *) { return 0; }
-  virtual bool write_data_body(IO_CACHE *) { return 0; }
+  virtual bool write_data_header(Basic_ostream *) { return 0; }
+  virtual bool write_data_body(Basic_ostream *) { return 0; }
+#endif
 
   Log_event_type get_type_code() const { return common_header->type_code; }
 
@@ -904,6 +906,11 @@ class Log_event {
   bool is_valid() { return is_valid_param; }
   void set_artificial_event() {
     common_header->flags |= LOG_EVENT_ARTIFICIAL_F;
+    /*
+      Artificial events are automatically generated and do not exist
+      in master's binary log, so log_pos should be set to 0.
+    */
+    common_header->log_pos = 0;
   }
   void set_relay_log_event() { common_header->flags |= LOG_EVENT_RELAY_LOG_F; }
   bool is_artificial_event() const {
@@ -1449,8 +1456,8 @@ class Query_log_event : public virtual binary_log::Query_event,
     if (data_buf) my_free(data_buf);
   }
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
-  virtual bool write_post_header_for_derived(IO_CACHE *) { return false; }
+  bool write(Basic_ostream *ostream) override;
+  virtual bool write_post_header_for_derived(Basic_ostream *) { return false; }
 #endif
 
   /*
@@ -1584,7 +1591,7 @@ class Format_description_log_event : public Format_description_event,
       const char *buf, uint event_len,
       const Format_description_event *description_event);
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
   int pack_info(Protocol *protocol) override;
 #else
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) override;
@@ -1666,7 +1673,7 @@ class Intvar_log_event : public binary_log::Intvar_event, public Log_event {
     ;
   }
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
 #endif
 
   bool is_sbr_logging_format() const override { return true; }
@@ -1725,7 +1732,7 @@ class Rand_log_event : public binary_log::Rand_event, public Log_event {
   ~Rand_log_event() {}
   size_t get_data_size() override { return 16; /* sizeof(ulonglong) * 2*/ }
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
 #endif
 
   bool is_sbr_logging_format() const override { return true; }
@@ -1806,7 +1813,7 @@ class Xid_log_event : public binary_log::Xid_event, public Xid_apply_log_event {
   ~Xid_log_event() {}
   size_t get_data_size() override { return sizeof(xid); }
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
 #endif
  private:
 #if defined(MYSQL_SERVER)
@@ -1853,7 +1860,7 @@ class XA_prepare_log_event : public binary_log::XA_prepare_event,
     return xid_bufs_size + my_xid.gtrid_length + my_xid.bqual_length;
   }
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
 #else
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) override;
 #endif
@@ -1909,7 +1916,7 @@ class User_var_log_event : public binary_log::User_var_event, public Log_event {
                      const Format_description_event *description_event);
   ~User_var_log_event() {}
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
   /*
      Getter and setter for deferred User-event.
      Returns true if the event is not applied directly
@@ -2020,7 +2027,7 @@ class Rotate_log_event : public binary_log::Rotate_event, public Log_event {
     return ident_len + Binary_log_event::ROTATE_HEADER_LEN;
   }
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
 #endif
 
  private:
@@ -2074,7 +2081,7 @@ class Append_block_log_event : public virtual binary_log::Append_block_event,
     return block_len + Binary_log_event::APPEND_BLOCK_HEADER_LEN;
   }
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
   const char *get_db() override { return db; }
 #endif
 
@@ -2133,7 +2140,7 @@ class Delete_file_log_event : public binary_log::Delete_file_event,
     return Binary_log_event::DELETE_FILE_HEADER_LEN;
   }
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override;
+  bool write(Basic_ostream *ostream) override;
   const char *get_db() override { return db; }
 #endif
 
@@ -2261,7 +2268,7 @@ class Execute_load_query_log_event
 
   ulong get_post_header_size_for_derived() override;
 #ifdef MYSQL_SERVER
-  bool write_post_header_for_derived(IO_CACHE *file) override;
+  bool write_post_header_for_derived(Basic_ostream *ostream) override;
 #endif
 
   bool is_sbr_logging_format() const override { return true; }
@@ -2405,8 +2412,8 @@ class Table_map_log_event : public binary_log::Table_map_event,
   virtual size_t get_data_size() override { return m_data_size; }
 #ifdef MYSQL_SERVER
   virtual int save_field_metadata();
-  virtual bool write_data_header(IO_CACHE *file) override;
-  virtual bool write_data_body(IO_CACHE *file) override;
+  virtual bool write_data_header(Basic_ostream *ostream) override;
+  virtual bool write_data_body(Basic_ostream *ostream) override;
   virtual const char *get_db() override { return m_dbnam.c_str(); }
   virtual uint8 mts_number_dbs() override {
     return get_flags(TM_REFERRED_FK_DB_F) ? OVER_MAX_DBS_IN_EVENT_MTS : 1;
@@ -2706,8 +2713,8 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
 #endif
 
 #ifdef MYSQL_SERVER
-  virtual bool write_data_header(IO_CACHE *file) override;
-  virtual bool write_data_body(IO_CACHE *file) override;
+  virtual bool write_data_header(Basic_ostream *ostream) override;
+  virtual bool write_data_body(Basic_ostream *ostream) override;
   virtual const char *get_db() override { return m_table->s->db.str; }
 #endif
 
@@ -3437,10 +3444,9 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
 
 #if defined(MYSQL_SERVER)
   virtual int do_apply_event(Relay_log_info const *rli) override;
+  virtual bool write_data_header(Basic_ostream *ostream) override;
+  virtual bool write_data_body(Basic_ostream *ostream) override;
 #endif
-
-  virtual bool write_data_header(IO_CACHE *file) override;
-  virtual bool write_data_body(IO_CACHE *file) override;
 
   virtual size_t get_data_size() override {
     return Binary_log_event::INCIDENT_HEADER_LEN + 1 + message_length;
@@ -3560,6 +3566,8 @@ class Rows_query_log_event : public Ignorable_log_event,
 
 #ifdef MYSQL_SERVER
   int pack_info(Protocol *) override;
+  virtual int do_apply_event(Relay_log_info const *rli) override;
+  virtual bool write_data_body(Basic_ostream *ostream) override;
 #endif
 
   Rows_query_log_event(const char *buf, uint event_len,
@@ -3572,14 +3580,9 @@ class Rows_query_log_event : public Ignorable_log_event,
 #ifndef MYSQL_SERVER
   virtual void print(FILE *file, PRINT_EVENT_INFO *print_event_info) override;
 #endif
-  virtual bool write_data_body(IO_CACHE *file) override;
-
   virtual size_t get_data_size() override {
     return Binary_log_event::IGNORABLE_HEADER_LEN + 1 + strlen(m_rows_query);
   }
-#if defined(MYSQL_SERVER)
-  virtual int do_apply_event(Relay_log_info const *rli) override;
-#endif
 };
 
 static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
@@ -3689,18 +3692,18 @@ class Gtid_log_event : public binary_log::Gtid_event, public Log_event {
 
 #ifdef MYSQL_SERVER
   /**
-    Writes the post-header to the given IO_CACHE file.
+    Writes the post-header to the given output stream.
 
     This is an auxiliary function typically used by the write() member
     function.
 
-    @param file The file to write to.
+    @param ostream The output stream to write to.
 
     @retval true Error.
     @retval false Success.
   */
-  bool write_data_header(IO_CACHE *file) override;
-  bool write_data_body(IO_CACHE *file) override;
+  bool write_data_header(Basic_ostream *ostream) override;
+  bool write_data_body(Basic_ostream *ostream) override;
   /**
     Writes the post-header to the given memory buffer.
 
@@ -3898,7 +3901,7 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
   void print(FILE *file, PRINT_EVENT_INFO *print_event_info) override;
 #endif
 #ifdef MYSQL_SERVER
-  bool write(IO_CACHE *file) override {
+  bool write(Basic_ostream *ostream) override {
     if (DBUG_EVALUATE_IF("skip_writing_previous_gtids_log_event", 1, 0) &&
         /*
           The skip_writing_previous_gtids_log_event debug point was designed
@@ -3921,15 +3924,15 @@ class Previous_gtids_log_event : public binary_log::Previous_gtids_event,
       DBUG_PRINT("info",
                  ("writing partial Previous_gtids_log_event because of"
                   "debug option 'write_partial_previous_gtids_log_event'"));
-      return (Log_event::write_header(file, get_data_size()) ||
-              Log_event::write_data_header(file));
+      return (Log_event::write_header(ostream, get_data_size()) ||
+              Log_event::write_data_header(ostream));
     }
 
-    return (Log_event::write_header(file, get_data_size()) ||
-            Log_event::write_data_header(file) || write_data_body(file) ||
-            Log_event::write_footer(file));
+    return (Log_event::write_header(ostream, get_data_size()) ||
+            Log_event::write_data_header(ostream) || write_data_body(ostream) ||
+            Log_event::write_footer(ostream));
   }
-  bool write_data_body(IO_CACHE *file) override;
+  bool write_data_body(Basic_ostream *ostream) override;
 #endif
 
   /// Return the encoded buffer, or NULL on error.
@@ -3996,13 +3999,13 @@ class Transaction_context_log_event
   Gtid_set *snapshot_version;
 
 #ifdef MYSQL_SERVER
-  bool write_data_header(IO_CACHE *file) override;
+  bool write_data_header(Basic_ostream *ostream) override;
 
-  bool write_data_body(IO_CACHE *file) override;
+  bool write_data_body(Basic_ostream *ostream) override;
 
-  bool write_snapshot_version(IO_CACHE *file);
+  bool write_snapshot_version(Basic_ostream *ostream);
 
-  bool write_data_set(IO_CACHE *file, std::list<const char *> *set);
+  bool write_data_set(Basic_ostream *ostream, std::list<const char *> *set);
 #endif
 
   size_t get_snapshot_version_size();
@@ -4123,11 +4126,12 @@ class View_change_log_event : public binary_log::View_change_event,
   size_t to_string(char *buf, ulong len) const;
 
 #ifdef MYSQL_SERVER
-  bool write_data_header(IO_CACHE *file) override;
+  bool write_data_header(Basic_ostream *ostream) override;
 
-  bool write_data_body(IO_CACHE *file) override;
+  bool write_data_body(Basic_ostream *ostream) override;
 
-  bool write_data_map(IO_CACHE *file, std::map<std::string, std::string> *map);
+  bool write_data_map(Basic_ostream *ostream,
+                      std::map<std::string, std::string> *map);
 #endif
 
   size_t get_size_data_map(std::map<std::string, std::string> *map);
@@ -4226,6 +4230,17 @@ inline bool is_atomic_ddl_event(Log_event *evt) {
 bool is_atomic_ddl(THD *thd, bool using_trans);
 
 #ifdef MYSQL_SERVER
+/**
+   Serialize an binary event to the given output stream. It is more general
+   than call ev->write() directly. The caller will not be affected if any
+   change happens in serialization process. For example, serializing the
+   event in different format.
+ */
+template <class EVENT>
+bool binary_event_serialize(EVENT *ev, Basic_ostream *ostream) {
+  return ev->write(ostream);
+}
+
 /*
   This is an utility function that adds a quoted identifier into the a buffer.
   This also escapes any existance of the quote string inside the identifier.

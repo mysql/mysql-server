@@ -115,7 +115,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                param_id, param_channel),
       replicate_same_server_id(::replicate_same_server_id),
       cur_log_fd(-1),
-      relay_log(&sync_relaylog_period, WRITE_CACHE),
+      relay_log(&sync_relaylog_period),
       is_relay_log_recovery(is_slave_recovery),
       save_temporary_tables(0),
       error_on_rli_init_info(false),
@@ -2039,12 +2039,9 @@ void Relay_log_info::end_info() {
 
 int Relay_log_info::flush_current_log() {
   DBUG_ENTER("Relay_log_info::flush_current_log");
-  /*
-    When we come to this place in code, relay log may or not be initialized;
-    the caller is responsible for setting 'flush_relay_log_cache' accordingly.
-  */
-  IO_CACHE *log_file = relay_log.get_log_file();
-  if (flush_io_cache(log_file)) DBUG_RETURN(2);
+
+  /* When we come to this place in code, relay log may or not be initialized; */
+  if (relay_log.flush()) DBUG_RETURN(2);
 
   DBUG_RETURN(0);
 }

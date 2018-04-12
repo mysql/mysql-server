@@ -1,14 +1,31 @@
 # ==== Purpose ====
 #
-# This test will try to rotate the binary log of the server while binary log
-# group commit sync stage tries to sync the recently flushed binary log group.
+# This test tries to sync the binary log in the middle of a rotate,
+# when the old binlog file has been closed and new binlog file has not yet
+# opened.
 #
-# As binary log group commit releases the binary log's LOCK_log right after
-# finishing the flush stage and entering the sync stage, the rotate procedure
-# (executed by MYSQL_BIN_LOG::new_file_impl) will be able take LOCK_log, but
-# it will delay the binary log rotation until the amount of prepared
-# transactions not yet committed be zero or the binary log group commit sync
-# stage has finished.
+# This cannot happen when the syncing client updates an InnoDB table,
+# because InnoDB will increment MYSQL_BIN_LOG::m_prep_xids before
+# flush and decrement it after commit, and rotate will only close the
+# file when m_prep_xids==0, and the rotate holds LOCK_log to prevent
+# new threads from entering the flush stage and subsequently the sync
+# stage while the binlog is closed.
+#
+# But if the syncing client only updates a MyISAM table, it does not
+# increment m_prep_xids.  Then we rely on a different mechanism to
+# avoid calling sync on a closed file descriptor: rotate holds
+# LOCK_sync while closing the file and setting it to NULL.  It is
+# still possible that INSERT tries to sync while the file is closed:
+# between the flush and sync stages there is a point in time where it
+# is has released LOCK_log and not yet acquired LOCK_sync.  If the
+# syncing client is in this stage while the rotating thread closes the
+# file, then the syncing client can go ahead and try to sync the file
+# after the rotating client has released LOCK_sync.  However, at this
+# point the file is NULL, and that will make the syncing client skip
+# the sync.
+#
+# We test exactly this scenario, to verify that sync does not crash
+# even if the file is NULL.
 #
 # ==== Related Bugs and Worklogs ====
 #
@@ -27,73 +44,56 @@
 --connect(conn1,localhost,root,,test)
 --connect(conn2,localhost,root,,test)
 
---let $engine= MyISAM
+--let $rpl_connection_name= conn1
+--source include/rpl_connection.inc
+# Create a new table
+CREATE TABLE t1 (c1 INT) ENGINE = MyISAM;
 
-while ($engine)
-{
-  --let $rpl_connection_name= conn1
-  --source include/rpl_connection.inc
-  # Create a new table
-  --eval CREATE TABLE t1 (c1 INT) ENGINE=$engine
+# Make INSERT hold between the flush and sync stages
+SET DEBUG_SYNC= 'bgc_between_flush_and_sync SIGNAL
+  holding_between_flush_and_sync WAIT_FOR continue_between_flush_and_sync';
+--send INSERT INTO t1 VALUES (1)
 
-  # Make the server to hold before syncing the binary log group
-  SET DEBUG_SYNC= 'before_sync_binlog_file SIGNAL holding_before_bgc_sync_binlog_file WAIT_FOR continue_bgc_sync_binlog_file';
-  --send INSERT INTO t1 VALUES (1)
+--let $rpl_connection_name= conn2
+--source include/rpl_connection.inc
+# Wait until it reached the sync binary log group
+SET DEBUG_SYNC= 'now WAIT_FOR holding_between_flush_and_sync';
 
-  --let $rpl_connection_name= conn2
-  --source include/rpl_connection.inc
-  # Wait until it reached the sync binary log group
-  SET DEBUG_SYNC= 'NOW WAIT_FOR holding_before_bgc_sync_binlog_file';
+# Make FLUSH LOGS hold after closing the old file and before opening
+# the new file.
+SET DEBUG_SYNC= 'binlog_rotate_between_close_and_open SIGNAL
+  holding_between_close_and_open WAIT_FOR continue_rotate_binlog_file';
+# Rotate the binary log
+--send FLUSH LOGS
 
-  # Make the server to hold while rotating the binary log
-  # It can hold in two places:
-  # a) waiting before all flushed transactions with Xid to be committed;
-  # b) after closing the old and before opening the new binary log file;
-  #
-  # The debug sync will happen at (a) if there are transactions for a
-  # transactional storage engine or at (b) if there are no transactions
-  # for a transactional storage engine in the group to be committed.
-  SET DEBUG_SYNC= 'before_rotate_binlog_file SIGNAL holding_before_rotate_binlog_file WAIT_FOR continue_rotate_binlog_file';
-  # Rotate the binary log
-  --send FLUSH LOGS
+# Wait until the server reaches the debug sync point while rotating the
+# binary log
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= 'now WAIT_FOR holding_between_close_and_open';
 
-  # Wait until the server reaches the debug sync point while rotating the
-  # binary log
-  --let $rpl_connection_name= default
-  --source include/rpl_connection.inc
-  SET DEBUG_SYNC= 'now WAIT_FOR holding_before_rotate_binlog_file';
+# Let the INSERT sync and continue
+SET DEBUG_SYNC= 'now SIGNAL continue_between_flush_and_sync';
+# Clear the binary log rotate debug sync point to avoid it to stop twice
 
-  # Let the binary log group commit to sync and continue
-  SET DEBUG_SYNC= 'now SIGNAL continue_bgc_sync_binlog_file';
-  # Clear the binary log rotate debug sync point to avoid it to stop twice
-  SET DEBUG_SYNC= 'before_rotate_binlog_file CLEAR';
-  # Let the binary log rotate to continue
-  SET DEBUG_SYNC = 'now SIGNAL continue_rotate_binlog_file';
+--let $rpl_connection_name= conn1
+--source include/rpl_connection.inc
+--reap # INSERT
 
-  --let $rpl_connection_name= conn1
-  --source include/rpl_connection.inc
-  --reap
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+# Let the binary log rotate to continue
+SET DEBUG_SYNC = 'now SIGNAL continue_rotate_binlog_file';
 
-  --let $rpl_connection_name= conn2
-  --source include/rpl_connection.inc
-  --reap
+--let $rpl_connection_name= conn2
+--source include/rpl_connection.inc
+--reap # FLUSH LOGS
 
-  --let $rpl_connection_name= default
-  --source include/rpl_connection.inc
-
-  # Cleanup
-  DROP TABLE t1;
-  SET DEBUG_SYNC= 'RESET';
-
-  if ($engine == InnoDB)
-  {
-    --let $engine=
-  }
-  if ($engine == MyISAM)
-  {
-    --let $engine= InnoDB
-  }
-}
+--let $rpl_connection_name= default
+--source include/rpl_connection.inc
+# Cleanup
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
 
 # Disconnect the additional connections
 --disconnect conn1

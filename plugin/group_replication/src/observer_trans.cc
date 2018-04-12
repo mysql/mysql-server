@@ -43,69 +43,6 @@
 */
 #define BUFFER_READ_PKE 8
 
-/*
-  Map to store all open unused IO_CACHE.
-  Each ongoing transaction will have a busy cache, when the cache
-  is no more needed, it is added to this list for future use by
-  another transaction.
-*/
-typedef std::list<IO_CACHE *> IO_CACHE_unused_list;
-static IO_CACHE_unused_list io_cache_unused_list;
-
-/*
-  Read/write lock to protect map find operations against new cache inserts.
-*/
-static Checkable_rwlock *io_cache_unused_list_lock = NULL;
-
-void observer_trans_initialize() {
-  DBUG_ENTER("observer_trans_initialize");
-
-  io_cache_unused_list_lock = new Checkable_rwlock(
-#ifdef HAVE_PSI_INTERFACE
-      key_GR_RWLOCK_io_cache_unused_list
-#endif /* HAVE_PSI_INTERFACE */
-  );
-
-  DBUG_VOID_RETURN;
-}
-
-void observer_trans_terminate() {
-  DBUG_ENTER("observer_trans_terminate");
-
-  delete io_cache_unused_list_lock;
-  io_cache_unused_list_lock = NULL;
-
-  DBUG_VOID_RETURN;
-}
-
-void observer_trans_clear_io_cache_unused_list() {
-  DBUG_ENTER("observer_trans_clear_io_cache_unused_list");
-  io_cache_unused_list_lock->wrlock();
-
-  for (IO_CACHE_unused_list::iterator it = io_cache_unused_list.begin();
-       it != io_cache_unused_list.end(); ++it) {
-    IO_CACHE *cache = *it;
-    close_cached_file(cache);
-    my_free(cache);
-  }
-
-  io_cache_unused_list.clear();
-
-  io_cache_unused_list_lock->unlock();
-  DBUG_VOID_RETURN;
-}
-
-/*
-  Internal auxiliary functions signatures.
-*/
-static bool reinit_cache(IO_CACHE *cache, enum cache_type type,
-                         my_off_t position);
-
-IO_CACHE *observer_trans_get_io_cache(my_thread_id thread_id,
-                                      ulonglong cache_size);
-
-void observer_trans_put_io_cache(IO_CACHE *cache);
-
 void cleanup_transaction_write_set(
     Transaction_write_set *transaction_write_set) {
   DBUG_ENTER("cleanup_transaction_write_set");
@@ -331,13 +268,10 @@ int group_replication_trans_before_commit(Trans_param *param) {
 
   Transaction_context_log_event *tcle = NULL;
 
-  // group replication cache.
-  IO_CACHE *cache = NULL;
-
   // Todo optimize for memory (IO-cache's buf to start with, if not enough then
   // trans mem-root) to avoid New message create/delete and/or its implicit
   // MessageBuffer.
-  Transaction_Message transaction_msg;
+  Transaction_message transaction_msg;
 
   enum enum_gcs_error send_error = GCS_OK;
 
@@ -349,11 +283,10 @@ int group_replication_trans_before_commit(Trans_param *param) {
   */
   bool is_dml = !param->is_atomic_ddl;
   bool may_have_sbr_stmts = !is_dml;
-  IO_CACHE *cache_log = NULL;
+  Binlog_cache_storage *cache_log = NULL;
   my_off_t cache_log_position = 0;
-  bool reinit_cache_log_required = false;
-  const my_off_t trx_cache_log_position = my_b_tell(param->trx_cache_log);
-  const my_off_t stmt_cache_log_position = my_b_tell(param->stmt_cache_log);
+  const my_off_t trx_cache_log_position = param->trx_cache_log->length();
+  const my_off_t stmt_cache_log_position = param->stmt_cache_log->length();
 
   if (trx_cache_log_position > 0 && stmt_cache_log_position == 0) {
     cache_log = param->trx_cache_log;
@@ -376,40 +309,10 @@ int group_replication_trans_before_commit(Trans_param *param) {
   applier_module->get_pipeline_stats_member_collector()
       ->increment_transactions_local();
 
-  DBUG_ASSERT(cache_log->type == WRITE_CACHE);
   DBUG_PRINT("cache_log", ("thread_id: %u, trx_cache_log_position: %llu,"
                            " stmt_cache_log_position: %llu",
                            param->thread_id, trx_cache_log_position,
                            stmt_cache_log_position));
-
-  /*
-    Open group replication cache.
-    Reuse the same cache on each session for improved performance.
-  */
-  cache =
-      observer_trans_get_io_cache(param->thread_id, param->cache_log_max_size);
-  if (cache == NULL) {
-    /* purecov: begin inspected */
-    error = pre_wait_error;
-    goto err;
-    /* purecov: end */
-  }
-
-  // Reinit binlog cache to read.
-  if (reinit_cache(cache_log, READ_CACHE, 0)) {
-    /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_REINIT_BINLOG_CACHE_FOR_READ,
-                 param->thread_id);
-    error = pre_wait_error;
-    goto err;
-    /* purecov: end */
-  }
-
-  /*
-    After this, cache_log should be reinit to old saved value when we
-    are going out of the function scope.
-  */
-  reinit_cache_log_required = true;
 
   // Create transaction context.
   tcle = new Transaction_context_log_event(param->server_uuid,
@@ -460,8 +363,8 @@ int group_replication_trans_before_commit(Trans_param *param) {
     }
   }
 
-  // Write transaction context to group replication cache.
-  tcle->write(cache);
+  // serialize transaction context into a transaction message.
+  binary_event_serialize(tcle, &transaction_msg);
 
   if (*(param->original_commit_timestamp) == UNDEFINED_COMMIT_TIMESTAMP) {
     /*
@@ -483,9 +386,9 @@ int group_replication_trans_before_commit(Trans_param *param) {
     account.
   */
   gle->set_trx_length_by_cache_size(cache_log_position);
-  gle->write(cache);
+  binary_event_serialize(gle, &transaction_msg);
 
-  transaction_size = cache_log_position + my_b_tell(cache);
+  transaction_size = cache_log_position + transaction_msg.length();
   if (is_dml && transaction_size_limit &&
       transaction_size > transaction_size_limit) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRANS_SIZE_EXCEEDS_LIMIT,
@@ -494,32 +397,10 @@ int group_replication_trans_before_commit(Trans_param *param) {
     goto err;
   }
 
-  // Reinit group replication cache to read.
-  if (reinit_cache(cache, READ_CACHE, 0)) {
-    /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_READ_FAILED,
-                 param->thread_id);
-    error = pre_wait_error;
-    goto err;
-    /* purecov: end */
-  }
-
-  // Copy group replication cache to buffer.
-  if (transaction_msg.append_cache(cache)) {
-    /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_APPENDING_DATA_TO_INTERNAL_CACHE_FAILED,
-                 param->thread_id);
-    error = pre_wait_error;
-    goto err;
-    /* purecov: end */
-  }
-
   // Copy binlog cache content to buffer.
-  if (transaction_msg.append_cache(cache_log)) {
+  if (cache_log->copy_to(&transaction_msg)) {
     /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_BINLOG_CACHE_FAILED,
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_TRANSACTION_MESSAGE_FAILED,
                  param->thread_id);
     error = pre_wait_error;
     goto err;
@@ -587,16 +468,6 @@ int group_replication_trans_before_commit(Trans_param *param) {
   }
 
 err:
-  // Reinit binlog cache to write (revert what we did).
-  if (reinit_cache_log_required &&
-      reinit_cache(cache_log, WRITE_CACHE, cache_log_position)) {
-    /* purecov: begin inspected */
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_WRITE_FAILED,
-                 param->thread_id);
-    /* purecov: end */
-  }
-  observer_trans_put_io_cache(cache);
   delete gle;
   delete tcle;
 
@@ -641,138 +512,23 @@ Trans_observer trans_observer = {
     group_replication_trans_after_rollback,
 };
 
-/*
-  Internal auxiliary functions.
-*/
-
-/*
-  Reinit IO_cache type.
-
-  @param[in] cache     cache
-  @param[in] type      type to which cache will change
-  @param[in] position  position to which cache will seek
-*/
-static bool reinit_cache(IO_CACHE *cache, enum cache_type type,
-                         my_off_t position) {
-  DBUG_ENTER("reinit_cache");
-
-  /*
-    Avoid call flush_io_cache() before reinit_io_cache() if
-    temporary file does not exist.
-    Call flush_io_cache() forces the creation of the cache
-    temporary file, even when it does not exist.
-  */
-  if (READ_CACHE == type && cache->file != -1 && flush_io_cache(cache))
-    DBUG_RETURN(true); /* purecov: inspected */
-
-  if (reinit_io_cache(cache, type, position, 0, 0))
-    DBUG_RETURN(true); /* purecov: inspected */
-
-  DBUG_RETURN(false);
-}
-
-/*
-  Get already initialized cache or create a new cache for
-  this session.
-
-  @param[in] thread_id   the session
-  @param[in] cache_size  the cache size
-
-  @return The cache or NULL on error
-*/
-IO_CACHE *observer_trans_get_io_cache(my_thread_id thread_id,
-                                      ulonglong cache_size) {
-  DBUG_ENTER("observer_trans_get_io_cache");
-  IO_CACHE *cache = NULL;
-
-  io_cache_unused_list_lock->wrlock();
-  if (io_cache_unused_list.empty()) {
-    io_cache_unused_list_lock->unlock();
-    // Open IO_CACHE file
-    cache = (IO_CACHE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(IO_CACHE),
-                                  MYF(MY_ZEROFILL));
-    if (!cache || (!my_b_inited(cache) &&
-                   open_cached_file(cache, mysql_tmpdir,
-                                    "group_replication_trans_before_commit",
-                                    cache_size, MYF(MY_WME)))) {
-      /* purecov: begin inspected */
-      my_free(cache);
-      cache = NULL;
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_CREATE_COMMIT_CACHE,
-                   thread_id);
-      goto end;
-      /* purecov: end */
-    }
-  } else {
-    // Reuse cache created previously.
-    cache = io_cache_unused_list.front();
-    io_cache_unused_list.pop_front();
-    io_cache_unused_list_lock->unlock();
-
-    if (reinit_cache(cache, WRITE_CACHE, 0)) {
-      /* purecov: begin inspected */
-      close_cached_file(cache);
-      my_free(cache);
-      cache = NULL;
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_REINIT_OF_COMMIT_CACHE_FOR_WRITE_FAILED,
-                   thread_id);
-      goto end;
-      /* purecov: end */
-    }
-  }
-
-end:
-  DBUG_RETURN(cache);
-}
-
-/*
-  Save already initialized cache for a future session.
-
-  @param[in] cache       the cache
-*/
-void observer_trans_put_io_cache(IO_CACHE *cache) {
-  DBUG_ENTER("observer_trans_put_io_cache");
-
-  io_cache_unused_list_lock->wrlock();
-  io_cache_unused_list.push_back(cache);
-  io_cache_unused_list_lock->unlock();
-
-  DBUG_VOID_RETURN;
-}
-
 // Transaction Message implementation
 
-Transaction_Message::Transaction_Message()
+Transaction_message::Transaction_message()
     : Plugin_gcs_message(CT_TRANSACTION_MESSAGE) {}
 
-Transaction_Message::~Transaction_Message() {}
+Transaction_message::~Transaction_message() {}
 
-bool Transaction_Message::append_cache(IO_CACHE *src) {
-  DBUG_ENTER("append_cache");
-  DBUG_ASSERT(src->type == READ_CACHE);
-
-  uchar *buffer = src->read_pos;
-  size_t length = my_b_fill(src);
-  if (src->file == -1) {
-    // Read cache size directly when temporary file does not exist.
-    length = my_b_bytes_in_cache(src);
-  }
-
-  while (length > 0 && !src->error) {
-    data.insert(data.end(), buffer, buffer + length);
-
-    src->read_pos = src->read_end;
-    length = my_b_fill(src);
-    buffer = src->read_pos;
-  }
-
-  DBUG_RETURN(src->error ? true : false);
+bool Transaction_message::write(const unsigned char *buffer, my_off_t length) {
+  data.insert(data.end(), buffer, buffer + length);
+  return false;
 }
 
-void Transaction_Message::encode_payload(
+my_off_t Transaction_message::length() { return data.size(); }
+
+void Transaction_message::encode_payload(
     std::vector<unsigned char> *buffer) const {
-  DBUG_ENTER("Transaction_Message::encode_payload");
+  DBUG_ENTER("Transaction_message::encode_payload");
 
   encode_payload_item_type_and_length(buffer, PIT_TRANSACTION_DATA,
                                       data.size());
@@ -781,9 +537,9 @@ void Transaction_Message::encode_payload(
   DBUG_VOID_RETURN;
 }
 
-void Transaction_Message::decode_payload(const unsigned char *buffer,
+void Transaction_message::decode_payload(const unsigned char *buffer,
                                          const unsigned char *) {
-  DBUG_ENTER("Transaction_Message::decode_payload");
+  DBUG_ENTER("Transaction_message::decode_payload");
   const unsigned char *slider = buffer;
   uint16 payload_item_type = 0;
   unsigned long long payload_item_length = 0;

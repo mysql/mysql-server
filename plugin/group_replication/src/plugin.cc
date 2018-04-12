@@ -1053,11 +1053,6 @@ int terminate_plugin_modules(bool flag_stop_async_channel,
     certification_latch = NULL;
   }
 
-  /*
-    Clear server sessions opened caches on transactions observer.
-  */
-  observer_trans_clear_io_cache_unused_list();
-
   if (group_member_mgr != NULL && local_member_info != NULL) {
     Notification_context ctx;
     group_member_mgr->update_member_status(
@@ -1105,9 +1100,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   );
 
   shared_plugin_stop_lock = new Shared_writelock(plugin_stop_lock);
-
-  // Initialize transactions observer structures
-  observer_trans_initialize();
 
   plugin_info_ptr = plugin_info;
 
@@ -1249,9 +1241,6 @@ int plugin_group_replication_deinit(void *p) {
 
   delete online_wait_mutex;
   online_wait_mutex = NULL;
-
-  // Terminate transactions observer structures
-  observer_trans_terminate();
 
   plugin_info_ptr = NULL;
 

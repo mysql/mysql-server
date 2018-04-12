@@ -104,6 +104,7 @@
 #include "prealloced_array.h"
 #include "sql/auth/auth_common.h"
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/basic_ostream.h"
 #include "sql/binlog.h"
 #include "sql/current_thd.h"
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type
@@ -746,22 +747,6 @@ template bool net_field_length_checked<ulonglong>(const uchar **packet,
                                                   size_t *max_length,
                                                   ulonglong *out);
 
-/*
-  Stores string to IO_CACHE file.
-
-  Writes str to file in the following format:
-   1. Stores length using only one byte (255 maximum value);
-   2. Stores complete str.
-*/
-
-static bool write_str_at_most_255_bytes(IO_CACHE *file, const char *str,
-                                        uint length) {
-  uchar tmp[1];
-  tmp[0] = (uchar)length;
-  return (my_b_safe_write(file, tmp, sizeof(tmp)) ||
-          (length > 0 && my_b_safe_write(file, (uchar *)str, length)));
-}
-
 /**
   Transforms a string into "" or its expression in 0x... form.
 */
@@ -1243,22 +1228,16 @@ bool Log_event::need_checksum() {
   DBUG_RETURN(ret);
 }
 
-bool Log_event::wrapper_my_b_safe_write(IO_CACHE *file, const uchar *buf,
-                                        size_t size) {
+bool Log_event::wrapper_my_b_safe_write(Basic_ostream *ostream,
+                                        const uchar *buf, size_t size) {
   if (size == 0) return false;
 
-  DBUG_EXECUTE_IF("simulate_temp_file_write_error", {
-    file->write_pos = file->write_end;
-    DBUG_SET("+d,simulate_file_write_error");
-  });
   if (need_checksum() && size != 0) crc = checksum_crc32(crc, buf, size);
-  bool ret = my_b_safe_write(file, buf, size);
-  DBUG_EXECUTE_IF("simulate_temp_file_write_error",
-                  { DBUG_SET("-d,simulate_file_write_error"); });
-  return ret;
+
+  return ostream->write(buf, size);
 }
 
-bool Log_event::write_footer(IO_CACHE *file) {
+bool Log_event::write_footer(Basic_ostream *ostream) {
   /*
      footer contains the checksum-algorithm descriptor
      followed by the checksum value
@@ -1266,7 +1245,7 @@ bool Log_event::write_footer(IO_CACHE *file) {
   if (need_checksum()) {
     uchar buf[BINLOG_CHECKSUM_LEN];
     int4store(buf, crc);
-    return (my_b_safe_write(file, (uchar *)buf, sizeof(buf)));
+    return ostream->write((uchar *)buf, sizeof(buf));
   }
   return 0;
 }
@@ -1307,7 +1286,7 @@ uint32 Log_event::write_header_to_memory(uchar *buf) {
   return LOG_EVENT_HEADER_LEN;
 }
 
-bool Log_event::write_header(IO_CACHE *file, size_t event_data_length) {
+bool Log_event::write_header(Basic_ostream *ostream, size_t event_data_length) {
   uchar header[LOG_EVENT_HEADER_LEN];
   bool ret;
   DBUG_ENTER("Log_event::write_header");
@@ -1321,27 +1300,24 @@ bool Log_event::write_header(IO_CACHE *file, size_t event_data_length) {
   }
 
   /*
-    log_pos != 0 if this is relay-log event. In this case we should not
-    change the position
+    Usually events are written into binlog cache first. And later, they are
+    flushed into binlog file. When events are being written into binlog cache,
+    log_pos(a.k.a. end_log_pos) field is meaningless. So it is set to 0. the
+    log_pos field will be updated later when the events are being flushed into
+    binlog file.
+
+    In a few cases(e.g. rotation(FD, Rotate events)), events are written into
+    binlog file directly through event->write(). In these cases, log_pos is
+    updated to the begin position of the event before calling event->write().
+    Then log_pos is updated to the end position of the event here.
   */
-
-  if (is_artificial_event()) {
-    /*
-      Artificial events are automatically generated and do not exist
-      in master's binary log, so log_pos should be set to 0.
-    */
-    common_header->log_pos = 0;
-  } else if (!common_header->log_pos) {
-    /*
-      Calculate position of end of event
-    */
-
-    common_header->log_pos = my_b_tell(file) + common_header->data_written;
+  if (common_header->log_pos != 0) {
+    common_header->log_pos += common_header->data_written;
   }
 
   write_header_to_memory(header);
 
-  ret = my_b_safe_write(file, header, LOG_EVENT_HEADER_LEN);
+  ret = ostream->write(header, LOG_EVENT_HEADER_LEN);
 
   /*
     Update the checksum.
@@ -3915,7 +3891,7 @@ static void write_str_with_code_and_len(uchar **dst, const char *src,
     will print!
 */
 
-bool Query_log_event::write(IO_CACHE *file) {
+bool Query_log_event::write(Basic_ostream *ostream) {
   uchar buf[Binary_log_event::QUERY_HEADER_LEN + MAX_SIZE_LOG_EVENT_STATUS];
   uchar *start, *start_of_status;
   size_t event_length;
@@ -4166,16 +4142,16 @@ bool Query_log_event::write(IO_CACHE *file) {
   event_length = (uint)(start - buf) + get_post_header_size_for_derived() +
                  db_len + 1 + q_len;
 
-  return (write_header(file, event_length) ||
-          wrapper_my_b_safe_write(file, (uchar *)buf,
+  return (write_header(ostream, event_length) ||
+          wrapper_my_b_safe_write(ostream, (uchar *)buf,
                                   Binary_log_event::QUERY_HEADER_LEN) ||
-          write_post_header_for_derived(file) ||
-          wrapper_my_b_safe_write(file, start_of_status,
+          write_post_header_for_derived(ostream) ||
+          wrapper_my_b_safe_write(ostream, start_of_status,
                                   (uint)(start - start_of_status)) ||
-          wrapper_my_b_safe_write(file, db ? (uchar *)db : (uchar *)"",
+          wrapper_my_b_safe_write(ostream, db ? (uchar *)db : (uchar *)"",
                                   db_len + 1) ||
-          wrapper_my_b_safe_write(file, (uchar *)query, q_len) ||
-          write_footer(file))
+          wrapper_my_b_safe_write(ostream, (uchar *)query, q_len) ||
+          write_footer(ostream))
              ? 1
              : 0;
 }
@@ -5699,7 +5675,7 @@ int Format_description_log_event::pack_info(Protocol *protocol) {
   return 0;
 }
 
-bool Format_description_log_event::write(IO_CACHE *file) {
+bool Format_description_log_event::write(Basic_ostream *ostream) {
   bool ret;
   bool no_checksum;
   uchar buff[Binary_log_event::FORMAT_DESCRIPTION_HEADER_LEN +
@@ -5746,8 +5722,9 @@ bool Format_description_log_event::write(IO_CACHE *file) {
     // Forcing (V) room to fill anyway
     common_footer->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_CRC32;
   }
-  ret = (write_header(file, rec_size) ||
-         wrapper_my_b_safe_write(file, buff, rec_size) || write_footer(file));
+  ret = (write_header(ostream, rec_size) ||
+         wrapper_my_b_safe_write(ostream, buff, rec_size) ||
+         write_footer(ostream));
   if (no_checksum)
     common_footer->checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
   return ret;
@@ -5919,15 +5896,16 @@ Rotate_log_event::Rotate_log_event(
   */
 
 #ifdef MYSQL_SERVER
-bool Rotate_log_event::write(IO_CACHE *file) {
+bool Rotate_log_event::write(Basic_ostream *ostream) {
   char buf[Binary_log_event::ROTATE_HEADER_LEN];
   int8store(buf + R_POS_OFFSET, pos);
   return (
-      write_header(file, Binary_log_event::ROTATE_HEADER_LEN + ident_len) ||
-      wrapper_my_b_safe_write(file, (uchar *)buf,
+      write_header(ostream, Binary_log_event::ROTATE_HEADER_LEN + ident_len) ||
+      wrapper_my_b_safe_write(ostream, (uchar *)buf,
                               Binary_log_event::ROTATE_HEADER_LEN) ||
-      wrapper_my_b_safe_write(file, (uchar *)new_log_ident, (uint)ident_len) ||
-      write_footer(file));
+      wrapper_my_b_safe_write(ostream, (uchar *)new_log_ident,
+                              (uint)ident_len) ||
+      write_footer(ostream));
 }
 
 /*
@@ -6129,13 +6107,13 @@ Intvar_log_event::Intvar_log_event(
   */
 
 #ifdef MYSQL_SERVER
-bool Intvar_log_event::write(IO_CACHE *file) {
+bool Intvar_log_event::write(Basic_ostream *ostream) {
   uchar buf[9];
   buf[I_TYPE_OFFSET] = (uchar)type;
   int8store(buf + I_VAL_OFFSET, val);
-  return (write_header(file, sizeof(buf)) ||
-          wrapper_my_b_safe_write(file, buf, sizeof(buf)) ||
-          write_footer(file));
+  return (write_header(ostream, sizeof(buf)) ||
+          wrapper_my_b_safe_write(ostream, buf, sizeof(buf)) ||
+          write_footer(ostream));
 }
 #endif
 
@@ -6240,13 +6218,13 @@ Rand_log_event::Rand_log_event(
 }
 
 #ifdef MYSQL_SERVER
-bool Rand_log_event::write(IO_CACHE *file) {
+bool Rand_log_event::write(Basic_ostream *ostream) {
   uchar buf[16];
   int8store(buf + RAND_SEED1_OFFSET, seed1);
   int8store(buf + RAND_SEED2_OFFSET, seed2);
-  return (write_header(file, sizeof(buf)) ||
-          wrapper_my_b_safe_write(file, buf, sizeof(buf)) ||
-          write_footer(file));
+  return (write_header(ostream, sizeof(buf)) ||
+          wrapper_my_b_safe_write(ostream, buf, sizeof(buf)) ||
+          write_footer(ostream));
 }
 #endif
 
@@ -6342,11 +6320,11 @@ Xid_log_event::Xid_log_event(const char *buf,
 }
 
 #ifdef MYSQL_SERVER
-bool Xid_log_event::write(IO_CACHE *file) {
+bool Xid_log_event::write(Basic_ostream *ostream) {
   DBUG_EXECUTE_IF("do_not_write_xid", return 0;);
-  return (write_header(file, sizeof(xid)) ||
-          wrapper_my_b_safe_write(file, (uchar *)&xid, sizeof(xid)) ||
-          write_footer(file));
+  return (write_header(ostream, sizeof(xid)) ||
+          wrapper_my_b_safe_write(ostream, (uchar *)&xid, sizeof(xid)) ||
+          write_footer(ostream));
 }
 #endif
 
@@ -6674,7 +6652,7 @@ int XA_prepare_log_event::pack_info(Protocol *protocol) {
   return 0;
 }
 
-bool XA_prepare_log_event::write(IO_CACHE *file) {
+bool XA_prepare_log_event::write(Basic_ostream *ostream) {
   uint8 one_byte = one_phase;
   uchar buf_f[4];
   uchar buf_g[4];
@@ -6685,18 +6663,19 @@ bool XA_prepare_log_event::write(IO_CACHE *file) {
 
   DBUG_ASSERT(xid_bufs_size == sizeof(buf_f) + sizeof(buf_g) + sizeof(buf_b));
 
-  return write_header(file, sizeof(one_byte) + xid_bufs_size +
-                                static_cast<XID *>(xid)->get_gtrid_length() +
-                                static_cast<XID *>(xid)->get_bqual_length()) ||
-         wrapper_my_b_safe_write(file, &one_byte, sizeof(one_byte)) ||
-         wrapper_my_b_safe_write(file, buf_f, sizeof(buf_f)) ||
-         wrapper_my_b_safe_write(file, buf_g, sizeof(buf_g)) ||
-         wrapper_my_b_safe_write(file, buf_b, sizeof(buf_b)) ||
+  return write_header(ostream,
+                      sizeof(one_byte) + xid_bufs_size +
+                          static_cast<XID *>(xid)->get_gtrid_length() +
+                          static_cast<XID *>(xid)->get_bqual_length()) ||
+         wrapper_my_b_safe_write(ostream, &one_byte, sizeof(one_byte)) ||
+         wrapper_my_b_safe_write(ostream, buf_f, sizeof(buf_f)) ||
+         wrapper_my_b_safe_write(ostream, buf_g, sizeof(buf_g)) ||
+         wrapper_my_b_safe_write(ostream, buf_b, sizeof(buf_b)) ||
          wrapper_my_b_safe_write(
-             file, (uchar *)static_cast<XID *>(xid)->get_data(),
+             ostream, (uchar *)static_cast<XID *>(xid)->get_data(),
              static_cast<XID *>(xid)->get_gtrid_length() +
                  static_cast<XID *>(xid)->get_bqual_length()) ||
-         write_footer(file);
+         write_footer(ostream);
 }
 #endif  // MYSQL_SERVER
 
@@ -6870,7 +6849,7 @@ User_var_log_event::User_var_log_event(
 }
 
 #ifdef MYSQL_SERVER
-bool User_var_log_event::write(IO_CACHE *file) {
+bool User_var_log_event::write(Basic_ostream *ostream) {
   char buf[UV_NAME_LEN_SIZE];
   char buf1[UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + UV_CHARSET_NUMBER_SIZE +
             UV_VAL_LEN_SIZE];
@@ -6920,13 +6899,13 @@ bool User_var_log_event::write(IO_CACHE *file) {
   /* Length of the whole event */
   event_length = sizeof(buf) + name_len + buf1_length + val_len + unsigned_len;
 
-  return (write_header(file, event_length) ||
-          wrapper_my_b_safe_write(file, (uchar *)buf, sizeof(buf)) ||
-          wrapper_my_b_safe_write(file, (uchar *)name, name_len) ||
-          wrapper_my_b_safe_write(file, (uchar *)buf1, buf1_length) ||
-          wrapper_my_b_safe_write(file, pos, val_len) ||
-          wrapper_my_b_safe_write(file, &flags, unsigned_len) ||
-          write_footer(file));
+  return (write_header(ostream, event_length) ||
+          wrapper_my_b_safe_write(ostream, (uchar *)buf, sizeof(buf)) ||
+          wrapper_my_b_safe_write(ostream, (uchar *)name, name_len) ||
+          wrapper_my_b_safe_write(ostream, (uchar *)buf1, buf1_length) ||
+          wrapper_my_b_safe_write(ostream, pos, val_len) ||
+          wrapper_my_b_safe_write(ostream, &flags, unsigned_len) ||
+          write_footer(ostream));
 }
 #endif
 
@@ -7271,15 +7250,15 @@ Append_block_log_event::Append_block_log_event(
   */
 
 #ifdef MYSQL_SERVER
-bool Append_block_log_event::write(IO_CACHE *file) {
+bool Append_block_log_event::write(Basic_ostream *ostream) {
   uchar buf[Binary_log_event::APPEND_BLOCK_HEADER_LEN];
   int4store(buf + AB_FILE_ID_OFFSET, file_id);
-  return (write_header(file,
+  return (write_header(ostream,
                        Binary_log_event::APPEND_BLOCK_HEADER_LEN + block_len) ||
-          wrapper_my_b_safe_write(file, buf,
+          wrapper_my_b_safe_write(ostream, buf,
                                   Binary_log_event::APPEND_BLOCK_HEADER_LEN) ||
-          wrapper_my_b_safe_write(file, block, block_len) ||
-          write_footer(file));
+          wrapper_my_b_safe_write(ostream, block, block_len) ||
+          write_footer(ostream));
 }
 #endif
 
@@ -7412,12 +7391,12 @@ Delete_file_log_event::Delete_file_log_event(
   */
 
 #ifdef MYSQL_SERVER
-bool Delete_file_log_event::write(IO_CACHE *file) {
+bool Delete_file_log_event::write(Basic_ostream *ostream) {
   uchar buf[Binary_log_event::DELETE_FILE_HEADER_LEN];
   int4store(buf + DF_FILE_ID_OFFSET, file_id);
-  return (write_header(file, sizeof(buf)) ||
-          wrapper_my_b_safe_write(file, buf, sizeof(buf)) ||
-          write_footer(file));
+  return (write_header(ostream, sizeof(buf)) ||
+          wrapper_my_b_safe_write(ostream, buf, sizeof(buf)) ||
+          write_footer(ostream));
 }
 #endif
 
@@ -7549,14 +7528,15 @@ ulong Execute_load_query_log_event::get_post_header_size_for_derived() {
 
 #ifdef MYSQL_SERVER
 bool Execute_load_query_log_event::write_post_header_for_derived(
-    IO_CACHE *file) {
+    Basic_ostream *ostream) {
   uchar buf[Binary_log_event::EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN];
   int4store(buf, file_id);
   int4store(buf + 4, fn_pos_start);
   int4store(buf + 4 + 4, fn_pos_end);
   *(buf + 4 + 4 + 4) = (uchar)dup_handling;
+
   return wrapper_my_b_safe_write(
-      file, buf, Binary_log_event::EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN);
+      ostream, buf, Binary_log_event::EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN);
 }
 #endif
 
@@ -10256,14 +10236,14 @@ int Rows_log_event::do_update_pos(Relay_log_info *rli) {
   DBUG_RETURN(error);
 }
 
-bool Rows_log_event::write_data_header(IO_CACHE *file) {
+bool Rows_log_event::write_data_header(Basic_ostream *ostream) {
   uchar
       buf[Binary_log_event::ROWS_HEADER_LEN_V2];  // No need to init the buffer
   DBUG_ASSERT(m_table_id.is_valid());
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master", {
     int4store(buf + 0, (ulong)m_table_id.id());
     int2store(buf + 4, m_flags);
-    return (wrapper_my_b_safe_write(file, buf, 6));
+    return (wrapper_my_b_safe_write(ostream, buf, 6));
   });
   int6store(buf + ROWS_MAPID_OFFSET, m_table_id.id());
   int2store(buf + ROWS_FLAGS_OFFSET, m_flags);
@@ -10283,26 +10263,26 @@ bool Rows_log_event::write_data_header(IO_CACHE *file) {
 
     /* Var-size header len includes len itself */
     int2store(buf + ROWS_VHLEN_OFFSET, vhlen + vhpayloadlen);
-    rc = wrapper_my_b_safe_write(file, buf,
+    rc = wrapper_my_b_safe_write(ostream, buf,
                                  Binary_log_event::ROWS_HEADER_LEN_V2);
 
     /* Write var-sized payload, if any */
     if ((vhpayloadlen > 0) && (rc == 0)) {
       /* Add tag and extra row info */
       uchar type_code = ROWS_V_EXTRAINFO_TAG;
-      rc = wrapper_my_b_safe_write(file, &type_code, ROWS_V_TAG_LEN);
+      rc = wrapper_my_b_safe_write(ostream, &type_code, ROWS_V_TAG_LEN);
       if (rc == 0)
-        rc = wrapper_my_b_safe_write(file, m_extra_row_data, extra_data_len);
+        rc = wrapper_my_b_safe_write(ostream, m_extra_row_data, extra_data_len);
     }
   } else {
-    rc = wrapper_my_b_safe_write(file, buf,
+    rc = wrapper_my_b_safe_write(ostream, buf,
                                  Binary_log_event::ROWS_HEADER_LEN_V1);
   }
 
   return (rc != 0);
 }
 
-bool Rows_log_event::write_data_body(IO_CACHE *file) {
+bool Rows_log_event::write_data_body(Basic_ostream *ostream) {
   /*
      Note that this should be the number of *bits*, not the number of
      bytes.
@@ -10314,10 +10294,11 @@ bool Rows_log_event::write_data_body(IO_CACHE *file) {
   DBUG_ASSERT(static_cast<size_t>(sbuf_end - sbuf) <= sizeof(sbuf));
 
   DBUG_DUMP("m_width", sbuf, (size_t)(sbuf_end - sbuf));
-  res = res || wrapper_my_b_safe_write(file, sbuf, (size_t)(sbuf_end - sbuf));
+  res =
+      res || wrapper_my_b_safe_write(ostream, sbuf, (size_t)(sbuf_end - sbuf));
 
   DBUG_DUMP("m_cols", (uchar *)m_cols.bitmap, no_bytes_in_map(&m_cols));
-  res = res || wrapper_my_b_safe_write(file, (uchar *)m_cols.bitmap,
+  res = res || wrapper_my_b_safe_write(ostream, (uchar *)m_cols.bitmap,
                                        no_bytes_in_map(&m_cols));
   /*
     TODO[refactor write]: Remove the "down cast" here (and elsewhere).
@@ -10325,11 +10306,11 @@ bool Rows_log_event::write_data_body(IO_CACHE *file) {
   if (get_general_type_code() == binary_log::UPDATE_ROWS_EVENT) {
     DBUG_DUMP("m_cols_ai", (uchar *)m_cols_ai.bitmap,
               no_bytes_in_map(&m_cols_ai));
-    res = res || wrapper_my_b_safe_write(file, (uchar *)m_cols_ai.bitmap,
+    res = res || wrapper_my_b_safe_write(ostream, (uchar *)m_cols_ai.bitmap,
                                          no_bytes_in_map(&m_cols_ai));
   }
   DBUG_DUMP("rows", m_rows_buf, data_size);
-  res = res || wrapper_my_b_safe_write(file, m_rows_buf, (size_t)data_size);
+  res = res || wrapper_my_b_safe_write(ostream, m_rows_buf, (size_t)data_size);
 
   return res;
 }
@@ -10831,21 +10812,21 @@ int Table_map_log_event::do_update_pos(Relay_log_info *rli) {
   return 0;
 }
 
-bool Table_map_log_event::write_data_header(IO_CACHE *file) {
+bool Table_map_log_event::write_data_header(Basic_ostream *ostream) {
   DBUG_ASSERT(m_table_id.is_valid());
   uchar buf[Binary_log_event::TABLE_MAP_HEADER_LEN];
   DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master", {
     int4store(buf + 0, static_cast<uint32>(m_table_id.id()));
     int2store(buf + 4, m_flags);
-    return (wrapper_my_b_safe_write(file, buf, 6));
+    return (wrapper_my_b_safe_write(ostream, buf, 6));
   });
   int6store(buf + TM_MAPID_OFFSET, m_table_id.id());
   int2store(buf + TM_FLAGS_OFFSET, m_flags);
-  return (wrapper_my_b_safe_write(file, buf,
+  return (wrapper_my_b_safe_write(ostream, buf,
                                   Binary_log_event::TABLE_MAP_HEADER_LEN));
 }
 
-bool Table_map_log_event::write_data_body(IO_CACHE *file) {
+bool Table_map_log_event::write_data_body(Basic_ostream *ostream) {
   DBUG_ASSERT(!m_dbnam.empty());
   DBUG_ASSERT(!m_tblnam.empty());
   /* We use only one byte per length for storage in event: */
@@ -10865,20 +10846,20 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file) {
   uchar mbuf[sizeof(m_field_metadata_size)];
   uchar *const mbuf_end = net_store_length(mbuf, m_field_metadata_size);
 
-  return (
-      wrapper_my_b_safe_write(file, dbuf, sizeof(dbuf)) ||
-      wrapper_my_b_safe_write(file, (const uchar *)m_dbnam.c_str(),
-                              m_dblen + 1) ||
-      wrapper_my_b_safe_write(file, tbuf, sizeof(tbuf)) ||
-      wrapper_my_b_safe_write(file, (const uchar *)m_tblnam.c_str(),
-                              m_tbllen + 1) ||
-      wrapper_my_b_safe_write(file, cbuf, (size_t)(cbuf_end - cbuf)) ||
-      wrapper_my_b_safe_write(file, m_coltype, m_colcnt) ||
-      wrapper_my_b_safe_write(file, mbuf, (size_t)(mbuf_end - mbuf)) ||
-      wrapper_my_b_safe_write(file, m_field_metadata, m_field_metadata_size) ||
-      wrapper_my_b_safe_write(file, m_null_bits, (m_colcnt + 7) / 8) ||
-      wrapper_my_b_safe_write(file, (const uchar *)m_metadata_buf.ptr(),
-                              m_metadata_buf.length()));
+  return (wrapper_my_b_safe_write(ostream, dbuf, sizeof(dbuf)) ||
+          wrapper_my_b_safe_write(ostream, (const uchar *)m_dbnam.c_str(),
+                                  m_dblen + 1) ||
+          wrapper_my_b_safe_write(ostream, tbuf, sizeof(tbuf)) ||
+          wrapper_my_b_safe_write(ostream, (const uchar *)m_tblnam.c_str(),
+                                  m_tbllen + 1) ||
+          wrapper_my_b_safe_write(ostream, cbuf, (size_t)(cbuf_end - cbuf)) ||
+          wrapper_my_b_safe_write(ostream, m_coltype, m_colcnt) ||
+          wrapper_my_b_safe_write(ostream, mbuf, (size_t)(mbuf_end - mbuf)) ||
+          wrapper_my_b_safe_write(ostream, m_field_metadata,
+                                  m_field_metadata_size) ||
+          wrapper_my_b_safe_write(ostream, m_null_bits, (m_colcnt + 7) / 8) ||
+          wrapper_my_b_safe_write(ostream, (const uchar *)m_metadata_buf.ptr(),
+                                  m_metadata_buf.length()));
 }
 
 /**
@@ -12375,21 +12356,33 @@ int Incident_log_event::do_apply_event(Relay_log_info const *rli) {
               description(), message_length > 0 ? message : "<none>");
   DBUG_RETURN(1);
 }
-#endif
 
-bool Incident_log_event::write_data_header(IO_CACHE *file) {
+bool Incident_log_event::write_data_header(Basic_ostream *ostream) {
   DBUG_ENTER("Incident_log_event::write_data_header");
   DBUG_PRINT("enter", ("incident: %d", incident));
   uchar buf[sizeof(int16)];
   int2store(buf, (int16)incident);
-#ifdef MYSQL_SERVER
-  DBUG_RETURN(wrapper_my_b_safe_write(file, buf, sizeof(buf)));
-#else
-  DBUG_RETURN(my_b_safe_write(file, buf, sizeof(buf)));
-#endif
+  DBUG_RETURN(wrapper_my_b_safe_write(ostream, buf, sizeof(buf)));
 }
 
-bool Incident_log_event::write_data_body(IO_CACHE *file) {
+/*
+  Stores string to an output stream.
+
+  Writes str to file in the following format:
+   1. Stores length using only one byte (255 maximum value);
+   2. Stores complete str.
+*/
+
+static bool write_str_at_most_255_bytes(Basic_ostream *ostream, const char *str,
+                                        uint length) {
+  uchar tmp[1];
+
+  tmp[0] = (uchar)length;
+  return (ostream->write(tmp, sizeof(tmp)) ||
+          (length > 0 && ostream->write((uchar *)str, length)));
+}
+
+bool Incident_log_event::write_data_body(Basic_ostream *ostream) {
   uchar tmp[1];
   DBUG_ENTER("Incident_log_event::write_data_body");
   tmp[0] = (uchar)message_length;
@@ -12398,8 +12391,10 @@ bool Incident_log_event::write_data_body(IO_CACHE *file) {
     crc = checksum_crc32(crc, (uchar *)message, message_length);
     // todo: report a bug on write_str accepts uint but treats it as uchar
   }
-  DBUG_RETURN(write_str_at_most_255_bytes(file, message, (uint)message_length));
+  DBUG_RETURN(
+      write_str_at_most_255_bytes(ostream, message, (uint)message_length));
 }
+#endif
 
 Ignorable_log_event::Ignorable_log_event(
     const char *buf, const Format_description_event *descr_event)
@@ -12486,17 +12481,17 @@ void Rows_query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
 }
 #endif
 
-bool Rows_query_log_event::write_data_body(IO_CACHE *file) {
+#if defined(MYSQL_SERVER)
+bool Rows_query_log_event::write_data_body(Basic_ostream *ostream) {
   DBUG_ENTER("Rows_query_log_event::write_data_body");
   /*
    m_rows_query length will be stored using only one byte, but on read
    that length will be ignored and the complete query will be read.
   */
   DBUG_RETURN(
-      write_str_at_most_255_bytes(file, m_rows_query, strlen(m_rows_query)));
+      write_str_at_most_255_bytes(ostream, m_rows_query, strlen(m_rows_query)));
 }
 
-#if defined(MYSQL_SERVER)
 int Rows_query_log_event::do_apply_event(Relay_log_info const *rli) {
   DBUG_ENTER("Rows_query_log_event::do_apply_event");
   DBUG_ASSERT(rli->info_thd == thd);
@@ -12771,12 +12766,12 @@ uint32 Gtid_log_event::write_post_header_to_memory(uchar *buffer) {
 }
 
 #ifdef MYSQL_SERVER
-bool Gtid_log_event::write_data_header(IO_CACHE *file) {
+bool Gtid_log_event::write_data_header(Basic_ostream *ostream) {
   DBUG_ENTER("Gtid_log_event::write_data_header");
   uchar buffer[POST_HEADER_LENGTH];
   write_post_header_to_memory(buffer);
   DBUG_RETURN(
-      wrapper_my_b_safe_write(file, (uchar *)buffer, POST_HEADER_LENGTH));
+      wrapper_my_b_safe_write(ostream, (uchar *)buffer, POST_HEADER_LENGTH));
 }
 
 uint32 Gtid_log_event::write_body_to_memory(uchar *buffer) {
@@ -12814,11 +12809,11 @@ uint32 Gtid_log_event::write_body_to_memory(uchar *buffer) {
   DBUG_RETURN(ptr_buffer - buffer);
 }
 
-bool Gtid_log_event::write_data_body(IO_CACHE *file) {
+bool Gtid_log_event::write_data_body(Basic_ostream *ostream) {
   DBUG_ENTER("Gtid_log_event::write_body_header");
   uchar buffer[MAX_DATA_LENGTH];
   uint32 len = write_body_to_memory(buffer);
-  DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *)buffer, len));
+  DBUG_RETURN(wrapper_my_b_safe_write(ostream, (uchar *)buffer, len));
 }
 
 #endif  // MYSQL_SERVER
@@ -13086,10 +13081,10 @@ char *Previous_gtids_log_event::get_str(
 }
 
 #ifdef MYSQL_SERVER
-bool Previous_gtids_log_event::write_data_body(IO_CACHE *file) {
+bool Previous_gtids_log_event::write_data_body(Basic_ostream *ostream) {
   DBUG_ENTER("Previous_gtids_log_event::write_data_body");
   DBUG_PRINT("info", ("size=%d", static_cast<int>(buf_size)));
-  bool ret = wrapper_my_b_safe_write(file, buf, buf_size);
+  bool ret = wrapper_my_b_safe_write(ostream, buf, buf_size);
   DBUG_RETURN(ret);
 }
 
@@ -13245,7 +13240,7 @@ size_t Transaction_context_log_event::get_data_size() {
 }
 
 #ifdef MYSQL_SERVER
-bool Transaction_context_log_event::write_data_header(IO_CACHE *file) {
+bool Transaction_context_log_event::write_data_header(Basic_ostream *ostream) {
   DBUG_ENTER("Transaction_context_log_event::write_data_header");
   char buf[Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN];
 
@@ -13257,23 +13252,24 @@ bool Transaction_context_log_event::write_data_header(IO_CACHE *file) {
   int4store(buf + ENCODED_WRITE_SET_ITEMS_OFFSET, write_set.size());
   int4store(buf + ENCODED_READ_SET_ITEMS_OFFSET, read_set.size());
   DBUG_RETURN(wrapper_my_b_safe_write(
-      file, (const uchar *)buf,
+      ostream, (const uchar *)buf,
       Binary_log_event::TRANSACTION_CONTEXT_HEADER_LEN));
 }
 
-bool Transaction_context_log_event::write_data_body(IO_CACHE *file) {
+bool Transaction_context_log_event::write_data_body(Basic_ostream *ostream) {
   DBUG_ENTER("Transaction_context_log_event::write_data_body");
 
-  if (wrapper_my_b_safe_write(file, (const uchar *)server_uuid,
+  if (wrapper_my_b_safe_write(ostream, (const uchar *)server_uuid,
                               strlen(server_uuid)) ||
-      write_snapshot_version(file) || write_data_set(file, &write_set) ||
-      write_data_set(file, &read_set))
+      write_snapshot_version(ostream) || write_data_set(ostream, &write_set) ||
+      write_data_set(ostream, &read_set))
     DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
 
-bool Transaction_context_log_event::write_snapshot_version(IO_CACHE *file) {
+bool Transaction_context_log_event::write_snapshot_version(
+    Basic_ostream *ostream) {
   DBUG_ENTER("Transaction_context_log_event::write_snapshot_version");
   bool result = false;
 
@@ -13282,14 +13278,14 @@ bool Transaction_context_log_event::write_snapshot_version(IO_CACHE *file) {
   if (buffer == NULL) DBUG_RETURN(true);
 
   snapshot_version->encode(buffer);
-  if (wrapper_my_b_safe_write(file, buffer, len)) result = true;
+  if (wrapper_my_b_safe_write(ostream, buffer, len)) result = true;
 
   my_free(buffer);
   DBUG_RETURN(result);
 }
 
 bool Transaction_context_log_event::write_data_set(
-    IO_CACHE *file, std::list<const char *> *set) {
+    Basic_ostream *ostream, std::list<const char *> *set) {
   DBUG_ENTER("Transaction_context_log_event::write_data_set");
   for (std::list<const char *>::iterator it = set->begin(); it != set->end();
        ++it) {
@@ -13298,9 +13294,9 @@ bool Transaction_context_log_event::write_data_set(
     uint16 len = strlen(hash);
 
     int2store(buf, len);
-    if (wrapper_my_b_safe_write(file, (const uchar *)buf,
+    if (wrapper_my_b_safe_write(ostream, (const uchar *)buf,
                                 ENCODED_READ_WRITE_SET_ITEM_LEN) ||
-        wrapper_my_b_safe_write(file, (const uchar *)hash, len))
+        wrapper_my_b_safe_write(ostream, (const uchar *)hash, len))
       DBUG_RETURN(true);
   }
 
@@ -13484,7 +13480,7 @@ int View_change_log_event::do_update_pos(Relay_log_info *rli) {
   DBUG_RETURN(0);
 }
 
-bool View_change_log_event::write_data_header(IO_CACHE *file) {
+bool View_change_log_event::write_data_header(Basic_ostream *ostream) {
   DBUG_ENTER("View_change_log_event::write_data_header");
   char buf[Binary_log_event::VIEW_CHANGE_HEADER_LEN];
 
@@ -13492,19 +13488,19 @@ bool View_change_log_event::write_data_header(IO_CACHE *file) {
   int8store(buf + ENCODED_SEQ_NUMBER_OFFSET, seq_number);
   int4store(buf + ENCODED_CERT_INFO_SIZE_OFFSET, certification_info.size());
   DBUG_RETURN(wrapper_my_b_safe_write(
-      file, (const uchar *)buf, Binary_log_event::VIEW_CHANGE_HEADER_LEN));
+      ostream, (const uchar *)buf, Binary_log_event::VIEW_CHANGE_HEADER_LEN));
 }
 
-bool View_change_log_event::write_data_body(IO_CACHE *file) {
+bool View_change_log_event::write_data_body(Basic_ostream *ostream) {
   DBUG_ENTER("Transaction_context_log_event::write_data_body");
 
-  if (write_data_map(file, &certification_info)) DBUG_RETURN(true);
+  if (write_data_map(ostream, &certification_info)) DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
 
 bool View_change_log_event::write_data_map(
-    IO_CACHE *file, std::map<std::string, std::string> *map) {
+    Basic_ostream *ostream, std::map<std::string, std::string> *map) {
   DBUG_ENTER("View_change_log_event::write_data_set");
   bool result = false;
 
@@ -13522,12 +13518,12 @@ bool View_change_log_event::write_data_map(
 
     const char *value = iter->second.c_str();
 
-    if (wrapper_my_b_safe_write(file, buf_key_len,
+    if (wrapper_my_b_safe_write(ostream, buf_key_len,
                                 ENCODED_CERT_INFO_KEY_SIZE_LEN) ||
-        wrapper_my_b_safe_write(file, (const uchar *)key, key_len) ||
-        wrapper_my_b_safe_write(file, buf_value_len,
+        wrapper_my_b_safe_write(ostream, (const uchar *)key, key_len) ||
+        wrapper_my_b_safe_write(ostream, buf_value_len,
                                 ENCODED_CERT_INFO_VALUE_LEN) ||
-        wrapper_my_b_safe_write(file, (const uchar *)value, value_len))
+        wrapper_my_b_safe_write(ostream, (const uchar *)value, value_len))
       DBUG_RETURN(result);
   }
 

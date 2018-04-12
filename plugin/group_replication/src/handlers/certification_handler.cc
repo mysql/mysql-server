@@ -158,7 +158,7 @@ int Certification_handler::get_transaction_context(
   }
 
   transaction_context_pevent =
-      new Pipeline_event(transaction_context_packet, fdle, pevent->get_cache());
+      new Pipeline_event(transaction_context_packet, fdle);
   Log_event *transaction_context_event = NULL;
   error = transaction_context_pevent->get_LogEvent(&transaction_context_event);
   transaction_context_packet = NULL;
@@ -532,7 +532,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
       event->server_id, true, 0, 0, true, 0, 0, gtid_specification);
 
   Pipeline_event *gtid_pipeline_event =
-      new Pipeline_event(gtid_log_event, fd_event, pevent->get_cache());
+      new Pipeline_event(gtid_log_event, fd_event);
   next(gtid_pipeline_event, cont);
 
   int error = cont->wait();
@@ -547,7 +547,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
       applier_module_thd, STRING_WITH_LEN("BEGIN"), true, false, true, 0, true);
 
   Pipeline_event *begin_pipeline_event =
-      new Pipeline_event(begin_log_event, fd_event, pevent->get_cache());
+      new Pipeline_event(begin_log_event, fd_event);
   next(begin_pipeline_event, cont);
 
   error = cont->wait();
@@ -574,7 +574,7 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
                           false, true, 0, true);
 
   Pipeline_event *end_pipeline_event =
-      new Pipeline_event(end_log_event, fd_event, pevent->get_cache());
+      new Pipeline_event(end_log_event, fd_event);
   next(end_pipeline_event, cont);
   delete end_pipeline_event;
 

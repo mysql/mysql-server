@@ -239,8 +239,7 @@ bool Applier_module::apply_action_packet(Action_packet *action_packet) {
 
 int Applier_module::apply_view_change_packet(
     View_change_packet *view_change_packet,
-    Format_description_log_event *fde_evt, IO_CACHE *cache,
-    Continuation *cont) {
+    Format_description_log_event *fde_evt, Continuation *cont) {
   int error = 0;
 
   Gtid_set *group_executed_set = NULL;
@@ -273,8 +272,7 @@ int Applier_module::apply_view_change_packet(
   View_change_log_event *view_change_event =
       new View_change_log_event((char *)view_change_packet->view_id.c_str());
 
-  Pipeline_event *pevent =
-      new Pipeline_event(view_change_event, fde_evt, cache);
+  Pipeline_event *pevent = new Pipeline_event(view_change_event, fde_evt);
   pevent->mark_event(SINGLE_VIEW_EVENT);
   error = inject_event_into_pipeline(pevent, cont);
   delete pevent;
@@ -284,7 +282,7 @@ int Applier_module::apply_view_change_packet(
 
 int Applier_module::apply_data_packet(Data_packet *data_packet,
                                       Format_description_log_event *fde_evt,
-                                      IO_CACHE *cache, Continuation *cont) {
+                                      Continuation *cont) {
   int error = 0;
   uchar *payload = data_packet->payload;
   uchar *payload_end = data_packet->payload + data_packet->len;
@@ -302,7 +300,7 @@ int Applier_module::apply_data_packet(Data_packet *data_packet,
     Data_packet *new_packet = new Data_packet(payload, event_len);
     payload = payload + event_len;
 
-    Pipeline_event *pevent = new Pipeline_event(new_packet, fde_evt, cache);
+    Pipeline_event *pevent = new Pipeline_event(new_packet, fde_evt);
     error = inject_event_into_pipeline(pevent, cont);
 
     delete pevent;
@@ -347,21 +345,6 @@ int Applier_module::applier_thread_handle() {
   Packet *packet = NULL;
   bool loop_termination = false;
   int packet_application_error = 0;
-
-  IO_CACHE *cache = (IO_CACHE *)my_malloc(PSI_NOT_INSTRUMENTED,
-                                          sizeof(IO_CACHE), MYF(MY_ZEROFILL));
-  if (!cache || (!my_b_inited(cache) &&
-                 open_cached_file(cache, mysql_tmpdir,
-                                  "group_replication_pipeline_applier_cache",
-                                  SHARED_EVENT_IO_CACHE_SIZE, MYF(MY_WME)))) {
-    my_free(cache); /* purecov: inspected */
-    cache = NULL;   /* purecov: inspected */
-    LogPluginErr(
-        ERROR_LEVEL,
-        ER_GRP_RPL_CREATE_APPLIER_CACHE_ERROR); /* purecov: inspected */
-    applier_error = 1;                          /* purecov: inspected */
-    goto end;                                   /* purecov: inspected */
-  }
 
   applier_error = setup_pipeline_handlers();
 
@@ -408,12 +391,12 @@ int Applier_module::applier_thread_handle() {
         break;
       case VIEW_CHANGE_PACKET_TYPE:
         packet_application_error = apply_view_change_packet(
-            (View_change_packet *)packet, fde_evt, cache, cont);
+            (View_change_packet *)packet, fde_evt, cont);
         this->incoming->pop();
         break;
       case DATA_PACKET_TYPE:
         packet_application_error =
-            apply_data_packet((Data_packet *)packet, fde_evt, cache, cont);
+            apply_data_packet((Data_packet *)packet, fde_evt, cont);
         // Remove from queue here, so the size only decreases after packet
         // handling
         this->incoming->pop();
@@ -458,11 +441,6 @@ end:
     const char act[] = "now wait_for signal.applier_continue";
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
-
-  if (cache != NULL) {
-    close_cached_file(cache);
-    my_free(cache);
-  }
 
   clean_applier_thread_context();
 

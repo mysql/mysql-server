@@ -700,7 +700,8 @@ SET (BINLOG_SOURCE rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_execution.cc
                    rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
-                   log_event.cc binlog.cc sql_binlog.cc
+                   log_event.cc binlog.cc sql_binlog.cc basic_ostream.cc
+                   binlog_ostream.cc
                    rpl_filter.cc rpl_record.cc rpl_trx_tracking.cc
                    rpl_utility.cc rpl_injector.cc rpl_table_access.cc)
 ADD_CONVENIENCE_LIBRARY(binlog ${BINLOG_SOURCE})

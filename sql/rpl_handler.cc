@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -306,8 +306,9 @@ void delegates_destroy() {
   */                                                                   \
   if (!plugins.empty()) plugin_unlock_list(0, &plugins[0], plugins.size());
 
-int Trans_delegate::before_commit(THD *thd, bool all, IO_CACHE *trx_cache_log,
-                                  IO_CACHE *stmt_cache_log,
+int Trans_delegate::before_commit(THD *thd, bool all,
+                                  Binlog_cache_storage *trx_cache_log,
+                                  Binlog_cache_storage *stmt_cache_log,
                                   ulonglong cache_log_max_size,
                                   bool is_atomic_ddl_arg) {
   DBUG_ENTER("Trans_delegate::before_commit");

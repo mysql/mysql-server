@@ -85,9 +85,8 @@ class Data_packet : public Packet {
 // Define the data packet type
 #define UNDEFINED_EVENT_MODIFIER 0
 
-// Define the size of the pipeline IO_CACHEs
-#define DEFAULT_EVENT_IO_CACHE_SIZE 16384
-#define SHARED_EVENT_IO_CACHE_SIZE (DEFAULT_EVENT_IO_CACHE_SIZE * 16)
+// Define the size of the pipeline event buffer
+#define DEFAULT_EVENT_BUFFER_SIZE 16384
 
 /**
   @class Pipeline_event
@@ -109,18 +108,15 @@ class Pipeline_event {
 
     @param[in]  base_packet      the wrapper packet
     @param[in]  fde_event        the format description event for conversions
-    @param[in]  cache            IO_CACHED to be used on this event
     @param[in]  modifier         the event modifier
   */
   Pipeline_event(Data_packet *base_packet,
-                 Format_description_log_event *fde_event, IO_CACHE *cache,
+                 Format_description_log_event *fde_event,
                  int modifier = UNDEFINED_EVENT_MODIFIER)
       : packet(base_packet),
         log_event(NULL),
         event_context(modifier),
-        format_descriptor(fde_event),
-        cache(cache),
-        user_provided_cache(cache != NULL) {}
+        format_descriptor(fde_event) {}
 
   /**
     Create a new pipeline wrapper based on a log event.
@@ -129,17 +125,14 @@ class Pipeline_event {
 
     @param[in]  base_event       the wrapper log event
     @param[in]  fde_event        the format description event for conversions
-    @param[in]  cache            IO_CACHED to be used on this event
     @param[in]  modifier         the event modifier
   */
   Pipeline_event(Log_event *base_event, Format_description_log_event *fde_event,
-                 IO_CACHE *cache, int modifier = UNDEFINED_EVENT_MODIFIER)
+                 int modifier = UNDEFINED_EVENT_MODIFIER)
       : packet(NULL),
         log_event(base_event),
         event_context(modifier),
-        format_descriptor(fde_event),
-        cache(cache),
-        user_provided_cache(cache != NULL) {}
+        format_descriptor(fde_event) {}
 
   ~Pipeline_event() {
     if (packet != NULL) {
@@ -148,19 +141,7 @@ class Pipeline_event {
     if (log_event != NULL) {
       delete log_event;
     }
-
-    if (cache != NULL && !user_provided_cache) {
-      close_cached_file(cache); /* purecov: inspected */
-      my_free(cache);           /* purecov: inspected */
-    }
   }
-
-  /**
-    Return the IO_CACHE used on this event for conversions.
-
-    @return the IO_CACHE (which may be NULL)
-  */
-  IO_CACHE *get_cache() { return cache; }
 
   /**
     Return current format description event.
@@ -316,97 +297,21 @@ class Pipeline_event {
   */
   int convert_log_event_to_packet() {
     int error = 0;
-    String packet_data;
+    StringBuffer_ostream<DEFAULT_EVENT_BUFFER_SIZE> ostream;
 
-    /*
-      Reuse the same cache for improved performance.
-    */
-    if (cache == NULL) {
-      /* Open cache. */
-      cache = (IO_CACHE *)my_malloc(PSI_NOT_INSTRUMENTED, sizeof(IO_CACHE),
-                                    MYF(MY_ZEROFILL));
-      if (!cache ||
-          (!my_b_inited(cache) &&
-           open_cached_file(cache, mysql_tmpdir,
-                            "group_replication_pipeline_cache",
-                            DEFAULT_EVENT_IO_CACHE_SIZE, MYF(MY_WME)))) {
-        my_free(cache); /* purecov: inspected */
-        cache = NULL;   /* purecov: inspected */
-        LogPluginErr(
-            ERROR_LEVEL,
-            ER_GRP_RPL_PIPELINE_CREATE_FAILED); /* purecov: inspected */
-        return 1;                               /* purecov: inspected */
-      }
-    } else {
-      /* Reinit cache. */
-      if ((error = reinit_io_cache(cache, WRITE_CACHE, 0, 0, 0))) {
-        LogPluginErr(
-            ERROR_LEVEL,
-            ER_GRP_RPL_PIPELINE_REINIT_FAILED_WRITE); /* purecov: inspected */
-        return error;                                 /* purecov: inspected */
-      }
-    }
-
-    if ((error = log_event->write(cache))) {
+    if ((error = log_event->write(&ostream))) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET,
-                   error); /* purecov: inspected */
-      return error;        /* purecov: inspected */
+                   "Out of memory"); /* purecov: inspected */
+      return error;                  /* purecov: inspected */
     }
 
-    /*
-      Avoid call flush_io_cache() before reinit_io_cache() to
-      READ_CACHE if temporary file does not exist.
-    */
-    if (cache->file != -1 && (error = flush_io_cache(cache))) {
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_PIPELINE_FLUSH_FAIL); /* purecov: inspected */
-      return error;                                 /* purecov: inspected */
-    }
-
-    if ((error = reinit_io_cache(cache, READ_CACHE, 0, 0, 0))) {
-      LogPluginErr(
-          ERROR_LEVEL,
-          ER_GRP_RPL_PIPELINE_REINIT_FAILED_READ); /* purecov: inspected */
-      return error;                                /* purecov: inspected */
-    }
-
-    if ((error = Log_event::read_log_event(
-             cache, &packet_data, 0, binary_log::BINLOG_CHECKSUM_ALG_OFF))) {
-      LogPluginErr(
-          ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_CONVERT_EVENT_TO_PACKET,
-          get_string_log_read_error_msg(error)); /* purecov: inspected */
-      return error;                              /* purecov: inspected */
-    }
-    packet = new Data_packet((uchar *)packet_data.ptr(),
-                             static_cast<ulong>(packet_data.length()));
+    packet = new Data_packet(reinterpret_cast<const uchar *>(ostream.c_ptr()),
+                             ostream.length());
 
     delete log_event;
     log_event = NULL;
 
     return error;
-  }
-
-  const char *get_string_log_read_error_msg(int error) {
-    switch (error) {
-      case LOG_READ_BOGUS:
-        return "corrupted data in log event";
-      case LOG_READ_TOO_LARGE:
-        return "log event entry exceeded slave_max_allowed_packet; Increase "
-               "slave_max_allowed_packet";
-      case LOG_READ_IO:
-        return "I/O error reading log event";
-      case LOG_READ_MEM:
-        return "memory allocation failed reading log event, machine is out of "
-               "memory";
-      case LOG_READ_TRUNC:
-        return "binlog truncated in the middle of event; consider out of disk "
-               "space";
-      case LOG_READ_CHECKSUM_FAILURE:
-        return "event read from binlog did not pass checksum algorithm "
-               "check specified on --binlog-checksum option";
-      default:
-        return "unknown error reading log event";
-    }
   }
 
  private:
@@ -415,8 +320,6 @@ class Pipeline_event {
   int event_context;
   /* Format description event used on conversions */
   Format_description_log_event *format_descriptor;
-  IO_CACHE *cache;
-  bool user_provided_cache;
 };
 
 /**

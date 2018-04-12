@@ -6117,14 +6117,8 @@ int mysqld_main(int argc, char **argv)
     (prev_gtids_ev.common_footer)->checksum_alg =
         static_cast<enum_binlog_checksum_alg>(binlog_checksum_options);
 
-    if (prev_gtids_ev.write(mysql_bin_log.get_log_file()))
+    if (mysql_bin_log.write_event_to_binlog_and_sync(&prev_gtids_ev))
       unireg_abort(MYSQLD_ABORT_EXIT);
-    mysql_bin_log.add_bytes_written(prev_gtids_ev.common_header->data_written);
-
-    if (flush_io_cache(mysql_bin_log.get_log_file()) ||
-        mysql_file_sync(mysql_bin_log.get_log_file()->file, MYF(MY_WME)))
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    mysql_bin_log.update_binlog_end_pos();
 
     (void)RUN_HOOK(server_state, after_engine_recovery, (NULL));
   }

@@ -502,7 +502,6 @@ class Applier_module : public Applier_module_interface {
 
     @param view_change_packet  the received view change packet
     @param fde_evt  the Format description event associated to the event
-    @param cache    the applier IO cache to convert Log Events and Packets
     @param cont     the applier Continuation Object
 
     @return the operation status
@@ -511,7 +510,7 @@ class Applier_module : public Applier_module_interface {
   */
   int apply_view_change_packet(View_change_packet *view_change_packet,
                                Format_description_log_event *fde_evt,
-                               IO_CACHE *cache, Continuation *cont);
+                               Continuation *cont);
 
   /**
     Apply a Data packet received by the applier.
@@ -519,7 +518,6 @@ class Applier_module : public Applier_module_interface {
 
     @param data_packet  the received data packet packet
     @param fde_evt  the Format description event associated to the event
-    @param cache    the applier IO cache to convert Log Events and Packets
     @param cont     the applier Continuation Object
 
     @return the operation status
@@ -527,7 +525,7 @@ class Applier_module : public Applier_module_interface {
       @retval !=0    Error when injecting event
   */
   int apply_data_packet(Data_packet *data_packet,
-                        Format_description_log_event *fde_evt, IO_CACHE *cache,
+                        Format_description_log_event *fde_evt,
                         Continuation *cont);
 
   /**

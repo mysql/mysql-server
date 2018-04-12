@@ -613,12 +613,7 @@ class Log_event_header {
   /*
     The offset in the log where this event originally appeared (it is
     preserved in relay logs, making SHOW SLAVE STATUS able to print
-    coordinates of the event in the master's binlog). Note: when a
-    transaction is written by the master to its binlog (wrapped in
-    BEGIN/COMMIT) the log_pos of all the queries it contains is the
-    one of the BEGIN (this way, when one does SHOW SLAVE STATUS it
-    sees the offset of the BEGIN, which is logical as rollback may
-    occur), except the COMMIT query which has its real offset.
+    coordinates of the event in the master's binlog).
   */
   unsigned long long log_pos;
 

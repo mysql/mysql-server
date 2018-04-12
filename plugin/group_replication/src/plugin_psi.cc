@@ -197,8 +197,6 @@ static PSI_thread_info all_group_replication_psi_thread_keys[] = {
 static PSI_rwlock_info all_group_replication_psi_rwlock_keys[] = {
     {&key_GR_RWLOCK_cert_stable_gtid_set, "RWLOCK_certifier_stable_gtid_set",
      PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-    {&key_GR_RWLOCK_io_cache_unused_list, "RWLOCK_io_cache_unused_list",
-     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
     {&key_GR_RWLOCK_plugin_stop, "RWLOCK_plugin_stop", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME},
     {&key_GR_RWLOCK_gcs_operations, "RWLOCK_gcs_operations", PSI_FLAG_SINGLETON,

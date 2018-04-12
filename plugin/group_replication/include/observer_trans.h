@@ -27,21 +27,6 @@
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_communication_interface.h"
 
-/**
-  Initialize transactions observer structures.
-*/
-void observer_trans_initialize();
-
-/**
-  Terminate transactions observer structures.
-*/
-void observer_trans_terminate();
-
-/**
-  Clear server sessions opened caches.
-*/
-void observer_trans_clear_io_cache_unused_list();
-
 /*
   Transaction lifecycle events observers.
 */
@@ -58,10 +43,10 @@ int group_replication_trans_after_rollback(Trans_param *param);
 extern Trans_observer trans_observer;
 
 /*
-  @class Transaction_Message
+  @class Transaction_message
   Class to convey the serialized contents of the TCLE
  */
-class Transaction_Message : public Plugin_gcs_message {
+class Transaction_message : public Plugin_gcs_message, public Basic_ostream {
  public:
   enum enum_payload_item_type {
     // This type should not be used anywhere.
@@ -77,17 +62,27 @@ class Transaction_Message : public Plugin_gcs_message {
   /**
    Default constructor
    */
-  Transaction_Message();
-  virtual ~Transaction_Message();
+  Transaction_message();
+  virtual ~Transaction_message();
 
   /**
-    Appends IO_CACHE data to the internal buffer
+     Overrides Basic_ostream::write().
+     Transaction_message is a Basic_ostream. Callers can write data into
+     Transaction_message's data buffer though this method.
 
-    @param[in] src the IO_CACHE to copy data from
+     @param[in] buffer  where the data will be read
+     @param[in] length  the length of the data to write
 
-    @return true in case of error
-   */
-  bool append_cache(IO_CACHE *src);
+     @return returns false if succeeds, otherwise true is returned.
+  */
+  bool write(const unsigned char *buffer, my_off_t length);
+
+  /**
+     Length of data in data vector
+
+     @return data length
+  */
+  my_off_t length();
 
  protected:
   /*
@@ -99,18 +94,5 @@ class Transaction_Message : public Plugin_gcs_message {
  private:
   std::vector<uchar> data;
 };
-
-/**
-  Broadcasts the Transaction Message
-
-  @param msg the message to broadcast
-
-  @return the communication engine broadcast message error
-    @retval GCS_OK, when message is transmitted successfully
-    @retval GCS_NOK, when error occurred while transmitting message
-    @retval GCS_MESSAGE_TOO_BIG, when message is bigger than
-                                 communication engine can handle
- */
-enum enum_gcs_error send_transaction_message(Transaction_Message *msg);
 
 #endif /* OBSERVER_TRANS */

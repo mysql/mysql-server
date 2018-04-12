@@ -161,13 +161,6 @@ void Certifier_broadcast_thread::dispatcher() {
                          &abstime);
     mysql_mutex_unlock(&broadcast_dispatcher_lock);
 
-    /*
-      Clear server sessions open caches on transactions observer.
-      TODO: move this to a global scheduler.
-    */
-    if (broadcast_counter % 300 == 0)
-      observer_trans_clear_io_cache_unused_list(); /* purecov: inspected */
-
     broadcast_counter++;
   }
 

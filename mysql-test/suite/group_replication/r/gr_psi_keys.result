@@ -41,7 +41,6 @@ wait/synch/mutex/group_rpl/LOCK_transaction_unblocking	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_plugin_online	YES	YES	singleton	0	NULL
 wait/synch/mutex/group_rpl/LOCK_channel_observation_removal	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES	singleton	0	NULL
-wait/synch/rwlock/group_rpl/RWLOCK_io_cache_unused_list	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_plugin_stop	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations_finalize_ongoing	YES	YES	singleton	0	NULL

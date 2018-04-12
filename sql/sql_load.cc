@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -624,13 +624,6 @@ bool Sql_cmd_load_table::execute_inner(THD *thd,
             thd, table_list->db, table_list->table_name, is_concurrent,
             handle_duplicates, transactional_table, errcode);
       }
-
-      /*
-        Flushing the IO CACHE while writing the execute load query log event
-        may result in error (for instance, because the max_binlog_size has been
-        reached, and rotation of the binary log failed).
-      */
-      error = error || mysql_bin_log.get_log_file()->error;
     }
     if (error) goto err;
   }

@@ -13393,14 +13393,14 @@ ER_GRP_RPL_FAILED_TO_GATHER_TRANS_WRITE_SET
 ER_GRP_RPL_TRANS_SIZE_EXCEEDS_LIMIT
   eng "Error on session %u. Transaction of size %llu exceeds specified limit %lu. To increase the limit please adjust group_replication_transaction_size_limit option."
 
-ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_READ_FAILED
+OBSOLETE_ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_READ_FAILED
   eng "Error while re-initializing an internal cache, for read operations, on session %u"
 
-ER_GRP_RPL_APPENDING_DATA_TO_INTERNAL_CACHE_FAILED
+OBSOLETE_ER_GRP_RPL_APPENDING_DATA_TO_INTERNAL_CACHE_FAILED
   eng "Error while appending data to an internal cache on session %u"
 
-ER_GRP_RPL_WRITE_TO_BINLOG_CACHE_FAILED
-  eng "Error while writing binary log cache on session %u"
+ER_GRP_RPL_WRITE_TO_TRANSACTION_MESSAGE_FAILED
+  eng "Error while writing to transaction message on session %u"
 
 ER_GRP_RPL_FAILED_TO_REGISTER_TRANS_OUTCOME_NOTIFICTION
   eng "Unable to register for getting notifications regarding the outcome of the transaction on session %u"
@@ -13414,13 +13414,13 @@ ER_GRP_RPL_BROADCASTING_TRANS_TO_GRP_FAILED
 ER_GRP_RPL_ERROR_WHILE_WAITING_FOR_CONFLICT_DETECTION
   eng "Error while waiting for conflict detection procedure to finish on session %u"
 
-ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_WRITE_FAILED
+OBSOLETE_ER_GRP_RPL_REINIT_OF_INTERNAL_CACHE_FOR_WRITE_FAILED
   eng "Error while re-initializing an internal cache, for write operations, on session %u"
 
-ER_GRP_RPL_FAILED_TO_CREATE_COMMIT_CACHE
+OBSOLETE_ER_GRP_RPL_FAILED_TO_CREATE_COMMIT_CACHE
   eng "Failed to create group replication commit cache on session %u"
 
-ER_GRP_RPL_REINIT_OF_COMMIT_CACHE_FOR_WRITE_FAILED
+OBSOLETE_ER_GRP_RPL_REINIT_OF_COMMIT_CACHE_FOR_WRITE_FAILED
   eng "Failed to reinit group replication commit cache for write on session %u"
 
 ER_GRP_RPL_PREV_REC_SESSION_RUNNING
