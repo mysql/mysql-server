@@ -2653,15 +2653,17 @@ innodb_replace_trx_in_thd(
 		ut_ad(trx == NULL
 		      || (trx->mysql_thd == thd && !trx->is_recovered));
 
-	} else if (trx->state == TRX_STATE_NOT_STARTED) {
-		ut_ad(thd == trx->mysql_thd);
-		trx_free_for_mysql(trx);
-	} else {
-		ut_ad(thd == trx->mysql_thd);
-		ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
-		trx_disconnect_prepared(trx);
-	}
-	trx = static_cast<trx_t*>(new_trx_arg);
+	} else if (trx != NULL) {
+    if (trx->state == TRX_STATE_NOT_STARTED) {
+      ut_ad(thd == trx->mysql_thd);
+      trx_free_for_mysql(trx);
+    } else {
+      ut_ad(thd == trx->mysql_thd);
+      ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+      trx_disconnect_prepared(trx);
+    }
+  }
+  trx = static_cast<trx_t *>(new_trx_arg);
 }
 
 /*********************************************************************//**
