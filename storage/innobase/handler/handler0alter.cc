@@ -1881,7 +1881,7 @@ void innobase_rec_to_mysql(struct TABLE *table, /*!< in/out: MySQL table */
       continue;
     }
 
-    ifield = rec_get_nth_field(rec, offsets, ipos, index, &ilen);
+    ifield = rec_get_nth_field_instant(rec, offsets, ipos, index, &ilen);
 
     /* Assign the NULL flag */
     if (ilen == UNIV_SQL_NULL) {

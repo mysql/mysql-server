@@ -257,11 +257,11 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
     } else {
       clust_pos = dict_col_get_clust_pos(col, clust_index);
 
-      clust_field = rec_get_nth_field(clust_rec, clust_offs, clust_pos,
-                                      clust_index, &clust_len);
+      clust_field = rec_get_nth_field_instant(clust_rec, clust_offs, clust_pos,
+                                              clust_index, &clust_len);
     }
 
-    sec_field = rec_get_nth_field(sec_rec, sec_offs, i, nullptr, &sec_len);
+    sec_field = rec_get_nth_field(sec_rec, sec_offs, i, &sec_len);
 
     len = clust_len;
 
@@ -507,7 +507,7 @@ static void row_sel_fetch_columns(
 
         needs_copy = TRUE;
       } else {
-        data = rec_get_nth_field(rec, offsets, field_no, index, &len);
+        data = rec_get_nth_field_instant(rec, offsets, field_no, index, &len);
 
         needs_copy = column->copy_val;
       }
@@ -2503,7 +2503,7 @@ static void row_sel_store_row_id_to_prebuilt(
   ut_ad(rec_offs_validate(index_rec, index, offsets));
 
   data = rec_get_nth_field(index_rec, offsets,
-                           index->get_sys_col_pos(DATA_ROW_ID), nullptr, &len);
+                           index->get_sys_col_pos(DATA_ROW_ID), &len);
 
   if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
     ib::error(ER_IB_MSG_1029)
@@ -2841,7 +2841,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
     if (lob_undo != nullptr) {
       ulint local_len;
       const byte *field_data =
-          rec_get_nth_field(rec, offsets, field_no, index, &local_len);
+          rec_get_nth_field_instant(rec, offsets, field_no, index, &local_len);
       const byte *field_ref =
           field_data + local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
@@ -2862,7 +2862,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool
   } else {
     /* Field is stored in the row. */
 
-    data = rec_get_nth_field(rec, offsets, field_no, index, &len);
+    data = rec_get_nth_field_instant(rec, offsets, field_no, index, &len);
 
     if (len == UNIV_SQL_NULL) {
       /* MySQL assumes that the field for an SQL
@@ -4204,7 +4204,7 @@ static void row_sel_fill_vrow(const rec_t *rec, dict_index_t *index,
       const byte *data;
       ulint len;
 
-      data = rec_get_nth_field(rec, offsets, i, nullptr, &len);
+      data = rec_get_nth_field(rec, offsets, i, &len);
 
       const dict_v_col_t *vcol = reinterpret_cast<const dict_v_col_t *>(col);
 
@@ -5978,7 +5978,7 @@ static ib_uint64_t row_search_autoinc_read_column(
     goto func_exit;
   }
 
-  data = rec_get_nth_field(rec, offsets, col_no, nullptr, &len);
+  data = rec_get_nth_field(rec, offsets, col_no, &len);
 
   value = row_parse_int(data, len, mtype, unsigned_type);
 
@@ -6072,7 +6072,7 @@ static void convert_to_table_stats_record(rec_t *clust_rec,
   for (ulint i = 0; i < rec_offs_n_fields(clust_offsets); i++) {
     const byte *data;
     ulint len;
-    data = rec_get_nth_field(clust_rec, clust_offsets, i, nullptr, &len);
+    data = rec_get_nth_field(clust_rec, clust_offsets, i, &len);
 
     if (len == UNIV_SQL_NULL) {
       continue;
@@ -6214,8 +6214,7 @@ bool row_search_index_stats(const char *db_name, const char *tbl_name,
     if (n_recs == col_offset) {
       const byte *data;
       ulint len;
-      data = rec_get_nth_field(rec, offsets, cardinality_index_offset, nullptr,
-                               &len);
+      data = rec_get_nth_field(rec, offsets, cardinality_index_offset, &len);
 
       *cardinality = static_cast<ulonglong>(round(mach_read_from_8(data)));
       mtr_commit(&mtr);

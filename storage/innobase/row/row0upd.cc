@@ -315,8 +315,7 @@ void row_upd_rec_sys_fields_in_recovery(
     byte *field;
     ulint len;
 
-    field =
-        const_cast<byte *>(rec_get_nth_field(rec, offsets, pos, nullptr, &len));
+    field = const_cast<byte *>(rec_get_nth_field(rec, offsets, pos, &len));
     ut_ad(len == DATA_TRX_ID_LEN);
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR
 #error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
@@ -780,7 +779,7 @@ upd_t *row_upd_build_sec_rec_difference_binary(
   n_diff = 0;
 
   for (i = 0; i < dtuple_get_n_fields(entry); i++) {
-    data = rec_get_nth_field(rec, offsets, i, nullptr, &len);
+    data = rec_get_nth_field(rec, offsets, i, &len);
 
     dfield = dtuple_get_nth_field(entry, i);
 
@@ -865,7 +864,7 @@ upd_t *row_upd_build_difference_binary(dict_index_t *index,
   }
 
   for (i = 0; i < n_fld; i++) {
-    data = rec_get_nth_field(rec, offsets, i, index, &len);
+    data = rec_get_nth_field_instant(rec, offsets, i, index, &len);
 
     dfield = dtuple_get_nth_field(entry, i);
 
@@ -1789,7 +1788,7 @@ void row_upd_copy_columns(rec_t *rec, const ulint *offsets,
   ut_ad(index->is_clustered());
 
   while (column) {
-    data = rec_get_nth_field(
+    data = rec_get_nth_field_instant(
         rec, offsets, column->field_nos[SYM_CLUST_FIELD_NO], index, &len);
     eval_node_copy_and_alloc_val(column, data, len);
 
@@ -2246,7 +2245,7 @@ static bool row_upd_clust_rec_by_insert_inherit_func(
 
 #ifdef UNIV_DEBUG
     if (UNIV_LIKELY(rec != NULL)) {
-      const byte *rec_data = rec_get_nth_field(rec, offsets, i, nullptr, &len);
+      const byte *rec_data = rec_get_nth_field(rec, offsets, i, &len);
       ut_ad(len == dfield_get_len(dfield));
       ut_ad(len != UNIV_SQL_NULL);
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);

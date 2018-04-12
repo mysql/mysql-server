@@ -610,10 +610,12 @@ byte *mlog_parse_index(byte *ptr,            /*!< in: buffer */
           &table->cols[n + DATA_ROLL_PTR];
     }
 
-    if (ind->has_instant_cols()) {
+    if (ind->is_clustered() && ind->table->has_instant_cols()) {
+      ind->instant_cols = true;
       ind->n_instant_nullable =
           ind->get_n_nullable_before(ind->get_instant_fields());
     } else {
+      ind->instant_cols = false;
       ind->n_instant_nullable = ind->n_nullable;
     }
   }

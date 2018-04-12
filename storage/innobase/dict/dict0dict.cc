@@ -2511,10 +2511,12 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
     }
   }
 
-  if (new_index->has_instant_cols()) {
+  if (new_index->table->has_instant_cols() && new_index->is_clustered()) {
+    new_index->instant_cols = true;
     new_index->n_instant_nullable =
         new_index->get_n_nullable_before(new_index->get_instant_fields());
   } else {
+    new_index->instant_cols = false;
     new_index->n_instant_nullable = new_index->n_nullable;
   }
 
@@ -6510,11 +6512,11 @@ upd_t *DDTableBuffer::update_set_metadata(const dtuple_t *entry,
   rec_init_offsets_comp_ordinary(rec, false, m_index, offsets);
   ut_ad(!rec_get_deleted_flag(rec, 1));
 
-  version = rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, nullptr, &len);
+  version = rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, &len);
   ut_ad(len == 8);
   version_field = dtuple_get_nth_field(entry, VERSION_FIELD_NO);
 
-  metadata = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, nullptr, &len);
+  metadata = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
   metadata_dfield = dtuple_get_nth_field(entry, METADATA_FIELD_NO);
 
   if (dfield_data_is_binary_equal(version_field, 8, version) &&
@@ -6687,11 +6689,11 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
     ut_ad(!rec_get_deleted_flag(rec, true));
 
     const byte *rec_version =
-        rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, nullptr, &len);
+        rec_get_nth_field(rec, offsets, VERSION_FIELD_NO, &len);
     ut_ad(len == 8);
     *version = mach_read_from_8(rec_version);
 
-    field = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, nullptr, &len);
+    field = rec_get_nth_field(rec, offsets, METADATA_FIELD_NO, &len);
 
     ut_ad(len != UNIV_SQL_NULL);
   } else {

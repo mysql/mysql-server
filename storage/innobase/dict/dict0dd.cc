@@ -4335,8 +4335,7 @@ const char *dd_process_dd_tables_rec_and_mtr_commit(
 
   field = rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, &len);
 
   /* If "engine" field is not "innodb", return. */
   if (strncmp((const char *)field, "InnoDB", 6) != 0) {
@@ -4349,7 +4348,7 @@ const char *dd_process_dd_tables_rec_and_mtr_commit(
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_ID") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
 
   if (len != 8) {
     *table = NULL;
@@ -4408,8 +4407,7 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
   /* Get the engine field. */
   field = rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, &len);
 
   /* If "engine" field is not "innodb", return. */
   if (strncmp((const char *)field, "InnoDB", 6) != 0) {
@@ -4422,7 +4420,7 @@ const char *dd_process_dd_partitions_rec_and_mtr_commit(
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_ID") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
   /* When table is partitioned table, the se_private_id is null. */
   if (len != 8) {
     *table = NULL;
@@ -4486,8 +4484,7 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   /* Get the hidden attribute, and skip if it's a hidden column. */
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
   hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
   if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE) {
     mtr_commit(mtr);
@@ -4497,26 +4494,25 @@ bool dd_process_dd_columns_rec(mem_heap_t *heap, const rec_t *rec,
   /* Get the column name. */
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_NAME") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_NAME") + DD_FIELD_OFFSET, &len);
   *col_name = mem_heap_strdupl(heap, (const char *)field, len);
 
   /* Get the position. */
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_ORDINAL_POSITION") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
   pos = mach_read_from_4(field) - 1;
 
   /* Get the is_virtual attribute. */
-  field = (const byte *)rec_get_nth_field(rec, offsets, 21, nullptr, &len);
+  field = (const byte *)rec_get_nth_field(rec, offsets, 21, &len);
   is_virtual = mach_read_from_1(field) & 0x01;
 
   /* Get the se_private_data field. */
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
 
   if (len == 0 || len == UNIV_SQL_NULL) {
     mtr_commit(mtr);
@@ -4641,8 +4637,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   /* Get the is_virtual attribute, and skip if it's not a virtual column. */
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_IS_VIRTUAL") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      dd_object_table.field_number("FIELD_IS_VIRTUAL") + DD_FIELD_OFFSET, &len);
   is_virtual = mach_read_from_1(field) & 0x01;
   if (!is_virtual) {
     mtr_commit(mtr);
@@ -4652,8 +4647,7 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   /* Get the hidden attribute, and skip if it's a hidden column. */
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_HIDDEN") + DD_FIELD_OFFSET, &len);
   hidden = static_cast<dd::Column::enum_hidden_type>(mach_read_from_1(field));
   if (hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE) {
     mtr_commit(mtr);
@@ -4664,14 +4658,14 @@ bool dd_process_dd_virtual_columns_rec(mem_heap_t *heap, const rec_t *rec,
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_ORDINAL_POSITION") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
   origin_pos = mach_read_from_4(field) - 1;
 
   /* Get the se_private_data field. */
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
 
   if (len == 0 || len == UNIV_SQL_NULL) {
     mtr_commit(mtr);
@@ -4765,8 +4759,7 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
 
   field = rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, &len);
 
   /* If "engine" field is not "innodb", return. */
   if (strncmp((const char *)field, "InnoDB", 6) != 0) {
@@ -4778,7 +4771,7 @@ bool dd_process_dd_indexes_rec(mem_heap_t *heap, const rec_t *rec,
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
 
   if (len == 0 || len == UNIV_SQL_NULL) {
     mtr_commit(mtr);
@@ -4913,8 +4906,7 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
 
   field = rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, &len);
 
   /* If "engine" field is not "innodb", return. */
   if (strncmp((const char *)field, "InnoDB", 6) != 0) {
@@ -4925,7 +4917,7 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
 
   if (len == 0 || len == UNIV_SQL_NULL) {
     return (false);
@@ -4988,8 +4980,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
 
   field = rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_ENGINE") + DD_FIELD_OFFSET, &len);
 
   /* If "engine" field is not "innodb", return. */
   if (strncmp((const char *)field, "InnoDB", 6) != 0) {
@@ -4999,8 +4990,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   /* Get name field. */
   field = rec_get_nth_field(
       rec, offsets,
-      dd_object_table.field_number("FIELD_NAME") + DD_FIELD_OFFSET, nullptr,
-      &len);
+      dd_object_table.field_number("FIELD_NAME") + DD_FIELD_OFFSET, &len);
   *name = reinterpret_cast<char *>(mem_heap_zalloc(heap, len + 1));
   memcpy(*name, field, len);
 
@@ -5008,7 +4998,7 @@ bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
   field = (const byte *)rec_get_nth_field(
       rec, offsets,
       dd_object_table.field_number("FIELD_SE_PRIVATE_DATA") + DD_FIELD_OFFSET,
-      nullptr, &len);
+      &len);
 
   if (len == 0 || len == UNIV_SQL_NULL) {
     return (false);

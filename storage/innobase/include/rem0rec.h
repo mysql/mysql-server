@@ -305,9 +305,34 @@ value inlined
 UNIV_INLINE
 ulint rec_get_nth_field_offs(const ulint *offsets, ulint n, ulint *len);
 
+#ifdef UNIV_DEBUG
 /** Gets the value of the specified field in the record.
-This is only used for record from instant index, which is clustered
-index and has some instantly added columns.
+This is used for normal cases, i.e. secondary index or clustered index
+which must have no instantly added columns. Also note, if it's non-leaf
+page records, it's OK to always use this functioni.
+@param[in]	rec	physical record
+@param[in]	offsets	array returned by rec_get_offsets()
+@param[in]	n	index of the field
+@param[out]	len	length of the field, UNIV_SQL_NULL if SQL null
+@return value of the field */
+inline byte *rec_get_nth_field(const rec_t *rec, const ulint *offsets, ulint n,
+                               ulint *len) {
+  ulint off = rec_get_nth_field_offs(offsets, n, len);
+  ut_ad(*len != UNIV_SQL_ADD_COL_DEFAULT);
+  return (const_cast<byte *>(rec) + off);
+}
+#else /* UNIV_DEBUG */
+/** Gets the value of the specified field in the record.
+This is used for normal cases, i.e. secondary index or clustered index
+which must have no instantly added columns. Also note, if it's non-leaf
+page records, it's OK to always use this functioni. */
+#define rec_get_nth_field(rec, offsets, n, len) \
+  ((rec) + rec_get_nth_field_offs(offsets, n, len))
+#endif /* UNIV_DEBUG */
+
+/** Gets the value of the specified field in the record.
+This is only used when there is possibility that the record comes from the
+clustered index, which has some instantly added columns.
 @param[in]	rec	physical record
 @param[in]	offsets	array returned by rec_get_offsets()
 @param[in]	n	index of the field
@@ -317,8 +342,9 @@ index and has some instantly added columns.
 @param[out]	len	length of the field, UNIV_SQL_NULL if SQL null
 @return	value of the field, could be either pointer to rec or default value */
 UNIV_INLINE
-const byte *rec_get_nth_field(const rec_t *rec, const ulint *offsets, ulint n,
-                              const dict_index_t *index, ulint *len);
+const byte *rec_get_nth_field_instant(const rec_t *rec, const ulint *offsets,
+                                      ulint n, const dict_index_t *index,
+                                      ulint *len);
 
 /** Determine if the field is not NULL and not having default value
 after instant ADD COLUMN

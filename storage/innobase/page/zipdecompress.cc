@@ -323,6 +323,8 @@ static dict_index_t *page_zip_fields_decode(const byte *buf, const byte *end,
   }
 
   index->n_instant_nullable = index->n_nullable;
+  index->instant_cols =
+      (index->is_clustered() && index->table->has_instant_cols());
 
   return (index);
 }
@@ -350,8 +352,7 @@ static const byte *page_zip_apply_log_ext(
 
     if (UNIV_UNLIKELY(i == trx_id_col)) {
       /* Skip trx_id and roll_ptr */
-      dst =
-          const_cast<byte *>(rec_get_nth_field(rec, offsets, i, nullptr, &len));
+      dst = rec_get_nth_field(rec, offsets, i, &len);
       if (UNIV_UNLIKELY(dst - next_out >= end - data) ||
           UNIV_UNLIKELY(len < (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) ||
           rec_offs_nth_extern(offsets, i)) {
@@ -368,8 +369,7 @@ static const byte *page_zip_apply_log_ext(
       data += dst - next_out;
       next_out = dst + (DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
     } else if (rec_offs_nth_extern(offsets, i)) {
-      dst =
-          const_cast<byte *>(rec_get_nth_field(rec, offsets, i, nullptr, &len));
+      dst = rec_get_nth_field(rec, offsets, i, &len);
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
       len += dst - next_out - BTR_EXTERN_FIELD_REF_SIZE;
@@ -1029,8 +1029,7 @@ static ibool page_zip_decompress_clust_ext(
 
     if (UNIV_UNLIKELY(i == trx_id_col)) {
       /* Skip trx_id and roll_ptr */
-      dst =
-          const_cast<byte *>(rec_get_nth_field(rec, offsets, i, nullptr, &len));
+      dst = rec_get_nth_field(rec, offsets, i, &len);
       if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
         page_zip_fail(
             ("page_zip_decompress_clust_ext:"
@@ -1074,8 +1073,7 @@ static ibool page_zip_decompress_clust_ext(
 
       d_stream->next_out += DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
     } else if (rec_offs_nth_extern(offsets, i)) {
-      dst =
-          const_cast<byte *>(rec_get_nth_field(rec, offsets, i, nullptr, &len));
+      dst = rec_get_nth_field(rec, offsets, i, &len);
       ut_ad(len >= BTR_EXTERN_FIELD_REF_SIZE);
       dst += len - BTR_EXTERN_FIELD_REF_SIZE;
 
@@ -1191,8 +1189,7 @@ static ibool page_zip_decompress_clust(
     } else {
       /* Skip trx_id and roll_ptr */
       ulint len;
-      byte *dst = const_cast<byte *>(
-          rec_get_nth_field(rec, offsets, trx_id_col, nullptr, &len));
+      byte *dst = rec_get_nth_field(rec, offsets, trx_id_col, &len);
       if (UNIV_UNLIKELY(len < DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
         page_zip_fail(
             ("page_zip_decompress_clust:"
@@ -1332,8 +1329,7 @@ zlib_done:
     ibool exists = !page_zip_dir_find_free(page_zip, page_offset(rec));
     offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    dst = const_cast<byte *>(
-        rec_get_nth_field(rec, offsets, trx_id_col, nullptr, &len));
+    dst = rec_get_nth_field(rec, offsets, trx_id_col, &len);
     ut_ad(len >= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
     storage -= DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
     memcpy(dst, storage, DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
@@ -1350,8 +1346,7 @@ zlib_done:
       if (!rec_offs_nth_extern(offsets, i)) {
         continue;
       }
-      dst =
-          const_cast<byte *>(rec_get_nth_field(rec, offsets, i, nullptr, &len));
+      dst = rec_get_nth_field(rec, offsets, i, &len);
 
       if (UNIV_UNLIKELY(len < BTR_EXTERN_FIELD_REF_SIZE)) {
         page_zip_fail(

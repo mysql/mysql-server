@@ -549,7 +549,7 @@ byte *btr_rec_copy_externally_stored_field_func(
   limit so that field offsets are stored in two bytes, and
   the extern bit is available in those two bytes. */
 
-  data = rec_get_nth_field(rec, offsets, no, nullptr, &local_len);
+  data = rec_get_nth_field(rec, offsets, no, &local_len);
   const byte *field_ref = data + local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
   lob::ref_t ref(const_cast<byte *>(field_ref));
@@ -867,8 +867,7 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
 
     if (rec_offs_nth_extern(m_offsets, ufield->field_no)) {
       ulint len;
-      byte *data = const_cast<byte *>(
-          rec_get_nth_field(m_rec, m_offsets, ufield->field_no, nullptr, &len));
+      byte *data = rec_get_nth_field(m_rec, m_offsets, ufield->field_no, &len);
       ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
 
       byte *field_ref = data + len - BTR_EXTERN_FIELD_REF_SIZE;

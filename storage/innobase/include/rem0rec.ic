@@ -647,7 +647,7 @@ const byte *rec_offs_any_null_extern(
   for (i = 0; i < rec_offs_n_fields(offsets); i++) {
     if (rec_offs_nth_extern(offsets, i)) {
       ulint len;
-      const byte *field = rec_get_nth_field(rec, offsets, i, nullptr, &len);
+      const byte *field = rec_get_nth_field(rec, offsets, i, &len);
 
       ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);
       if (!memcmp(field + len - BTR_EXTERN_FIELD_REF_SIZE, field_ref_zero,
@@ -894,8 +894,8 @@ void rec_set_nth_field(
 
   ut_ad(!rec_offs_nth_default(offsets, n));
 
-  data2 =
-      const_cast<byte *>(rec_get_nth_field(rec, offsets, n, nullptr, &len2));
+  data2 = rec_get_nth_field(rec, offsets, n, &len2);
+
   if (len2 == UNIV_SQL_NULL) {
     ut_ad(!rec_offs_comp(offsets));
     rec_set_nth_field_null_bit(rec, n, FALSE);
@@ -1140,7 +1140,7 @@ ulint rec_fold(const rec_t *rec, const ulint *offsets, ulint n_fields,
   }
 
   for (i = 0; i < n_fields; i++) {
-    data = rec_get_nth_field(rec, offsets, i, index, &len);
+    data = rec_get_nth_field_instant(rec, offsets, i, index, &len);
 
     if (len != UNIV_SQL_NULL) {
       fold = ut_fold_ulint_pair(fold, ut_fold_binary(data, len));
@@ -1148,7 +1148,7 @@ ulint rec_fold(const rec_t *rec, const ulint *offsets, ulint n_fields,
   }
 
   if (n_bytes > 0) {
-    data = rec_get_nth_field(rec, offsets, i, index, &len);
+    data = rec_get_nth_field_instant(rec, offsets, i, index, &len);
 
     if (len != UNIV_SQL_NULL) {
       if (len > n_bytes) {
@@ -1223,8 +1223,8 @@ const byte *rec_get_nth_field_old_instant(const rec_t *rec, uint16_t n,
 }
 
 /** Gets the value of the specified field in the record.
-This is only used for record from instant index, which is clustered
-index and has some instantly added columns.
+This is only used when there is possibility that the record comes from the
+clustered index, which has some instantly add columns
 @param[in]	rec	record
 @param[in]	offsets	array returned by rec_get_offsets()
 @param[in]	n	index of the field
@@ -1232,8 +1232,9 @@ index and has some instantly added columns.
 @param[in,out]	len	length of the field, UNIV_SQL_NULL if SQL null
 @return	value of the field, could be either pointer to rec or default value */
 UNIV_INLINE
-const byte *rec_get_nth_field(const rec_t *rec, const ulint *offsets, ulint n,
-                              const dict_index_t *index, ulint *len) {
+const byte *rec_get_nth_field_instant(const rec_t *rec, const ulint *offsets,
+                                      ulint n, const dict_index_t *index,
+                                      ulint *len) {
   ulint off = rec_get_nth_field_offs(offsets, n, len);
 
   if (*len != UNIV_SQL_ADD_COL_DEFAULT) {
