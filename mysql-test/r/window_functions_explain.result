@@ -15566,6 +15566,7 @@ EXPLAIN
   }
 }
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i` asc
 EXPLAIN FORMAT=JSON SELECT * FROM t GROUP BY i ASC ORDER BY i DESC;
 EXPLAIN
@@ -15604,6 +15605,7 @@ EXPLAIN
   }
 }
 Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 Note	1003	/* select#1 */ select `test`.`t`.`i` AS `i` from `test`.`t` group by `test`.`t`.`i` desc order by `test`.`t`.`i` desc
 EXPLAIN FORMAT=JSON SELECT ROW_NUMBER() OVER () FROM t;
 EXPLAIN

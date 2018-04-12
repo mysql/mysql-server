@@ -1302,7 +1302,8 @@ void warn_about_deprecated_national(THD *thd)
         opt_num_buckets
 
 
-%type <order_direction> order_dir
+%type <order_direction>
+        ordering_direction opt_ordering_direction
 
 /*
   Bit field of MYSQL_START_TRANS_OPT_* flags.
@@ -1499,6 +1500,7 @@ void warn_about_deprecated_national(THD *thd)
         opt_cache_key_list
 
 %type <order_expr> order_expr alter_order_item
+        grouping_expr
 
 %type <order_list> order_list group_list gorder_list opt_gorder_clause
       alter_order_list opt_partition_clause opt_window_order_by_clause
@@ -7018,13 +7020,13 @@ key_list:
         ;
 
 key_part:
-          ident order_dir
+          ident opt_ordering_direction
           {
             $$= new (*THR_MALLOC) Key_part_spec(to_lex_cstring($1), 0, (enum_order) $2);
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
-        | ident '(' NUM ')' order_dir
+        | ident '(' NUM ')' opt_ordering_direction
           {
             int key_part_len= atoi($3.str);
             if (!key_part_len)
@@ -11109,12 +11111,12 @@ opt_group_clause:
         ;
 
 group_list:
-          group_list ',' order_expr
+          group_list ',' grouping_expr
           {
             $1->push_back($3);
             $$= $1;
           }
-        | order_expr
+        | grouping_expr
           {
             $$= NEW_PTN PT_order_list();
             if ($1 == NULL)
@@ -11155,7 +11157,7 @@ alter_order_list:
         ;
 
 alter_order_item:
-          simple_ident_nospvar order_dir
+          simple_ident_nospvar opt_ordering_direction
           {
             $$= NEW_PTN PT_order_expr($1, $2);
           }
@@ -11192,9 +11194,13 @@ order_list:
           }
         ;
 
-order_dir:
+opt_ordering_direction:
           /* empty */ { $$= ORDER_NOT_RELEVANT; }
-        | ASC         { $$= ORDER_ASC; }
+        | ordering_direction
+        ;
+
+ordering_direction:
+          ASC         { $$= ORDER_ASC; }
         | DESC        { $$= ORDER_DESC; }
         ;
 
@@ -13316,8 +13322,21 @@ table_wild:
         ;
 
 order_expr:
-          expr order_dir
+          expr opt_ordering_direction
           {
+            $$= NEW_PTN PT_order_expr($1, $2);
+          }
+        ;
+
+grouping_expr:
+          expr
+          {
+            $$= NEW_PTN PT_order_expr($1, ORDER_NOT_RELEVANT);
+          }
+        | expr ordering_direction
+          {
+            push_deprecated_warn(YYTHD, "GROUP BY with ASC/DESC",
+                                 "GROUP BY ... ORDER BY ... ASC/DESC");
             $$= NEW_PTN PT_order_expr($1, $2);
           }
         ;

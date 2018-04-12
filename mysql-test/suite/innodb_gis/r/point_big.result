@@ -121,6 +121,8 @@ SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP 
 COUNT(*)	ST_AsText(p1)
 1024	POINT(3 6)
 1024	POINT(4 8)
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2;
 COUNT(*)	ST_AsText(p2)
 1024	POINT(-1 -3)
@@ -289,6 +291,8 @@ SELECT COUNT(*), ST_AsText(p1) FROM gis_point WHERE MBRWithin(p1, @poly1) GROUP 
 COUNT(*)	ST_AsText(p1)
 1024	POINT(3 6)
 1024	POINT(4 8)
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@poly2, p2) GROUP BY p2 ASC;
 COUNT(*)	ST_AsText(p2)
 1024	POINT(-2 -6)
@@ -296,6 +300,8 @@ COUNT(*)	ST_AsText(p2)
 1024	POINT(-4 -12)
 1024	POINT(-1 -3)
 1024	POINT(-1 -1)
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SELECT COUNT(*), ST_AsText(p2) FROM gis_point WHERE ST_Equals(p2, @p1) GROUP BY p2;
 COUNT(*)	ST_AsText(p2)
 2	POINT(0 0)
@@ -310,6 +316,9 @@ COUNT(*)	ST_AsText(p1)	ST_AsText(p2)
 1024	POINT(6 12)	POINT(-6 -18)
 1024	POINT(7 14)	POINT(-7 -21)
 1024	POINT(20.5 41)	POINT(-8 4)
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SELECT COUNT(*), ST_AsText(p1), ST_AsText(p2) FROM gis_point WHERE ST_Contains(@mpoly, p1) AND NOT MBRWithin(p1, @mpoly) GROUP BY p1, p2;
 COUNT(*)	ST_AsText(p1)	ST_AsText(p2)
 CHECK TABLE gis_point;

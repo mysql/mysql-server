@@ -580,6 +580,9 @@ attendants	1
 bedlam	1
 bedpost	1
 boasted	1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SET BIG_TABLES=1;
 select distinct fld3,count(*) from t2 group by companynr asc,fld3 asc limit 10;
 fld3	count(*)
@@ -593,6 +596,9 @@ attendants	1
 bedlam	1
 bedpost	1
 boasted	1
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 SET BIG_TABLES=0;
 select distinct fld3,repeat("a",length(fld3)),count(*) from t2 group by companynr,fld3 limit 100,10;
 fld3	repeat("a",length(fld3))	count(*)
@@ -1581,6 +1587,8 @@ companynr	count(*)	min(fld4)	max(fld4)	sum(fld1)	avg(fld1)	std(fld1)	variance(fl
 00	82	Anthony	windmills	10355753	126289.6707	115550.97568479746	13352027981.708656
 29	95	abut	wetness	14473298	152350.5053	8368.547956641249	70032594.90260443
 34	70	absentee	vest	17788966	254128.0857	3272.5939722090234	10709871.306938833
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr asc,t2nr asc limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	1	1	5987435	5987435	5987435	5987435.0000
@@ -1593,6 +1601,9 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select /*! SQL_SMALL_RESULT */
 companynr,t2nr,count(price),sum(price),min(price),max(price),avg(price) from t3 where companynr = 37 group by companynr asc, t2nr asc limit 10;
 companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
@@ -1606,6 +1617,9 @@ companynr	t2nr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	22	1	28357832	28357832	28357832	28357832.0000
 37	23	1	39654943	39654943	39654943	39654943.0000
 37	31	1	5987435	5987435	5987435	5987435.0000
+Warnings:
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
+Warning	1287	'GROUP BY with ASC/DESC' is deprecated and will be removed in a future release. Please use GROUP BY ... ORDER BY ... ASC/DESC instead
 select companynr,count(price),sum(price),min(price),max(price),avg(price) from t3 group by companynr ;
 companynr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 37	12543	309394878010	5987435	39654943	24666736.6667
