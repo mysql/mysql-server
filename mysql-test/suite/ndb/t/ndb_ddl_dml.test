@@ -1,0 +1,201 @@
+##############################################################
+# Purpose: Test multiple concurrect DML and DDL operations.
+#          Currently with SPJ disabled, as that has its
+#          own problems to be fixed in this area.
+#
+##############################################################
+--source include/have_multi_ndb.inc
+
+connect (j1,localhost,root,,test);
+connect (j2,localhost,root,,test);
+connect (j3,localhost,root,,test);
+connect (ddl,localhost,root,,test);
+
+connection ddl;
+call mtr.add_suppression(".*NDB_SHARE.*Moving away for safety, but possible memleak");
+
+create table parent(a int primary key, b int, key(b)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+create table child(a int, b int, primary key(a,b), key(b)) engine=ndb
+comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
+
+insert into parent values (1,1), (2,2), (3,3), (4,4);
+insert into parent select a+4, b+4 from parent;
+insert into parent select a+8, b+8 from parent;
+insert into parent select a+16, b+16 from parent;
+insert into parent select a+32, b+32 from parent;
+insert into parent select a+64, b+64 from parent;
+insert into parent select a+128, b+128 from parent;
+insert into parent select a+256, b+256 from parent;
+insert into parent select a+512, b+512 from parent;
+insert into parent select a+1024, b+1024 from parent;
+insert into parent select a+2048, b+2048 from parent;
+insert into parent select a+4096, b+4096 from parent;
+
+insert into child select * from parent;
+analyze table parent, child;
+
+connection j1;
+set ndb_join_pushdown = off;
+
+# Use 'replace_column' to eliminate explained 'rows' which are unreliable
+--replace_column 10 ### 11 ###
+explain
+  select straight_join * 
+  from parent join child
+  on child.a = parent.a and child.b = parent.b
+  where parent.b > 5;
+
+--replace_column 10 ### 11 ###
+explain
+  select straight_join *
+  from parent join child
+  on child.a = parent.a 
+  where parent.b > 5;
+
+--replace_column 10 ### 11 ###
+explain
+  select straight_join *
+  from parent join child
+  on child.b = parent.b 
+  where parent.b > 5;
+
+show variables like 'server_id';
+
+delimiter %;
+create procedure query_eq_ref_load (seconds int)
+begin
+  set @x=time_to_sec(current_time()) + seconds;
+  repeat
+    set ndb_join_pushdown = off;
+    select straight_join * 
+    from parent join child
+    on child.a = parent.a and child.b = parent.b
+    where parent.b > 5;
+  until @x <= time_to_sec(current_time())
+  end repeat;
+end%
+
+create procedure query_ref_load (seconds int)
+begin
+  set @x=time_to_sec(current_time()) + seconds;
+  repeat
+    set ndb_join_pushdown = off;
+    select straight_join * 
+    from parent join child
+    on child.a = parent.a and child.b = parent.b
+    where parent.b > 5;
+  until @x <= time_to_sec(current_time())
+  end repeat;
+end%
+
+create procedure query_ref_b_load (seconds int)
+begin
+  set @x=time_to_sec(current_time()) + seconds;
+  repeat
+    set ndb_join_pushdown = off;
+    select straight_join *
+    from parent join child
+    on child.a = parent.a and child.b = parent.b
+    where parent.b > 5;
+  until @x <= time_to_sec(current_time())
+  end repeat;
+end%
+
+delimiter ;%
+
+
+--echo Starting background DML load
+
+connection j1;
+send call query_eq_ref_load(10);
+
+connection j2;
+send call query_ref_load(10);
+
+connection j3;
+send call query_ref_b_load(10);
+
+sleep 1;
+
+connection server2;
+show variables like 'server_id';
+
+--echo Starting concurrent DDL operations
+alter table child add column c int;
+alter table child drop column c;
+
+#sleep 1;
+alter table child drop primary key;
+alter table child add primary key(b);
+
+#sleep 1;
+alter table child drop primary key;
+alter table child add primary key(a,b) using hash;
+
+#sleep 1;
+alter table child drop primary key;
+alter table child add primary key(a,b);
+
+#sleep 1;
+--echo Completed DDL operations, rejoins with DML load.
+--disable_result_log
+
+# We may fail with error 1412: Table definition has changed,
+#   or             error 1146: Table ... doesn't exist
+#   or             error 1296: Got error 3 Unknown error code'
+# ... The later is a bit strange, but likely due to poor error 
+#     handling in NDB.
+#
+connection j1;
+--error 0,1412,1146,1296
+reap;
+
+connection j2;
+--error 0,1412,1146,1296
+reap;
+
+connection j3;
+--error 0,1412,1146,1296
+reap;
+
+--enable_result_log
+
+
+--echo ====================================================
+--echo Force a 'trailing share' to be created in order to
+--echo check correct cleanup in ndbcluster_real_free_share()
+--echo =====================================================
+let $query =
+  select straight_join * 
+  from parent join child
+  on child.a = parent.a and child.b = parent.b
+  where parent.b > 5;
+
+connection server1;
+set ndb_join_pushdown = off;
+--replace_column 10 ### 11 ###
+eval explain $query;
+--disable_query_log
+send_eval $query;
+--enable_query_log
+
+connection server2;
+alter table child algorithm=copy, drop primary key;
+commit;
+
+connection server1;
+--disable_result_log
+--error 0,1412,1146,1296
+reap;
+--enable_result_log
+
+
+connection ddl;
+drop table child;
+drop table parent;
+
+drop procedure query_eq_ref_load;
+drop procedure query_ref_load;
+drop procedure query_ref_b_load;
+
