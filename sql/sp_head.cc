@@ -1988,7 +1988,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
 #if defined(__sparc) && defined(__SUNPRO_CC)
     const int sp_stack_size = 10 * STACK_MIN_SIZE;
 #elif defined(__clang__) && defined(HAVE_UBSAN)
-    const int sp_stack_size = 15 * STACK_MIN_SIZE;
+    const int sp_stack_size = 16 * STACK_MIN_SIZE;
 #else
     const int sp_stack_size = 8 * STACK_MIN_SIZE;
 #endif
