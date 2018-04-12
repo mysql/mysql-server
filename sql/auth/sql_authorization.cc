@@ -6789,6 +6789,7 @@ Sctx_ptr<Security_context> Security_context_factory::create() {
   return Sctx_ptr<Security_context>(sctx, [](Security_context *sctx) {
     if (sctx->has_drop_policy()) {
       sctx->execute_drop_policy();
+      if (sctx->has_executed_drop_policy()) delete sctx;
     }
   });
 }
