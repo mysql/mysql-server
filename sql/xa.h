@@ -573,6 +573,23 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
 bool detach_native_trx(THD *thd, plugin_ref plugin, void *);
 
 /**
+  The function reattaches existing storage engines transaction
+  context to thd. Backup area to save it is provided to low level
+  storage engine function.
+
+  is invoked by plugin_foreach() after
+  trans_xa_prepare() for each storage engine.
+
+  @param[in,out]     thd     Thread context
+  @param             plugin  Reference to handlerton
+
+  @return    false   on success,
+             true    otherwise.
+*/
+
+bool reattach_native_trx(THD *thd, plugin_ref plugin, void *);
+
+/**
   Reset some transaction state information and delete corresponding
   Transaction_ctx object from cache.
 

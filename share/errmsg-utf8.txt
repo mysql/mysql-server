@@ -18065,6 +18065,9 @@ ER_GRP_RPL_PLUGIN_ABORT
 ER_REGEXP_INVALID_FLAG
   eng "Invalid match mode flag in regular expression."
 
+ER_XA_REPLICATION_FILTERS
+  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

@@ -1268,8 +1268,8 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 
   if (all) {
     /*
-      Ensure no active backup engine data exists, unless the current transaction
-      is from replication and in active xa state.
+      Ensure no active backup engine data exists, unless the current
+      transaction is from replication and in active xa state.
     */
     DBUG_ASSERT(
         thd->get_ha_data(ht_arg->slot)->ha_ptr_backup == NULL ||

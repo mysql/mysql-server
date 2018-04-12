@@ -2653,6 +2653,16 @@ void THD::rpl_detach_engine_ha_data() {
   if (rli) rli->detach_engine_ha_data(this);
 };
 
+void THD::rpl_reattach_engine_ha_data() {
+  Relay_log_info *rli =
+      is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
+
+  DBUG_ASSERT(!rli_fake || !rli_fake->is_engine_ha_data_detached);
+  DBUG_ASSERT(!rli_slave || !rli_slave->is_engine_ha_data_detached);
+
+  if (rli) rli->reattach_engine_ha_data(this);
+};
+
 bool THD::rpl_unflag_detached_engine_ha_data() {
   Relay_log_info *rli =
       is_binlog_applier() ? rli_fake : (slave_thread ? rli_slave : NULL);
@@ -2734,6 +2744,7 @@ void THD::notify_hton_post_release_exclusive(const MDL_key *mdl_key) {
 }
 
 void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton) {
+  DBUG_ENTER("reattach_engine_ha_data_to_thd");
   if (hton->replace_native_transaction_in_thd) {
     /* restore the saved original engine transaction's link with thd */
     void **trx_backup = &thd->get_ha_data(hton->slot)->ha_ptr_backup;
@@ -2741,6 +2752,7 @@ void reattach_engine_ha_data_to_thd(THD *thd, const struct handlerton *hton) {
     hton->replace_native_transaction_in_thd(thd, *trx_backup, NULL);
     *trx_backup = NULL;
   }
+  DBUG_VOID_RETURN;
 }
 
 /**

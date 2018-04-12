@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -283,7 +283,9 @@ class Transaction_ctx {
   }
 
   void set_ha_trx_info(enum_trx_scope scope, Ha_trx_info *trx_info) {
+    DBUG_ENTER("Transaction_ctx::set_ha_trx_info");
     m_scope_info[scope].m_ha_list = trx_info;
+    DBUG_VOID_RETURN;
   }
 
   XID_STATE *xid_state() { return &m_xid_state; }
@@ -357,9 +359,11 @@ class Transaction_ctx {
   }
 
   void reset_scope(enum_trx_scope scope) {
+    DBUG_ENTER("Transaction_ctx::reset_scope");
     m_scope_info[scope].m_ha_list = 0;
     m_scope_info[scope].m_no_2pc = 0;
     m_scope_info[scope].m_rw_ha_count = 0;
+    DBUG_VOID_RETURN;
   }
 
   Rpl_transaction_ctx *get_rpl_transaction_ctx() {

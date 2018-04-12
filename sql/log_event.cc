@@ -10602,7 +10602,14 @@ enum enum_tbl_map_status {
   SAME_ID_MAPPING_DIFFERENT_TABLE = 2,
 
   /* a duplicate identifier was found mapping the same table */
-  SAME_ID_MAPPING_SAME_TABLE = 3
+  SAME_ID_MAPPING_SAME_TABLE = 3,
+
+  /*
+    this table must be filtered out but found an active XA transaction. XA
+    transactions shouldn't be used with replication filters, until disabling
+    the XA read only optimization is a supported feature.
+  */
+  FILTERED_WITH_XA_ACTIVE = 4
 };
 
 /*
@@ -10653,7 +10660,11 @@ static enum_tbl_map_status check_table_map(Relay_log_info const *rli,
       (!rli->rpl_filter->db_ok(table_list->db) ||
        (rli->rpl_filter->is_on() &&
         !rli->rpl_filter->tables_ok("", table_list))))
-    res = FILTERED_OUT;
+    if (rli->info_thd->get_transaction()->xid_state()->has_state(
+            XID_STATE::XA_ACTIVE))
+      res = FILTERED_WITH_XA_ACTIVE;
+    else
+      res = FILTERED_OUT;
   else {
     RPL_TABLE_LIST *ptr = static_cast<RPL_TABLE_LIST *>(rli->tables_to_lock);
     for (uint i = 0; ptr && (i < rli->tables_to_lock_count);
@@ -10751,6 +10762,18 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
     /* 'memory' is freed in clear_tables_to_lock */
   } else  // FILTERED_OUT, SAME_ID_MAPPING_*
   {
+    if (tblmap_status == FILTERED_WITH_XA_ACTIVE) {
+      if (thd->slave_thread)
+        rli->report(ERROR_LEVEL, ER_XA_REPLICATION_FILTERS, "%s",
+                    ER_THD(thd, ER_XA_REPLICATION_FILTERS));
+      else
+        /*
+          For the cases in which a 'BINLOG' statement is set to
+          execute in a user session
+         */
+        my_printf_error(ER_XA_REPLICATION_FILTERS, "%s", MYF(0),
+                        ER_THD(thd, ER_XA_REPLICATION_FILTERS));
+    }
     /*
       If mapped already but with different properties, we raise an
       error.
@@ -10760,7 +10783,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
       In all three cases, we need to free the memory previously
       allocated.
      */
-    if (tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE) {
+    else if (tblmap_status == SAME_ID_MAPPING_DIFFERENT_TABLE) {
       /*
         Something bad has happened. We need to stop the slave as strange things
         could happen if we proceed: slave crash, wrong table being updated, ...

@@ -1448,6 +1448,15 @@ class Relay_log_info : public Rpl_info {
   */
 
   void detach_engine_ha_data(THD *thd);
+
+  /**
+    Reattaches the engine ha_data to THD. The fact
+    is memorized in @c is_engine_ha_detached flag.
+
+    @param  thd a reference to THD
+  */
+
+  void reattach_engine_ha_data(THD *thd);
   /**
     Drops the engine ha_data flag when it is up.
     The method is run at execution points of the engine ha_data
