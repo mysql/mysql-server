@@ -762,3 +762,8 @@ bool xpl::Server::reset() {
   instance_rwl.unlock();
   return r;
 }
+
+void xpl::Server::stop() {
+  exiting = true;
+  if (instance) instance->server().stop();
+}

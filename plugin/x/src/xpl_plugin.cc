@@ -656,9 +656,14 @@ static SHOW_VAR xpl_plugin_status[] = {
 
   @returns Success always.
 */
-static int xpl_sha2_cache_cleaner_notify(MYSQL_THD thd,
-                                         mysql_event_class_t event_class,
-                                         const void *event) {
+
+static int xpl_event_notify(MYSQL_THD thd, mysql_event_class_t event_class,
+                            const void *event) {
+  if (event_class == MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS) {
+    xpl::Server::stop();
+    return 0;
+  }
+
   if (event_class == MYSQL_AUDIT_AUTHENTICATION_CLASS) {
     const struct mysql_event_authentication *authentication_event =
         (const struct mysql_event_authentication *)event;
@@ -701,24 +706,24 @@ static int xpl_sha2_cache_cleaner_notify(MYSQL_THD thd,
 
 /** st_mysql_audit for sha2_cache_cleaner plugin */
 struct st_mysql_audit xpl_sha2_cache_cleaner = {
-    MYSQL_AUDIT_INTERFACE_VERSION, /* interface version */
-    NULL,                          /* release_thd() */
-    xpl_sha2_cache_cleaner_notify, /* event_notify() */
+    MYSQL_AUDIT_INTERFACE_VERSION,  // interface version
+    NULL,                           // release_thd()
+    xpl_event_notify,               // event_notify()
     {
-        0, /* MYSQL_AUDIT_GENERAL_CLASS */
-        0, /* MYSQL_AUDIT_CONNECTION_CLASS */
-        0, /* MYSQL_AUDIT_PARSE_CLASS */
-        0, /* MYSQL_AUDIT_AUTHORIZATION_CLASS */
-        0, /* MYSQL_AUDIT_TABLE_ACCESS_CLASS */
-        0, /* MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS */
-        0, /* MYSQL_AUDIT_SERVER_STARTUP_CLASS */
-        0, /* MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS */
-        0, /* MYSQL_AUDIT_COMMAND_CLASS */
-        0, /* MYSQL_AUDIT_QUERY_CLASS */
-        0, /* MYSQL_AUDIT_STORED_PROGRAM_CLASS */
-        (unsigned long)
-            MYSQL_AUDIT_AUTHENTICATION_ALL /* MYSQL_AUDIT_AUTHENTICATION_CLASS
-                                            */
+        0,  // MYSQL_AUDIT_GENERAL_CLASS
+        0,  // MYSQL_AUDIT_CONNECTION_CLASS
+        0,  // MYSQL_AUDIT_PARSE_CLASS
+        0,  // MYSQL_AUDIT_AUTHORIZATION_CLASS
+        0,  // MYSQL_AUDIT_TABLE_ACCESS_CLASS
+        0,  // MYSQL_AUDIT_GLOBAL_VARIABLE_CLASS
+        0,  // MYSQL_AUDIT_SERVER_STARTUP_CLASS
+        static_cast<unsigned long>(
+            MYSQL_AUDIT_SERVER_SHUTDOWN_ALL),  // MYSQL_AUDIT_SERVER_SHUTDOWN_CLASS
+        0,                                     // MYSQL_AUDIT_COMMAND_CLASS
+        0,                                     // MYSQL_AUDIT_QUERY_CLASS
+        0,  // MYSQL_AUDIT_STORED_PROGRAM_CLASS
+        static_cast<unsigned long>(
+            MYSQL_AUDIT_AUTHENTICATION_ALL)  // MYSQL_AUDIT_AUTHENTICATION_CLASS
     }};
 
 /** Init function for sha2_cache_cleaner */
