@@ -2473,6 +2473,7 @@ additionally freed from all association with MYSQL.
 @param[in,out]	ptr_trx_arg	pointer to a buffer to store old trx_t */
 static void innodb_replace_trx_in_thd(THD *thd, void *new_trx_arg,
                                       void **ptr_trx_arg) {
+  DBUG_ENTER("innodb_replace_trx_in_thd");
   trx_t *&trx = thd_to_trx(thd);
 
   ut_ad(new_trx_arg == NULL || (((trx_t *)new_trx_arg)->mysql_thd == thd &&
@@ -2483,15 +2484,18 @@ static void innodb_replace_trx_in_thd(THD *thd, void *new_trx_arg,
 
     ut_ad(trx == NULL || (trx->mysql_thd == thd && !trx->is_recovered));
 
-  } else if (trx->state == TRX_STATE_NOT_STARTED) {
-    ut_ad(thd == trx->mysql_thd);
-    trx_free_for_mysql(trx);
-  } else {
-    ut_ad(thd == trx->mysql_thd);
-    ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
-    trx_disconnect_prepared(trx);
+  } else if (trx != nullptr) {
+    if (trx->state == TRX_STATE_NOT_STARTED) {
+      ut_ad(thd == trx->mysql_thd);
+      trx_free_for_mysql(trx);
+    } else {
+      ut_ad(thd == trx->mysql_thd);
+      ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
+      trx_disconnect_prepared(trx);
+    }
   }
   trx = static_cast<trx_t *>(new_trx_arg);
+  DBUG_VOID_RETURN;
 }
 
 /** Note that a transaction has been registered with MySQL 2PC coordinator. */
