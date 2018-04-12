@@ -83,6 +83,10 @@ void Security_context::logout() {
 
 bool Security_context::has_drop_policy(void) { return m_has_drop_policy; }
 
+bool Security_context::has_executed_drop_policy(void) {
+  return m_executed_drop_policy;
+}
+
 void Security_context::execute_drop_policy(void) {
   if (m_has_drop_policy && !m_executed_drop_policy) {
     m_drop_policy(this);

@@ -376,6 +376,8 @@ class Security_context {
 
   bool has_drop_policy(void);
 
+  bool has_executed_drop_policy(void);
+
   void execute_drop_policy(void);
 
  private:
