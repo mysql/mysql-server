@@ -46,11 +46,11 @@ include/assert.inc [The session user should exist after upgrade]
 #
 UPDATE mysql.user SET Super_priv ='N' WHERE USER= 'mysql.session';
 Run mysql_upgrade
-Error occurred: The mysql.session exists but is not correctly configured. The mysql.session needs SELECT privileges in the performance_schema database and the mysql.db table and also SUPER, SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges.
+Error occurred: The mysql.session exists but is not correctly configured. On previous versions the mysql.session must have SELECT privileges in the performance_schema database and the mysql.db table and also SUPER privileges.
 UPDATE mysql.user SET Super_priv ='Y' WHERE USER= 'mysql.session';
 UPDATE mysql.tables_priv SET Table_priv ='' WHERE USER= 'mysql.session';
 Run mysql_upgrade
-Error occurred: The mysql.session exists but is not correctly configured. The mysql.session needs SELECT privileges in the performance_schema database and the mysql.db table and also SUPER, SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN privileges.
+Error occurred: The mysql.session exists but is not correctly configured. On previous versions the mysql.session must have SELECT privileges in the performance_schema database and the mysql.db table and also SUPER privileges.
 #
 # Clean up
 #

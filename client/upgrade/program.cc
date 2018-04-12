@@ -158,7 +158,7 @@ class Program : public Base::Abstract_connection_program {
   int check_session_user_configuration() {
     int is_user_configured = 0;
     is_user_configured = execute_conditional_query(
-        "SELECT SUM(count)=5 FROM ( "
+        "SELECT SUM(count)=3 FROM ( "
         "SELECT COUNT(*) as count FROM mysql.tables_priv WHERE "
         "Table_priv='Select' and User='mysql.session' and Db='mysql' and "
         "Table_name='user' "
@@ -167,14 +167,7 @@ class Program : public Base::Abstract_connection_program {
         "Select_priv='Y' and User='mysql.session' and Db='performance_schema' "
         "UNION ALL "
         "SELECT COUNT(*) as count FROM mysql.user WHERE "
-        "Super_priv='Y' and User='mysql.session' "
-        "UNION ALL "
-        "SELECT COUNT(*) as count FROM mysql.global_grants WHERE "
-        "Priv='PERSIST_RO_VARIABLES_ADMIN' and User='mysql.session' "
-        "UNION ALL "
-        "SELECT COUNT(*) as count FROM mysql.global_grants WHERE "
-        "Priv='SYSTEM_VARIABLES_ADMIN' and User='mysql.session') "
-        "as user_priv;",
+        "Super_priv='Y' and User='mysql.session') as user_priv;",
         "1");
     return is_user_configured;
   }
@@ -251,10 +244,9 @@ class Program : public Base::Abstract_connection_program {
       return this->print_error(
           EXIT_UPGRADING_QUERIES_ERROR,
           "The mysql.session exists but is not correctly configured."
-          " The mysql.session needs SELECT privileges in the"
-          " performance_schema database and the mysql.db table and also"
-          " SUPER, SYSTEM_VARIABLES_ADMIN and PERSIST_RO_VARIABLES_ADMIN"
-          " privileges.");
+          " On previous versions the mysql.session must have SELECT privileges"
+          " in the performance_schema database and the mysql.db table and also"
+          " SUPER privileges.");
     }
 
     if (user_is_not_there < 0 || is_user_correctly_configured < 0) {
