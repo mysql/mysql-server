@@ -1769,14 +1769,12 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
       List_iterator<LEX_USER> role_it(*(thd->lex->default_roles));
       LEX_USER *role;
       while ((role = role_it++) && result == 0) {
-        ACL_USER *acl_user;
-        ACL_USER *acl_role = nullptr;
-        bool not_granted = !is_granted_role(
-            tmp_user_name->user, tmp_user_name->host, role->user, role->host);
-        if (not_granted) {
-          acl_role = find_acl_user(role->host.str, role->user.str, true);
-          acl_user = find_acl_user(tmp_user_name->host.str,
-                                   tmp_user_name->user.str, true);
+        if (!is_granted_role(tmp_user_name->user, tmp_user_name->host,
+                             role->user, role->host)) {
+          ACL_USER *acl_role =
+              find_acl_user(role->host.str, role->user.str, true);
+          const ACL_USER *acl_user = find_acl_user(
+              tmp_user_name->host.str, tmp_user_name->user.str, true);
           if (acl_role == nullptr) {
             std::string authid = create_authid_str_from(role);
             my_error(ER_USER_DOES_NOT_EXIST, MYF(0), authid.c_str());
@@ -1789,17 +1787,16 @@ bool mysql_create_user(THD *thd, List<LEX_USER> &list, bool if_not_exists,
             my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
                      "WITH ADMIN, ROLE_ADMIN, SUPER");
             result = 1;
+          } else {
+            DBUG_ASSERT(result == 0);
+            grant_role(acl_role, acl_user, false);
+            Auth_id_ref from_user = create_authid_from(role);
+            Auth_id_ref to_user = create_authid_from(tmp_user_name);
+            result = modify_role_edges_in_table(
+                thd, tables[ACL_TABLES::TABLE_ROLE_EDGES].table, from_user,
+                to_user, false, false);
           }
-        }  // end if not_granted
-
-        if (result == 0 && not_granted) {
-          grant_role(acl_role, acl_user, false);
-          Auth_id_ref from_user = create_authid_from(role);
-          Auth_id_ref to_user = create_authid_from(tmp_user_name);
-          result = modify_role_edges_in_table(
-              thd, tables[ACL_TABLES::TABLE_ROLE_EDGES].table, from_user,
-              to_user, false, false);
-        }
+        }  // end if !is_granted_role()
 
         default_roles.push_back(create_authid_from(role));
       }
