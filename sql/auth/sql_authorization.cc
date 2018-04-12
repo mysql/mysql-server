@@ -6707,7 +6707,7 @@ Default_local_authid::Default_local_authid(const THD *thd) : m_thd(thd) {}
 
 /**
  Check if the security context can be created as a local authid
- @param sctx[out] The authid to be checked.
+ @param[out] sctx The authid to be checked.
  @return Success status
   @retval true an error occurred
   @retval false success
@@ -6719,7 +6719,7 @@ bool Default_local_authid::precheck(
 
 /**
  Create a local authid without modifying any tables.
- @param sctx[out] The authid that will be extended with a user profile
+ @param[out] sctx The authid that will be extended with a user profile
  @return Success status
   @retval true an error occurred
   @retval false success

@@ -862,11 +862,14 @@ class Security_context_factory {
   /**
     Default Security_context factory implementation. Given two policies and
     a authid this class returns a Security_context.
-    @param thd The thread handle
-    @param id A auth id
-    @param extend_user_profile The policy for creating the user profile
-    @param priv The policy for authorizing the authid to use the server.
-    @param drop_policy The policy for deleting the authid and revoke privs
+    @param thd                        The thread handle
+    @param user                       User name associated with auth id
+    @param host                       Host name associated with auth id
+    @param extend_user_profile        The policy for creating the user profile
+    @param priv                       The policy for authorizing the authid to
+                                      use the server.
+    @param drop_policy                The policy for deleting the authid and
+                                      revoke privileges
   */
   Security_context_factory(
       THD *thd, const std::string &user, const std::string &host,
