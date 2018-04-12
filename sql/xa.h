@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -707,7 +707,22 @@ struct st_plugin_int *plugin_find_by_type(const LEX_CSTRING &plugin, int type);
 
 my_bool detach_native_trx(THD *thd, plugin_ref plugin,
                                       void *unused);
+/**
+  The function reattaches existing storage engines transaction
+  context to thd. Backup area to save it is provided to low level
+  storage engine function.
 
+  is invoked by plugin_foreach() after
+  trans_xa_prepare() for each storage engine.
+
+  @param[in,out]     thd     Thread context
+  @param             plugin  Reference to handlerton
+
+  @return    FALSE   on success,
+             TRUE    otherwise.
+*/
+
+my_bool reattach_native_trx(THD *thd, plugin_ref plugin, void *);
 
 /**
   Reset some transaction state information and delete corresponding

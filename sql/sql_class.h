@@ -1559,6 +1559,12 @@ public:
   void rpl_detach_engine_ha_data();
 
   /**
+    When the thread is a binlog or slave applier it reattaches the engine
+    ha_data associated with it and memorizes the fact of that.
+  */
+  void rpl_reattach_engine_ha_data();
+
+  /**
     @return true   when the current binlog (rli_fake) or slave (rli_slave)
                    applier thread has detached the engine ha_data,
                    see @c rpl_detach_engine_ha_data.
