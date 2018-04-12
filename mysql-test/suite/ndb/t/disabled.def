@@ -40,6 +40,9 @@ ndb_fk_restore: Need WL#9185 MySQL Cluster support for new DD
 # Test which timeout most likley due to mismatches in shares etc.
 ndb.ndb_spj_dict: Need WL#9185 MySQL Cluster support for new DD
 
+# Problem with crash, most likley due to mismatches in shares etc
+ndb_ddl_dml: Need WL#9185 MySQL Cluster support for new DD
+
 # Inplace alter table and index problem(same problem as above)
 ndb_alter_table3: Bug#25915132 INPLACE ALTER TABLE WITH FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH
 
