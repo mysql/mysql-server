@@ -23,27 +23,27 @@ GRANT ALL ON *.* TO xuser_cache2@localhost;
 -- Expecting failure with parameters: DISABLED	memory	xuser_native	native
 --
 connecting...
-Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
 --
 connecting...
-Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
 --
 connecting...
-Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
 --
 connecting...
-Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
 --
 connecting...
-Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
 --
 connecting...
-Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 Mysqlx.Ok {
   msg: "bye!"
 }
@@ -112,27 +112,27 @@ ok
 -- Expecting failure with parameters: DISABLED	memory	xuser_native	native
 --
 connecting...
-Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
 --
 connecting...
-Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
 --
 connecting...
-Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: REQUIRED	memory	xuser_native	native
 --
 connecting...
-Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: REQUIRED	memory	xuser_sha256	sha256
 --
 connecting...
-Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: REQUIRED	memory	xuser_cache2	cache2
 --
 connecting...
-Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 Mysqlx.Ok {
   msg: "bye!"
 }

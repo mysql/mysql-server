@@ -99,7 +99,7 @@ ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
 
 --exec $MYSQLXTEST -u user2_mysqlx --password='set-new-auth' --file=$MYSQL_TMP_DIR/mysqlx-set-pwd.tmp 2>&1
 
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+--exec $MYSQLXTEST --expect-error 2510 -u user3_mysqlx --password='auth_string3' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
 --exec $MYSQLXTEST --expect-error ER_ACCOUNT_HAS_BEEN_LOCKED -u user4_mysqlx --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
@@ -107,11 +107,11 @@ ALTER USER user2_mysqlx@localhost PASSWORD EXPIRE;
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
 
 # Expecting error since ssl required users trying to connect on non-ssl enabled server.
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u user4_mysqlx --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+--exec $MYSQLXTEST --expect-error 2510 -u user4_mysqlx --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u user5_mysqlx --password='auth_string' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+--exec $MYSQLXTEST --expect-error 2510 -u user5_mysqlx --password='auth_string' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+--exec $MYSQLXTEST --expect-error 2510 -u user6_mysqlx --password='dwh@#ghd' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
 
 # Cleanup
 DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,

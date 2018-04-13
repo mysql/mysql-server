@@ -13,12 +13,15 @@
 #   $ERROR_IF_CHANNEL_UNSECURE - defined expected error code for MYSQLXTEST
 #                 default connection when test verifies X Plugin logic that
 #                 handles "require_secure_transport" system variable.
+#   $NO_SSL_ACCESS_DENIED_ERROR - expected error code when connecting using
+#                 SHA256_MEMORY authentication on an unsecure channel
 #
 # Usage:
 #
 # --let $INCREMENT=0|1
 # --let $USER_AUTH_PLUGIN=mysql_native_password|sha256_password|caching_sha2_password
 # --let $ERROR_IF_CHANNEL_UNSECURE=EXPECTED_ERROR_MESSAGE
+# --let $NO_SSL_ACCESS_DENIED_ERROR=ER_ACCESS_DENIED_ERROR
 # --let $USE_SOCKET=UNIX_SOCKET_CONFIGURATION
 # --source ../include/connection_ssl.inc
 #
@@ -332,7 +335,7 @@ exec $MYSQLXTEST -u x_root --password='' -h127.0.0.1
 --echo #
 --echo # III.1
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_MUST_CHANGE_PASSWORD_LOGIN -u user2_mysqlx --password='auth_string2' --plain-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_MUST_CHANGE_PASSWORD_LOGIN -u user2_mysqlx --password='auth_string2' 2>&1;
 
 --echo # III.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
@@ -377,12 +380,12 @@ exec $MYSQLXTEST_VERIFY_SSL -u user3_mysqlx --password='auth_string3'
 
 --echo # IV.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3'
 	--ssl-cipher='AES256-SHA' --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem 2>&1;
 
 --echo # IV.3
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' --cached-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' 2>&1;
 
 --echo # IV.4
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
@@ -390,7 +393,7 @@ exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysql
 
 --echo # IV.5
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3' --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user3_mysqlx --password='auth_string3'
 	--ssl-cipher='AES256-SHA' 2>&1;
 
 
@@ -452,21 +455,21 @@ exec $MYSQLXTEST_VERIFY_SSL -u user5_mysqlx --password='auth_string'
 --echo #
 --echo # VII.1
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL -u user6_mysqlx --password='dwh@#ghd' --plain-auth
+exec $MYSQLXTEST_VERIFY_SSL -u user6_mysqlx --password='dwh@#ghd'
 	$CLIENT_SSL_KEY $CLIENT_SSL_CERT
 	-v%VAR_SSL_ACCEPTS%=$SSL_CONNECTION_MADE 2>&1;
 
 --echo # VII.2
-exec $MYSQLXTEST_VERIFY_NON_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' 2>&1 --cached-auth;
+exec $MYSQLXTEST_VERIFY_NON_SSL --expect-error $NO_SSL_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' 2>&1;
 
 --echo # VII.3
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd'
 	$CLIENT_SSL_CA 2>&1;
 
 --echo # VII.4
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' --plain-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user6_mysqlx --password='dwh@#ghd' 2>&1;
 
 --echo
 --echo
@@ -487,20 +490,20 @@ exec $MYSQLXTEST_VERIFY_SSL -u user7_mysqlx
 
 --echo # VIII.2
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx
   --ssl-cipher="AES256-SHA" 2>&1;
 
 --echo # VIII.3
 let $expected_error_msg= Access denied for user 'user7_mysqlx'@'localhost' \(using password: YES\) \(code 1045\);
-exec $MYSQLXTEST_VERIFY_NON_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx --cached-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_NON_SSL --expect-error $NO_SSL_ACCESS_DENIED_ERROR -u user7_mysqlx 2>&1;
 
 --echo # VIII.4
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx --cached-auth 2>&1;
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx 2>&1;
 
 --echo # VIII.5
 expr $SSL_CONNECTION_MADE= $SSL_CONNECTION_MADE + $INCREMENT;
-exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx --cached-auth
+exec $MYSQLXTEST_VERIFY_SSL --expect-error ER_ACCESS_DENIED_ERROR -u user7_mysqlx
 	--ssl-cipher='DHE-RSA-AES256-SHA' $CLIENT_SSL_CA $CLIENT_SSL_KEY $CLIENT_SSL_CERT 2>&1;
 
 --echo

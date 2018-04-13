@@ -66,7 +66,8 @@ const char *const ER_TEXT_RECEIVE_BUFFER_TO_SMALL = "Receive buffer to small";
 namespace details {
 
 XError make_xerror(const Mysqlx::Error &error) {
-  return XError{static_cast<int>(error.code()), error.msg()};
+  bool is_fatal = error.severity() == Mysqlx::Error::FATAL;
+  return XError{static_cast<int>(error.code()), error.msg(), is_fatal};
 }
 
 class Query_sequencer : public Query_instances {

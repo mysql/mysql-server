@@ -43,7 +43,7 @@ GRANT ALL ON *.* TO xuser_sha256@localhost;
 --exec $MYSQLXTEST -uxuser_sha256 -psha256 $XSSLPARAM
 
 --echo Plain connection by sha256 plugin  -> fail (ssl is obligatory)
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_sha256 -psha256 $XBASIC
+--exec $MYSQLXTEST --expect-error 2510 -uxuser_sha256 -psha256 $XBASIC
 
 --echo Ssl connection by native plugin  -> fail (wrong password)
 --exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uxuser_native -psha256 $XSSLPARAM
