@@ -1928,7 +1928,53 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     uint error= 0;
 
     if (found_order_commit_deadlock())
-      error= ER_LOCK_DEADLOCK;
+    {
+      /*
+        This transaction was allowed to be executed in parallel with other that
+        happened earlier according to binary log order. It was asked to be
+        rolled back by the other transaction as it was holding a lock that is
+        needed by the other transaction to progress, according to binary log
+        order this configure a deadlock.
+
+        At this point, this transaction *should* have no non-temporary errors.
+
+        Having a non-temporary error may be a sign of:
+
+        a) Slave has diverged from the master;
+        b) There is an issue in the logical clock allowing a transaction to be
+           applied in parallel with its dependencies (the two transactions are
+           trying to change the same record in parallel).
+
+        For (a), a retry of this transaction will produce the same error. For
+        (b), this transaction might succeed upon retry, allowing the slave to
+        progress without manual intervention, but it is a sign of problems in LC
+        generation at the master.
+
+        So, we will make the worker to retry this transaction only if there is
+        no error or the error is a temporary error.
+      */
+      Diagnostics_area *da= thd->get_stmt_da();
+      if (!thd->get_stmt_da()->is_error() ||
+          has_temporary_error(thd,
+                              da->is_error() ? da->mysql_errno() : error,
+                              &silent))
+      {
+        error= ER_LOCK_DEADLOCK;
+      }
+#ifndef DBUG_OFF
+      else
+      {
+        /*
+          The non-debug binary will not retry this transactions, stopping the
+          SQL thread because of the non-temporary error. But, as this situation
+          is not supposed to happen as described in the comment above, we will
+          fail an assert to ease the issue investigation when it happens.
+        */
+        if (DBUG_EVALUATE_IF("rpl_fake_cod_deadlock", 0, 1))
+          DBUG_ASSERT(false);
+      }
+#endif
+    }
 
     if (!has_temporary_error(thd, error, &silent) ||
         thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION))
