@@ -150,6 +150,14 @@ bool Sql_cmd_import_table::execute(THD *thd) {
                    MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
   mdl_requests.push_front(mdl_request_for_backup_lock);
 
+  // If we cannot acquire protection against GRL, err out.
+  if (thd->global_read_lock.can_acquire_protection()) return true;
+
+  MDL_request *mdl_request_for_grl = new (thd->mem_root) MDL_request;
+  MDL_REQUEST_INIT(mdl_request_for_grl, MDL_key::GLOBAL, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  mdl_requests.push_front(mdl_request_for_grl);
+
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout)) {
     return true;

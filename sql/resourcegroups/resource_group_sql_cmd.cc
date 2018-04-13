@@ -49,6 +49,7 @@
 #include "sql/dd/dd_resource_group.h"        // resource_group_exists, etc.
 #include "sql/dd/string_type.h"              // String_type
 #include "sql/derror.h"                      // ER_THD
+#include "sql/lock.h"                        // acquire_shared_global...
 #include "sql/mdl.h"
 #include "sql/mysqld_thd_manager.h"  // Find_thd_with_id
 #include "sql/parse_tree_helpers.h"
@@ -216,7 +217,8 @@ bool resourcegroups::Sql_cmd_create_resource_group::execute(THD *thd) {
                                  num_vcpus))
     DBUG_RETURN(true);
 
-  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     DBUG_RETURN(true);
 
   // Acquire exclusive lock on the resource group name.
@@ -329,7 +331,8 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
     DBUG_RETURN(true);
   }
 
-  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     DBUG_RETURN(true);
 
   // Acquire exclusive lock on the resource group name.
@@ -445,7 +448,8 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd) {
     DBUG_RETURN(true);
   }
 
-  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+  if (acquire_shared_global_read_lock(thd, thd->variables.lock_wait_timeout) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
     DBUG_RETURN(true);
 
   // Acquire exclusive lock on the resource group name.

@@ -963,6 +963,32 @@ std::atomic<int32> Global_read_lock::m_atomic_active_requests;
 ****************************************************************************/
 
 /**
+  Acquire protection against the global read lock.
+
+  Acquire an intention exclusive lock to protect against others
+  setting the global read lock. We follow the naming used by
+  the backup lock help functions when naming this function.
+
+  @param  thd                Thread context.
+  @param  lock_wait_timeout  Time to wait for lock acquisition.
+
+  @retval false   No error, meta data lock acquired.
+  @retval true    Error, meta data lock not acquired.
+*/
+
+bool acquire_shared_global_read_lock(THD *thd,
+                                     unsigned long lock_wait_timeout) {
+  // If we cannot acuqire protection against GRL, err out.
+  if (thd->global_read_lock.can_acquire_protection()) return true;
+
+  MDL_request grl_request;
+  MDL_REQUEST_INIT(&grl_request, MDL_key::GLOBAL, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+
+  return thd->mdl_context.acquire_lock(&grl_request, lock_wait_timeout);
+}
+
+/**
   Take global read lock, wait if there is protection against lock.
 
   If the global read lock is already taken by this thread, then nothing is done.
