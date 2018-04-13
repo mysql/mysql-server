@@ -73,6 +73,9 @@ class PFS_opaque_container_page;
 
 extern bool pfs_enabled;
 
+/** Global ref count for plugin and component events. */
+extern std::atomic<uint32> pfs_unload_plugin_ref_count;
+
 /** Key, naming a synch instrument (mutex, rwlock, cond). */
 typedef unsigned int PFS_sync_key;
 /** Key, naming a thread instrument. */

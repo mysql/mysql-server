@@ -20,24 +20,25 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define HAVE_PSI_MUTEX_INTERFACE
-#define HAVE_PSI_RWLOCK_INTERFACE
 #define HAVE_PSI_COND_INTERFACE
-#define HAVE_PSI_FILE_INTERFACE
-#define HAVE_PSI_THREAD_INTERFACE
-#define HAVE_PSI_TABLE_INTERFACE
-#define HAVE_PSI_STAGE_INTERFACE
-#define HAVE_PSI_STATEMENT_INTERFACE
-#define HAVE_PSI_SP_INTERFACE
-#define HAVE_PSI_PS_INTERFACE
-#define HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-#define HAVE_PSI_TRANSACTION_INTERFACE
-#define HAVE_PSI_SOCKET_INTERFACE
-#define HAVE_PSI_MEMORY_INTERFACE
-#define HAVE_PSI_ERROR_INTERFACE
-#define HAVE_PSI_IDLE_INTERFACE
-#define HAVE_PSI_METADATA_INTERFACE
 #define HAVE_PSI_DATA_LOCK_INTERFACE
+#define HAVE_PSI_ERROR_INTERFACE
+#define HAVE_PSI_FILE_INTERFACE
+#define HAVE_PSI_IDLE_INTERFACE
+#define HAVE_PSI_MEMORY_INTERFACE
+#define HAVE_PSI_METADATA_INTERFACE
+#define HAVE_PSI_MUTEX_INTERFACE
+#define HAVE_PSI_PS_INTERFACE
+#define HAVE_PSI_RWLOCK_INTERFACE
+#define HAVE_PSI_SOCKET_INTERFACE
+#define HAVE_PSI_SP_INTERFACE
+#define HAVE_PSI_STAGE_INTERFACE
+#define HAVE_PSI_STATEMENT_DIGEST_INTERFACE
+#define HAVE_PSI_STATEMENT_INTERFACE
+#define HAVE_PSI_SYSTEM_INTERFACE
+#define HAVE_PSI_TABLE_INTERFACE
+#define HAVE_PSI_THREAD_INTERFACE
+#define HAVE_PSI_TRANSACTION_INTERFACE
 
 #include "storage/perfschema/pfs.h"
 
@@ -59,6 +60,7 @@
 #include <mysql/components/services/psi_socket_service.h>
 #include <mysql/components/services/psi_stage_service.h>
 #include <mysql/components/services/psi_statement_service.h>
+#include <mysql/components/services/psi_system_service.h>
 #include <mysql/components/services/psi_table_service.h>
 #include <mysql/components/services/psi_thread_service.h>
 #include <mysql/components/services/psi_transaction_service.h>
@@ -86,6 +88,7 @@
 #include "pfs_socket_provider.h"
 #include "pfs_stage_provider.h"
 #include "pfs_statement_provider.h"
+#include "pfs_system_provider.h"
 #include "pfs_table_provider.h"
 #include "pfs_thread_provider.h"
 #include "pfs_transaction_provider.h"
@@ -125,24 +128,25 @@ using std::min;
 */
 #ifdef IN_DOXYGEN
 #define HAVE_PSI_2
-#define DISABLE_PSI_MUTEX
-#define DISABLE_PSI_RWLOCK
 #define DISABLE_PSI_COND
+#define DISABLE_PSI_DATA_LOCK
+#define DISABLE_PSI_ERROR
 #define DISABLE_PSI_FILE
-#define DISABLE_PSI_THREAD
-#define DISABLE_PSI_TABLE
+#define DISABLE_PSI_IDLE
+#define DISABLE_PSI_MEMORY
+#define DISABLE_PSI_METADATA
+#define DISABLE_PSI_MUTEX
+#define DISABLE_PSI_PS
+#define DISABLE_PSI_RWLOCK
+#define DISABLE_PSI_SOCKET
+#define DISABLE_PSI_SP
 #define DISABLE_PSI_STAGE
 #define DISABLE_PSI_STATEMENT
-#define DISABLE_PSI_SP
-#define DISABLE_PSI_PS
 #define DISABLE_PSI_STATEMENT_DIGEST
-#define DISABLE_PSI_SOCKET
-#define DISABLE_PSI_MEMORY
-#define DISABLE_PSI_ERROR
-#define DISABLE_PSI_IDLE
-#define DISABLE_PSI_METADATA
+#define DISABLE_PSI_SYSTEM
+#define DISABLE_PSI_TABLE
+#define DISABLE_PSI_THREAD
 #define DISABLE_PSI_TRANSACTION
-#define DISABLE_PSI_DATA_LOCK
 #endif /* IN_DOXYGEN */
 
 /*
@@ -1118,6 +1122,24 @@ PSI_TABLE_CALL(end_table_io_wait)(...)
     </td>
     <td>@ref PSI_table_bootstrap</td>
     <td>@ref REQUIRES_PSI_TABLE_SERVICE</td>
+  </tr>
+
+  <tr>
+    <td>System</td>
+    <td>
+@verbatim
+#include "mysql/psi/psi_system.h"
+PSI_SYSTEM_CALL(plugin_unload)(...)
+@endverbatim
+    </td>
+    <td>
+@verbatim
+#include "mysql/components/services/psi_system.h"
+PSI_SYSTEM_CALL(plugin_unload)(...)
+@endverbatim
+    </td>
+    <td>@ref PSI_system_bootstrap</td>
+    <td>@ref REQUIRES_PSI_SYSTEM_SERVICE</td>
   </tr>
 
   <tr>
@@ -7730,6 +7752,42 @@ void pfs_unregister_data_lock_v1(
 }
 
 /**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v1::unload_plugin.
+*/
+void pfs_unload_plugin_v1(const char *plugin_name MY_ATTRIBUTE((unused))) {
+  /*
+    A plugin or component is being unloaded. Events that originated from the
+    plugin contain string pointers set by the __FILE__ macro. These source file
+    strings are used in the SOURCE column in some tables, and will become
+    invalid when the plugin memory is freed.
+    For safety, all file string pointers in all events will be set to NULL.
+  */
+
+  /* Temporarily disable the SOURCE column in all tables. */
+  pfs_unload_plugin_ref_count++;
+
+  /* Find the relevant events, set source file strings to NULL. */
+  reset_source_file_pointers();
+
+  /* Re-enable the SOURCE column in all tables. */
+  pfs_unload_plugin_ref_count--;
+}
+
+/**
+  Implementation of the instrumentation interface.
+  @sa PSI_system_service_v1
+*/
+PSI_system_service_v1 pfs_system_service_v1 = {
+    /* Old interface, for plugins. */
+    pfs_unload_plugin_v1};
+
+SERVICE_TYPE(psi_system_v1)
+SERVICE_IMPLEMENTATION(performance_schema, psi_system_v1) = {
+    /* New interface, for components. */
+    pfs_unload_plugin_v1};
+
+/**
   Implementation of the instrumentation interface.
   @sa PSI_thread_service_v1
 */
@@ -8063,6 +8121,15 @@ PSI_data_lock_service_v1 pfs_data_lock_service_v1 = {
     /* Old interface, for plugins. */
     pfs_register_data_lock_v1, pfs_unregister_data_lock_v1};
 
+static void *get_system_interface(int version) {
+  switch (version) {
+    case PSI_SYSTEM_VERSION_1:
+      return &pfs_system_service_v1;
+    default:
+      return NULL;
+  }
+}
+
 static void *get_thread_interface(int version) {
   switch (version) {
     case PSI_THREAD_VERSION_1:
@@ -8198,42 +8265,45 @@ static void *get_data_lock_interface(int version) {
   }
 }
 
-struct PSI_thread_bootstrap pfs_thread_bootstrap = {get_thread_interface};
-
-struct PSI_mutex_bootstrap pfs_mutex_bootstrap = {get_mutex_interface};
-
-struct PSI_rwlock_bootstrap pfs_rwlock_bootstrap = {get_rwlock_interface};
-
 struct PSI_cond_bootstrap pfs_cond_bootstrap = {get_cond_interface};
-
-struct PSI_file_bootstrap pfs_file_bootstrap = {get_file_interface};
-
-struct PSI_socket_bootstrap pfs_socket_bootstrap = {get_socket_interface};
-
-struct PSI_table_bootstrap pfs_table_bootstrap = {get_table_interface};
-
-struct PSI_mdl_bootstrap pfs_mdl_bootstrap = {get_mdl_interface};
-
-struct PSI_idle_bootstrap pfs_idle_bootstrap = {get_idle_interface};
-
-struct PSI_stage_bootstrap pfs_stage_bootstrap = {get_stage_interface};
-
-struct PSI_statement_bootstrap pfs_statement_bootstrap = {
-    get_statement_interface};
-
-struct PSI_transaction_bootstrap pfs_transaction_bootstrap = {
-    get_transaction_interface};
-
-struct PSI_memory_bootstrap pfs_memory_bootstrap = {get_memory_interface};
-
-struct PSI_error_bootstrap pfs_error_bootstrap = {get_error_interface};
 
 struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap = {
     get_data_lock_interface};
 
 PSI_engine_data_lock_inspector *g_data_lock_inspector[COUNT_DATA_LOCK_ENGINES] =
     {NULL};
+
 unsigned int g_data_lock_inspector_count = 0;
+
+struct PSI_error_bootstrap pfs_error_bootstrap = {get_error_interface};
+
+struct PSI_file_bootstrap pfs_file_bootstrap = {get_file_interface};
+
+struct PSI_idle_bootstrap pfs_idle_bootstrap = {get_idle_interface};
+
+struct PSI_mdl_bootstrap pfs_mdl_bootstrap = {get_mdl_interface};
+
+struct PSI_memory_bootstrap pfs_memory_bootstrap = {get_memory_interface};
+
+struct PSI_mutex_bootstrap pfs_mutex_bootstrap = {get_mutex_interface};
+
+struct PSI_rwlock_bootstrap pfs_rwlock_bootstrap = {get_rwlock_interface};
+
+struct PSI_socket_bootstrap pfs_socket_bootstrap = {get_socket_interface};
+
+struct PSI_stage_bootstrap pfs_stage_bootstrap = {get_stage_interface};
+
+struct PSI_statement_bootstrap pfs_statement_bootstrap = {
+    get_statement_interface};
+
+struct PSI_system_bootstrap pfs_system_bootstrap = {get_system_interface};
+
+struct PSI_table_bootstrap pfs_table_bootstrap = {get_table_interface};
+
+struct PSI_thread_bootstrap pfs_thread_bootstrap = {get_thread_interface};
+
+struct PSI_transaction_bootstrap pfs_transaction_bootstrap = {
+    get_transaction_interface};
 
 BEGIN_COMPONENT_PROVIDES(performance_schema)
 PROVIDES_SERVICE(performance_schema, psi_cond_v1),
@@ -8247,6 +8317,7 @@ PROVIDES_SERVICE(performance_schema, psi_cond_v1),
     PROVIDES_SERVICE(performance_schema, psi_socket_v1),
     PROVIDES_SERVICE(performance_schema, psi_stage_v1),
     PROVIDES_SERVICE(performance_schema, psi_statement_v1),
+    PROVIDES_SERVICE(performance_schema, psi_system_v1),
     PROVIDES_SERVICE(performance_schema, psi_table_v1),
     PROVIDES_SERVICE(performance_schema, psi_thread_v1),
     PROVIDES_SERVICE(performance_schema, psi_transaction_v1),

@@ -43,21 +43,22 @@ class PFS_table_context;
   Entry point to the performance schema implementation.
   This singleton is used to discover the performance schema services.
 */
-extern struct PSI_thread_bootstrap pfs_thread_bootstrap;
+extern struct PSI_cond_bootstrap pfs_cond_bootstrap;
+extern struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap;
+extern struct PSI_error_bootstrap pfs_error_bootstrap;
+extern struct PSI_file_bootstrap pfs_file_bootstrap;
+extern struct PSI_idle_bootstrap pfs_idle_bootstrap;
+extern struct PSI_mdl_bootstrap pfs_mdl_bootstrap;
+extern struct PSI_memory_bootstrap pfs_memory_bootstrap;
 extern struct PSI_mutex_bootstrap pfs_mutex_bootstrap;
 extern struct PSI_rwlock_bootstrap pfs_rwlock_bootstrap;
-extern struct PSI_cond_bootstrap pfs_cond_bootstrap;
-extern struct PSI_file_bootstrap pfs_file_bootstrap;
 extern struct PSI_socket_bootstrap pfs_socket_bootstrap;
-extern struct PSI_table_bootstrap pfs_table_bootstrap;
-extern struct PSI_mdl_bootstrap pfs_mdl_bootstrap;
-extern struct PSI_idle_bootstrap pfs_idle_bootstrap;
 extern struct PSI_stage_bootstrap pfs_stage_bootstrap;
 extern struct PSI_statement_bootstrap pfs_statement_bootstrap;
+extern struct PSI_system_bootstrap pfs_system_bootstrap;
+extern struct PSI_table_bootstrap pfs_table_bootstrap;
+extern struct PSI_thread_bootstrap pfs_thread_bootstrap;
 extern struct PSI_transaction_bootstrap pfs_transaction_bootstrap;
-extern struct PSI_memory_bootstrap pfs_memory_bootstrap;
-extern struct PSI_error_bootstrap pfs_error_bootstrap;
-extern struct PSI_data_lock_bootstrap pfs_data_lock_bootstrap;
 
 /** Performance schema Thread Local Storage.  */
 extern thread_local PFS_thread *THR_PFS;

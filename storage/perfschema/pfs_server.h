@@ -43,6 +43,7 @@
 #include "mysql/psi/psi_socket.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_system.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
@@ -315,6 +316,7 @@ void pre_initialize_performance_schema();
   @param [out] memory_bootstrap Memory instrumentation service bootstrap
   @param [out] error_bootstrap Error instrumentation service bootstrap
   @param [out] data_lock_bootstrap Data Lock instrumentation service bootstrap
+  @param [out] system_bootstrap System instrumentation service bootstrap
   @returns
     @retval 0 success
 */
@@ -330,7 +332,8 @@ int initialize_performance_schema(
     PSI_transaction_bootstrap **transaction_bootstrap,
     PSI_memory_bootstrap **memory_bootstrap,
     PSI_error_bootstrap **error_bootstrap,
-    PSI_data_lock_bootstrap **data_lock_bootstrap);
+    PSI_data_lock_bootstrap **data_lock_bootstrap,
+    PSI_system_bootstrap **system_bootstrap);
 
 void pfs_automated_sizing(PFS_global_param *param);
 

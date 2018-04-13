@@ -232,8 +232,6 @@ int table_metadata_locks::index_next(void) {
 
 int table_metadata_locks::make_row(PFS_metadata_lock *pfs) {
   pfs_optimistic_state lock;
-  const char *base;
-  const char *safe_source_file;
 
   /* Protect this reader against a metadata lock destroy */
   pfs->m_lock.begin_optimistic_lock(&lock);
@@ -243,17 +241,8 @@ int table_metadata_locks::make_row(PFS_metadata_lock *pfs) {
   m_row.m_mdl_duration = pfs->m_mdl_duration;
   m_row.m_mdl_status = pfs->m_mdl_status;
 
-  safe_source_file = pfs->m_src_file;
-  if (safe_source_file != NULL) {
-    base = base_name(safe_source_file);
-    m_row.m_source_length = snprintf(m_row.m_source, sizeof(m_row.m_source),
-                                     "%s:%d", base, pfs->m_src_line);
-    if (m_row.m_source_length > sizeof(m_row.m_source)) {
-      m_row.m_source_length = sizeof(m_row.m_source);
-    }
-  } else {
-    m_row.m_source_length = 0;
-  }
+  make_source_column(pfs->m_src_file, pfs->m_src_line, m_row.m_source,
+                     sizeof(m_row.m_source), m_row.m_source_length);
 
   m_row.m_owner_thread_id = static_cast<ulong>(pfs->m_owner_thread_id);
   m_row.m_owner_event_id = static_cast<ulong>(pfs->m_owner_event_id);

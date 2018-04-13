@@ -418,6 +418,33 @@ void format_sqltext(const char *source_sqltext, size_t source_length,
   return;
 }
 
+/**
+  Create a SOURCE column from source file and line.
+*/
+void make_source_column(const char *source_file, size_t source_line,
+                        char row_buffer[], size_t row_buffer_size,
+                        uint &row_length) {
+  row_length = 0;
+
+  /* Check that a source file reset is not in progress. */
+  if (source_file == NULL || pfs_unload_plugin_ref_count.load() > 0) {
+    return;
+  }
+
+  /* Make a working copy. */
+  char safe_source_file[COL_INFO_SIZE]; /* 1024 */
+  strncpy(safe_source_file, source_file, sizeof(safe_source_file));
+  safe_source_file[sizeof(safe_source_file) - 1] = 0;
+
+  try {
+    /* Isolate the base file name and append the line number. */
+    const char *base = base_name(safe_source_file);
+    row_length =
+        snprintf(row_buffer, row_buffer_size, "%s:%d", base, (int)source_line);
+  } catch (...) {
+  }
+}
+
 int PFS_host_row::make_row(PFS_host *pfs) {
   m_hostname_length = pfs->m_hostname_length;
   if (m_hostname_length > sizeof(m_hostname)) {

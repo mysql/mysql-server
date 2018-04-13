@@ -286,8 +286,6 @@ table_events_statements_common::table_events_statements_common(
 */
 int table_events_statements_common::make_row_part_1(
     PFS_events_statements *statement, sql_digest_storage *digest) {
-  const char *base;
-  const char *safe_source_file;
   ulonglong timer_end;
 
   PFS_statement_class *unsafe = (PFS_statement_class *)statement->m_class;
@@ -334,17 +332,9 @@ int table_events_statements_common::make_row_part_1(
     memcpy(m_row.m_object_name, statement->m_object_name,
            m_row.m_object_name_length);
 
-  safe_source_file = statement->m_source_file;
-  if (unlikely(safe_source_file == NULL)) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  base = base_name(safe_source_file);
-  m_row.m_source_length = snprintf(m_row.m_source, sizeof(m_row.m_source),
-                                   "%s:%d", base, statement->m_source_line);
-  if (m_row.m_source_length > sizeof(m_row.m_source)) {
-    m_row.m_source_length = sizeof(m_row.m_source);
-  }
+  make_source_column(statement->m_source_file, statement->m_source_line,
+                     m_row.m_source, sizeof(m_row.m_source),
+                     m_row.m_source_length);
 
   memcpy(m_row.m_message_text, statement->m_message_text,
          sizeof(m_row.m_message_text));
