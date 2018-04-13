@@ -445,16 +445,16 @@ Mysqlx.Ok {
 }
 ok
 # VIII.2
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.3
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.4
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.5
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 
 
@@ -978,16 +978,16 @@ Mysqlx.Ok {
 }
 ok
 # VIII.2
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.3
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.4
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.5
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 
 
@@ -1511,16 +1511,16 @@ Mysqlx.Ok {
 }
 ok
 # VIII.2
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.3
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.4
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 # VIII.5
-Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Access denied for user 'user7_mysqlx'@'localhost' (using password: NO) (code 1045)
 ok
 
 

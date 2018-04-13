@@ -107,16 +107,16 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-Application terminated with expected error: Access denied for user 'user3_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
 Application terminated with expected error: Access denied for user 'user4_mysqlx'@'localhost'. Account is locked. (code 3118)
 ok
 ALTER USER user4_mysqlx@localhost ACCOUNT UNLOCK;
-Application terminated with expected error: Access denied for user 'user4_mysqlx'@'localhost' (using password: NO) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
-Application terminated with expected error: Access denied for user 'user5_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
-Application terminated with expected error: Access denied for user 'user6_mysqlx'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
 DROP USER user1_mysqlx@localhost, user2_mysqlx@localhost, user3_mysqlx@localhost,
 user4_mysqlx@localhost, user5_mysqlx@localhost, user6_mysqlx@localhost;

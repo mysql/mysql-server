@@ -85,9 +85,9 @@ Mysqlx_sessions_rejected	0
 #
 # Try to login with bogus accounts that could match a valid account by collation
 #
-Application terminated with expected error: Access denied for user 'X_root'@'localhost' (using password: NO) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
-Application terminated with expected error: Access denied for user 'x_root  '@'localhost' (using password: NO) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
@@ -266,7 +266,7 @@ Mysqlx_sessions_rejected	0
 #
 # Try login with valid user but incorrect password
 #
-Application terminated with expected error: Access denied for user 'x_root'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 1 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 2 ]
@@ -291,7 +291,7 @@ Mysqlx_sessions_rejected	1
 #
 # Try login with user doesn't exists when mysqlx installed
 #
-Application terminated with expected error: Access denied for user 'rt'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 2 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 3 ]
@@ -366,7 +366,7 @@ Mysqlx_sessions_rejected	4
 #
 # Try login with internal user account and expect account is locked error
 #
-Application terminated with expected error: Access denied for user 'mysql.session'@'localhost' (using password: NO) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 # Syncing with status [ 'Mysqlx_sessions_rejected' == 5 ]
 # Syncing with status [ 'Mysqlx_connections_closed' == 6 ]
 show status like 'Mysqlx_connections_closed';

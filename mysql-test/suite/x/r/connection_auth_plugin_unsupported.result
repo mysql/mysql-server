@@ -36,7 +36,7 @@ Ssl connection by test plugin  -> fail
 Application terminated with expected error: Access denied for user 'xuser_test'@'localhost' (using password: YES) (code 1045)
 ok
 Plain connection by test plugin  -> fail
-Application terminated with expected error: Access denied for user 'xuser_test'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
 Ssl connection by no_login plugin  -> fail
 Application terminated with expected error: Access denied for user 'xuser_nologin'@'localhost' (using password: YES) (code 1045)

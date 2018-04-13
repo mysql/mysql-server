@@ -112,10 +112,10 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try to login with bogus accounts that could match a valid account by collation
 --echo #
-exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -uX_root --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+exec $MYSQLXTEST --expect-error 2510 -uX_root --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 
 
-exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u"x_root  " --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+exec $MYSQLXTEST --expect-error 2510 -u"x_root  " --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -187,7 +187,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with valid user but incorrect password
 --echo #
-exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -ux_root --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+exec $MYSQLXTEST --expect-error 2510 -ux_root --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -198,7 +198,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with user doesn't exists when mysqlx installed
 --echo #
-exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u rt --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
+exec $MYSQLXTEST --expect-error 2510 -u rt --password='x_root'  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -231,7 +231,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with internal user account and expect account is locked error
 --echo #
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR -u'mysql.session' --password='' --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()"
+--exec $MYSQLXTEST --expect-error 2510 -u'mysql.session' --password='' --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()"
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';

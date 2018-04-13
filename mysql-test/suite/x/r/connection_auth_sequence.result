@@ -1,4 +1,16 @@
 call mtr.add_suppression("Maximum number of authentication attempts reached");
+CREATE USER user_to_lock@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'xxx';
+GRANT ALL ON *.* TO user_to_lock@localhost;
+RUN select 1
+
+1
+1
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ALTER USER user_to_lock@localhost ACCOUNT LOCK;
+Application terminated with expected error: Access denied for user 'user_to_lock'@'localhost'. Account is locked. (code 3118)
 CREATE USER xuser_native@'localhost'
 IDENTIFIED WITH 'mysql_native_password' BY 'native';
 CREATE USER xuser_sha256@'localhost'
@@ -190,6 +202,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+DROP USER user_to_lock@localhost;
 DROP USER xuser_native@'localhost';
 DROP USER xuser_sha256@'localhost';
 DROP USER xuser_cache2@'localhost';

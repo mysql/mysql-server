@@ -61,7 +61,7 @@ Mysqlx.Ok {
 }
 ok
 Plain connection by sha256 plugin  -> fail (ssl is obligatory)
-Application terminated with expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Application terminated with expected error: Authentication failed, check username and password or try a secure connection (code 2510)
 ok
 Ssl connection by native plugin  -> fail (wrong password)
 Application terminated with expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)

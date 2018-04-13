@@ -92,11 +92,11 @@ RUN ALTER USER xuser_native@localhost IDENTIFIED BY 'native2';
 -- Expecting failure with parameters: DISABLED	memory	xuser_native	native
 --
 connecting...
-Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_native	native2
 --
 connecting...
-Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting success with parameters: DISABLED	memory	xuser_sha256	sha256
 --
 connecting...
@@ -112,11 +112,11 @@ RUN RENAME USER xuser_sha256@localhost TO xuser_sha2@localhost;
 -- Expecting failure with parameters: DISABLED	memory	xuser_sha2	sha256
 --
 connecting...
-Got expected error: Access denied for user 'xuser_sha2'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
 --
 connecting...
-Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting success with parameters: DISABLED	memory	xuser_cache2	cache2
 --
 connecting...
@@ -132,7 +132,7 @@ RUN DROP USER xuser_cache2@localhost;
 -- Expecting failure with parameters: DISABLED	memory	xuser_cache2	cache2
 --
 connecting...
-Got expected error: Access denied for user 'xuser_cache2'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 
 #######################################################################
 ## Go back to orginal settings
@@ -219,11 +219,11 @@ RUN SET PASSWORD FOR 'xuser_native'@'localhost' = 'native3';
 -- Expecting failure with parameters: DISABLED	memory	xuser_native	native3
 --
 connecting...
-Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_native	native
 --
 connecting...
-Got expected error: Access denied for user 'xuser_native'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting success with parameters: DISABLED	memory	xuser_sha256	sha256
 --
 connecting...
@@ -242,11 +242,11 @@ RUN SET PASSWORD FOR 'xuser_sha256'@'localhost' = 'sha256_new'
 -- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
 --
 connecting...
-Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 -- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256_new
 --
 connecting...
-Got expected error: Access denied for user 'xuser_sha256'@'localhost' (using password: YES) (code 1045)
+Got expected error (one of: 1045 2510 )
 Mysqlx.Ok {
   msg: "bye!"
 }
