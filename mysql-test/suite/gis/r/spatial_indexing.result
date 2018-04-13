@@ -594,3 +594,24 @@ ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used le
 CREATE INDEX g_idx ON t1(g) USING BTREE;
 ERROR HY000: The index type BTREE is not supported for spatial indexes.
 DROP TABLE t1;
+#
+# Bug #27836608 INACCURATE ERROR THROWN WHILE CREATING SPATIAL INDEX OF
+# INVALID TYPE
+#
+# Explicit R-tree index on geometry column is allowed.
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL, INDEX (g) USING RTREE);
+DROP TABLE t1;
+CREATE TABLE t1 (g GEOMETRY SRID 0 NOT NULL);
+CREATE INDEX g_idx ON t1(g) USING RTREE;
+DROP INDEX g_idx ON t1;
+ALTER TABLE t1 ADD INDEX (g) USING RTREE;
+DROP TABLE t1;
+# Explicit R-tree index on non-gometry column is not allowed.
+CREATE TABLE t1 (a INT NOT NULL, INDEX (a) USING RTREE);
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+CREATE TABLE t1 (a INT NOT NULL);
+CREATE INDEX a_idx ON t1(a) USING RTREE;
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+ALTER TABLE t1 ADD INDEX (a) USING RTREE;
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+DROP TABLE t1;

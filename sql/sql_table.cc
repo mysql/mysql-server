@@ -4425,6 +4425,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
     }
 
     if (key->type == KEYTYPE_SPATIAL ||
+        key_info->algorithm == HA_KEY_ALG_RTREE ||
         sql_field->sql_type == MYSQL_TYPE_GEOMETRY) {
       if (column_length) {
         my_error(ER_WRONG_SUB_KEY, MYF(0));
@@ -5283,15 +5284,7 @@ static bool prepare_key(THD *thd, HA_CREATE_INFO *create_info,
     key_info->algorithm = HA_KEY_ALG_FULLTEXT;
   } else {
     if (key->key_create_info.is_algorithm_explicit) {
-      if (key->key_create_info.algorithm == HA_KEY_ALG_RTREE) {
-        if ((key_info->user_defined_key_parts & 1) == 1) {
-          my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), 1);
-          DBUG_RETURN(true);
-        }
-        /* TODO: To be deleted */
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
-        DBUG_RETURN(true);
-      } else {
+      if (key->key_create_info.algorithm != HA_KEY_ALG_RTREE) {
         /*
           If key algorithm was specified explicitly check if it is
           supported by SE.
