@@ -2816,8 +2816,7 @@ static inline dict_table_t *dd_fill_dict_table(const Table *dd_tab,
     }
   }
 
-  bool is_temp = !dd_tab->is_persistent() &&
-                 !dict_sys_t::is_dd_table_id(dd_tab->se_private_id());
+  bool is_temp = (m_form->s->tmp_table_def != nullptr);
   if (is_temp) {
     m_table->flags2 |= DICT_TF2_TEMPORARY;
   }
