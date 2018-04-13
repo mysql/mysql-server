@@ -334,27 +334,6 @@ var processParameterDefaults= {
                 visibleInstance: false,
                 advancedLevel: true
             },
-            ServerPort: {
-                label: "ServerPort",
-                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
-                    "-ndbd-definition.html#ndbparam-ndbd-ServerPort", 
-                tooltip: "If you need to be able to open specific ports in a " + 
-                    "firewall to permit communication between data nodes and API " + 
-                    "nodes (including SQL nodes), you can set this parameter to " + 
-                    "the number of the desired port",
-                constraints: {min: 0, max: 65535, places: 0, pattern: "#"},
-                attribute: "ServerPort",
-                destination: "config.ini",
-                overridableType: true,
-                overridableInstance: false,
-                widget: dijit.form.NumberSpinner,
-                width: "50%",
-                defaultValueType: 11860,
-                defaultValueInstance: [],
-                visibleType: true,
-                visibleInstance: false,
-                advancedLevel: true
-            },
             LateAlloc: {
                 label: "LateAlloc",
                 docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
