@@ -976,8 +976,10 @@ static ha_rows read_all_rows(
   DEBUG_SYNC(thd, "after_index_merge_phase1");
   ha_rows num_total_records = 0, num_records_this_chunk = 0;
   uint num_written_chunks = 0;
-  fs_info->reset();
-  fs_info->clear_peak_memory_used();
+  if (pq == nullptr) {
+    fs_info->reset();
+    fs_info->clear_peak_memory_used();
+  }
   for (;;) {
     if (is_range_scan) {
       if ((error = qep_tab->quick()->get_next())) break;
