@@ -546,7 +546,7 @@ DROP TABLE t1,t2;
 #
 # Test RTREE index
 #
---error 1235, 1289
+--error ER_SPATIAL_MUST_HAVE_GEOM_COL
 CREATE TABLE t1 (`a` int(11) NOT NULL default '0', `b` int(11) NOT NULL default '0', UNIQUE KEY `a` USING RTREE (`a`,`b`)) ENGINE=MyISAM;
 # INSERT INTO t1 VALUES (1,1),(1,1);
 # DELETE FROM rt WHERE a<1;
