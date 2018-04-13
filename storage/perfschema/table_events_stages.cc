@@ -195,8 +195,6 @@ table_events_stages_common::table_events_stages_common(
   @return 0 on success or HA_ERR_RECORD_DELETED
 */
 int table_events_stages_common::make_row(PFS_events_stages *stage) {
-  const char *base;
-  const char *safe_source_file;
   ulonglong timer_end;
 
   PFS_stage_class *unsafe = (PFS_stage_class *)stage->m_class;
@@ -223,17 +221,8 @@ int table_events_stages_common::make_row(PFS_events_stages *stage) {
   m_row.m_name = klass->m_name;
   m_row.m_name_length = klass->m_name_length;
 
-  safe_source_file = stage->m_source_file;
-  if (unlikely(safe_source_file == NULL)) {
-    return HA_ERR_RECORD_DELETED;
-  }
-
-  base = base_name(safe_source_file);
-  m_row.m_source_length = snprintf(m_row.m_source, sizeof(m_row.m_source),
-                                   "%s:%d", base, stage->m_source_line);
-  if (m_row.m_source_length > sizeof(m_row.m_source)) {
-    m_row.m_source_length = sizeof(m_row.m_source);
-  }
+  make_source_column(stage->m_source_file, stage->m_source_line, m_row.m_source,
+                     sizeof(m_row.m_source), m_row.m_source_length);
 
   if (klass->is_progress()) {
     m_row.m_progress = true;

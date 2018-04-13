@@ -845,6 +845,10 @@ void update_thread_derived_flags();
 /** Update derived flags for all instruments. */
 void update_instruments_derived_flags();
 
+/** Clear source file pointers for all statements, stages, waits and
+ * transactions. */
+void reset_source_file_pointers();
+
 extern LF_HASH filename_hash;
 
 /** @} */

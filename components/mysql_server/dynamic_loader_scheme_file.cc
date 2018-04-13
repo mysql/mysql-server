@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "dynamic_loader_scheme_file.h"
 #include "my_psi_config.h"
+#include "mysql/psi/mysql_system.h"
+#include "mysql/psi/mysql_thread.h"
 #include "rwlock_scoped_lock.h"
 #include "scope_guard.h"
 #include "server_component.h"
@@ -184,6 +186,9 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_imp::unload,
         dlsym(it->second, "list_components"));
     library_entry_set.erase(list_func);
 
+#ifdef HAVE_PSI_SYSTEM_INTERFACE
+    PSI_SYSTEM_CALL(unload_plugin)(it->first.c_str());
+#endif
     /* Close library and delete entry from libraries list. */
     dlclose(it->second);
     object_files_list.erase(it);

@@ -53,6 +53,7 @@ static void test_oom() {
   PSI_memory_bootstrap *memory_boot;
   PSI_error_bootstrap *error_boot;
   PSI_data_lock_bootstrap *data_lock_boot;
+  PSI_system_bootstrap *system_boot;
 
   memset(&param, 0xFF, sizeof(param));
   param.m_enabled = true;
@@ -106,7 +107,7 @@ static void test_oom() {
       &param, &thread_boot, &mutex_boot, &rwlock_boot, &cond_boot, &file_boot,
       &socket_boot, &table_boot, &mdl_boot, &idle_boot, &stage_boot,
       &statement_boot, &transaction_boot, &memory_boot, &error_boot,
-      &data_lock_boot);
+      &data_lock_boot, &system_boot);
   ok(rc == 0, "init ok");
   thread_service =
       (PSI_thread_service_t *)thread_boot->get_interface(PSI_THREAD_VERSION_1);

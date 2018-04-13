@@ -463,6 +463,19 @@ void format_sqltext(const char *source_sqltext, size_t source_length,
                     const CHARSET_INFO *source_cs, bool truncated,
                     String &sqltext);
 
+/**
+  Create a SOURCE column from source file and line.
+
+  @param source_file     source file name pointer from __FILE__
+  @param source_line     line number
+  @param row_buffer      target string buffer
+  @param row_buffer_size size of target buffer
+  @param row_length      string length of combined source file and line
+*/
+void make_source_column(const char *source_file, size_t source_line,
+                        char row_buffer[], size_t row_buffer_size,
+                        uint &row_length);
+
 /** Name space, internal views used within table setup_instruments. */
 struct PFS_instrument_view_constants {
   static const uint FIRST_INSTRUMENT = 1;

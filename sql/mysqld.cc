@@ -430,6 +430,7 @@
 #include "mysql/psi/psi_socket.h"
 #include "mysql/psi/psi_stage.h"
 #include "mysql/psi/psi_statement.h"
+#include "mysql/psi/psi_system.h"
 #include "mysql/psi/psi_table.h"
 #include "mysql/psi/psi_thread.h"
 #include "mysql/psi/psi_transaction.h"
@@ -5509,7 +5510,7 @@ int mysqld_main(int argc, char **argv)
           &psi_cond_hook, &psi_file_hook, &psi_socket_hook, &psi_table_hook,
           &psi_mdl_hook, &psi_idle_hook, &psi_stage_hook, &psi_statement_hook,
           &psi_transaction_hook, &psi_memory_hook, &psi_error_hook,
-          &psi_data_lock_hook);
+          &psi_data_lock_hook, &psi_system_hook);
       if ((pfs_rc != 0) && pfs_param.m_enabled) {
         pfs_param.m_enabled = false;
         LogErr(WARNING_LEVEL, ER_PERFSCHEMA_INIT_FAILED);
@@ -5639,6 +5640,13 @@ int mysqld_main(int argc, char **argv)
     service = psi_data_lock_hook->get_interface(PSI_CURRENT_DATA_LOCK_VERSION);
     if (service != NULL) {
       set_psi_data_lock_service(service);
+    }
+  }
+
+  if (psi_system_hook != NULL) {
+    service = psi_system_hook->get_interface(PSI_CURRENT_SYSTEM_VERSION);
+    if (service != NULL) {
+      set_psi_system_service(service);
     }
   }
 

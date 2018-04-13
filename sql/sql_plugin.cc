@@ -60,6 +60,8 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/mysql_system.h"
+#include "mysql/psi/mysql_thread.h"
 #include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
@@ -563,8 +565,13 @@ static inline void free_plugin_mem(st_plugin_dl *p) {
   bool preserve_shared_objects_after_unload = false;
   DBUG_EXECUTE_IF("preserve_shared_objects_after_unload",
                   { preserve_shared_objects_after_unload = true; });
-  if (p->handle != nullptr && !preserve_shared_objects_after_unload)
+  if (p->handle != nullptr && !preserve_shared_objects_after_unload) {
+#ifdef HAVE_PSI_SYSTEM_INTERFACE
+    PSI_SYSTEM_CALL(unload_plugin)
+    (std::string(p->dl.str, p->dl.length).c_str());
+#endif
     dlclose(p->handle);
+  }
   my_free(p->dl.str);
   if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION) my_free(p->plugins);
 }
