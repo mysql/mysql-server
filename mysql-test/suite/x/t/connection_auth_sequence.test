@@ -129,7 +129,7 @@ peerdisc 30000 30000;
 EOF
 
 --write_file $MYSQL_TMP_DIR/auth_errors.tmp
-expecterror ER_ACCOUNT_HAS_BEEN_LOCKED;
+expecterror ER_ACCESS_DENIED_ERROR;
 login locked_user   pass    test    sha256_memory;
 
 expecterror ER_ACCESS_DENIED_ERROR;
@@ -151,7 +151,7 @@ ALTER USER user_to_lock@localhost ACCOUNT LOCK;
 
 # Use mysqlxclient library that is going to choose first error from the sequence
 
-exec $MYSQLXTEST -u user_to_lock  -p "xxx" --ssl-mode=DISABLED --cached-auth --mysql41-auth --expect-error ER_ACCOUNT_HAS_BEEN_LOCKED
+exec $MYSQLXTEST -u user_to_lock  -p "xxx" --ssl-mode=DISABLED --cached-auth --mysql41-auth --expect-error ER_ACCOUNT_HAS_BEEN_LOCKED;
 
 # Use raw protocol message and show that first error in the sequence is ACCOUNT_LOCKED
 

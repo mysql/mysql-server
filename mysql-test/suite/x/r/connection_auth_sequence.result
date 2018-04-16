@@ -11,6 +11,9 @@ Mysqlx.Ok {
 }
 ALTER USER user_to_lock@localhost ACCOUNT LOCK;
 Application terminated with expected error: Access denied for user 'user_to_lock'@'localhost'. Account is locked. (code 3118)
+Got expected error: Access denied for user 'locked_user   pass    test    sha256_memory'@'localhost' (using password: NO) (code 1045)
+Got expected error: Access denied for user 'locked_user   pass    test    mysql41'@'localhost' (using password: NO) (code 1045)
+ok
 CREATE USER xuser_native@'localhost'
 IDENTIFIED WITH 'mysql_native_password' BY 'native';
 CREATE USER xuser_sha256@'localhost'
