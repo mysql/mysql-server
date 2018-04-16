@@ -1978,3 +1978,34 @@ End of 5.1 tests
 SHOW VARIABLES like 'slave_skip_errors';
 Variable_name	Value
 slave_skip_errors	OFF
+SET @sql_big_selects_save=@@sql_big_selects;
+SET @@sql_big_selects=1;
+CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(1024));
+INSERT INTO all_vars (var_name, var_value)
+SELECT a.variable_name,a.variable_value
+FROM performance_schema.session_variables a
+LEFT JOIN performance_schema.global_variables b
+ON a.variable_name=b.variable_name
+WHERE b.variable_name IS NULL
+AND a.variable_name NOT IN ('debug_sync');
+SET SESSION error_count = @@session.error_count;
+SET SESSION external_user = @@session.external_user;
+SET SESSION gtid_next = @@session.gtid_next;
+SET SESSION identity = @@session.identity;
+SET SESSION insert_id = @@session.insert_id;
+SET SESSION last_insert_id = @@session.last_insert_id;
+SET SESSION original_commit_timestamp = @@session.original_commit_timestamp;
+SET SESSION proxy_user = @@session.proxy_user;
+SET SESSION pseudo_slave_mode = @@session.pseudo_slave_mode;
+Warnings:
+Warning	1231	'pseudo_slave_mode' change was ineffective.
+SET SESSION pseudo_thread_id = @@session.pseudo_thread_id;
+SET SESSION rand_seed1 = @@session.rand_seed1;
+SET SESSION rand_seed2 = @@session.rand_seed2;
+SET SESSION resultset_metadata = @@session.resultset_metadata;
+SET SESSION sql_log_bin = @@session.sql_log_bin;
+SET SESSION timestamp = @@session.timestamp;
+SET SESSION transaction_allow_batching = @@session.transaction_allow_batching;
+SET SESSION warning_count = @@session.warning_count;
+SET @@sql_big_selects=@sql_big_selects_save;
+DROP TABLE all_vars;

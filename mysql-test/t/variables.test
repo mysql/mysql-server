@@ -1817,3 +1817,33 @@ DROP TABLE t1;
 #
 
 SHOW VARIABLES like 'slave_skip_errors';
+
+#
+# Verify that SESSION only variables present in performance_schema.session_variables
+# are actually settable using SET SESSION
+#
+SET @sql_big_selects_save=@@sql_big_selects;
+SET @@sql_big_selects=1;
+CREATE TABLE all_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(1024));
+
+INSERT INTO all_vars (var_name, var_value)
+SELECT a.variable_name,a.variable_value
+FROM performance_schema.session_variables a
+LEFT JOIN performance_schema.global_variables b
+ON a.variable_name=b.variable_name
+WHERE b.variable_name IS NULL
+AND a.variable_name NOT IN ('debug_sync');
+
+--let $count_vars= `SELECT COUNT(*) FROM all_vars;`
+--let $var_id=1
+while($var_id <= $count_vars)
+{
+--let $var_name= `SELECT var_name FROM all_vars WHERE id=$var_id;`
+--error 0,ER_INCORRECT_GLOBAL_LOCAL_VAR
+--eval SET SESSION $var_name = @@session.$var_name
+--inc $var_id
+}
+
+#Cleanup
+SET @@sql_big_selects=@sql_big_selects_save;
+DROP TABLE all_vars;
