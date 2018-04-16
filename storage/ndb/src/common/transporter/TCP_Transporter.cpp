@@ -257,7 +257,8 @@ TCP_Transporter::send_is_possible(int timeout_millisec) const
 }
 
 bool
-TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,int timeout_millisec) const
+TCP_Transporter::send_is_possible(NDB_SOCKET_TYPE fd,
+                                  int timeout_millisec) const
 {
   ndb_socket_poller poller;
 

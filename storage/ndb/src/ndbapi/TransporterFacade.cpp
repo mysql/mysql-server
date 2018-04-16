@@ -67,6 +67,12 @@ static int indexToNumber(int index)
   return index + MIN_API_BLOCK_NO;
 }
 
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
+
 #if defined DEBUG_TRANSPORTER
 #define TRP_DEBUG(t) ndbout << __FILE__ << ":" << __LINE__ << ":" << t << endl;
 #else
@@ -96,6 +102,8 @@ TransporterFacade::reportError(NodeId nodeId,
       ndbout_c("Fatal error on Loopback transporter, aborting.");
       abort();
     }
+    DEBUG_FPRINTF((stderr, "(%u)FAC:reportError(%u, %d, %s)\n",
+                   ownId(), nodeId, (int)errorCode, info));
     doDisconnect(nodeId);
   }
 }
@@ -139,6 +147,7 @@ TransporterFacade::reportConnect(NodeId nodeId)
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportConnect (nodeId=%d)", (int)nodeId);
 #endif
+  DEBUG_FPRINTF((stderr, "(%u)FAC:reportConnect(%u)\n", ownId(), nodeId));
   reportConnected(nodeId);
 }
 
@@ -147,6 +156,8 @@ TransporterFacade::reportConnect(NodeId nodeId)
  */
 void
 TransporterFacade::reportDisconnect(NodeId nodeId, Uint32 error){
+  DEBUG_FPRINTF((stderr, "(%u)FAC:reportDisconnect(%u, %u)\n",
+                         ownId(), nodeId, error));
 #ifdef REPORT_TRANSPORTER
   ndbout_c("REPORT_TRANSP: API reportDisconnect (nodeId=%d)", (int)nodeId);
 #endif
@@ -474,6 +485,7 @@ TransporterFacade::start_instance(NodeId nodeId,
 
   assert(theOwnId == 0);
   theOwnId = nodeId;
+  DEBUG_FPRINTF((stderr, "(%u)FAC:start_instance\n", ownId()));
 
 #if defined SIGPIPE && !defined _WIN32
   (void)signal(SIGPIPE, SIG_IGN);
@@ -548,6 +560,7 @@ void
 TransporterFacade::stop_instance(){
   DBUG_ENTER("TransporterFacade::stop_instance");
 
+  DEBUG_FPRINTF((stderr, "(%u)FAC:stop_instance\n", ownId()));
   // Stop the send, wakeup and receive thread
   void *status;
   NdbMutex_Lock(m_wakeup_thread_mutex);
@@ -1589,8 +1602,7 @@ TransporterFacade::external_poll(Uint32 wait_time)
     }
 
     wait_time -= wait;
-  }
-  while (wait_time > 0);
+  } while (wait_time > 0);
 }
 
 TransporterFacade::TransporterFacade(GlobalDictCache *cache) :

@@ -30,9 +30,20 @@
 #include <TransporterCallback.hpp>
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
+#include <NdbMutex.h>
+#include <ndb_localtime.h>
 
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
+
+#include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
+
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
 
 SHM_Transporter::SHM_Transporter(TransporterRegistry &t_reg,
 				 const char *lHostName,
@@ -91,7 +102,19 @@ SHM_Transporter::configure_derived(const TransporterConfiguration* conf)
 
 SHM_Transporter::~SHM_Transporter()
 {
+  DEBUG_FPRINTF((stderr, "(%u)doDisconnect(%u), line: %d\n",
+                localNodeId, remoteNodeId, __LINE__));
   doDisconnect();
+}
+
+void
+SHM_Transporter::resetBuffers()
+{
+  assert(!isConnected());
+  DEBUG_FPRINTF((stderr, "(%u)resetBuffers(%u), line: %d\n",
+                localNodeId, remoteNodeId, __LINE__));
+  detach_shm(true);
+  send_checksum_state.init();
 }
 
 bool 
@@ -100,7 +123,7 @@ SHM_Transporter::initTransporter()
   return true;
 }
     
-void
+bool
 SHM_Transporter::setupBuffers()
 {
   Uint32 sharedSize = 0;
@@ -123,6 +146,7 @@ SHM_Transporter::setupBuffers()
   Uint32 * sharedWriteIndex1 = base1 + 1;
   serverStatusFlag = base1 + 4;
   serverAwakenedFlag = base1 + 5;
+  serverUpFlag = base1 + 6;
   serverMutex = (NdbMutex*)(base1 + 16);
   char * startOfBuf1 = shmBuf+sharedSize;
 
@@ -131,27 +155,48 @@ SHM_Transporter::setupBuffers()
   Uint32 * sharedWriteIndex2 = base2 + 1;
   clientStatusFlag = base2 + 4;
   clientAwakenedFlag = base2 + 5;
+  clientUpFlag = base2 + 6;
   clientMutex = (NdbMutex*)(base2 + 16);
   char * startOfBuf2 = ((char *)base2)+sharedSize;
 
   if (isServer)
   {
-    NdbMutex_Init_Shared(serverMutex);
-    NdbMutex_Init_Shared(clientMutex);
+    if ((NdbMutex_Init_Shared(serverMutex) != 0) ||
+        (NdbMutex_Init_Shared(clientMutex) != 0))
+    {
+      return true;
+    }
     * serverAwakenedFlag = 0;
     * clientAwakenedFlag = 0;
+    * serverUpFlag = 1;
+    * clientUpFlag = 0;
+  }
+  else
+  {
+    NdbMutex_Lock(serverMutex);
+    * clientUpFlag = 1;
+    NdbMutex_Unlock(serverMutex);
   }
 
+  if (reader != 0)
+  {
+    DEBUG_FPRINTF((stderr, "(%u)reader = %p, m_shm_reader: %p (%u) LINE:%d",
+                   localNodeId, reader, &m_shm_reader, remoteNodeId, __LINE__));
+  }
+  assert(reader == 0);
+  assert(writer == 0);
   if(isServer)
   {
     * serverStatusFlag = 0;
-    reader = new SHM_Reader(startOfBuf1, 
+    reader = new (&m_shm_reader)
+                 SHM_Reader(startOfBuf1, 
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex1,
 			    sharedWriteIndex1);
 
-    writer = new SHM_Writer(startOfBuf2, 
+    writer = new (&m_shm_writer)
+                            SHM_Writer(startOfBuf2, 
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex2,
@@ -162,9 +207,6 @@ SHM_Transporter::setupBuffers()
 
     * sharedReadIndex2 = 0;
     * sharedWriteIndex2 = 0;
-    
-    reader->clear();
-    writer->clear();
     
     * serverStatusFlag = 1;
 
@@ -192,13 +234,15 @@ SHM_Transporter::setupBuffers()
   else
   {
     * clientStatusFlag = 0;
-    reader = new SHM_Reader(startOfBuf2, 
+    reader = new (&m_shm_reader)
+                 SHM_Reader(startOfBuf2, 
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex2,
 			    sharedWriteIndex2);
     
-    writer = new SHM_Writer(startOfBuf1, 
+    writer = new (&m_shm_writer)
+                 SHM_Writer(startOfBuf1, 
 			    sizeOfBuffer,
 			    slack,
 			    sharedReadIndex1,
@@ -207,8 +251,6 @@ SHM_Transporter::setupBuffers()
     * sharedReadIndex2 = 0;
     * sharedWriteIndex1 = 0;
     
-    reader->clear();
-    writer->clear();
     * clientStatusFlag = 1;
 #ifdef DEBUG_TRANSPORTER
     printf("-- (%d - %d) - Client -\n", localNodeId, remoteNodeId);
@@ -234,26 +276,31 @@ SHM_Transporter::setupBuffers()
 #ifdef DEBUG_TRANSPORTER
   printf("Mapping from %p to %p\n", shmBuf, shmBuf+shmSize);
 #endif
+  return false;
 }
 
 bool
 SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("SHM_Transporter::connect_server_impl");
+  DEBUG_FPRINTF((stderr, "(%u)connect_server_impl(%u)\n",
+                 localNodeId, remoteNodeId));
   SocketOutputStream s_output(sockfd);
   SocketInputStream s_input(sockfd);
-  char buf[256];
 
   // Create
   if (!_shmSegCreated)
   {
     if (!ndb_shm_create())
     {
-      make_error_info(buf, sizeof(buf));
-      report_error(TE_SHM_UNABLE_TO_CREATE_SEGMENT, buf);
-      ndb_socket_close(sockfd);
+      DEBUG_FPRINTF((stderr, "(%u)connect_server_impl failed LINE:%d,"
+                             " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
       DBUG_RETURN(false);
     }
+    _shmSegCreated = true;
+    DEBUG_FPRINTF((stderr, "(%u)ndb_shm_create()(%u)\n",
+                   localNodeId, remoteNodeId));
   }
 
   // Attach
@@ -261,12 +308,27 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
   {
     if (!ndb_shm_attach())
     {
-      make_error_info(buf, sizeof(buf));
-      report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT, buf);
-      ndb_socket_close(sockfd);
+      DEBUG_FPRINTF((stderr, "(%u)connect_server_impl failed LINE:%d,"
+                             " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
       DBUG_RETURN(false);
     }
     _attached = true;
+    DEBUG_FPRINTF((stderr, "(%u)ndb_shm_attach()(%u)\n",
+                   localNodeId, remoteNodeId));
+  }
+
+  require(!setupBuffersDone);
+  {
+    DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) Line:%d\n",
+                   localNodeId, remoteNodeId, __LINE__));
+    if (setupBuffers())
+    {
+      fprintf(stderr, "Shared memory not supported on this platform\n");
+      detach_shm(false);
+      DBUG_RETURN(false);
+    }
+    setupBuffersDone=true;
   }
 
   // Send ok to client
@@ -274,19 +336,28 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
 		   m_transporter_registry.m_shm_own_pid);
   
   // Wait for ok from client
+  char buf[256];
   DBUG_PRINT("info", ("Wait for ok from client"));
   if (s_input.gets(buf, sizeof(buf)) == 0) 
   {
-    ndb_socket_close(sockfd);
+    DEBUG_FPRINTF((stderr, "(%u)connect_server_impl failed LINE:%d,"
+                           " to remote node %d\n",
+                   localNodeId, __LINE__, remoteNodeId));
+    detach_shm(false);
     DBUG_RETURN(false);
   }
 
-  if(sscanf(buf, "shm client 1 ok: %d", &m_remote_pid) != 1)
+  if (sscanf(buf, "shm client 1 ok: %d", &m_remote_pid) != 1)
   {
-    ndb_socket_close(sockfd);
+    DEBUG_FPRINTF((stderr, "(%u)connect_server_impl failed LINE:%d,"
+                           " to remote node %d\n",
+                   localNodeId, __LINE__, remoteNodeId));
+    detach_shm(false);
     DBUG_RETURN(false);
   }
 
+  DEBUG_FPRINTF((stderr, "(%u)connect_common()(%u)\n",
+                 localNodeId, remoteNodeId));
   int r= connect_common(sockfd);
 
   if (r)
@@ -296,12 +367,17 @@ SHM_Transporter::connect_server_impl(NDB_SOCKET_TYPE sockfd)
     // Wait for ok from client
     if (s_input.gets(buf, 256) == 0)
     {
-      ndb_socket_close(sockfd);
+      DEBUG_FPRINTF((stderr, "(%u)connect_server_impl failed LINE:%d,"
+                             " to remote node %d\n",
+                     localNodeId, __LINE__, remoteNodeId));
+      detach_shm(false);
       DBUG_RETURN(false);
     }
     DBUG_PRINT("info", ("Successfully connected server to node %d",
                 remoteNodeId)); 
   }
+  DEBUG_FPRINTF((stderr, "(%u)set_socket()(%u)\n",
+                 localNodeId, remoteNodeId));
   set_socket(sockfd);
   DBUG_RETURN(r);
 }
@@ -322,6 +398,8 @@ bool
 SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("SHM_Transporter::connect_client_impl");
+  DEBUG_FPRINTF((stderr, "(%u)connect_client_impl(%u)\n",
+                 localNodeId, remoteNodeId));
   SocketInputStream s_input(sockfd);
   SocketOutputStream s_output(sockfd);
   char buf[256];
@@ -330,7 +408,10 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   DBUG_PRINT("info", ("Wait for server to create and attach"));
   if (s_input.gets(buf, 256) == 0)
   {
-    ndb_socket_close(sockfd);
+    DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
+                           " to remote node %d\n",
+                           localNodeId, __LINE__, remoteNodeId));
+
     DBUG_PRINT("error", ("Server id %d did not attach",
                 remoteNodeId));
     DBUG_RETURN(false);
@@ -338,7 +419,9 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
 
   if(sscanf(buf, "shm server 1 ok: %d", &m_remote_pid) != 1)
   {
-    ndb_socket_close(sockfd);
+    DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
+                           " to remote node %d\n",
+                           localNodeId, __LINE__, remoteNodeId));
     DBUG_RETURN(false);
   }
   
@@ -347,12 +430,16 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   {
     if (!ndb_shm_get())
     {
-      ndb_socket_close(sockfd);
+      DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
+                             " to remote node %d\n",
+                             localNodeId, __LINE__, remoteNodeId));
       DBUG_PRINT("error", ("Failed create of shm seg to node %d",
                   remoteNodeId));
       DBUG_RETURN(false);
     }
     _shmSegCreated = true;
+    DEBUG_FPRINTF((stderr, "(%u)ndb_shm_get(%u)\n",
+                   localNodeId, remoteNodeId));
   }
 
   // Attach
@@ -360,20 +447,40 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
   {
     if (!ndb_shm_attach())
     {
-      make_error_info(buf, sizeof(buf));
-      report_error(TE_SHM_UNABLE_TO_ATTACH_SEGMENT, buf);
-      ndb_socket_close(sockfd);
+      DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
+                             " to remote node %d\n",
+                             localNodeId, __LINE__, remoteNodeId));
       DBUG_PRINT("error", ("Failed attach of shm seg to node %d",
                   remoteNodeId));
       DBUG_RETURN(false);
     }
     _attached = true;
+    DEBUG_FPRINTF((stderr, "(%u)ndb_shm_attach(%u)\n",
+                   localNodeId, remoteNodeId));
+  }
+
+  require(!setupBuffersDone);
+  {
+    DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) Line:%d\n",
+                   localNodeId, remoteNodeId, __LINE__));
+    if (setupBuffers())
+    {
+      fprintf(stderr, "Shared memory not supported on this platform\n");
+      detach_shm(false);
+      DBUG_RETURN(false);
+    }
+    else
+    {
+      setupBuffersDone=true;
+    }
   }
 
   // Send ok to server
   s_output.println("shm client 1 ok: %d", 
 		   m_transporter_registry.m_shm_own_pid);
   
+  DEBUG_FPRINTF((stderr, "(%u)connect_common(%u)\n",
+                 localNodeId, remoteNodeId));
   int r = connect_common(sockfd);
   
   if (r)
@@ -382,9 +489,12 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
     DBUG_PRINT("info", ("Wait for ok from server"));
     if (s_input.gets(buf, 256) == 0)
     {
-      ndb_socket_close(sockfd);
+      DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
+                             " to remote node %d\n",
+                             localNodeId, __LINE__, remoteNodeId));
       DBUG_PRINT("error", ("No ok from server node %d",
                   remoteNodeId));
+      detach_shm(false);
       DBUG_RETURN(false);
     }
     // Send ok to server
@@ -392,7 +502,16 @@ SHM_Transporter::connect_client_impl(NDB_SOCKET_TYPE sockfd)
     DBUG_PRINT("info", ("Successfully connected client to node %d",
                 remoteNodeId)); 
   }
+  else
+  {
+    DEBUG_FPRINTF((stderr, "(%u)connect_client_impl failed LINE:%d,"
+                           " to remote node %d\n",
+                           localNodeId, __LINE__, remoteNodeId));
+    detach_shm(false);
+  }
   set_socket(sockfd);
+  DEBUG_FPRINTF((stderr, "(%u)set_socket(%u)\n",
+                 localNodeId, remoteNodeId));
   DBUG_RETURN(r);
 }
 
@@ -401,25 +520,28 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
 {
   if (!checkConnected())
   {
+    DEBUG_FPRINTF((stderr, "(%u)checkConnected failed(%u)\n",
+                   localNodeId, remoteNodeId));
     return false;
   }
   if (isServer)
   {
+    DEBUG_FPRINTF((stderr, "(%u)ndb_shm_destroy(%u)\n",
+                   localNodeId, remoteNodeId));
     ndb_shm_destroy();
   }
-  if (!setupBuffersDone) 
-  {
-    setupBuffers();
-    setupBuffersDone=true;
-  }
 
-  if (setupBuffersDone) 
+  require(setupBuffersDone);
+  Uint32 waited = 0;
+  while (waited < m_timeOutMillis)
   {
-    NdbSleep_MilliSleep(m_timeOutMillis);
     if (*serverStatusFlag == 1 && *clientStatusFlag == 1)
       return true;
+    NdbSleep_MilliSleep(10);
+    waited += 10;
   }
-
+  DEBUG_FPRINTF((stderr, "(%u)setupBuffers(%u) failed\n",
+                 localNodeId, remoteNodeId));
   DBUG_PRINT("error", ("Failed to set up buffers to node %d",
               remoteNodeId));
   return false;
@@ -442,6 +564,8 @@ void SHM_Transporter::setupBuffersUndone()
     NdbMutex_Lock(serverMutex);
     NdbMutex_Lock(clientMutex);
     setupBuffersDone = false;
+    DEBUG_FPRINTF((stderr, "(%u)setupBuffersUndone(%u)\n",
+                   localNodeId, remoteNodeId));
     NdbMutex_Unlock(serverMutex);
     NdbMutex_Unlock(clientMutex);
   }
@@ -455,7 +579,6 @@ SHM_Transporter::disconnect_socket()
   NDB_SOCKET_TYPE sock = theSocket;
   ndb_socket_invalidate(&theSocket);
 
-  get_callback_obj()->unlock_transporter(remoteNodeId);
 
   if(ndb_socket_valid(sock))
   {
@@ -463,7 +586,8 @@ SHM_Transporter::disconnect_socket()
       report_error(TE_ERROR_CLOSING_SOCKET);
     }
   }
-  setupBuffersDone = false;
+  setupBuffersUndone();
+  get_callback_obj()->unlock_transporter(remoteNodeId);
 }
 
 /**
@@ -526,7 +650,7 @@ SHM_Transporter::doReceive()
   {
     one_more_try = false;
     const int nBytesRead = (int)ndb_recv(theSocket, buf, sizeof(buf), 0);
-    if (unlikely(nBytesRead < 0))
+    if (unlikely(nBytesRead <= 0))
     {
       if (DISCONNECT_ERRNO(ndb_socket_errno(), nBytesRead))
       {
@@ -534,7 +658,7 @@ SHM_Transporter::doReceive()
       }
       else
       {
-        one_more_try = true;
+        one_more_try = false;
       }
     }
     else if (unlikely(nBytesRead == sizeof(buf)))
@@ -544,12 +668,23 @@ SHM_Transporter::doReceive()
   } while (one_more_try);
 }
 
+/**
+ * The need_wakeup flag is always set except when called from
+ * forceSend in mt.cpp, in this case we only send to try to
+ * free up some send buffers. So there is no need to ensure
+ * that the other side is awakened in this special case.
+ */
 bool
 SHM_Transporter::doSend(bool need_wakeup)
 {
   struct iovec iov[64];
   Uint32 cnt = fetch_send_iovec_data(iov, NDB_ARRAY_SIZE(iov));
 
+  if (!setupBuffersDone)
+  {
+    DEBUG_FPRINTF((stderr, "(%u)doSend(%u)\n", localNodeId, remoteNodeId));
+    return false;
+  }
   if (cnt == 0)
   {
     /**
@@ -576,7 +711,24 @@ SHM_Transporter::doSend(bool need_wakeup)
   }
 
   int nBytesSent = writer->writev(iov, cnt);
-
+#if 0
+  time_t curr_time;
+  tm tm_buf;
+  curr_time = ::time((time_t*)NULL);
+  ndb_localtime_r(&curr_time, &tm_buf);
+  Uint32 minute = tm_buf.tm_min;
+  Uint32 second = tm_buf.tm_sec;
+  Uint64 millis = NdbTick_CurrentMillisecond();
+  DEBUG_FPRINTF((stderr, "%u.%u.%llu (%u)W:writev(%u),"
+                         " sent: %d, free: %u"
+                         ", w_inx: %u, r_inx: %u\n",
+                minute, second,
+                millis % Uint64(1000),
+                localNodeId, remoteNodeId, nBytesSent,
+                writer->get_free_buffer(),
+                writer->getWriteIndex(),
+                writer->getReadIndex()));
+#endif
   if (nBytesSent > 0)
   {
     iovec_data_sent(nBytesSent);
@@ -602,7 +754,6 @@ SHM_Transporter::doSend(bool need_wakeup)
     }
     return true;
   }
-
   return true;
 }
 
@@ -751,6 +902,24 @@ SHM_Transporter::updateReceivePtr(TransporterReceiveHandle& recvdata,
                                   Uint32 *ptr)
 {
   Uint32 size_read = reader->updateReadPtr(ptr);
+#if 0
+  time_t curr_time;
+  tm tm_buf;
+  curr_time = ::time((time_t*)NULL);
+  ndb_localtime_r(&curr_time, &tm_buf);
+  Uint32 minute = tm_buf.tm_min;
+  Uint32 second = tm_buf.tm_sec;
+  Uint64 millis = NdbTick_CurrentMillisecond();
+  DEBUG_FPRINTF((stderr, "%u.%u.%llu (%u)updateReadPtr(%u),"
+                         " sz_read: %u, r_inx: %u"
+                         ", w_inx: %u\n",
+                 minute, second,
+                 millis % Uint64(1000),
+                 localNodeId, remoteNodeId,
+                 size_read,
+                 reader->getReadIndex(),
+                 reader->getWriteIndex()));
+#endif
   receiveCount++;
   receiveSize += size_read;
   m_bytes_received += size_read;
@@ -764,20 +933,34 @@ SHM_Transporter::updateReceivePtr(TransporterReceiveHandle& recvdata,
   }
 }
 
+/**
+ * send_is_possible is only called in situations with high load.
+ * So it is not critical to use the mutex protection here.
+ */
 bool
 SHM_Transporter::send_is_possible(int timeout_millisec) const
 {
-  if (writer->get_free_buffer() > MAX_SEND_MESSAGE_BYTESIZE)
+  do
   {
-    return 1;
-  }
-  if (timeout_millisec > 0)
-  {
-    NdbSleep_MilliSleep(timeout_millisec);
-    if (writer->get_free_buffer() > MAX_SEND_MESSAGE_BYTESIZE)
+    if (setupBuffersDone)
     {
-      return 1;
+      if (writer->get_free_buffer() > MAX_SEND_MESSAGE_BYTESIZE)
+      {
+        return true;
+      }
+      if (timeout_millisec > 0)
+      {
+        DEBUG_FPRINTF((stderr, "send_is_possible, wait 10ms\n"));
+        NdbSleep_MilliSleep(timeout_millisec);
+        timeout_millisec = 0;
+      }
+      DEBUG_FPRINTF((stderr, "send_is_possible, timed out\n"));
+      return false;
     }
-  }
-  return 0;
+    else
+    {
+      break;
+    }
+  } while (1);
+  return true;
 }

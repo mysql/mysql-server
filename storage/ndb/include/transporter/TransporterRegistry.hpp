@@ -48,6 +48,7 @@
 #include <mgmapi/mgmapi.h>
 
 #include <NodeBitmask.hpp>
+#include <NdbMutex.h>
 
 // A transporter is always in an IOState.
 // NoHalt is used initially and as long as it is no restrictions on
@@ -93,7 +94,7 @@ public:
  * TransporterReceiveData
  *
  *   State for pollReceive/performReceive
- *   Moved into own class to enable multi receive threads
+ *   Moved into own class to enable multiple receive threads
  */
 struct TransporterReceiveData
 {

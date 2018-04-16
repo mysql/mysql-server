@@ -234,6 +234,7 @@
 #define CFG_DB_FK_BUILD_MAX_BATCHSIZE 652
 #define CFG_DB_REORG_BUILD_MAX_BATCHSIZE 653
 #define CFG_DB_RECOVERY_WORK          654
+#define CFG_DB_USE_SHM                655
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201

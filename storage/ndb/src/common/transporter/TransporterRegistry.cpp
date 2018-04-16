@@ -40,6 +40,7 @@
 
 #include "NdbOut.hpp"
 #include <NdbSleep.h>
+#include <NdbMutex.h>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
 #include <socket_io.h>
@@ -50,6 +51,12 @@
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
+
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
 
 /**
  * There is a requirement in the Transporter design that
@@ -304,7 +311,6 @@ TransporterRegistry::TransporterRegistry(TransporterCallback *callback,
     m_disconnect_errnum[i]= 0;
     m_error_states[i]     = default_error_state;
   }
-
   DBUG_VOID_RETURN;
 }
 
@@ -371,6 +377,8 @@ TransporterRegistry::removeAll(){
 
 void
 TransporterRegistry::disconnectAll(){
+  DEBUG_FPRINTF((stderr, "(%u)doDisconnect(all), line: %d\n",
+               localNodeId, __LINE__));
   for(unsigned i = 0; i<maxTransporters; i++){
     if(theTransporters[i] != NULL)
       theTransporters[i]->doDisconnect();
@@ -609,6 +617,7 @@ TransporterRegistry::createSHMTransporter(TransporterConfiguration *config)
   if (t == NULL)
     return false;
   // Put the transporter in the transporter arrays
+  allTransporters[nTransporters]            = t;
   theSHMTransporters[nSHMTransporters]      = t;
   theTransporters[t->getRemoteNodeId()]     = t;
   theTransporterTypes[t->getRemoteNodeId()] = tt_SHM_TRANSPORTER;
@@ -634,6 +643,8 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
   if(theTransporters[nodeId] == NULL)
     return;
   
+  DEBUG_FPRINTF((stderr, "(%u)doDisconnect(%u), line: %u\n",
+                 localNodeId, nodeId, __LINE__));
   theTransporters[nodeId]->doDisconnect();
   
   const TransporterType type = theTransporterTypes[nodeId];
@@ -663,11 +674,15 @@ TransporterRegistry::removeTransporter(NodeId nodeId) {
   }
   ind = 0;
   for(; ind < nTransporters; ind++)
+  {
     if(allTransporters[ind]->getRemoteNodeId() == nodeId)
       break;
+  }
   ind++;
   for(; ind < nTransporters; ind++)
+  {
     allTransporters[ind-1] = allTransporters[ind];
+  }
   nTransporters--;
 
   // Delete the transporter and remove it from theTransporters array
@@ -769,7 +784,7 @@ TransporterRegistry::prepareSendTemplate(
 	  {
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, section);
 	    updateWritePtr(sendHandle, nodeId, lenBytes, prio);
-	    
+	    DEBUG_FPRINTF((stderr, "TE_SEND_BUFFER_FULL\n"));
 	    /**
 	     * Send buffer full, but resend works
 	     */
@@ -779,6 +794,7 @@ TransporterRegistry::prepareSendTemplate(
 	}
 	
 	WARNING("Signal to " << nodeId << " lost(buffer)");
+	DEBUG_FPRINTF((stderr, "TE_SIGNAL_LOST_SEND_BUFFER_FULL\n"));
 	report_error(nodeId, TE_SIGNAL_LOST_SEND_BUFFER_FULL);
 	return SEND_BUFFER_FULL;
       }
@@ -1141,10 +1157,10 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
         {
           /**
            * If sleep_state_set is false here it means that the
-           * all SHM transporters were disconnected. Read the data
-           * from TCP transporters and return. Next call will do
-           * normal sleep without spin since no SHM transporter
-           * is connected.
+           * all SHM transporters were disconnected. Alternatively
+           * there was data available on all the connected SHM
+           * transporters. Read the data from TCP transporters and
+           * return.
            */
           retVal |= 1;
           timeOutMillis = 0;
@@ -1157,6 +1173,10 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
 #ifndef WIN32
   if (nSHMTransporters > 0)
   {
+    /**
+     * If any SHM transporter was put to sleep above we will
+     * set all connected SHM transporters to awake now.
+     */
     if (sleep_state_set)
     {
       set_shm_awake_state(recvdata);
@@ -1169,6 +1189,30 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
   return retVal;
 }
 
+/**
+ * Every time a SHM transporter is sending data and wants the other side
+ * to wake up to handle the data, it follows this procedure.
+ * 1) Write the data in shared memory
+ * 2) Acquire the mutex protecting the awake flag on the receive side.
+ * 3) Read flag
+ * 4) Release mutex
+ * 5.1) If flag says that receiver is awake we're done
+ * 5.2) If flag says that receiver is asleep we will send a byte on the
+ *      transporter socket for the SHM transporter to wake up the other
+ *      side.
+ *
+ * The reset_shm_awake_state is called right before we are going to go
+ * to sleep. To ensure that we don't miss any signals from the other
+ * side we will first check if there is data available on shared memory.
+ * We first grab the mutex before checking this. If no data is available
+ * we can proceed to go to sleep after setting the flag to indicate that
+ * we are asleep. The above procedure used when sending means that we
+ * know that the sender will always know the correct state. The only
+ * error in this is that the sender might think that we are asleep when
+ * we actually is still on our way to go to sleep. In this case no harm
+ * has been done since the only thing that have happened is that one byte
+ * is sent on the SHM socket that wasn't absolutely needed.
+ */
 int
 TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
                                        bool& sleep_state_set)
@@ -1183,27 +1227,35 @@ TransporterRegistry::reset_shm_awake_state(TransporterReceiveHandle& recvdata,
     if (!recvdata.m_transporters.get(node_id))
       continue;
 
-    t->lock_mutex();
-    if (t->isConnected() &&
-        is_connected(node_id))
+    if (t->isConnected())
     {
-      if (t->hasDataToRead())
+      t->lock_mutex();
+      if (is_connected(node_id))
       {
-        recvdata.m_has_data_transporters.set(node_id);
-        res = 1;
+        if (t->hasDataToRead())
+        {
+          recvdata.m_has_data_transporters.set(node_id);
+          res = 1;
+        }
+        else
+        {
+          sleep_state_set = true;
+          t->set_awake_state(0);
+        }
       }
-      else
-      {
-        sleep_state_set = true;
-        t->set_awake_state(0);
-      }
+      t->unlock_mutex();
     }
-    t->unlock_mutex();
   }
 #endif
   return res;
 }
 
+/**
+ * We have been sleeping for a while, before proceeding we need to set
+ * the flag to awake in the shared memory. This will flag to all other
+ * nodes using shared memory to communicate that we're awake and don't
+ * need any socket communication to wake up.
+ */
 void
 TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata)
 {
@@ -1215,9 +1267,12 @@ TransporterRegistry::set_shm_awake_state(TransporterReceiveHandle& recvdata)
 
     if (!recvdata.m_transporters.get(node_id))
       continue;
-    t->lock_mutex();
-    t->set_awake_state(1);
-    t->unlock_mutex();
+    if (t->isConnected())
+    {
+      t->lock_mutex();
+      t->set_awake_state(1);
+      t->unlock_mutex();
+    }
   }
 #endif
 }
@@ -1281,7 +1336,10 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
     Uint32 node_id = t->getRemoteNodeId();
     idx[i] = MAX_NODES + 1;
     if (!recvdata.m_transporters.get(node_id))
+    {
+      i++;
       continue;
+    }
     if (is_connected(node_id) && t->isConnected() && ndb_socket_valid(socket))
     {
       idx[i] = recvdata.m_socket_poller.add(socket, true, false, false);
@@ -1413,8 +1471,14 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 #endif
 
   /**
-   * Receive data from transporters polled to have data.
-   * Add to set of transporters having pending data.
+   * m_recv_transporters set indicates that there might be data
+   * available on the socket used by the transporter. The
+   * doReceive call will read the socket. For TCP transporters
+   * the doReceive call will return an indication if there is
+   * data to receive on socket. This will set m_has_data_transporters.
+   * For SHM transporter the socket is only used to send wakeup
+   * bytes. The m_has_data_transporters bitmap was set already in
+   * pollReceive for SHM transporters.
    */
   for(Uint32 id = recvdata.m_recv_transporters.find_first();
       id != BitmaskImpl::NotFound;
@@ -1476,7 +1540,11 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 
   /**
    * Unpack data either received above or pending from prev rounds.
+   * For the Shared memory transporter m_has_data_transporters can
+   * be set in pollReceive as well.
    *
+   * TCP Transporter
+   * ---------------
    * Data to be processed at this stage is in the Transporter 
    * receivebuffer. The data *is received*, and will stay in
    * the  receiveBuffer even if a disconnect is started during
@@ -1507,7 +1575,9 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
       if (t->isConnected())
       {
         if (unlikely(recvdata.checkJobBuffer()))
+        {
           return 1;     // Full, can't unpack more
+        }
         if (unlikely(recvdata.m_handled_transporters.get(id)))
           continue;     // Skip now to avoid starvation
         if (t->getTransporterType() == tt_TCP_TRANSPORTER)
@@ -1538,7 +1608,13 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
                                   ioStates[id],
 				  stopReceiving);
           t_shm->updateReceivePtr(recvdata, newPtr);
-          hasdata = false;
+          /**
+           * Set hasdata dependent on if data is still available in
+           * transporter to ensure we follow rules about setting
+           * m_has_data_transporters and m_handled_transporters
+           * when returning from performReceive.
+           */
+          hasdata = t_shm->hasDataToRead();
 #else
           require(false);
 #endif
@@ -1826,21 +1902,27 @@ TransporterRegistry::do_connect(NodeId node_id)
     /**
      * NOTE (Need future work)
      * Going directly from DISCONNECTING to CONNECTING creates
-     * a possile race with ::update_connections(): It will
+     * a possible race with ::update_connections(): It will
      * see either of the *ING states, and bring the connection
      * into CONNECTED or *DISCONNECTED* state. Furthermore, the
      * state may be overwritten to CONNECTING by this method.
      * We should probably have waited for DISCONNECTED state,
      * before allowing reCONNECTING ....
      */
+    assert(false);
     break;
   }
+  DEBUG_FPRINTF((stderr, "(%u)REG:do_connect(%u)\n", localNodeId, node_id));
   DBUG_ENTER("TransporterRegistry::do_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTING",node_id));
 
   Transporter * t = theTransporters[node_id];
   if (t != NULL)
+  {
+    DEBUG_FPRINTF((stderr, "(%u)REG:resetBuffers(%u)\n",
+                           localNodeId, node_id));
     t->resetBuffers();
+  }
 
   curr_state= CONNECTING;
   DBUG_VOID_RETURN;
@@ -1848,13 +1930,15 @@ TransporterRegistry::do_connect(NodeId node_id)
 
 /**
  * This method is used to initiate disconnect from TRPMAN. It is also called
- * from the TCP transporter in case of an I/O error on the socket.
+ * from the TCP/SHM transporter in case of an I/O error on the socket.
  *
  * This works asynchronously, similar to do_connect().
  */
 void
 TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
 {
+  DEBUG_FPRINTF((stderr, "(%u)REG:do_disconnect(%u, %d)\n",
+                         localNodeId, node_id, errnum));
   PerformState &curr_state = performStates[node_id];
   switch(curr_state){
   case DISCONNECTED:
@@ -1862,6 +1946,13 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
   case CONNECTED:
     break;
   case CONNECTING:
+    /**
+     * This is a correct transition. But it should only occur for nodes
+     * that lack resources, e.g. lack of shared memory resources to
+     * setup the transporter. Therefore we assert here to get a simple
+     * handling of test failures such that we can fix the test config.
+     */
+    //DBUG_ASSERT(false);
     break;
   case DISCONNECTING:
     return;
@@ -1891,6 +1982,8 @@ void
 TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
                                     NodeId node_id)
 {
+  DEBUG_FPRINTF((stderr, "(%u)REG:report_connect(%u)\n",
+                         localNodeId, node_id));
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
   assert(recvdata.m_transporters.get(node_id));
 
@@ -1917,6 +2010,8 @@ void
 TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
                                        NodeId node_id, int errnum)
 {
+  DEBUG_FPRINTF((stderr, "(%u)REG:report_disconnect(%u, %d)\n",
+                         localNodeId, node_id, errnum));
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
   assert(recvdata.m_transporters.get(node_id));
 
@@ -1967,6 +2062,8 @@ void
 TransporterRegistry::report_error(NodeId nodeId, TransporterError errorCode,
                                   const char *errorInfo)
 {
+  DEBUG_FPRINTF((stderr, "(%u)REG:report_error(%u, %d, %s\n",
+                         localNodeId, nodeId, (int)errorCode, errorInfo));
   if (m_error_states[nodeId].m_code == TE_NO_ERROR &&
       m_error_states[nodeId].m_info == (const char *)~(UintPtr)0)
   {
@@ -2006,6 +2103,15 @@ TransporterRegistry::update_connections(TransporterReceiveHandle& recvdata)
     const char *info = m_error_states[nodeId].m_info;
     if (code != TE_NO_ERROR && info != (const char *)~(UintPtr)0)
     {
+      if (performStates[nodeId] == CONNECTING)
+      {
+        fprintf(stderr, "update_connections while CONNECTING, nodeId:%d, error:%d\n", nodeId, code);
+        /* Failed during CONNECTING -> we are still DISCONNECTED */
+        assert(!t->isConnected());
+        assert(false);
+        performStates[nodeId] = DISCONNECTED;
+      }
+
       recvdata.reportError(nodeId, code, info);
       m_error_states[nodeId].m_code = TE_NO_ERROR;
       m_error_states[nodeId].m_info = (const char *)~(UintPtr)0;
@@ -2172,7 +2278,11 @@ TransporterRegistry::start_clients_thread()
 	break;
       case DISCONNECTING:
 	if(t->isConnected())
+        {
+          DEBUG_FPRINTF((stderr, "(%u)doDisconnect(%u), line: %u\n",
+                         localNodeId, t->getRemoteNodeId(), __LINE__));
 	  t->doDisconnect();
+        }
 	break;
       case DISCONNECTED:
       {
@@ -2181,10 +2291,13 @@ TransporterRegistry::start_clients_thread()
           g_eventLogger->warning("Found connection to %u in state DISCONNECTED "
                                  " while being connected, disconnecting!",
                                  t->getRemoteNodeId());
+          DEBUG_FPRINTF((stderr, "(%u)doDisconnect(%u), line: %u\n",
+                         localNodeId, t->getRemoteNodeId(), __LINE__));
           t->doDisconnect();
         }
         break;
       }
+      case CONNECTED:
       default:
 	break;
       }

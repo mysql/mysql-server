@@ -49,6 +49,12 @@
 #include <mgmapi_configuration.hpp>
 #include <mgmapi_config_parameters.h>
 
+#if 0
+#define DEBUG_FPRINTF(arglist) do { fprintf arglist ; } while (0)
+#else
+#define DEBUG_FPRINTF(a)
+#endif
+
 int global_flag_skip_invalidate_cache = 0;
 int global_flag_skip_waiting_for_clean_cache = 0;
 //#define DEBUG_REG
@@ -1003,6 +1009,8 @@ ClusterMgr::reportConnected(NodeId nodeId)
    * make sure the node itself is marked connected even
    * if first API_REGCONF has not arrived
    */
+  DEBUG_FPRINTF((stderr, "(%u)theNode.set_connected(true) for node: %u\n",
+                         getOwnNodeId(), nodeId));
   theNode.set_connected(true);
   theNode.m_state.m_connected_nodes.set(nodeId);
   theNode.m_info.m_version = 0;
@@ -1048,6 +1056,8 @@ ClusterMgr::reportDisconnected(NodeId nodeId)
   const bool node_failrep = theNode.m_node_fail_rep;
   const bool node_connected = theNode.is_connected();
   set_node_dead(theNode);
+  DEBUG_FPRINTF((stderr, "(%u)theNode.set_connected(false) for node: %u\n",
+                         getOwnNodeId(), nodeId));
   theNode.set_connected(false);
 
   /**
