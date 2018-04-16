@@ -231,3 +231,6 @@ DROP TABLE test.t1;
 DROP TABLE test.t1;
 
 --source include/group_replication_end.inc
+# Bug#27845579 - GR_START_SLAVE_GR_ON_BOOT_ON_REJOINING_NODE_ERROR FAILS CHECK-TESTCASE
+# Restart is needed to get rid of the error file created due to --log-error option
+--source include/force_restart.inc
