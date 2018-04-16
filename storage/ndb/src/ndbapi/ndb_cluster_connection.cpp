@@ -991,9 +991,18 @@ Ndb_cluster_connection_impl::init_nodes_vector(Uint32 nodeid,
     if(iter.get(CFG_TYPE_OF_SECTION, &type)) continue;
 
     switch(type){
-    case CONNECTION_TYPE_SHM:{
-      break;
-    }
+    case CONNECTION_TYPE_SHM:
+      /**
+       * We use same algorithm also for SHM transporters.
+       * A shared memory transporter is obviously in the
+       * same location domain, but for test purposes we
+       * will still respect the location domain concept
+       * and decrease group value by 10 if we are in same
+       * location domain id and on the same host and by
+       * 5 if we are on same location domain id and not
+       * on same host and if we are only same host we will
+       * decrease it by 1.
+       */
     case CONNECTION_TYPE_TCP:{
       // connecting through localhost
       // check if config_hostname is local

@@ -164,7 +164,11 @@ int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
     require(result == 0);
     pthread_mutexattr_destroy(&t);
 #else
-  result = native_mutex_init(p, 0);
+    if (shared)
+      result = 1;
+    else 
+      result = native_mutex_init(p, 0);
+    assert(result == 0)
 #endif
 #endif
 

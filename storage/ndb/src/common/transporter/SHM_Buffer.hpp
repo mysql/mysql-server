@@ -47,6 +47,11 @@
  */
 class SHM_Reader {
 public:
+  SHM_Reader() :
+    m_startOfBuffer(0),
+    m_readIndex(0)
+  {
+  }
   SHM_Reader(char * const _startOfBuffer,
 	     Uint32 _sizeOfBuffer,
 	     Uint32 _slack,
@@ -55,13 +60,10 @@ public:
     m_startOfBuffer(_startOfBuffer),
     m_totalBufferSize(_sizeOfBuffer),
     m_bufferSize(_sizeOfBuffer - _slack),
+    m_readIndex(0),
     m_sharedReadIndex(_readIndex),
     m_sharedWriteIndex(_writeIndex)
   {
-  }
-  
-  void clear() {
-    m_readIndex = 0;
   }
   
   /**
@@ -84,6 +86,14 @@ public:
    * Return number of bytes read
    */
   inline Uint32 updateReadPtr(Uint32 *ptr);
+  inline Uint32 getReadIndex()
+  {
+    return m_readIndex;
+  }
+  inline Uint32 getWriteIndex()
+  {
+    return *m_sharedWriteIndex;
+  }
   
 private:
   char * const m_startOfBuffer;
@@ -120,11 +130,23 @@ SHM_Reader::getReadPtr(Uint32 * & ptr,
   Uint32 tWriteIndex = * m_sharedWriteIndex;
 
   ptr = (Uint32*)&m_startOfBuffer[tReadIndex];
-  
-  if(tReadIndex <= tWriteIndex){
+
+  /**
+   * When reading we move the tail forward and we can
+   * read until tail meets the head.
+   *
+   * Read index and write index equal to each other means there
+   * is nothing to read and will be found since readPtr will be
+   * equal to endPtr and eodPtr.
+   */
+  assert(tWriteIndex < m_bufferSize);
+  if (tReadIndex <= tWriteIndex)
+  {
     eod = (Uint32*)&m_startOfBuffer[tWriteIndex];
     end = (Uint32*)&m_startOfBuffer[tWriteIndex];
-  } else {
+  }
+  else
+  {
     eod = (Uint32*)&m_startOfBuffer[m_totalBufferSize];
     end = (Uint32*)&m_startOfBuffer[m_bufferSize];
   }
@@ -139,11 +161,13 @@ SHM_Reader::updateReadPtr(Uint32 *ptr)
 {
   Uint32 prevReadIndex = m_readIndex;
   Uint32 tReadIndex = ((char*)ptr) - m_startOfBuffer;
-  Uint32 size_read = 4 * (tReadIndex - prevReadIndex);
+  Uint32 size_read = tReadIndex - prevReadIndex;
 
+  assert((size_read % 4) == 0);
   assert(tReadIndex < m_totalBufferSize);
 
-  if(tReadIndex >= m_bufferSize){
+  if (unlikely(tReadIndex >= m_bufferSize))
+  {
     tReadIndex = 0;
   }
 
@@ -153,10 +177,15 @@ SHM_Reader::updateReadPtr(Uint32 *ptr)
   return size_read;
 }
 
-#define WRITER_SLACK 4
-
 class SHM_Writer {
 public:
+  SHM_Writer() :
+    m_startOfBuffer(0),
+    m_totalBufferSize(0),
+    m_bufferSize(0),
+    m_sharedWriteIndex(0)
+  {
+  }
   SHM_Writer(char * const _startOfBuffer,
 	     Uint32 _sizeOfBuffer,
 	     Uint32 _slack,
@@ -165,19 +194,17 @@ public:
     m_startOfBuffer(_startOfBuffer),
     m_totalBufferSize(_sizeOfBuffer),
     m_bufferSize(_sizeOfBuffer - _slack),
+    m_writeIndex(0),
     m_sharedReadIndex(_readIndex),
     m_sharedWriteIndex(_writeIndex)
   {
   }
-  
-  void clear() {
-    m_writeIndex = 0;
-  }
-    
-  inline char * getWritePtr(Uint32 sz);
-  inline void updateWritePtr(Uint32 sz);
 
   inline Uint32 getWriteIndex() const { return m_writeIndex;}
+  inline Uint32 getReadIndex()
+  {
+    return *m_sharedReadIndex;
+  }
   inline Uint32 getBufferSize() const { return m_bufferSize;}
   inline Uint32 get_free_buffer() const;
   
@@ -188,59 +215,14 @@ public:
 
 private:
   char * const m_startOfBuffer;
-  Uint32 m_totalBufferSize;
-  Uint32 m_bufferSize;
+  const Uint32 m_totalBufferSize;
+  const Uint32 m_bufferSize;
   
   Uint32 m_writeIndex;
   
-  Uint32 * m_sharedReadIndex;
-  Uint32 * m_sharedWriteIndex;
+  const Uint32 * m_sharedReadIndex;
+  Uint32 * const m_sharedWriteIndex;
 };
-
-inline
-char *
-SHM_Writer::getWritePtr(Uint32 sz)
-{
-  rmb();
-  Uint32 tReadIndex  = * m_sharedReadIndex;
-  Uint32 tWriteIndex = m_writeIndex;
-  
-  char * ptr = &m_startOfBuffer[tWriteIndex];
-
-  Uint32 free;
-  if(tReadIndex <= tWriteIndex){
-    free = m_bufferSize + tReadIndex - tWriteIndex;
-  } else {
-    free = tReadIndex - tWriteIndex;
-  }
-  
-  sz += 4;
-  if(sz < free){
-    return ptr;
-  }
-  
-  return 0;
-}
-
-inline
-void 
-SHM_Writer::updateWritePtr(Uint32 sz){
-
-  assert(m_writeIndex == * m_sharedWriteIndex);
-
-  Uint32 tWriteIndex = m_writeIndex;
-  tWriteIndex += sz;
-  
-  assert(tWriteIndex < m_totalBufferSize);
-
-  if(tWriteIndex >= m_bufferSize){
-    tWriteIndex = 0;
-  }
-
-  wmb();
-  m_writeIndex = tWriteIndex;
-  * m_sharedWriteIndex = tWriteIndex;
-}
 
 inline
 Uint32
@@ -251,12 +233,21 @@ SHM_Writer::get_free_buffer() const
   Uint32 tWriteIndex = m_writeIndex;
   
   Uint32 free;
-  if(tReadIndex <= tWriteIndex){
+  if (tReadIndex <= tWriteIndex)
+  {
+    assert(tWriteIndex < m_bufferSize);
     free = m_bufferSize + tReadIndex - tWriteIndex;
-  } else {
+  }
+  else
+  {
     free = tReadIndex - tWriteIndex;
   }
-  return free;
+  assert(free >= 4);
+  /**
+   * We cannot write the last word, so remove that from
+   * free area.
+   */
+  return free - 4;
 }
  
 inline
@@ -267,6 +258,26 @@ SHM_Writer::writev(const struct iovec *vec, int count)
   Uint32 tReadIndex  = * m_sharedReadIndex;
   Uint32 tWriteIndex = m_writeIndex;
 
+  if (unlikely(tReadIndex == 0))
+  {
+    /**
+     * When writing it is important to avoid that tail meets the
+     * head. If read index is 0 it means that we cannot write
+     * such that we need to set write index to 0. To avoid this
+     * we set read index to the buffer size. This means that the
+     * writer will not write beyond the buffer size and thus will
+     * not attempt to set write index to 0.
+     *
+     * This will work fine also at first write and when the buffer
+     * is empty and both read and write index is at 0. In this
+     * case we can write the entire buffer, but we cannot write
+     * from 0 to 0. This would not work.
+     */
+    tReadIndex = m_bufferSize;
+  }
+  assert(tWriteIndex < m_bufferSize);
+  assert((tWriteIndex % 4) == 0); /* Index always on word boundaries */
+  assert((tReadIndex % 4) == 0);
   /**
    * Loop over iovec entries, copying into the shared memory buffer.
    *
@@ -288,62 +299,79 @@ SHM_Writer::writev(const struct iovec *vec, int count)
     Uint32 maxBytes;
     if (tReadIndex <= tWriteIndex)
     {
-      /* Free buffer is split in two. */
+      /**
+       * Free buffer is split in two.
+       * We will start by writing as if the end is at m_bufferSize.
+       * If there is more remaining to be written we will continue
+       * writing from 0 still ensuring that we don't write so much
+       * head meets tail.
+       */
       bool extra = false;
-      if (tWriteIndex + remain > m_bufferSize)
+      if (likely(tWriteIndex + remain <= m_bufferSize))
+      {
+        maxBytes = remain;
+      }
+      else
       {
         maxBytes = (m_bufferSize - tWriteIndex);
         extra = true;
       }
-      else
-      {
-        maxBytes = remain;
-      }
       segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
                                                            maxBytes/4,
                                                            extra);
-      if (segment > 0)
-        memcpy(m_startOfBuffer + tWriteIndex, ptr, segment);
+      memcpy(m_startOfBuffer + tWriteIndex, ptr, segment);
       require(remain >= segment);
       remain -= segment;
       total += segment;
       ptr += segment;
       tWriteIndex += segment;
-      if (tWriteIndex >= m_bufferSize)
+      if (unlikely(tWriteIndex >= m_bufferSize))
       {
         tWriteIndex = 0;
-      }
-      if (remain > 0)
-      {
-        require(tWriteIndex == 0);
-        if (remain > tReadIndex)
-          maxBytes = tReadIndex;
-        else
-          maxBytes = remain;
-        segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
-                                                             maxBytes/4,
-                                                             false);
-        if (segment > 0)
+        if (remain > 0)
+        {
+          if (remain < tReadIndex)
+          {
+            maxBytes = remain;
+          }
+          else
+          {
+            maxBytes = (tReadIndex - 4);
+          }
+          segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
+                                                               maxBytes/4,
+                                                               false);
           memcpy(m_startOfBuffer, ptr, segment);
-        total += segment;
-        tWriteIndex = segment;
-        if (remain > segment)
-          break;                                // No more room
+          total += segment;
+          tWriteIndex = segment;
+          assert(tWriteIndex < tReadIndex);
+          if (remain > segment)
+            break;                                // No more room
+        }
+      }
+      else
+      {
+        assert(remain == 0);
       }
     }
     else
     {
-      if (tWriteIndex + remain > tReadIndex)
-        maxBytes = tReadIndex - tWriteIndex;
-      else
+      if ((tWriteIndex + remain) < tReadIndex)
+      {
         maxBytes = remain;
+      }
+      else
+      {
+        assert(tReadIndex >= (tWriteIndex + 4));
+        maxBytes = (tReadIndex - tWriteIndex) - 4;
+      }
       segment = 4*TransporterRegistry::unpack_length_words((Uint32 *)ptr,
                                                            maxBytes/4,
                                                            false);
-      if (segment > 0)
-        memcpy(m_startOfBuffer + tWriteIndex, ptr, segment);
+      memcpy(m_startOfBuffer + tWriteIndex, ptr, segment);
       total += segment;
       tWriteIndex += segment;
+      assert(tWriteIndex < tReadIndex);
       if (remain > segment)
         break;                                  // No more room
     }
