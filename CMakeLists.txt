@@ -164,6 +164,13 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
             FIND_PROGRAM(ALTERNATIVE_GPP g++
               NO_DEFAULT_PATH
               PATHS "/opt/rh/devtoolset-7/root/usr/bin")
+            # On ARM there is no /opt/rh/devtoolset-7/ look for /usr/bin/gcc7
+            FIND_PROGRAM(ALTERNATIVE_GCC gcc7
+              NO_DEFAULT_PATH
+              PATHS "/usr/bin")
+            FIND_PROGRAM(ALTERNATIVE_GPP g++7
+              NO_DEFAULT_PATH
+              PATHS "/usr/bin")
             IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
               SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
               SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})

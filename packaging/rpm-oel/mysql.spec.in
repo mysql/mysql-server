@@ -688,10 +688,6 @@ mkdir debug
   optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
-%ifarch aarch64
-           -DCMAKE_C_COMPILER=/usr/bin/gcc7  \
-           -DCMAKE_CXX_COMPILER=/usr/bin/g++7 \
-%endif
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DWITH_BOOST=.. \
@@ -734,10 +730,6 @@ mkdir release
   cd release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
-%ifarch aarch64
-           -DCMAKE_C_COMPILER=/usr/bin/gcc7  \
-           -DCMAKE_CXX_COMPILER=/usr/bin/g++7 \
-%endif
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	   -DWITH_BOOST=.. \
