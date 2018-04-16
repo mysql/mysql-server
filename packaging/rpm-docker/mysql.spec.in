@@ -150,6 +150,7 @@ mkdir release
   cd release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
+           -DREPRODUCIBLE_BUILD=OFF \
 %ifarch aarch64
            -DCMAKE_C_COMPILER=/usr/bin/gcc7  \
            -DCMAKE_CXX_COMPILER=/usr/bin/g++7 \
