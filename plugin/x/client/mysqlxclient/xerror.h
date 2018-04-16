@@ -49,7 +49,7 @@ namespace xcl {
 */
 class XError {
  public:
-  XError() : m_error(0) {}
+  XError() : m_error(0), m_is_fatal(false) {}
 
   explicit XError(const int err, const std::string &message = "",
                   bool is_fatal = false)
