@@ -1,0 +1,90 @@
+#
+# ==== Purpose ====
+#
+# This test script is created to test how filtering rules act
+# against CREATE/ALTER/DROP DATABASE commands (CAD commands)
+# Also it will check that there will be gtid empty transaction
+# created after these CAD commands are filtered out.
+#
+# ==== Implementation ====
+#
+# USE-CASE 1: Test --replication-ignore-db=db1 filter
+#
+# S1: Install --replication-ignore-db=db1 filter on slave
+# S2: Try all three CAD statements (CREATE/ALTER/DROP)
+# S3: Check that they are filtered and check that there is no gap in
+#     GTID_EXECUTED_SET.
+# USE-CASE 2: Repeat S1-S3 steps against --replicate-do-db=db2 filter rule.
+# USE-CASE 3: Repeat S1-S3 steps against --replicate-wild-ignore-table=db1.%
+#             filter rule.
+# USE-CASE 4: Repeat S1-S3 steps against --replicate-do-db=db2 and
+#             --replicate-wild-ignore-table=db1.t% filter rule.
+#
+#  ==== References ====
+#
+# Bug#27308751 FILTERED REPLICATION LEAVES GTID HOLES WITH CREATE DATABASE
+#
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+--echo #
+--echo # Test replicate-ignore-db=db1 filter
+--echo #
+#
+# Test replicate-ignore-db=db1 filter rule on
+# CREATE/ALTER/DROP DATABASE 'db1' command
+# These commands should be skipped.
+#
+--let $rpl_server_number= 2
+--let $rpl_start_with_gtids= 1
+--let $rpl_server_parameters=--replicate-ignore-db=db1 --skip_slave_start=FALSE
+--source include/rpl_restart_server.inc
+--source extra/rpl_tests/rpl_db_stmts_ignored.inc
+
+--echo #
+--echo # Test replicate-do-db=db2 filter
+--echo #
+#
+# Test replicate-do-db=db2 filter rule on
+# CREATE/ALTER/DROP DATABASE 'db1' command
+# These commands should be skipped.
+#
+--let $rpl_server_number= 2
+--let $rpl_start_with_gtids= 1
+--let $rpl_server_parameters=--replicate-do-db=db2 --skip_slave_start=FALSE
+--source include/rpl_restart_server.inc
+--source extra/rpl_tests/rpl_db_stmts_ignored.inc
+
+--echo #
+--echo # Test replicate-wild-ignore-table=db1.% filter
+--echo #
+#
+# Test replicate-wild-ignore-table=db1.% filter rule on
+# CREATE/ALTER/DROP DATABASE 'db1' command.
+# These commands should be skipped.
+#
+--let $rpl_server_number= 2
+--let $rpl_start_with_gtids= 1
+--let $rpl_server_parameters=--replicate-wild-ignore-table=db1.% --skip_slave_start=FALSE
+--source include/rpl_restart_server.inc
+--source extra/rpl_tests/rpl_db_stmts_ignored.inc
+
+--echo #
+--echo # Test replicate-wild-ignore-table=db1.% and --replicate-do-db=db2
+--echo # filter combination
+#
+# Test replicate-wild-ignore-table=db1.% and --replicate-do-db=db2
+# filter combination rule on CREATE/ALTER/DROP DATABASE 'db1' command.
+# These commands should be skipped.
+#
+--let $rpl_server_number= 2
+--let $rpl_start_with_gtids= 1
+--let $rpl_server_parameters= --replicate-do-db=db2 --replicate-wild-ignore-table=db1.t% --skip_slave_start=FALSE
+--source include/rpl_restart_server.inc
+--source extra/rpl_tests/rpl_db_stmts_ignored.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+--source include/force_restart.inc
+--source include/rpl_end.inc
