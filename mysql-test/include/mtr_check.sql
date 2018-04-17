@@ -90,7 +90,7 @@ BEGIN
 
   -- Dump all tablespaces, there should be none
   SELECT FILE_NAME, FILE_TYPE, TABLESPACE_NAME, ENGINE FROM INFORMATION_SCHEMA.FILES
-    WHERE FILE_TYPE !='TEMPORARY' ORDER BY FILE_ID;
+    WHERE FILE_TYPE !='TEMPORARY' ORDER BY FILE_NAME;
 
   -- The test database should not contain any tables
   SELECT table_name AS tables_in_test FROM INFORMATION_SCHEMA.TABLES
