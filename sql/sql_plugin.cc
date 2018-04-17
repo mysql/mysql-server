@@ -2741,8 +2741,8 @@ static bool *mysql_sys_var_bool(THD *thd, int offset) {
   return (bool *)intern_sys_var_ptr(thd, offset, true);
 }
 
-static int *mysql_sys_var_int(THD *thd, int offset) {
-  return (int *)intern_sys_var_ptr(thd, offset, true);
+static unsigned int *mysql_sys_var_uint(THD *thd, int offset) {
+  return (unsigned int *)intern_sys_var_ptr(thd, offset, true);
 }
 
 static unsigned long *mysql_sys_var_ulong(THD *thd, int offset) {
@@ -3041,7 +3041,9 @@ static int construct_options(MEM_ROOT *mem_root, st_plugin_int *tmp,
         ((thdvar_bool_t *)opt)->resolve = mysql_sys_var_bool;
         break;
       case PLUGIN_VAR_INT:
-        ((thdvar_int_t *)opt)->resolve = mysql_sys_var_int;
+        // All PLUGIN_VAR_INT variables are actually uint,
+        // see struct System_variables
+        ((thdvar_uint_t *)opt)->resolve = mysql_sys_var_uint;
         break;
       case PLUGIN_VAR_LONG:
         // All PLUGIN_VAR_LONG variables are actually ulong,
