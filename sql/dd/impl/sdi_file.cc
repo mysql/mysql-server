@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -324,6 +324,7 @@ bool load(THD *, const dd::String_type &fname, dd::String_type *buf) {
     return true;
   }
 
+  if (mystat.st_size == 0) return false;
   buf->resize(static_cast<size_t>(mystat.st_size));
   uchar *sdi_buf = reinterpret_cast<uchar *>(&buf->front());
 
