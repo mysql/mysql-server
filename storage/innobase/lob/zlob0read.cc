@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -46,6 +46,14 @@ namespace lob {
 ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
              byte *buf) {
   ut_ad(offset == 0);
+  ut_ad(len > 0);
+
+  const uint32_t avail_lob = ref.length();
+
+  if (avail_lob == 0) {
+    return (0);
+  }
+
   const uint32_t lob_version = ref.offset();
 
   fil_addr_t old_node_loc = fil_addr_null;
@@ -55,9 +63,6 @@ ulint z_read(ReadContext *ctx, lob::ref_t ref, ulint offset, ulint len,
   ut_ad(ctx->m_space_id == ref.space_id());
 
   const page_no_t first_page_no = ref.page_no();
-#ifdef UNIV_DEBUG
-  const uint32_t avail_lob = ref.length();
-#endif /* UNIV_DEBUG */
   const space_id_t space_id = ctx->m_space_id;
   const page_id_t first_page_id(space_id, first_page_no);
 

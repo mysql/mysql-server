@@ -820,7 +820,12 @@ byte *btr_copy_externally_stored_field_func(const dict_index_t *index,
 
   if (page_size.is_compressed()) {
     ut_ad(local_len == 0);
-    *len = lob::z_read(&rctx, rctx.m_blobref, 0, extern_len, buf + local_len);
+    *len = 0;
+
+    if (extern_len > 0) {
+      *len = lob::z_read(&rctx, rctx.m_blobref, 0, extern_len, buf + local_len);
+    }
+
     return (buf);
   } else {
     memcpy(buf, data, local_len);
