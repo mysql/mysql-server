@@ -210,7 +210,6 @@ SET GLOBAL read_only= OFF;
 --echo
 --echo # 14. Clean Up
 
---remove_file $MYSQLTEST_VARDIR/tmp/gr_start_slave_gr_on_boot_on_rejoining_node_error.err
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 

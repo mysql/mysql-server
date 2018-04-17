@@ -210,7 +210,6 @@ INSERT INTO test.t1 VALUES (4);
 --echo
 --echo # 10. Clean Up
 
---remove_file $MYSQLTEST_VARDIR/tmp/gr_start_slave_gr_on_boot_on_rejoining_node.err
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 DROP TABLE test.t2;
