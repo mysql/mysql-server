@@ -714,6 +714,11 @@ update t1 set d = -d, t = repeat('a', 300) where b=1 and a > 90;
 
 delete from t1 where a%30=0;
 
+# check_ndb_debug sets have_ndb_debug to 1 if the
+# Ndb binaries have debug support built in
+# This is needed for error-inserts etc.
+source include/check_ndb_debug.inc;
+
 # This error insert causes the next index scan from SPJ to be queued on node 2.
 # This command may fail if error inserts is not available on this build,
 # therefore we permit return code 255.
@@ -728,12 +733,15 @@ select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
 
 # Check number of queued scans. Test for debug build
 # to handle builds without error inserts (i.e. non-debug builds).
-select 
-  if ((select version() like '%debug'),
-      sum(tot_qd_frag_scans),
+
+--disable_query_log
+eval select
+     if ($have_ndb_debug,
+         sum(tot_qd_frag_scans),
       4) as tot_qd_frag_scans
   from ndbinfo.operations_per_fragment
   where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%';
+--enable_query_log
 
 # Check how these operations changed the counters. 
 --query_vertical select * from frag_ops;
