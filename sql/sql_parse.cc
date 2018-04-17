@@ -188,27 +188,53 @@ bool all_tables_not_ok(THD *thd, TABLE_LIST *tables)
   @param thd  Thread handle.
   @param db   Database name used while evaluating the filtering
               rules.
-  
+  @param sql_cmd Represents the current query that needs to be
+                 verified against the database filter rules.
+  @return TRUE Query should not be filtered out from the execution.
+          FALSE Query should be filtered out from the execution.
+
 */
-inline bool db_stmt_db_ok(THD *thd, char* db)
+inline bool check_database_filters(THD *thd, const char* db, enum_sql_command sql_cmd)
 {
-  DBUG_ENTER("db_stmt_db_ok");
-
-  if (!thd->slave_thread)
+  DBUG_ENTER("check_database_filters");
+  DBUG_ASSERT(thd->slave_thread);
+  if (!db)
     DBUG_RETURN(TRUE);
-
+  switch (sql_cmd)
+  {
+  case SQLCOM_BEGIN:
+  case SQLCOM_COMMIT:
+  case SQLCOM_SAVEPOINT:
+  case SQLCOM_ROLLBACK:
+  case SQLCOM_ROLLBACK_TO_SAVEPOINT:
+    DBUG_RETURN(TRUE);
+  default:
+    break;
+  }
+  bool db_ok= rpl_filter->db_ok(db);
   /*
     No filters exist in ignore/do_db ? Then, just check
-    wild_do_table filtering. Otherwise, check the do_db
-    rules.
+    wild_do_table filtering for 'DATABASE' related
+    statements (CREATE/DROP/ATLER DATABASE)
   */
-  bool db_ok= (rpl_filter->get_do_db()->is_empty() &&
-               rpl_filter->get_ignore_db()->is_empty()) ?
-              rpl_filter->db_ok_with_wild_table(db) :
-              rpl_filter->db_ok(db);
-
+  if (db_ok &&
+      (rpl_filter->get_do_db()->is_empty() &&
+       rpl_filter->get_ignore_db()->is_empty()))
+  {
+    switch (sql_cmd)
+    {
+    case SQLCOM_CREATE_DB:
+    case SQLCOM_ALTER_DB:
+    case SQLCOM_ALTER_DB_UPGRADE:
+    case SQLCOM_DROP_DB:
+      db_ok= rpl_filter->db_ok_with_wild_table(db);
+    default:
+      break;
+    }
+  }
   DBUG_RETURN(db_ok);
 }
+
 #endif
 
 
@@ -2480,13 +2506,9 @@ mysql_execute_command(THD *thd, bool first_level)
 #ifdef HAVE_REPLICATION
   if (unlikely(thd->slave_thread))
   {
-    // Database filters.
-    if (lex->sql_command != SQLCOM_BEGIN &&
-        lex->sql_command != SQLCOM_COMMIT &&
-        lex->sql_command != SQLCOM_SAVEPOINT &&
-        lex->sql_command != SQLCOM_ROLLBACK &&
-        lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-        !rpl_filter->db_ok(thd->db().str))
+    if (!check_database_filters(thd,
+                                thd->db().str,
+                                lex->sql_command))
     {
       binlog_gtid_end_transaction(thd);
       DBUG_RETURN(0);
@@ -3774,20 +3796,6 @@ end_with_restore_list:
     if (!(alias=thd->strmake(lex->name.str, lex->name.length)) ||
         (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK))
       break;
-    /*
-      If in a slave thread :
-      CREATE DATABASE DB was certainly not preceded by USE DB.
-      For that reason, db_ok() in sql/slave.cc did not check the
-      do_db/ignore_db. And as this query involves no tables, tables_ok()
-      above was not called. So we have to check rules again here.
-    */
-#ifdef HAVE_REPLICATION
-    if (!db_stmt_db_ok(thd, lex->name.str))
-    {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      break;
-    }
-#endif
     if (check_access(thd, CREATE_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
@@ -3798,20 +3806,6 @@ end_with_restore_list:
   {
     if (check_and_convert_db_name(&lex->name, FALSE) != IDENT_NAME_OK)
       break;
-    /*
-      If in a slave thread :
-      DROP DATABASE DB may not be preceded by USE DB.
-      For that reason, maybe db_ok() in sql/slave.cc did not check the 
-      do_db/ignore_db. And as this query involves no tables, tables_ok()
-      above was not called. So we have to check rules again here.
-    */
-#ifdef HAVE_REPLICATION
-    if (!db_stmt_db_ok(thd, lex->name.str))
-    {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      break;
-    }
-#endif
     if (check_access(thd, DROP_ACL, lex->name.str, NULL, NULL, 1, 0))
       break;
     res= mysql_rm_db(thd, to_lex_cstring(lex->name), lex->drop_if_exists, 0);
@@ -3820,14 +3814,6 @@ end_with_restore_list:
   case SQLCOM_ALTER_DB_UPGRADE:
   {
     LEX_STRING *db= & lex->name;
-#ifdef HAVE_REPLICATION
-    if (!db_stmt_db_ok(thd, lex->name.str))
-    {
-      res= 1;
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      break;
-    }
-#endif
     if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
     if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0) ||
@@ -3849,20 +3835,6 @@ end_with_restore_list:
     HA_CREATE_INFO create_info(lex->create_info);
     if (check_and_convert_db_name(db, FALSE) != IDENT_NAME_OK)
       break;
-    /*
-      If in a slave thread :
-      ALTER DATABASE DB may not be preceded by USE DB.
-      For that reason, maybe db_ok() in sql/slave.cc did not check the
-      do_db/ignore_db. And as this query involves no tables, tables_ok()
-      above was not called. So we have to check rules again here.
-    */
-#ifdef HAVE_REPLICATION
-    if (!db_stmt_db_ok(thd, lex->name.str))
-    {
-      my_message(ER_SLAVE_IGNORED_TABLE, ER(ER_SLAVE_IGNORED_TABLE), MYF(0));
-      break;
-    }
-#endif
     if (check_access(thd, ALTER_ACL, db->str, NULL, NULL, 1, 0))
       break;
     res= mysql_alter_db(thd, db->str, &create_info);
@@ -5680,12 +5652,9 @@ bool mysql_test_parse_for_slave(THD *thd)
     {
       if (all_tables_not_ok(thd, lex->select_lex->table_list.first))
         ignorable= true;
-      else if (lex->sql_command != SQLCOM_BEGIN &&
-               lex->sql_command != SQLCOM_COMMIT &&
-               lex->sql_command != SQLCOM_SAVEPOINT &&
-               lex->sql_command != SQLCOM_ROLLBACK &&
-               lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
-               !rpl_filter->db_ok(thd->db().str))
+      else if (!check_database_filters(thd,
+                                       thd->db().str,
+                                       lex->sql_command))
         ignorable= true;
     }
     thd->m_digest= parent_digest;
