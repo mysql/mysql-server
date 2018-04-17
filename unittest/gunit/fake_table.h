@@ -125,8 +125,10 @@ class Fake_TABLE : public TABLE {
   // Counter for creating unique table id's. See initialize().
   static int highest_table_id;
 
+ public:
   SELECT_LEX select_lex{nullptr, nullptr};
 
+ private:
   void initialize() {
     TABLE *as_table = static_cast<TABLE *>(this);
     new (as_table) TABLE();

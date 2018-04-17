@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,6 +73,7 @@ class OptRefTest : public ::testing::Test {
     t1_join_tab.set_qs(&t1_qep_shared);
     t1_join_tab.set_table(&t1);
     t1.pos_in_table_list = &t1_table_list;
+    t1.pos_in_table_list->select_lex = &t1.select_lex;
 
     t1_table_list.table = &t1;
     t1_table_list.embedding = NULL;
