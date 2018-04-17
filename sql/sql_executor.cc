@@ -3053,32 +3053,10 @@ static enum_nested_loop_state end_send(JOIN *join, QEP_TAB *qep_tab,
     if (join->send_records >= join->unit->select_limit_cnt &&
         join->do_send_rows) {
       if (join->calc_found_rows) {
-        QEP_TAB *first = &join->qep_tab[0];
-        if ((join->primary_tables == 1) && !join->sort_and_group &&
-            !join->send_group_parts && !join->having_cond &&
-            !first->condition() && !(first->quick()) &&
-            (first->table()->file->ha_table_flags() &
-             HA_STATS_RECORDS_IS_EXACT) &&
-            (first->ref().key < 0)) {
-          /* Join over all rows in table;  Return number of found rows */
-          TABLE *table = first->table();
-
-          if (table->unique_result.has_result()) {
-            join->send_records = table->unique_result.found_records;
-          }
-          if (table->sort_result.has_result()) {
-            /* Using filesort */
-            join->send_records = table->sort_result.found_records;
-          } else {
-            table->file->info(HA_STATUS_VARIABLE);
-            join->send_records = table->file->stats.records;
-          }
-        } else {
-          join->do_send_rows = 0;
-          if (join->unit->fake_select_lex)
-            join->unit->fake_select_lex->select_limit = 0;
-          DBUG_RETURN(NESTED_LOOP_OK);
-        }
+        join->do_send_rows = 0;
+        if (join->unit->fake_select_lex)
+          join->unit->fake_select_lex->select_limit = 0;
+        DBUG_RETURN(NESTED_LOOP_OK);
       }
       DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);  // Abort nicely
     } else if (join->send_records >= join->fetch_limit) {
