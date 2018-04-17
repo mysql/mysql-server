@@ -388,7 +388,7 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
                        &path_buff, path_length + 1, &cache_element_array,
                        table_cache_instances * sizeof(*cache_element_array),
                        NULL)) {
-    new (share) TABLE_SHARE();
+    new (share) TABLE_SHARE(refresh_version);
 
     share->set_table_cache_key(key_buff, key, key_length);
 
@@ -397,8 +397,6 @@ TABLE_SHARE *alloc_table_share(const char *db, const char *table_name,
     my_stpcpy(share->path.str, path);
     share->normalized_path.str = share->path.str;
     share->normalized_path.length = path_length;
-
-    share->version = refresh_version;
 
     /*
       Since alloc_table_share() can be called without any locking (for
@@ -485,12 +483,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   DBUG_VOID_RETURN;
 }
 
-// NOTE: This has a copy in pfs_server_stubs.cc.
-TABLE_SHARE::TABLE_SHARE()
-    : row_type(ROW_TYPE_DEFAULT),
-      real_row_type(ROW_TYPE_DEFAULT),
-      stats_auto_recalc(HA_STATS_AUTO_RECALC_DEFAULT) {}
-
 Key_map TABLE_SHARE::usable_indexes(const THD *thd) const {
   Key_map usable_indexes(keys_in_use);
   if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES))
@@ -516,6 +508,11 @@ bool assert_ref_count_is_locked(const TABLE_SHARE *share) {
   return true;
 }
 #endif
+
+void TABLE_SHARE::clear_version() {
+  table_cache_manager.assert_owner_all_and_tdc();
+  m_version = 0;
+}
 
 /**
   Release resources (plugins) used by the share and free its memory.
@@ -3752,7 +3749,7 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     up to date and the share is referenced. Otherwise our
     thread will never be woken up from wait.
   */
-  DBUG_ASSERT(version != refresh_version && ref_count() != 0);
+  DBUG_ASSERT(has_old_version() && ref_count() != 0);
 
   m_flush_tickets.push_front(&ticket);
 

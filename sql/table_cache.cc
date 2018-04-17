@@ -147,7 +147,7 @@ void Table_cache::print_tables() {
     TABLE *entry;
     while ((entry = it++)) {
       printf("%-14.14s %-32s%6ld%8u%6d  %s\n", entry->s->db.str,
-             entry->s->table_name.str, entry->s->version,
+             entry->s->table_name.str, entry->s->version(),
              entry->in_use->thread_id(), entry->db_stat ? 1 : 0,
              lock_descriptions[(int)entry->reginfo.lock_type]);
     }
@@ -155,7 +155,7 @@ void Table_cache::print_tables() {
     while ((entry = it++)) {
       unused++;
       printf("%-14.14s %-32s%6ld%8ld%6d  %s\n", entry->s->db.str,
-             entry->s->table_name.str, entry->s->version, 0L,
+             entry->s->table_name.str, entry->s->version(), 0L,
              entry->db_stat ? 1 : 0, "Not in use");
     }
   }

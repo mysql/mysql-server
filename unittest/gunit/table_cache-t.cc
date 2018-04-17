@@ -124,7 +124,10 @@ class Mock_share : public TABLE_SHARE {
   Table_cache_element *cache_element_arr[Table_cache_manager::MAX_TABLE_CACHES];
 
  public:
-  Mock_share(const char *key) {
+  Mock_share(const char *key)
+      :  // Assertion in some of Table_cache methods check that the
+         // version of the share is up-to-date, so make sure it's set.
+        TABLE_SHARE(refresh_version) {
     /*
       Both table_cache_key and cache_element array are used by
       Table_cache code.
@@ -135,11 +138,6 @@ class Mock_share : public TABLE_SHARE {
     cache_element = cache_element_arr;
     // MEM_ROOT is used for constructing ha_example() instances.
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_mem_root, 1024, 0);
-    /*
-      Assertion in some of Table_cache methods check that version of
-      the share is up-to-date.
-    */
-    version = refresh_version;
     // Ensure that share is never destroyed.
     increment_ref_count();
   }

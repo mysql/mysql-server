@@ -635,7 +635,13 @@ typedef struct Table_share_foreign_key_parent_info {
 */
 
 struct TABLE_SHARE {
-  TABLE_SHARE();
+  TABLE_SHARE() = default;
+
+  /**
+    Create a new TABLE_SHARE with the given version number.
+    @param version the version of the TABLE_SHARE
+  */
+  TABLE_SHARE(unsigned long version) : m_version(version) {}
 
   /*
     A map of [uint, Histogram] values, where the key is the field index. The
@@ -717,16 +723,10 @@ struct TABLE_SHARE {
   Key_map keys_for_keyread;
   ha_rows min_rows{0}, max_rows{0}; /* create information */
   ulong avg_row_length{0};          /* create information */
-  /**
-    TABLE_SHARE version, if changed the TABLE_SHARE must be reopened.
-    NOTE: The TABLE_SHARE will not be reopened during LOCK TABLES in
-    close_thread_tables!!!
-  */
-  ulong version{0};
-  ulong mysql_version{0};     /* 0 if .frm is created before 5.0 */
-  ulong reclength{0};         /* Recordlength */
-  ulong stored_rec_length{0}; /* Stored record length
-                              (no generated-only generated fields) */
+  ulong mysql_version{0};           /* 0 if .frm is created before 5.0 */
+  ulong reclength{0};               /* Recordlength */
+  ulong stored_rec_length{0};       /* Stored record length
+                                    (no generated-only generated fields) */
 
   plugin_ref db_plugin{nullptr};     /* storage engine plugin */
   inline handlerton *db_type() const /* table_type for handler */
@@ -740,9 +740,9 @@ struct TABLE_SHARE {
     engine. ROW_TYPE_DEFAULT value indicates that no explicit
     ROW_FORMAT was specified for the table. @sa real_row_type.
   */
-  enum row_type row_type;  // Initialized in the constructor.
+  enum row_type row_type = {};  // Zero-initialized to ROW_TYPE_DEFAULT
   /** Real row format used for the table by the storage engine. */
-  enum row_type real_row_type;  // Initialized in the constructor.
+  enum row_type real_row_type = {};  // Zero-initialized to ROW_TYPE_DEFAULT
   tmp_table_type tmp_table{NO_TMP_TABLE};
 
   /**
@@ -752,12 +752,13 @@ struct TABLE_SHARE {
   */
   uint tmp_handler_count{0};
 
-  uint key_block_size{0};                   /* create key_block_size, if used */
-  uint stats_sample_pages{0};               /* number of pages to sample during
-                                            stats estimation, if used, otherwise 0. */
-  enum_stats_auto_recalc stats_auto_recalc; /* Automatic recalc of stats.
-                                               Initialized in the constructor.
-                                             */
+  uint key_block_size{0};     /* create key_block_size, if used */
+  uint stats_sample_pages{0}; /* number of pages to sample during
+                              stats estimation, if used, otherwise 0. */
+  enum_stats_auto_recalc
+      stats_auto_recalc{}; /* Automatic recalc of stats.
+                              Zero-initialized to HA_STATS_AUTO_RECALC_DEFAULT
+                            */
   uint null_bytes{0}, last_null_bit_pos{0};
   uint fields{0};            /* Number of fields */
   uint rec_buff_length{0};   /* Size of table->record[] buffer */
@@ -967,8 +968,19 @@ struct TABLE_SHARE {
 
   ulonglong get_table_def_version() const { return table_map_id; }
 
+  /** Returns the version of this TABLE_SHARE. */
+  unsigned long version() const { return m_version; }
+
+  /**
+    Set the version of this TABLE_SHARE to zero. This marks the
+    TABLE_SHARE for automatic removal from the table definition cache
+    once it is no longer referenced.
+  */
+  void clear_version();
+
   /** Is this table share being expelled from the table definition cache?  */
-  bool has_old_version() const { return version != refresh_version; }
+  bool has_old_version() const { return version() != refresh_version; }
+
   /**
     Convert unrelated members of TABLE_SHARE to one enum
     representing its type.
@@ -1102,6 +1114,13 @@ struct TABLE_SHARE {
  private:
   /// How many TABLE objects use this TABLE_SHARE.
   unsigned int m_ref_count{0};
+
+  /**
+    TABLE_SHARE version, if changed the TABLE_SHARE must be reopened.
+    NOTE: The TABLE_SHARE will not be reopened during LOCK TABLES in
+    close_thread_tables!!!
+  */
+  unsigned long m_version{0};
 };
 
 /**

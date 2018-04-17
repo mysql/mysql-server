@@ -906,7 +906,7 @@ void release_table_share(TABLE_SHARE *share) {
   DBUG_ENTER("release_table_share");
   DBUG_PRINT("enter", ("share: %p  table: %s.%s  ref_count: %u  version: %lu",
                        share, share->db.str, share->table_name.str,
-                       share->ref_count(), share->version));
+                       share->ref_count(), share->version()));
 
   mysql_mutex_assert_owner(&LOCK_open);
 
@@ -2418,7 +2418,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
   DBUG_ENTER("wait_while_table_is_used");
   DBUG_PRINT("enter", ("table: '%s'  share: %p  db_stat: %u  version: %lu",
                        table->s->table_name.str, table->s, table->db_stat,
-                       table->s->version));
+                       table->s->version()));
 
   if (thd->mdl_context.upgrade_shared_lock(table->mdl_ticket, MDL_EXCLUSIVE,
                                            thd->variables.lock_wait_timeout))
@@ -3080,7 +3080,8 @@ retry_share : {
         concurrent table flush). So we need to compare version of opened
         tables with version of TABLE object we just have got.
       */
-      if (thd->open_tables && thd->open_tables->s->version != share->version) {
+      if (thd->open_tables &&
+          thd->open_tables->s->version() != share->version()) {
         tc->release_table(thd, table);
         tc->unlock();
         (void)ot_ctx->request_backoff_action(
@@ -3255,7 +3256,8 @@ share_found:
       goto retry_share;
     }
 
-    if (thd->open_tables && thd->open_tables->s->version != share->version) {
+    if (thd->open_tables &&
+        thd->open_tables->s->version() != share->version()) {
       /*
         If the version changes while we're opening the tables,
         we have to back off, close all the tables opened-so-far,
@@ -9418,7 +9420,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         TDC does not contain old shares which don't have any tables
         used.
       */
-      if (remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE) share->version = 0;
+      if (remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE)
+        share->clear_version();
       table_cache_manager.free_table(thd, remove_type, share);
     } else {
       DBUG_ASSERT(remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE);
