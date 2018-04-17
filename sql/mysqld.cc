@@ -3919,7 +3919,8 @@ int init_common_variables() {
   if (back_log == 0 && (back_log = max_connections) > 65535) back_log = 65535;
 
   unireg_init(opt_specialflag); /* Set up extern variables */
-  while (!(my_default_lc_messages = my_locale_by_name(NULL, lc_messages))) {
+  while (!(my_default_lc_messages =
+               my_locale_by_name(NULL, lc_messages, strlen(lc_messages)))) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_messages);
     if (!my_strcasecmp(&my_charset_latin1, lc_messages,
                        mysqld_default_locale_name))
@@ -3999,8 +4000,8 @@ int init_common_variables() {
     return 1;
   }
 
-  while (!(my_default_lc_time_names =
-               my_locale_by_name(NULL, lc_time_names_name))) {
+  while (!(my_default_lc_time_names = my_locale_by_name(
+               NULL, lc_time_names_name, strlen(lc_time_names_name)))) {
     LogErr(ERROR_LEVEL, ER_FAILED_TO_FIND_LOCALE_NAME, lc_time_names_name);
     if (!my_strcasecmp(&my_charset_latin1, lc_time_names_name,
                        mysqld_default_locale_name))

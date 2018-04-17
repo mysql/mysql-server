@@ -5448,7 +5448,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var) {
     String str(buff, sizeof(buff), system_charset_info), *res;
     if (!(res = var->value->val_str(&str)))
       return true;
-    else if (!(locale = my_locale_by_name(thd, res->c_ptr_safe()))) {
+    else if (!(locale = my_locale_by_name(thd, res->ptr(), res->length()))) {
       ErrConvString err(res);
       my_error(ER_UNKNOWN_LOCALE, MYF(0), err.ptr());
       return true;

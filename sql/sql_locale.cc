@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2874,23 +2874,26 @@ MY_LOCALE *my_locale_by_number(uint number) {
   return locale;
 }
 
-static MY_LOCALE *my_locale_by_name(MY_LOCALE **locales, const char *name) {
+static MY_LOCALE *my_locale_by_name(MY_LOCALE **locales, const char *name,
+                                    size_t length) {
   MY_LOCALE **locale;
   for (locale = locales; *locale != NULL; locale++) {
-    if (!my_strcasecmp(&my_charset_latin1, (*locale)->name, name))
+    if (length == strlen((*locale)->name) &&
+        0 == native_strncasecmp((*locale)->name, name, length))
       return *locale;
   }
-  return NULL;
+  return nullptr;
 }
 
-MY_LOCALE *my_locale_by_name(THD *thd, const char *name) {
+MY_LOCALE *my_locale_by_name(THD *thd, const char *name, size_t length) {
   MY_LOCALE *locale;
 
-  if ((locale = my_locale_by_name(my_locales, name))) {
+  if ((locale = my_locale_by_name(my_locales, name, length))) {
     // Check that locale is on its correct position in the array
     DBUG_ASSERT(locale == my_locales[locale->number]);
     return locale;
-  } else if ((locale = my_locale_by_name(my_locales_deprecated, name))) {
+  } else if ((locale =
+                  my_locale_by_name(my_locales_deprecated, name, length))) {
     /*
       Replace the deprecated locale to the corresponding
       'fresh' locale with the same ID.

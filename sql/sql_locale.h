@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ extern MY_LOCALE *my_default_lc_time_names;
 
 /* Exported functions */
 
-MY_LOCALE *my_locale_by_name(THD *thd, const char *name);
+MY_LOCALE *my_locale_by_name(THD *thd, const char *name, size_t length);
 MY_LOCALE *my_locale_by_number(uint number);
 void cleanup_errmsgs(void);
 

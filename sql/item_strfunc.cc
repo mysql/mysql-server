@@ -1973,8 +1973,8 @@ MY_LOCALE *Item_func_format::get_locale(Item *) {
   THD *thd = current_thd;
   String tmp, *locale_name = args[2]->val_str_ascii(&tmp);
   MY_LOCALE *lc;
-  if (!locale_name ||
-      !(lc = my_locale_by_name(thd, locale_name->c_ptr_safe()))) {
+  if (!locale_name || !(lc = my_locale_by_name(thd, locale_name->ptr(),
+                                               locale_name->length()))) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_LOCALE,
                         ER_THD(thd, ER_UNKNOWN_LOCALE),
                         locale_name ? locale_name->c_ptr_safe() : "NULL");
