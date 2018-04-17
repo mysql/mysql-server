@@ -27,9 +27,6 @@ B	Berlin	Mitte	NULL	bbbbbbbbbbbbbb	2345	2012
 C	Cottbus	West	3	NULL	3456	2012
 D	Darmstadt	NULL	1	dddddddddddddd	1234	NULL
 H	NULL	NULL	NULL	hhhhhhhhhh	NULL	NULL
-SELECT SLEEP(2);
-SLEEP(2)
-0
 Here the memcached results with D,B,H,C:
 Darmstadt||1|dddddddddddddd|1234|
 Berlin|Mitte||bbbbbbbbbbbbbb|2345|2012
