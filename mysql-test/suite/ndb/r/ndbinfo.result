@@ -1375,6 +1375,8 @@ update t1 set d = -d, t = repeat('a', 300) where b=1 and a > 90;
 
 delete from t1 where a%30=0;
 
+
+
 explain select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	#	ALL	NULL	NULL	NULL	NULL	97	100.00	Parent of 2 pushed join@1
@@ -1385,15 +1387,8 @@ select count(*) from t1 as x1 join t1 as x2 on x1.c=x2.b;
 count(*)
 1
 
-select 
-  if ((select version() like '%debug'),
-      sum(tot_qd_frag_scans),
-      4) as tot_qd_frag_scans
-  from ndbinfo.operations_per_fragment
-  where fq_name like 'ndbinfo%' or parent_fq_name like 'ndbinfo%';
 tot_qd_frag_scans
 4
-
 select * from frag_ops;;
 fq_name	ndbinfo/def/NDB$BLOB_
 parent_fq_name	ndbinfo/def/t1
