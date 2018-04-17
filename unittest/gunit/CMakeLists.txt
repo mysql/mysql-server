@@ -282,8 +282,7 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 # Add tests (link them with gunit/gmock libraries) 
 SET(TESTS
   alignment
-  bounded_queue
-#  bounds_checked_array
+  bounds_checked_array
   bitmap
   byteorder
   calloc
