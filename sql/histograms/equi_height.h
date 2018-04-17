@@ -1,7 +1,7 @@
 #ifndef HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 #define HISTOGRAMS_EQUI_HEIGHT_INCLUDED
 
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -226,6 +226,12 @@ class Equi_height : public Histogram {
     @return number of buckets in this histogram
   */
   size_t get_num_buckets() const override { return m_buckets.size(); }
+
+  /**
+    Get the estimated number of distinct non-NULL values.
+    @return number of distinct non-NULL values
+  */
+  size_t get_num_distinct_values() const override;
 
   /**
     Convert this histogram to a JSON object.
