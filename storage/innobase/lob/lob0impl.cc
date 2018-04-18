@@ -32,7 +32,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0pages.h"
 #include "lob0util.h"
 #include "lob0zip.h"
-#include "lock0lock.h"
 #include "my_dbug.h"
 #include "trx0sys.h"
 #include "ut0ut.h"

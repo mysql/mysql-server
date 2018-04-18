@@ -37,7 +37,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0boot.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
-#include "lock0lock.h"
 #include "my_inttypes.h"
 #include "pars0grm.h"
 #include "pars0pars.h"
