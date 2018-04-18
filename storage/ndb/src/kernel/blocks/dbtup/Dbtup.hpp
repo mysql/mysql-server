@@ -495,6 +495,11 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   void removeAccLockOp(ScanOp& scan, Uint32 accLockOp);
   void releaseScanOp(ScanOpPtr& scanPtr);
 
+  Uint32 prepare_lcp_scan_page(ScanOp& scan,
+                               Local_key& key,
+                               Uint32 *next_ptr,
+                               Uint32 *prev_ptr);
+
   // for md5 of key (could maybe reuse existing temp buffer)
   Uint64 c_dataBuffer[ZWORDS_ON_PAGE/2 + 1];
 
@@ -3363,6 +3368,9 @@ private:
   RSS_OP_COUNTER(cnoOfFreeTabDescrRec);
   RSS_OP_SNAPSHOT(cnoOfFreeTabDescrRec);
   TablerecPtr prepare_tabptr;
+
+  TablerecPtr m_curr_tabptr;
+  FragrecordPtr m_curr_fragptr;
 
   PagePtr prepare_pageptr;
   Uint32 *prepare_tuple_ptr;
