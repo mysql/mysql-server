@@ -2481,8 +2481,6 @@ static lsn_t trx_prepare_low(
                               segment scheduled for prepare. */
     bool noredo_logging)      /*!< in: turn-off redo logging. */
 {
-  lsn_t lsn;
-
   if (undo_ptr->insert_undo != NULL || undo_ptr->update_undo != NULL) {
     mtr_t mtr;
     trx_rseg_t *rseg = undo_ptr->rseg;
@@ -2519,13 +2517,14 @@ static lsn_t trx_prepare_low(
     mtr_commit(&mtr);
     /*--------------*/
 
-    lsn = mtr.commit_lsn();
-    ut_ad(noredo_logging || lsn > 0);
-  } else {
-    lsn = 0;
+    if (!noredo_logging) {
+      const lsn_t lsn = mtr.commit_lsn();
+      ut_ad(lsn > 0);
+      return lsn;
+    }
   }
 
-  return (lsn);
+  return 0;
 }
 
 /** Prepares a transaction. */

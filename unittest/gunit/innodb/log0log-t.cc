@@ -355,7 +355,7 @@ static lsn_t write_single_mlog_test(Log_test::Key key) {
 
   log_buffer_write_completed(log, handle, handle.start_lsn, end_lsn);
 
-  log_buffer_write_completed_before_dirty_pages_added(log, handle);
+  log_wait_for_space_in_log_recent_closed(log, handle.start_lsn);
 
   Log_test::Page page;
   page.key = key;
@@ -365,7 +365,7 @@ static lsn_t write_single_mlog_test(Log_test::Key key) {
 
   log_test->add_dirty_page(page);
 
-  log_buffer_write_completed_and_dirty_pages_added(log, handle);
+  log_buffer_close(log, handle);
 
   return (end_lsn);
 }
@@ -460,7 +460,7 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
   ut_a(group_end_lsn == end_lsn);
   ut_a(left_to_write == 0);
 
-  log_buffer_write_completed_before_dirty_pages_added(log, handle);
+  log_wait_for_space_in_log_recent_closed(log, handle.start_lsn);
 
   Log_test::Page page;
   page.key = key;
@@ -470,7 +470,7 @@ static lsn_t write_multi_mlog_tests(Log_test::Key key, size_t n) {
 
   log_test->add_dirty_page(page);
 
-  log_buffer_write_completed_and_dirty_pages_added(log, handle);
+  log_buffer_close(log, handle);
 
   return (group_end_lsn);
 }

@@ -79,8 +79,18 @@ void buf_flush_note_modification(
 
   mutex_enter(&block->mutex);
 
-  ut_ad(block->page.newest_modification <= end_lsn);
-  block->page.newest_modification = end_lsn;
+  if (end_lsn != 0) {
+    ut_ad(block->page.newest_modification <= end_lsn);
+    block->page.newest_modification = end_lsn;
+  } else {
+    /* Do nothing. This is the case with no-redo mtr and it
+    possibly could re-modify some earlier dirtied page, in
+    which case we don't want to change oldest/newest lsns.
+    If that's not the case, we will set newest_modification
+    within buf_flush_insert_into_flush_list call. That's
+    because we can't read the value now, because we don't
+    hold the flush list mutex yet. */
+  }
 
   /* Don't allow to set flush observer from non-null to null,
   or from one observer to another. */
@@ -92,7 +102,7 @@ void buf_flush_note_modification(
     buf_pool_t *buf_pool = buf_pool_from_block(block);
 
     buf_flush_insert_into_flush_list(buf_pool, block, start_lsn);
-  } else {
+  } else if (start_lsn != 0) {
     ut_ad(block->page.oldest_modification <= start_lsn);
   }
 

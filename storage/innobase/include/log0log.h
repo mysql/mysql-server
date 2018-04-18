@@ -549,6 +549,8 @@ they happen, user threads wait until the space is reclaimed.
 @return checkpoint age as number of bytes */
 inline lsn_t log_get_checkpoint_age(const log_t &log);
 
+/* Declaration of log_buffer functions (definition in log0buf.cc). */
+
 /** Reserves space in the redo log for following write operations.
 Space is reserved for a given number of data bytes. Additionally
 bytes for required headers and footers of log blocks are reserved.
@@ -628,20 +630,6 @@ group starts within the block containing this lsn value */
 void log_buffer_set_first_record_group(log_t &log, const Log_handle &handle,
                                        lsn_t rec_group_end_lsn);
 
-/** Waits until there is free space in the log recent closed buffer
-for a given link start_lsn -> end_lsn. It does not add the link.
-
-This is called just before dirty pages for [start_lsn, end_lsn)
-are added to flush lists. That's because we need to guarantee,
-that the delay until dirty page is added to flush list is limited.
-For detailed explanation - @see log0write.cc.
-
-@see @ref sect_redo_log_add_dirty_pages
-@param[in,out]	log		redo log
-@param[in]	handle		handle for the reservation of space */
-void log_buffer_write_completed_before_dirty_pages_added(
-    log_t &log, const Log_handle &handle);
-
 /** Adds a link start_lsn -> end_lsn to the log recent closed buffer.
 
 This is called after all dirty pages related to [start_lsn, end_lsn)
@@ -651,8 +639,7 @@ For detailed explanation - @see log0write.cc.
 @see @ref sect_redo_log_add_link_to_recent_closed
 @param[in,out]	log		redo log
 @param[in]	handle		handle for the reservation of space */
-void log_buffer_write_completed_and_dirty_pages_added(log_t &log,
-                                                      const Log_handle &handle);
+void log_buffer_close(log_t &log, const Log_handle &handle);
 
 /** Write to the log file up to the last log entry.
 @param[in,out]	log	redo log
@@ -712,7 +699,21 @@ program if validation does not pass.
 @param[in]	end		validation end (exclusive) */
 void log_recent_closed_empty_validate(const log_t &log, lsn_t begin, lsn_t end);
 
-/** Declaration of remaining functions. */
+/* Declaration of remaining functions. */
+
+/** Waits until there is free space in the log recent closed buffer
+for any links start_lsn -> end_lsn, which start at provided start_lsn.
+It does not add any link.
+
+This is called just before dirty pages for [start_lsn, end_lsn)
+are added to flush lists. That's because we need to guarantee,
+that the delay until dirty page is added to flush list is limited.
+For detailed explanation - @see log0write.cc.
+
+@see @ref sect_redo_log_add_dirty_pages
+@param[in,out]	log   redo log
+@param[in]      lsn   lsn on which we wait (for any link: lsn -> x) */
+void log_wait_for_space_in_log_recent_closed(const log_t &log, lsn_t lsn);
 
 /** Waits until there is free space in the log buffer. The free space has to be
 available for range of sn values ending at the provided sn.

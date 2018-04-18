@@ -18201,18 +18201,16 @@ exit:
 
 #ifdef _WIN32
 /** Validate if passed-in "value" is a valid value for
- innodb_buffer_pool_filename. On Windows, file names with colon (:)
- are not allowed.
-
- @return 0 for valid name */
-static int innodb_srv_buf_dump_filename_validate(
-    THD *thd,                     /*!< in: thread handle */
-    SYS_VAR *var,                 /*!< in: pointer to system
-                                                  variable */
-    void *save,                   /*!< out: immediate result
-                                  for update function */
-    struct st_mysql_value *value) /*!< in: incoming string */
-{
+innodb_buffer_pool_filename. On Windows, file names with colon (:)
+are not allowed.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[in]  save      immediate result from update function
+@param[in]  value     incoming string
+@return 0 for valid name */
+static int innodb_srv_buf_dump_filename_validate(THD *thd, SYS_VAR *var,
+                                                 void *save,
+                                                 struct st_mysql_value *value) {
   char buff[OS_FILE_MAX_PATH];
   int len = sizeof(buff);
 
@@ -18279,16 +18277,15 @@ static MY_ATTRIBUTE(
 }
 
 /** Called on SET GLOBAL innodb_buffer_pool_evict=...
- Handles some values specially, to evict pages from the buffer pool.
- SET GLOBAL innodb_buffer_pool_evict='uncompressed'
- evicts all uncompressed page frames of compressed tablespaces. */
-static void innodb_buffer_pool_evict_update(
-    THD *thd,         /*!< in: thread handle */
-    SYS_VAR *var,     /*!< in: pointer to system variable */
-    void *var_ptr,    /*!< out: ignored */
-    const void *save) /*!< in: immediate result
-                      from check function */
-{
+Handles some values specially, to evict pages from the buffer pool.
+SET GLOBAL innodb_buffer_pool_evict='uncompressed'
+evicts all uncompressed page frames of compressed tablespaces.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   ignored
+@param[in]  save      immediate result from check function */
+static void innodb_buffer_pool_evict_update(THD *thd, SYS_VAR *var,
+                                            void *var_ptr, const void *save) {
   if (const char *op = *static_cast<const char *const *>(save)) {
     if (!strcmp(op, "uncompressed")) {
       for (uint tries = 0; tries < 10000; tries++) {
@@ -18307,71 +18304,59 @@ static void innodb_buffer_pool_evict_update(
 #endif /* UNIV_DEBUG */
 
 /** Update the system variable innodb_monitor_enable and enable
- specified monitor counter.
- This function is registered as a callback with MySQL. */
-static void innodb_enable_monitor_update(
-    THD *thd,         /*!< in: thread handle */
-    SYS_VAR *var,     /*!< in: pointer to
-                                      system variable */
-    void *var_ptr,    /*!< out: where the
-                      formal string goes */
-    const void *save) /*!< in: immediate result
-                      from check function */
-{
+specified monitor counter.
+This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void innodb_enable_monitor_update(THD *thd, SYS_VAR *var, void *var_ptr,
+                                         const void *save) {
   innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_ON, TRUE);
 }
 
 /** Update the system variable innodb_monitor_disable and turn
- off specified monitor counter. */
-static void innodb_disable_monitor_update(
-    THD *thd,         /*!< in: thread handle */
-    SYS_VAR *var,     /*!< in: pointer to
-                                      system variable */
-    void *var_ptr,    /*!< out: where the
-                      formal string goes */
-    const void *save) /*!< in: immediate result
-                      from check function */
-{
+off specified monitor counter.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void innodb_disable_monitor_update(THD *thd, SYS_VAR *var, void *var_ptr,
+                                          const void *save) {
   innodb_monitor_update(thd, var_ptr, save, MONITOR_TURN_OFF, TRUE);
 }
 
 /** Update the system variable innodb_monitor_reset and reset
- specified monitor counter(s).
- This function is registered as a callback with MySQL. */
-static void innodb_reset_monitor_update(
-    THD *thd,         /*!< in: thread handle */
-    SYS_VAR *var,     /*!< in: pointer to
-                                      system variable */
-    void *var_ptr,    /*!< out: where the
-                      formal string goes */
-    const void *save) /*!< in: immediate result
-                      from check function */
-{
+specified monitor counter(s).
+This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void innodb_reset_monitor_update(THD *thd, SYS_VAR *var, void *var_ptr,
+                                        const void *save) {
   innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_VALUE, TRUE);
 }
 
 /** Update the system variable innodb_monitor_reset_all and reset
- all value related monitor counter.
- This function is registered as a callback with MySQL. */
-static void innodb_reset_all_monitor_update(
-    THD *thd,         /*!< in: thread handle */
-    SYS_VAR *var,     /*!< in: pointer to
-                                      system variable */
-    void *var_ptr,    /*!< out: where the
-                      formal string goes */
-    const void *save) /*!< in: immediate result
-                      from check function */
-{
+all value related monitor counter.
+This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void innodb_reset_all_monitor_update(THD *thd, SYS_VAR *var,
+                                            void *var_ptr, const void *save) {
   innodb_monitor_update(thd, var_ptr, save, MONITOR_RESET_ALL_VALUE, TRUE);
 }
 
 /** Update the number of undo tablespaces active when the system variable
 innodb_undo_tablespaces is changed.
 This function is registered as a callback with MySQL.
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[in]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
+@param[in]	thd       thread handle
+@param[in]	var       pointer to system variable
+@param[in]	var_ptr   where the formal string goes
+@param[in]	save      immediate result from check function */
 static void innodb_undo_tablespaces_update(THD *thd, SYS_VAR *var,
                                            void *var_ptr, const void *save) {
   ulong target = *static_cast<const ulong *>(save);
@@ -18404,10 +18389,10 @@ static void innodb_undo_tablespaces_update(THD *thd, SYS_VAR *var,
 /** Update the number of rollback segments per tablespace when the
 system variable innodb_rollback_segments is changed.
 This function is registered as a callback with MySQL.
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[in]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
+@param[in]	thd       thread handle
+@param[in]	var       pointer to system variable
+@param[in]	var_ptr   where the formal string goes
+@param[in]	save      immediate result from check function */
 static void innodb_rollback_segments_update(THD *thd, SYS_VAR *var,
                                             void *var_ptr, const void *save) {
   ulong target = *static_cast<const ulong *>(save);
@@ -18568,75 +18553,61 @@ static bool innodb_background_drop_list_empty = TRUE;
 static bool innodb_purge_run_now = TRUE;
 static bool innodb_purge_stop_now = TRUE;
 static bool innodb_log_checkpoint_now = TRUE;
+static bool innodb_log_checkpoint_fuzzy_now = TRUE;
 static bool innodb_buf_flush_list_now = TRUE;
 static uint innodb_merge_threshold_set_all_debug =
     DICT_INDEX_MERGE_THRESHOLD_DEFAULT;
 
-/** Wait for the background drop list to become empty. */
+/** Wait for the background drop list to become empty.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
 static void wait_background_drop_list_empty(
-    THD *thd /*!< in: thread handle */
-        MY_ATTRIBUTE((unused)),
-    SYS_VAR *var /*!< in: pointer to system
-                                 variable */
-        MY_ATTRIBUTE((unused)),
-    void *var_ptr /*!< out: where the formal
-                  string goes */
-
-        MY_ATTRIBUTE((unused)),
-    const void *save) /*!< in: immediate result from
-                      check function */
-{
+    THD *thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
+    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
   row_wait_for_background_drop_list_empty();
 }
 
 /** Set the purge state to RUN. If purge is disabled then it
- is a no-op. This function is registered as a callback with MySQL. */
-static void purge_run_now_set(THD *thd /*!< in: thread handle */
-                                  MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var /*!< in: pointer to system
-                                                           variable */
-                                  MY_ATTRIBUTE((unused)),
-                              void *var_ptr /*!< out: where the formal
-                                            string goes */
-                                  MY_ATTRIBUTE((unused)),
-                              const void *save) /*!< in: immediate result from
-                                                check function */
-{
+is a no-op. This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void purge_run_now_set(THD *thd MY_ATTRIBUTE((unused)),
+                              SYS_VAR *var MY_ATTRIBUTE((unused)),
+                              void *var_ptr MY_ATTRIBUTE((unused)),
+                              const void *save) {
   if (*(bool *)save && trx_purge_state() != PURGE_STATE_DISABLED) {
     trx_purge_run();
   }
 }
 
 /** Set the purge state to STOP. If purge is disabled then it
- is a no-op. This function is registered as a callback with MySQL. */
-static void purge_stop_now_set(THD *thd /*!< in: thread handle */
-                                   MY_ATTRIBUTE((unused)),
-                               SYS_VAR *var /*!< in: pointer to system
-                                                            variable */
-                                   MY_ATTRIBUTE((unused)),
-                               void *var_ptr /*!< out: where the formal
-                                             string goes */
-                                   MY_ATTRIBUTE((unused)),
-                               const void *save) /*!< in: immediate result from
-                                                 check function */
-{
+is a no-op. This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void purge_stop_now_set(THD *thd MY_ATTRIBUTE((unused)),
+                               SYS_VAR *var MY_ATTRIBUTE((unused)),
+                               void *var_ptr MY_ATTRIBUTE((unused)),
+                               const void *save) {
   if (*(bool *)save && trx_purge_state() != PURGE_STATE_DISABLED) {
     trx_purge_stop();
   }
 }
 
-/** Force innodb to checkpoint. */
-static void checkpoint_now_set(THD *thd /*!< in: thread handle */
-                                   MY_ATTRIBUTE((unused)),
-                               SYS_VAR *var /*!< in: pointer to system
-                                                            variable */
-                                   MY_ATTRIBUTE((unused)),
-                               void *var_ptr /*!< out: where the formal
-                                             string goes */
-                                   MY_ATTRIBUTE((unused)),
-                               const void *save) /*!< in: immediate result from
-                                                 check function */
-{
+/** Force innodb to do sharp checkpoint.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void checkpoint_now_set(THD *thd MY_ATTRIBUTE((unused)),
+                               SYS_VAR *var MY_ATTRIBUTE((unused)),
+                               void *var_ptr MY_ATTRIBUTE((unused)),
+                               const void *save) {
   if (*(bool *)save && !srv_checkpoint_disabled) {
     /* Note that it's defined only when UNIV_DEBUG is defined.
     It seems to be very risky feature. Fortunately it is used
@@ -18654,14 +18625,36 @@ static void checkpoint_now_set(THD *thd /*!< in: thread handle */
   }
 }
 
+/** Force innodb to do fuzzy checkpoint.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void checkpoint_fuzzy_now_set(THD *thd MY_ATTRIBUTE((unused)),
+                                     SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                     void *var_ptr MY_ATTRIBUTE((unused)),
+                                     const void *save) {
+  if (*(bool *)save && !srv_checkpoint_disabled) {
+    /* Note that it's defined only when UNIV_DEBUG is defined.
+    It seems to be very risky feature. Fortunately it is used
+    only inside mtr tests. */
+
+    log_request_checkpoint(*log_sys, true);
+
+    dberr_t err = fil_write_flushed_lsn(log_sys->last_checkpoint_lsn);
+
+    ut_a(err == DB_SUCCESS);
+  }
+}
+
 /** Updates srv_checkpoint_disabled - allowing or disallowing checkpoints.
 This is called when user invokes SET GLOBAL innodb_checkpoints_disabled=0/1.
 After checkpoints are disabled, there will be no write of a checkpoint,
 until checkpoints are re-enabled (log_sys->checkpointer_mutex protects that)
-@param[in]	thd		thread handle
-@param[in]	var		pointer to system variable
-@param[out]	var_ptr		where the formal string goes
-@param[in]	save		immediate result from check function */
+@param[in]	thd		    thread handle
+@param[in]	var		    pointer to system variable
+@param[out]	var_ptr   where the formal string goes
+@param[in]	save		  immediate result from check function */
 static void checkpoint_disabled_update(THD *thd, SYS_VAR *var, void *var_ptr,
                                        const void *save) {
   /* We need to acquire the checkpointer_mutex, to ensure that
@@ -18678,19 +18671,15 @@ static void checkpoint_disabled_update(THD *thd, SYS_VAR *var, void *var_ptr,
   log_checkpointer_mutex_exit(*log_sys);
 }
 
-/** Force a dirty pages flush now. */
-static void buf_flush_list_now_set(
-    THD *thd /*!< in: thread handle */
-        MY_ATTRIBUTE((unused)),
-    SYS_VAR *var /*!< in: pointer to system
-                                 variable */
-        MY_ATTRIBUTE((unused)),
-    void *var_ptr /*!< out: where the formal
-                  string goes */
-        MY_ATTRIBUTE((unused)),
-    const void *save) /*!< in: immediate result from
-                      check function */
-{
+/** Force a dirty pages flush now.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void buf_flush_list_now_set(THD *thd MY_ATTRIBUTE((unused)),
+                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                   void *var_ptr MY_ATTRIBUTE((unused)),
+                                   const void *save) {
   if (*(bool *)save) {
     buf_flush_sync_all_buf_pools();
   }
@@ -18698,10 +18687,10 @@ static void buf_flush_list_now_set(
 
 /** Override current MERGE_THRESHOLD setting for all indexes at dictionary
 now.
-@param[in]	thd	thread handle
-@param[in]	var	pointer to system variable
-@param[out]	var_ptr	where the formal string goes
-@param[in]	save	immediate result from check function */
+@param[in]	thd       thread handle
+@param[in]	var       pointer to system variable
+@param[out]	var_ptr   where the formal string goes
+@param[in]	save      immediate result from check function */
 static void innodb_merge_threshold_set_all_debug_update(THD *thd, SYS_VAR *var,
                                                         void *var_ptr,
                                                         const void *save) {
@@ -18746,73 +18735,59 @@ static bool innodb_buffer_pool_load_now = FALSE;
 static bool innodb_buffer_pool_load_abort = FALSE;
 
 /** Trigger a dump of the buffer pool if innodb_buffer_pool_dump_now is set
- to ON. This function is registered as a callback with MySQL. */
-static void buffer_pool_dump_now(
-    THD *thd /*!< in: thread handle */
-        MY_ATTRIBUTE((unused)),
-    SYS_VAR *var /*!< in: pointer to system
-                                 variable */
-        MY_ATTRIBUTE((unused)),
-    void *var_ptr /*!< out: where the formal
-                  string goes */
-        MY_ATTRIBUTE((unused)),
-    const void *save) /*!< in: immediate result from
-                      check function */
-{
+to ON. This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void buffer_pool_dump_now(THD *thd MY_ATTRIBUTE((unused)),
+                                 SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                 void *var_ptr MY_ATTRIBUTE((unused)),
+                                 const void *save) {
   if (*(bool *)save && !srv_read_only_mode) {
     buf_dump_start();
   }
 }
 
 /** Trigger a load of the buffer pool if innodb_buffer_pool_load_now is set
- to ON. This function is registered as a callback with MySQL. */
-static void buffer_pool_load_now(
-    THD *thd /*!< in: thread handle */
-        MY_ATTRIBUTE((unused)),
-    SYS_VAR *var /*!< in: pointer to system
-                                 variable */
-        MY_ATTRIBUTE((unused)),
-    void *var_ptr /*!< out: where the formal
-                  string goes */
-        MY_ATTRIBUTE((unused)),
-    const void *save) /*!< in: immediate result from
-                      check function */
-{
+to ON. This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void buffer_pool_load_now(THD *thd MY_ATTRIBUTE((unused)),
+                                 SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                 void *var_ptr MY_ATTRIBUTE((unused)),
+                                 const void *save) {
   if (*(bool *)save) {
     buf_load_start();
   }
 }
 
 /** Abort a load of the buffer pool if innodb_buffer_pool_load_abort
- is set to ON. This function is registered as a callback with MySQL. */
-static void buffer_pool_load_abort(
-    THD *thd /*!< in: thread handle */
-        MY_ATTRIBUTE((unused)),
-    SYS_VAR *var /*!< in: pointer to system
-                                 variable */
-        MY_ATTRIBUTE((unused)),
-    void *var_ptr /*!< out: where the formal
-                  string goes */
-        MY_ATTRIBUTE((unused)),
-    const void *save) /*!< in: immediate result from
-                      check function */
-{
+is set to ON. This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void buffer_pool_load_abort(THD *thd MY_ATTRIBUTE((unused)),
+                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
+                                   void *var_ptr MY_ATTRIBUTE((unused)),
+                                   const void *save) {
   if (*(bool *)save) {
     buf_load_abort();
   }
 }
 
 /** Update the system variable innodb_log_write_ahead_size using the "saved"
- value. This function is registered as a callback with MySQL. */
-static void innodb_log_write_ahead_size_update(
-    THD *thd,         /*!< in: thread handle */
-    SYS_VAR *var,     /*!< in: pointer to
-                                      system variable */
-    void *var_ptr,    /*!< out: where the
-                      formal string goes */
-    const void *save) /*!< in: immediate result
-                      from check function */
-{
+value. This function is registered as a callback with MySQL.
+@param[in]  thd       thread handle
+@param[in]  var       pointer to system variable
+@param[out] var_ptr   where the formal string goes
+@param[in]  save      immediate result from check function */
+static void innodb_log_write_ahead_size_update(THD *thd, SYS_VAR *var,
+                                               void *var_ptr,
+                                               const void *save) {
   ulong val = INNODB_LOG_WRITE_AHEAD_SIZE_MIN;
   ulong in_val = *static_cast<const ulong *>(save);
 
@@ -18848,10 +18823,10 @@ static void innodb_log_write_ahead_size_update(
 
 /** Update the system variable innodb_log_buffer_size using the "saved"
 value. This function is registered as a callback with MySQL.
-@param[in]	thd	thread handle
-@param[in]	var	pointer to system variable
-@param[out]	var_ptr	where the formal string goes
-@param[in]	save	immediate result from check function */
+@param[in]	thd       thread handle
+@param[in]	var       pointer to system variable
+@param[out]	var_ptr   where the formal string goes
+@param[in]	save      immediate result from check function */
 static void innodb_log_buffer_size_update(THD *thd, SYS_VAR *var, void *var_ptr,
                                           const void *save) {
   const ulong val = *static_cast<const ulong *>(save);
@@ -18875,10 +18850,10 @@ static void innodb_log_buffer_size_update(THD *thd, SYS_VAR *var, void *var_ptr,
 
 /** Update the system variable innodb_thread_concurrency using the "saved"
 value. This function is registered as a callback with MySQL.
-@param[in]	thd	thread handle
-@param[in]	var	pointer to system variable
-@param[out]	var_ptr	where the formal string goes
-@param[in]	save	immediate result from check function */
+@param[in]	thd       thread handle
+@param[in]	var       pointer to system variable
+@param[out]	var_ptr   where the formal string goes
+@param[in]	save      immediate result from check function */
 static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *var,
                                              void *var_ptr, const void *save) {
   log_t &log = *log_sys;
@@ -18905,8 +18880,8 @@ static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *var,
 
 /** Update innodb_status_output or innodb_status_output_locks,
 which control InnoDB "status monitor" output to the error log.
-@param[out]	var_ptr	current value
-@param[in]	save	to-be-assigned value */
+@param[out]	var_ptr   current value
+@param[in]	save      to-be-assigned value */
 static void innodb_status_output_update(THD *, SYS_VAR *, void *var_ptr,
                                         const void *save) {
   *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
@@ -18916,10 +18891,10 @@ static void innodb_status_output_update(THD *, SYS_VAR *, void *var_ptr,
 }
 
 /** Update the innodb_log_checksums parameter.
-@param[in]	thd	thread handle
-@param[in]	var	system variable
-@param[out]	var_ptr	current value
-@param[in]	save	immediate result from check function */
+@param[in]	thd       thread handle
+@param[in]	var       system variable
+@param[out]	var_ptr   current value
+@param[in]	save      immediate result from check function */
 static void innodb_log_checksums_update(THD *thd, SYS_VAR *var, void *var_ptr,
                                         const void *save) {
   bool check = *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
@@ -19011,8 +18986,13 @@ static MYSQL_SYSVAR_BOOL(purge_stop_now, innodb_purge_stop_now,
                          purge_stop_now_set, FALSE);
 
 static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
-                         PLUGIN_VAR_OPCMDARG, "Force checkpoint now", NULL,
-                         checkpoint_now_set, FALSE);
+                         PLUGIN_VAR_OPCMDARG, "Force sharp checkpoint now",
+                         NULL, checkpoint_now_set, FALSE);
+
+static MYSQL_SYSVAR_BOOL(log_checkpoint_fuzzy_now,
+                         innodb_log_checkpoint_fuzzy_now, PLUGIN_VAR_OPCMDARG,
+                         "Force fuzzy checkpoint now", NULL,
+                         checkpoint_fuzzy_now_set, FALSE);
 
 static MYSQL_SYSVAR_BOOL(checkpoint_disabled, srv_checkpoint_disabled,
                          PLUGIN_VAR_OPCMDARG, "Disable checkpoints", NULL,
@@ -20190,6 +20170,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(purge_run_now),
     MYSQL_SYSVAR(purge_stop_now),
     MYSQL_SYSVAR(log_checkpoint_now),
+    MYSQL_SYSVAR(log_checkpoint_fuzzy_now),
     MYSQL_SYSVAR(checkpoint_disabled),
     MYSQL_SYSVAR(buf_flush_list_now),
     MYSQL_SYSVAR(merge_threshold_set_all_debug),

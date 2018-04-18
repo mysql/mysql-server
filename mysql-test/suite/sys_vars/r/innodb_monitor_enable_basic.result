@@ -168,7 +168,9 @@ log_lsn_last_flush	disabled
 log_lsn_last_checkpoint	disabled
 log_lsn_current	disabled
 log_lsn_checkpoint_age	disabled
-log_lsn_buf_pool_oldest	disabled
+log_lsn_buf_dirty_pages_added	disabled
+log_lsn_buf_pool_oldest_approx	disabled
+log_lsn_buf_pool_oldest_lwm	disabled
 log_max_modified_age_async	disabled
 log_max_modified_age_sync	disabled
 log_waits	disabled
