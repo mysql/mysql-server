@@ -6237,6 +6237,7 @@ sub start_mysqltest ($) {
   client_debug_arg($args, "mysqltest");
 
   if ($opt_record) {
+    $ENV{'MTR_RECORD'} = 1;
     mtr_add_arg($args, "--record");
 
     # When recording to a non existing result file the name of that
@@ -6244,6 +6245,8 @@ sub start_mysqltest ($) {
     if (defined $tinfo->{'record_file'}) {
       mtr_add_arg($args, "--result-file=%s", $tinfo->{record_file});
     }
+  } else {
+    $ENV{'MTR_RECORD'} = 0;
   }
 
   if ($opt_client_gdb) {

@@ -12,11 +12,8 @@
 
 #########################
 #  how to record test result for 64bit test case table_encrypt_portable_64 content mismatch
-#  1) change the record value from 0 to 1. it should be "--let $RECORD=1"
-#  2) run the test, it will fail (this is expected). The zip files are updated
-#  3) change the line to "--let $RECORD=0" and run test
+#  Run the test with --record option.
 #########################
---let $RECORD=0
 
 let $restart_parameters = restart: --early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR $KEYRING_PLUGIN_OPT --plugin-dir=KEYRING_PLUGIN_PATH $KEYRING_PLUGIN keyring_file.so
@@ -29,7 +26,7 @@ let $source_db = test;
 
 let $dest_db = test;
 
-if ($RECORD == 1) {
+if ($MTR_RECORD == 1) {
 # Create a table with encryption
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 INSERT INTO t1 VALUES(0, "aaaaa");
@@ -55,7 +52,7 @@ UNLOCK TABLES;
 DROP TABLE t1;
 }
 
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
 eval ALTER TABLE $dest_db.t1 DISCARD TABLESPACE;
 

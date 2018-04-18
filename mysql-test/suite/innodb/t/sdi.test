@@ -10,12 +10,9 @@
 #########################
 #  how to record this test JSON result content mismatch
 #  If required fix regex patterns in mysql-test/include/ibd2sdi.pl
-#  and mysql-test/suite/innodb/include/ibd2sdi_replace_pattern.inc
-#  1) change the record value from 0 to 1. it should be "--let $RECORD=1"
-#  2) run the test, it will fail (this is expected). The zip files are updated
-#  3) change the line to "--let $RECORD=0" and run test
+#  and mysql-test/suite/innodb/include/ibd2sdi_replace_pattern.inc,
+#  then run the test with --record option.
 #########################
---let $RECORD=0
 
 # Extract saved JSON to tmp dir
 --let $SRC_DIR=$MYSQL_TMP_DIR/sdi_src
@@ -180,7 +177,7 @@ CREATE TABLE t18(హి  INT, శరెెనిక BLOB);
 --let JSON_FILE_PATH = $DEST_DIR/mysql.json
 --exec $IBD2SDI $MYSQLD_DATADIR/mysql.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace_mysql.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/mysql.json $JSON_FILE_PATH
 }
 
@@ -188,7 +185,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t1.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t1.json $JSON_FILE_PATH
 }
 
@@ -196,7 +193,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t2.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t2.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t2.json $JSON_FILE_PATH
 }
 
@@ -204,7 +201,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t3.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t3.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t3.json $JSON_FILE_PATH
 }
 
@@ -212,7 +209,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t4.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t4.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t4.json $JSON_FILE_PATH
 }
 
@@ -220,7 +217,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t5.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t5.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t5.json $JSON_FILE_PATH
 }
 
@@ -228,7 +225,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t6.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t6.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t6.json $JSON_FILE_PATH
 }
 
@@ -236,7 +233,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t7.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t7.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t7.json $JSON_FILE_PATH
 }
 
@@ -244,7 +241,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/ts1.json
 --exec $IBD2SDI $MYSQLD_DATADIR/ts1.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/ts1.json $JSON_FILE_PATH
 }
 
@@ -252,7 +249,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t10.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t10.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t10.json $JSON_FILE_PATH
 }
 
@@ -260,7 +257,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t11.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t11.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t11.json $JSON_FILE_PATH
 }
 
@@ -268,14 +265,14 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t12#p#p0.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t12#P#p0.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t12#p#p0.json $JSON_FILE_PATH
 }
 
 --let JSON_FILE_PATH = $DEST_DIR/t12#p#p1.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t12#P#p1.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t12#p#p1.json $JSON_FILE_PATH
 }
 
@@ -283,7 +280,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t13.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t13.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t13.json $JSON_FILE_PATH
 }
 
@@ -291,7 +288,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t14.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t14.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t14.json $JSON_FILE_PATH
 }
 
@@ -302,7 +299,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t15.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t15.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t15.json $JSON_FILE_PATH
 }
 
@@ -310,7 +307,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/ibdata1.json
 --exec $IBD2SDI $MYSQLD_DATADIR/ibdata1 -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace_system.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/ibdata1.json $JSON_FILE_PATH
 }
 
@@ -318,7 +315,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t18.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t18.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t18.json $JSON_FILE_PATH
 }
 
@@ -354,7 +351,7 @@ DROP TABLE t20;
 --let JSON_FILE_PATH = $DEST_DIR/t1_altered.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t1.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t1_altered.json $JSON_FILE_PATH
 }
 
@@ -363,7 +360,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t2_altered.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t2.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t2_altered.json $JSON_FILE_PATH
 }
 
@@ -372,7 +369,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t3_altered.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t3.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t3_altered.json $JSON_FILE_PATH
 }
 
@@ -381,7 +378,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t4_altered.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t4.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t4_altered.json $JSON_FILE_PATH
 }
 
@@ -390,7 +387,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t10_altered.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t10.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t10_altered.json $JSON_FILE_PATH
 }
 
@@ -399,7 +396,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t11_altered.json
 --exec $IBD2SDI $MYSQLD_DATADIR/test/t11.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t11_altered.json $JSON_FILE_PATH
 }
 
@@ -407,15 +404,15 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/ts1_altered.json
 --exec $IBD2SDI $MYSQLD_DATADIR/ts1.ibd -d $JSON_FILE_PATH 2>&1
 --source ../include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/ts1_altered.json $JSON_FILE_PATH
 }
 
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --force-rmdir $DEST_DIR
 }
 
-if ($RECORD == 1) {
+if ($MTR_RECORD == 1) {
 --exec zip -r -j $MYSQL_TMP_DIR/sdi.zip $DEST_DIR 2>&1 > /dev/null
 --move_file $MYSQL_TMP_DIR/sdi.zip $MYSQL_TEST_DIR/std_data/innodb_sdi_jsons.zip
 --force-rmdir $DEST_DIR
@@ -428,10 +425,6 @@ if ($RECORD == 1) {
 
 --let $restart_parameters=
 --source include/start_mysqld.inc
-
-if ($RECORD == 1) {
---echo "Recorded JSONs. Please remove the record mode inside test and re-run the test"
-}
 
 --echo #
 --echo # Bug#27151163 - INNODB: ASSERTION FAILURE: DICT0SDI.CC:.*
