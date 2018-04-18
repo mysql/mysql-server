@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -77,7 +77,7 @@ static int test_if_open(struct file_info *key, element_count count,
 static void fix_blob_pointers(MI_INFO *isam, uchar *record);
 static int test_when_accessed(struct file_info *key, element_count count,
                               struct st_access_param *access_param);
-static void file_info_free(struct file_info *info);
+static void file_info_free(void *info, TREE_FREE mode, const void *);
 static int close_some_file(TREE *tree);
 static int reopen_closed_file(TREE *tree, struct file_info *file_info);
 static int find_record_with_key(struct file_info *file_info, uchar *record);
@@ -338,7 +338,7 @@ static int examine_log(char *file_name, char **table_names) {
   init_io_cache(&cache, file, 0, READ_CACHE, start_offset, 0, MYF(0));
   memset(com_count, 0, sizeof(com_count));
   init_tree(&tree, 0, 0, sizeof(file_info), file_info_compare, 1,
-            (tree_element_free)file_info_free, NULL);
+            file_info_free, NULL);
   (void)init_key_cache(dflt_key_cache, KEY_CACHE_BLOCK_SIZE, KEY_CACHE_SIZE, 0,
                        0);
 
@@ -696,7 +696,8 @@ static int test_when_accessed(struct file_info *key,
   return 0;
 }
 
-static void file_info_free(struct file_info *fileinfo) {
+static void file_info_free(void *v_fileinfo, TREE_FREE, const void *) {
+  file_info *fileinfo = pointer_cast<file_info *>(v_fileinfo);
   DBUG_ENTER("file_info_free");
   if (update) {
     if (!fileinfo->closed) (void)mi_close(fileinfo->isam);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,8 +48,8 @@ static int FT_STOPWORD_cmp(const void *cmp_arg MY_ATTRIBUTE((unused)),
                          (uchar *)w2->pos, w2->len, 0);
 }
 
-static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
-                             void *arg MY_ATTRIBUTE((unused))) {
+static void FT_STOPWORD_free(void *v_w, TREE_FREE action, const void *) {
+  FT_STOPWORD *w = static_cast<FT_STOPWORD *>(v_w);
   if (action == free_free) my_free((void *)w->pos);
 }
 
@@ -66,8 +66,7 @@ int ft_init_stopwords() {
                                          sizeof(TREE), MYF(0))))
       return -1;
     init_tree(stopwords3, 0, 0, sizeof(FT_STOPWORD), &FT_STOPWORD_cmp, 0,
-              (ft_stopword_file ? (tree_element_free)&FT_STOPWORD_free : 0),
-              NULL);
+              (ft_stopword_file ? &FT_STOPWORD_free : 0), nullptr);
     /*
       Stopword engine currently does not support tricky
       character sets UCS2, UTF16, UTF32.
