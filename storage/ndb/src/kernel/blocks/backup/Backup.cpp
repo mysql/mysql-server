@@ -7877,9 +7877,19 @@ Backup::execFSAPPENDREF(Signal* signal)
 
   CRASH_INSERTION(10044);
   CRASH_INSERTION(10045);
-  g_eventLogger->info("Crashing after FSAPPENDREF: error code: %u",
-                      errCode);
-  ndbabort();
+  BackupRecordPtr ptr;
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+  if (ptr.p->is_lcp())
+  {
+    /**
+     * Log in this case for LCPs, Backups should be able to
+     * handle out of disk space. LCPs could potentially survive for
+     * a while, but will eventually crash or they will hit the
+     * infamous 410 condition.
+     */
+    g_eventLogger->info("LCP got FSAPPENDREF, serious error: error code: %u",
+                        errCode);
+  }
   checkFile(signal, filePtr);
 }
 
