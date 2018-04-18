@@ -51,12 +51,9 @@ call mtr.add_suppression("Failed to create or recover replication info repositor
 #########################
 #  how to record this test JSON result content mismatch
 #  If required fix regex patterns in mysql-test/include/ibd2sdi.pl
-#  and mysql-test/suite/innodb/include/ibd2sdi_replace_pattern.inc
-#  1) change the record value from 0 to 1. it should be "--let $RECORD=1"
-#  2) run the test, it will fail (this is expected). The zip files are updated
-#  3) change the line to "--let $RECORD=0" and run test
+#  and mysql-test/suite/innodb/include/ibd2sdi_replace_pattern.inc,
+#  then run the test with --record option.
 #########################
---let $RECORD=0
 
 --echo # Set different paths for --datadir
 let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;
@@ -113,7 +110,7 @@ SHOW CREATE TABLE partitions.t1;
 --let JSON_FILE_PATH = $DEST_DIR/sys_config.json
 --exec $IBD2SDI $MYSQLD_DATADIR1/sys/sys_config.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/sys_config.json $JSON_FILE_PATH
 }
 
@@ -121,7 +118,7 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t1#p#p1.json
 --exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#P#p1.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t1#p#p1.json $JSON_FILE_PATH
 }
 
@@ -129,17 +126,17 @@ if ($RECORD == 0) {
 --let JSON_FILE_PATH = $DEST_DIR/t1#p#p0.json
 --exec $IBD2SDI $MYSQLD_DATADIR1/partitions/t1#P#p0.ibd -d $JSON_FILE_PATH 2>&1
 --source suite/innodb/include/ibd2sdi_replace.inc
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --diff_files $SRC_DIR/t1#p#p0.json $JSON_FILE_PATH
 }
 
 --force-rmdir $SRC_DIR
 
-if ($RECORD == 0) {
+if ($MTR_RECORD == 0) {
 --force-rmdir $DEST_DIR
 }
 
-if ($RECORD == 1) {
+if ($MTR_RECORD == 1) {
 --exec zip -r -j $MYSQL_TMP_DIR/sdi.zip $DEST_DIR 2>&1 > /dev/null
 --move_file $MYSQL_TMP_DIR/sdi.zip $MYSQL_TEST_DIR/std_data/dd_upgrade_partition_jsons.zip
 --force-rmdir $DEST_DIR
@@ -149,10 +146,6 @@ if ($RECORD == 1) {
 --remove_file $MYSQL_TMP_DIR/data57_partition.zip
 
 --force-rmdir $MYSQL_TMP_DIR/data57_partition
-
-if ($RECORD == 1) {
---echo "Recorded JSONs. Please remove the record mode inside test and re-run the test"
-}
 
 --echo # Restart the server with default options.
 --source include/start_mysqld.inc

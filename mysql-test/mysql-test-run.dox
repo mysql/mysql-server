@@ -3771,18 +3771,18 @@
       </td>
     </tr>
     <tr>
+      <td><tt>MTR_MAX_PARALLEL</tt></td>
+      <td>
+        If set, defines maximum number of parallel threads if
+        <b>`--parallel`=auto</b> is given
+      </td>
+    </tr>
+    <tr>
       <td><tt>MTR_MEM</tt></td>
       <td>
         If set to anything, will run tests with files in "memory"
         using tmpfs or ramdisk. Not available on Windows. Same as
         <b>`--mem`</b> option
-      </td>
-    </tr>
-    <tr>
-      <td><tt>MTR_MAX_PARALLEL</tt></td>
-      <td>
-        If set, defines maximum number of parallel threads if
-        <b>`--parallel`=auto</b> is given
       </td>
     </tr>
     <tr>
@@ -3806,6 +3806,13 @@
       <td><tt>MTR_PORT_BASE</tt></td>
       <td>
         If set, defines which port number range is used for the server
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MTR_RECORD</tt></td>
+      <td>
+        Set to 1 if a MTR run is started with <b>`--record`</b>
+        option, 0 otherwise.
       </td>
     </tr>
     <tr>
