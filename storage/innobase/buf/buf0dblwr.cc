@@ -774,10 +774,6 @@ static void buf_dblwr_check_block(
 {
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
-  if (block->skip_flush_check) {
-    return;
-  }
-
   switch (fil_page_get_type(block->frame)) {
     case FIL_PAGE_INDEX:
     case FIL_PAGE_RTREE:

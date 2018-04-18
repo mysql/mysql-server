@@ -750,7 +750,6 @@ static void buf_block_init(
 
   block->index = NULL;
   block->made_dirty_with_no_latch = false;
-  block->skip_flush_check = false;
 
   ut_d(block->page.in_page_hash = FALSE);
   ut_d(block->page.in_zip_hash = FALSE);
@@ -2966,7 +2965,6 @@ void buf_block_init_low(buf_block_t *block) /*!< in: block to init */
   assert_block_ahi_empty_on_init(block);
   block->index = NULL;
   block->made_dirty_with_no_latch = false;
-  block->skip_flush_check = false;
 
   block->n_hash_helps = 0;
   block->n_fields = 1;

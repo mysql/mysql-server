@@ -1490,7 +1490,13 @@ dberr_t row_fts_merge_insert(dict_index_t *index, dict_table_t *table,
 
   /* Create bulk load instance */
   ins_ctx.btr_bulk = UT_NEW_NOKEY(BtrBulk(aux_index, trx->id, observer));
-  ins_ctx.btr_bulk->init();
+  error = ins_ctx.btr_bulk->init();
+  if (error != DB_SUCCESS) {
+    /* delete immediately so finish() would not be called */
+    UT_DELETE(ins_ctx.btr_bulk);
+    ins_ctx.btr_bulk = nullptr;
+    goto exit;
+  }
 
   /* Create tuple for insert */
   ins_ctx.tuple = dtuple_create(heap, dict_index_get_n_fields(aux_index));
@@ -1600,8 +1606,10 @@ exit:
 
   mem_heap_free(tuple_heap);
 
-  error = ins_ctx.btr_bulk->finish(error);
-  UT_DELETE(ins_ctx.btr_bulk);
+  if (ins_ctx.btr_bulk) {
+    error = ins_ctx.btr_bulk->finish(error);
+    UT_DELETE(ins_ctx.btr_bulk);
+  }
 
   trx_free_for_background(trx);
 

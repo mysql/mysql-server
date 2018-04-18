@@ -1244,7 +1244,6 @@ loop:
       srv_print_innodb_monitor = static_cast<bool>(mon_value_was);
     }
 
-    block->skip_flush_check = false;
     block->page.flush_observer = NULL;
     return (block);
   }
