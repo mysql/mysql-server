@@ -971,6 +971,65 @@ Dbtup::prepare_lcp_scan_page(ScanOp& scan,
   return ZSCAN_FOUND_TUPLE;
 }
 
+Uint32
+Dbtup::handle_lcp_skip_page(ScanOp& scan,
+                            Local_key key,
+                            Page* page)
+{
+  ScanPos& pos = scan.m_scanPos;
+  /**
+   * The page was allocated after the LCP started, so it can only
+   * contain rows that was allocated after start of LCP and should
+   * thus not be part of LCP. It is case 4b), 4c) or 4d). We need to
+   * clear the skip bit on the page. We need to get the old lcp state
+   * to be able to decide if it is 4c) or 4d). We also need to set
+   * the last LCP* state to D.
+   */
+  DEB_LCP_SKIP(("(%u)Clear LCP_SKIP on tab(%u,%u), page(%u)",
+                instance(),
+                m_curr_fragptr.p->fragTableId,
+                m_curr_fragptr.p->fragmentId,
+                key.m_page_no));
+
+  page->clear_page_to_skip_lcp();
+  set_last_lcp_state(m_curr_fragptr.p,
+                     key.m_page_no,
+                     true /* Set state to D */);
+
+  if (pos.m_lcp_scan_changed_rows_page && !pos.m_is_last_lcp_state_D)
+  {
+    jam();
+    /* Coverage tested */
+    /**
+     * Case 4d) from above
+     * At start of LCP the page was dropped, we have information that
+     * the page was dropped after the previous LCP. Thus we need to
+     * record the entire page as DELETE by PAGEID.
+     */
+    scan.m_last_seen = __LINE__;
+    pos.m_get = ScanPos::Get_next_page_mm;
+    c_backup->record_late_alloc_page_lcp();
+    return ZSCAN_FOUND_DROPPED_CHANGE_PAGE;
+  }
+  jam();
+  /* Coverage tested */
+  /**
+   * Case 4b) and 4c) from above
+   * For ALL ROWS pages the rows should be skipped for LCP, we clear
+   * the LCP skip flag on page in this case to speed up skipping.
+   *
+   * We need to keep track of the state Get_next_page_mm when checking
+   * if a rowid is part of the remaining lcp set. If we do a real-time
+   * break right after setting Get_next_page_mm we need to move the
+   * page number forward one step since we have actually completed the
+   * current page number.
+   */
+  scan.m_last_seen = __LINE__;
+  pos.m_get = ScanPos::Get_next_page_mm;
+  c_backup->page_to_skip_lcp(!pos.m_is_last_lcp_state_D);
+  return ZSCAN_FOUND_PAGE_END; //incr loop count
+}
+
 /**
  * Handling heavy insert and delete activity during LCP scans
  * ----------------------------------------------------------
@@ -1288,59 +1347,15 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         if (unlikely((bits & ScanOp::SCAN_LCP) &&
                      (pagePtr.p->is_page_to_skip_lcp())))
         {
-          /**
-           * The page was allocated after the LCP started, so it can only
-           * contain rows that was allocated after start of LCP and should
-           * thus not be part of LCP. It is case 4b), 4c) or 4d). We need to
-           * clear the skip bit on the page. We need to get the old lcp state
-           * to be able to decide if it is 4c) or 4d). We also need to set
-           * the last LCP* state to D.
-           */
-          DEB_LCP_SKIP(("(%u)Clear LCP_SKIP on tab(%u,%u), page(%u)",
-                        instance(),
-                        fragPtr.p->fragTableId,
-                        fragPtr.p->fragmentId,
-                        key.m_page_no));
-
-          pagePtr.p->clear_page_to_skip_lcp();
-          set_last_lcp_state(fragPtr.p,
-                             key.m_page_no,
-                             true /* Set state to D */);
-
-          if (pos.m_lcp_scan_changed_rows_page && !pos.m_is_last_lcp_state_D)
-          {
-            jam();
-            /* Coverage tested */
-            /**
-             * Case 4d) from above
-             * At start of LCP the page was dropped, we have information that
-             * the page was dropped after the previous LCP. Thus we need to
-             * record the entire page as DELETE by PAGEID.
-             */
-            scan.m_last_seen = __LINE__;
-            pos.m_get = ScanPos::Get_next_page_mm;
-            c_backup->record_late_alloc_page_lcp();
-            goto record_dropped_change_page;
-          }
+          Uint32 ret_val = handle_lcp_skip_page(scan,
+                                                key,
+                                                pagePtr.p);
+          if (ret_val == ZSCAN_FOUND_PAGE_END)
+            break;
           else
           {
-            jam();
-            /* Coverage tested */
-            /**
-             * Case 4b) and 4c) from above
-             * For ALL ROWS pages the rows should be skipped for LCP, we clear
-             * the LCP skip flag on page in this case to speed up skipping.
-             *
-             * We need to keep track of the state Get_next_page_mm when checking
-             * if a rowid is part of the remaining lcp set. If we do a real-time
-             * break right after setting Get_next_page_mm we need to move the
-             * page number forward one step since we have actually completed the
-             * current page number.
-             */
-            scan.m_last_seen = __LINE__;
-            pos.m_get = ScanPos::Get_next_page_mm;
-            c_backup->page_to_skip_lcp(!pos.m_is_last_lcp_state_D);
-            break; // incr loop count
+            assert(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
+            goto record_dropped_change_page;
           }
         }
         /* LCP normal case 4a) above goes here */

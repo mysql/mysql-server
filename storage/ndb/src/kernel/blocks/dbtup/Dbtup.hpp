@@ -499,6 +499,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
                                Local_key& key,
                                Uint32 *next_ptr,
                                Uint32 *prev_ptr);
+  Uint32 handle_lcp_skip_page(ScanOp& scan,
+                              Local_key key,
+                              Page *page);
 
   // for md5 of key (could maybe reuse existing temp buffer)
   Uint64 c_dataBuffer[ZWORDS_ON_PAGE/2 + 1];
