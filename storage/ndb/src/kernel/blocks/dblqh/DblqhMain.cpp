@@ -17733,6 +17733,7 @@ Dblqh::get_current_local_lcp_id(void)
 
 void
 Dblqh::get_lcp_frag_stats(Uint64 & row_count,
+                          Uint64 & prev_row_count,
                           Uint64 & row_change_count,
                           Uint64 & memory_used_in_bytes,
                           Uint32 & max_page_cnt)
@@ -17814,6 +17815,7 @@ Dblqh::get_lcp_frag_stats(Uint64 & row_count,
                             fragptr.p->newestGci,
                             max_page_cnt,
                             row_count,
+                            prev_row_count,
                             row_change_count,
                             memory_used_in_bytes,
                             true);

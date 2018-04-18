@@ -222,7 +222,10 @@ public:
   {
     return m_recovery_work;
   }
-
+  Uint32 get_insert_recovery_work()
+  {
+    return m_insert_recovery_work;
+  }
   void init_extended_lcp_stat();
   void print_extended_lcp_stat();
   void alloc_page_after_lcp_start(Uint32 page_no);
@@ -303,6 +306,7 @@ public:
   bool m_delete_lcp_files_ongoing;
   Uint32 m_enable_partial_lcp;
   Uint32 m_recovery_work;
+  Uint32 m_insert_recovery_work;
 
   struct Table {
     Table(Fragment_pool &);
@@ -635,6 +639,7 @@ public:
      * Handle later, LCP processing.
      */
     Uint64 m_row_count;
+    Uint64 m_prev_row_count;
     Uint64 m_row_change_count;
     Uint64 m_memory_used_in_bytes;
     bool   m_empty_lcp;
@@ -1162,6 +1167,8 @@ public:
   bool convert_ctl_page_to_host(struct BackupFormat::LCPCtlFile*);
   void convert_ctl_page_to_network(Uint32*, Uint32 file_size);
   void handle_idle_lcp(Signal*, BackupRecordPtr);
+  Uint64 get_total_memory();
+  Uint64 calculate_row_change_count(BackupRecordPtr);
   Uint32 calculate_min_parts(Uint64 row_count,
                              Uint64 row_change_count,
                              Uint64 mem_used,
