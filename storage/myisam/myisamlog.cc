@@ -72,11 +72,10 @@ static void get_options(int *argc, char ***argv);
 static int examine_log(char *file_name, char **table_names);
 static int read_string(IO_CACHE *file, uchar **to, uint length);
 static int file_info_compare(const void *cmp_arg, const void *a, const void *b);
-static int test_if_open(struct file_info *key, element_count count,
-                        struct test_if_open_param *param);
+static int test_if_open(void *key, element_count count, void *param);
 static void fix_blob_pointers(MI_INFO *isam, uchar *record);
-static int test_when_accessed(struct file_info *key, element_count count,
-                              struct st_access_param *access_param);
+static int test_when_accessed(void *key, element_count count,
+                              void *access_param);
 static void file_info_free(void *info, TREE_FREE mode, const void *);
 static int close_some_file(TREE *tree);
 static int reopen_closed_file(TREE *tree, struct file_info *file_info);
@@ -408,8 +407,7 @@ static int examine_log(char *file_name, char **table_names) {
         }
         open_param.name = file_info.name;
         open_param.max_id = 0;
-        (void)tree_walk(&tree, (tree_walk_action)test_if_open,
-                        (void *)&open_param, left_root_right);
+        (void)tree_walk(&tree, test_if_open, &open_param, left_root_right);
         file_info.id = open_param.max_id + 1;
         /*
          * In the line below +10 is added to accomodate '<' and '>' chars
@@ -663,9 +661,9 @@ static int file_info_compare(const void *cmp_arg MY_ATTRIBUTE((unused)),
 
 /* ARGSUSED */
 
-static int test_if_open(struct file_info *key,
-                        element_count count MY_ATTRIBUTE((unused)),
-                        struct test_if_open_param *param) {
+static int test_if_open(void *v_key, element_count, void *v_param) {
+  file_info *key = static_cast<file_info *>(v_key);
+  test_if_open_param *param = static_cast<test_if_open_param *>(v_param);
   if (!strcmp(key->name, param->name) && key->id > param->max_id)
     param->max_id = key->id;
   return 0;
@@ -686,9 +684,11 @@ static void fix_blob_pointers(MI_INFO *info, uchar *record) {
 /* close the file with hasn't been accessed for the longest time */
 /* ARGSUSED */
 
-static int test_when_accessed(struct file_info *key,
-                              element_count count MY_ATTRIBUTE((unused)),
-                              struct st_access_param *access_param) {
+static int test_when_accessed(void *v_key, element_count,
+                              void *v_access_param) {
+  file_info *key = static_cast<file_info *>(v_key);
+  st_access_param *access_param =
+      static_cast<st_access_param *>(v_access_param);
   if (key->accessed < access_param->min_accessed && !key->closed) {
     access_param->min_accessed = key->accessed;
     access_param->found = key;
@@ -697,7 +697,7 @@ static int test_when_accessed(struct file_info *key,
 }
 
 static void file_info_free(void *v_fileinfo, TREE_FREE, const void *) {
-  file_info *fileinfo = pointer_cast<file_info *>(v_fileinfo);
+  file_info *fileinfo = static_cast<file_info *>(v_fileinfo);
   DBUG_ENTER("file_info_free");
   if (update) {
     if (!fileinfo->closed) (void)mi_close(fileinfo->isam);
@@ -714,8 +714,7 @@ static int close_some_file(TREE *tree) {
   access_param.min_accessed = LONG_MAX;
   access_param.found = 0;
 
-  (void)tree_walk(tree, (tree_walk_action)test_when_accessed,
-                  (void *)&access_param, left_root_right);
+  (void)tree_walk(tree, test_when_accessed, &access_param, left_root_right);
   if (!access_param.found)
     return 1; /* No open file that is possibly to close */
   if (mi_close(access_param.found->isam)) return 1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,9 @@ static int FT_SUPERDOC_cmp(const void *cmp_arg MY_ATTRIBUTE((unused)),
   return 1;
 }
 
-static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio) {
+static int walk_and_match(void *v_word, uint32 count, void *v_aio) {
+  FT_WORD *word = static_cast<FT_WORD *>(v_word);
+  ALL_IN_ONE *aio = static_cast<ALL_IN_ONE *>(v_aio);
   int subkeys = 0, r;
   uint keylen, doc_cnt;
   FT_SUPERDOC sdoc, *sptr;
@@ -184,8 +186,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio) {
   DBUG_RETURN(0);
 }
 
-static int walk_and_copy(FT_SUPERDOC *from, uint32 count MY_ATTRIBUTE((unused)),
-                         FT_DOC **to) {
+static int walk_and_copy(void *v_from, uint32, void *v_to) {
+  FT_SUPERDOC *from = static_cast<FT_SUPERDOC *>(v_from);
+  FT_DOC **to = static_cast<FT_DOC **>(v_to);
   DBUG_ENTER("walk_and_copy");
   from->doc.weight += from->tmp_weight * from->word_ptr->weight;
   (*to)->dpos = from->doc.dpos;
@@ -194,8 +197,9 @@ static int walk_and_copy(FT_SUPERDOC *from, uint32 count MY_ATTRIBUTE((unused)),
   DBUG_RETURN(0);
 }
 
-static int walk_and_push(FT_SUPERDOC *from, uint32 count MY_ATTRIBUTE((unused)),
-                         QUEUE *best) {
+static int walk_and_push(void *v_from, uint32, void *v_best) {
+  FT_SUPERDOC *from = static_cast<FT_SUPERDOC *>(v_from);
+  QUEUE *best = static_cast<QUEUE *>(v_best);
   DBUG_ENTER("walk_and_copy");
   from->doc.weight += from->tmp_weight * from->word_ptr->weight;
   set_if_smaller(best->elements, ft_query_expansion_limit - 1);
@@ -245,16 +249,13 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
                &wtree.mem_root))
     goto err;
 
-  if (tree_walk(&wtree, (tree_walk_action)&walk_and_match, &aio,
-                left_root_right))
-    goto err;
+  if (tree_walk(&wtree, &walk_and_match, &aio, left_root_right)) goto err;
 
   if (flags & FT_EXPAND && ft_query_expansion_limit) {
     QUEUE best;
     init_queue(&best, key_memory_QUEUE, ft_query_expansion_limit, 0, 0,
                (queue_compare)&FT_DOC_cmp, 0);
-    tree_walk(&aio.dtree, (tree_walk_action)&walk_and_push, &best,
-              left_root_right);
+    tree_walk(&aio.dtree, &walk_and_push, &best, left_root_right);
     while (best.elements) {
       my_off_t docid = ((FT_DOC *)queue_remove(&best, 0))->dpos;
       if (!(*info->read_record)(info, docid, record)) {
@@ -269,9 +270,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
     }
     delete_queue(&best);
     reset_tree(&aio.dtree);
-    if (tree_walk(&wtree, (tree_walk_action)&walk_and_match, &aio,
-                  left_root_right))
-      goto err;
+    if (tree_walk(&wtree, &walk_and_match, &aio, left_root_right)) goto err;
   }
 
   /*
@@ -291,8 +290,7 @@ FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
   dlist->info = aio.info;
   dptr = dlist->doc;
 
-  tree_walk(&aio.dtree, (tree_walk_action)&walk_and_copy, &dptr,
-            left_root_right);
+  tree_walk(&aio.dtree, &walk_and_copy, &dptr, left_root_right);
 
   if (flags & FT_SORTED)
     std::sort(
