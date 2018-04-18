@@ -161,7 +161,6 @@ int NdbMutex_InitWithName_local(NdbMutex* pNdbMutex,
       result = 1;
     else 
       result = native_mutex_init(p, 0);
-    assert(result == 0)
 #endif
 #endif
 
