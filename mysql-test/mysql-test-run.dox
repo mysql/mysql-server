@@ -4209,16 +4209,6 @@
     </li>
 
     <li>
-      <tt>`--discover`</tt>
-
-      Attempt to preload <b>discover</b>, the Developer Studio
-      Memory Error Discovery Tool when starting <b>mysqld</b>. Reports
-      from <b>discover</b> may be found in
-      <b>log/mysqld.%p.txt</b> under the directory given by
-      <b>`--vardir`</b>. It is supported only on SPARC-M7 systems.
-    </li>
-
-    <li>
       <tt>`--do-suite`=<b>prefix or regex</b></tt>
 
       Run all test cases from suites having a name that begins with

@@ -119,7 +119,6 @@ my $opt_build_thread  = $ENV{'MTR_BUILD_THREAD'}  || "auto";
 my $opt_colored_diff  = $ENV{'MTR_COLORED_DIFF'}  || 0;
 my $opt_ctest_timeout = $ENV{'MTR_CTEST_TIMEOUT'} || 120;      # seconds
 my $opt_debug_sync_timeout = 600;    # Default timeout for WAIT_FOR actions.
-my $opt_discover           = 0;
 my $opt_do_test_list       = "";
 my $opt_force_restart      = 0;
 my $opt_include_ndbcluster = 0;
@@ -1174,7 +1173,6 @@ sub print_global_resfile {
   resfile_global("compress",         $opt_compress ? 1 : 0);
   resfile_global("cursor-protocol",  $opt_cursor_protocol ? 1 : 0);
   resfile_global("debug",            $opt_debug ? 1 : 0);
-  resfile_global("discover",         $opt_discover ? 1 : 0);
   resfile_global("fast",             $opt_fast ? 1 : 0);
   resfile_global("force-restart",    $opt_force_restart ? 1 : 0);
   resfile_global("gcov",             $opt_gcov ? 1 : 0);
@@ -1334,7 +1332,6 @@ sub command_line_setup {
     # Coverage, profiling etc
     'callgrind'             => \$opt_callgrind,
     'debug-sync-timeout=i'  => \$opt_debug_sync_timeout,
-    'discover'              => \$opt_discover,
     'gcov'                  => \$opt_gcov,
     'gprof'                 => \$opt_gprof,
     'helgrind'              => \$opt_helgrind,
@@ -2747,16 +2744,6 @@ sub environment_setup {
 
   # Make sure LeakSanitizer exits if leaks are found
   $ENV{'LSAN_OPTIONS'} = "exitcode=42" if $opt_sanitize;
-
-  # Make sure discover exits if failures are found.
-  # Disabled here for now, the -w option only supports '%p'
-  #   we need another wildcard to substitute the name of the executable.
-  # $ENV{'SUNW_DISCOVER_OPTIONS'}= "-X -f" if $opt_discover;
-  # $ENV{'LD_PRELOAD_64'}=
-  #    "/opt/developerstudio12.5/lib/compilers/sparcv9/libdiscoverADI.so"
-  #      if $opt_discover;
-  # Tell tests that we are running --discover
-  $ENV{'RUNNING_SUNW_DISCOVER'} = 1 if $opt_discover;
 
   # Add dir of this perl to aid mysqltest in finding perl
   my $perldir = dirname($^X);
@@ -5589,16 +5576,6 @@ sub mysqld_start ($$) {
   $gprof_dirs{ $mysqld->value('datadir') } = 1 if $opt_gprof;
 
   if (defined $exe) {
-    if ($opt_discover) {
-      # We do not want to monitor my_safe_process,
-      # but we *do* want to monitor mysqld
-      push(@opt_mysqld_envs,
-           "SUNW_DISCOVER_OPTIONS=-X -f -w $opt_vardir/log/mysqld.%p.txt");
-      push(@opt_mysqld_envs,
-"LD_PRELOAD_64=/opt/developerstudio12.5/lib/compilers/sparcv9/libdiscoverADI.so"
-      );
-    }
-
     $mysqld->{'proc'} =
       My::SafeProcess->new(name        => $mysqld->name(),
                            path        => $exe,
@@ -5613,6 +5590,7 @@ sub mysqld_start ($$) {
                            envs        => \@opt_mysqld_envs,
                            pid_file    => $mysqld->value('pid-file'),
                            daemon_mode => $mysqld->{'daemonize'});
+
     mtr_verbose("Started $mysqld->{proc}");
   }
 
@@ -6945,9 +6923,6 @@ Misc options
   default-myisam        Set default storage engine to MyISAM for non-innodb
                         tests. This is needed after switching default storage
                         engine to InnoDB.
-  discover              Preload libdiscoverADI.so when starting mysqld.
-                        Reports from discover in <vardir>/log/mysqld.%p.txt
-                        Only supported on SPARC-M7 machines.
   disk-usage            Show disk usage of vardir after each test.
   experimental=<file>   Refer to list of tests considered experimental.
                         Failures will be marked exp-fail instead of fail.
