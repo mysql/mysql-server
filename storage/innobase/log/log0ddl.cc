@@ -46,7 +46,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dict0mem.h"
 #include "dict0stats.h"
 #include "ha_innodb.h"
-#include "lock0lock.h"
 #include "log0ddl.h"
 #include "pars0pars.h"
 #include "que0que.h"
