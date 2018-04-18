@@ -324,6 +324,7 @@ struct mtr_t {
   @retval 0 if the transaction only modified temporary tablespaces */
   lsn_t commit_lsn() const MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(has_committed());
+    ut_ad(m_impl.m_log_mode == MTR_LOG_ALL);
     return (m_commit_lsn);
   }
 

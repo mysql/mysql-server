@@ -254,6 +254,8 @@ static ibool buf_flush_validate_skip(
   Use a signed type because of the race condition below. */
   static int buf_flush_validate_count = BUF_FLUSH_VALIDATE_SKIP;
 
+  DBUG_EXECUTE_IF("buf_flush_list_validate", buf_flush_validate_count = 1;);
+
   /* There is a race condition below, but it does not matter,
   because this call is only for heuristic purposes. We want to
   reduce the call frequency of the costly buf_flush_validate_low()
@@ -442,6 +444,52 @@ static inline bool buf_flush_list_order_validate(lsn_t earlier_added_lsn,
           new_added_lsn + log_buffer_flush_order_lag(*log_sys));
 }
 
+/** Borrows LSN from the recent added dirty page to the flush list.
+
+This should be the lsn which we may use to mark pages dirtied without
+underlying redo records, when we add them to the flush list.
+
+The lsn should be chosen in a way which will guarantee that we will
+not destroy checkpoint calculations if we inserted a new dirty page
+with such lsn to the flush list. This is strictly related to the
+limitations we put on the relaxed order in flush lists, which have
+direct impact on computation of lsn available for next checkpoint.
+
+Therefore when the flush list is empty, the lsn is chosen as the
+maximum lsn up to which we know, that all dirty pages with smaller
+oldest_modification were added to the flush list.
+
+This guarantees that the limitations put on the relaxed order are
+hold and lsn available for next checkpoint is not miscalculated.
+
+@param[in]  buf_pool  buffer pool instance
+@return     the borrowed newest_modification of the page or lsn up
+            to which all dirty pages were added to the flush list
+            if the flush list is empty */
+static inline lsn_t buf_flush_borrow_lsn(const buf_pool_t *buf_pool) {
+  ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+  const auto page = UT_LIST_GET_FIRST(buf_pool->flush_list);
+
+  if (page == nullptr) {
+    /* Flush list is empty - use lsn up to which we know that all
+    dirty pages with smaller oldest_modification were added to
+    the flush list (they were flushed as the flush list is empty). */
+    const lsn_t lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
+
+    if (lsn < LOG_START_LSN) {
+      ut_ad(srv_read_only_mode);
+      return LOG_START_LSN + LOG_BLOCK_HDR_SIZE;
+    }
+    return lsn;
+  }
+
+  ut_ad(page->oldest_modification != 0);
+  ut_ad(page->newest_modification >= page->oldest_modification);
+
+  return page->oldest_modification;
+}
+
 /** Inserts a modified block into the flush list. */
 void buf_flush_insert_into_flush_list(
     buf_pool_t *buf_pool, /*!< buffer pool instance */
@@ -452,13 +500,11 @@ void buf_flush_insert_into_flush_list(
 
   buf_flush_list_mutex_enter(buf_pool);
 
-  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL ||
-        buf_flush_list_order_validate(
-            UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification, lsn));
-
   /* If we are in the recovery then we need to update the flush
   red-black tree as well. */
   if (buf_pool->flush_rbt != NULL) {
+    ut_ad(lsn != 0);
+    ut_ad(block->page.newest_modification != 0);
     buf_flush_list_mutex_exit(buf_pool);
     buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
     return;
@@ -468,6 +514,43 @@ void buf_flush_insert_into_flush_list(
   ut_ad(!block->page.in_flush_list);
 
   ut_d(block->page.in_flush_list = TRUE);
+
+  if (lsn == 0) {
+    /* This is no-redo dirtied page. Borrow the lsn. */
+    lsn = buf_flush_borrow_lsn(buf_pool);
+
+    ut_ad(log_lsn_validate(lsn));
+
+    /* This page could already be no-redo dirtied before,
+    and flushed since then. Also the page from which we
+    borrowed lsn last time could be flushed by LRU and
+    we would end up borrowing smaller LSN. In such case
+    it's better to stay with previously borrowed lsn,
+    not to decrease page's newest_modification.
+
+    Note that in such case, we preserve the previous
+    newest_modification but set the oldest_modification
+    to the borrowed lsn (smaller value).
+
+    This is required, because possibly the previous
+    newest_modification comes from redo-based mtr, and
+    it could be much bigger than the corresponding
+    previous oldest_modification. Therefore we might
+    not use such value for oldest_modification because
+    it would break flush order properties. */
+    if (block->page.newest_modification < lsn) {
+      block->page.newest_modification = lsn;
+    }
+  }
+
+  ut_ad(log_lsn_validate(lsn));
+  ut_ad(block->page.oldest_modification == 0);
+  ut_ad(block->page.newest_modification >= lsn);
+
+  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL ||
+        buf_flush_list_order_validate(
+            UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification, lsn));
+
   block->page.oldest_modification = lsn;
 
   UT_LIST_ADD_FIRST(buf_pool->flush_list, &block->page);

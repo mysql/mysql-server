@@ -811,10 +811,20 @@ static monitor_info_t innodb_counter_info[] = {
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_CHECKPOINT_AGE},
 
-    {"log_lsn_buf_pool_oldest", "log",
-     "The oldest modified block LSN in the buffer pool",
+    {"log_lsn_buf_dirty_pages_added", "log",
+     "The LSN value up to which all dirty pages have been added",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_LSN_BUF_DIRTY_PAGES_ADDED},
+
+    {"log_lsn_buf_pool_oldest_approx", "log",
+     "Approximation for the oldest modified block LSN in the buffer pool",
      static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
      MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_OLDEST_LSN_APPROX},
+
+    {"log_lsn_buf_pool_oldest_lwm", "log",
+     "Low watermark for the oldest modified block LSN in the buffer pool",
+     static_cast<monitor_type_t>(MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT),
+     MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_OLDEST_LSN_LWM},
 
     {"log_max_modified_age_async", "log",
      "Maximum LSN difference; when exceeded, start asynchronous preflush",
@@ -1786,8 +1796,16 @@ void srv_mon_process_existing_counter(
       value = (mon_type_t)log_get_lsn(*log_sys);
       break;
 
+    case MONITOR_OVLD_LSN_BUF_DIRTY_PAGES_ADDED:
+      value = (mon_type_t)log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
+      break;
+
     case MONITOR_OVLD_BUF_OLDEST_LSN_APPROX:
       value = (mon_type_t)buf_pool_get_oldest_modification_approx();
+      break;
+
+    case MONITOR_OVLD_BUF_OLDEST_LSN_LWM:
+      value = (mon_type_t)buf_pool_get_oldest_modification_lwm();
       break;
 
     case MONITOR_OVLD_LSN_CHECKPOINT:

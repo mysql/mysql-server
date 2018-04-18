@@ -903,19 +903,14 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
   log.recent_written.add_link(start_lsn, end_lsn);
 }
 
-void log_buffer_write_completed_before_dirty_pages_added(
-    log_t &log, const Log_handle &handle) {
-  const lsn_t start_lsn = handle.start_lsn;
+void log_wait_for_space_in_log_recent_closed(const log_t &log, lsn_t lsn) {
+  ut_a(log_lsn_validate(lsn));
 
-  ut_a(log_lsn_validate(start_lsn));
-
-  ut_ad(start_lsn >= log_buffer_dirty_pages_added_up_to_lsn(log));
-
-  ut_ad(log.sn_lock.s_own(handle.lock_no));
+  ut_ad(lsn >= log_buffer_dirty_pages_added_up_to_lsn(log));
 
   uint64_t wait_loops = 0;
 
-  while (!log.recent_closed.has_space(start_lsn)) {
+  while (!log.recent_closed.has_space(lsn)) {
     ++wait_loops;
     os_thread_sleep(20);
   }
@@ -925,8 +920,7 @@ void log_buffer_write_completed_before_dirty_pages_added(
   }
 }
 
-void log_buffer_write_completed_and_dirty_pages_added(
-    log_t &log, const Log_handle &handle) {
+void log_buffer_close(log_t &log, const Log_handle &handle) {
   const lsn_t start_lsn = handle.start_lsn;
   const lsn_t end_lsn = handle.end_lsn;
 

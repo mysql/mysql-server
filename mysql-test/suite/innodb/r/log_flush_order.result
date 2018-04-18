@@ -1,0 +1,403 @@
+#
+# BUG#27664539 INNODB: ASSERTION FAILURE: BUF0FLU.CC:457:
+#              (BUF_POOL->FLUSH_LIST).START == __NULL
+#
+#
+# Scenario 1.1.1 - No-redo dirtied page inserted too quickly.
+#                  Non-empty flush list when it is inserted.
+#                  The page is no-redo dirtied first time.
+#
+#
+# 0. Block log.recent_closed.tail() from advancing by stopping single mtr
+#    just before it inserts its dirty pages to flush list.
+#
+#
+# 1. Optionally modify no-redo dirtied page (then it is later remodified).
+#
+#
+# 2. Gather threads that try to insert dirtied pages with underlying redo
+#    records that protect the changes.
+#
+Connection 16 starts inserting rows...
+Connection 15 starts inserting rows...
+Connection 14 starts inserting rows...
+Connection 13 starts inserting rows...
+Connection 12 starts inserting rows...
+Connection 11 starts inserting rows...
+Connection 10 starts inserting rows...
+Connection 9 starts inserting rows...
+Connection 8 starts inserting rows...
+Connection 7 starts inserting rows...
+Connection 6 starts inserting rows...
+Connection 5 starts inserting rows...
+Connection 4 starts inserting rows...
+Connection 3 starts inserting rows...
+Connection 2 starts inserting rows...
+Connection 1 starts inserting rows...
+#
+# 3. Wait gathering such threads until more data is written to log buffer.
+#    Wait until current lsn is greater than log.recent_closed.tail() by
+#    more than capacity of log.recent_closed.
+#
+include/assert.inc [We must advance current lsn by more than maximum flush order lag.]
+#
+# 4. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+#
+#    When bug was present, such mtr inserted pages with too big lsn using
+#    current lsn, which does not fit space in log.recent_closed, bypassing
+#    required wait for space there (thanks to MTR_LOG_NO_REDO).
+#
+#
+# 5. Resume the old mtr which blocked the log.recent_closed.tail() from advancing.
+#
+#
+# 6. Finish pending insertions.
+#
+#
+# 7. Perform standard mtrs, just to ensure all is fine.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# Scenario 1.1.2 - No-redo dirtied page inserted too quickly.
+#                  Non-empty flush list when it is inserted.
+#                  The page is no-redo dirtied second time.
+#
+#
+# 0. Block log.recent_closed.tail() from advancing by stopping single mtr
+#    just before it inserts its dirty pages to flush list.
+#
+#
+# 1. Optionally modify no-redo dirtied page (then it is later remodified).
+#
+#
+# 2. Gather threads that try to insert dirtied pages with underlying redo
+#    records that protect the changes.
+#
+Connection 16 starts inserting rows...
+Connection 15 starts inserting rows...
+Connection 14 starts inserting rows...
+Connection 13 starts inserting rows...
+Connection 12 starts inserting rows...
+Connection 11 starts inserting rows...
+Connection 10 starts inserting rows...
+Connection 9 starts inserting rows...
+Connection 8 starts inserting rows...
+Connection 7 starts inserting rows...
+Connection 6 starts inserting rows...
+Connection 5 starts inserting rows...
+Connection 4 starts inserting rows...
+Connection 3 starts inserting rows...
+Connection 2 starts inserting rows...
+Connection 1 starts inserting rows...
+#
+# 3. Wait gathering such threads until more data is written to log buffer.
+#    Wait until current lsn is greater than log.recent_closed.tail() by
+#    more than capacity of log.recent_closed.
+#
+include/assert.inc [We must advance current lsn by more than maximum flush order lag.]
+#
+# 4. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+#
+#    When bug was present, such mtr inserted pages with too big lsn using
+#    current lsn, which does not fit space in log.recent_closed, bypassing
+#    required wait for space there (thanks to MTR_LOG_NO_REDO).
+#
+#
+# 5. Resume the old mtr which blocked the log.recent_closed.tail() from advancing.
+#
+#
+# 6. Finish pending insertions.
+#
+#
+# 7. Perform standard mtrs, just to ensure all is fine.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# Scenario 1.2.1 - No-redo dirtied page inserted too quickly.
+#                  Empty flush list when it is inserted.
+#                  The page is no-redo dirtied first time.
+#
+#
+# 0. Block log.recent_closed.tail() from advancing by stopping single mtr
+#    just before it inserts its dirty pages to flush list.
+#
+#
+# 1. Frozen recent_closed.
+#
+#
+# 2. Optionally modify no-redo dirtied page (in which case next time we remodify it)
+#    Note it will be flushed mean while anyway.
+#
+#
+# 3. Keep modifying pages, stop just before we reach limit in recent_closed.
+#
+#
+# 4. Flush all dirty pages to make flush list empty.
+#
+#
+# 5. Execute multiple mtr, stopping them before they add any pages...
+#
+#
+# 6. Wait until we run out of free space in recent_closed...
+#
+#
+# 7. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+#    When bug was present, such mtr inserted pages with too big lsn using
+#    current lsn, which does not fit space in log.recent_closed, bypassing
+#    required wait for space there (thanks to MTR_LOG_NO_REDO).
+#
+#
+# 8. Resume the old mtr which blocked the log.recent_closed.tail() from advancing.
+#
+#
+# 9. Finish pending mini transactions
+#
+#
+# 10. Perform standard mtrs, just to ensure all is fine.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# Scenario 1.2.2 - No-redo dirtied page inserted too quickly.
+#                  Empty flush list when it is inserted.
+#                  The page is no-redo dirtied second time,
+#                  but it was flushed (empty flush list).
+#
+#
+# 0. Block log.recent_closed.tail() from advancing by stopping single mtr
+#    just before it inserts its dirty pages to flush list.
+#
+#
+# 1. Frozen recent_closed.
+#
+#
+# 2. Optionally modify no-redo dirtied page (in which case next time we remodify it)
+#    Note it will be flushed mean while anyway.
+#
+#
+# 3. Keep modifying pages, stop just before we reach limit in recent_closed.
+#
+#
+# 4. Flush all dirty pages to make flush list empty.
+#
+#
+# 5. Execute multiple mtr, stopping them before they add any pages...
+#
+#
+# 6. Wait until we run out of free space in recent_closed...
+#
+#
+# 7. Execute mini transactions with no-redo dirtied pages (MTR_LOG_NO_REDO).
+#    When bug was present, such mtr inserted pages with too big lsn using
+#    current lsn, which does not fit space in log.recent_closed, bypassing
+#    required wait for space there (thanks to MTR_LOG_NO_REDO).
+#
+#
+# 8. Resume the old mtr which blocked the log.recent_closed.tail() from advancing.
+#
+#
+# 9. Finish pending mini transactions
+#
+#
+# 10. Perform standard mtrs, just to ensure all is fine.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# Scenario 2.1.1 - No-redo dirtied page inserted too late.
+#                  Non-empty flush list when it is inserted.
+#                  The page is no-redo dirtied first time.
+#
+#
+# 0. Freeze single no-redo mtr (MTR_LOG_NO_REDO) in mtr0mtr.cc, just
+#    before it inserts the dirty page to flush list.
+#
+#
+# 1. Allow user threads to execute many redo-based mini transactions,
+#    until current lsn is greater than log.recent_closed.tail() by
+#    more than capacity of log.recent_closed.
+#
+#
+# 2. Optionally flush all dirty pages.
+#
+#
+# 3. Resume the frozen no-redo mtr which seems to be too old.
+#
+#
+# 4. Finish pending insertions in redo-based mini transactions.
+#
+#
+# 5. Execute two standard mini transactions to ensure all is fine.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# Scenario 2.1.2 - No-redo dirtied page inserted too late.
+#                  Non-empty flush list when it is inserted.
+#                  The page is no-redo dirtied second time.
+#
+#
+# 0. Freeze single no-redo mtr (MTR_LOG_NO_REDO) in mtr0mtr.cc, just
+#    before it inserts the dirty page to flush list.
+#
+#
+# 1. Allow user threads to execute many redo-based mini transactions,
+#    until current lsn is greater than log.recent_closed.tail() by
+#    more than capacity of log.recent_closed.
+#
+#
+# 2. Optionally flush all dirty pages.
+#
+#
+# 3. Resume the frozen no-redo mtr which seems to be too old.
+#
+#
+# 4. Finish pending insertions in redo-based mini transactions.
+#
+#
+# 5. Execute two standard mini transactions to ensure all is fine.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# Scenario 2.2.1 - No-redo dirtied page inserted too late.
+#                  Empty flush list when it is inserted.
+#                  The page is no-redo dirtied first time.
+#
+#
+# 0. Freeze single no-redo mtr (MTR_LOG_NO_REDO) in mtr0mtr.cc, just
+#    before it inserts the dirty page to flush list.
+#
+#
+# 1. Allow user threads to execute many redo-based mini transactions,
+#    until current lsn is greater than log.recent_closed.tail() by
+#    more than capacity of log.recent_closed.
+#
+#
+# 2. Optionally flush all dirty pages.
+#
+Flush all dirty pages...
+#
+# 3. Resume the frozen no-redo mtr which seems to be too old.
+#
+#
+# 4. Finish pending insertions in redo-based mini transactions.
+#
+#
+# 5. Execute two standard mini transactions to ensure all is fine.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# Scenario 2.2.2 - No-redo dirtied page inserted too late.
+#                  Empty flush list when it is inserted.
+#                  The page is no-redo dirtied second time,
+#                  but it was flushed (empty flush list).
+#
+#
+# 0. Freeze single no-redo mtr (MTR_LOG_NO_REDO) in mtr0mtr.cc, just
+#    before it inserts the dirty page to flush list.
+#
+#
+# 1. Allow user threads to execute many redo-based mini transactions,
+#    until current lsn is greater than log.recent_closed.tail() by
+#    more than capacity of log.recent_closed.
+#
+#
+# 2. Optionally flush all dirty pages.
+#
+Flush all dirty pages...
+#
+# 3. Resume the frozen no-redo mtr which seems to be too old.
+#
+#
+# 4. Finish pending insertions in redo-based mini transactions.
+#
+#
+# 5. Execute two standard mini transactions to ensure all is fine.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# Scenario 3 - Execute in parallel many redo and no-redo mini
+#              transactions. Freeze and unfreeze recent_closed
+#              every 1s.
+#
+#
+# 0. Freeze log.recent_closed.
+#
+#
+# 1. Gather threads that try to insert dirtied pages by redo-based mtr.
+#
+Connection 16 starts inserting rows...
+Connection 15 starts inserting rows...
+Connection 14 starts inserting rows...
+Connection 13 starts inserting rows...
+Connection 12 starts inserting rows...
+Connection 11 starts inserting rows...
+Connection 10 starts inserting rows...
+Connection 9 starts inserting rows...
+Connection 8 starts inserting rows...
+Connection 7 starts inserting rows...
+Connection 6 starts inserting rows...
+Connection 5 starts inserting rows...
+Connection 4 starts inserting rows...
+Connection 3 starts inserting rows...
+Connection 2 starts inserting rows...
+Connection 1 starts inserting rows...
+#
+# 2. Gather threads that try to insert dirtied pages by noredo-based mtr.
+#
+Connection 16 starts inserting rows...
+Connection 15 starts inserting rows...
+Connection 14 starts inserting rows...
+Connection 13 starts inserting rows...
+Connection 12 starts inserting rows...
+Connection 11 starts inserting rows...
+Connection 10 starts inserting rows...
+Connection 9 starts inserting rows...
+Connection 8 starts inserting rows...
+Connection 7 starts inserting rows...
+Connection 6 starts inserting rows...
+Connection 5 starts inserting rows...
+Connection 4 starts inserting rows...
+Connection 3 starts inserting rows...
+Connection 2 starts inserting rows...
+Connection 1 starts inserting rows...
+#
+# 3. Start the gathered threads.
+#
+#
+# 4. Freeze/unfreeze log_recent_closed every 1s
+#
+Iterations left: 10 - unfreeze...
+Iterations left: 10 - freeze...
+Iterations left: 9 - unfreeze...
+Iterations left: 9 - freeze...
+Iterations left: 8 - unfreeze...
+Iterations left: 8 - freeze...
+Iterations left: 7 - unfreeze...
+Iterations left: 7 - freeze...
+Iterations left: 6 - unfreeze...
+Iterations left: 6 - freeze...
+Iterations left: 5 - unfreeze...
+Iterations left: 5 - freeze...
+Iterations left: 4 - unfreeze...
+Iterations left: 4 - freeze...
+Iterations left: 3 - unfreeze...
+Iterations left: 3 - freeze...
+Iterations left: 2 - unfreeze...
+Iterations left: 2 - freeze...
+Iterations left: 1 - unfreeze...
+Iterations left: 1 - freeze...
+Finished all iterations - unfreeze...
+#
+# 5. Finish pending insertions.
+#
+include/assert.inc [We must not have oldest_lsn_approx < checkpoint_lsn.]
+# Kill and restart
+#
+# CLEANUP
+#
