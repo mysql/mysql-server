@@ -706,6 +706,7 @@ struct Fragrecord {
   // Number of fixed-seize tuple parts (which equals the tuple count).
   Uint64 m_fixedElemCount;
   Uint64 m_row_count;
+  Uint64 m_prev_row_count;
   Uint64 m_committed_changes;
   /**
     Number of variable-size tuple parts, i.e. the number of tuples that has
@@ -1834,6 +1835,7 @@ public:
                           Uint32 startGci,
                           Uint32 & maxPageCount,
                           Uint64 & row_count,
+                          Uint64 & prev_row_count,
                           Uint64 & row_change_count,
                           Uint64 & memory_used_in_bytes,
                           bool reset_flag);

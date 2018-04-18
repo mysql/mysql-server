@@ -780,6 +780,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_restore_local_lcp_id = 0;
   regFragPtr.p->m_fixedElemCount = 0;
   regFragPtr.p->m_row_count = 0;
+  regFragPtr.p->m_prev_row_count = 0;
   regFragPtr.p->m_lcp_start_gci = 0;
   regFragPtr.p->m_varElemCount = 0;
   regFragPtr.p->m_committed_changes = 0;
@@ -3110,6 +3111,7 @@ Dbtup::complete_restore_lcp(Signal* signal,
     lcp_start_gci = maxGciWritten;
   }
   fragPtr.p->m_lcp_changed_rows = 0;
+  fragPtr.p->m_prev_row_count = fragPtr.p->m_row_count;
   set_lcp_start_gci(fragPtr.i, lcp_start_gci);
 
   fragOpPtr.p->fragPointer = fragPtr.i;
@@ -3206,6 +3208,7 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
                           Uint32 startGci,
                           Uint32 & maxPageCount,
                           Uint64 & row_count,
+                          Uint64 & prev_row_count,
                           Uint64 & row_change_count,
                           Uint64 & memory_used_in_bytes,
                           bool reset_flag)
@@ -3280,6 +3283,7 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
   fragptr.i = fragPtrI;
   ptrCheckGuard(fragptr, cnoOfFragrec, fragrecord);
   row_count = fragptr.p->m_row_count;
+  prev_row_count = fragptr.p->m_prev_row_count;
   row_change_count = fragptr.p->m_lcp_changed_rows;
   maxPageCount = fragptr.p->m_max_page_cnt;
 
@@ -3301,6 +3305,7 @@ Dbtup::get_lcp_frag_stats(Uint32 fragPtrI,
       row_change_count = 1;
     }
     fragptr.p->m_lcp_changed_rows = 0;
+    fragptr.p->m_prev_row_count = row_count;
     fragptr.p->m_lcp_start_gci = startGci;
   }
 

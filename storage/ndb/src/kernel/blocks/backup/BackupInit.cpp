@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -228,8 +228,13 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_ENABLE_PARTIAL_LCP,
                             &m_enable_partial_lcp);
 
-  m_recovery_work = 50; /* Default to 50% */
+  m_recovery_work = 60; /* Default to 60% */
   ndb_mgm_get_int_parameter(p, CFG_DB_RECOVERY_WORK, &m_recovery_work);
+
+  m_insert_recovery_work = 40; /* Default to 40% */
+  ndb_mgm_get_int_parameter(p,
+                            CFG_DB_INSERT_RECOVERY_WORK,
+                            &m_insert_recovery_work);
 
   calculate_real_disk_write_speed_parameters();
 

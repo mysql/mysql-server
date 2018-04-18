@@ -428,6 +428,7 @@ Backup::report_disk_write_speed_report(Uint64 bytes_written_this_period,
   }
 }
 
+#define DELETE_RECOVERY_WORK 120
 /**
  * This method is a check that we haven't been writing faster than we're
  * supposed to during the last interval.
@@ -10771,7 +10772,7 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     DEB_LCP_STAT(("(%u)TAGS Start new LCP, id: %u", instance(), req.backupId));
     LocalDeleteLcpFile_list queue(c_deleteLcpFilePool,
                                   m_delete_lcp_file_head);
-    ndbrequire(queue.isEmpty())
+    ndbrequire(queue.isEmpty());
   }
 
   /**
@@ -12214,6 +12215,84 @@ Backup::calculate_min_parts(Uint64 row_count,
   return min_parts;
 }
 
+/**
+ * This function is closely related to the simulations performed by the
+ * lcp_simulator.cc program. These simulations shows that is sufficient
+ * to count as little as 70% of the inserts and still maintain the
+ * same LCP size and recovery time. Even decreasing it to 50% means
+ * that we only temporarily can increase the LCP by 3.3% and decreasing
+ * it to 40% we can increase it by 6.7%. Even decreasing it to 0 and
+ * thus only write the changed rows after insert and no extra speed of
+ * LCPs due to inserts would still only increase the maximum LCP size
+ * by 30%. The default setting is now 40% and it can be set between 0
+ * and 70%. There are no particular reason to set it higher than 70%.
+ *
+ * If faster restarts are desired one should instead set RecoveryWork
+ * lower.
+ *
+ * Deletes were shown to need a bit more parts, so we set a delete to
+ * mean the same as 1.2 updates. There are no common use cases for
+ * massive deletes, so we do not make this configurable, this is
+ * hard coded.
+ *
+ * The idea of how to apply this is to split up row_change_count in
+ * an update part, an insert part and a delete part. We multiply
+ * the update part by 1, the delete part by 1.2 and the insert part
+ * by the configured InsertRecoveryWork (defaults to 0.4).
+ */
+Uint64
+Backup::calculate_row_change_count(BackupRecordPtr ptr)
+{
+  Uint64 insert_recovery_work = (Uint64)get_insert_recovery_work();
+  Uint64 delete_recovery_work = (Uint64)DELETE_RECOVERY_WORK;
+  Uint64 row_count = ptr.p->m_row_count;
+  Uint64 prev_row_count = ptr.p->m_prev_row_count;
+  Uint64 row_change_count = ptr.p->m_row_change_count;
+  Uint64 decrease_row_change_count = 0;
+  Uint64 new_rows, dropped_rows;
+  if (row_count > prev_row_count)
+  {
+    jam();
+    new_rows = row_count - prev_row_count;
+    dropped_rows = 0;
+    decrease_row_change_count = new_rows;
+  }
+  else
+  {
+    jam();
+    new_rows = 0;
+    dropped_rows = prev_row_count - row_count;
+    decrease_row_change_count = dropped_rows;
+  }
+  ndbrequire(decrease_row_change_count <= row_change_count);
+
+  row_change_count -= decrease_row_change_count;
+
+  new_rows *= insert_recovery_work;
+  new_rows /= (Uint64)100;
+
+  dropped_rows *= delete_recovery_work;
+  dropped_rows /= Uint64(100);
+
+  row_change_count += new_rows;
+  row_change_count += dropped_rows;
+
+  return row_change_count;
+}
+
+Uint64
+Backup::get_total_memory()
+{
+  Resource_limit res_limit;
+  m_ctx.m_mm.get_resource_limit(RG_DATAMEM, res_limit);
+  const Uint32 pages_used = res_limit.m_curr;
+  const Uint64 dm_used = Uint64(pages_used) * Uint64(sizeof(GlobalPage));
+  const Uint64 num_ldms = getLqhWorkers() != 0 ?
+                         (Uint64)getLqhWorkers() : (Uint64)1;
+  const Uint64 total_memory = dm_used / num_ldms;
+  return total_memory;
+}
+
 void
 Backup::calculate_number_of_parts(BackupRecordPtr ptr)
 {
@@ -12337,7 +12416,10 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    *   The other side of the picture is that increasing p means that more
    *   storage space is needed for LCP files. We need (1 + p) * DataMemory
    *   of storage space for LCP files (unless we use compression when
-   *   this should be divided by at least 2).
+   *   this should be divided by at least 2). Actually the storage space
+   *   should in the worst case be increased by 12.5% of the DataMemory
+   *   size since we might need to keep LCP data no longer needed since
+   *   we only delete LCP files and not parts of a file.
    *
    *   The third side of the picture is that higher p means longer time to
    *   read in the LCP at restart. If we assume in the above example that
@@ -12412,20 +12494,7 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    * 12) Time used for last LCP locally
    */
 
-  Resource_limit res_limit;
-  m_ctx.m_mm.get_resource_limit(RG_DATAMEM, res_limit);
-  /**
-   * Total DataMemory not currently needed
-   * const Uint32 pages_total = res_limit.m_min;
-   * const Uint64 total_size = Uint64(pages_total)*Uint64(sizeof(GlobalPage));
-   * const Uint64 dm_size = total_size - m_acc_memory_in_bytes;
-   */
-  const Uint32 pages_used = res_limit.m_curr;
-  const Uint64 used_size = Uint64(pages_used) * Uint64(sizeof(GlobalPage));
-  const Uint64 dm_used = used_size - m_acc_memory_in_bytes;
-  const Uint64 num_ldms = getLqhWorkers() != 0 ?
-                         (Uint64)getLqhWorkers() : (Uint64)1;
-  const Uint64 total_memory = dm_used / num_ldms;
+  const Uint64 total_memory = get_total_memory();
 
   /**
    * There are four rules that apply for choosing the number of parts to
@@ -12470,8 +12539,8 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
    * of parts.
    */    
   Uint64 row_count = ptr.p->m_row_count;
-  Uint64 row_change_count = ptr.p->m_row_change_count;
   Uint64 memory_used = ptr.p->m_memory_used_in_bytes;
+  Uint64 row_change_count = calculate_row_change_count(ptr);
   Uint32 min_parts_rule1 = calculate_min_parts(row_count,
                                                row_change_count,
                                                memory_used,
@@ -12523,8 +12592,9 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
   FragmentPtr fragPtr;
   ptr.p->tables.first(debTabPtr);
   debTabPtr.p->fragments.getPtr(fragPtr, 0);
-  DEB_LCP_STAT(("(%u)tab(%u,%u), row_count: %llu, row_change_count: %llu, "
-                "memory_used: %llu, total_memory: %llu, "
+  DEB_LCP_STAT(("(%u)tab(%u,%u), row_count: %llu, calc_row_change_count: %llu"
+                ", prev_row_count: %llu, "
+                "memory_used: %llu kB, total_dm_memory: %llu MB, "
                 "parts: %u, min_parts_rule1: %u, "
                 "min_parts_rule3: %u",
                 instance(),
@@ -12532,8 +12602,9 @@ Backup::calculate_number_of_parts(BackupRecordPtr ptr)
                 fragPtr.p->fragmentId,
                 row_count,
                 row_change_count,
-                memory_used,
-                total_memory,
+                ptr.p->m_prev_row_count,
+                memory_used / 1024,
+                total_memory / (1024 * 1024),
                 parts,
                 min_parts_rule1,
                 min_parts_rule3));
@@ -12737,6 +12808,7 @@ Backup::start_execute_lcp(Signal *signal,
    * will still go ahead and perform the LCP to simplify the code.
    */
   c_lqh->get_lcp_frag_stats(ptr.p->m_row_count,
+                            ptr.p->m_prev_row_count,
                             ptr.p->m_row_change_count,
                             ptr.p->m_memory_used_in_bytes,
                             ptr.p->m_lcp_max_page_cnt);
@@ -12748,14 +12820,16 @@ Backup::start_execute_lcp(Signal *signal,
   ptr.p->tables.first(debTabPtr);
   debTabPtr.p->fragments.getPtr(fragPtr, 0);
   DEB_LCP(("(%u)TAGY LCP_Start: tab(%u,%u).%u, row_count: %llu,"
-           " row_change_count: %llu, "
-           "memory_used_in_bytes: %llu, max_page_cnt: %u, LCP lsn: %llu",
+           " row_change_count: %llu,"
+           " prev_row_count: %llu,"
+           " memory_used_in_bytes: %llu, max_page_cnt: %u, LCP lsn: %llu",
            instance(),
            debTabPtr.p->tableId,
            fragPtr.p->fragmentId,
            c_lqh->getCreateSchemaVersion(debTabPtr.p->tableId),
            ptr.p->m_row_count,
            ptr.p->m_row_change_count,
+           ptr.p->m_prev_row_count,
            ptr.p->m_memory_used_in_bytes,
            ptr.p->m_lcp_max_page_cnt,
            ptr.p->m_current_lcp_lsn));
