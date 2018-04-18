@@ -494,7 +494,7 @@ ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk
 alter table t2 DROP COLUMN b;
 ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
-ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1' of table 'test.t2'
+ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
 alter table t1 DROP COLUMN b;
 ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
@@ -1004,16 +1004,16 @@ PRIMARY KEY (c1)
 SET FOREIGN_KEY_CHECKS=0;
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=INPLACE;
 ERROR HY000: Failed to add the foreign key constraint on table 't2'. Incorrect options in FOREIGN KEY constraint 'test/fk_t2_ca'
@@ -1025,10 +1025,10 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk_t2_ca' in the referenced table 't1'
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
 affected rows: 0

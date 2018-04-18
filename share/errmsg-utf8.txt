@@ -6866,10 +6866,10 @@ ER_MUST_CHANGE_PASSWORD
   bgn "Трябва първо да си смените паролата със SET PASSWORD за да можете да изпълните тази команда"
 
 ER_FK_NO_INDEX_CHILD
-        eng "Failed to add the foreign key constaint. Missing index for constraint '%s' in the foreign table '%s'"
+        eng "Failed to add the foreign key constraint. Missing index for constraint '%s' in the foreign table '%s'"
 
 ER_FK_NO_INDEX_PARENT
-        eng "Failed to add the foreign key constaint. Missing index for constraint '%s' in the referenced table '%s'"
+        eng "Failed to add the foreign key constraint. Missing index for constraint '%s' in the referenced table '%s'"
 
 ER_FK_FAIL_ADD_SYSTEM
         eng "Failed to add the foreign key constraint '%s' to system tables"

@@ -100,7 +100,7 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #try adding fk(a,b,c) referring t1(a,b,c), it should fail without parent index.
 alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fkt2abc' in the referenced table 't1'
 #now add a unique key but on a different column order and try again
 alter table t1 add constraint uniquet1abc unique (c,a,b);
 alter table t2 add constraint foreign key fkt2abc(a,b,c) references t1(a,b,c);

@@ -24,13 +24,13 @@ SET DEBUG_SYNC = 'now SIGNAL fk';
 # So no chance for CREATE TABLE t2 to sneak before DROP INDEX
 # is committed in and succeed.
 /* reap */ CREATE TABLE t2 ...
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2c2' in the referenced table 't1'
 # Session default
 /* reap */ DROP INDEX c2 ON t1;
 CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 't2c2' in the referenced table 't1'
 SET DEBUG_SYNC='RESET';
 DROP TABLE t1;

@@ -1,9 +1,9 @@
 # Create statement with FK on base column of stored column
-create table t1(f1 int, f2 int as(f1) stored,
-foreign key(f1) references t2(f1) on delete cascade)engine=innodb;
+create table t1(f1 int primary key);
+create table t2(f1 int, f2 int as(f1) stored,
+foreign key(f1) references t1(f1) on delete cascade)engine=innodb;
 ERROR HY000: Cannot add foreign key constraint
 # adding new stored column during alter table copy operation.
-create table t1(f1 int primary key);
 create table t2(f1 int not null, f2 int as (f1) virtual,
 foreign key(f1) references t1(f1) on update cascade)engine=innodb;
 alter table t2 add column f3 int as (f1) stored, add column f4 int as (f1) virtual;
@@ -40,7 +40,7 @@ CREATE TABLE s (a INT, b INT GENERATED ALWAYS AS (0) STORED,  c INT,
 d INT GENERATED ALWAYS AS (0) VIRTUAL, e INT) ENGINE=innodb;
 CREATE TABLE t (a INT) ENGINE=innodb;
 ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (e) REFERENCES t(a) ON UPDATE SET null;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'c' in the referenced table 't'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'c' in the referenced table 't'
 ALTER  TABLE t ADD PRIMARY KEY(a);
 ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (e) REFERENCES t(a) ON UPDATE SET null;
 DROP TABLE s,t;
@@ -48,7 +48,7 @@ CREATE TABLE s (a INT GENERATED ALWAYS AS (0) VIRTUAL,
 b INT GENERATED ALWAYS AS (0) STORED,  c INT) ENGINE=innodb;
 CREATE TABLE t (a INT) ENGINE=innodb;
 ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (c) REFERENCES t(a) ON UPDATE SET null;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'c' in the referenced table 't'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'c' in the referenced table 't'
 ALTER  TABLE t ADD PRIMARY KEY(a);
 ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (c) REFERENCES t(a) ON UPDATE SET null;
 DROP TABLE s,t;
@@ -59,7 +59,7 @@ DROP TABLE s,t;
 CREATE TABLE s (a INT, b INT) ENGINE=innodb;
 CREATE TABLE t (a INT) ENGINE=innodb;
 ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'c' in the referenced table 't'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'c' in the referenced table 't'
 ALTER  TABLE t ADD PRIMARY KEY(a);
 ALTER TABLE s ADD CONSTRAINT c FOREIGN KEY (a) REFERENCES t(a) ON UPDATE SET null;
 DROP TABLE s,t;

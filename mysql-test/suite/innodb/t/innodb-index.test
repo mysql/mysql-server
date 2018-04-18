@@ -176,7 +176,7 @@ SET FOREIGN_KEY_CHECKS=0;
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
 --error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b;
---error ER_FK_COLUMN_CANNOT_DROP_CHILD
+--error ER_DROP_INDEX_FK
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
 --error ER_DROP_INDEX_FK
 alter table t1 DROP COLUMN b;
@@ -403,17 +403,13 @@ CREATE TABLE t2(
 SET FOREIGN_KEY_CHECKS=0;
 --enable_info
 
-# mysqltest first does replace_regex, then replace_result
---replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
 --error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
-# mysqltest first does replace_regex, then replace_result
---replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
 --error ER_FK_NO_INDEX_PARENT
@@ -431,9 +427,7 @@ ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=COPY;
 
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
-# mysqltest first does replace_regex, then replace_result
---replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
 --error ER_FK_NO_INDEX_PARENT

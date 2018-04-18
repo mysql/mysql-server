@@ -93,7 +93,7 @@ c2 int not null
 ) engine engine;
 alter table t2
 add constraint foreign key fk1 (b2,c2) references t1 (c1,b1);
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk1' in the referenced table 't1'
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk1' in the referenced table 't1'
 insert into t1 (a1,b1,c1) values
 (1,11,12),(2,21,22),(3,31,32);
 insert into t2 (b2,c2)

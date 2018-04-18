@@ -53,7 +53,7 @@ connection con1;
 --echo # So no chance for CREATE TABLE t2 to sneak before DROP INDEX
 --echo # is committed in and succeed.
 --echo /* reap */ CREATE TABLE t2 ...
---error ER_CANNOT_ADD_FOREIGN
+--error ER_FK_NO_INDEX_PARENT
 --reap
 disconnect con1;
 
@@ -62,7 +62,7 @@ connection default;
 --echo /* reap */ DROP INDEX c2 ON t1;
 reap;
 
---error ER_CANNOT_ADD_FOREIGN 
+--error ER_FK_NO_INDEX_PARENT
 CREATE TABLE t2 (
  c2 INT PRIMARY KEY,
  CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))

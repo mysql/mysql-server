@@ -46,26 +46,17 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk6` FOREIGN KEY (`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=copy, add constraint fk7 foreign key (a) references parent(c);
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk7' in the referenced table 'parent'
 alter table child algorithm=copy, add constraint fk8 foreign key (a) references parent(c);
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk8' in the referenced table 'parent'
 alter table child algorithm=copy, add constraint fk9 foreign key (a) references parent(c);
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk9' in the referenced table 'parent'
 alter table child algorithm=inplace, add constraint fk7 foreign key (a) references parent(c);
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk7' in the referenced table 'parent'
 alter table child algorithm=inplace, add constraint fk8 foreign key (a) references parent(c);
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk8' in the referenced table 'parent'
 alter table child algorithm=inplace, add constraint fk9 foreign key (a) references parent(c);
-ERROR HY000: Cannot add foreign key constraint
-show warnings;
-Level	Code	Message
-Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
-Error	1215	Cannot add foreign key constraint
+ERROR HY000: Failed to add the foreign key constraint. Missing index for constraint 'fk9' in the referenced table 'parent'
 drop table child, parent;
 create table parent (
 a int primary key,
@@ -239,7 +230,7 @@ create table test(
 a int,
 foreign key fk1(a) references bogus_table(a)
 ) engine ndb;
-ERROR HY000: Cannot add foreign key constraint
+ERROR HY000: Failed to open the referenced table 'bogus_table'
 # Now create a table with proper reference - it should pass
 create table test (
 a int unique,

@@ -127,14 +127,14 @@ while ($i)
 	alter table mydb1.t1 add constraint fk1 foreign key (a)
 	      references mydb0.t0(a);
 
-	--error 1217
+	--error ER_FK_CANNOT_DROP_PARENT
 	drop database mydb0;
-	--error 1217
+	--error ER_FK_CANNOT_DROP_PARENT
 	drop database mydb1;
 
         alter table mydb0.t0 drop foreign key fk0;
 
-	--error 1217
+	--error ER_FK_CANNOT_DROP_PARENT
 	drop database mydb0;
 
         # t1 point into mydb0, but this is ok

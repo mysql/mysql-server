@@ -1053,7 +1053,7 @@ a	int(11)	NO	PRI	NULL
 b	int(11)	NO	UNI	NULL	
 # Drop index uk1 - it should fail
 drop index uk1 on t1;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint '<parent_table_id>/<child_table_id>/fk1' in the referenced table '#sql-temporary'
+ERROR HY000: Cannot drop index 'uk1': needed in a foreign key constraint
 # Verify table is intact
 show create table t1;
 Table	Create Table
