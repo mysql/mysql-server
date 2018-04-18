@@ -495,6 +495,8 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   void removeAccLockOp(ScanOp& scan, Uint32 accLockOp);
   void releaseScanOp(ScanOpPtr& scanPtr);
 
+  struct Tuple_header;
+
   Uint32 prepare_lcp_scan_page(ScanOp& scan,
                                Local_key& key,
                                Uint32 *next_ptr,
@@ -502,6 +504,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   Uint32 handle_lcp_skip_page(ScanOp& scan,
                               Local_key key,
                               Page *page);
+  Uint32 handle_scan_change_page_rows(ScanOp& scan,
+                                      Tuple_header* tuple_header_ptr,
+                                      Uint32 & foundGCI);
 
   // for md5 of key (could maybe reuse existing temp buffer)
   Uint64 c_dataBuffer[ZWORDS_ON_PAGE/2 + 1];
