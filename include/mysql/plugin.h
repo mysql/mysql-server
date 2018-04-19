@@ -817,7 +817,7 @@ int mysql_tmpfile(const char *prefix);
   @retval 0  the connection is active
   @retval 1  the connection has been killed
 */
-int thd_killed(const MYSQL_THD thd);
+int thd_killed(const void *thd);
 
 /**
   Set the killed status of the current statement.

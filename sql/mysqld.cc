@@ -4717,7 +4717,7 @@ static int init_server_components() {
   exit_cond_hook = thd_exit_cond;
   enter_stage_hook = thd_enter_stage;
   set_waiting_for_disk_space_hook = thd_set_waiting_for_disk_space;
-  is_killed_hook = (int (*)(const void *))thd_killed;
+  is_killed_hook = thd_killed;
 
   if (transaction_cache_init()) {
     LogErr(ERROR_LEVEL, ER_OOM);
