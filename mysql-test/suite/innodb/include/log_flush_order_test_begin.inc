@@ -33,3 +33,5 @@ if ($freeze_background_mtr == 1) {
 # Always validate order in flush list - after each insertion
 
 SET GLOBAL DEBUG = "+d,buf_flush_list_validate";
+
+SET DEBUG_SYNC = "RESET";

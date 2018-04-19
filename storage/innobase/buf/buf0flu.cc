@@ -73,10 +73,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static const int buf_flush_page_cleaner_priority = -20;
 #endif /* UNIV_LINUX */
 
-/** Sleep time in microseconds for loop waiting for the oldest
-modification lsn */
-static const ulint buf_flush_wait_flushed_sleep_time = 10000;
-
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
 #endif /* !UNIV_HOTBACKUP */
@@ -2037,54 +2033,6 @@ bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
   }
 
   return (true);
-}
-
-/**
-Waits until a flush batch of the given lsn ends
-@param[in]	new_oldest	target oldest_modified_lsn to wait for */
-
-void buf_flush_wait_flushed(lsn_t new_oldest) {
-  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-    buf_pool_t *buf_pool;
-    lsn_t oldest;
-
-    buf_pool = buf_pool_from_array(i);
-
-    for (;;) {
-      /* We don't need to wait for fsync of the flushed
-      blocks, because anyway we need fsync to make chekpoint.
-      So, we don't need to wait for the batch end here. */
-
-      buf_flush_list_mutex_enter(buf_pool);
-
-      buf_page_t *bpage;
-
-      /* We don't need to wait for system temporary pages */
-      for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-           bpage != NULL && fsp_is_system_temporary(bpage->id.space());
-           bpage = UT_LIST_GET_PREV(list, bpage)) {
-        /* Do nothing. */
-      }
-
-      if (bpage != NULL) {
-        ut_ad(bpage->in_flush_list);
-        oldest = bpage->oldest_modification;
-      } else {
-        oldest = 0;
-      }
-
-      buf_flush_list_mutex_exit(buf_pool);
-
-      if (oldest == 0 || oldest >= new_oldest) {
-        break;
-      }
-
-      /* sleep and retry */
-      os_thread_sleep(buf_flush_wait_flushed_sleep_time);
-
-      MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
-    }
-  }
 }
 
 /** This utility flushes dirty blocks from the end of the flush list of all

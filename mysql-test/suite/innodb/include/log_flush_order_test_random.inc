@@ -20,6 +20,12 @@ while ($i > 0) {
   --echo Connection $i starts inserting rows...
 
   connect(con_redo$i, localhost, root,,);
+
+  # Force to start transaction and assign trx->id.
+  # This can trigger flush of max_trx_id which can
+  # involve its own mtr and result in dirty page.
+  START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
   SET DEBUG_SYNC = "mtr_redo_before_add_dirty_blocks WAIT_FOR mtr_random_go NO_CLEAR_EVENT";
 
   eval SET @q = CONCAT("CALL mtr_redo_generate_multi(", $i, ", 10000, 100)");
@@ -46,6 +52,11 @@ let $i = $n_conn;
 while ($i > 0) {
   --echo Connection $i starts inserting rows...
   --connection con_noredo$i
+
+  # Force to start transaction and assign trx->id.
+  # This can trigger flush of max_trx_id which can
+  # involve its own mtr and result in dirty page.
+  START TRANSACTION WITH CONSISTENT SNAPSHOT;
 
   SET DEBUG_SYNC = CONCAT("mtr_noredo_before_add_dirty_blocks ",
                           "WAIT_FOR mtr_random_go NO_CLEAR_EVENT");
@@ -92,9 +103,11 @@ let $i = $n_conn;
 while ($i > 0) {
   --connection con_redo$i
   reap;
+  COMMIT;
   disconnect con_redo$i;
   --connection con_noredo$i
   reap;
+  COMMIT;
   disconnect con_noredo$i;
   dec $i;
 }

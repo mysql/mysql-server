@@ -138,11 +138,6 @@ void buf_flush_wait_batch_end(
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_flush_t type);    /*!< in: BUF_FLUSH_LRU
                           or BUF_FLUSH_LIST */
-/**
-Waits until a flush batch of the given lsn ends
-@param[in]	new_oldest	target oldest_modified_lsn to wait for */
-
-void buf_flush_wait_flushed(lsn_t new_oldest);
 
 /** Waits until a flush batch of the given type ends. This is called by a
 thread that only wants to wait for a flush to end but doesn't do any flushing

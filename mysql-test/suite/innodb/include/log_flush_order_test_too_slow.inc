@@ -3,6 +3,11 @@
 --echo #    before it inserts the dirty page to flush list.
 --echo #
 
+# Force to start transaction and assign trx->id.
+# This can trigger flush of max_trx_id which can
+# involve its own mtr and result in dirty page.
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+
 SET DEBUG_SYNC = CONCAT(
   "mtr_noredo_before_add_dirty_blocks SIGNAL mtr_waiting ",
   "WAIT_FOR mtr_go NO_CLEAR_EVENT");
@@ -58,6 +63,8 @@ SET DEBUG_SYNC = "now SIGNAL mtr_go";
 
 --connection default
 reap;
+
+COMMIT;
 
 disconnect con_mgr;
 
