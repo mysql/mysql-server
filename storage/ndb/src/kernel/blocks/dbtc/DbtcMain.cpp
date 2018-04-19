@@ -17995,7 +17995,8 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
   if(!c_firedTriggerHash.find(firedTrigPtr, key)){
     jam();
     /* TODO : Node failure handling (use sig-train assembly) */
-    if(!c_firedTriggerHash.seize(firedTrigPtr)){
+    if(!c_theFiredTriggerPool.seize(firedTrigPtr))
+    {
       jam();
       /**
        * Will be handled when FIRE_TRIG_ORD arrives
