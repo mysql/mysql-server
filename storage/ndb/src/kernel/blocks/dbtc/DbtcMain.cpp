@@ -3043,12 +3043,7 @@ Dbtc::seizeTcRecord(Signal* signal, ApiConnectRecordPtr const apiConnectptr)
   regTcPtr->numFiredTriggers = 0;
   regTcPtr->numReceivedTriggers = 0;
   regTcPtr->triggerExecutionCount = 0;
-  regTcPtr->triggeringOperation = RNIL;
-  regTcPtr->m_special_op_flags = 0;
-  regTcPtr->indexOp = RNIL;
-  regTcPtr->currentTriggerId = RNIL;
   regTcPtr->tcConnectstate = OS_ABORTING;
-  regTcPtr->noOfNodes = 0;
 
   LocalTcConnectRecord_fifo tcConList(tcConnectRecord, regApiPtr->tcConnect);
   tcConList.addLast(tcConnectptr);
