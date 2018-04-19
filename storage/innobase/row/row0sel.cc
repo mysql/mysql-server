@@ -2681,8 +2681,10 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       a field in a secondary index while templ->rec_field_no
       points to field in a primary index. The length
       should still be equal, unless the field pointed
-      by icp_rec_field_no has a prefix */
-      ut_ad(templ->mbmaxlen > templ->mbminlen || templ->mysql_col_len == len ||
+      by icp_rec_field_no has a prefix or this is a virtual
+      column */
+      ut_ad(templ->is_virtual || templ->mbmaxlen > templ->mbminlen ||
+            templ->mysql_col_len == len ||
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
 
       /* The following assertion would fail for old tables
