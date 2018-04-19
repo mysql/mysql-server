@@ -10695,6 +10695,32 @@ static bool transfer_preexisting_foreign_keys(
     for (size_t j = 0; j < sql_fk->key_parts; j++) {
       const dd::Foreign_key_element *dd_fk_ele = dd_fk->elements()[j];
 
+      if (alter_info->flags & Alter_info::ALTER_DROP_COLUMN) {
+        /*
+          Check if column used in the foreign key was dropped.
+
+          Alter_info::drop_list no longer contains elements for dropped
+          columns at this point. So instead of looking up column in
+          this list, we check if list of columns for new version of table
+          still has the foreign key column (possibly under different name)
+          coming from the old version of table.
+        */
+        find_it.rewind();
+        const Create_field *find;
+        while ((find = find_it++)) {
+          if (find->field && my_strcasecmp(system_charset_info,
+                                           dd_fk_ele->column().name().c_str(),
+                                           find->field->field_name) == 0) {
+            break;
+          }
+        }
+        if (find == nullptr) {
+          my_error(ER_FK_COLUMN_CANNOT_DROP, MYF(0),
+                   dd_fk_ele->column().name().c_str(), dd_fk->name().c_str());
+          return true;
+        }
+      }
+
       // Check if the column was renamed by the same statement.
       bool col_renamed = false;
       bool ref_col_renamed = false;
@@ -10744,51 +10770,6 @@ static bool transfer_preexisting_foreign_keys(
 
   alter_ctx->fk_max_generated_name_number =
       get_fk_max_generated_name_number(src_table_name, src_table);
-
-  return false;
-}
-
-/**
-  Check if any foreign keys are defined using the given column
-  which is about to be dropped. Report ER_FK_COLUMN_CANNOT_DROP
-  if any such foreign key exists.
-
-  @param src_table    Table with FKs to be checked.
-  @param alter_info   Info about ALTER TABLE statement.
-  @param field        Column to check.
-
-  @retval true   A foreign key is using the column, error reported.
-  @retval false  No foreign keys are using the column.
-*/
-
-static bool column_used_by_foreign_key(const dd::Table *src_table,
-                                       Alter_info *alter_info, Field *field) {
-  if (src_table == nullptr)
-    return false;  // Could be temporary table or during upgrade.
-
-  for (const dd::Foreign_key *dd_fk : src_table->foreign_keys()) {
-    // Skip foreign keys that are to be dropped
-    bool is_dropped = false;
-    for (const Alter_drop *drop : alter_info->drop_list) {
-      // Index names are always case insensitive
-      if (drop->type == Alter_drop::FOREIGN_KEY &&
-          my_strcasecmp(system_charset_info, drop->name,
-                        dd_fk->name().c_str()) == 0) {
-        is_dropped = true;
-        break;
-      }
-    }
-    if (is_dropped) continue;
-
-    for (const dd::Foreign_key_element *dd_fk_ele : dd_fk->elements()) {
-      if (my_strcasecmp(system_charset_info, dd_fk_ele->column().name().c_str(),
-                        field->field_name) == 0) {
-        my_error(ER_FK_COLUMN_CANNOT_DROP, MYF(0), field->field_name,
-                 dd_fk->name().c_str());
-        return true;
-      }
-    }
-  }
 
   return false;
 }
@@ -10935,9 +10916,6 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
           my_error(ER_DEPENDENT_BY_GENERATED_COLUMN, MYF(0), field->field_name);
           DBUG_RETURN(true);
         }
-
-        if (column_used_by_foreign_key(src_table, alter_info, field))
-          DBUG_RETURN(true);
 
         /*
           Mark the drop_column operation is on virtual GC so that a non-rebuild
@@ -11747,7 +11725,10 @@ static bool fk_check_copy_alter_table(THD *thd, TABLE *table,
                  "ALGORITHM=INPLACE");
         DBUG_RETURN(true);
       case FK_COLUMN_DROPPED:
-        // Should already have been checked in column_used_by_foreign_key().
+        /*
+          Should already have been checked in
+          transfer_preexisting_foreign_keys().
+        */
         DBUG_ASSERT(false);
       default:
         DBUG_ASSERT(0);
