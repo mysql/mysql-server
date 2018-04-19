@@ -32,16 +32,18 @@ if ($mysqld_name)
 --exec echo "wait" > $_expect_file_name
 
 # Send shutdown to the connected server.
+
 if (!$shutdown_server_timeout)
 {
-  --shutdown_server
+  --let $shutdown_server_timeout= 60
 }
 
-if ($shutdown_server_timeout)
+if ($VALGRIND_TEST)
 {
-  --shutdown_server $shutdown_server_timeout
+  --let $shutdown_server_timeout= `SELECT $shutdown_server_timeout * 6`
 }
 
+--shutdown_server $shutdown_server_timeout
 
 --source include/wait_until_disconnected.inc
 

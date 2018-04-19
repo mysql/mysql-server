@@ -6,6 +6,10 @@
 --echo # This test case is introduced to test the persisted autoinc, basic
 --echo # autoinc features are not the main part of this one.
 
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\].*MLOG_FILE_RENAME: Invalid to file name.* File name in the redo log is ''");
+--enable_query_log
+
 --echo # Pre-create several tables
 
 CREATE TABLE t1(a TINYINT AUTO_INCREMENT KEY) ENGINE = InnoDB;

@@ -13,6 +13,7 @@ SELECT @@SESSION.sort_buffer_size;
 262144
 '#---------------------WL6372_VAR_8_02----------------------#'
 # Restart server with sort_buffer_size 9999999;
+# restart:--sort_buffer_size=9999999
 SELECT @@GLOBAL.sort_buffer_size;
 @@GLOBAL.sort_buffer_size
 9999999
