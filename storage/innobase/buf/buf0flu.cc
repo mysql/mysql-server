@@ -534,8 +534,16 @@ void buf_flush_insert_into_flush_list(
     previous oldest_modification. Therefore we might
     not use such value for oldest_modification because
     it would break flush order properties. */
-    if (block->page.newest_modification < lsn) {
-      block->page.newest_modification = lsn;
+    const byte *frame = block->page.zip.data;
+    if (!frame) {
+      frame = reinterpret_cast<const buf_block_t *>(&block->page)->frame;
+    }
+    const lsn_t frame_lsn = mach_read_from_8(frame + FIL_PAGE_LSN);
+
+    const lsn_t newest_lsn = std::max(lsn, frame_lsn);
+
+    if (block->page.newest_modification < newest_lsn) {
+      block->page.newest_modification = newest_lsn;
     }
   }
 
@@ -964,6 +972,8 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
   }
 
   /* Write the newest modification lsn to the page header and trailer */
+  ut_ad(mach_read_from_8(page + FIL_PAGE_LSN) <= newest_lsn);
+
   mach_write_to_8(page + FIL_PAGE_LSN, newest_lsn);
 
   mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
