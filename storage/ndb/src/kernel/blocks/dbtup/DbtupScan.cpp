@@ -1033,14 +1033,12 @@ Dbtup::handle_lcp_skip_page(ScanOp& scan,
 
 Uint32
 Dbtup::handle_scan_change_page_rows(ScanOp& scan,
-                                    Tuple_header* tuple_header_ptr,
+                                    Fix_page *fix_page,
+                                    Tuple_header *tuple_header_ptr,
                                     Uint32 & foundGCI)
 {
-#if defined(DEBUG_LCP_SKIP) || \
-    defined(DEBUG_LCP_SKIP_EXTRA) || \
-    defined(DEBUG_LCP_DEL)
+  ScanPos& pos = scan.m_scanPos;
   Local_key& key = pos.m_key;
-#endif
   /**
    * Coming here means that the following condition is true.
    * bits & ScanOp::SCAN_LCP && pos.m_lcp_changed_page
@@ -1082,6 +1080,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
+      fix_page->set_change_map(key.m_page_idx);
       ndbassert(!(thbits & Tuple_header::LCP_SKIP));
       DEB_LCP_DEL(("(%u)Reset LCP_DELETE on tab(%u,%u),"
                    " row(%u,%u), header: %x",
@@ -1146,6 +1145,7 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
                      m_curr_tabptr.p,
                      thbits,
                      tuple_header_ptr->m_header_bits);
+      fix_page->set_change_map(key.m_page_idx);
     }
     else
     {
@@ -1205,6 +1205,295 @@ Dbtup::handle_scan_change_page_rows(ScanOp& scan,
   scan.m_last_seen = __LINE__;
   return ZSCAN_FOUND_NEXT_ROW;
   /* Continue LCP scan, no need to handle this row in this LCP */
+}
+
+ /**
+ * LCP scanning of CHANGE ROW pages:
+ * ---------------------------------
+ * The below description is implemented by the setup_change_page_for_scan and
+ * handle_scan_change_page_rows methods.
+ *
+ * When scanning changed pages we only need to record those rows that actually
+ * changed. There are two things that we need to ensure here. The first is
+ * that we need to ensure that we restore the correct data. The second is that
+ * we ensure that each checkpoint maintains structural consistency.
+ *
+ * To prove that we will restore the correct data we notice that the last
+ * change to restore is in a previous checkpoint.
+ *
+ * In the previous checkpoint we wrote all rows that changed in the first GCI
+ * that wasn't completed before we started the GCI or in any later GCI.
+ * From this follows that we will definitely have written all changes since
+ * the last checkpoint and even more than that.
+ *
+ * Given that we restore using multiple LCPs there could be a risk that we cut
+ * away the LCP part where the changed row was recorded. This is not possible
+ * for the following reason:
+ * Restore of a page always start at a LCP where the page was fully written.
+ * If this happened after the change we know that the record is there.
+ * If the change happened after the LCP where ALL changes were recorded we
+ * know that the LCP part is part of the restore AND we know that our change is
+ * in this LCP part.
+ *
+ * From this it follows that we will restore the correct data since no changes
+ * will be missing from the restored data.
+ *
+ * Next we need to verify that maintain structural consistency.This means that
+ * we must restore exactly the set of rows that was present at the start of
+ * the LCP that we are restoring.
+ *
+ * To maintain this we need to ensure that any INSERTs that happened after
+ * start of the previous LCP but before we scanned this row is not missed due
+ * to that no changes occurred in this page since we last scanned it. To ensure
+ * that we don't miss those rows we will notice that those rows will always
+ * be marked with an LCP_DELETE flag for CHANGE pages. This means that when we
+ * encounter a row with this flag we need to set the bit in the change map to
+ * ensure that this row is recorded in the next LCP.
+ *
+ * Next we need to handle DELETEs that occur after the LCP started but before
+ * we scanned the page. All these rows have the LCP_SKIP bit set. This means
+ * that when we encounter the LCP_SKIP for CHANGE pages we should ensure that
+ * the row is checked also in the next LCP by setting the change map to
+ * indicate this.
+ *
+ * Finally if there are so many deletes that the state on the page is deleted
+ * since the page is dropped, this we need not worry about since this is
+ * handled in the same manner as the original partial LCP solution. So the
+ * proof of this applies.
+ *
+ * Finally UPDATEs that occur after the LCP start but before we scan the row
+ * will be recorded in the previous LCP and will not require setting any bits
+ * in the change map. This is in line with normal behaviour of the LCPs, the
+ * LCP is structurally consistent with the start of the LCP (the exact same
+ * set of rows exists that existed at start of LCP). The data is however not
+ * necessarily consistent since we rely o* the REDO log to bring data
+ * consistency.
+ *
+ * The major benefit of these change map pages comes when an entire page can
+ * be skipped. In this case we can change scanning hundreds of rows to a
+ * simple check of a small bitmap on the page. To handle very large databases
+ * well we implement the bitmaps using a sort of BLOOM filter.
+ *
+ * We have 8 bits that indicate changes in 4 kB of the page. If this bit isn't
+ * set we can skip an entire 4 kB part of page that could easily contain up to
+ * a bit more than * one hundred rows.
+ *
+ * Finally we have a bitmap consisting of 128 bits that each means we can skip
+ * 256 bytes at a time when a bit isn't set.
+ *
+ * One problem with scanning using those bitmaps is that there is a cost
+ * attached to skipping rows since it is harder to prefetch data. Thus we will
+ * ignore the small area change bitmap when we have enough bits set and simply
+ * scan all rows, we will still check the large area change bitmap though
+ * also in this case.
+ */
+Uint32
+Dbtup::setup_change_page_for_scan(ScanOp& scan,
+                                  Fix_page *fix_page,
+                                  Local_key& key,
+                                  Uint32 size)
+{
+  ScanPos& pos = scan.m_scanPos;
+  /**
+   * This is the first row of the page, we need to decide how
+   * to scan this page or possibly even that we don't need to
+   * scan it at all since no changes exist on the page. No need
+   * to check this once we started scanning the page.
+   */
+  if (!fix_page->get_any_changes())
+  {
+    /**
+     * We only check this condition for the first row in the page.
+     * If we passed this point we will start clearing the bits on
+     * the page piece by piece, thus this check is only ok at the
+     * first row of the page.
+     *
+     * No one has touched the page since the start of the
+     * previous LCP. It is possible that some updates occurred
+     * after the start of the LCP but before the previous LCP
+     * scanned this page. These updates will have been recorded
+     * in the previous LCP and thus as proved above will be part
+     * of the previous LCP that will be part of the recovery
+     * processing.
+     */
+#ifdef VM_TRACE
+    Uint32 debug_idx = key.m_page_idx;
+    do
+    {
+      Tuple_header* tuple_header_ptr;
+      tuple_header_ptr = (Tuple_header*)&fix_page->m_data[debug_idx];
+      Uint32 thbits = tuple_header_ptr->m_header_bits;
+      if (thbits & Tuple_header::LCP_DELETE ||
+          thbits & Tuple_header::LCP_SKIP)
+      {
+        g_eventLogger->info("(%u)LCP_DELETE on page with no"
+                            " changes tab(%u,%u), page(%u,%u)"
+                            ", thbits: %x",
+                            instance(),
+                            m_curr_fragptr.p->fragTableId,
+                            m_curr_fragptr.p->fragmentId,
+                            key.m_page_no,
+                            key.m_page_idx,
+                            thbits);
+
+      }
+      ndbassert(!(thbits & Tuple_header::LCP_DELETE));
+      ndbassert(!(thbits & Tuple_header::LCP_SKIP));
+      debug_idx += size;
+    } while ((debug_idx + size) <= Fix_page::DATA_WORDS);
+#endif
+    scan.m_last_seen = __LINE__;
+    pos.m_get = ScanPos::Get_next_page_mm;
+    c_backup->skip_no_change_page();
+    return ZSCAN_FOUND_PAGE_END;
+  }
+  Uint32 num_changes = fix_page->get_num_changes();
+  if (num_changes <= 15)
+  {
+    jam();
+    /**
+     * We will check every individual small area and also
+     * check the large areas. There are only a few areas
+     * that actually contain changes.
+     * In this case we will not use any prefetches since
+     * it is hard to predict which cache lines we will
+     * actually read.
+     *
+     * When NDB is used with very large data sizes this
+     * will be the most common code path since this only
+     * looks at one individual page. If there is
+     * 1 TB of data memory this means that we have
+     * 32M of 32kB pages and thus the update frequency
+     * must be at least 500M updates per LCP for the
+     * number of changes to exceed 15 on most pages.
+     * This is clearly not going to be the common case.
+     *
+     * For smaller databases with say 1 GB of data memory
+     * there will be only 32k pages and thus around
+     * 500k updates per LCP will be sufficient to exceed
+     * 15 updates per page in the common case. Thus much
+     * more likely.
+     *
+     * We keep the bits here until we have passed them with
+     * the scan. Exactly the same proof that this works on
+     * a page level now applies on the row level.
+     *
+     * Thus when we check the large area bit and find that no
+     * changes have occurred we also know that no small area
+     * bits are set, so no need to reset those. We know that
+     * no one has touched those pages since the start of the
+     * last LCP apart possibly from updates that doesn't change
+     * structural consistency of the LCP.
+     *
+     * We initialise both the small area check index and the
+     * large area check index to 0 to ensure that we check
+     * already at the first row both of those areas.
+     */
+    pos.m_all_rows = false;
+    pos.m_next_small_area_check_idx = 0;
+    pos.m_next_large_area_check_idx = 0;
+  }
+  else
+  {
+    jam();
+    /**
+     * There are more than 15 parts that have changed.
+     * In this case we expect to gain more from checking
+     * all rows since this means that we can prefetch
+     * memory to the CPU caches when we scan in linear
+     * order.
+     *
+     * In this case we can clear the small area change map and
+     * the large area change map already here since we won't
+     * clear any bits during the page scan.
+     *
+     * With 15 changes or more the likelihhod is very high that all
+     * 8 large areas are also set. So we will ignore checking these
+     * to avoid extra costs attached to checking this on
+     * each row.
+     *
+     * We set area check indexes to an impossible value to ensure
+     * that we don't use those by mistake.
+     */
+    pos.m_all_rows = true;
+    fix_page->clear_small_change_map();
+    fix_page->clear_large_change_map();
+    pos.m_next_small_area_check_idx = RNIL;
+    pos.m_next_large_area_check_idx = RNIL;
+  }
+  return ZSCAN_FOUND_TUPLE;
+}
+
+Uint32
+Dbtup::move_to_next_change_page_row(ScanOp & scan,
+                                    Fix_page *fix_page,
+                                    Tuple_header *tuple_header_ptr,
+                                    Uint32 & loop_count,
+                                    Uint32 size)
+{
+  ScanPos& pos = scan.m_scanPos;
+  Local_key& key = pos.m_key;
+  jam();
+  ndbrequire(pos.m_next_large_area_check_idx != RNIL &&
+             pos.m_next_small_area_check_idx != RNIL);
+  do
+  {
+    loop_count++;
+    if (pos.m_next_large_area_check_idx == key.m_page_idx)
+    {
+      jamDebug();
+      pos.m_next_large_area_check_idx =
+        fix_page->get_next_large_idx(key.m_page_idx, size);
+      if (!fix_page->get_and_clear_large_change_map(key.m_page_idx))
+      {
+        if (unlikely((pos.m_next_large_area_check_idx + size) >
+                      Fix_page::DATA_WORDS))
+        {
+          jamDebug();
+          return ZSCAN_FOUND_PAGE_END;
+        }
+        jamDebug();
+        /**
+         * We have moved forward to a new large area. We assume that all
+         * small areas we move past don't have their bits set.
+         * It is important to start checking immediately the small area
+         * since we have no idea if the first small area is to be checked
+         * or not.
+         */
+        Uint32 next_to_check = pos.m_next_large_area_check_idx;
+        key.m_page_idx = next_to_check;
+        pos.m_next_small_area_check_idx = next_to_check;
+        continue;
+      }
+    }
+    if (pos.m_next_small_area_check_idx == key.m_page_idx)
+    {
+      jamDebug();
+      pos.m_next_small_area_check_idx =
+        fix_page->get_next_small_idx(key.m_page_idx, size);
+      if (!fix_page->get_and_clear_small_change_map(key.m_page_idx))
+      {
+        if (unlikely((pos.m_next_small_area_check_idx + size) >
+                      Fix_page::DATA_WORDS))
+        {
+          jamDebug();
+          return ZSCAN_FOUND_PAGE_END;
+        }
+        jamDebug();
+        /**
+         * Since 1024 is a multiple of 64 there is no risk that we move
+         * ourselves past the next large area check.
+         */
+        key.m_page_idx = pos.m_next_small_area_check_idx;
+        pos.m_next_small_area_check_idx =
+          fix_page->get_next_small_idx(key.m_page_idx, size);
+        continue;
+      }
+    }
+    break;
+  } while (1);
+  tuple_header_ptr = (Tuple_header*)&fix_page->m_data[key.m_page_idx];
+  return ZSCAN_FOUND_TUPLE;
 }
 
 /**
@@ -1522,18 +1811,50 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           NDB_PREFETCH_READ(page_ptr->get_ptr(key.m_page_idx + (size * 2),
                                               size));
         }
-        if (unlikely((bits & ScanOp::SCAN_LCP) &&
-                     (pagePtr.p->is_page_to_skip_lcp())))
+        if (bits & ScanOp::SCAN_LCP)
         {
-          Uint32 ret_val = handle_lcp_skip_page(scan,
-                                                key,
-                                                pagePtr.p);
-          if (ret_val == ZSCAN_FOUND_PAGE_END)
-            break;
+          if (pagePtr.p->is_page_to_skip_lcp())
+          {
+            Uint32 ret_val = handle_lcp_skip_page(scan,
+                                                  key,
+                                                  pagePtr.p);
+            if (ret_val == ZSCAN_FOUND_PAGE_END)
+              break;
+            else
+            {
+              assert(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
+              goto record_dropped_change_page;
+            }
+          }
+          else if (pos.m_lcp_scan_changed_rows_page &&
+                   key.m_page_idx == 0)
+          {
+            /* First access of a CHANGE page */
+            Uint32 ret_val = setup_change_page_for_scan(scan,
+                                                        (Fix_page*)pagePtr.p,
+                                                        key,
+                                                        size);
+            if (ret_val == ZSCAN_FOUND_PAGE_END)
+            {
+              /* No changes found on page level bitmaps */
+              break;
+            }
+            else
+            {
+              ndbassert(ret_val == ZSCAN_FOUND_TUPLE);
+            }
+          }
           else
           {
-            assert(ret_val == ZSCAN_FOUND_DROPPED_CHANGE_PAGE);
-            goto record_dropped_change_page;
+            jamDebug();
+            /**
+             * Make sure those values have defined values if we were to enter
+             * the wrong path for some reason. These values will lead to a
+             * crash if we try to run the CHANGE page code for an ALL page.
+             */
+            pos.m_all_rows = false;
+            pos.m_next_small_area_check_idx = RNIL;
+            pos.m_next_large_area_check_idx = RNIL;
           }
         }
         /* LCP normal case 4a) above goes here */
@@ -1865,9 +2186,25 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             ndbassert(c_backup->is_partial_lcp_enabled());
             ndbassert((bits & ScanOp::SCAN_LCP) &&
                        pos.m_lcp_scan_changed_rows_page);
-            Uint32 ret_val = handle_scan_change_page_rows(scan,
-                                                          tuple_header_ptr,
-                                                          foundGCI);
+            Uint32 ret_val;
+            if (!pos.m_all_rows)
+            {
+              ret_val = move_to_next_change_page_row(scan,
+                                                     page,
+                                                     tuple_header_ptr,
+                                                     loop_count,
+                                                     size);
+              if (ret_val == ZSCAN_FOUND_PAGE_END)
+              {
+                // no more tuples on this page
+                pos.m_get = ScanPos::Get_next_page;
+                break;
+              }
+            }
+            ret_val = handle_scan_change_page_rows(scan,
+                                                   page,
+                                                   tuple_header_ptr,
+                                                   foundGCI);
             if (likely(ret_val == ZSCAN_FOUND_TUPLE))
               goto found_tuple;
             else if (ret_val == ZSCAN_FOUND_DELETED_ROWID)

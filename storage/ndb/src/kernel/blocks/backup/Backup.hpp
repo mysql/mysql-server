@@ -233,6 +233,7 @@ public:
   void dropped_page_after_lcp_start(bool is_change_page,
                                     bool is_last_lcp_state_A);
   void skip_page_lcp_scanned_bit();
+  void skip_no_change_page();
   void skip_empty_page_lcp();
   void record_dropped_empty_page_lcp();
   void record_late_alloc_page_lcp();
@@ -672,6 +673,7 @@ public:
     Uint32 m_all_page_dropped_A_after_start;
     Uint32 m_change_page_dropped_D_after_start;
     Uint32 m_all_page_dropped_D_after_start;
+    Uint32 m_skip_change_page_no_change;
     Uint32 m_skip_change_page_lcp_scanned_bit;
     Uint32 m_skip_all_page_lcp_scanned_bit;
     Uint32 m_skip_empty_change_page;

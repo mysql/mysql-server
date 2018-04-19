@@ -463,6 +463,9 @@ Dbtup::dealloc_tuple(Signal* signal,
     jam();
     regFragPtr->m_lcp_changed_rows++;
   }
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page;
+  fix_page->set_change_map(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_max_gci(gci_hi);
   setInvalidChecksum(ptr, regTabPtr);
   if (regOperPtr->op_struct.bit_field.m_tuple_existed_at_start)
   {
@@ -997,6 +1000,10 @@ Dbtup::commit_operation(Signal* signal,
   tuple_ptr->m_header_bits= copy_bits | lcp_bits;
   tuple_ptr->m_operation_ptr_i= save;
 
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)pagePtr.p;
+  fix_page->set_change_map(regOperPtr->m_tuple_location.m_page_idx);
+  fix_page->set_max_gci(gci_hi);
+
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI &&
       update_gci_at_commit)
   {
@@ -1277,6 +1284,15 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   req_struct.m_reorg = regOperPtr.p->op_struct.bit_field.m_reorg;
   regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
 
+  ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
+  PagePtr page;
+  Tuple_header* tuple_ptr= (Tuple_header*)
+    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+
+  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page.p;
+  fix_page->prefetch_change_map();
+  NDB_PREFETCH_WRITE(tuple_ptr);
+
   if (diskPagePtr.i == RNIL)
   {
     jam();
@@ -1289,12 +1305,6 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     m_global_page_pool.getPtr(diskPagePtr, diskPagePtr.i);
   }
   
-  ptrCheckGuard(regTabPtr, no_of_tablerec, tablerec);
-
-  PagePtr page;
-  Tuple_header* tuple_ptr= (Tuple_header*)
-    get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
-
   /**
    * NOTE: This has to be run before potential time-slice when
    *       waiting for disk, as otherwise the "other-ops" in a multi-op

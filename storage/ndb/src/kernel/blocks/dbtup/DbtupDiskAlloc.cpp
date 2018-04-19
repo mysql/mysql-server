@@ -1145,6 +1145,7 @@ Dbtup::disk_page_prealloc_initial_callback(Signal*signal,
 
   {
     Uint32 free = pagePtr.p->free_space - pagePtr.p->uncommitted_used_space;
+    (void)free;
     ddassert(idx == alloc.calc_page_free_bits(free));
     ddassert(pagePtr.p->free_space == req.p->m_original_estimated_free_space);
   }
@@ -1202,6 +1203,7 @@ Dbtup::disk_page_set_dirty(PagePtr pagePtr)
   Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
 
   Uint32 free = pagePtr.p->free_space;
+  (void)free;
   Uint32 used = pagePtr.p->uncommitted_used_space;
   if (unlikely(pagePtr.p->m_restart_seq != globalData.m_restart_seq))
   {
@@ -1326,6 +1328,8 @@ Dbtup::disk_page_unmap_callback(Uint32 when,
       
       Uint32 free = pagePtr.p->free_space;
       Uint32 used = pagePtr.p->uncommitted_used_space;
+      (void)free;
+      (void)used;
       ddassert(free >= used);
       ddassert(alloc.calc_page_free_bits(free - used) == idx);
       
