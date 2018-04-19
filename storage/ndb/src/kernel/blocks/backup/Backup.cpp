@@ -6824,6 +6824,16 @@ Backup::skip_page_lcp_scanned_bit()
 }
 
 void
+Backup::skip_no_change_page()
+{
+  BackupRecordPtr ptr;
+  jamEntryDebug();
+  c_backupPool.getPtr(ptr, m_lcp_ptr_i);
+  ptr.p->m_any_lcp_page_ops = true;
+  ptr.p->m_skip_change_page_no_change++;
+}
+
+void
 Backup::skip_empty_page_lcp()
 {
   BackupRecordPtr ptr;
@@ -6945,11 +6955,13 @@ Backup::print_extended_lcp_stat()
                       ptr.p->m_all_page_dropped_D_after_start);
   g_eventLogger->info("(%u)skip_change_page_lcp_scanned_bit: %u, "
                       "skip_all_page_lcp_scanned_bit: %u, "
+                      "skip_change_page_no_change: %u, "
                       "skip_empty_change_page: %u, "
                       "skip_empty_all_page: %u",
                       instance(),
                       ptr.p->m_skip_change_page_lcp_scanned_bit,
                       ptr.p->m_skip_all_page_lcp_scanned_bit,
+                      ptr.p->m_skip_change_page_no_change,
                       ptr.p->m_skip_empty_change_page,
                       ptr.p->m_skip_empty_all_page);
   g_eventLogger->info("(%u)record_empty_change_page_A: %u, "
@@ -6993,6 +7005,7 @@ Backup::init_extended_lcp_stat()
   ptr.p->m_all_page_dropped_D_after_start = 0;
   ptr.p->m_skip_change_page_lcp_scanned_bit = 0;
   ptr.p->m_skip_all_page_lcp_scanned_bit = 0;
+  ptr.p->m_skip_change_page_no_change = 0;
   ptr.p->m_skip_empty_change_page = 0;
   ptr.p->m_skip_empty_all_page = 0;
   ptr.p->m_record_empty_change_page_A = 0;

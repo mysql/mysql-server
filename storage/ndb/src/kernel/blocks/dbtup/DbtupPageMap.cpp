@@ -237,6 +237,9 @@ Dbtup::init_page(Fragrecord* regFragPtr, PagePtr pagePtr, Uint32 pageId)
   pagePtr.p->nextList = RNIL;
   pagePtr.p->prevList = RNIL;
   pagePtr.p->m_flags = 0;
+  Tup_fixsize_page* fix_page = (Tup_fixsize_page*)pagePtr.p;
+  fix_page->clear_small_change_map();
+  fix_page->clear_max_gci();
 }
 
 #ifdef VM_TRACE

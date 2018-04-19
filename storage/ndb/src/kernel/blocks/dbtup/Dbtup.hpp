@@ -381,6 +381,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
     Local_key m_key_mm;         // MM local key returned
     Uint32 m_realpid_mm;        // MM real page id
     Uint32 m_extent_info_ptr_i;
+    Uint32 m_next_small_area_check_idx;
+    Uint32 m_next_large_area_check_idx;
+    bool m_all_rows;
     bool m_lcp_scan_changed_rows_page;
     bool m_is_last_lcp_state_D;
     ScanPos() {
@@ -505,8 +508,18 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
                               Local_key key,
                               Page *page);
   Uint32 handle_scan_change_page_rows(ScanOp& scan,
+                                      Fix_page *fix_page,
                                       Tuple_header* tuple_header_ptr,
                                       Uint32 & foundGCI);
+  Uint32 setup_change_page_for_scan(ScanOp& scan,
+                                    Fix_page *fix_page,
+                                    Local_key& key,
+                                    Uint32 size);
+  Uint32 move_to_next_change_page_row(ScanOp & scan,
+                                      Fix_page *fix_page,
+                                      Tuple_header *tuple_header_ptr,
+                                      Uint32 & loop_count,
+                                      Uint32 size);
 
   // for md5 of key (could maybe reuse existing temp buffer)
   Uint64 c_dataBuffer[ZWORDS_ON_PAGE/2 + 1];

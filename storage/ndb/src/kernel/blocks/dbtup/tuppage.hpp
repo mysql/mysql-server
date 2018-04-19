@@ -162,17 +162,17 @@ struct Tup_fixsize_page
   }
   Uint32 get_next_large_idx(Uint32 idx, Uint32 size)
   {
-    /* First move idx to next 1024 byte boundary */ 
+    /* First move idx to next 1024 word boundary */ 
     Uint32 new_idx = ((idx + 1024) / 1024) * 1024;
-    /* Next move idx forward to size byte boundary */
+    /* Next move idx forward to size word boundary */
     new_idx = ((new_idx + size - 1) / size) * size;
     return new_idx;
   }
   Uint32 get_next_small_idx(Uint32 idx, Uint32 size)
   {
-    /* First move idx to next 64 byte boundary */ 
+    /* First move idx to next 64 word boundary */ 
     Uint32 new_idx = ((idx + 64) / 64) * 64;
-    /* Next move idx forward to size byte boundary */
+    /* Next move idx forward to size word boundary */
     new_idx = ((new_idx + size - 1) / size) * size;
     return new_idx;
   }
