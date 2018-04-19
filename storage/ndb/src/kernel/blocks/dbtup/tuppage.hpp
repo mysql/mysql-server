@@ -251,6 +251,14 @@ struct Tup_fixsize_page
   {
     Uint32 map_val = m_flags;
     map_val >>= 24;
+#ifdef VM_TRACE
+    if (map_val == 0)
+    {
+      Uint32 sum_small_maps =
+        m_change_map[0] + m_change_map[1] + m_change_map[2] + m_change_map[3];
+      assert(sum_small_maps == 0);
+    }
+#endif
     return (map_val != 0);
   }
   Uint32 get_num_changes()
