@@ -2051,3 +2051,86 @@ DROP TABLE t1, t2, t3, t4;
 DROP TABLE t1, t2, t3, t4;
 SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
 SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;
+#
+# Bug#27592803: ASSERTION FAILED: RC == TYPE_OK,
+#
+# Make sure that it is possible to create enums using binary string
+# values that are not valid utf8
+CREATE TABLE t0(a ENUM('aaa', 'bbb', 'ccc') BYTE);
+SHOW CREATE TABLE t0;
+Table	Create Table
+t0	CREATE TABLE `t0` (
+  `a` enum('aaa','bbb','ccc') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t0;
+Field	Type	Null	Key	Default	Extra
+a	enum('aaa','bbb','ccc')	YES		NULL	
+# Tables t1 and t2 uses a binary value that is legal as utf8, so they
+# would not trigger an assert.
+CREATE TABLE t1(a ENUM( b'1001001'));
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('I') DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	enum('I')	YES		NULL	
+CREATE TABLE t2(a ENUM( b'1001001') BYTE);
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` enum('I') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+a	enum('I')	YES		NULL	
+# Tables t3 - t6 contains binary values that are not valid utf8
+# which would previously result in assert. With the fix we get the hex
+# representation of the binary value instead.
+CREATE TABLE t3(a ENUM( b'10010010') BYTE);
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` enum(x'92') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t3;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'92')	YES		NULL	
+CREATE TABLE t4(a ENUM( b'1001001101101111') BYTE);
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` enum(x'936f') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t4;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'936f')	YES		NULL	
+CREATE TABLE t5(a ENUM( b'10010011011011111111011000011') BYTE);
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` enum(x'126dfec3') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t5;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'126dfec3')	YES		NULL	
+CREATE TABLE t6 (a INT);
+ALTER TABLE t6
+MODIFY COLUMN a ENUM( b'10010011011011111111011000011') BYTE UNIQUE FIRST;
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` enum(x'126dfec3') CHARACTER SET binary COLLATE binary DEFAULT NULL,
+  UNIQUE KEY `a` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW COLUMNS FROM t6;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'126dfec3')	YES	UNI	NULL	
+DROP TABLE t6;
+DROP TABLE t5;
+DROP TABLE t4;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP TABLE t0;

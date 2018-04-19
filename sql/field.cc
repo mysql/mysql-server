@@ -8151,7 +8151,27 @@ void Field_enum::sql_type(String &res) const {
     if (flag) res.append(',');
     /* convert to res.charset() == utf8, then quote */
     enum_item.copy(*pos, *len, charset(), res.charset(), &dummy_errors);
-    append_unescaped(&res, enum_item.ptr(), enum_item.length());
+
+    const CHARSET_INFO *cs = res.charset();
+    int well_formed_error = 42;
+    size_t wl = cs->cset->well_formed_len(
+        cs, enum_item.ptr(), enum_item.ptr() + enum_item.length(),
+        enum_item.length(), &well_formed_error);
+    DBUG_ASSERT(wl <= enum_item.length());
+    if (well_formed_error) {
+      // Append the hex literal instead
+      res.append("x'");
+      char b[6];
+      const char *eip = enum_item.ptr();
+      for (size_t i = 0; i < enum_item.length(); ++i) {
+        unsigned char v = static_cast<unsigned char>(eip[i]);
+        snprintf(b, sizeof(b), "%x", v);
+        res.append(b);
+      }
+      res.append("'");
+    } else {
+      append_unescaped(&res, enum_item.ptr(), enum_item.length());
+    }
     flag = 1;
   }
   res.append(')');
