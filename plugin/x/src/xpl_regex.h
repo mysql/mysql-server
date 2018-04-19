@@ -23,18 +23,18 @@
 #ifndef PLUGIN_X_SRC_XPL_REGEX_H_
 #define PLUGIN_X_SRC_XPL_REGEX_H_
 
-#include "extra/regex/my_regex.h"
+#include "unicode/regex.h"
 
 namespace xpl {
 
 class Regex {
  public:
   explicit Regex(const char *const pattern);
-  ~Regex();
   bool match(const char *value) const;
 
  private:
-  my_regex_t m_re;
+  mutable UErrorCode m_status;
+  mutable icu::RegexMatcher m_re;
 };
 }  // namespace xpl
 
